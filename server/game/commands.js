@@ -65,6 +65,8 @@ const COMMAND_ALIASES = {
   tell: 'tell', mensaje: 'tell', escribir: 'tell',
   // reply (contestar el último whisper/tell recibido)
   reply: 'reply', responder: 'reply', contestar: 'reply', r: 'reply',
+  // unlock / abrir puerta
+  unlock: 'unlock', abrir: 'unlock', desbloquear: 'unlock', destrancar: 'unlock',
   // say
   say: 'say', decir: 'say', hablar: 'say',
   // shout
@@ -151,6 +153,7 @@ Comandos disponibles:
   whisper <jug> <msg>   — Mensaje privado a otro jugador (en cualquier sala)
   tell <jug> <msg>      — Mensaje privado con aviso offline (llega aunque no esté conectado)
   reply <msg>           — Contestar el último whisper/tell recibido (sin escribir el nombre)
+  unlock <dir>          — Abrir una puerta bloqueada usando la llave del inventario (permanente)
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -181,6 +184,7 @@ const COMMAND_HELP = {
   whisper:   'whisper <jugador> <mensaje> / susurrar <jugador> <mensaje>\n  Enviar un mensaje privado a otro jugador (en cualquier sala). Solo el destinatario lo ve.',
   tell:      'tell <jugador> <mensaje>\n  Igual que whisper pero con persistencia offline: si el jugador no está conectado, el mensaje\n  se guarda en la BD y se le entrega la próxima vez que haga login.',
   reply:     'reply <mensaje> / responder <mensaje>\n  Contestar automáticamente al último jugador que te envió un whisper o tell,\n  sin necesidad de escribir su nombre. Atajo: "r <mensaje>".',
+  unlock:    'unlock / abrir <dir> / desbloquear <dir>\n  Abrir permanentemente una puerta bloqueada usando la llave del inventario.\n  La puerta queda abierta para todos los jugadores. La llave se consume.',
   help:      'help / ayuda\n  Mostrar la lista de comandos.\n  help <comando>: ayuda detallada sobre un comando específico.',
 };
 

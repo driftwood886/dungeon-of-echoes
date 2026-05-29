@@ -63,6 +63,7 @@ function execute(playerId, input) {
     case 'whisper':   result = cmdWhisper(player, action.args); break;
     case 'tell':      result = cmdTell(player, action.args); break;
     case 'reply':     result = cmdReply(player, action.args); break;
+    case 'unlock':    result = cmdUnlock(player, action.args[0]); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -96,6 +97,7 @@ function execute(playerId, input) {
           whisper: 'whisper', susurrar: 'whisper',
           tell: 'tell', mensaje: 'tell',
           reply: 'reply', responder: 'reply',
+          unlock: 'unlock', abrir: 'unlock', desbloquear: 'unlock',
           help: 'help', ayuda: 'help',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
@@ -931,6 +933,66 @@ function removeFirst(arr, value) {
   const idx = arr.indexOf(value);
   if (idx === -1) return arr;
   return [...arr.slice(0, idx), ...arr.slice(idx + 1)];
+}
+
+/**
+ * unlock <dirección> — Abrir una puerta bloqueada con llave del inventario.
+ * La puerta queda abierta permanentemente en la BD para todos los jugadores.
+ * La llave se consume del inventario.
+ */
+function cmdUnlock(player, direction) {
+  if (!direction) {
+    return { text: 'Indicá una dirección para abrir. Ej: "unlock norte".' };
+  }
+
+  const room = db.getRoom(player.current_room_id);
+  if (!room) {
+    return { text: 'Error: tu habitación actual no existe en la BD.' };
+  }
+
+  const normalized = dungeon.normalizeDirection(direction);
+  if (!normalized) {
+    return { text: `Dirección desconocida: "${direction}". Usá norte, sur, este u oeste.` };
+  }
+
+  const exitVal = room.exits[normalized];
+  if (exitVal === undefined || exitVal === null) {
+    const dirName = dungeon.DIR_NAMES[normalized] || normalized;
+    return { text: `No hay salida hacia el ${dirName} desde aquí.` };
+  }
+
+  // ¿Está bloqueada?
+  if (typeof exitVal !== 'object' || !exitVal.key) {
+    const dirName = dungeon.DIR_NAMES[normalized] || normalized;
+    return { text: `La salida hacia el ${dirName} ya está abierta. No necesitás ninguna llave.` };
+  }
+
+  const requiredKey = exitVal.key;
+  const inventory = player.inventory || [];
+  const keyIdx = inventory.findIndex(item => item.toLowerCase() === requiredKey.toLowerCase());
+
+  if (keyIdx === -1) {
+    const dirName = dungeon.DIR_NAMES[normalized] || normalized;
+    return {
+      text: `La puerta hacia el ${dirName} está cerrada. 🔒\nNecesitás: "${requiredKey}" para abrirla.`,
+    };
+  }
+
+  // Consumir la llave del inventario
+  const newInventory = [...inventory.slice(0, keyIdx), ...inventory.slice(keyIdx + 1)];
+  db.updatePlayer(player.id, { inventory: newInventory });
+
+  // Modificar la salida en la BD: reemplazar el objeto {room_id, key} por solo el número
+  const newExits = { ...room.exits };
+  newExits[normalized] = exitVal.room_id;
+  db.upsertRoom({ ...room, exits: newExits });
+
+  const dirName = dungeon.DIR_NAMES[normalized] || normalized;
+  return {
+    text: `Usás la "${requiredKey}" y la puerta cruje al abrirse. 🔓\nLa salida hacia el ${dirName} ahora está abierta para todos.`,
+    event: `${player.username} abre la puerta hacia el ${dirName} con una llave.`,
+    eventRoomId: player.current_room_id,
+  };
 }
 
 /**
