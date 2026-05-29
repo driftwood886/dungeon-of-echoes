@@ -37,6 +37,8 @@ const COMMAND_ALIASES = {
   pick: 'pick', tomar: 'pick', recoger: 'pick', agarrar: 'pick', get: 'pick',
   // use
   use: 'use', usar: 'use', utilizar: 'use',
+  // heal (atajo: usar la primera poción del inventario)
+  heal: 'heal', curar: 'heal', curarse: 'heal', recuperar: 'heal',
   // drop
   drop: 'drop', tirar: 'drop', soltar: 'drop', dejar: 'drop',
   // examine
@@ -134,6 +136,7 @@ Comandos disponibles:
   score / ranking       — Ver la tabla de líderes global
   give <ítem> <jugador> — Dar un ítem a otro jugador en la misma sala
   loot / saquear        — Recoger todos los ítems del suelo de la sala
+  heal / curar          — Usar la primera poción del inventario (atajo rápido)
   unequip / desequipar  — Guardar el arma y volver a puños (ataque 5)
   examine <objetivo>    — Examinar un monstruo, ítem o la sala
   say <mensaje>         — Hablar con jugadores en la misma habitación

@@ -46,6 +46,7 @@ function execute(playerId, input) {
     case 'flee':      result = cmdFlee(player); break;
     case 'pick':      result = cmdPick(player, action.args.join(' ')); break;
     case 'use':       result = cmdUse(player, action.args.join(' ')); break;
+    case 'heal':      result = cmdHeal(player); break;
     case 'drop':      result = cmdDrop(player, action.args.join(' ')); break;
     case 'examine':   result = cmdExamine(player, action.args.join(' ')); break;
     case 'equip':     result = cmdEquip(player, action.args.join(' ')); break;
@@ -549,6 +550,26 @@ function cmdScore() {
   lines.push(`╚═══════════════════════════════════════════════════╝`);
 
   return { text: lines.join('\n') };
+}
+
+/**
+ * heal — Usar la primera poción del inventario (atajo rápido de combate).
+ */
+function cmdHeal(player) {
+  player = db.getPlayer(player.id);
+
+  // Buscar la primera poción en el inventario
+  const potion = player.inventory.find(itemName => {
+    const def = items.getItemDef(itemName);
+    return def && def.type === 'potion' && def.effect === 'heal';
+  });
+
+  if (!potion) {
+    return { text: 'No tenés ninguna poción en el inventario. (Buscá pociones de salud o de vida).' };
+  }
+
+  // Delegar a cmdUse
+  return cmdUse(player, potion);
 }
 
 /**
