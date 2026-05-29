@@ -248,6 +248,31 @@ function updateRoomTrap(roomId, trap) {
   run('UPDATE rooms SET trap = ? WHERE id = ?', [trap ? JSON.stringify(trap) : null, roomId]);
 }
 
+/**
+ * Reactivar trampas que ya cumplieron su tiempo de respawn.
+ * Devuelve la cantidad de trampas reactivadas.
+ */
+function checkTrapRespawns() {
+  const now = new Date().toISOString();
+  // Obtener todas las salas con trampa inactiva que tienen respawn_at
+  const rooms = all(`SELECT id, trap FROM rooms WHERE trap IS NOT NULL`);
+  let count = 0;
+  for (const row of rooms) {
+    let trap;
+    try { trap = JSON.parse(row.trap); } catch (_) { continue; }
+    if (!trap || trap.active) continue;
+    if (!trap.respawn_at) continue;
+    if (trap.respawn_at <= now) {
+      // Reactivar trampa
+      const reactivated = { ...trap, active: true, respawn_at: null };
+      run('UPDATE rooms SET trap = ? WHERE id = ?', [JSON.stringify(reactivated), row.id]);
+      count++;
+      console.log(`[traps] Trampa reactivada en sala ${row.id} (${trap.type})`);
+    }
+  }
+  return count;
+}
+
 // ─── Monsters ────────────────────────────────────────────────────────────────
 
 function getMonster(id) {
@@ -367,7 +392,7 @@ module.exports = {
   // players
   getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, getPlayersInRoom, getActivePlayers, getLeaderboard,
   // rooms
-  getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap,
+  getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, checkTrapRespawns,
   // monsters
   getMonster, getMonstersInRoom, upsertMonster, updateMonster,
   // events

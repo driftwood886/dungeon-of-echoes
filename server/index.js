@@ -326,6 +326,9 @@ async function main() {
 
   // 8. Respawn loop: checar cada 60 segundos
   setInterval(checkRespawns, 60_000);
+
+  // 9. Trap respawn loop: reactivar trampas desactivadas cada 60 segundos
+  setInterval(() => db.checkTrapRespawns(), 60_000);
 }
 
 main().catch(err => {

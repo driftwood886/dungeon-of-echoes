@@ -1042,7 +1042,9 @@ function cmdDisarm(player) {
   const newInventory = [...inventory.slice(0, keyIdx), ...inventory.slice(keyIdx + 1)];
   db.updatePlayer(player.id, { inventory: newInventory });
 
-  const newTrap = { ...trap, active: false };
+  // Desactivar trampa y programar reactivación en 10 minutos
+  const respawnAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const newTrap = { ...trap, active: false, respawn_at: respawnAt };
   db.updateRoomTrap(room.id, newTrap);
 
   return {
