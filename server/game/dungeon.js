@@ -156,6 +156,11 @@ function describeRoom(roomId, excludePlayerId = null) {
 
   lines.push(`\nSalidas: ${exitsText(room)}`);
 
+  // Indicador de trampa activa
+  if (room.trap && room.trap.active) {
+    lines.push(`\n⚠️  Esta sala tiene una trampa activa. Escribí "desactivar trampa" con el ítem correcto.`);
+  }
+
   return lines.join('\n');
 }
 

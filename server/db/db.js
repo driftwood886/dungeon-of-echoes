@@ -108,6 +108,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN level  INTEGER NOT NULL DEFAULT 1`,
     `ALTER TABLE players ADD COLUMN kills  INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE players ADD COLUMN equipped_weapon TEXT`,
+    `ALTER TABLE rooms   ADD COLUMN trap   TEXT`,
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -209,6 +210,7 @@ function getRoom(id) {
   if (r) {
     r.exits = JSON.parse(r.exits);
     r.items = JSON.parse(r.items);
+    r.trap  = r.trap ? JSON.parse(r.trap) : null;
   }
   return r;
 }
@@ -218,13 +220,14 @@ function getAllRooms() {
     ...r,
     exits: JSON.parse(r.exits),
     items: JSON.parse(r.items),
+    trap:  r.trap ? JSON.parse(r.trap) : null,
   }));
 }
 
 function upsertRoom(room) {
   run(
-    `INSERT OR REPLACE INTO rooms (id, name, description, exits, items, is_generated)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO rooms (id, name, description, exits, items, is_generated, trap)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
       room.id,
       room.name,
@@ -232,12 +235,17 @@ function upsertRoom(room) {
       JSON.stringify(room.exits),
       JSON.stringify(room.items || []),
       room.is_generated ? 1 : 0,
+      room.trap ? JSON.stringify(room.trap) : null,
     ]
   );
 }
 
 function updateRoomItems(roomId, items) {
   run('UPDATE rooms SET items = ? WHERE id = ?', [JSON.stringify(items), roomId]);
+}
+
+function updateRoomTrap(roomId, trap) {
+  run('UPDATE rooms SET trap = ? WHERE id = ?', [trap ? JSON.stringify(trap) : null, roomId]);
 }
 
 // ─── Monsters ────────────────────────────────────────────────────────────────
@@ -359,7 +367,7 @@ module.exports = {
   // players
   getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, getPlayersInRoom, getActivePlayers, getLeaderboard,
   // rooms
-  getRoom, getAllRooms, upsertRoom, updateRoomItems,
+  getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap,
   // monsters
   getMonster, getMonstersInRoom, upsertMonster, updateMonster,
   // events

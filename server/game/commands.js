@@ -67,6 +67,8 @@ const COMMAND_ALIASES = {
   reply: 'reply', responder: 'reply', contestar: 'reply', r: 'reply',
   // unlock / abrir puerta
   unlock: 'unlock', abrir: 'unlock', desbloquear: 'unlock', destrancar: 'unlock',
+  // disarm / desactivar trampa
+  disarm: 'disarm', desactivar: 'disarm', desarmar: 'disarm', trampa: 'disarm',
   // say
   say: 'say', decir: 'say', hablar: 'say',
   // shout

@@ -64,6 +64,7 @@ function execute(playerId, input) {
     case 'tell':      result = cmdTell(player, action.args); break;
     case 'reply':     result = cmdReply(player, action.args); break;
     case 'unlock':    result = cmdUnlock(player, action.args[0]); break;
+    case 'disarm':    result = cmdDisarm(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -177,8 +178,25 @@ function cmdMove(player, direction) {
   const moveText = `Vas hacia el ${dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction}.`;
   const roomDesc = dungeon.describeRoom(targetId, player.id);
 
+  // ── Verificar trampa en la sala destino ─────────────────────────────────
+  let trapText = '';
+  const targetRoomFull = db.getRoom(targetId);
+  if (targetRoomFull && targetRoomFull.trap && targetRoomFull.trap.active) {
+    const trap = targetRoomFull.trap;
+    // Refrescar jugador para HP actualizado
+    player = db.getPlayer(player.id);
+    const newHp = Math.max(0, player.hp - trap.damage);
+    db.updatePlayer(player.id, { hp: newHp });
+    trapText = `\n\n${trap.description}\n💥 Perdés ${trap.damage} HP. (${newHp}/${player.max_hp} HP)`;
+    if (newHp === 0) {
+      trapText += '\n☠️  Has muerto a causa de la trampa. Renacés en la Entrada.';
+      db.updatePlayer(player.id, { hp: player.max_hp, current_room_id: 1 });
+    }
+    trapText += '\n💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla.';
+  }
+
   return {
-    text: `${moveText}\n${roomDesc}`,
+    text: `${moveText}\n${roomDesc}${trapText}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -975,6 +993,62 @@ function cmdUnlock(player, direction) {
     text: `Usás la "${requiredKey}" y la puerta cruje al abrirse. 🔓\nLa salida hacia el ${dirName} ahora está abierta para todos.`,
     event: `${player.username} abre la puerta hacia el ${dirName} con una llave.`,
     eventRoomId: player.current_room_id,
+  };
+}
+
+/**
+ * disarm / desactivar trampa — Desactivar la trampa de la habitación actual con el ítem correcto.
+ * El ítem se consume del inventario. La trampa queda inactiva en la BD (para todos).
+ */
+function cmdDisarm(player) {
+  player = db.getPlayer(player.id);
+  const room = db.getRoom(player.current_room_id);
+  if (!room) {
+    return { text: 'Error: tu habitación actual no existe en la BD.' };
+  }
+
+  if (!room.trap) {
+    return { text: 'No hay ninguna trampa activa en esta sala.' };
+  }
+
+  if (!room.trap.active) {
+    return { text: 'La trampa de esta sala ya está desactivada.' };
+  }
+
+  const trap = room.trap;
+
+  if (!trap.item_needed) {
+    // Trampa sin ítem requerido — se puede desactivar directamente
+    const newTrap = { ...trap, active: false };
+    db.updateRoomTrap(room.id, newTrap);
+    return {
+      text: 'Inspeccionás el mecanismo y lo desactivás manualmente. La trampa queda inerte.',
+      event: `${player.username} desactiva una trampa en la sala.`,
+      eventRoomId: room.id,
+    };
+  }
+
+  // Buscar el ítem requerido en el inventario
+  const inventory = player.inventory || [];
+  const keyIdx = inventory.findIndex(i => i.toLowerCase() === trap.item_needed.toLowerCase());
+
+  if (keyIdx === -1) {
+    return {
+      text: `Intentás desactivar la trampa pero no tenés lo necesario.\n🔧 Ítem requerido: "${trap.item_needed}"`,
+    };
+  }
+
+  // Consumir el ítem y desactivar la trampa
+  const newInventory = [...inventory.slice(0, keyIdx), ...inventory.slice(keyIdx + 1)];
+  db.updatePlayer(player.id, { inventory: newInventory });
+
+  const newTrap = { ...trap, active: false };
+  db.updateRoomTrap(room.id, newTrap);
+
+  return {
+    text: `${trap.disarm_msg}\n✅ La trampa está desactivada. Usaste: "${trap.item_needed}".`,
+    event: `${player.username} desactiva una trampa en la sala.`,
+    eventRoomId: room.id,
   };
 }
 

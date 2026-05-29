@@ -180,6 +180,7 @@ function seedIfEmpty() {
     console.log('[seed] Dungeon ya existe, saltando seed.');
     migrateDoors();
     migrateExpandedDungeon();
+    migrateTraps();
     return;
   }
 
@@ -196,6 +197,7 @@ function seedIfEmpty() {
   console.log(`[seed] ${ROOMS.length} habitaciones y ${MONSTERS.length} monstruos creados.`);
   migrateDoors();
   migrateExpandedDungeon();
+  migrateTraps();
 }
 
 /**
@@ -345,6 +347,84 @@ function migrateExpandedDungeon() {
   }
 
   console.log(`[seed] migrateExpandedDungeon: ${newRooms.length} habitaciones y ${newMonsters.length} monstruos agregados. Sala 10 conectada al este con sala 11.`);
+}
+
+/**
+ * Agrega trampas a habitaciones específicas del dungeon.
+ * Las trampas se definen como JSON: { type, damage, item_needed, active, description, disarm_msg }
+ * - type: 'spike' | 'poison' | 'cold' | 'flood'
+ * - damage: HP que quita al entrar si activa
+ * - item_needed: nombre del ítem que desactiva la trampa (o null)
+ * - active: true si la trampa está armada
+ * - description: texto que aparece al activarse
+ * - disarm_msg: texto al desactivarla
+ *
+ * Trampas asignadas:
+ *   Sala 3 (Sala de los Ecos) — trampa de pinchos, se desactiva con cuerda
+ *   Sala 6 (Túnel de los Hongos) — esporas venenosas, se desactiva con hongo azul
+ *   Sala 9 (Sala del Trono) — frío mortal, se desactiva con corona rota
+ *   Sala 13 (Caverna Sumergida) — inundación, se desactiva con red de pesca
+ */
+function migrateTraps() {
+  const traps = [
+    {
+      room_id: 3,
+      trap: {
+        type: 'spike',
+        damage: 8,
+        item_needed: 'cuerda',
+        active: true,
+        description: '⚠️  ¡CLIC! El suelo cede bajo tus pies. Pinchos ocultos emergen y te lastiman.',
+        disarm_msg: 'Usás la cuerda para trabar el mecanismo de pinchos. La trampa queda desactivada.',
+      },
+    },
+    {
+      room_id: 6,
+      trap: {
+        type: 'poison',
+        damage: 6,
+        item_needed: 'hongo azul',
+        active: true,
+        description: '⚠️  ¡Las esporas de los hongos explotan al pisarlos! Inhalás una nube tóxica.',
+        disarm_msg: 'Usás el hongo azul para neutralizar las esporas. La trampa queda desactivada.',
+      },
+    },
+    {
+      room_id: 9,
+      trap: {
+        type: 'cold',
+        damage: 10,
+        item_needed: 'corona rota',
+        active: true,
+        description: '⚠️  El trono irradia un frío sobrenatural. Un aliento helado te congela parcialmente.',
+        disarm_msg: 'Colocás la corona rota en el trono como ofrenda. El frío se disipa. La trampa queda desactivada.',
+      },
+    },
+    {
+      room_id: 13,
+      trap: {
+        type: 'flood',
+        damage: 7,
+        item_needed: 'red de pesca',
+        active: true,
+        description: '⚠️  El suelo se inunda repentinamente. El agua fría y oscura te arrastra.',
+        disarm_msg: 'Usás la red de pesca para bloquear los conductos. La trampa queda desactivada.',
+      },
+    },
+  ];
+
+  let applied = 0;
+  for (const { room_id, trap } of traps) {
+    const room = db.getRoom(room_id);
+    if (!room) continue;
+    if (room.trap && room.trap.type) continue; // ya tiene trampa
+    db.updateRoomTrap(room_id, trap);
+    applied++;
+  }
+
+  if (applied > 0) {
+    console.log(`[seed] migrateTraps: ${applied} trampas agregadas al dungeon. 🪤`);
+  }
 }
 
 module.exports = { seedIfEmpty, ROOMS, MONSTERS };
