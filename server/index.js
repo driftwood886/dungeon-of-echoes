@@ -107,6 +107,7 @@ async function main() {
         pending_messages: db.countPendingMessages(player.id),
         status_effects: player.status_effects || {},
         gold: player.gold || 0,
+        achievements: JSON.parse(player.achievements || '[]'),
       },
       other_players: others,
       recent_events: events,

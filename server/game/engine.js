@@ -16,6 +16,7 @@ const dungeon = require('./dungeon');
 const { parse, HELP_TEXT, COMMAND_HELP } = require('./commands');
 const combat  = require('./combat');
 const items   = require('./items');
+const ach     = require('./achievements');
 
 // ── Registro en memoria: último remitente de whisper/tell por jugador ─────────
 // lastWhisperSender.get(playerId) → { id, username } del último que les escribió
@@ -70,6 +71,7 @@ function execute(playerId, input) {
     case 'shop':      result = cmdShop(player); break;
     case 'buy':       result = cmdBuy(player, action.args.join(' ')); break;
     case 'sell':      result = cmdSell(player, action.args.join(' ')); break;
+    case 'achievements': result = cmdAchievements(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -263,7 +265,11 @@ function cmdStatus(player) {
     ...(statusLines.length ? ['', ...statusLines] : []),
   ].join('\n');
 
-  return { text };
+  // Agregar íconos de logros al final
+  const achIcons = ach.formatAchievementIcons(player);
+  const achLine = `Logros:   ${achIcons}`;
+
+  return { text: text + '\n' + achLine };
 }
 
 /**
@@ -282,7 +288,8 @@ function cmdAttack(player, targetName) {
     return { text: `No hay ningún "${targetName}" aquí.` };
   }
 
-  const { lines, monsterDead, playerDead, globalEvent } = combat.attackRound(player, monster);
+  const combatResult = combat.attackRound(player, monster);
+  const { lines, monsterDead, playerDead, globalEvent } = combatResult;
 
   let eventText = null;
   if (monsterDead) {
@@ -293,8 +300,18 @@ function cmdAttack(player, targetName) {
     eventText = `${player.username} combate contra el ${monster.name}.`;
   }
 
+  // ── Evaluar logros tras el combate ──────────────────────────────────────
+  let achLines = '';
+  const freshForAch = db.getPlayer(player.id);
+  if (freshForAch) {
+    const bossKill = monsterDead && !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]);
+    const poisonSurvived = !!(combatResult && combatResult.poisonSurvived);
+    const newAchs = ach.checkAchievements(freshForAch, { bossKill, poisonSurvived });
+    achLines = ach.formatNewAchievements(newAchs);
+  }
+
   return {
-    text: lines.join('\n'),
+    text: lines.join('\n') + achLines,
     event: eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || null,
@@ -362,8 +379,12 @@ function cmdPick(player, itemQuery) {
     const amount = GOLD_ITEMS[goldKey];
     const newGold = (player.gold || 0) + amount;
     db.updatePlayer(player.id, { gold: newGold });
+    // Evaluar logros (podría ser 'rico')
+    const freshAfterGold = db.getPlayer(player.id);
+    const goldAchs = ach.checkAchievements(freshAfterGold, {});
+    const goldAchLines = ach.formatNewAchievements(goldAchs);
     return {
-      text: `💰 Recogés ${found}. +${amount} monedas de oro. Tenés ${newGold}g en total.`,
+      text: `💰 Recogés ${found}. +${amount} monedas de oro. Tenés ${newGold}g en total.${goldAchLines}`,
       event: `${player.username} recoge algo del suelo.`,
       eventRoomId: room.id,
     };
@@ -1261,8 +1282,13 @@ function cmdBuy(player, itemQuery) {
   const newInventory = [...player.inventory, item.name];
   db.updatePlayer(player.id, { gold: newGold, inventory: newInventory });
 
+  // Evaluar logros de compra
+  const freshBuyer = db.getPlayer(player.id);
+  const buyAchs = ach.checkAchievements(freshBuyer, { boughtSomething: true });
+  const buyAchLines = ach.formatNewAchievements(buyAchs);
+
   return {
-    text: `🏪 Aldric sonríe. "Excelente elección."\n✅ Compraste: ${item.name} por ${item.price}g.\n💰 Oro restante: ${newGold}g.`,
+    text: `🏪 Aldric sonríe. "Excelente elección."\n✅ Compraste: ${item.name} por ${item.price}g.\n💰 Oro restante: ${newGold}g.${buyAchLines}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
@@ -1304,6 +1330,18 @@ function cmdSell(player, itemQuery) {
     event: `${player.username} vende algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
+}
+
+/**
+ * achievements / logros — Mostrar todos los logros del jugador.
+ */
+function cmdAchievements(player) {
+  player = db.getPlayer(player.id);
+  // Evaluar logros que podrían haberse ganado pasivamente (gold, deaths, level)
+  const newOnes = ach.checkAchievements(player, {});
+  const achText = ach.formatAchievements(player);
+  const newLines = ach.formatNewAchievements(newOnes);
+  return { text: achText + newLines };
 }
 
 /**

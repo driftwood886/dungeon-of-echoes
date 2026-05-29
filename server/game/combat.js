@@ -55,6 +55,7 @@ function attackRound(player, monster) {
   let monsterDead = false;
   let playerDead  = false;
   let loot        = [];
+  let poisonSurvived = false;
 
   // ── Efecto de veneno (al inicio del turno) ───────────────────────────────
   const statusFx = player.status_effects || {};
@@ -68,6 +69,7 @@ function attackRound(player, monster) {
     if (p.turns <= 0) {
       delete statusFx.poisoned;
       lines.push(`✅ El veneno en tu sangre se disipa.`);
+      poisonSurvived = true;
     }
 
     // Persistir estado
@@ -78,7 +80,7 @@ function attackRound(player, monster) {
       lines.push(`💀 ¡El veneno acabó contigo! Respawneás en la entrada del dungeon...`);
       const fp = db.getPlayer(player.id);
       db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (fp.deaths || 0) + 1, status_effects: '{}' });
-      return { lines, monsterDead, playerDead, loot };
+      return { lines, monsterDead, playerDead, loot, poisonSurvived };
     }
   }
 
@@ -177,7 +179,7 @@ function attackRound(player, monster) {
     }
   }
 
-  return { lines, monsterDead, playerDead, loot };
+  return { lines, monsterDead, playerDead, loot, poisonSurvived };
 }
 
 /**
@@ -306,4 +308,5 @@ module.exports = {
   tryFlee,
   findMonsterInRoom,
   checkRespawns,
+  BOSS_MONSTERS,
 };

@@ -188,6 +188,22 @@ function updateSidebar(data) {
       el.pendingMsgRow.style.display = 'none';
     }
 
+    // Logros desbloqueados
+    const achEl = document.getElementById('stat-achievements');
+    if (achEl) {
+      const achieved = player.achievements || [];
+      achEl.textContent = achieved.length > 0 ? achieved.map(id => {
+        // Mapa id → icono (hardcoded en cliente para no necesitar otro request)
+        const icons = {
+          primer_kill: '🗡️', diez_kills: '⚔️', cien_kills: '💀',
+          nivel_5: '🌟', nivel_10: '🏆', boss_killer: '👑',
+          rico: '💰', sobrevivir_veneno: '🧪', muerto_3veces: '🪦',
+          comerciante: '🛒',
+        };
+        return icons[id] || '🏅';
+      }).join(' ') : '—';
+    }
+
     // Efectos de estado (veneno, etc.)
     const statusSection = document.getElementById('status-effects-section');
     const statusContent = document.getElementById('sidebar-status-effects');
