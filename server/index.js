@@ -13,6 +13,7 @@ const db                     = require('./db/db');
 const { seedIfEmpty }        = require('./db/seed');
 const { execute, getOrCreatePlayer } = require('./game/engine');
 const { checkRespawns }      = require('./game/combat');
+const quests                 = require('./game/quests');
 
 const PORT = process.env.PORT || 3000;
 
@@ -333,6 +334,20 @@ async function main() {
 
   // 9. Trap respawn loop: reactivar trampas desactivadas cada 60 segundos
   setInterval(() => db.checkTrapRespawns(), 60_000);
+
+  // 10. Quest loop: iniciar quest activa + rotar cada 5 minutos si pasaron 30 min
+  quests.loadQuest();
+  setInterval(() => {
+    const newQuest = quests.maybeRotateQuest();
+    if (newQuest) {
+      // Anunciar nueva quest a todos los jugadores conectados
+      io.emit('shout', {
+        username: '📜 SISTEMA',
+        message: `¡Nueva quest disponible! "${newQuest.questDef.title}" — Escribí "quest" para ver los detalles.`,
+      });
+      console.log(`[quests] Quest rotada: ${newQuest.questDef.title}`);
+    }
+  }, 5 * 60_000);
 }
 
 main().catch(err => {

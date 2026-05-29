@@ -1,0 +1,281 @@
+/**
+ * quests.js — Sistema de quests/misiones (T086)
+ *
+ * Hay una quest "global activa" en cada momento.
+ * Cada jugador puede completar la quest una vez y obtener la recompensa.
+ * Cuando todos la completan (o tras 30 minutos), una nueva quest comienza.
+ *
+ * Columna `quest_progress` en players: JSON con { questId, progress }
+ * La quest activa se guarda en memoria + se persiste en un archivo JSON.
+ */
+
+'use strict';
+
+const fs   = require('fs');
+const path = require('path');
+
+// Archivo de quest activa (persiste en disco junto a la BD)
+const QUEST_FILE = path.join(__dirname, '../../db/quest.json');
+
+// ─── Catálogo de quests ────────────────────────────────────────────────────────
+
+const QUEST_CATALOG = [
+  {
+    id: 'slayer_goblin',
+    title: '¡Exterminador de Goblins!',
+    description: 'Los goblins se han multiplicado en el dungeon. Elimina 3 Goblins para recibir tu recompensa.',
+    type: 'kill',
+    target: 'Goblin',
+    goal: 3,
+    reward: { gold: 30, xp: 50 },
+  },
+  {
+    id: 'slayer_skeleton',
+    title: 'La Purga de los Esqueletos',
+    description: 'El necromante ha invocado esqueletos. Derrota 3 Esqueletos Guerreros y el dungeon te recompensará.',
+    type: 'kill',
+    target: 'Esqueleto Guerrero',
+    goal: 3,
+    reward: { gold: 40, xp: 60 },
+  },
+  {
+    id: 'slayer_spider',
+    title: 'La Caza de Arañas',
+    description: 'Las arañas tejedoras bloquean los pasillos. Elimina 2 Arañas Tejedoras.',
+    type: 'kill',
+    target: 'Araña Tejedora',
+    goal: 2,
+    reward: { gold: 35, xp: 55 },
+  },
+  {
+    id: 'gold_collector',
+    title: 'Acumulador de Riquezas',
+    description: 'El mercader busca aventureros ricos. Acumula 50 monedas de oro (cantidad total, no neta).',
+    type: 'gold',
+    goal: 50,
+    reward: { gold: 25, xp: 40 },
+  },
+  {
+    id: 'slayer_bat',
+    title: 'Plaga de Murciélagos',
+    description: 'Los murciélagos vampiro han infestado las cuevas. Elimina 3 Murciélagos Vampiro.',
+    type: 'kill',
+    target: 'Murciélago Vampiro',
+    goal: 3,
+    reward: { gold: 30, xp: 45 },
+  },
+  {
+    id: 'boss_slayer',
+    title: '¡El Exterminador del Lich!',
+    description: 'El Lich Anciano amenaza el dungeon. ¡Derrota al Lich Anciano y serás recompensado!',
+    type: 'kill',
+    target: 'Lich Anciano',
+    goal: 1,
+    reward: { gold: 100, xp: 150 },
+  },
+];
+
+// ─── Estado en memoria ─────────────────────────────────────────────────────────
+
+let activeQuest = null; // { questDef, startedAt, completedBy: Set<playerId> }
+
+// ─── Persistencia ─────────────────────────────────────────────────────────────
+
+function loadQuest() {
+  try {
+    if (fs.existsSync(QUEST_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(QUEST_FILE, 'utf8'));
+      const def = QUEST_CATALOG.find(q => q.id === raw.questId);
+      if (def) {
+        activeQuest = {
+          questDef: def,
+          startedAt: raw.startedAt,
+          completedBy: new Set(raw.completedBy || []),
+        };
+        console.log(`[quests] Quest activa cargada: ${def.title}`);
+        return;
+      }
+    }
+  } catch (_) {}
+  startNewQuest();
+}
+
+function saveQuest() {
+  if (!activeQuest) return;
+  try {
+    const dir = path.dirname(QUEST_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(QUEST_FILE, JSON.stringify({
+      questId: activeQuest.questDef.id,
+      startedAt: activeQuest.startedAt,
+      completedBy: [...activeQuest.completedBy],
+    }));
+  } catch (err) {
+    console.error('[quests] Error al guardar quest:', err.message);
+  }
+}
+
+function startNewQuest(excludeId = null) {
+  const choices = QUEST_CATALOG.filter(q => q.id !== excludeId);
+  const def = choices[Math.floor(Math.random() * choices.length)];
+  activeQuest = {
+    questDef: def,
+    startedAt: new Date().toISOString(),
+    completedBy: new Set(),
+  };
+  saveQuest();
+  console.log(`[quests] Nueva quest iniciada: ${def.title}`);
+  return activeQuest;
+}
+
+// ─── API pública ──────────────────────────────────────────────────────────────
+
+/**
+ * Obtener la quest activa.
+ */
+function getActiveQuest() {
+  if (!activeQuest) loadQuest();
+  return activeQuest;
+}
+
+/**
+ * Obtener progreso de un jugador en la quest activa.
+ * questProgress: columna JSON { questId, progress, goldEarned }
+ */
+function getPlayerProgress(player) {
+  const quest = getActiveQuest();
+  if (!quest) return null;
+
+  let qp;
+  try {
+    qp = JSON.parse(player.quest_progress || '{}');
+  } catch (_) {
+    qp = {};
+  }
+
+  const def = quest.questDef;
+  const progress = (qp.questId === def.id) ? (qp.progress || 0) : 0;
+  const completed = quest.completedBy.has(player.id);
+
+  return {
+    quest: def,
+    progress,
+    goal: def.goal,
+    completed,
+    remaining: Math.max(0, def.goal - progress),
+  };
+}
+
+/**
+ * Registrar progreso de un jugador.
+ * type: 'kill' con monsterName, o 'gold' con amount
+ * Devuelve { newProgress, justCompleted, reward } o null si no aplica.
+ */
+function recordProgress(player, type, data = {}) {
+  const quest = getActiveQuest();
+  if (!quest) return null;
+
+  const def = quest.questDef;
+
+  // ¿Aplica este evento a la quest?
+  if (def.type === 'kill' && type === 'kill') {
+    if (!def.target || !data.monsterName || !data.monsterName.includes(def.target)) {
+      return null;
+    }
+  } else if (def.type === 'gold' && type === 'gold') {
+    // OK
+  } else {
+    return null;
+  }
+
+  // ¿Ya completó el jugador esta quest?
+  if (quest.completedBy.has(player.id)) return null;
+
+  // Obtener progreso actual
+  let qp;
+  try {
+    qp = JSON.parse(player.quest_progress || '{}');
+  } catch (_) {
+    qp = {};
+  }
+
+  if (qp.questId !== def.id) {
+    qp = { questId: def.id, progress: 0, goldEarned: 0 };
+  }
+
+  // Incrementar
+  if (def.type === 'kill') {
+    qp.progress = (qp.progress || 0) + 1;
+  } else if (def.type === 'gold') {
+    qp.goldEarned = (qp.goldEarned || 0) + (data.amount || 0);
+    qp.progress = qp.goldEarned;
+  }
+
+  const newProgress = qp.progress;
+  const justCompleted = newProgress >= def.goal;
+
+  let reward = null;
+  if (justCompleted) {
+    quest.completedBy.add(player.id);
+    reward = def.reward;
+    saveQuest();
+  }
+
+  return { newProgress, justCompleted, reward, questProgress: JSON.stringify(qp) };
+}
+
+/**
+ * Rotar quest si pasaron 30 minutos o si se pide explícitamente.
+ * Retorna la nueva quest si rotó, null si no.
+ */
+function maybeRotateQuest() {
+  if (!activeQuest) return null;
+  const ageMs = Date.now() - new Date(activeQuest.startedAt).getTime();
+  const thirtyMin = 30 * 60 * 1000;
+  if (ageMs >= thirtyMin) {
+    return startNewQuest(activeQuest.questDef.id);
+  }
+  return null;
+}
+
+/**
+ * Formato de texto para mostrar la quest activa.
+ */
+function formatQuest(player) {
+  const info = getPlayerProgress(player);
+  if (!info) return 'No hay quest activa en este momento.';
+
+  const { quest, progress, goal, completed, remaining } = info;
+  const rewardStr = `${quest.reward.gold}g + ${quest.reward.xp} XP`;
+
+  const barLen = 8;
+  const filled = Math.min(barLen, Math.round((progress / goal) * barLen));
+  const bar = '[' + '█'.repeat(filled) + '░'.repeat(barLen - filled) + ']';
+
+  if (completed) {
+    return [
+      `══ 📜 QUEST ACTIVA: ${quest.title} ══`,
+      quest.description,
+      `✅ ¡Ya completaste esta quest! Recompensa recibida: ${rewardStr}`,
+      `(Una nueva quest llegará cuando esta expire o en la próxima sesión)`,
+    ].join('\n');
+  }
+
+  return [
+    `══ 📜 QUEST ACTIVA: ${quest.title} ══`,
+    quest.description,
+    `Progreso: ${bar} ${progress}/${goal} (faltan ${remaining})`,
+    `Recompensa: ${rewardStr}`,
+  ].join('\n');
+}
+
+module.exports = {
+  loadQuest,
+  saveQuest,
+  getActiveQuest,
+  getPlayerProgress,
+  recordProgress,
+  maybeRotateQuest,
+  formatQuest,
+  startNewQuest,
+};

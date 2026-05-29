@@ -17,6 +17,7 @@ const { parse, HELP_TEXT, COMMAND_HELP } = require('./commands');
 const combat  = require('./combat');
 const items   = require('./items');
 const ach     = require('./achievements');
+const quests  = require('./quests');
 
 // ── Registro en memoria: último remitente de whisper/tell por jugador ─────────
 // lastWhisperSender.get(playerId) → { id, username } del último que les escribió
@@ -73,6 +74,7 @@ function execute(playerId, input) {
     case 'sell':      result = cmdSell(player, action.args.join(' ')); break;
     case 'achievements': result = cmdAchievements(player); break;
     case 'inspect':      result = cmdInspect(player, action.args.join(' ')); break;
+    case 'quest':        result = cmdQuest(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -312,8 +314,32 @@ function cmdAttack(player, targetName) {
     achLines = ach.formatNewAchievements(newAchs);
   }
 
+  // ── Progreso de quest ────────────────────────────────────────────────────
+  let questLines = '';
+  if (monsterDead) {
+    const freshForQuest = db.getPlayer(player.id);
+    const qResult = quests.recordProgress(freshForQuest, 'kill', { monsterName: monster.name });
+    if (qResult) {
+      db.updatePlayer(player.id, { quest_progress: qResult.questProgress });
+      if (qResult.justCompleted && qResult.reward) {
+        const r = qResult.reward;
+        const freshQ2 = db.getPlayer(player.id);
+        db.updatePlayer(player.id, {
+          gold: (freshQ2.gold || 0) + r.gold,
+          xp: (freshQ2.xp || 0) + r.xp,
+        });
+        questLines = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
+      } else {
+        const info = quests.getPlayerProgress(db.getPlayer(player.id));
+        if (info && !info.completed) {
+          questLines = `\n📜 Quest: ${qResult.newProgress}/${info.goal} — ¡Seguí así!`;
+        }
+      }
+    }
+  }
+
   return {
-    text: lines.join('\n') + achLines,
+    text: lines.join('\n') + achLines + questLines,
     event: eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || null,
@@ -385,8 +411,20 @@ function cmdPick(player, itemQuery) {
     const freshAfterGold = db.getPlayer(player.id);
     const goldAchs = ach.checkAchievements(freshAfterGold, {});
     const goldAchLines = ach.formatNewAchievements(goldAchs);
+    // Progreso de quest de oro
+    let goldQuestLine = '';
+    const qrGold = quests.recordProgress(freshAfterGold, 'gold', { amount });
+    if (qrGold) {
+      db.updatePlayer(player.id, { quest_progress: qrGold.questProgress });
+      if (qrGold.justCompleted && qrGold.reward) {
+        const r = qrGold.reward;
+        const fq2 = db.getPlayer(player.id);
+        db.updatePlayer(player.id, { gold: (fq2.gold || 0) + r.gold, xp: (fq2.xp || 0) + r.xp });
+        goldQuestLine = `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
+      }
+    }
     return {
-      text: `💰 Recogés ${found}. +${amount} monedas de oro. Tenés ${newGold}g en total.${goldAchLines}`,
+      text: `💰 Recogés ${found}. +${amount} monedas de oro. Tenés ${newGold}g en total.${goldAchLines}${goldQuestLine}`,
       event: `${player.username} recoge algo del suelo.`,
       eventRoomId: room.id,
     };
@@ -1344,6 +1382,15 @@ function cmdAchievements(player) {
   const achText = ach.formatAchievements(player);
   const newLines = ach.formatNewAchievements(newOnes);
   return { text: achText + newLines };
+}
+
+/**
+ * T086 — Quest activa: mostrar quest y progreso del jugador.
+ */
+function cmdQuest(player) {
+  player = db.getPlayer(player.id);
+  const text = quests.formatQuest(player);
+  return { text };
 }
 
 /**

@@ -89,6 +89,8 @@ const COMMAND_ALIASES = {
   achievements: 'achievements', logros: 'achievements', logro: 'achievements', medallas: 'achievements',
   // inspect / inspeccionar jugador
   inspect: 'inspect', inspeccionar: 'inspect', observar: 'inspect', ver_jugador: 'inspect',
+  // quest / misión
+  quest: 'quest', misión: 'quest', mision: 'quest', tarea: 'quest', objetivo: 'quest',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -173,6 +175,7 @@ Comandos disponibles:
   emote <acción>        — Expresar una acción visible para todos en la sala (ej: emote sonríe)
   rest / descansar      — Recuperar HP si no hay monstruos (cooldown 60s)
   inspect <jugador>     — Examinar a otro aventurero en la misma sala
+  quest / misión        — Ver la quest activa y tu progreso
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
