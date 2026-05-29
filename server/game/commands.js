@@ -143,4 +143,30 @@ Comandos disponibles:
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
 
-module.exports = { parse, HELP_TEXT };
+/**
+ * Ayuda detallada por comando.
+ */
+const COMMAND_HELP = {
+  look:      'look / mirar / l\n  Describir la habitación actual: salidas, monstruos, ítems en el suelo y otros jugadores presentes.',
+  move:      'move <dir> / ir <dir> / <dir>\n  Moverse en una dirección: norte, sur, este, oeste, arriba, abajo.\n  También podés escribir solo la dirección: "norte", "n", "s", "e", "o".',
+  inventory: 'inventory / inv / i / inventario\n  Mostrar los ítems que llevás encima.',
+  status:    'status / estado / stats\n  Mostrar tus stats completos: HP, ataque, defensa, nivel, XP, kills y arma equipada.',
+  attack:    'attack <monstruo> / atacar <monstruo>\n  Atacar a un monstruo de la sala. Un turno: vos atacás, el monstruo responde.\n  Repetí el comando para continuar hasta que uno de los dos muera.',
+  flee:      'flee / huir / escapar\n  Intentar huir del combate. Hay un 60% de chance de éxito. Si falla, el monstruo ataca igual.',
+  pick:      'pick <ítem> / tomar <ítem> / recoger <ítem>\n  Recoger un ítem del suelo y guardarlo en tu inventario.',
+  loot:      'loot / saquear\n  Recoger TODOS los ítems del suelo de la sala de un solo golpe.',
+  drop:      'drop <ítem> / tirar <ítem>\n  Tirar un ítem de tu inventario al suelo de la sala actual.',
+  use:       'use <ítem> / usar <ítem>\n  Usar un ítem del inventario. Pociones: consumen y restauran HP. Armas: se equipan.',
+  equip:     'equip <arma> / equipar <arma>\n  Equipar un arma del inventario explícitamente. Aumenta tu stat de ataque.',
+  unequip:   'unequip / desequipar / enfundar\n  Guardar el arma equipada y volver a pelear con los puños (ataque base: 5).',
+  examine:   'examine <objetivo> / examinar <objetivo> / x <objetivo>\n  Examinar un monstruo, ítem (del inventario o del suelo) o la sala.\n  Sin argumento: vista detallada de la habitación actual.',
+  give:      'give <ítem> <jugador> / dar <ítem> <jugador>\n  Pasar un ítem de tu inventario a otro jugador que esté en la misma sala.',
+  map:       'map / mapa\n  Ver el mapa ASCII del dungeon con tu posición marcada con ★.',
+  who:       'who / jugadores / online\n  Listar todos los aventureros activos en el dungeon (vistos en los últimos 5 minutos).',
+  score:     'score / ranking / top\n  Ver la tabla de líderes global: los 10 mejores por kills, XP y nivel.',
+  say:       'say <mensaje> / decir <mensaje>\n  Hablar con los jugadores que están en la misma sala.',
+  shout:     'shout <mensaje> / gritar <mensaje>\n  Gritar un mensaje que todos los jugadores del dungeon escuchan.',
+  help:      'help / ayuda\n  Mostrar la lista de comandos.\n  help <comando>: ayuda detallada sobre un comando específico.',
+};
+
+module.exports = { parse, HELP_TEXT, COMMAND_HELP };

@@ -13,7 +13,7 @@
 
 const db      = require('../db/db');
 const dungeon = require('./dungeon');
-const { parse, HELP_TEXT } = require('./commands');
+const { parse, HELP_TEXT, COMMAND_HELP } = require('./commands');
 const combat  = require('./combat');
 const items   = require('./items');
 
@@ -61,7 +61,41 @@ function execute(playerId, input) {
     case 'shout':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
-    case 'help':      result = { text: HELP_TEXT }; break;
+    case 'help':
+      if (action.args && action.args.length > 0) {
+        const cmdKey = action.args[0].toLowerCase();
+        // Buscar el comando canónico
+        const COMMAND_ALIASES_MAP = {
+          look: 'look', mirar: 'look', ver: 'look', l: 'look',
+          move: 'move', ir: 'move', go: 'move',
+          inventory: 'inventory', inv: 'inventory', i: 'inventory', inventario: 'inventory',
+          status: 'status', stats: 'status', estado: 'status',
+          attack: 'attack', atacar: 'attack',
+          flee: 'flee', huir: 'flee', escapar: 'flee',
+          pick: 'pick', tomar: 'pick', recoger: 'pick',
+          loot: 'loot', saquear: 'loot',
+          drop: 'drop', tirar: 'drop',
+          use: 'use', usar: 'use',
+          equip: 'equip', equipar: 'equip',
+          unequip: 'unequip', desequipar: 'unequip',
+          examine: 'examine', examinar: 'examine', x: 'examine',
+          give: 'give', dar: 'give',
+          map: 'map', mapa: 'map',
+          who: 'who', jugadores: 'who',
+          score: 'score', ranking: 'score', top: 'score',
+          say: 'say', decir: 'say',
+          shout: 'shout', gritar: 'shout',
+          help: 'help', ayuda: 'help',
+        };
+        const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
+        const detail = COMMAND_HELP[canonical];
+        result = detail
+          ? { text: detail }
+          : { text: `No hay ayuda detallada para "${cmdKey}". Escribí "help" para ver todos los comandos.` };
+      } else {
+        result = { text: HELP_TEXT };
+      }
+      break;
     case 'unknown':
       result = { text: `Comando desconocido: "${action.input}". Escribí "help" para ver los comandos.` };
       break;
