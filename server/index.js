@@ -149,10 +149,48 @@ async function main() {
     });
   });
 
+  /**
+   * GET /api/room/:id
+   * Devuelve el estado completo de una habitación (para LLMs y clientes).
+   * Incluye monstruos, ítems, salidas y jugadores presentes.
+   */
+  app.get('/api/room/:id', (req, res) => {
+    const roomId = parseInt(req.params.id, 10);
+    if (isNaN(roomId)) {
+      return res.status(400).json({ error: 'ID de habitación inválido.' });
+    }
+    const room = db.getRoom(roomId);
+    if (!room) {
+      return res.status(404).json({ error: `Habitación ${roomId} no encontrada.` });
+    }
+    const monsters = db.getMonstersInRoom(roomId);
+    const players  = db.getPlayersInRoom(roomId);
+
+    res.json({
+      id: room.id,
+      name: room.name,
+      description: room.description,
+      exits: room.exits,
+      items: room.items,
+      monsters: monsters.map(m => ({
+        id: m.id,
+        name: m.name,
+        hp: m.hp,
+        max_hp: m.max_hp,
+        attack: m.attack,
+      })),
+      players: players.map(p => ({
+        username: p.username,
+        hp: p.hp,
+        max_hp: p.max_hp,
+        level: p.level || 1,
+      })),
+    });
+  });
+
   // 5. Crear servidor HTTP
   /**
    * POST /api/action  — Endpoint LLM-friendly (T034)
-   * Body: { player_id: string, command: string }
    * Devuelve: resultado de texto + estado completo post-acción
    */
   app.post('/api/action', (req, res) => {
