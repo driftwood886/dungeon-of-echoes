@@ -45,6 +45,8 @@ const COMMAND_ALIASES = {
   equip: 'equip', equipar: 'equip', empuñar: 'equip', portar: 'equip',
   // map
   map: 'map', mapa: 'map',
+  // who
+  who: 'who', jugadores: 'who', online: 'who', quién: 'who', quien: 'who',
   // flee
   flee: 'flee', huir: 'flee', escapar: 'flee', correr: 'flee',
   // say
@@ -120,6 +122,7 @@ Comandos disponibles:
   use <ítem>            — Usar un ítem (poción → consume, arma → equipar)
   equip <arma>          — Equipar un arma del inventario explícitamente
   map / mapa            — Ver el mapa ASCII del dungeon
+  who / jugadores       — Ver los aventureros activos en el dungeon
   examine <objetivo>    — Examinar un monstruo, ítem o la sala
   say <mensaje>         — Hablar con jugadores en la misma habitación
   shout <mensaje>       — Gritar a todo el dungeon

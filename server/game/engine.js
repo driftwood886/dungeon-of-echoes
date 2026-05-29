@@ -50,6 +50,7 @@ function execute(playerId, input) {
     case 'examine':   result = cmdExamine(player, action.args.join(' ')); break;
     case 'equip':     result = cmdEquip(player, action.args.join(' ')); break;
     case 'map':       result = cmdMap(player); break;
+    case 'who':       result = cmdWho(); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -427,6 +428,31 @@ function cmdEquip(player, itemQuery) {
     event: `${player.username} empuña ${found}.`,
     eventRoomId: player.current_room_id,
   };
+}
+
+/**
+ * who — Listar jugadores activos en el dungeon (vistos en los últimos 5 min).
+ */
+function cmdWho() {
+  const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+  const active = db.getActivePlayers(cutoff);
+
+  if (active.length === 0) {
+    return { text: 'No hay ningún aventurero activo en el dungeon ahora mismo.' };
+  }
+
+  const lines = [
+    `=== AVENTUREROS EN EL DUNGEON (${active.length}) ===`,
+    ...active.map(p => {
+      const hpBar = buildBar(p.hp, p.max_hp, 8);
+      const hpText = `${p.hp}/${p.max_hp}`;
+      return `  ${p.username.padEnd(16)} ${hpBar} ${hpText.padStart(7)}  │  ${p.room_name || 'Desconocido'}`;
+    }),
+    ``,
+    `(jugadores activos en los últimos 5 minutos)`,
+  ];
+
+  return { text: lines.join('\n') };
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
