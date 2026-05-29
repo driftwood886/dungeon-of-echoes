@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dungeon of Echoes</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PANTALLA DE LOGIN
+  ══════════════════════════════════════════════════════════ -->
+  <div id="login-screen">
+    <div class="login-box">
+      <pre class="logo">
+  ██████╗ ██╗   ██╗███╗   ██╗ ██████╗ ███████╗ ██████╗ ███╗   ██╗
+  ██╔══██╗██║   ██║████╗  ██║██╔════╝ ██╔════╝██╔═══██╗████╗  ██║
+  ██║  ██║██║   ██║██╔██╗ ██║██║  ███╗█████╗  ██║   ██║██╔██╗ ██║
+  ██║  ██║██║   ██║██║╚██╗██║██║   ██║██╔══╝  ██║   ██║██║╚██╗██║
+  ██████╔╝╚██████╔╝██║ ╚████║╚██████╔╝███████╗╚██████╔╝██║ ╚████║
+  ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═══╝
+             ██████╗ ███████╗    ███████╗ ██████╗██╗  ██╗ ██████╗ ███████╗███████╗
+             ██╔══██╗██╔════╝    ██╔════╝██╔════╝██║  ██║██╔═══██╗██╔════╝██╔════╝
+             ██║  ██║█████╗      █████╗  ██║     ███████║██║   ██║█████╗  ███████╗
+             ██║  ██║██╔══╝      ██╔══╝  ██║     ██╔══██║██║   ██║██╔══╝  ╚════██║
+             ██████╔╝███████╗    ███████╗╚██████╗██║  ██║╚██████╔╝███████╗███████║
+             ╚═════╝ ╚══════╝    ╚══════╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚══════╝
+      </pre>
+
+      <p class="login-subtitle">MUD-LITE MULTIJUGADOR · v0.5.0</p>
+
+      <div class="login-form">
+        <label for="username-input">INGRESÁ TU NOMBRE DE AVENTURERO:</label>
+        <div class="input-row">
+          <span class="prompt">&gt;</span>
+          <input
+            id="username-input"
+            type="text"
+            maxlength="20"
+            placeholder="nombre_aventurero"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+        <button id="login-btn" class="btn">[ ENTRAR AL DUNGEON ]</button>
+        <p id="login-error" class="error hidden"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PANTALLA DE JUEGO
+  ══════════════════════════════════════════════════════════ -->
+  <div id="game-screen" class="hidden">
+
+    <!-- Barra superior -->
+    <header id="topbar">
+      <span id="header-title">⚔ DUNGEON OF ECHOES</span>
+      <span id="header-user"></span>
+      <span id="header-room"></span>
+      <span id="connection-status" class="status-ok">● CONECTADO</span>
+    </header>
+
+    <!-- Contenido principal -->
+    <main id="game-main">
+
+      <!-- Panel izquierdo: historial de mensajes -->
+      <section id="messages-panel">
+        <div id="messages-scroll">
+          <div id="messages-list"></div>
+        </div>
+
+        <!-- Input de comandos -->
+        <div id="input-area">
+          <span class="prompt">&gt;</span>
+          <input
+            id="cmd-input"
+            type="text"
+            placeholder="Escribí un comando... (look, move north, attack goblin, help)"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button id="cmd-btn" class="btn-small">ENVIAR</button>
+        </div>
+      </section>
+
+      <!-- Panel derecho: estado del jugador -->
+      <aside id="sidebar">
+
+        <div class="sidebar-section">
+          <div class="sidebar-title">◈ JUGADOR</div>
+          <div id="sidebar-username" class="sidebar-name"></div>
+          <div class="hp-row">
+            <span>HP</span>
+            <div class="hp-bar-bg">
+              <div id="hp-bar-fill" class="hp-bar-fill"></div>
+            </div>
+            <span id="hp-text">--/--</span>
+          </div>
+          <div class="stat-row"><span class="stat-label">ATK</span><span id="stat-atk">--</span></div>
+          <div class="stat-row"><span class="stat-label">DEF</span><span id="stat-def">--</span></div>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-title">◈ SALIDAS</div>
+          <div id="sidebar-exits" class="sidebar-list">(desconocido)</div>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-title">◈ MONSTRUOS</div>
+          <div id="sidebar-monsters" class="sidebar-list">(ninguno)</div>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-title">◈ ÍTEMS EN SUELO</div>
+          <div id="sidebar-room-items" class="sidebar-list">(nada)</div>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-title">◈ INVENTARIO</div>
+          <div id="sidebar-inventory" class="sidebar-list">(vacío)</div>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-title">◈ COMANDOS RÁPIDOS</div>
+          <div class="quick-cmds">
+            <button class="qcmd" data-cmd="look">look</button>
+            <button class="qcmd" data-cmd="inventory">inventario</button>
+            <button class="qcmd" data-cmd="status">status</button>
+            <button class="qcmd" data-cmd="help">help</button>
+          </div>
+        </div>
+
+      </aside>
+    </main>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
