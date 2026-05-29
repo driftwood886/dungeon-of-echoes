@@ -433,6 +433,13 @@ html, body {
 
 .msg-line { animation: fadeIn 0.15s ease; }
 
+/* Contador de mensajes offline pendientes */
+.pending-msgs-badge {
+  color: var(--amber);
+  font-weight: bold;
+  animation: msgFlash 1.4s ease infinite;
+}
+
 /* Cursor parpadeante en el input */
 #cmd-input:focus { outline: none; }
 

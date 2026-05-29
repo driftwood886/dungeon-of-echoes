@@ -55,6 +55,8 @@ const el = {
   sidebarMonsters:$('sidebar-monsters'),
   sidebarRoomItems:$('sidebar-room-items'),
   sidebarInventory:$('sidebar-inventory'),
+  pendingMsgRow:   $('pending-msg-row'),
+  statPendingMsgs: $('stat-pending-msgs'),
 };
 
 /* ── Helpers de UI ────────────────────────────────────────── */
@@ -173,6 +175,15 @@ function updateSidebar(data) {
     el.statKills.textContent = player.kills ?? '--';
     el.statWeapon.textContent = player.equipped_weapon || 'puños';
 
+    // Mensajes offline pendientes
+    const pendingCount = player.pending_messages || 0;
+    if (pendingCount > 0) {
+      el.statPendingMsgs.textContent = `${pendingCount} mensaje(s) sin leer`;
+      el.pendingMsgRow.style.display = '';
+    } else {
+      el.pendingMsgRow.style.display = 'none';
+    }
+
     // Inventario
     const inv = player.inventory;
     el.sidebarInventory.textContent =
@@ -267,6 +278,8 @@ function initSocket() {
       addSeparator();
       addMsg(data.message, 'tell');
       addSeparator();
+      // Los mensajes se marcaron como entregados — ocultar el badge del sidebar
+      if (el.pendingMsgRow) el.pendingMsgRow.style.display = 'none';
     } else {
       const type = data.type === 'player_join' || data.type === 'player_leave'
         ? 'system'

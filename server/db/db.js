@@ -344,6 +344,14 @@ function markMessagesDelivered(targetPlayerId) {
   );
 }
 
+function countPendingMessages(targetPlayerId) {
+  const row = get(
+    `SELECT COUNT(*) as cnt FROM offline_messages WHERE target_player_id = ? AND delivered = 0`,
+    [targetPlayerId]
+  );
+  return row ? row.cnt : 0;
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -357,7 +365,7 @@ module.exports = {
   // events
   logEvent, getRecentEvents,
   // offline messages (tell)
-  saveOfflineMessage, getPendingMessages, markMessagesDelivered,
+  saveOfflineMessage, getPendingMessages, markMessagesDelivered, countPendingMessages,
   // acceso raw (por si acaso)
   raw: () => db,
 };
