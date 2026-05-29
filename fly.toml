@@ -1,0 +1,40 @@
+# fly.toml — Dungeon of Echoes
+# Generado para deploy en Fly.io
+# App: dungeon-of-echoes
+# Región principal: GRU (São Paulo, cerca de Argentina)
+
+app = "dungeon-of-echoes"
+primary_region = "gru"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+  # DB_PATH se configura como secret para apuntar al volumen persistente
+  # fly secrets set DB_PATH=/data/dungeon.sqlite
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Volumen persistente para la base de datos SQLite
+[[mounts]]
+  source = "dungeon_data"
+  destination = "/data"

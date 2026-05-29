@@ -13,7 +13,8 @@ const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
 
-const DB_PATH = path.join(__dirname, '../../db/dungeon.sqlite');
+// Soportar DB_PATH via variable de entorno (Fly.io usa /data/dungeon.sqlite en volumen)
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../db/dungeon.sqlite');
 
 let db = null; // instancia global de sql.js Database
 
