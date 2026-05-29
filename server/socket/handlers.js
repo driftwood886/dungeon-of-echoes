@@ -121,6 +121,14 @@ function registerHandlers(io) {
         }
       }
 
+      // Broadcast global (para eventos importantes como matar al boss)
+      if (result.globalEvent) {
+        io.emit('shout', {
+          username: '⚡ SISTEMA',
+          message: result.globalEvent,
+        });
+      }
+
       // Si el resultado incluye un mensaje directo para otro jugador (ej: give, whisper)
       if (result.targetPlayerId && result.targetPlayerMsg) {
         const targetSocket = playerSockets.get(result.targetPlayerId);

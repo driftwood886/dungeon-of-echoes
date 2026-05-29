@@ -282,7 +282,7 @@ function cmdAttack(player, targetName) {
     return { text: `No hay ningún "${targetName}" aquí.` };
   }
 
-  const { lines, monsterDead, playerDead } = combat.attackRound(player, monster);
+  const { lines, monsterDead, playerDead, globalEvent } = combat.attackRound(player, monster);
 
   let eventText = null;
   if (monsterDead) {
@@ -297,6 +297,7 @@ function cmdAttack(player, targetName) {
     text: lines.join('\n'),
     event: eventText,
     eventRoomId: player.current_room_id,
+    globalEvent: globalEvent || null,
   };
 }
 

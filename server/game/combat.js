@@ -25,7 +25,16 @@ const POISONERS = {
   'Murciélago Vampiro': { chance: 0.2, damage: 1, turns: 3 },
 };
 
-// ─── Funciones públicas ───────────────────────────────────────────────────────
+// Monstruos de tipo BOSS — respawn largo y eventos globales al morir
+const BOSS_MONSTERS = {
+  13: { // Lich Anciano
+    respawnMinutes: 30,
+    deathAnnouncement: '💀 ¡El LICH ANCIANO ha caído! Un aventurero ha triunfado en la Catedral de la Oscuridad. El dungeon tiembla...',
+    lootBonus: ['monedas de oro', 'monedas de oro', 'monedas de oro', 'monedas de oro', 'monedas de oro'], // 5x = 50g
+  },
+};
+
+
 
 /**
  * Ejecuta un turno completo de combate:
@@ -88,7 +97,8 @@ function attackRound(player, monster) {
     lines.push(`💀 ¡El ${monster.name} cae derrotado!`);
 
     // Soltar loot en la habitación
-    loot = dropLoot(monster, player.current_room_id);
+    const { droppedLoot, globalEvent } = dropLoot(monster, player.current_room_id);
+    loot = droppedLoot;
     if (loot.length > 0) {
       lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
     } else {
@@ -114,7 +124,7 @@ function attackRound(player, monster) {
     lines.push(`⭐ +${xpGain} XP (total: ${newXp} | kills: ${newKills} | nivel: ${newLevel})`);
     db.updatePlayer(player.id, updates);
 
-    return { lines, monsterDead, playerDead, loot };
+    return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
   }
 
   // ── Monstruo contraataca ──────────────────────────────────────────────────
@@ -233,25 +243,32 @@ function calcDamage(base) {
  */
 function dropLoot(monster, roomId) {
   const loot = monster.loot || [];
+  const bossDef = BOSS_MONSTERS[monster.id];
 
-  if (loot.length > 0) {
+  // Loot especial del boss
+  const allLoot = bossDef ? [...loot, ...(bossDef.lootBonus || [])] : loot;
+
+  if (allLoot.length > 0) {
     // Agregar ítems a la habitación
     const room = db.getRoom(roomId);
     if (room) {
-      const newItems = [...room.items, ...loot];
+      const newItems = [...room.items, ...allLoot];
       db.updateRoomItems(roomId, newItems);
     }
   }
 
-  // Programar respawn del monstruo (5 minutos)
-  const respawnAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  // Tiempo de respawn: boss = 30 min, normal = 5 min
+  const respawnMinutes = bossDef ? bossDef.respawnMinutes : 5;
+  const respawnAt = new Date(Date.now() + respawnMinutes * 60 * 1000).toISOString();
   db.updateMonster(monster.id, {
     hp: 0,
     room_id: null,        // ya no está en ninguna sala
     respawn_at: respawnAt,
   });
 
-  return loot;
+  const globalEvent = bossDef ? bossDef.deathAnnouncement : null;
+
+  return { droppedLoot: allLoot, globalEvent };
 }
 
 /**
