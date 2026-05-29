@@ -99,6 +99,7 @@ function execute(playerId, input) {
     case 'unlock':    result = cmdUnlock(player, action.args[0]); break;
     case 'disarm':    result = cmdDisarm(player); break;
     case 'rest':      result = cmdRest(player); break;
+    case 'meditate':  result = cmdMeditate(player); break;
     case 'emote':     result = cmdEmote(player, action.args.join(' ')); break;
     case 'shop':      result = cmdShop(player); break;
     case 'buy':       result = cmdBuy(player, action.args.join(' ')); break;
@@ -2290,6 +2291,61 @@ function cmdForage(player) {
 
 // Re-export final con T094
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS };
+
+// ─── T097: Comando meditate / meditar ─────────────────────────────────────────
+
+/**
+ * meditate / meditar — Recuperar HP meditando en calma.
+ * Requiere: sin monstruos en la sala. Cooldown propio: 90 segundos.
+ * Recupera entre 4 y 7 HP (más que rest).
+ * Bonus si el jugador tiene mascota: +2 HP extra (la compañía ayuda a concentrarse).
+ */
+function cmdMeditate(player) {
+  player = db.getPlayer(player.id);
+
+  if (player.hp >= player.max_hp) {
+    return { text: '🧘 Ya estás al máximo de HP. No necesitás meditar.' };
+  }
+
+  // Sin monstruos en la sala
+  const monsters = db.getMonstersInRoom(player.current_room_id);
+  if (monsters.length > 0) {
+    const names = monsters.map(m => m.name).join(', ');
+    return { text: `⚔️  No podés meditar con enemigos presentes: ${names}.` };
+  }
+
+  // Cooldown propio (90 segundos, independiente de rest)
+  const COOLDOWN_MS = 90_000;
+  if (player.last_meditate) {
+    const elapsed = Date.now() - new Date(player.last_meditate).getTime();
+    if (elapsed < COOLDOWN_MS) {
+      const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+      return { text: `🧘 Tu mente aún no está lista. Esperá ${remaining} segundo${remaining !== 1 ? 's' : ''} antes de meditar de nuevo.` };
+    }
+  }
+
+  // Recuperar HP: 4-7 base, +2 con mascota
+  let heal = Math.floor(Math.random() * 4) + 4; // 4, 5, 6 o 7
+  const hasPet = !!player.pet;
+  if (hasPet) heal += 2;
+
+  const newHp    = Math.min(player.max_hp, player.hp + heal);
+  const restored = newHp - player.hp;
+
+  db.updatePlayer(player.id, {
+    hp:            newHp,
+    last_meditate: new Date().toISOString(),
+  });
+
+  const hpBar   = buildBar(newHp, player.max_hp, 20);
+  const petLine = hasPet
+    ? `\nTu ${player.pet} se acurruca a tu lado, amplificando la calma.`
+    : '';
+
+  return {
+    text: `🧘 Cerrás los ojos y vaciás la mente. El dungeon desaparece por un momento.${petLine}\nRecuperás ${restored} HP. ${hpBar} ${newHp}/${player.max_hp} HP`,
+  };
+}
 
 // ─── T095: Sistema de Mascotas ───────────────────────────────────────────────
 

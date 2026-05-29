@@ -71,6 +71,8 @@ const COMMAND_ALIASES = {
   disarm: 'disarm', desactivar: 'disarm', desarmar: 'disarm', trampa: 'disarm',
   // rest / descansar
   rest: 'rest', descansar: 'rest', dormir: 'rest', recuperar: 'rest', campear: 'rest',
+  // meditate / meditar (T097)
+  meditate: 'meditate', meditar: 'meditate', contemplar: 'meditate', concentrarse: 'meditate', zen: 'meditate',
   // emote / acción
   emote: 'emote', acción: 'emote', accion: 'emote', me: 'emote', hacer: 'emote',
   // say
