@@ -318,6 +318,13 @@ function sendCommand(rawCmd) {
     return;
   }
 
+  // Comando especial: clear — limpiar el historial
+  if (cmd === 'clear' || cmd === 'cls' || cmd === 'limpiar') {
+    el.messagesList.innerHTML = '';
+    addMsg('— Historial borrado —', 'system');
+    return;
+  }
+
   // Comando especial: help
   if (cmd === 'help' || cmd === 'ayuda') {
     addMsg(
