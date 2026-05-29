@@ -1,6 +1,6 @@
 {
   "name": "dungeon-of-echoes",
-  "version": "0.1.0",
+  "version": "0.6.0",
   "description": "MUD-lite multijugador basado en texto. Exploración, combate y ítems en tiempo real.",
   "main": "server/index.js",
   "scripts": {

@@ -31,7 +31,7 @@ async function main() {
 
   // 4. Health check
   app.get('/health', (req, res) => {
-    res.json({ status: 'OK', game: 'Dungeon of Echoes', version: '0.2.0' });
+    res.json({ status: 'OK', game: 'Dungeon of Echoes', version: '0.6.0' });
   });
 
   // ─── Rutas del juego (API simple, sin Socket.io aún) ───────────────────────
@@ -171,7 +171,7 @@ async function main() {
   // 7. Arrancar servidor
   server.listen(PORT, () => {
     console.log(`\n🏰 Dungeon of Echoes corriendo en http://localhost:${PORT}`);
-    console.log(`   Versión 0.4.0 — Socket.io multijugador activo`);
+    console.log(`   Versión 0.6.0 — Fases 1-6 completas (Frontend + API LLM)`);
     console.log(`   Presioná Ctrl+C para apagar\n`);
   });
 
