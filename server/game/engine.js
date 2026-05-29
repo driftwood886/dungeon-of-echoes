@@ -579,11 +579,11 @@ function cmdScore() {
   }
 
   const lines = [
-    `╔═══════════════════════════════════════════════════╗`,
-    `║         🏆  TABLA DE LÍDERES — TOP 10  🏆         ║`,
-    `╠═══════════════════════════════════════════════════╣`,
-    `║  #   Aventurero        Lv    XP   Kills   HP      ║`,
-    `╠═══════════════════════════════════════════════════╣`,
+    `╔═════════════════════════════════════════════════════╗`,
+    `║          🏆  TABLA DE LÍDERES — TOP 10  🏆          ║`,
+    `╠═════════════════════════════════════════════════════╣`,
+    `║  #   Aventurero        Lv    XP  Kills  ☠Muertes   ║`,
+    `╠═════════════════════════════════════════════════════╣`,
   ];
 
   leaders.forEach((p, idx) => {
@@ -592,12 +592,12 @@ function cmdScore() {
     const level  = String(p.level || 1).padStart(3, ' ');
     const xp     = String(p.xp || 0).padStart(5, ' ');
     const kills  = String(p.kills || 0).padStart(5, ' ');
-    const hp     = `${p.hp}/${p.max_hp}`.padStart(7, ' ');
+    const deaths = String(p.deaths || 0).padStart(8, ' ');
     const medal  = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
-    lines.push(`║ ${medal}${rank}  ${name}  ${level}  ${xp}  ${kills}  ${hp}  ║`);
+    lines.push(`║ ${medal}${rank}  ${name}  ${level}  ${xp}  ${kills}  ${deaths}  ║`);
   });
 
-  lines.push(`╚═══════════════════════════════════════════════════╝`);
+  lines.push(`╚═════════════════════════════════════════════════════╝`);
 
   return { text: lines.join('\n') };
 }

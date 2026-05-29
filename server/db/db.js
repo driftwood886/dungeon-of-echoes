@@ -348,7 +348,7 @@ function getActivePlayers(cutoff) {
 
 function getLeaderboard(limit = 10) {
   return all(
-    `SELECT username, level, xp, kills, hp, max_hp
+    `SELECT username, level, xp, kills, hp, max_hp, deaths
      FROM players
      ORDER BY kills DESC, xp DESC, level DESC
      LIMIT ?`,
