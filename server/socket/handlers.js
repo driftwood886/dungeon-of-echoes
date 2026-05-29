@@ -106,12 +106,12 @@ function registerHandlers(io) {
         }
       }
 
-      // Si el resultado incluye un mensaje directo para otro jugador (ej: give)
+      // Si el resultado incluye un mensaje directo para otro jugador (ej: give, whisper)
       if (result.targetPlayerId && result.targetPlayerMsg) {
         const targetSocket = playerSockets.get(result.targetPlayerId);
         if (targetSocket) {
           targetSocket.emit('event', {
-            type: 'received_item',
+            type: result.targetEventType || 'received_item',
             message: result.targetPlayerMsg,
           });
         }

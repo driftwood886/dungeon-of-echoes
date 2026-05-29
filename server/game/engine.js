@@ -56,6 +56,7 @@ function execute(playerId, input) {
     case 'score':     result = cmdScore(); break;
     case 'give':      result = cmdGive(player, action.args); break;
     case 'loot':      result = cmdLoot(player); break;
+    case 'whisper':   result = cmdWhisper(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -687,6 +688,44 @@ function cmdGive(player, args) {
     eventRoomId: player.current_room_id,
     targetPlayerId: target.id,
     targetPlayerMsg: `${player.username} te da ${found}.`,
+  };
+}
+
+// ─── Whisper ─────────────────────────────────────────────────────────────────
+/**
+ * whisper <jugador> <mensaje> — Mensaje privado a otro jugador.
+ * El destinatario recibe el mensaje vía Socket.io (campo targetPlayerId/targetPlayerMsg).
+ * Si el jugador no está conectado, el mensaje igual se registra (el emisor lo ve).
+ */
+function cmdWhisper(player, args) {
+  if (!args || args.length < 2) {
+    return { text: 'Uso: whisper <jugador> <mensaje>. Ej: \"whisper Ana hola!\".' };
+  }
+
+  const targetName = args[0];
+  const message    = args.slice(1).join(' ').trim();
+
+  if (!message) {
+    return { text: 'El mensaje no puede estar vacío.' };
+  }
+
+  const target = db.getPlayerByUsername(targetName);
+  if (!target) {
+    return { text: `No existe ningún jugador llamado "${targetName}".` };
+  }
+  if (target.id === player.id) {
+    return { text: 'No podés enviarte un susurro a vos mismo.' };
+  }
+
+  const senderMsg = `[susurro → ${target.username}]: "${message}"`;
+  const targetMsg = `[susurro de ${player.username}]: "${message}"`;
+
+  return {
+    text: senderMsg,
+    // Sin event de broadcast: es privado, no va a la sala
+    targetPlayerId:   target.id,
+    targetPlayerMsg:  targetMsg,
+    targetEventType:  'whisper',
   };
 }
 

@@ -59,6 +59,8 @@ const COMMAND_ALIASES = {
   loot: 'loot', saquear: 'loot', recoger_todo: 'loot', recogertodo: 'loot', botín: 'loot', botin: 'loot',
   // flee
   flee: 'flee', huir: 'flee', escapar: 'flee', correr: 'flee',
+  // whisper / susurrar
+  whisper: 'whisper', susurrar: 'whisper', murmurar: 'whisper', privado: 'whisper', msg: 'whisper', pm: 'whisper', tell: 'whisper',
   // say
   say: 'say', decir: 'say', hablar: 'say',
   // shout
@@ -142,6 +144,7 @@ Comandos disponibles:
   say <mensaje>         — Hablar con jugadores en la misma habitación
   shout <mensaje>       — Gritar a todo el dungeon
   help / ayuda          — Esta ayuda
+  whisper <jug> <msg>   — Mensaje privado a otro jugador (en cualquier sala)
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -169,6 +172,7 @@ const COMMAND_HELP = {
   score:     'score / ranking / top\n  Ver la tabla de líderes global: los 10 mejores por kills, XP y nivel.',
   say:       'say <mensaje> / decir <mensaje>\n  Hablar con los jugadores que están en la misma sala.',
   shout:     'shout <mensaje> / gritar <mensaje>\n  Gritar un mensaje que todos los jugadores del dungeon escuchan.',
+  whisper:   'whisper <jugador> <mensaje> / susurrar <jugador> <mensaje>\n  Enviar un mensaje privado a otro jugador (en cualquier sala). Solo el destinatario lo ve.',
   help:      'help / ayuda\n  Mostrar la lista de comandos.\n  help <comando>: ayuda detallada sobre un comando específico.',
 };
 

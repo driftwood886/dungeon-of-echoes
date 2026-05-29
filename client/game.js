@@ -223,10 +223,14 @@ function initSocket() {
 
   // Evento de broadcast de la sala (alguien entró, salió, hizo algo)
   socket.on('event', (data) => {
-    const type = data.type === 'player_join' || data.type === 'player_leave'
-      ? 'system'
-      : 'event';
-    addMsg(`⟨ ${data.message} ⟩`, type);
+    if (data.type === 'whisper') {
+      addMsg(`🔇 ${data.message}`, 'whisper');
+    } else {
+      const type = data.type === 'player_join' || data.type === 'player_leave'
+        ? 'system'
+        : 'event';
+      addMsg(`⟨ ${data.message} ⟩`, type);
+    }
   });
 
   // Chat local
