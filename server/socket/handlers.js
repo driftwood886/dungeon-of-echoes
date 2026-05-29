@@ -59,6 +59,13 @@ function registerHandlers(io) {
       // Auto-look al entrar
       const lookResult = engine.execute(player.id, 'look');
 
+      // Si el jugador está en el tutorial, agregar mensaje introductorio
+      let welcomeText = lookResult.text;
+      if (player.tutorial_step && player.tutorial_step > 0) {
+        const tutModule = require('../game/tutorial');
+        welcomeText = tutModule.getStepMessage(1) + '\n\n' + lookResult.text;
+      }
+
       // Entregar mensajes offline pendientes (tell)
       const pending = db.getPendingMessages(player.id);
       if (pending.length > 0) {
@@ -75,7 +82,7 @@ function registerHandlers(io) {
       }
 
       console.log(`[socket] ${player.username} (${socket.id}) unido a sala ${currentRoomId}`);
-      ack && ack({ player_id: player.id, username: player.username, welcome: lookResult.text });
+      ack && ack({ player_id: player.id, username: player.username, welcome: welcomeText });
     });
 
     // ── command ───────────────────────────────────────────────────────────────

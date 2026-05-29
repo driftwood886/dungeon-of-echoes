@@ -178,6 +178,7 @@ function seedIfEmpty() {
   const existing = db.getAllRooms();
   if (existing.length > 0) {
     console.log('[seed] Dungeon ya existe, saltando seed.');
+    migrateTutorial();
     migrateDoors();
     migrateExpandedDungeon();
     migrateTraps();
@@ -196,6 +197,7 @@ function seedIfEmpty() {
   }
 
   console.log(`[seed] ${ROOMS.length} habitaciones y ${MONSTERS.length} monstruos creados.`);
+  migrateTutorial();
   migrateDoors();
   migrateExpandedDungeon();
   migrateTraps();
@@ -452,6 +454,41 @@ function migrateAntidotes() {
       db.updateRoomItems(5, [...items5, 'hierba curativa']);
       console.log('[seed] migrateAntidotes: hierba curativa agregada en Sala 5 (Capilla Olvidada)');
     }
+  }
+}
+
+/**
+ * Agrega la sala 16 (Antesala del Dungeon) y el Goblin de Práctica (id 20) si no existen.
+ * Esta es la sala de tutorial — solo accesible para jugadores nuevos.
+ */
+function migrateTutorial() {
+  const tutorialRoom = db.getRoom(16);
+  if (!tutorialRoom) {
+    db.upsertRoom({
+      id: 16,
+      name: 'Antesala del Dungeon',
+      description: 'Una pequeña cámara iluminada con antorchas cálidas. El aire huele a paja fresca y cera de vela. Un guardián anciano te observa desde la esquina. Al sur, una puerta de madera da al dungeon real. En el centro, un Goblin de Práctica espera mansamente para el entrenamiento.',
+      exits: { south: 1 },
+      items: ['poción de salud'],
+    });
+    console.log('[seed] migrateTutorial: Sala 16 (Antesala del Dungeon) creada.');
+  }
+
+  // Goblin de Práctica — id 20, HP bajo, ATK mínimo, solo para tutorial
+  const existingGoblin = db.getMonster(20);
+  if (!existingGoblin) {
+    db.upsertMonster({
+      id: 20,
+      name: 'Goblin de Práctica',
+      description: 'Un goblin con chaleco acolchado y una espada de madera. Parece resignado a su destino como blanco de entrenamiento.',
+      hp: 8,
+      max_hp: 8,
+      attack: 2,
+      room_id: 16,
+      loot: ['monedas de cobre'],
+      respawn_room_id: 16,
+    });
+    console.log('[seed] migrateTutorial: Goblin de Práctica (id 20) creado en sala 16.');
   }
 }
 

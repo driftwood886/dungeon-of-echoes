@@ -19,6 +19,7 @@ const items   = require('./items');
 const ach     = require('./achievements');
 const quests  = require('./quests');
 const worldEvents = require('./worldEvents');
+const tutorial = require('./tutorial');
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // Cada sala puede tener un efecto que se aplica al entrar.
@@ -60,6 +61,16 @@ function execute(playerId, input) {
   db.touchPlayer(playerId);
 
   const action = parse(input);
+
+  // ── Lógica de tutorial (T091) ──────────────────────────────────────────────
+  const tutorialStep = player.tutorial_step;
+  if (tutorialStep && tutorialStep > 0 && player.current_room_id === tutorial.TUTORIAL_ROOM_ID) {
+    const tutResult = handleTutorialCommand(player, action, tutorialStep);
+    if (tutResult) {
+      db.logEvent(playerId, player.current_room_id, input, tutResult.text.slice(0, 200));
+      return tutResult;
+    }
+  }
 
   let result;
   switch (action.command) {
@@ -159,6 +170,83 @@ function execute(playerId, input) {
   db.logEvent(playerId, player.current_room_id, input, result.text.slice(0, 200));
 
   return result;
+}
+
+// ── Manejo de pasos del tutorial (T091) ───────────────────────────────────────
+/**
+ * Procesa un comando cuando el jugador está en el tutorial.
+ * Devuelve un resultado si el tutorial lo intercepta, o null si debe seguir el flujo normal.
+ */
+function handleTutorialCommand(player, action, step) {
+  const cmd = action.command;
+
+  // Siempre se pueden ejecutar look y status en el tutorial (paso 1 requiere look)
+  if (cmd === 'look') {
+    // Ejecutar look normalmente, pero si estamos en paso 1 avanzar al paso 2
+    const lookResult = cmdLook(player);
+    if (step === 1) {
+      db.updatePlayer(player.id, { tutorial_step: 2 });
+      const hint = tutorial.getStepMessage(2);
+      return { text: lookResult.text + '\n\n' + hint };
+    }
+    // En pasos siguientes, look funciona normalmente (no interceptar)
+    return null;
+  }
+
+  if (cmd === 'attack') {
+    // Avanzar a paso 3 al iniciar el primer ataque (si estamos en paso 2)
+    if (step === 2) {
+      db.updatePlayer(player.id, { tutorial_step: 3 });
+    }
+    // Dejar que el combate normal se ejecute — retornar null para no interceptar
+    return null;
+  }
+
+  if (cmd === 'move') {
+    // Si el jugador quiere salir al dungeon, completar el tutorial
+    const dir = (action.args[0] || '').toLowerCase();
+    const isSouth = ['south', 'sur', 's'].includes(dir);
+    if (isSouth) {
+      // Completar tutorial: +10 XP, mover a sala 1, tutorial_step = 0
+      return completeTutorial(player);
+    }
+    // Intentar moverse en dirección inválida dentro de la antesala
+    return { text: 'La única salida de la Antesala es hacia el sur (al dungeon real). Primero completá el entrenamiento o escribí «sur» para saltar el tutorial.' };
+  }
+
+  // Si el jugador hace help, status, inventory — dejar fluir normalmente
+  if (['help', 'status', 'inventory', 'clear'].includes(cmd)) {
+    return null;
+  }
+
+  // Para cualquier otro comando, recordar el estado del tutorial
+  const hint = tutorial.getStepMessage(step);
+  if (hint) {
+    return {
+      text: `Comando recibido, pero primero completá el tutorial:\n${hint}`,
+    };
+  }
+
+  return null; // dejar fluir
+}
+
+/**
+ * Completa el tutorial: otorga +10 XP, mueve al jugador a sala 1, marca tutorial_step = 0.
+ */
+function completeTutorial(player) {
+  const xp = (player.xp || 0) + 10;
+  const level = Math.floor(xp / 50) + 1;
+  db.updatePlayer(player.id, {
+    tutorial_step: 0,
+    current_room_id: 1,
+    xp,
+    level,
+  });
+  return {
+    text: tutorial.COMPLETE_MSG,
+    event: `${player.username} emerge de la Antesala. ¡Un aventurero nuevo llega al dungeon!`,
+    eventRoomId: 1,
+  };
 }
 
 // ─── Comandos ──────────────────────────────────────────────────────────────
@@ -1897,12 +1985,27 @@ function buildHpBar(hp, maxHp, len = 8) {
 /**
  * Obtener o crear un jugador por username.
  * Devuelve el objeto jugador.
+ * Si el jugador es nuevo (0 kills, nivel 1, sin tutorial_step), inicia el tutorial.
  */
 function getOrCreatePlayer(username) {
   let player = db.getPlayerByUsername(username);
   if (!player) {
     player = db.createPlayer(username);
-    console.log(`[engine] Nuevo jugador creado: ${username} (${player.id})`);
+    // Jugador nuevo: iniciar tutorial
+    db.updatePlayer(player.id, {
+      tutorial_step: 1,
+      current_room_id: tutorial.TUTORIAL_ROOM_ID,
+    });
+    player = db.getPlayer(player.id);
+    console.log(`[engine] Nuevo jugador creado: ${username} (${player.id}) — iniciando tutorial en sala 16`);
+  } else if (tutorial.shouldStartTutorial(player) && player.current_room_id !== tutorial.TUTORIAL_ROOM_ID) {
+    // Jugador que aún no completó el tutorial y no está en la sala de tutorial:
+    // lo ponemos en tutorial_step 1 y lo llevamos a la antesala.
+    db.updatePlayer(player.id, {
+      tutorial_step: 1,
+      current_room_id: tutorial.TUTORIAL_ROOM_ID,
+    });
+    player = db.getPlayer(player.id);
   }
   return player;
 }

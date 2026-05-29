@@ -128,6 +128,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN guild TEXT`,
     `ALTER TABLE players ADD COLUMN duel_wins INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE players ADD COLUMN duel_losses INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE players ADD COLUMN tutorial_step INTEGER`,
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
