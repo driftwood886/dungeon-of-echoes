@@ -90,6 +90,7 @@ async function main() {
         exits: Object.keys(room.exits),
         monsters: monsters.map(m => ({ name: m.name, hp: m.hp, max_hp: m.max_hp })),
         items: room.items,
+        trap: room.trap ? { active: room.trap.active, type: room.trap.type } : null,
       },
       player: {
         id: player.id,

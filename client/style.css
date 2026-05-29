@@ -440,6 +440,29 @@ html, body {
   animation: msgFlash 1.4s ease infinite;
 }
 
+/* Indicador de trampa activa en el sidebar */
+.trap-warning {
+  color: #ff6b6b;
+  font-size: 0.85em;
+}
+
+#trap-section {
+  border: 1px solid #ff6b6b;
+  border-radius: 4px;
+  padding: 4px 6px;
+  background: rgba(255, 107, 107, 0.07);
+  animation: msgFlash 2s ease infinite;
+}
+
+.trap-disarm-btn {
+  font-size: 0.75em;
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+.trap-disarm-btn:hover {
+  background: rgba(255, 107, 107, 0.2);
+}
+
 /* Cursor parpadeante en el input */
 #cmd-input:focus { outline: none; }
 

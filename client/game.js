@@ -213,6 +213,20 @@ function updateSidebar(data) {
     el.sidebarRoomItems.textContent = items.length > 0
       ? items.map(i => `◆ ${i}`).join('\n')
       : '(nada)';
+
+    // Trampa activa
+    const trapSection = document.getElementById('trap-section');
+    const sidebarTrap = document.getElementById('sidebar-trap');
+    if (trapSection && sidebarTrap) {
+      if (room.trap && room.trap.active) {
+        const trapTypeNames = { spike: 'pinchos 🗡️', poison: 'esporas venenosas ☣️', cold: 'frío sobrenatural ❄️', flood: 'inundación 💧' };
+        const typeName = trapTypeNames[room.trap.type] || room.trap.type;
+        sidebarTrap.textContent = `Tipo: ${typeName}`;
+        trapSection.style.display = '';
+      } else {
+        trapSection.style.display = 'none';
+      }
+    }
   }
 }
 

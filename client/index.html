@@ -112,6 +112,12 @@
           <div id="sidebar-exits" class="sidebar-list">(desconocido)</div>
         </div>
 
+        <div class="sidebar-section" id="trap-section" style="display:none">
+          <div class="sidebar-title" style="color:#ff6b6b">⚠️ TRAMPA ACTIVA</div>
+          <div id="sidebar-trap" class="sidebar-list trap-warning">¡Esta sala tiene una trampa!</div>
+          <button class="qcmd trap-disarm-btn" data-cmd="desactivar trampa" style="margin-top:4px;width:100%">desactivar trampa</button>
+        </div>
+
         <div class="sidebar-section">
           <div class="sidebar-title">◈ MONSTRUOS</div>
           <div id="sidebar-monsters" class="sidebar-list">(ninguno)</div>
@@ -141,6 +147,7 @@
             <button class="qcmd" data-cmd="loot">saquear</button>
             <button class="qcmd" data-cmd="flee">huir</button>
             <button class="qcmd" data-cmd="clear">limpiar</button>
+            <button class="qcmd" data-cmd="rest">descansar</button>
           </div>
         </div>
 
