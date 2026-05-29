@@ -89,6 +89,17 @@ async function init() {
   // Guardar al disco periódicamente (cada 30 segundos)
   setInterval(persist, 30_000);
 
+  // Migraciones: agregar columnas nuevas si no existen
+  // sql.js lanza error si la columna ya existe, lo ignoramos.
+  const migrations = [
+    `ALTER TABLE players ADD COLUMN xp     INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE players ADD COLUMN level  INTEGER NOT NULL DEFAULT 1`,
+    `ALTER TABLE players ADD COLUMN kills  INTEGER NOT NULL DEFAULT 0`,
+  ];
+  for (const sql of migrations) {
+    try { db.run(sql); } catch (_) { /* columna ya existe */ }
+  }
+
   // Guardar al apagar
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });

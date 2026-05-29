@@ -139,10 +139,20 @@ function cmdStatus(player) {
   const room = db.getRoom(player.current_room_id);
   const roomName = room ? room.name : 'desconocida';
 
+  // Refrescar para tener xp/kills/level actualizados
+  player = db.getPlayer(player.id);
+
   const hpBar = buildBar(player.hp, player.max_hp, 20);
+  const level  = player.level || 1;
+  const xp     = player.xp    || 0;
+  const kills  = player.kills || 0;
+  const xpNext = level * 50; // XP necesario para el siguiente nivel
+  const xpBar  = buildBar(xp % 50, 50, 10);
 
   const text = [
     `\n=== ${player.username.toUpperCase()} ===`,
+    `Nivel:    ${level}  (${xp} XP total | kills: ${kills})`,
+    `XP sig.:  ${xpBar} ${xp % 50}/50`,
     `HP:       ${hpBar} ${player.hp}/${player.max_hp}`,
     `Ataque:   ${player.attack}`,
     `Defensa:  ${player.defense}`,
@@ -446,7 +456,8 @@ function cmdWho() {
     ...active.map(p => {
       const hpBar = buildBar(p.hp, p.max_hp, 8);
       const hpText = `${p.hp}/${p.max_hp}`;
-      return `  ${p.username.padEnd(16)} ${hpBar} ${hpText.padStart(7)}  │  ${p.room_name || 'Desconocido'}`;
+      const level = p.level || 1;
+      return `  ${p.username.padEnd(16)} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  │  ${p.room_name || 'Desconocido'}`;
     }),
     ``,
     `(jugadores activos en los últimos 5 minutos)`,

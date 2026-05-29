@@ -63,6 +63,25 @@ function attackRound(player, monster) {
       lines.push(`El ${monster.name} no deja nada.`);
     }
 
+    // Actualizar kills y XP del jugador
+    const xpGain = Math.max(5, Math.floor(monster.max_hp * 2));
+    const freshPlayer = db.getPlayer(player.id);
+    const newKills = (freshPlayer.kills || 0) + 1;
+    const newXp    = (freshPlayer.xp    || 0) + xpGain;
+    const oldLevel = freshPlayer.level || 1;
+    // Nivel sube cada 50 XP acumulados: nivel = floor(xp/50) + 1
+    const newLevel = Math.floor(newXp / 50) + 1;
+    const updates  = { kills: newKills, xp: newXp, level: newLevel };
+    if (newLevel > oldLevel) {
+      // Subida de nivel: +5 max_hp, +1 ataque
+      updates.max_hp = (freshPlayer.max_hp || 30) + 5;
+      updates.hp     = Math.min(freshPlayer.hp, updates.max_hp);
+      updates.attack = (freshPlayer.attack || 5) + 1;
+      lines.push(`✨ ¡Subiste al nivel ${newLevel}! +5 HP máx, +1 ataque.`);
+    }
+    lines.push(`⭐ +${xpGain} XP (total: ${newXp} | kills: ${newKills} | nivel: ${newLevel})`);
+    db.updatePlayer(player.id, updates);
+
     return { lines, monsterDead, playerDead, loot };
   }
 
