@@ -11,7 +11,7 @@ const path    = require('path');
 
 const db                     = require('./db/db');
 const { seedIfEmpty }        = require('./db/seed');
-const { execute, getOrCreatePlayer } = require('./game/engine');
+const { execute, getOrCreatePlayer, ROOM_EFFECTS } = require('./game/engine');
 const { checkRespawns }      = require('./game/combat');
 const quests                 = require('./game/quests');
 
@@ -92,6 +92,7 @@ async function main() {
         monsters: monsters.map(m => ({ name: m.name, hp: m.hp, max_hp: m.max_hp })),
         items: room.items,
         trap: room.trap ? { active: room.trap.active, type: room.trap.type } : null,
+        room_effect: ROOM_EFFECTS[room.id] ? { label: ROOM_EFFECTS[room.id].label, type: ROOM_EFFECTS[room.id].type } : null,
       },
       player: {
         id: player.id,

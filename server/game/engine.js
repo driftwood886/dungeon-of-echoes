@@ -19,6 +19,20 @@ const items   = require('./items');
 const ach     = require('./achievements');
 const quests  = require('./quests');
 
+// ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
+// Cada sala puede tener un efecto que se aplica al entrar.
+// type: 'damage' | 'heal' | 'buff' | 'debuff'
+const ROOM_EFFECTS = {
+  // Sala 9 — Sala del Trono: frío sobrenatural (ya tiene trampa, además debuffa ATK)
+  9:  { type: 'debuff', stat: 'attack', amount: -1, label: '🥶 Frío sobrenatural', msg: 'El frío sobrenatural te entumece los músculos. (-1 ATK mientras estés aquí)' },
+  // Sala 12 — Forja del Glaciar: hielo extremo daña al entrar
+  12: { type: 'damage', amount: 2, label: '❄️ Congelación', msg: '❄️ El frío glacial de la forja te quema la piel. (-2 HP)' },
+  // Sala 1 — Entrada del Santuario: aura sagrada regenera HP
+  1:  { type: 'heal', amount: 3, label: '✨ Aura Sagrada', msg: '✨ El aura sagrada de la entrada te reconforta. (+3 HP)' },
+  // Sala 15 — Catedral Maldita: maldición drena HP
+  15: { type: 'damage', amount: 3, label: '💀 Maldición del Lich', msg: '💀 Una maldición oscura te drena la vitalidad al entrar. (-3 HP)' },
+};
+
 // ── Registro en memoria: último remitente de whisper/tell por jugador ─────────
 // lastWhisperSender.get(playerId) → { id, username } del último que les escribió
 const lastWhisperSender = new Map();
@@ -143,7 +157,10 @@ function execute(playerId, input) {
  */
 function cmdLook(player) {
   const text = dungeon.describeRoom(player.current_room_id, player.id);
-  return { text };
+  // Mostrar efecto de sala si existe
+  const roomEffect = ROOM_EFFECTS[player.current_room_id];
+  const effectLine = roomEffect ? `\n🌐 Efecto de sala: ${roomEffect.label}` : '';
+  return { text: text + effectLine };
 }
 
 /**
@@ -208,8 +225,27 @@ function cmdMove(player, direction) {
     trapText += '\n💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla.';
   }
 
+  // ── Efecto pasivo de sala (T087) ─────────────────────────────────────────
+  let effectText = '';
+  const roomEffect = ROOM_EFFECTS[targetId];
+  if (roomEffect) {
+    player = db.getPlayer(player.id);
+    if (roomEffect.type === 'damage') {
+      const newHp = Math.max(1, player.hp - roomEffect.amount); // mínimo 1 HP (no mata)
+      db.updatePlayer(player.id, { hp: newHp });
+      effectText = `\n\n${roomEffect.msg} (${newHp}/${player.max_hp} HP)`;
+    } else if (roomEffect.type === 'heal') {
+      const newHp = Math.min(player.max_hp, player.hp + roomEffect.amount);
+      db.updatePlayer(player.id, { hp: newHp });
+      effectText = `\n\n${roomEffect.msg} (${newHp}/${player.max_hp} HP)`;
+    } else if (roomEffect.type === 'debuff') {
+      // Debuff temporal narrativo — en futuro se integraría con status_effects
+      effectText = `\n\n${roomEffect.msg}`;
+    }
+  }
+
   return {
-    text: `${moveText}\n${roomDesc}${trapText}`,
+    text: `${moveText}\n${roomDesc}${trapText}${effectText}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -1478,4 +1514,4 @@ function getOrCreatePlayer(username) {
   return player;
 }
 
-module.exports = { execute, getOrCreatePlayer };
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS };
