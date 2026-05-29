@@ -37,6 +37,10 @@ const COMMAND_ALIASES = {
   pick: 'pick', tomar: 'pick', recoger: 'pick', agarrar: 'pick', get: 'pick',
   // use
   use: 'use', usar: 'use', utilizar: 'use',
+  // drop
+  drop: 'drop', tirar: 'drop', soltar: 'drop', dejar: 'drop',
+  // examine
+  examine: 'examine', examinar: 'examine', inspeccionar: 'examine', x: 'examine',
   // flee
   flee: 'flee', huir: 'flee', escapar: 'flee', correr: 'flee',
   // say
@@ -108,7 +112,9 @@ Comandos disponibles:
   attack <monstruo>     — Atacar a un monstruo
   flee / huir           — Intentar huir del combate
   pick <ítem>           — Recoger un ítem del suelo
+  drop <ítem>           — Tirar un ítem al suelo
   use <ítem>            — Usar un ítem del inventario
+  examine <objetivo>    — Examinar un monstruo, ítem o la sala
   say <mensaje>         — Hablar con jugadores en la misma habitación
   shout <mensaje>       — Gritar a todo el dungeon
   help / ayuda          — Esta ayuda

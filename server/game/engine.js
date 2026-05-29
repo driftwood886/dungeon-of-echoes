@@ -46,6 +46,8 @@ function execute(playerId, input) {
     case 'flee':      result = cmdFlee(player); break;
     case 'pick':      result = cmdPick(player, action.args.join(' ')); break;
     case 'use':       result = cmdUse(player, action.args.join(' ')); break;
+    case 'drop':      result = cmdDrop(player, action.args.join(' ')); break;
+    case 'examine':   result = cmdExamine(player, action.args.join(' ')); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -288,6 +290,106 @@ function cmdUse(player, itemQuery) {
     event: `${player.username} usa un ítem.`,
     eventRoomId: player.current_room_id,
   };
+}
+
+/**
+ * drop <ítem> — Tirar un ítem del inventario al suelo de la habitación.
+ */
+function cmdDrop(player, itemQuery) {
+  if (!itemQuery || !itemQuery.trim()) {
+    return { text: 'Indicá qué querés tirar. Ej: "drop espada".' };
+  }
+
+  player = db.getPlayer(player.id);
+
+  const found = items.findItem(player.inventory, itemQuery.trim());
+  if (!found) {
+    return { text: `No tenés ningún "${itemQuery}" en el inventario.` };
+  }
+
+  // Quitar del inventario
+  const newInv = removeFirst(player.inventory, found);
+  db.updatePlayer(player.id, { inventory: newInv });
+
+  // Agregar al suelo de la habitación
+  const room = db.getRoom(player.current_room_id);
+  if (room) {
+    db.updateRoomItems(room.id, [...room.items, found]);
+  }
+
+  return {
+    text: `Dejás ${found} en el suelo.`,
+    event: `${player.username} tira algo al suelo.`,
+    eventRoomId: player.current_room_id,
+  };
+}
+
+/**
+ * examine <objetivo> — Examinar un monstruo, ítem o la sala con más detalle.
+ */
+function cmdExamine(player, query) {
+  player = db.getPlayer(player.id);
+
+  // Sin argumento → examinar la sala (alias de look pero más detallado)
+  if (!query || !query.trim()) {
+    const room = db.getRoom(player.current_room_id);
+    if (!room) return { text: 'Error: no podés examinar esta habitación.' };
+    const monsters = db.getMonstersInRoom(room.id);
+    const monsterLines = monsters.map(m => {
+      const bar = buildBar(m.hp, m.max_hp, 10);
+      return `  • ${m.name} ${bar} ${m.hp}/${m.max_hp} HP — ${m.description}`;
+    });
+    const itemLines = (room.items || []).map(i => `  • ${i}`);
+    const parts = [
+      `=== ${room.name.toUpperCase()} (detalle) ===`,
+      room.description,
+    ];
+    if (monsterLines.length) parts.push('\nCriaturas:', ...monsterLines);
+    if (itemLines.length)    parts.push('\nObjetos:', ...itemLines);
+    return { text: parts.join('\n') };
+  }
+
+  const qLow = query.trim().toLowerCase();
+
+  // ¿Es un monstruo en la habitación?
+  const monsters = db.getMonstersInRoom(player.current_room_id);
+  const monster = monsters.find(m => m.name.toLowerCase().includes(qLow));
+  if (monster) {
+    const bar = buildBar(monster.hp, monster.max_hp, 20);
+    return {
+      text: [
+        `=== ${monster.name.toUpperCase()} ===`,
+        monster.description,
+        `HP: ${bar} ${monster.hp}/${monster.max_hp}`,
+        `Ataque: ${monster.attack}`,
+        monster.loot && monster.loot.length
+          ? `Posible loot: ${monster.loot.join(', ')}`
+          : 'No parece llevar nada de valor.',
+      ].join('\n'),
+    };
+  }
+
+  // ¿Es un ítem en el inventario o en el suelo?
+  const room = db.getRoom(player.current_room_id);
+  const allItems = [...(player.inventory || []), ...(room ? room.items : [])];
+  const itemName = items.findItem(allItems, query.trim());
+  if (itemName) {
+    const def = items.getItemDef(itemName);
+    if (def) {
+      const typeLabel = def.type === 'weapon' ? 'Arma' : def.type === 'potion' ? 'Poción' : 'Objeto';
+      return {
+        text: [
+          `=== ${itemName.toUpperCase()} ===`,
+          def.description,
+          `Tipo: ${typeLabel}`,
+          def.amount !== undefined ? `Efecto: ${def.effect || 'daño'} ${def.amount > 0 ? '+' : ''}${def.amount}` : '',
+        ].filter(Boolean).join('\n'),
+      };
+    }
+    return { text: `Examinás ${itemName}: es un objeto corriente.` };
+  }
+
+  return { text: `No ves ningún "${query}" aquí para examinar.` };
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
