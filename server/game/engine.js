@@ -841,13 +841,13 @@ function cmdReply(player, args) {
 
 /**
  * map — Mostrar mapa ASCII del dungeon con la sala actual marcada.
- * El layout es fijo para el dungeon de 10 salas actual.
+ * El layout es fijo para el dungeon de 15 salas actual.
  * La sala del jugador se muestra como [★NN] en lugar de [ NN].
  */
 function cmdMap(player) {
   const here = player.current_room_id;
 
-  // Abreviaciones para los nombres de sala (max 12 chars para el grid)
+  // Abreviaciones para los nombres de sala (max 9 chars para el grid)
   const NAMES = {
     1:  'Entrada',
     2:  'Corredor',
@@ -859,6 +859,11 @@ function cmdMap(player) {
     8:  'Prisión',
     9:  'Trono',
     10: 'Santuario',
+    11: 'Galería',
+    12: 'Forja',
+    13: 'Caverna',
+    14: 'Coliseo',
+    15: 'Catedral',
   };
 
   function cell(id) {
@@ -867,56 +872,34 @@ function cmdMap(player) {
     return `[${marker}${String(id).padStart(2,' ')} ${label.substring(0,9).padEnd(9,' ')}]`;
   }
 
-  // Layout visual del dungeon (3 columnas × filas):
-  //
-  //  [7 Pozo]---[3 Ecos]---[4 Tesoro]
-  //      |          |           |
-  // [9 Trono]--[6 Túnel]--[2 Corredor]-- (8 Prisión arriba de 4)
-  //      |          |           |
-  //             [5 Capilla]-[1 Entrada]
-  //
-  // Representación simplificada en texto:
-
   const c = (id) => cell(id);
-  const H = '───';
-  const V = '│';
 
-  // Calcular posición horizontal de cada celda (15 chars + 3 de ─── separador = 18 por bloque)
-  // Fila principal: 10─9─6─2─3─4 (izq a derecha)
-  // Centro celda N en esa fila: N*18+7 donde N=0,1,2,3,4,5
-  // c10@0, c9@18, c6@36, c2@54, c3@72, c4@90
-  const pad = (n) => ' '.repeat(n);
-  const CELL_W = 15; // ancho de cada celda
-  const SEP_W  = 3;  // ancho de ─── 
-  const BLOCK  = CELL_W + SEP_W; // 18
+  // Layout visual del dungeon expandido:
+  //
+  //                                              [8-Prisión]
+  //                                                   │
+  // [7-Pozo]───[3-Ecos]───[4-Tesoro]     [12-Forja]───[14-Coliseo]───[15-Catedral]
+  //    │                      │               │              │
+  // [10-Santuario]──[9-Trono]──[6-Túnel]──[2-Corredor]  [13-Caverna]
+  //    │                          │              │
+  // [11-Galería]              [5-Capilla]─[1-Entrada]
 
-  // Centro de cada celda en la fila principal
-  const center = (col) => col * BLOCK + Math.floor(CELL_W / 2); // col 0..5
-
-  // Sala 8 está arriba de sala 4 (col 5, centro = 97)
-  // Sala 7 está debajo de sala 10 (col 0, centro = 7)
-  // Sala 5-1 están debajo de sala 6-2 (col 2 y 3, centros = 43 y 61)
-
-  const c8_start = center(5) - Math.floor(CELL_W / 2); // 97 - 7 = 90
-  const c7_start = 0;        // debajo de c10 (col 0)
-  const c5_start = center(2) - Math.floor(CELL_W / 2); // 43 - 7 = 36
-  const c1_start = center(3) - Math.floor(CELL_W / 2); // 61 - 7 = 54
-
-  const row_8    = pad(c8_start) + c(8);
-  const pipe_8   = pad(center(5)) + '│';
-  const row_main = `${c(10)}───${c(9)}───${c(6)}───${c(2)}───${c(3)}───${c(4)}`;
-  const pipes_76 = pad(center(0)) + '│' + pad(center(2) - center(0) - 1) + '│';
-  const row_71   = pad(c7_start) + c(7) + pad(c5_start - c7_start - CELL_W) + c(5) + '───' + c(1);
+  // Fila superior (3 salas): 8, luego 12-14-15 a la derecha
+  // Fila media: 7-3-4 | | 10-9-6-2 | 12(conector)
+  // Fila baja: 11 | 5-1
 
   const lines = [
-    `MAPA DEL DUNGEON`,
-    ``,
-    row_8,
-    pipe_8,
-    row_main,
-    pipes_76,
-    row_71,
-    ``,
+    'MAPA DEL DUNGEON (15 salas)',
+    '',
+    // Fila top: Prisión (arriba de 4) y Forja/Coliseo/Catedral (zona nueva)
+    `         ${c(8)}                   ${c(12)}───${c(14)}───${c(15)}`,
+    `              │                        │         │`,
+    // Fila principal izquierda + santuario/conexión + zonas nuevas
+    `${c(7)}───${c(3)}───${c(4)}   ${c(10)}───${c(9)}───${c(6)}───${c(2)}   ${c(13)}`,
+    `  │              │                    │         │`,
+    `${c(11)}          ${c(5)}───${c(1)}               │`,
+    `                                       └───zona expandida`,
+    '',
     `★ = tu ubicación actual (sala ${here}: ${NAMES[here] || '?'})`,
   ];
 

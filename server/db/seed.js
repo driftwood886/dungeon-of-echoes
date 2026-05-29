@@ -179,6 +179,7 @@ function seedIfEmpty() {
   if (existing.length > 0) {
     console.log('[seed] Dungeon ya existe, saltando seed.');
     migrateDoors();
+    migrateExpandedDungeon();
     return;
   }
 
@@ -194,6 +195,7 @@ function seedIfEmpty() {
 
   console.log(`[seed] ${ROOMS.length} habitaciones y ${MONSTERS.length} monstruos creados.`);
   migrateDoors();
+  migrateExpandedDungeon();
 }
 
 /**
@@ -216,6 +218,133 @@ function migrateDoors() {
     db.upsertRoom({ ...room7, exits: newExits, description: newDesc });
     console.log('[seed] migrateDoors: Sala 7 actualizada — norte hacia sala 10 requiere llave oxidada 🔒');
   }
+}
+
+/**
+ * Agrega 5 habitaciones nuevas (zona helada, forja, etc.) si aún no existen (IDs 11-15).
+ * También conecta estas habitaciones al dungeon existente y agrega nuevos monstruos (IDs 9-13).
+ *
+ * Mapa de expansión:
+ *   Santuario (10) ←east→ [11-Galería de Hielo]
+ *   [11-Galería] ←north→ [12-Taller de la Forja]
+ *   [11-Galería] ←east→ [13-Caverna Sumergida]
+ *   [12-Forja] ←east→ [14-Coliseo de Huesos]
+ *   [13-Caverna] ←north→ [14-Coliseo]
+ *   [14-Coliseo] ←east→ [15-Catedral de la Oscuridad]
+ */
+function migrateExpandedDungeon() {
+  const existing11 = db.getRoom(11);
+  if (existing11) {
+    // Ya fue aplicada la expansión
+    return;
+  }
+
+  console.log('[seed] migrateExpandedDungeon: agregando 5 habitaciones nuevas (IDs 11-15)...');
+
+  // Nuevas habitaciones
+  const newRooms = [
+    {
+      id: 11,
+      name: 'Galería de Hielo',
+      description: 'Columnas de hielo translúcido atrapan figuras deformadas en su interior. El aliento se congela al instante. Las paredes brillan con una luz azul espectral. ¿Son los cadáveres de aventureros anteriores?',
+      exits: { west: 10, north: 12, east: 13 },
+      items: ['fragmento de hielo', 'poción de salud'],
+    },
+    {
+      id: 12,
+      name: 'Taller de la Forja',
+      description: 'Una forja gigantesca que nunca se apagó. El calor contrasta brutalmente con la galería helada al sur. Herramientas de dimensiones colosales cuelgan de las paredes. Algo sigue trabajando aquí.',
+      exits: { south: 11, east: 14 },
+      items: ['martillo de forja', 'lingote de hierro'],
+    },
+    {
+      id: 13,
+      name: 'Caverna Sumergida',
+      description: 'Un lago subterráneo de agua negra ocupa la mitad de la caverna. Plataformas de piedra permiten avanzar con cuidado. Burbujas suben a la superficie de manera inquietante. Algo respira bajo el agua.',
+      exits: { west: 11, north: 14 },
+      items: ['perla negra', 'red de pesca'],
+    },
+    {
+      id: 14,
+      name: 'Coliseo de Huesos',
+      description: 'Una arena circular rodeada de gradas repletas de esqueletos sentados como espectadores eternos. El suelo está empapado de sangre seca de siglos. La acústica amplifica cada sonido de manera grotesca.',
+      exits: { west: 12, south: 13, east: 15 },
+      items: ['escudo de gladiador', 'monedas de oro'],
+    },
+    {
+      id: 15,
+      name: 'Catedral de la Oscuridad',
+      description: 'La sala más profunda del dungeon. Vitrales negros filtran una luz inexistente. En el altar central yace una espada de obsidiana que parece absorber la luz circundante. El aire vibra con una energía antigua y hambrienta. Pocos llegan aquí. Ninguno sale igual.',
+      exits: { west: 14 },
+      items: ['espada de obsidiana', 'poción de poder', 'tomo sellado'],
+    },
+  ];
+
+  for (const room of newRooms) {
+    db.upsertRoom(room);
+  }
+
+  // Conectar sala 10 (Santuario) hacia el este con sala 11
+  const room10 = db.getRoom(10);
+  if (room10) {
+    const updatedExits10 = { ...room10.exits, east: 11 };
+    db.upsertRoom({ ...room10, exits: updatedExits10 });
+  }
+
+  // Nuevos monstruos en las habitaciones de la expansión
+  const newMonsters = [
+    {
+      id: 9,
+      name: 'Elemental de Hielo',
+      description: 'Una masa de hielo vivo que se desplaza lentamente pero golpea con una fuerza que congela los huesos.',
+      hp: 22, max_hp: 22, attack: 6,
+      room_id: 11,
+      loot: ['cristal helado', 'poción de salud'],
+      respawn_room_id: 11,
+    },
+    {
+      id: 10,
+      name: 'Golem de Forja',
+      description: 'Construido de metal fundido y magia. Sus puños al rojo vivo causan quemaduras además de contusiones.',
+      hp: 30, max_hp: 30, attack: 9,
+      room_id: 12,
+      loot: ['núcleo de forja', 'monedas de oro'],
+      respawn_room_id: 12,
+    },
+    {
+      id: 11,
+      name: 'Krakeling Abismal',
+      description: 'Una criatura tentacular que emerge del lago negro. Sus ventosas paralizan momentáneamente al contacto.',
+      hp: 25, max_hp: 25, attack: 7,
+      room_id: 13,
+      loot: ['tinta de kraken', 'escama abismal'],
+      respawn_room_id: 13,
+    },
+    {
+      id: 12,
+      name: 'Campeón Espectral',
+      description: 'El fantasma del último campeón del coliseo. Porta armadura de sombras y una lanza de luz negra.',
+      hp: 40, max_hp: 40, attack: 10,
+      room_id: 14,
+      loot: ['lanza espectral', 'monedas de plata', 'poción de poder'],
+      respawn_room_id: 14,
+    },
+    {
+      id: 13,
+      name: 'Lich Anciano',
+      description: 'El señor del dungeon. Un hechicero que alcanzó la inmortalidad a través de la oscuridad. Sus ojos son estrellas negras. Su voz es el silencio antes de la muerte.',
+      hp: 60, max_hp: 60, attack: 12,
+      room_id: 15,
+      loot: ['filacteria rota', 'espada de obsidiana', 'tomo sellado'],
+      respawn_room_id: 15,
+    },
+  ];
+
+  for (const monster of newMonsters) {
+    db.upsertMonster(monster);
+  }
+
+  console.log(`[seed] migrateExpandedDungeon: ${newRooms.length} habitaciones y ${newMonsters.length} monstruos agregados. Sala 10 conectada al este con sala 11.`);
 }
 
 module.exports = { seedIfEmpty, ROOMS, MONSTERS };
