@@ -55,13 +55,26 @@ function getRoomFull(roomId) {
  * Acepta tanto inglés como español.
  * @param {object} room — objeto Room con exits ya parseado
  * @param {string} direction — puede ser 'north', 'norte', 'n', etc.
- * @returns {number|null} — id de la habitación destino, o null si no existe esa salida
+ * @returns {{ targetId: number, key: string|null } | null}
+ *   - targetId: id de la habitación destino
+ *   - key: nombre del ítem requerido para pasar (null si está libre)
  */
 function resolveExit(room, direction) {
   const normalized = normalizeDirection(direction);
   if (!normalized) return null;
-  const targetId = room.exits[normalized];
-  return targetId !== undefined ? targetId : null;
+  const exitVal = room.exits[normalized];
+  if (exitVal === undefined || exitVal === null) return null;
+
+  // Soporte backward-compatible:
+  // Formato viejo: exits.north = 3  (número)
+  // Formato nuevo: exits.north = { room_id: 3, key: "llave oxidada" }
+  if (typeof exitVal === 'number') {
+    return { targetId: exitVal, key: null };
+  }
+  if (typeof exitVal === 'object') {
+    return { targetId: exitVal.room_id, key: exitVal.key || null };
+  }
+  return null;
 }
 
 /**
@@ -80,14 +93,20 @@ function normalizeDirection(direction) {
 
 /**
  * Devuelve un texto con las salidas disponibles de una habitación.
- * Ej: "norte, este"
+ * Las salidas con llave se muestran con 🔒.
+ * Ej: "norte, este 🔒"
  * @param {object} room
  * @returns {string}
  */
 function exitsText(room) {
   const dirs = Object.keys(room.exits);
   if (dirs.length === 0) return 'ninguna';
-  return dirs.map(d => DIR_NAMES[d] || d).join(', ');
+  return dirs.map(d => {
+    const exitVal = room.exits[d];
+    const isLocked = typeof exitVal === 'object' && exitVal !== null && exitVal.key;
+    const label = DIR_NAMES[d] || d;
+    return isLocked ? `${label} 🔒` : label;
+  }).join(', ');
 }
 
 /**

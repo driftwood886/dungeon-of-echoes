@@ -72,7 +72,7 @@ const ROOMS = [
   {
     id: 7,
     name: 'Pozo Sin Fondo',
-    description: 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo?',
+    description: 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario.',
     exits: { east: 3, north: 10 },
     items: ['cuerda', 'gancho de hierro'],
   },
@@ -178,6 +178,7 @@ function seedIfEmpty() {
   const existing = db.getAllRooms();
   if (existing.length > 0) {
     console.log('[seed] Dungeon ya existe, saltando seed.');
+    migrateDoors();
     return;
   }
 
@@ -192,6 +193,29 @@ function seedIfEmpty() {
   }
 
   console.log(`[seed] ${ROOMS.length} habitaciones y ${MONSTERS.length} monstruos creados.`);
+  migrateDoors();
+}
+
+/**
+ * Aplica las puertas bloqueadas al dungeon.
+ * Se ejecuta siempre al arrancar para asegurar que las salidas con llave estén configuradas.
+ * Actualiza los exits de sala 7 para que norte→10 requiera la llave oxidada.
+ */
+function migrateDoors() {
+  const room7 = db.getRoom(7);
+  if (!room7) return;
+
+  const exits = room7.exits || {};
+  // Solo actualizar si la salida norte no tiene estructura de objeto (formato viejo)
+  if (typeof exits.north === 'number') {
+    const newExits = {
+      ...exits,
+      north: { room_id: exits.north, key: 'llave oxidada' },
+    };
+    const newDesc = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario.';
+    db.upsertRoom({ ...room7, exits: newExits, description: newDesc });
+    console.log('[seed] migrateDoors: Sala 7 actualizada — norte hacia sala 10 requiere llave oxidada 🔒');
+  }
 }
 
 module.exports = { seedIfEmpty, ROOMS, MONSTERS };

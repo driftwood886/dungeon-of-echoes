@@ -143,10 +143,24 @@ function cmdMove(player, direction) {
     return { text: 'Error: tu habitación actual no existe en la BD.' };
   }
 
-  const targetId = dungeon.resolveExit(room, direction);
-  if (targetId === null) {
+  const exit = dungeon.resolveExit(room, direction);
+  if (exit === null) {
     const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
     return { text: `No hay salida hacia el ${dirName}. Salidas disponibles: ${dungeon.exitsText(room)}.` };
+  }
+
+  const { targetId, key } = exit;
+
+  // Verificar si la salida requiere una llave
+  if (key) {
+    const inventory = player.inventory || [];
+    const hasKey = inventory.some(item => item.toLowerCase() === key.toLowerCase());
+    if (!hasKey) {
+      const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
+      return {
+        text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${key}" para abrirla.`,
+      };
+    }
   }
 
   const targetRoom = db.getRoom(targetId);

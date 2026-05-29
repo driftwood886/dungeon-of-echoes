@@ -345,7 +345,7 @@ function markMessagesDelivered(targetPlayerId) {
 }
 
 function countPendingMessages(targetPlayerId) {
-  const row = get(
+  const row = one(
     `SELECT COUNT(*) as cnt FROM offline_messages WHERE target_player_id = ? AND delivered = 0`,
     [targetPlayerId]
   );
