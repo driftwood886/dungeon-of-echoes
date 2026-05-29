@@ -43,6 +43,8 @@ const COMMAND_ALIASES = {
   examine: 'examine', examinar: 'examine', inspeccionar: 'examine', x: 'examine',
   // equip
   equip: 'equip', equipar: 'equip', empuñar: 'equip', portar: 'equip',
+  // unequip
+  unequip: 'unequip', desequipar: 'unequip', guardar: 'unequip', enfundar: 'unequip',
   // map
   map: 'map', mapa: 'map',
   // who
@@ -129,6 +131,7 @@ Comandos disponibles:
   who / jugadores       — Ver los aventureros activos en el dungeon
   score / ranking       — Ver la tabla de líderes global
   give <ítem> <jugador> — Dar un ítem a otro jugador en la misma sala
+  unequip / desequipar  — Guardar el arma y volver a puños (ataque 5)
   examine <objetivo>    — Examinar un monstruo, ítem o la sala
   say <mensaje>         — Hablar con jugadores en la misma habitación
   shout <mensaje>       — Gritar a todo el dungeon

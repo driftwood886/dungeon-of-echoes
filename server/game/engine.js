@@ -49,6 +49,7 @@ function execute(playerId, input) {
     case 'drop':      result = cmdDrop(player, action.args.join(' ')); break;
     case 'examine':   result = cmdExamine(player, action.args.join(' ')); break;
     case 'equip':     result = cmdEquip(player, action.args.join(' ')); break;
+    case 'unequip':   result = cmdUnequip(player); break;
     case 'map':       result = cmdMap(player); break;
     case 'who':       result = cmdWho(); break;
     case 'score':     result = cmdScore(); break;
@@ -513,6 +514,26 @@ function cmdScore() {
   lines.push(`╚═══════════════════════════════════════════════════╝`);
 
   return { text: lines.join('\n') };
+}
+
+/**
+ * unequip — Guardar el arma equipada y volver a pelear con los puños.
+ */
+function cmdUnequip(player) {
+  player = db.getPlayer(player.id);
+
+  if (!player.equipped_weapon) {
+    return { text: 'No tenés ningún arma equipada.' };
+  }
+
+  const weaponName = player.equipped_weapon;
+  db.updatePlayer(player.id, { attack: 5, equipped_weapon: null });
+
+  return {
+    text: `Enfundás ${weaponName}. Volvés a pelear con los puños (ataque: 5).`,
+    event: `${player.username} enfunda ${weaponName}.`,
+    eventRoomId: player.current_room_id,
+  };
 }
 
 /**
