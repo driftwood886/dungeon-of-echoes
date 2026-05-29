@@ -48,6 +48,7 @@ function execute(playerId, input) {
     case 'use':       result = cmdUse(player, action.args.join(' ')); break;
     case 'drop':      result = cmdDrop(player, action.args.join(' ')); break;
     case 'examine':   result = cmdExamine(player, action.args.join(' ')); break;
+    case 'equip':     result = cmdEquip(player, action.args.join(' ')); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -390,6 +391,41 @@ function cmdExamine(player, query) {
   }
 
   return { text: `No ves ningún "${query}" aquí para examinar.` };
+}
+
+/**
+ * equip <arma> — Equipar un arma del inventario explícitamente.
+ * Separado de `use` para mayor claridad. Solo funciona con ítems tipo 'weapon'.
+ */
+function cmdEquip(player, itemQuery) {
+  if (!itemQuery || !itemQuery.trim()) {
+    return { text: 'Indicá qué arma querés equipar. Ej: "equip espada".' };
+  }
+
+  player = db.getPlayer(player.id);
+
+  const found = items.findItem(player.inventory, itemQuery.trim());
+  if (!found) {
+    return { text: `No tenés ningún "${itemQuery}" en el inventario.` };
+  }
+
+  const def = items.getItemDef(found);
+  if (!def || def.type !== 'weapon') {
+    return { text: `${found} no es un arma que puedas equipar.` };
+  }
+
+  const oldAttack = player.attack;
+  const newAttack = 5 + def.amount; // base 5 + bonus del arma
+  db.updatePlayer(player.id, { attack: newAttack });
+
+  const change = newAttack - oldAttack;
+  const changeStr = change >= 0 ? `+${change}` : `${change}`;
+
+  return {
+    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack} (${changeStr}).\n${def.description}`,
+    event: `${player.username} empuña ${found}.`,
+    eventRoomId: player.current_room_id,
+  };
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────

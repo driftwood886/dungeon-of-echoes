@@ -191,8 +191,8 @@ async function main() {
   registerHandlers(io);
 
   // 7. Arrancar servidor
-  server.listen(PORT, () => {
-    console.log(`\n🏰 Dungeon of Echoes corriendo en http://localhost:${PORT}`);
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n🏰 Dungeon of Echoes corriendo en http://0.0.0.0:${PORT}`);
     console.log(`   Versión 0.6.0 — Fases 1-6 completas (Frontend + API LLM)`);
     console.log(`   Presioná Ctrl+C para apagar\n`);
   });

@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: dungeon-of-echoes
+    runtime: node
+    plan: free
+    region: oregon  # US West — más cercano a Sudamérica con free tier
+    branch: main
+    buildCommand: npm ci --omit=dev
+    startCommand: node server/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DB_PATH
+        value: /tmp/dungeon.sqlite
+    # NOTA: El free tier de Render no incluye disco persistente.
+    # La BD SQLite se guarda en /tmp — se resetea en cada redeploy/restart.
+    # Para persistencia real, agregar un disco ($7/mes) o migrar a Render Postgres.
+    # disk:  # Descomentar para usar disco persistente (requiere plan paid)
+    #   name: dungeon-data
+    #   mountPath: /data
+    #   sizeGB: 1
