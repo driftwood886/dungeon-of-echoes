@@ -9,7 +9,8 @@
 
 'use strict';
 
-const db = require('../db/db');
+const db      = require('../db/db');
+const ambient = require('./ambient');
 
 // Nombres de dirección en español
 const DIR_NAMES = {
@@ -128,6 +129,12 @@ function describeRoom(roomId, excludePlayerId = null) {
 
   lines.push(`\n=== ${room.name.toUpperCase()} ===`);
   lines.push(room.description);
+
+  // Texto ambiental dinámico (T096)
+  const ambientLine = ambient.getAmbientText(room);
+  if (ambientLine) {
+    lines.push(`\n🌫️ ${ambientLine}`);
+  }
 
   if (monsters.length > 0) {
     const monsterList = monsters.map(m => {
