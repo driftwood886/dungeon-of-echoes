@@ -175,6 +175,10 @@ function updateSidebar(data) {
     el.statKills.textContent = player.kills ?? '--';
     el.statWeapon.textContent = player.equipped_weapon || 'puños';
 
+    // Mostrar oro en sidebar
+    const goldEl = document.getElementById('stat-gold');
+    if (goldEl) goldEl.textContent = `💰 ${player.gold || 0}g`;
+
     // Mensajes offline pendientes
     const pendingCount = player.pending_messages || 0;
     if (pendingCount > 0) {

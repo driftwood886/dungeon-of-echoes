@@ -112,6 +112,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN last_rest TEXT`,
     `ALTER TABLE players ADD COLUMN deaths INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE players ADD COLUMN status_effects TEXT NOT NULL DEFAULT '{}'`,
+    `ALTER TABLE players ADD COLUMN gold INTEGER NOT NULL DEFAULT 0`,
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }

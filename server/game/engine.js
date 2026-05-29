@@ -234,6 +234,7 @@ function cmdStatus(player) {
   const xp     = player.xp    || 0;
   const kills  = player.kills || 0;
   const deaths = player.deaths || 0;
+  const gold   = player.gold   || 0;
   const xpBar  = buildBar(xp % 50, 50, 10);
   const weaponLine = player.equipped_weapon
     ? `Arma:     ${player.equipped_weapon}`
@@ -253,6 +254,7 @@ function cmdStatus(player) {
     `HP:       ${hpBar} ${player.hp}/${player.max_hp}`,
     `Ataque:   ${player.attack}`,
     `Defensa:  ${player.defense}`,
+    `Oro:      💰 ${gold}g`,
     weaponLine,
     `Ubicación: ${roomName}`,
     ...(statusLines.length ? ['', ...statusLines] : []),
@@ -340,8 +342,30 @@ function cmdPick(player, itemQuery) {
   const newRoomItems = room.items.filter(i => i !== found);
   db.updateRoomItems(room.id, newRoomItems);
 
-  // Agregarlo al inventario del jugador
+  // Refrescar jugador
   player = db.getPlayer(player.id);
+
+  // Ítems de oro: se convierten en monedas reales en lugar de ir al inventario
+  const GOLD_ITEMS = {
+    'monedas de oro': 10,
+    'monedas': 5,
+    'oro': 15,
+    'bolsa de monedas': 25,
+    'cofre de oro': 50,
+  };
+  const goldKey = Object.keys(GOLD_ITEMS).find(k => found.toLowerCase().includes(k) || k.includes(found.toLowerCase()));
+  if (goldKey) {
+    const amount = GOLD_ITEMS[goldKey];
+    const newGold = (player.gold || 0) + amount;
+    db.updatePlayer(player.id, { gold: newGold });
+    return {
+      text: `💰 Recogés ${found}. +${amount} monedas de oro. Tenés ${newGold}g en total.`,
+      event: `${player.username} recoge algo del suelo.`,
+      eventRoomId: room.id,
+    };
+  }
+
+  // Ítem normal: agregar al inventario del jugador
   const newInventory = [...player.inventory, found];
   db.updatePlayer(player.id, { inventory: newInventory });
 
