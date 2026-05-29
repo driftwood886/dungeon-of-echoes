@@ -14,11 +14,16 @@ services:
       - key: PORT
         value: 10000
       - key: DB_PATH
+        # Con disco persistente (plan starter+): usar /data/dungeon.sqlite
+        # Sin disco (free): usar /tmp/dungeon.sqlite (se resetea en cada restart)
         value: /tmp/dungeon.sqlite
-    # NOTA: El free tier de Render no incluye disco persistente.
-    # La BD SQLite se guarda en /tmp — se resetea en cada redeploy/restart.
-    # Para persistencia real, agregar un disco ($7/mes) o migrar a Render Postgres.
-    # disk:  # Descomentar para usar disco persistente (requiere plan paid)
+      - key: ADMIN_TOKEN
+        generateValue: true  # Render genera un token aleatorio
+    # ── DISCO PERSISTENTE ──────────────────────────────────────────────────────
+    # Descomentar para usar disco persistente ($7/mes en plan Starter).
+    # También cambiar DB_PATH a /data/dungeon.sqlite.
+    # Sin esto, la BD SQLite se resetea en cada redeploy/restart del servidor.
+    # disk:
     #   name: dungeon-data
     #   mountPath: /data
     #   sizeGB: 1

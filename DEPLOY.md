@@ -9,8 +9,31 @@ gratuito genuino para web services Node.js (750 horas/mes) sin tarjeta.
 ### ⚠️ Limitación importante del free tier
 El free tier de Render **no incluye disco persistente**. La base de datos SQLite se guarda
 en `/tmp` y se **pierde en cada redeploy o reinicio**. Para un juego demo esto es aceptable
-(el dungeon se regenera automáticamente). Para producción real, agregar un disco persistente
-($7/mes) o migrar a una base de datos externa.
+(el dungeon se regenera automáticamente). Para producción real, ver opciones abajo.
+
+### Opciones para persistencia de la BD (T072)
+
+#### Opción A: Disco persistente de Render ($7/mes) — más simple
+1. En el dashboard de Render → tu servicio → **Disks → Add Disk**
+2. Nombre: `dungeon-data`, Mount path: `/data`, Size: 1 GB
+3. Cambiar la variable `DB_PATH` a `/data/dungeon.sqlite`
+4. O descomentar la sección `disk:` en `render.yaml` y hacer push
+
+#### Opción B: Backup manual con endpoint admin — gratis
+El servidor expone `GET /api/admin/db-export` para descargar la BD antes de reinicios:
+```bash
+# Descargar BD (requiere ADMIN_TOKEN de las variables de entorno de Render)
+curl -H "Authorization: Bearer $ADMIN_TOKEN" \
+     https://dungeon-of-echoes.onrender.com/api/admin/db-export \
+     -o dungeon-backup.sqlite
+```
+El ADMIN_TOKEN se auto-genera en Render (ver variable `ADMIN_TOKEN` en Settings > Environment).
+
+#### Opción C: Turso (SQLite en la nube) — gratis hasta 500 DBs
+Turso ofrece SQLite distribuido con 500 bases de datos gratuitas.
+Requeriría migrar de sql.js a `@libsql/client`, lo que implica reescritura de db.js.
+No implementado aún por complejidad.
+
 
 ### Pasos para deploy en Render.com
 
@@ -103,13 +126,7 @@ Browser (GitHub Pages — gratis, estático)
 
 ## Alternativa: Render con disco persistente ($7/mes)
 
-Si querés persistencia real de la BD entre restarts:
-
-1. En el dashboard de Render, ir al servicio → **Disks → Add Disk**
-2. Nombre: `dungeon-data`, Mount path: `/data`, Size: 1 GB
-3. Cambiar la variable `DB_PATH` a `/data/dungeon.sqlite`
-
-O descomentar la sección `disk:` en `render.yaml`.
+Si querés persistencia real de la BD entre restarts (ver T072 → Opción A en sección anterior).
 
 ---
 

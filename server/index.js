@@ -193,6 +193,64 @@ async function main() {
     });
   });
 
+  // ─── Admin endpoints (T072 — persistencia de BD) ──────────────────────────
+
+  /**
+   * GET /api/admin/db-export
+   * Descarga la BD SQLite actual como archivo binario.
+   * Protegido por ADMIN_TOKEN env var. Útil para backup manual antes de reinicios.
+   * curl -H "Authorization: Bearer <token>" https://tu-server/api/admin/db-export > dungeon.sqlite
+   */
+  app.get('/api/admin/db-export', (req, res) => {
+    const adminToken = process.env.ADMIN_TOKEN;
+    if (adminToken) {
+      const authHeader = req.headers['authorization'] || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      if (token !== adminToken) {
+        return res.status(401).json({ error: 'Unauthorized. Provide: Authorization: Bearer <ADMIN_TOKEN>' });
+      }
+    }
+    try {
+      const data = db.raw().export();
+      const buf = Buffer.from(data);
+      res.set('Content-Type', 'application/octet-stream');
+      res.set('Content-Disposition', `attachment; filename="dungeon-${Date.now()}.sqlite"`);
+      res.set('Content-Length', buf.length);
+      res.send(buf);
+      console.log('[admin] DB exportada via /api/admin/db-export');
+    } catch (err) {
+      res.status(500).json({ error: 'Error al exportar BD: ' + err.message });
+    }
+  });
+
+  /**
+   * GET /api/admin/stats
+   * Estadísticas del servidor: jugadores totales, monstruos, salas, etc.
+   * Protegido por ADMIN_TOKEN env var.
+   */
+  app.get('/api/admin/stats', (req, res) => {
+    const adminToken = process.env.ADMIN_TOKEN;
+    if (adminToken) {
+      const authHeader = req.headers['authorization'] || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      if (token !== adminToken) {
+        return res.status(401).json({ error: 'Unauthorized.' });
+      }
+    }
+    const players = db.raw().exec('SELECT COUNT(*) as cnt FROM players')[0];
+    const rooms   = db.raw().exec('SELECT COUNT(*) as cnt FROM rooms')[0];
+    const monsters = db.raw().exec('SELECT COUNT(*) as cnt FROM monsters')[0];
+    const events  = db.raw().exec('SELECT COUNT(*) as cnt FROM events')[0];
+    res.json({
+      players:  players  ? players.values[0][0]  : 0,
+      rooms:    rooms    ? rooms.values[0][0]    : 0,
+      monsters: monsters ? monsters.values[0][0] : 0,
+      events:   events   ? events.values[0][0]   : 0,
+      db_path:  process.env.DB_PATH || 'db/dungeon.sqlite',
+      uptime_s: process.uptime(),
+    });
+  });
+
   // 5. Crear servidor HTTP
   /**
    * POST /api/action  — Endpoint LLM-friendly (T034)
