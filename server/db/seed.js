@@ -1,7 +1,25 @@
 /**
- * seed.js — Dungeon inicial (10 habitaciones, 5 monstruos)
+ * seed.js — Dungeon inicial (10 habitaciones, 8 monstruos)
  *
  * Se ejecuta una sola vez al arrancar si las habitaciones no existen.
+ *
+ * Mapa:
+ *
+ *   [8-Prisión] ←→ [4-Tesoro]
+ *       |                |
+ *   [9-Trono] ←→ [10-Santuario] ←→ [7-Pozo]
+ *       |
+ *   [6-Hongos] ←→ [2-Corredor] ←→ [1-Entrada] ←→ [5-Capilla]
+ *       |               |
+ *   [nada]         [3-Ecos] ←→ [4-Tesoro]
+ *
+ *  Mapa simplificado (con salidas reales):
+ *  1 ←N→ 2 ←N→ 3 ←E→ 4 ←N→ 8
+ *  1 ←E→ 5 ←N→ 6
+ *  2 ←W→ 6 ←N→ 9
+ *  3 ←W→ 7 ←N→ 10
+ *  9 ←E→ 10
+ *  7 ←N→ 10
  */
 
 'use strict';
@@ -12,72 +30,72 @@ const ROOMS = [
   {
     id: 1,
     name: 'Entrada de la Cripta',
-    description: 'Una puerta de piedra enorme marca la entrada. El aire huele a moho y tiempo olvidado. La oscuridad se extiende al norte.',
+    description: 'Una puerta de piedra enorme marca la entrada al dungeon. El aire huele a moho y tiempo olvidado. La oscuridad se extiende al norte y al este.',
     exits: { north: 2, east: 5 },
-    items: ['antorcha'],
+    items: ['antorcha', 'mochila de cuero'],
   },
   {
     id: 2,
     name: 'Corredor de las Sombras',
-    description: 'Un pasillo largo y estrecho. Las paredes de piedra sudan humedad. Inscripciones ilegibles cubren las paredes.',
+    description: 'Un pasillo largo y estrecho. Las paredes de piedra sudan humedad. Inscripciones ilegibles cubren cada centímetro.',
     exits: { south: 1, north: 3, west: 6 },
     items: [],
   },
   {
     id: 3,
     name: 'Sala de los Ecos',
-    description: 'Una cámara circular donde cada sonido rebota mil veces. El suelo está cubierto de huesos viejos.',
+    description: 'Una cámara circular donde cada sonido rebota mil veces. El suelo está cubierto de huesos viejos y polvo.',
     exits: { south: 2, east: 4, west: 7 },
-    items: ['poción de salud'],
+    items: ['poción de salud', 'vela encendida'],
   },
   {
     id: 4,
     name: 'Cámara del Tesoro',
-    description: 'Estantes de madera podrida sostienen cofres vacíos. Algo valioso estuvo aquí alguna vez.',
+    description: 'Estantes de madera podrida sostienen cofres semiabiertos. Algo valioso estuvo aquí alguna vez. Un olor metálico impregna el ambiente.',
     exits: { west: 3, north: 8 },
-    items: ['espada oxidada'],
+    items: ['espada oxidada', 'monedas de oro'],
   },
   {
     id: 5,
     name: 'Capilla Olvidada',
-    description: 'Un altar de piedra negra domina la sala. Velas apagadas desde hace siglos. Una sensación extraña recorre tu espalda.',
+    description: 'Un altar de piedra negra domina la sala. Velas apagadas desde hace siglos. Una sensación extraña recorre tu espalda al acercarte al altar.',
     exits: { west: 1, north: 6 },
-    items: ['libro viejo'],
+    items: ['libro viejo', 'poción de salud'],
   },
   {
     id: 6,
     name: 'Túnel de los Hongos',
-    description: 'Hongos luminiscentes de color azul crecen por las paredes, dando una luz tenue y fantasmal al pasaje.',
+    description: 'Hongos luminiscentes de color azul crecen por las paredes, dando una luz tenue y fantasmal. El suelo cruje bajo cada paso.',
     exits: { east: 2, south: 5, north: 9 },
-    items: [],
+    items: ['hongo azul'],
   },
   {
     id: 7,
     name: 'Pozo Sin Fondo',
-    description: 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. ¿Qué habrá abajo?',
+    description: 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo?',
     exits: { east: 3, north: 10 },
-    items: ['cuerda'],
+    items: ['cuerda', 'gancho de hierro'],
   },
   {
     id: 8,
     name: 'Prisión Subterránea',
-    description: 'Celdas de hierro corroído bordean las paredes. Las rejas están abiertas. Algo estuvo aquí encerrado.',
+    description: 'Celdas de hierro corroído bordean las paredes. Las rejas están abiertas. Algo estuvo aquí encerrado por mucho tiempo.',
     exits: { south: 4 },
-    items: ['llave oxidada'],
+    items: ['llave oxidada', 'cadenas rotas'],
   },
   {
     id: 9,
     name: 'Sala del Trono',
-    description: 'Un trono de huesos ocupa el centro de la sala. Las paredes están decoradas con escudos de armas irreconocibles.',
+    description: 'Un trono de huesos ocupa el centro de la sala. Las paredes están decoradas con escudos de armas de reinos extintos. El silencio es absoluto.',
     exits: { south: 6, east: 10 },
-    items: [],
+    items: ['corona rota'],
   },
   {
     id: 10,
     name: 'Santuario Profano',
-    description: 'El corazón del dungeon. Una estatua monstruosa preside la sala. El suelo está cubierto de runas de sangre seca.',
+    description: 'El corazón del dungeon. Una estatua monstruosa con diez brazos preside la sala. El suelo está cubierto de runas trazadas con sangre seca. Aquí termina el dungeon... o comienza.',
     exits: { west: 9, south: 7 },
-    items: ['amuleto oscuro'],
+    items: ['amuleto oscuro', 'poción de poder'],
   },
 ];
 
@@ -106,7 +124,7 @@ const MONSTERS = [
     description: 'Una rata del tamaño de un perro mediano. Sus dientes brillan en la oscuridad.',
     hp: 10, max_hp: 10, attack: 2,
     room_id: 6,
-    loot: ['pelaje áspero'],
+    loot: ['pelaje áspero', 'monedas de cobre'],
     respawn_room_id: 6,
   },
   {
@@ -126,6 +144,33 @@ const MONSTERS = [
     room_id: 10,
     loot: ['cristal mágico', 'piedra de poder'],
     respawn_room_id: 10,
+  },
+  {
+    id: 6,
+    name: 'Murciélago Vampiro',
+    description: 'Un murciélago enorme con colmillos afilados como agujas. Revolotea en la oscuridad de la capilla.',
+    hp: 12, max_hp: 12, attack: 3,
+    room_id: 5,
+    loot: ['diente afilado', 'monedas de cobre'],
+    respawn_room_id: 5,
+  },
+  {
+    id: 7,
+    name: 'Araña Tejedora',
+    description: 'Una araña del tamaño de un gato. Su veneno paraliza las extremidades durante segundos.',
+    hp: 8, max_hp: 8, attack: 4,
+    room_id: 7,
+    loot: ['hilo de seda', 'veneno concentrado'],
+    respawn_room_id: 7,
+  },
+  {
+    id: 8,
+    name: 'Guardia Espectral',
+    description: 'El espíritu de un guardia que murió encadenado en la prisión. Aún porta su alabarda de huesos.',
+    hp: 25, max_hp: 25, attack: 7,
+    room_id: 8,
+    loot: ['alabarda de huesos', 'monedas de plata'],
+    respawn_room_id: 8,
   },
 ];
 
