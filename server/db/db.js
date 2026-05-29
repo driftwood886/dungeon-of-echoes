@@ -95,6 +95,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN xp     INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE players ADD COLUMN level  INTEGER NOT NULL DEFAULT 1`,
     `ALTER TABLE players ADD COLUMN kills  INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE players ADD COLUMN equipped_weapon TEXT`,
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }

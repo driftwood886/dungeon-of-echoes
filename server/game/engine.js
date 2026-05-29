@@ -141,15 +141,17 @@ function cmdStatus(player) {
   const room = db.getRoom(player.current_room_id);
   const roomName = room ? room.name : 'desconocida';
 
-  // Refrescar para tener xp/kills/level actualizados
+  // Refrescar para tener xp/kills/level/equipped_weapon actualizados
   player = db.getPlayer(player.id);
 
   const hpBar = buildBar(player.hp, player.max_hp, 20);
   const level  = player.level || 1;
   const xp     = player.xp    || 0;
   const kills  = player.kills || 0;
-  const xpNext = level * 50; // XP necesario para el siguiente nivel
   const xpBar  = buildBar(xp % 50, 50, 10);
+  const weaponLine = player.equipped_weapon
+    ? `Arma:     ${player.equipped_weapon}`
+    : `Arma:     (desarmado — ataque base)`;
 
   const text = [
     `\n=== ${player.username.toUpperCase()} ===`,
@@ -158,6 +160,7 @@ function cmdStatus(player) {
     `HP:       ${hpBar} ${player.hp}/${player.max_hp}`,
     `Ataque:   ${player.attack}`,
     `Defensa:  ${player.defense}`,
+    weaponLine,
     `Ubicación: ${roomName}`,
   ].join('\n');
 
@@ -292,7 +295,7 @@ function cmdUse(player, itemQuery) {
     // Equipar el arma: aumenta el ataque base del jugador
     // Primero, si ya tenía un arma equipada la "desequipa" (stat reset es simplístico en MVP)
     const newAttack = 5 + def.amount; // base 5 + bonus del arma
-    db.updatePlayer(player.id, { attack: newAttack });
+    db.updatePlayer(player.id, { attack: newAttack, equipped_weapon: found });
 
     resultText = `Equipás ${found}. Tu ataque sube a ${newAttack}.`;
 
@@ -324,7 +327,15 @@ function cmdDrop(player, itemQuery) {
 
   // Quitar del inventario
   const newInv = removeFirst(player.inventory, found);
-  db.updatePlayer(player.id, { inventory: newInv });
+  const updates = { inventory: newInv };
+
+  // Si era el arma equipada, desequipar (volver a ataque base)
+  if (player.equipped_weapon && player.equipped_weapon === found) {
+    updates.equipped_weapon = null;
+    updates.attack = 5;
+  }
+
+  db.updatePlayer(player.id, updates);
 
   // Agregar al suelo de la habitación
   const room = db.getRoom(player.current_room_id);
@@ -332,8 +343,10 @@ function cmdDrop(player, itemQuery) {
     db.updateRoomItems(room.id, [...room.items, found]);
   }
 
+  const extraMsg = updates.equipped_weapon === null ? ' Ya no tenés ningún arma equipada (ataque: 5).' : '';
+
   return {
-    text: `Dejás ${found} en el suelo.`,
+    text: `Dejás ${found} en el suelo.${extraMsg}`,
     event: `${player.username} tira algo al suelo.`,
     eventRoomId: player.current_room_id,
   };
@@ -430,7 +443,7 @@ function cmdEquip(player, itemQuery) {
 
   const oldAttack = player.attack;
   const newAttack = 5 + def.amount; // base 5 + bonus del arma
-  db.updatePlayer(player.id, { attack: newAttack });
+  db.updatePlayer(player.id, { attack: newAttack, equipped_weapon: found });
 
   const change = newAttack - oldAttack;
   const changeStr = change >= 0 ? `+${change}` : `${change}`;
@@ -548,11 +561,21 @@ function cmdGive(player, args) {
   const newGiverInv  = removeFirst(player.inventory, found);
   const newTargetInv = [...target.inventory, found];
 
-  db.updatePlayer(player.id,  { inventory: newGiverInv });
+  const giverUpdates = { inventory: newGiverInv };
+
+  // Si el donante estaba usando el ítem como arma equipada, desequiparla
+  if (player.equipped_weapon && player.equipped_weapon === found) {
+    giverUpdates.equipped_weapon = null;
+    giverUpdates.attack = 5;
+  }
+
+  db.updatePlayer(player.id,  giverUpdates);
   db.updatePlayer(target.id,  { inventory: newTargetInv });
 
+  const extraMsg = giverUpdates.equipped_weapon === null ? ' (perdiste tu arma equipada, ataque vuelve a 5)' : '';
+
   return {
-    text: `Le das ${found} a ${target.username}.`,
+    text: `Le das ${found} a ${target.username}.${extraMsg}`,
     event: `${player.username} le da ${found} a ${target.username}.`,
     eventRoomId: player.current_room_id,
   };
