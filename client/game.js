@@ -70,12 +70,13 @@ function ts() {
  * addMsg(text, type)
  * Agrega una línea al panel de mensajes y hace scroll al final.
  * Tipos: 'system' | 'response' | 'cmd' | 'event' | 'say' | 'shout' |
- *        'error' | 'combat' | 'loot' | 'separator'
+ *        'error' | 'combat' | 'loot' | 'separator' | 'whisper' | 'tell'
  */
 function addMsg(text, type = 'response') {
   if (!text) return;
 
   const lines = String(text).split('\n');
+  let firstDiv = null;
   lines.forEach((line, i) => {
     const div = document.createElement('div');
     div.className = `msg-line msg-${type}`;
@@ -89,7 +90,15 @@ function addMsg(text, type = 'response') {
 
     div.appendChild(document.createTextNode(line));
     el.messagesList.appendChild(div);
+    if (i === 0) firstDiv = div;
   });
+
+  // Para mensajes privados: animación de parpadeo en el elemento
+  if ((type === 'whisper' || type === 'tell') && firstDiv) {
+    firstDiv.classList.add('msg-flash');
+    // Flash en el title del documento si la ventana no tiene foco
+    flashTitle(type === 'tell' ? '📨 Mensaje' : '🔇 Susurro');
+  }
 
   // Scroll al final
   el.messagesScroll.scrollTop = el.messagesScroll.scrollHeight;
@@ -102,6 +111,33 @@ function addMsg(text, type = 'response') {
 
 function addSeparator() {
   addMsg('─'.repeat(60), 'separator');
+}
+
+/* ── Flash de título ──────────────────────────────────────── */
+const _origTitle = document.title;
+let _flashInterval = null;
+
+function flashTitle(label) {
+  // Si el documento tiene foco, no flashear
+  if (document.hasFocus()) return;
+
+  // Limpiar flash previo
+  if (_flashInterval) clearInterval(_flashInterval);
+
+  let toggle = true;
+  _flashInterval = setInterval(() => {
+    document.title = toggle ? `[ ${label} ] ${_origTitle}` : _origTitle;
+    toggle = !toggle;
+  }, 700);
+
+  // Volver al título original cuando se recupera el foco
+  function onFocus() {
+    clearInterval(_flashInterval);
+    _flashInterval = null;
+    document.title = _origTitle;
+    window.removeEventListener('focus', onFocus);
+  }
+  window.addEventListener('focus', onFocus);
 }
 
 function setConnectionStatus(status) {
