@@ -79,6 +79,12 @@ const COMMAND_ALIASES = {
   shout: 'shout', gritar: 'shout', grito: 'shout',
   // help
   help: 'help', ayuda: 'help', '?': 'help',
+  // buy / comprar (mercader)
+  buy: 'buy', comprar: 'buy', adquirir: 'buy', obtener: 'buy',
+  // sell / vender (mercader)
+  sell: 'sell', vender: 'sell', intercambiar: 'sell',
+  // shop / tienda (listar tienda)
+  shop: 'shop', tienda: 'shop', mercader: 'shop', comerciante: 'shop', wares: 'shop', lista: 'shop',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)

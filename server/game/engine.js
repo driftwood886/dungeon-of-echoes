@@ -67,6 +67,9 @@ function execute(playerId, input) {
     case 'disarm':    result = cmdDisarm(player); break;
     case 'rest':      result = cmdRest(player); break;
     case 'emote':     result = cmdEmote(player, action.args.join(' ')); break;
+    case 'shop':      result = cmdShop(player); break;
+    case 'buy':       result = cmdBuy(player, action.args.join(' ')); break;
+    case 'sell':      result = cmdSell(player, action.args.join(' ')); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -1170,6 +1173,134 @@ function cmdEmote(player, action) {
   return {
     text: emoteText,                          // el jugador también lo ve
     event: emoteText,                         // broadcast a la sala
+    eventRoomId: player.current_room_id,
+  };
+}
+
+// ─── NPC Mercader ──────────────────────────────────────────────────────────
+
+/**
+ * La Sala 4 (Cámara del Tesoro) tiene un mercader NPC.
+ * Catálogo de la tienda con precios en oro.
+ */
+const MERCHANT_ROOM_ID = 4;
+
+const SHOP_CATALOG = [
+  { name: 'poción de salud',         price: 15, description: 'Recupera 20 HP. Esencial para aventureros.' },
+  { name: 'poción mayor de salud',   price: 35, description: 'Recupera 50 HP. Para las situaciones desesperadas.' },
+  { name: 'antídoto',                price: 20, description: 'Cura el veneno al instante.' },
+  { name: 'espada de hierro',        price: 30, description: 'Arma sólida. Daño base +6.' },
+  { name: 'daga envenenada',         price: 45, description: 'Daño +4, aplica veneno al enemigo.' },
+  { name: 'escudo de madera',        price: 25, description: 'Defensa +2. No es glamoroso, pero funciona.' },
+  { name: 'antorcha',                price: 5,  description: 'Ilumina pasillos oscuros. Dura varias horas.' },
+  { name: 'cuerda',                  price: 10, description: 'Desactiva trampas de pinchos. 15m de largo.' },
+  { name: 'llave oxidada',           price: 50, description: 'Abre cierta puerta al norte del Pozo. El mercader no explica más.' },
+];
+
+// Precios de venta al mercader (jugador → mercader) — 40% del valor
+const SELL_PRICE_RATIO = 0.4;
+
+function cmdShop(player) {
+  player = db.getPlayer(player.id);
+
+  if (player.current_room_id !== MERCHANT_ROOM_ID) {
+    return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).' };
+  }
+
+  const gold = player.gold || 0;
+  const lines = [
+    '\n🏪 === TIENDA DE ALDRIC EL MERCADER ===',
+    `"Bienvenido, aventurero. Tenés ${gold}g. ¿Qué necesitás?"`,
+    '',
+    'ARTÍCULO                    PRECIO   DESCRIPCIÓN',
+    '─'.repeat(60),
+  ];
+
+  SHOP_CATALOG.forEach((item, i) => {
+    const num = String(i + 1).padStart(2, ' ');
+    const namePad = item.name.padEnd(26, ' ');
+    const pricePad = `${item.price}g`.padEnd(9, ' ');
+    lines.push(`${num}. ${namePad}${pricePad}${item.description}`);
+  });
+
+  lines.push('─'.repeat(60));
+  lines.push('Comandos: "buy <ítem>" para comprar, "sell <ítem>" para vender.');
+  lines.push(`Podés vender tus ítems al ${Math.round(SELL_PRICE_RATIO * 100)}% de su valor de compra.`);
+
+  return { text: lines.join('\n') };
+}
+
+function cmdBuy(player, itemQuery) {
+  if (!itemQuery || !itemQuery.trim()) {
+    return { text: 'Indicá qué querés comprar. Ej: "buy poción de salud" o "tienda" para ver el catálogo.' };
+  }
+
+  player = db.getPlayer(player.id);
+
+  if (player.current_room_id !== MERCHANT_ROOM_ID) {
+    return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).' };
+  }
+
+  const query = itemQuery.trim().toLowerCase();
+  const item = SHOP_CATALOG.find(i =>
+    i.name.toLowerCase().includes(query) || query.includes(i.name.toLowerCase())
+  );
+
+  if (!item) {
+    return { text: `El mercader sacude la cabeza. "No vendo eso." Escribí "tienda" para ver el catálogo.` };
+  }
+
+  const gold = player.gold || 0;
+  if (gold < item.price) {
+    return { text: `💰 No tenés suficiente oro. Necesitás ${item.price}g, tenés ${gold}g.` };
+  }
+
+  // Realizar la compra
+  const newGold = gold - item.price;
+  const newInventory = [...player.inventory, item.name];
+  db.updatePlayer(player.id, { gold: newGold, inventory: newInventory });
+
+  return {
+    text: `🏪 Aldric sonríe. "Excelente elección."\n✅ Compraste: ${item.name} por ${item.price}g.\n💰 Oro restante: ${newGold}g.`,
+    event: `${player.username} compra algo al mercader.`,
+    eventRoomId: player.current_room_id,
+  };
+}
+
+function cmdSell(player, itemQuery) {
+  if (!itemQuery || !itemQuery.trim()) {
+    return { text: 'Indicá qué querés vender. Ej: "sell espada oxidada".' };
+  }
+
+  player = db.getPlayer(player.id);
+
+  if (player.current_room_id !== MERCHANT_ROOM_ID) {
+    return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).' };
+  }
+
+  const found = items.findItem(player.inventory, itemQuery.trim());
+  if (!found) {
+    return { text: `No tenés ningún "${itemQuery}" en el inventario.` };
+  }
+
+  // Determinar precio de venta — buscar en catálogo, si no usar precio genérico
+  const catalogItem = SHOP_CATALOG.find(i => i.name.toLowerCase() === found.toLowerCase());
+  const basePrice = catalogItem ? catalogItem.price : 10;
+  const sellPrice = Math.max(1, Math.floor(basePrice * SELL_PRICE_RATIO));
+
+  // Realizar la venta
+  const newInventory = removeFirst(player.inventory, found);
+  const newGold = (player.gold || 0) + sellPrice;
+  db.updatePlayer(player.id, { gold: newGold, inventory: newInventory });
+
+  // Si era el arma equipada, desequipar
+  if (player.equipped_weapon === found) {
+    db.updatePlayer(player.id, { attack: 5, equipped_weapon: null });
+  }
+
+  return {
+    text: `🏪 Aldric examina el objeto.\n"Te doy ${sellPrice}g por eso."\n💰 Vendiste: ${found} por ${sellPrice}g. Total: ${newGold}g.`,
+    event: `${player.username} vende algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
 }

@@ -161,6 +161,11 @@ function describeRoom(roomId, excludePlayerId = null) {
     lines.push(`\n⚠️  Esta sala tiene una trampa activa. Escribí "desactivar trampa" con el ítem correcto.`);
   }
 
+  // NPC Mercader en sala 4
+  if (roomId === 4) {
+    lines.push(`\n🏪 Aldric el Mercader está aquí, sentado detrás de un improvisado mostrador de cajas.\n   "Bienvenido. Escribí 'tienda' para ver mis artículos."`);
+  }
+
   return lines.join('\n');
 }
 
