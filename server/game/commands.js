@@ -49,6 +49,8 @@ const COMMAND_ALIASES = {
   who: 'who', jugadores: 'who', online: 'who', quién: 'who', quien: 'who',
   // score / ranking
   score: 'score', ranking: 'score', scores: 'score', top: 'score', tabla: 'score', marcador: 'score',
+  // give / dar
+  give: 'give', dar: 'give', entregar: 'give', pasar: 'give', ofrecer: 'give',
   // flee
   flee: 'flee', huir: 'flee', escapar: 'flee', correr: 'flee',
   // say
@@ -126,6 +128,7 @@ Comandos disponibles:
   map / mapa            — Ver el mapa ASCII del dungeon
   who / jugadores       — Ver los aventureros activos en el dungeon
   score / ranking       — Ver la tabla de líderes global
+  give <ítem> <jugador> — Dar un ítem a otro jugador en la misma sala
   examine <objetivo>    — Examinar un monstruo, ítem o la sala
   say <mensaje>         — Hablar con jugadores en la misma habitación
   shout <mensaje>       — Gritar a todo el dungeon

@@ -52,6 +52,7 @@ function execute(playerId, input) {
     case 'map':       result = cmdMap(player); break;
     case 'who':       result = cmdWho(); break;
     case 'score':     result = cmdScore(); break;
+    case 'give':      result = cmdGive(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -501,8 +502,63 @@ function cmdScore() {
   return { text: lines.join('\n') };
 }
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+/**
+ * give <ítem> <jugador> — Pasar un ítem a otro jugador en la misma sala.
+ *
+ * Sintaxis: give espada larga Ana
+ *   → args = ['espada', 'larga', 'Ana']
+ *   → El último token es el nombre del jugador; el resto es el nombre del ítem.
+ */
+function cmdGive(player, args) {
+  if (!args || args.length < 2) {
+    return { text: 'Uso: give <ítem> <jugador>. Ej: "give espada Ana".' };
+  }
 
+  // Último argumento = nombre del jugador destinatario
+  const targetName  = args[args.length - 1];
+  const itemQuery   = args.slice(0, args.length - 1).join(' ');
+
+  if (!itemQuery.trim()) {
+    return { text: 'Indicá qué ítem querés dar.' };
+  }
+
+  player = db.getPlayer(player.id);
+
+  // Buscar el ítem en el inventario del jugador
+  const found = items.findItem(player.inventory, itemQuery.trim());
+  if (!found) {
+    return { text: `No tenés ningún "${itemQuery}" en el inventario.` };
+  }
+
+  // Buscar al jugador destinatario
+  const target = db.getPlayerByUsername(targetName);
+  if (!target) {
+    return { text: `No existe ningún jugador llamado "${targetName}".` };
+  }
+  if (target.id === player.id) {
+    return { text: 'No podés darte un ítem a vos mismo.' };
+  }
+
+  // Verificar que estén en la misma sala
+  if (target.current_room_id !== player.current_room_id) {
+    return { text: `${target.username} no está en esta sala.` };
+  }
+
+  // Transferir ítem
+  const newGiverInv  = removeFirst(player.inventory, found);
+  const newTargetInv = [...target.inventory, found];
+
+  db.updatePlayer(player.id,  { inventory: newGiverInv });
+  db.updatePlayer(target.id,  { inventory: newTargetInv });
+
+  return {
+    text: `Le das ${found} a ${target.username}.`,
+    event: `${player.username} le da ${found} a ${target.username}.`,
+    eventRoomId: player.current_room_id,
+  };
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
 /**
  * map — Mostrar mapa ASCII del dungeon con la sala actual marcada.
  * El layout es fijo para el dungeon de 10 salas actual.
