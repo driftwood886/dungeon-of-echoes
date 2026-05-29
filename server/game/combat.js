@@ -146,6 +146,27 @@ function attackRound(player, monster) {
     db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (freshPlayer2.deaths || 0) + 1, status_effects: '{}' });
   }
 
+  // ── Huida del monstruo (< 25% HP) ────────────────────────────────────────
+  if (!monsterDead && !playerDead && monster.hp > 0) {
+    const hpPct = monster.hp / monster.max_hp;
+    if (hpPct < 0.25 && Math.random() < 0.30) {
+      // El monstruo intenta escapar a una sala adyacente
+      const room = db.getRoom(player.current_room_id);
+      if (room) {
+        const exits = room.exits || {};
+        // Obtener IDs de salas destino (manejo de exits como objeto o {room_id, key})
+        const destinations = Object.values(exits)
+          .map(v => (typeof v === 'object' ? v.room_id : v))
+          .filter(id => id && id !== player.current_room_id);
+        if (destinations.length > 0) {
+          const escapeRoom = destinations[Math.floor(Math.random() * destinations.length)];
+          db.updateMonster(monster.id, { room_id: escapeRoom });
+          lines.push(`🏃 ¡El ${monster.name} huye despavorido hacia otra sala! (HP: ${monster.hp}/${monster.max_hp})`);
+        }
+      }
+    }
+  }
+
   return { lines, monsterDead, playerDead, loot };
 }
 
