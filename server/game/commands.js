@@ -87,6 +87,8 @@ const COMMAND_ALIASES = {
   shop: 'shop', tienda: 'shop', mercader: 'shop', comerciante: 'shop', wares: 'shop', lista: 'shop',
   // achievements / logros
   achievements: 'achievements', logros: 'achievements', logro: 'achievements', medallas: 'achievements',
+  // inspect / inspeccionar jugador
+  inspect: 'inspect', inspeccionar: 'inspect', observar: 'inspect', ver_jugador: 'inspect',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -170,6 +172,7 @@ Comandos disponibles:
   unlock <dir>          — Abrir una puerta bloqueada usando la llave del inventario (permanente)
   emote <acción>        — Expresar una acción visible para todos en la sala (ej: emote sonríe)
   rest / descansar      — Recuperar HP si no hay monstruos (cooldown 60s)
+  inspect <jugador>     — Examinar a otro aventurero en la misma sala
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -203,6 +206,7 @@ const COMMAND_HELP = {
   unlock:    'unlock / abrir <dir> / desbloquear <dir>\n  Abrir permanentemente una puerta bloqueada usando la llave del inventario.\n  La puerta queda abierta para todos los jugadores. La llave se consume.',
   emote:     'emote <acción> / accion <acción> / me <acción>\n  Expresar una acción en tercera persona visible para todos en la sala.\n  Ej: "emote suspira profundo" → todos ven: "✨ NombreJugador suspira profundo"',
   help:      'help / ayuda\n  Mostrar la lista de comandos.\n  help <comando>: ayuda detallada sobre un comando específico.',
+  inspect:   'inspect <jugador> / inspeccionar <jugador>\n  Examinar a otro aventurero que esté en la misma sala.\n  Muestra su nivel, HP, arma equipada, kills, muertes y logros desbloqueados.',
 };
 
 module.exports = { parse, HELP_TEXT, COMMAND_HELP };

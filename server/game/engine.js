@@ -72,6 +72,7 @@ function execute(playerId, input) {
     case 'buy':       result = cmdBuy(player, action.args.join(' ')); break;
     case 'sell':      result = cmdSell(player, action.args.join(' ')); break;
     case 'achievements': result = cmdAchievements(player); break;
+    case 'inspect':      result = cmdInspect(player, action.args.join(' ')); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -109,6 +110,7 @@ function execute(playerId, input) {
           emote: 'emote', accion: 'emote', me: 'emote',
           rest: 'rest', descansar: 'rest',
           help: 'help', ayuda: 'help',
+          inspect: 'inspect', inspeccionar: 'inspect', observar: 'inspect',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
@@ -1342,6 +1344,78 @@ function cmdAchievements(player) {
   const achText = ach.formatAchievements(player);
   const newLines = ach.formatNewAchievements(newOnes);
   return { text: achText + newLines };
+}
+
+/**
+ * T085 — Examinar a otro jugador en la misma sala.
+ * Muestra nivel, HP, arma equipada, kills y logros.
+ */
+function cmdInspect(player, targetName) {
+  if (!targetName || !targetName.trim()) {
+    return { text: 'Usá: inspect <nombre_del_jugador>' };
+  }
+
+  const name = targetName.trim().toLowerCase();
+
+  // Buscar el jugador objetivo en la sala actual
+  const roomPlayers = db.getPlayersInRoom(player.current_room_id);
+  const target = roomPlayers.find(
+    p => p.username.toLowerCase().includes(name) && p.id !== player.id
+  );
+
+  if (!target) {
+    return { text: `No hay ningún aventurero llamado "${targetName}" en esta sala.` };
+  }
+
+  // Formatear HP
+  const hpPct = Math.round((target.hp / target.max_hp) * 100);
+  const hpBar = buildHpBar(target.hp, target.max_hp);
+  const hpLabel = hpPct >= 70 ? '(saludable)' : hpPct >= 40 ? '(herido)' : hpPct >= 10 ? '(gravemente herido)' : '(al borde de la muerte)';
+
+  // Formatear arma equipada
+  const weapon = target.equipped_weapon || 'puños';
+
+  // Formatear logros
+  let achDisplay = '—';
+  try {
+    const achArr = JSON.parse(target.achievements || '[]');
+    if (achArr.length > 0) {
+      // Mostrar íconos de logros desbloqueados
+      const { ACHIEVEMENTS } = require('./achievements');
+      const icons = achArr.map(id => {
+        const def = ACHIEVEMENTS.find(a => a.id === id);
+        return def ? def.icon : '🏅';
+      });
+      achDisplay = icons.join(' ') || '—';
+    }
+  } catch (_) {}
+
+  const lines = [
+    `══ 🔍 Inspeccionás a ${target.username} ══`,
+    `Nivel ${target.level || 1} · ${target.xp || 0} XP total`,
+    `HP: ${target.hp}/${target.max_hp} ${hpBar} ${hpLabel}`,
+    `ATK ${target.attack} · DEF ${target.defense}`,
+    `Arma: ${weapon}`,
+    `Kills: ${target.kills || 0} · Muertes: ${target.deaths || 0}`,
+    `Logros: ${achDisplay}`,
+    target.gold !== undefined ? `Oro: 💰 ${target.gold}g` : null,
+  ].filter(Boolean).join('\n');
+
+  return {
+    text: lines,
+    event: `🔍 ${player.username} te observa detenidamente.`, // enviado al target si está conectado
+    eventTarget: target.id,
+    // También notificar al target directamente por socket usando el sistema existente
+    targetPlayerId: target.id,
+    targetPlayerMsg: `🔍 ${player.username} te está examinando.`,
+    targetEventType: 'action',
+  };
+}
+
+/** Helper: barra de HP ASCII */
+function buildHpBar(hp, maxHp, len = 8) {
+  const filled = Math.round((hp / maxHp) * len);
+  return '[' + '█'.repeat(filled) + '░'.repeat(len - filled) + ']';
 }
 
 /**
