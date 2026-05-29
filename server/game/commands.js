@@ -37,6 +37,8 @@ const COMMAND_ALIASES = {
   pick: 'pick', tomar: 'pick', recoger: 'pick', agarrar: 'pick', get: 'pick',
   // use
   use: 'use', usar: 'use', utilizar: 'use',
+  // flee
+  flee: 'flee', huir: 'flee', escapar: 'flee', correr: 'flee',
   // say
   say: 'say', decir: 'say', hablar: 'say',
   // shout
@@ -104,6 +106,7 @@ Comandos disponibles:
   inventory / inv       — Ver tu inventario
   status / estado       — Ver tus stats (HP, ataque, defensa)
   attack <monstruo>     — Atacar a un monstruo
+  flee / huir           — Intentar huir del combate
   pick <ítem>           — Recoger un ítem del suelo
   use <ítem>            — Usar un ítem del inventario
   say <mensaje>         — Hablar con jugadores en la misma habitación

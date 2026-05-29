@@ -1,0 +1,207 @@
+/**
+ * combat.js — Sistema de combate por turnos
+ *
+ * Cubre T014 (lógica de combate) y T016 (loot al matar).
+ *
+ * Diseño:
+ * - Combate determinístico con variación ligera (±20% de daño)
+ * - Cada ronda: player ataca → si monstruo vive → monstruo contraataca
+ * - El jugador puede "huir" con el comando `flee`
+ * - Al morir el monstruo: soltar loot en la habitación, marcar monster.room_id = null
+ * - Al morir el jugador: resetear HP a 5, teleportear a sala de entrada (id: 1)
+ */
+
+'use strict';
+
+const db = require('../db/db');
+
+// ─── Constantes ───────────────────────────────────────────────────────────────
+
+const FLEE_CHANCE = 0.5; // 50% de probabilidad de huir con éxito
+
+// ─── Funciones públicas ───────────────────────────────────────────────────────
+
+/**
+ * Ejecuta un turno completo de combate:
+ *   1. Jugador ataca al monstruo
+ *   2. Si el monstruo sobrevive, contraataca
+ *
+ * @param {object} player  — objeto jugador de la BD
+ * @param {object} monster — objeto monstruo de la BD
+ * @returns {{
+ *   lines: string[],   // log del combate línea a línea
+ *   monsterDead: boolean,
+ *   playerDead:  boolean,
+ *   loot:        string[],  // ítems soltados (solo si monsterDead)
+ * }}
+ */
+function attackRound(player, monster) {
+  const lines = [];
+  let monsterDead = false;
+  let playerDead  = false;
+  let loot        = [];
+
+  // ── Player ataca ─────────────────────────────────────────────────────────
+  const playerDmg = calcDamage(player.attack);
+  const dmgToMonster = Math.max(1, playerDmg - Math.floor(monster.defense || 0));
+  monster.hp = Math.max(0, monster.hp - dmgToMonster);
+
+  lines.push(`⚔  Atacás al ${monster.name} y le causás ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
+
+  // Actualizar monstruo en BD
+  db.updateMonster(monster.id, { hp: monster.hp });
+
+  if (monster.hp <= 0) {
+    monsterDead = true;
+    lines.push(`💀 ¡El ${monster.name} cae derrotado!`);
+
+    // Soltar loot en la habitación
+    loot = dropLoot(monster, player.current_room_id);
+    if (loot.length > 0) {
+      lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
+    } else {
+      lines.push(`El ${monster.name} no deja nada.`);
+    }
+
+    return { lines, monsterDead, playerDead, loot };
+  }
+
+  // ── Monstruo contraataca ──────────────────────────────────────────────────
+  const monsterDmg = calcDamage(monster.attack);
+  const dmgToPlayer = Math.max(1, monsterDmg - Math.floor(player.defense || 0));
+  player.hp = Math.max(0, player.hp - dmgToPlayer);
+
+  lines.push(`🩸 El ${monster.name} te golpea y causá ${dmgToPlayer} de daño. (${player.hp}/${player.max_hp} HP)`);
+
+  // Actualizar jugador en BD
+  db.updatePlayer(player.id, { hp: player.hp });
+
+  if (player.hp <= 0) {
+    playerDead = true;
+    lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon...`);
+    // Reset: HP mínimo, volver a sala 1
+    db.updatePlayer(player.id, { hp: 5, current_room_id: 1 });
+  }
+
+  return { lines, monsterDead, playerDead, loot };
+}
+
+/**
+ * Intento de huida del combate.
+ * @param {object} player
+ * @param {object} monster
+ * @returns {{ fled: boolean, line: string }}
+ */
+function tryFlee(player, monster) {
+  if (Math.random() < FLEE_CHANCE) {
+    return {
+      fled: true,
+      line: `🏃 ¡Conseguís huir del ${monster.name}! Te alejás tambaleante.`,
+    };
+  }
+  // El monstruo golpea al intentar huir
+  const monsterDmg = calcDamage(monster.attack);
+  const dmgToPlayer = Math.max(1, monsterDmg - Math.floor(player.defense || 0));
+  player.hp = Math.max(0, player.hp - dmgToPlayer);
+  db.updatePlayer(player.id, { hp: player.hp });
+
+  let line = `🏃 Intentás huir pero el ${monster.name} te bloquea y te golpea (${dmgToPlayer} dmg). (${player.hp}/${player.max_hp} HP)`;
+
+  if (player.hp <= 0) {
+    db.updatePlayer(player.id, { hp: 5, current_room_id: 1 });
+    line += `\n💀 ¡Moriste! Respawneás en la entrada del dungeon...`;
+  }
+
+  return { fled: false, line };
+}
+
+/**
+ * Busca un monstruo en la habitación que coincida con el nombre dado.
+ * Acepta coincidencia parcial case-insensitive.
+ * @param {number} roomId
+ * @param {string} targetName
+ * @returns {object|null}
+ */
+function findMonsterInRoom(roomId, targetName) {
+  const monsters = db.getMonstersInRoom(roomId);
+  const name = targetName.toLowerCase().trim();
+  return monsters.find(m => m.name.toLowerCase().includes(name)) || null;
+}
+
+// ─── Helpers privados ─────────────────────────────────────────────────────────
+
+/**
+ * Calcula daño con ±20% de variación.
+ * @param {number} base
+ * @returns {number}
+ */
+function calcDamage(base) {
+  const variation = 0.8 + Math.random() * 0.4; // 0.8 a 1.2
+  return Math.round(base * variation);
+}
+
+/**
+ * Suelta el loot del monstruo en la habitación y marca al monstruo como muerto.
+ * @param {object} monster
+ * @param {number} roomId
+ * @returns {string[]} ítems soltados
+ */
+function dropLoot(monster, roomId) {
+  const loot = monster.loot || [];
+
+  if (loot.length > 0) {
+    // Agregar ítems a la habitación
+    const room = db.getRoom(roomId);
+    if (room) {
+      const newItems = [...room.items, ...loot];
+      db.updateRoomItems(roomId, newItems);
+    }
+  }
+
+  // Programar respawn del monstruo (5 minutos)
+  const respawnAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  db.updateMonster(monster.id, {
+    hp: 0,
+    room_id: null,        // ya no está en ninguna sala
+    respawn_at: respawnAt,
+  });
+
+  return loot;
+}
+
+/**
+ * Revisa si hay monstruos que deben respawnear y los resucita.
+ * Se llama periódicamente desde el servidor.
+ */
+function checkRespawns() {
+  const now = new Date().toISOString();
+  // Buscar todos los monstruos muertos con respawn pendiente
+  const rawDb = db.raw();
+  if (!rawDb) return;
+
+  const results = rawDb.exec(
+    `SELECT * FROM monsters WHERE room_id IS NULL AND respawn_at IS NOT NULL AND respawn_at <= ?`,
+    [now]
+  );
+  if (!results.length) return;
+
+  const { columns, values } = results[0];
+  const monsters = values.map(row => Object.fromEntries(columns.map((c, i) => [c, row[i]])));
+
+  for (const m of monsters) {
+    if (!m.respawn_room_id) continue;
+    db.updateMonster(m.id, {
+      hp: m.max_hp,
+      room_id: m.respawn_room_id,
+      respawn_at: null,
+    });
+    console.log(`[combat] Respawn: ${m.name} en sala ${m.respawn_room_id}`);
+  }
+}
+
+module.exports = {
+  attackRound,
+  tryFlee,
+  findMonsterInRoom,
+  checkRespawns,
+};

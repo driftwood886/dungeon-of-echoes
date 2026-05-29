@@ -12,6 +12,7 @@ const path    = require('path');
 const db                     = require('./db/db');
 const { seedIfEmpty }        = require('./db/seed');
 const { execute, getOrCreatePlayer } = require('./game/engine');
+const { checkRespawns }      = require('./game/combat');
 
 const PORT = process.env.PORT || 3000;
 
@@ -114,9 +115,12 @@ async function main() {
   // 7. Arrancar servidor
   server.listen(PORT, () => {
     console.log(`\n🏰 Dungeon of Echoes corriendo en http://localhost:${PORT}`);
-    console.log(`   Versión 0.2.0 — Motor del juego activo`);
+    console.log(`   Versión 0.3.0 — Combate + ítems activos`);
     console.log(`   Presioná Ctrl+C para apagar\n`);
   });
+
+  // 8. Respawn loop: checar cada 60 segundos
+  setInterval(checkRespawns, 60_000);
 }
 
 main().catch(err => {

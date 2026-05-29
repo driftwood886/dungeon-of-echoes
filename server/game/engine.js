@@ -14,6 +14,8 @@
 const db      = require('../db/db');
 const dungeon = require('./dungeon');
 const { parse, HELP_TEXT } = require('./commands');
+const combat  = require('./combat');
+const items   = require('./items');
 
 /**
  * Ejecuta un comando de texto para un jugador y devuelve el resultado.
@@ -40,6 +42,10 @@ function execute(playerId, input) {
     case 'move':      result = cmdMove(player, action.args[0]); break;
     case 'inventory': result = cmdInventory(player); break;
     case 'status':    result = cmdStatus(player); break;
+    case 'attack':    result = cmdAttack(player, action.args.join(' ')); break;
+    case 'flee':      result = cmdFlee(player); break;
+    case 'pick':      result = cmdPick(player, action.args.join(' ')); break;
+    case 'use':       result = cmdUse(player, action.args.join(' ')); break;
     case 'help':      result = { text: HELP_TEXT }; break;
     case 'unknown':
       result = { text: `Comando desconocido: "${action.input}". Escribí "help" para ver los comandos.` };
@@ -135,12 +141,161 @@ function cmdStatus(player) {
   return { text };
 }
 
+/**
+ * attack <nombre> — Atacar a un monstruo de la habitación.
+ */
+function cmdAttack(player, targetName) {
+  if (!targetName || !targetName.trim()) {
+    return { text: 'Indicá a quién querés atacar. Ej: "attack goblin".' };
+  }
+
+  // Refrescar player desde BD para tener HP actualizado
+  player = db.getPlayer(player.id);
+
+  const monster = combat.findMonsterInRoom(player.current_room_id, targetName.trim());
+  if (!monster) {
+    return { text: `No hay ningún "${targetName}" aquí.` };
+  }
+
+  const { lines, monsterDead, playerDead } = combat.attackRound(player, monster);
+
+  let eventText = null;
+  if (monsterDead) {
+    eventText = `${player.username} derrota al ${monster.name}.`;
+  } else if (playerDead) {
+    eventText = `${player.username} fue derrotado por el ${monster.name}.`;
+  } else {
+    eventText = `${player.username} combate contra el ${monster.name}.`;
+  }
+
+  return {
+    text: lines.join('\n'),
+    event: eventText,
+    eventRoomId: player.current_room_id,
+  };
+}
+
+/**
+ * flee / huir — Intentar huir del combate.
+ * Solo tiene sentido si hay monstruos en la sala.
+ */
+function cmdFlee(player) {
+  player = db.getPlayer(player.id);
+  const monsters = db.getMonstersInRoom(player.current_room_id);
+
+  if (monsters.length === 0) {
+    return { text: 'No hay nada de lo que huir aquí.' };
+  }
+
+  // Huir del primer monstruo (el más relevante)
+  const monster = monsters[0];
+  const { fled, line } = combat.tryFlee(player, monster);
+
+  return {
+    text: line,
+    event: fled ? `${player.username} huye de la sala.` : `${player.username} intenta huir pero falla.`,
+    eventRoomId: player.current_room_id,
+  };
+}
+
+/**
+ * pick <ítem> — Recoger un ítem del suelo.
+ */
+function cmdPick(player, itemQuery) {
+  if (!itemQuery || !itemQuery.trim()) {
+    return { text: 'Indicá qué querés recoger. Ej: "pick espada".' };
+  }
+
+  const room = db.getRoom(player.current_room_id);
+  if (!room) {
+    return { text: 'Error: tu habitación actual no existe.' };
+  }
+
+  const found = items.findItem(room.items, itemQuery.trim());
+  if (!found) {
+    return { text: `No hay ningún "${itemQuery}" en el suelo.` };
+  }
+
+  // Quitar el ítem del suelo
+  const newRoomItems = room.items.filter(i => i !== found);
+  db.updateRoomItems(room.id, newRoomItems);
+
+  // Agregarlo al inventario del jugador
+  player = db.getPlayer(player.id);
+  const newInventory = [...player.inventory, found];
+  db.updatePlayer(player.id, { inventory: newInventory });
+
+  return {
+    text: `Recogés ${found} y lo guardás en tu mochila.`,
+    event: `${player.username} recoge algo del suelo.`,
+    eventRoomId: room.id,
+  };
+}
+
+/**
+ * use <ítem> — Usar un ítem del inventario.
+ */
+function cmdUse(player, itemQuery) {
+  if (!itemQuery || !itemQuery.trim()) {
+    return { text: 'Indicá qué querés usar. Ej: "use poción".' };
+  }
+
+  player = db.getPlayer(player.id);
+
+  const found = items.findItem(player.inventory, itemQuery.trim());
+  if (!found) {
+    return { text: `No tenés ningún "${itemQuery}" en el inventario.` };
+  }
+
+  const def = items.getItemDef(found);
+  if (!def) {
+    return { text: `Usás ${found} pero no pasa nada en particular.` };
+  }
+
+  let resultText;
+
+  if (def.type === 'potion' && def.effect === 'heal') {
+    const oldHp = player.hp;
+    const newHp = Math.min(player.max_hp, player.hp + def.amount);
+    db.updatePlayer(player.id, { hp: newHp });
+
+    // Consumir el ítem
+    const newInv = removeFirst(player.inventory, found);
+    db.updatePlayer(player.id, { inventory: newInv });
+
+    resultText = `Bebés la ${found}. Recuperás ${newHp - oldHp} HP. (${newHp}/${player.max_hp} HP)`;
+
+  } else if (def.type === 'weapon') {
+    // Equipar el arma: aumenta el ataque base del jugador
+    // Primero, si ya tenía un arma equipada la "desequipa" (stat reset es simplístico en MVP)
+    const newAttack = 5 + def.amount; // base 5 + bonus del arma
+    db.updatePlayer(player.id, { attack: newAttack });
+
+    resultText = `Equipás ${found}. Tu ataque sube a ${newAttack}.`;
+
+  } else {
+    resultText = `Examinás ${found}: ${def.description}`;
+  }
+
+  return {
+    text: resultText,
+    event: `${player.username} usa un ítem.`,
+    eventRoomId: player.current_room_id,
+  };
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 function buildBar(current, max, width) {
   const filled = Math.round((current / max) * width);
   const empty  = width - filled;
   return `[${'█'.repeat(filled)}${'░'.repeat(empty)}]`;
+}
+
+function removeFirst(arr, value) {
+  const idx = arr.indexOf(value);
+  if (idx === -1) return arr;
+  return [...arr.slice(0, idx), ...arr.slice(idx + 1)];
 }
 
 /**
