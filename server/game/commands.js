@@ -95,6 +95,12 @@ const COMMAND_ALIASES = {
   guild: 'guild', hermandad: 'guild', gremio: 'guild', clan: 'guild', faccion: 'guild', facción: 'guild',
   // gc / guild chat
   gc: 'gc', gchat: 'gc', guildchat: 'gc',
+  // duel / duelo PvP
+  duel: 'duel', duelo: 'duel', retar: 'duel', desafiar: 'duel', pvp: 'duel',
+  // accept / aceptar duelo
+  accept: 'accept', aceptar: 'accept', acepto: 'accept',
+  // decline / rechazar duelo
+  decline: 'decline', rechazar: 'decline', rechazo: 'decline', negar: 'decline',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -182,6 +188,9 @@ Comandos disponibles:
   quest / misión        — Ver la quest activa y tu progreso
   guild <acción>        — Gestionar tu hermandad (create/join/leave/info/list)
   gc <mensaje>          — Chat de hermandad (solo ven los miembros del mismo guild)
+  duel <jugador>        — Retar a un duelo PvP a otro aventurero en la misma sala
+  accept                — Aceptar el reto de duelo pendiente
+  decline               — Rechazar el reto de duelo pendiente
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();

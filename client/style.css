@@ -269,6 +269,8 @@ html, body {
 .msg-line.msg-whisper    { color: #ffaaff; font-style: italic; }
 .msg-line.msg-tell       { color: #ffcc66; font-style: italic; }
 .msg-line.msg-guild_chat { color: #66ffcc; font-style: italic; border-left: 2px solid #33cc99; padding-left: 4px; }
+.msg-line.msg-duel_challenge { color: #ff6666; font-weight: bold; border-left: 3px solid #ff4444; padding-left: 4px; animation: duelFlash 0.5s ease 3; }
+.msg-line.msg-duel_result    { color: #ffbb44; font-weight: bold; white-space: pre-wrap; border-left: 3px solid #ffaa00; padding-left: 4px; }
 .msg-line.msg-error   { color: var(--red); }
 .msg-line.msg-combat  { color: #ff7744; }
 .msg-line.msg-loot    { color: #ffdd44; }
@@ -424,6 +426,13 @@ html, body {
   40%  { background-color: rgba(255, 200, 100, 0.15); }
   70%  { background-color: rgba(255, 200, 100, 0.30); }
   100% { background-color: transparent; }
+}
+
+/* Flash rojo para retoo de duelo */
+@keyframes duelFlash {
+  0%   { background-color: rgba(255, 50, 50, 0.40); }
+  50%  { background-color: rgba(255, 50, 50, 0.10); }
+  100% { background-color: rgba(255, 50, 50, 0.35); }
 }
 
 .msg-flash {

@@ -323,6 +323,14 @@ function initSocket() {
       addMsg(`📨 ${data.message}`, 'tell');
     } else if (data.type === 'guild_chat') {
       addMsg(`🛡 ${data.message}`, 'guild_chat');
+    } else if (data.type === 'duel_challenge') {
+      addMsg(`⚔️ ${data.message}`, 'duel_challenge');
+    } else if (data.type === 'duel_result') {
+      addSeparator();
+      addMsg(data.message, 'duel_result');
+      addSeparator();
+    } else if (data.type === 'duel_declined') {
+      addMsg(`🚫 ${data.message}`, 'system');
     } else if (data.type === 'offline_messages') {
       addSeparator();
       addMsg(data.message, 'tell');

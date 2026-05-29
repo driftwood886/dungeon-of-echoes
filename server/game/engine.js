@@ -37,6 +37,10 @@ const ROOM_EFFECTS = {
 // lastWhisperSender.get(playerId) → { id, username } del último que les escribió
 const lastWhisperSender = new Map();
 
+// ── Sistema de duelos PvP (T089) ──────────────────────────────────────────────
+// pendingDuels.get(targetPlayerId) → { challengerId, challengerUsername, roomId, expiresAt }
+const pendingDuels = new Map();
+
 /**
  * Ejecuta un comando de texto para un jugador y devuelve el resultado.
  *
@@ -91,6 +95,9 @@ function execute(playerId, input) {
     case 'quest':        result = cmdQuest(player); break;
     case 'guild':        result = cmdGuild(player, action.args); break;
     case 'gc':           result = cmdGuildChat(player, action.args); break;
+    case 'duel':         result = cmdDuel(player, action.args.join(' ')); break;
+    case 'accept':       result = cmdAcceptDuel(player); break;
+    case 'decline':      result = cmdDeclineDuel(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -282,6 +289,8 @@ function cmdStatus(player) {
   const kills  = player.kills || 0;
   const deaths = player.deaths || 0;
   const gold   = player.gold   || 0;
+  const duelWins   = player.duel_wins   || 0;
+  const duelLosses = player.duel_losses || 0;
   const xpBar  = buildBar(xp % 50, 50, 10);
   const weaponLine = player.equipped_weapon
     ? `Arma:     ${player.equipped_weapon}`
@@ -303,6 +312,7 @@ function cmdStatus(player) {
     `Defensa:  ${player.defense}`,
     `Oro:      💰 ${gold}g`,
     weaponLine,
+    `Duelos:   ⚔️ ${duelWins} ganados / ${duelLosses} perdidos`,
     `Ubicación: ${roomName}`,
     player.guild ? `Hermandad: [${player.guild}]` : `Hermandad: (sin guild)`,
     ...(statusLines.length ? ['', ...statusLines] : []),
@@ -1690,6 +1700,172 @@ function cmdGuildChat(player, args) {
     guildBroadcast: player.guild,
     guildBroadcastMsg: `[GUILD ${player.guild}] ${player.username}: ${msg}`,
     guildBroadcastExcludeSelf: player.id,
+  };
+}
+
+
+/**
+ * duel <jugador> — Retar a otro jugador en la misma sala a un duelo PvP
+ */
+function cmdDuel(player, targetName) {
+  if (!targetName) {
+    return { text: 'Indicá a quién querés retar. Ej: "duel Ana"' };
+  }
+
+  const target = db.getPlayerByUsername(targetName.trim());
+  if (!target) {
+    return { text: `No existe el jugador "${targetName}".` };
+  }
+  if (target.id === player.id) {
+    return { text: 'No podés retarte a vos mismo, héroe solitario.' };
+  }
+  if (target.current_room_id !== player.current_room_id) {
+    return { text: `${target.username} no está en esta sala. Los duelos solo se pueden iniciar cara a cara.` };
+  }
+  if (target.hp <= 0) {
+    return { text: `${target.username} está en muy mal estado para pelear.` };
+  }
+
+  // Guardar reto (expira en 60 segundos)
+  pendingDuels.set(target.id, {
+    challengerId: player.id,
+    challengerUsername: player.username,
+    roomId: player.current_room_id,
+    expiresAt: Date.now() + 60_000,
+  });
+
+  return {
+    text: `⚔️ Retaste a ${target.username} a un duelo. Esperando respuesta (60s para aceptar o rechazar).`,
+    event: `⚔️ ${player.username} reta a ${target.username} a un duelo a muerte! ¡Que el más valiente triunfe!`,
+    targetPlayerId: target.id,
+    targetPlayerMsg: `⚔️ ${player.username} te está retando a un duelo! Escribí "accept" para aceptar o "decline" para rechazar (60s).`,
+    targetEventType: 'duel_challenge',
+  };
+}
+
+/**
+ * accept — Aceptar un reto de duelo pendiente
+ */
+function cmdAcceptDuel(player) {
+  const challenge = pendingDuels.get(player.id);
+  if (!challenge) {
+    return { text: 'No tenés ningún reto de duelo pendiente.' };
+  }
+  if (Date.now() > challenge.expiresAt) {
+    pendingDuels.delete(player.id);
+    return { text: 'El reto de duelo expiró (más de 60 segundos).' };
+  }
+
+  const challenger = db.getPlayer(challenge.challengerId);
+  if (!challenger) {
+    pendingDuels.delete(player.id);
+    return { text: 'El jugador que te retó ya no existe.' };
+  }
+  if (challenger.current_room_id !== player.current_room_id) {
+    pendingDuels.delete(player.id);
+    return { text: `${challenger.username} ya no está en esta sala. Duelo cancelado.` };
+  }
+
+  pendingDuels.delete(player.id);
+
+  // ── Resolver el duelo por turnos ──────────────────────────────────────────
+  // Clonar stats para no modificar la BD durante la simulación
+  let hp1 = challenger.hp;  // challenger
+  let hp2 = player.hp;       // retado (acceptor)
+  const atk1 = Math.max(1, (challenger.attack || 5) + (challenger.level || 1) - 1);
+  const atk2 = Math.max(1, (player.attack || 5) + (player.level || 1) - 1);
+  const def1 = challenger.defense || 2;
+  const def2 = player.defense || 2;
+
+  const log = [];
+  let turns = 0;
+  const MAX_TURNS = 30;
+
+  while (hp1 > 0 && hp2 > 0 && turns < MAX_TURNS) {
+    turns++;
+    // Challenger ataca al retado
+    const dmg1 = Math.max(1, Math.floor(atk1 * (0.8 + Math.random() * 0.4)) - def2);
+    hp2 -= dmg1;
+    log.push(`  Ronda ${turns}a: ${challenger.username} golpea a ${player.username} (-${dmg1} HP, ${player.username}: ${Math.max(0, hp2)}/${player.max_hp} HP)`);
+    if (hp2 <= 0) break;
+
+    // Retado ataca al challenger
+    const dmg2 = Math.max(1, Math.floor(atk2 * (0.8 + Math.random() * 0.4)) - def1);
+    hp1 -= dmg2;
+    log.push(`  Ronda ${turns}b: ${player.username} golpea a ${challenger.username} (-${dmg2} HP, ${challenger.username}: ${Math.max(0, hp1)}/${challenger.max_hp} HP)`);
+  }
+
+  let winner, loser;
+  if (hp1 <= 0 && hp2 <= 0) {
+    // Empate (raro): ambos caen en el mismo turno
+    winner = null;
+  } else if (hp1 > 0) {
+    winner = challenger;
+    loser  = player;
+  } else {
+    winner = player;
+    loser  = challenger;
+  }
+
+  // ── Aplicar penalización y recompensa de oro ──────────────────────────────
+  let resultMsg = '';
+  if (!winner) {
+    resultMsg = `¡Empate! ${challenger.username} y ${player.username} caen exhaustos. Nadie pierde oro.`;
+    // Dejar HP de ambos en 1 (no mueren, solo quedan casi KO)
+    db.updatePlayer(challenger.id, { hp: Math.max(1, Math.floor(challenger.max_hp * 0.1)) });
+    db.updatePlayer(player.id,     { hp: Math.max(1, Math.floor(player.max_hp * 0.1)) });
+  } else {
+    const goldTransfer = Math.max(1, Math.floor(loser.gold * 0.10));
+    const loserNewGold = Math.max(0, loser.gold - goldTransfer);
+    const winnerNewGold = winner.gold + goldTransfer;
+
+    // Actualizar HP (ambos salen heridos, ganador con HP proporcional)
+    const winnerHp = winner.id === challenger.id ? Math.max(1, hp1) : Math.max(1, hp2);
+    const loserHp  = Math.max(1, Math.floor(loser.max_hp * 0.05)); // loser queda casi KO
+
+    db.updatePlayer(winner.id, {
+      hp: winnerHp,
+      gold: winnerNewGold,
+      duel_wins: (winner.duel_wins || 0) + 1,
+    });
+    db.updatePlayer(loser.id, {
+      hp: loserHp,
+      gold: loserNewGold,
+      duel_losses: (loser.duel_losses || 0) + 1,
+    });
+
+    resultMsg = `🏆 ¡${winner.username} gana el duelo! ${loser.username} pierde ${goldTransfer} monedas de oro.\n` +
+                `   ${winner.username}: ${winnerHp}/${winner.max_hp} HP | ${loser.username}: ${loserHp}/${loser.max_hp} HP`;
+  }
+
+  const combatLog = log.slice(0, 10).join('\n'); // solo primeras 10 líneas para no spamear
+  const finalText = `⚔️ ¡DUELO! ${challenger.username} vs ${player.username}\n${combatLog}\n\n${resultMsg}`;
+
+  return {
+    text: finalText,
+    event: finalText,
+    targetPlayerId: winner ? loser.id : challenger.id,
+    targetPlayerMsg: finalText,
+    targetEventType: 'duel_result',
+  };
+}
+
+/**
+ * decline — Rechazar un reto de duelo pendiente
+ */
+function cmdDeclineDuel(player) {
+  const challenge = pendingDuels.get(player.id);
+  if (!challenge) {
+    return { text: 'No tenés ningún reto de duelo pendiente.' };
+  }
+  pendingDuels.delete(player.id);
+
+  return {
+    text: `Rechazaste el reto de ${challenge.challengerUsername}. A veces la discreción es sabiduría.`,
+    event: `🚫 ${player.username} rechazó el reto de duelo de ${challenge.challengerUsername}.`,
+    targetPlayerId: challenge.challengerId,
+    targetPlayerMsg: `🚫 ${player.username} rechazó tu reto de duelo.`,
+    targetEventType: 'duel_declined',
   };
 }
 
