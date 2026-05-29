@@ -43,6 +43,8 @@ const COMMAND_ALIASES = {
   examine: 'examine', examinar: 'examine', inspeccionar: 'examine', x: 'examine',
   // equip
   equip: 'equip', equipar: 'equip', empuñar: 'equip', portar: 'equip',
+  // map
+  map: 'map', mapa: 'map',
   // flee
   flee: 'flee', huir: 'flee', escapar: 'flee', correr: 'flee',
   // say
@@ -117,6 +119,7 @@ Comandos disponibles:
   drop <ítem>           — Tirar un ítem al suelo
   use <ítem>            — Usar un ítem (poción → consume, arma → equipar)
   equip <arma>          — Equipar un arma del inventario explícitamente
+  map / mapa            — Ver el mapa ASCII del dungeon
   examine <objetivo>    — Examinar un monstruo, ítem o la sala
   say <mensaje>         — Hablar con jugadores en la misma habitación
   shout <mensaje>       — Gritar a todo el dungeon

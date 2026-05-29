@@ -49,6 +49,7 @@ function execute(playerId, input) {
     case 'drop':      result = cmdDrop(player, action.args.join(' ')); break;
     case 'examine':   result = cmdExamine(player, action.args.join(' ')); break;
     case 'equip':     result = cmdEquip(player, action.args.join(' ')); break;
+    case 'map':       result = cmdMap(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -429,6 +430,90 @@ function cmdEquip(player, itemQuery) {
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
+
+/**
+ * map — Mostrar mapa ASCII del dungeon con la sala actual marcada.
+ * El layout es fijo para el dungeon de 10 salas actual.
+ * La sala del jugador se muestra como [★NN] en lugar de [ NN].
+ */
+function cmdMap(player) {
+  const here = player.current_room_id;
+
+  // Abreviaciones para los nombres de sala (max 12 chars para el grid)
+  const NAMES = {
+    1:  'Entrada',
+    2:  'Corredor',
+    3:  'Sala Ecos',
+    4:  'Tesoro',
+    5:  'Capilla',
+    6:  'Túnel',
+    7:  'Pozo',
+    8:  'Prisión',
+    9:  'Trono',
+    10: 'Santuario',
+  };
+
+  function cell(id) {
+    const label = NAMES[id] || `Sala ${id}`;
+    const marker = id === here ? '★' : ' ';
+    return `[${marker}${String(id).padStart(2,' ')} ${label.substring(0,9).padEnd(9,' ')}]`;
+  }
+
+  // Layout visual del dungeon (3 columnas × filas):
+  //
+  //  [7 Pozo]---[3 Ecos]---[4 Tesoro]
+  //      |          |           |
+  // [9 Trono]--[6 Túnel]--[2 Corredor]-- (8 Prisión arriba de 4)
+  //      |          |           |
+  //             [5 Capilla]-[1 Entrada]
+  //
+  // Representación simplificada en texto:
+
+  const c = (id) => cell(id);
+  const H = '───';
+  const V = '│';
+
+  // Calcular posición horizontal de cada celda (15 chars + 3 de ─── separador = 18 por bloque)
+  // Fila principal: 10─9─6─2─3─4 (izq a derecha)
+  // Centro celda N en esa fila: N*18+7 donde N=0,1,2,3,4,5
+  // c10@0, c9@18, c6@36, c2@54, c3@72, c4@90
+  const pad = (n) => ' '.repeat(n);
+  const CELL_W = 15; // ancho de cada celda
+  const SEP_W  = 3;  // ancho de ─── 
+  const BLOCK  = CELL_W + SEP_W; // 18
+
+  // Centro de cada celda en la fila principal
+  const center = (col) => col * BLOCK + Math.floor(CELL_W / 2); // col 0..5
+
+  // Sala 8 está arriba de sala 4 (col 5, centro = 97)
+  // Sala 7 está debajo de sala 10 (col 0, centro = 7)
+  // Sala 5-1 están debajo de sala 6-2 (col 2 y 3, centros = 43 y 61)
+
+  const c8_start = center(5) - Math.floor(CELL_W / 2); // 97 - 7 = 90
+  const c7_start = 0;        // debajo de c10 (col 0)
+  const c5_start = center(2) - Math.floor(CELL_W / 2); // 43 - 7 = 36
+  const c1_start = center(3) - Math.floor(CELL_W / 2); // 61 - 7 = 54
+
+  const row_8    = pad(c8_start) + c(8);
+  const pipe_8   = pad(center(5)) + '│';
+  const row_main = `${c(10)}───${c(9)}───${c(6)}───${c(2)}───${c(3)}───${c(4)}`;
+  const pipes_76 = pad(center(0)) + '│' + pad(center(2) - center(0) - 1) + '│';
+  const row_71   = pad(c7_start) + c(7) + pad(c5_start - c7_start - CELL_W) + c(5) + '───' + c(1);
+
+  const lines = [
+    `MAPA DEL DUNGEON`,
+    ``,
+    row_8,
+    pipe_8,
+    row_main,
+    pipes_76,
+    row_71,
+    ``,
+    `★ = tu ubicación actual (sala ${here}: ${NAMES[here] || '?'})`,
+  ];
+
+  return { text: lines.join('\n') };
+}
 
 function buildBar(current, max, width) {
   const filled = Math.round((current / max) * width);
