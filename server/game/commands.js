@@ -71,6 +71,8 @@ const COMMAND_ALIASES = {
   disarm: 'disarm', desactivar: 'disarm', desarmar: 'disarm', trampa: 'disarm',
   // rest / descansar
   rest: 'rest', descansar: 'rest', dormir: 'rest', recuperar: 'rest', campear: 'rest',
+  // emote / acción
+  emote: 'emote', acción: 'emote', accion: 'emote', me: 'emote', hacer: 'emote',
   // say
   say: 'say', decir: 'say', hablar: 'say',
   // shout
@@ -158,6 +160,8 @@ Comandos disponibles:
   tell <jug> <msg>      — Mensaje privado con aviso offline (llega aunque no esté conectado)
   reply <msg>           — Contestar el último whisper/tell recibido (sin escribir el nombre)
   unlock <dir>          — Abrir una puerta bloqueada usando la llave del inventario (permanente)
+  emote <acción>        — Expresar una acción visible para todos en la sala (ej: emote sonríe)
+  rest / descansar      — Recuperar HP si no hay monstruos (cooldown 60s)
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -189,6 +193,7 @@ const COMMAND_HELP = {
   tell:      'tell <jugador> <mensaje>\n  Igual que whisper pero con persistencia offline: si el jugador no está conectado, el mensaje\n  se guarda en la BD y se le entrega la próxima vez que haga login.',
   reply:     'reply <mensaje> / responder <mensaje>\n  Contestar automáticamente al último jugador que te envió un whisper o tell,\n  sin necesidad de escribir su nombre. Atajo: "r <mensaje>".',
   unlock:    'unlock / abrir <dir> / desbloquear <dir>\n  Abrir permanentemente una puerta bloqueada usando la llave del inventario.\n  La puerta queda abierta para todos los jugadores. La llave se consume.',
+  emote:     'emote <acción> / accion <acción> / me <acción>\n  Expresar una acción en tercera persona visible para todos en la sala.\n  Ej: "emote suspira profundo" → todos ven: "✨ NombreJugador suspira profundo"',
   help:      'help / ayuda\n  Mostrar la lista de comandos.\n  help <comando>: ayuda detallada sobre un comando específico.',
 };
 

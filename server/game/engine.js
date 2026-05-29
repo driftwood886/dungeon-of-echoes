@@ -66,6 +66,7 @@ function execute(playerId, input) {
     case 'unlock':    result = cmdUnlock(player, action.args[0]); break;
     case 'disarm':    result = cmdDisarm(player); break;
     case 'rest':      result = cmdRest(player); break;
+    case 'emote':     result = cmdEmote(player, action.args.join(' ')); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -100,6 +101,8 @@ function execute(playerId, input) {
           tell: 'tell', mensaje: 'tell',
           reply: 'reply', responder: 'reply',
           unlock: 'unlock', abrir: 'unlock', desbloquear: 'unlock',
+          emote: 'emote', accion: 'emote', me: 'emote',
+          rest: 'rest', descansar: 'rest',
           help: 'help', ayuda: 'help',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
@@ -1098,6 +1101,31 @@ function cmdRest(player) {
 
   return {
     text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP. ${hpBar} ${newHp}/${player.max_hp} HP`,
+  };
+}
+
+/**
+ * emote / acción — Expresar una acción en tercera persona visible para todos en la sala.
+ * Ej: `emote suspira profundo` → broadcast: "⭐ Ana suspira profundo"
+ *     `emote mira las paredes con curiosidad` → broadcast: "⭐ Ana mira las paredes con curiosidad"
+ */
+function cmdEmote(player, action) {
+  if (!action || action.trim().length === 0) {
+    return { text: 'Uso: emote <acción>  — ej: emote inspecciona las paredes' };
+  }
+
+  const trimmed = action.trim();
+  // Limitar longitud a 150 chars
+  if (trimmed.length > 150) {
+    return { text: '❌ El emote es demasiado largo (máx 150 caracteres).' };
+  }
+
+  const emoteText = `✨ ${player.username} ${trimmed}`;
+
+  return {
+    text: emoteText,                          // el jugador también lo ve
+    event: emoteText,                         // broadcast a la sala
+    eventRoomId: player.current_room_id,
   };
 }
 

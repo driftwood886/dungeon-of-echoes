@@ -19,12 +19,13 @@
 //   - misc:   sin efecto mecánico directo (coleccionables, lore)
 
 const ITEM_CATALOG = {
-  // Pociones
+  // ── Pociones ────────────────────────────────────────────────────────────────
   'poción de salud':     { type: 'potion', effect: 'heal', amount: 15, description: 'Una pequeña poción rojiza que restaura 15 HP.' },
   'poción de vida':      { type: 'potion', effect: 'heal', amount: 25, description: 'Una poción grande que restaura 25 HP.' },
   'poción menor':        { type: 'potion', effect: 'heal', amount: 8,  description: 'Una poción débil. Restaura 8 HP.' },
+  'poción de poder':     { type: 'potion', effect: 'heal', amount: 20, description: 'Una poción oscura que restaura 20 HP y deja un zumbido en los huesos.' },
 
-  // Armas
+  // ── Armas (dungeon base) ──────────────────────────────────────────────────
   'espada oxidada':      { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'Una espada vieja con filo irregular. +3 de ataque.' },
   'cuchillo oxidado':    { type: 'weapon', effect: 'attack_bonus', amount: 1,  description: 'Un cuchillo pequeño y oxidado. +1 de ataque.' },
   'espada larga':        { type: 'weapon', effect: 'attack_bonus', amount: 5,  description: 'Una espada bien balanceada. +5 de ataque.' },
@@ -34,7 +35,13 @@ const ITEM_CATALOG = {
   'garra de esqueleto':  { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'La garra de un esqueleto endurecida por la magia oscura. +3 de ataque.' },
   'hacha rústica':       { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'Un hacha de mano, tosca pero funcional. +4 de ataque.' },
 
-  // Misc / coleccionables
+  // ── Armas (dungeon expandido) ─────────────────────────────────────────────
+  'espada de obsidiana': { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una espada forjada de obsidiana pura que absorbe la luz. +12 de ataque. El arma más poderosa del dungeon.' },
+  'lanza espectral':     { type: 'weapon', effect: 'attack_bonus', amount: 9,  description: 'Una lanza hecha de luz negra condensada. Atraviesa armaduras físicas. +9 de ataque.' },
+  'alabarda de huesos':  { type: 'weapon', effect: 'attack_bonus', amount: 6,  description: 'La alabarda de un guardia espectral. Ligera a pesar de estar hecha de hueso. +6 de ataque.' },
+  'martillo de forja':   { type: 'weapon', effect: 'attack_bonus', amount: 7,  description: 'Un martillo colosal de las forjas. Aplastante y pesado. +7 de ataque.' },
+
+  // ── Misc / coleccionables (dungeon base) ─────────────────────────────────
   'antorcha':            { type: 'misc', description: 'Una antorcha encendida. Ilumina los pasillos oscuros.' },
   'libro viejo':         { type: 'misc', description: 'Un grimorio con páginas incomprensibles.' },
   'cuerda':              { type: 'misc', description: 'Una cuerda resistente de unos 10 metros.' },
@@ -42,9 +49,33 @@ const ITEM_CATALOG = {
   'amuleto oscuro':      { type: 'misc', description: 'Un amuleto con una gema negra. Irradia una energía extraña.' },
   'monedas de cobre':    { type: 'misc', description: 'Unas pocas monedas de cobre gastadas.' },
   'monedas de plata':    { type: 'misc', description: 'Monedas de plata con inscripciones antiguas.' },
+  'monedas de oro':      { type: 'misc', description: 'Monedas de oro resplandecientes. Son pocas, pero valen mucho.' },
   'pelaje áspero':       { type: 'misc', description: 'El pelaje de una rata gigante. Áspero al tacto.' },
   'escudo roto':         { type: 'misc', description: 'Un escudo con el centro partido. Inútil para defenderse.' },
   'esencia etérea':      { type: 'misc', description: 'Una esencia brumosa dentro de un frasco. Resuena con el más allá.' },
+  'mochila de cuero':    { type: 'misc', description: 'Una mochila resistente de cuero curtido. Útil para cargar cosas.' },
+  'vela encendida':      { type: 'misc', description: 'Una vela que arde con una llama temblorosa. Apenas ilumina.' },
+  'libro de hechizos':   { type: 'misc', description: 'Un libro de hechizos con runas grabadas. La tinta parece moverse.' },
+  'gancho de hierro':    { type: 'misc', description: 'Un gancho de hierro forjado. Podría servir para escalar.' },
+  'cadenas rotas':       { type: 'misc', description: 'Cadenas de hierro partido. Aún huelen a sufrimiento.' },
+  'corona rota':         { type: 'misc', description: 'Una corona de metal ennegrecido, partida en dos. Perteneció a alguien poderoso.' },
+  'hongo azul':          { type: 'misc', description: 'Un hongo luminiscente de color azul profundo. Tiene propiedades alquímicas.' },
+  'hilo de seda':        { type: 'misc', description: 'Hilo de seda de araña, increíblemente resistente. Se usa en armaduras mágicas.' },
+  'veneno concentrado':  { type: 'misc', description: 'Un vial con el veneno de la Araña Tejedora. Peligroso si se derrama.' },
+
+  // ── Misc / coleccionables (dungeon expandido) ─────────────────────────────
+  'fragmento de hielo':  { type: 'misc', description: 'Un bloque pequeño de hielo antiguo que no se derrite. Irradia un frío sobrenatural.' },
+  'lingote de hierro':   { type: 'misc', description: 'Un lingote de hierro puro, salido directo de la forja. Pesado y caliente aún.' },
+  'perla negra':         { type: 'misc', description: 'Una perla de un negro absoluto del lago subterráneo. Tiene un valor incalculable.' },
+  'red de pesca':        { type: 'misc', description: 'Una red de pesca resistente. Podría servir para algo más que pescar.' },
+  'escudo de gladiador': { type: 'misc', description: 'El escudo de un gladiador del coliseo de huesos. Lleva el nombre "MAXIMUS" grabado.' },
+  'tomo sellado':        { type: 'misc', description: 'Un tomo sellado con cera negra. Las runas del sello pulsan suavemente. No se puede abrir... aún.' },
+  'cristal helado':      { type: 'misc', description: 'Un cristal extraído del cuerpo de un Elemental de Hielo. Conserva el frío de siglos.' },
+  'núcleo de forja':     { type: 'misc', description: 'El núcleo energético de un Golem de Forja. Aún irradia calor y magia residual.' },
+  'tinta de kraken':     { type: 'misc', description: 'Un frasco de tinta negra del Krakeling Abismal. Muy densa y de olor nauseabundo.' },
+  'escama abismal':      { type: 'misc', description: 'Una escama del Krakeling. Dura como el acero, ligera como el cartón.' },
+  'filacteria rota':     { type: 'misc', description: 'La filacteria del Lich Anciano, destruida. Sin ella, el Lich no puede regresar... ¿verdad?' },
+  'esencia de sombra':   { type: 'misc', description: 'La esencia condensada de las sombras del dungeon. Vibra en la oscuridad.' },
 };
 
 // ─── Funciones públicas ───────────────────────────────────────────────────────
