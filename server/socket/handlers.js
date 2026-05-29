@@ -59,6 +59,21 @@ function registerHandlers(io) {
       // Auto-look al entrar
       const lookResult = engine.execute(player.id, 'look');
 
+      // Entregar mensajes offline pendientes (tell)
+      const pending = db.getPendingMessages(player.id);
+      if (pending.length > 0) {
+        db.markMessagesDelivered(player.id);
+        // Se entregan vía ack para que el cliente los muestre al conectar
+        const offlineLines = pending.map(
+          m => `[tell offline de ${m.sender_username} (${m.created_at})]: "${m.message}"`
+        );
+        const offlineText = `📬 Tenés ${pending.length} mensaje(s) guardado(s):\n` + offlineLines.join('\n');
+        // Se emite después del ack al mismo socket
+        setImmediate(() => {
+          socket.emit('event', { type: 'offline_messages', message: offlineText });
+        });
+      }
+
       console.log(`[socket] ${player.username} (${socket.id}) unido a sala ${currentRoomId}`);
       ack && ack({ player_id: player.id, username: player.username, welcome: lookResult.text });
     });

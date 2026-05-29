@@ -225,6 +225,12 @@ function initSocket() {
   socket.on('event', (data) => {
     if (data.type === 'whisper') {
       addMsg(`🔇 ${data.message}`, 'whisper');
+    } else if (data.type === 'tell') {
+      addMsg(`📨 ${data.message}`, 'tell');
+    } else if (data.type === 'offline_messages') {
+      addSeparator();
+      addMsg(data.message, 'tell');
+      addSeparator();
     } else {
       const type = data.type === 'player_join' || data.type === 'player_leave'
         ? 'system'

@@ -89,6 +89,18 @@ async function init() {
   // Guardar al disco periódicamente (cada 30 segundos)
   setInterval(persist, 30_000);
 
+  // Tabla de mensajes offline (tell)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS offline_messages (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_username TEXT NOT NULL,
+      target_player_id TEXT NOT NULL,
+      message     TEXT NOT NULL,
+      delivered   INTEGER NOT NULL DEFAULT 0,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // Migraciones: agregar columnas nuevas si no existen
   // sql.js lanza error si la columna ya existe, lo ignoramos.
   const migrations = [
@@ -309,6 +321,29 @@ function getLeaderboard(limit = 10) {
   );
 }
 
+// ─── Offline Messages (tell) ─────────────────────────────────────────────────
+
+function saveOfflineMessage(senderUsername, targetPlayerId, message) {
+  run(
+    `INSERT INTO offline_messages (sender_username, target_player_id, message) VALUES (?, ?, ?)`,
+    [senderUsername, targetPlayerId, message]
+  );
+}
+
+function getPendingMessages(targetPlayerId) {
+  return all(
+    `SELECT * FROM offline_messages WHERE target_player_id = ? AND delivered = 0 ORDER BY id ASC`,
+    [targetPlayerId]
+  );
+}
+
+function markMessagesDelivered(targetPlayerId) {
+  run(
+    `UPDATE offline_messages SET delivered = 1 WHERE target_player_id = ? AND delivered = 0`,
+    [targetPlayerId]
+  );
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -321,6 +356,8 @@ module.exports = {
   getMonster, getMonstersInRoom, upsertMonster, updateMonster,
   // events
   logEvent, getRecentEvents,
+  // offline messages (tell)
+  saveOfflineMessage, getPendingMessages, markMessagesDelivered,
   // acceso raw (por si acaso)
   raw: () => db,
 };

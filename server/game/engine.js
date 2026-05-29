@@ -57,6 +57,7 @@ function execute(playerId, input) {
     case 'give':      result = cmdGive(player, action.args); break;
     case 'loot':      result = cmdLoot(player); break;
     case 'whisper':   result = cmdWhisper(player, action.args); break;
+    case 'tell':      result = cmdTell(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -87,6 +88,8 @@ function execute(playerId, input) {
           score: 'score', ranking: 'score', top: 'score',
           say: 'say', decir: 'say',
           shout: 'shout', gritar: 'shout',
+          whisper: 'whisper', susurrar: 'whisper',
+          tell: 'tell', mensaje: 'tell',
           help: 'help', ayuda: 'help',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
@@ -726,6 +729,46 @@ function cmdWhisper(player, args) {
     targetPlayerId:   target.id,
     targetPlayerMsg:  targetMsg,
     targetEventType:  'whisper',
+  };
+}
+
+// ─── Tell (whisper + persistencia offline) ───────────────────────────────────
+/**
+ * tell <jugador> <mensaje> — Mensaje privado con persistencia offline.
+ * Si el destinatario está conectado, se entrega por Socket.io en tiempo real.
+ * Si está desconectado, el mensaje se guarda en BD y se entrega al próximo login.
+ */
+function cmdTell(player, args) {
+  if (!args || args.length < 2) {
+    return { text: 'Uso: tell <jugador> <mensaje>. Ej: "tell Ana ¿dónde estás?".' };
+  }
+
+  const targetName = args[0];
+  const message    = args.slice(1).join(' ').trim();
+
+  if (!message) {
+    return { text: 'El mensaje no puede estar vacío.' };
+  }
+
+  const target = db.getPlayerByUsername(targetName);
+  if (!target) {
+    return { text: `No existe ningún jugador llamado "${targetName}".` };
+  }
+  if (target.id === player.id) {
+    return { text: 'No podés enviarte un tell a vos mismo.' };
+  }
+
+  const senderMsg = `[tell → ${target.username}]: "${message}"`;
+  const targetMsg = `[tell de ${player.username}]: "${message}"`;
+
+  // Guardar en BD por si el jugador no está online (notificación offline)
+  db.saveOfflineMessage(player.username, target.id, message);
+
+  return {
+    text: senderMsg,
+    targetPlayerId:  target.id,
+    targetPlayerMsg: targetMsg,
+    targetEventType: 'tell',
   };
 }
 
