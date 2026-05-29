@@ -1,0 +1,49 @@
+name: Deploy cliente a GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'client/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Inyectar la URL del servidor Fly.io en index.html antes del deploy
+      - name: Inyectar SERVER_URL
+        env:
+          FLY_URL: ${{ vars.FLY_URL || 'https://dungeon-of-echoes.fly.dev' }}
+        run: |
+          # Insertar script con SERVER_URL antes del cierre del </head>
+          sed -i "s|</head>|<script>window.SERVER_URL='${FLY_URL}';</script>\n</head>|" client/index.html
+          echo "SERVER_URL inyectado: ${FLY_URL}"
+          grep SERVER_URL client/index.html
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './client'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

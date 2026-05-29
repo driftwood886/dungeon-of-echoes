@@ -165,7 +165,8 @@ function updateSidebar(data) {
 async function refreshState() {
   if (!state.playerId) return;
   try {
-    const resp = await fetch(`/api/state/${state.playerId}`);
+    const baseUrl = window.SERVER_URL || '';
+    const resp = await fetch(`${baseUrl}/api/state/${state.playerId}`);
     if (!resp.ok) return;
     const data = await resp.json();
     updateSidebar(data);
@@ -179,7 +180,10 @@ function initSocket() {
   setConnectionStatus('wait');
   addMsg('Conectando al servidor...', 'system');
 
-  const socket = io();
+  // Permite apuntar a un servidor externo (ej: Fly.io) via variable global
+  // Para GitHub Pages: agregar <script>window.SERVER_URL='https://dungeon-of-echoes.fly.dev'</script>
+  const serverUrl = window.SERVER_URL || window.location.origin;
+  const socket = io(serverUrl, { transports: ['websocket', 'polling'] });
   state.socket = socket;
 
   socket.on('connect', () => {
