@@ -17,6 +17,10 @@ const { parse, HELP_TEXT, COMMAND_HELP } = require('./commands');
 const combat  = require('./combat');
 const items   = require('./items');
 
+// ── Registro en memoria: último remitente de whisper/tell por jugador ─────────
+// lastWhisperSender.get(playerId) → { id, username } del último que les escribió
+const lastWhisperSender = new Map();
+
 /**
  * Ejecuta un comando de texto para un jugador y devuelve el resultado.
  *
@@ -58,6 +62,7 @@ function execute(playerId, input) {
     case 'loot':      result = cmdLoot(player); break;
     case 'whisper':   result = cmdWhisper(player, action.args); break;
     case 'tell':      result = cmdTell(player, action.args); break;
+    case 'reply':     result = cmdReply(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -90,6 +95,7 @@ function execute(playerId, input) {
           shout: 'shout', gritar: 'shout',
           whisper: 'whisper', susurrar: 'whisper',
           tell: 'tell', mensaje: 'tell',
+          reply: 'reply', responder: 'reply',
           help: 'help', ayuda: 'help',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
@@ -723,6 +729,9 @@ function cmdWhisper(player, args) {
   const senderMsg = `[susurro → ${target.username}]: "${message}"`;
   const targetMsg = `[susurro de ${player.username}]: "${message}"`;
 
+  // Registrar que player es el último que le escribió a target
+  lastWhisperSender.set(target.id, { id: player.id, username: player.username });
+
   return {
     text: senderMsg,
     // Sin event de broadcast: es privado, no va a la sala
@@ -764,6 +773,9 @@ function cmdTell(player, args) {
   // Guardar en BD por si el jugador no está online (notificación offline)
   db.saveOfflineMessage(player.username, target.id, message);
 
+  // Registrar que player es el último que le escribió a target
+  lastWhisperSender.set(target.id, { id: player.id, username: player.username });
+
   return {
     text: senderMsg,
     targetPlayerId:  target.id,
@@ -772,7 +784,45 @@ function cmdTell(player, args) {
   };
 }
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+// ─── Reply (contestar el último susurro/tell recibido) ───────────────────────
+/**
+ * reply <mensaje> / responder <mensaje>
+ * Contesta automáticamente al último jugador que envió un whisper o tell al
+ * jugador actual, sin necesidad de escribir el nombre.
+ */
+function cmdReply(player, args) {
+  const sender = lastWhisperSender.get(player.id);
+  if (!sender) {
+    return { text: 'No tenés ningún mensaje al que responder. Usá "whisper <jugador> <mensaje>".' };
+  }
+
+  const message = (args || []).join(' ').trim();
+  if (!message) {
+    return { text: `Uso: reply <mensaje>. Responderá a: ${sender.username}.` };
+  }
+
+  // Verificar que el destinatario aún exista en la BD
+  const target = db.getPlayer(sender.id);
+  if (!target) {
+    lastWhisperSender.delete(player.id);
+    return { text: `El jugador "${sender.username}" ya no existe.` };
+  }
+
+  const senderMsg = `[susurro → ${target.username}]: "${message}"`;
+  const targetMsg = `[susurro de ${player.username}]: "${message}"`;
+
+  // Al responder, el receptor pasa a ser ahora el "último que escribió" al emisor
+  lastWhisperSender.set(target.id, { id: player.id, username: player.username });
+
+  return {
+    text: senderMsg,
+    targetPlayerId:  target.id,
+    targetPlayerMsg: targetMsg,
+    targetEventType: 'whisper',
+  };
+}
+
+
 /**
  * map — Mostrar mapa ASCII del dungeon con la sala actual marcada.
  * El layout es fijo para el dungeon de 10 salas actual.
