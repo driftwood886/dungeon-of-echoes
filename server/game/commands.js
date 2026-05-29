@@ -103,6 +103,10 @@ const COMMAND_ALIASES = {
   decline: 'decline', rechazar: 'decline', rechazo: 'decline', negar: 'decline',
   // world / evento global
   world: 'world', evento: 'world', mundo: 'world', dungeon_event: 'world', 'evento-dungeon': 'world',
+  // craft / craftear
+  craft: 'craft', craftear: 'craft', fabricar: 'craft', combinar: 'craft', alquimia: 'craft', crear: 'craft', forjar: 'craft',
+  // recipes / recetas
+  recipes: 'recipes', recetas: 'recipes', libro_recetas: 'recipes',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -194,6 +198,8 @@ Comandos disponibles:
   accept                — Aceptar el reto de duelo pendiente
   decline               — Rechazar el reto de duelo pendiente
   world / evento        — Ver el evento global activo del dungeon (si hay alguno)
+  craft <ítem1> con <ítem2> — Combinar dos ítems del inventario para crear algo nuevo
+  recipes / recetas     — Ver el libro de recetas de crafteo conocidas
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -228,8 +234,10 @@ const COMMAND_HELP = {
   emote:     'emote <acción> / accion <acción> / me <acción>\n  Expresar una acción en tercera persona visible para todos en la sala.\n  Ej: "emote suspira profundo" → todos ven: "✨ NombreJugador suspira profundo"',
   help:      'help / ayuda\n  Mostrar la lista de comandos.\n  help <comando>: ayuda detallada sobre un comando específico.',
   inspect:   'inspect <jugador> / inspeccionar <jugador>\n  Examinar a otro aventurero que esté en la misma sala.\n  Muestra su nivel, HP, arma equipada, kills, muertes y logros desbloqueados.',
-  guild:     'guild create <nombre>  — Crear una nueva hermandad (cuestan 50 oro)\nguild join <nombre>    — Unirse a una hermandad existente\nguild leave            — Abandonar tu hermandad actual\nguild info             — Ver info de tu hermandad (miembros, líder)\nguild list             — Listar todas las hermandades activas',
-  gc:        'gc <mensaje> / gchat <mensaje>\n  Enviar un mensaje al chat de hermandad. Solo los miembros de tu guild lo verán.\n  Aparece en formato: [GUILD NombreGuild] TuNombre: mensaje',
-};
+  guild:     'guild create <nombre>  — Crear una nueva hermandad (cuestan 50 oro)\\nguild join <nombre>    — Unirse a una hermandad existente\\nguild leave            — Abandonar tu hermandad actual\\nguild info             — Ver info de tu hermandad (miembros, líder)\\nguild list             — Listar todas las hermandades activas',
+    gc:        'gc <mensaje> / gchat <mensaje>\\n  Enviar un mensaje al chat de hermandad. Solo los miembros de tu guild lo verán.\\n  Aparece en formato: [GUILD NombreGuild] TuNombre: mensaje',
+    craft:     'craft <ítem1> con <ítem2> / craftear <ítem1> + <ítem2>\\n  Combinar dos ítems de tu inventario para crear un nuevo objeto.\\n  Los ítems originales se consumen. Usá "recetas" para ver las combinaciones disponibles.',
+    recipes:   'recipes / recetas\\n  Ver el libro de recetas de crafteo conocidas.\\n  Mostrá todas las combinaciones posibles de dos ingredientes y su resultado.',
+  };
 
-module.exports = { parse, HELP_TEXT, COMMAND_HELP };
+  module.exports = { parse, HELP_TEXT, COMMAND_HELP };

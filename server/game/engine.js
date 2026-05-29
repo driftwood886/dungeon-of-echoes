@@ -20,6 +20,7 @@ const ach     = require('./achievements');
 const quests  = require('./quests');
 const worldEvents = require('./worldEvents');
 const tutorial = require('./tutorial');
+const crafting = require('./crafting');
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // Cada sala puede tener un efecto que se aplica al entrar.
@@ -111,6 +112,8 @@ function execute(playerId, input) {
     case 'accept':       result = cmdAcceptDuel(player); break;
     case 'decline':      result = cmdDeclineDuel(player); break;
     case 'world':        result = cmdWorld(); break;
+    case 'craft':        result = cmdCraft(player, action.args); break;
+    case 'recipes':      result = cmdRecipes(); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -2011,3 +2014,73 @@ function getOrCreatePlayer(username) {
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS };
+
+// ─── T092: Crafteo/Alquimia ───────────────────────────────────────────────────
+
+/**
+ * Parsea los argumentos del comando craft.
+ * Soporta: craft <item1> con <item2>
+ *          craft <item1> + <item2>
+ *          craft <item1> y <item2>
+ *          craft <item1> and <item2>
+ */
+function parseCraftArgs(args) {
+  const raw = args.join(' ').toLowerCase();
+  // Separadores: "con", "y", "+", "and", ","
+  const separators = [' con ', ' + ', ' y ', ' and ', ','];
+  for (const sep of separators) {
+    const idx = raw.indexOf(sep);
+    if (idx !== -1) {
+      const a = raw.slice(0, idx).trim();
+      const b = raw.slice(idx + sep.length).trim();
+      if (a && b) return [a, b];
+    }
+  }
+  return null;
+}
+
+function cmdCraft(player, args) {
+  if (!args || args.length === 0) {
+    return { text: '¿Qué querés craftear? Usá: craft <ítem1> con <ítem2>\nEjemplo: craft veneno concentrado con cuchillo oxidado\nPara ver recetas: recetas' };
+  }
+
+  const parsed = parseCraftArgs(args);
+  if (!parsed) {
+    return { text: 'No entendí la sintaxis. Usá:\n  craft <ítem1> con <ítem2>\n  craft <ítem1> + <ítem2>\nEjemplo: craft hierba curativa con poción menor' };
+  }
+
+  const [itemA, itemB] = parsed;
+  const craftResult = crafting.craft(player, itemA, itemB);
+
+  if (!craftResult.ok) {
+    return { text: craftResult.text };
+  }
+
+  // Consumir los ítems del inventario
+  const inv = [...player.inventory];
+  const normalA = itemA.toLowerCase().trim();
+  const normalB = itemB.toLowerCase().trim();
+
+  // Remover primer ocurrencia de A
+  const idxA = inv.findIndex(i => i.toLowerCase().trim() === normalA);
+  if (idxA !== -1) inv.splice(idxA, 1);
+
+  // Remover primer ocurrencia de B (excluyendo el hueco de A)
+  const idxB = inv.findIndex(i => i.toLowerCase().trim() === normalB);
+  if (idxB !== -1) inv.splice(idxB, 1);
+
+  // Agregar el resultado
+  inv.push(craftResult.result);
+
+  db.updatePlayer(player.id, { inventory: JSON.stringify(inv) });
+
+  return { text: craftResult.text };
+}
+
+function cmdRecipes() {
+  return { text: crafting.listRecipes() };
+}
+
+// Rexportar con las nuevas funciones
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS };
+

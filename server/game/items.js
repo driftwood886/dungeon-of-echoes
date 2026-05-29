@@ -81,6 +81,14 @@ const ITEM_CATALOG = {
   'escama abismal':      { type: 'misc', description: 'Una escama del Krakeling. Dura como el acero, ligera como el cartón.' },
   'filacteria rota':     { type: 'misc', description: 'La filacteria del Lich Anciano, destruida. Sin ella, el Lich no puede regresar... ¿verdad?' },
   'esencia de sombra':   { type: 'misc', description: 'La esencia condensada de las sombras del dungeon. Vibra en la oscuridad.' },
+
+  // ── Ítems artesanales (resultado de crafteo — T092) ───────────────────────
+  'espada envenenada':   { type: 'weapon', effect: 'attack_bonus', amount: 5,  description: 'Una espada que supura veneno verde. +5 de ataque. Los golpes pueden envenenar al objetivo.' },
+  'cuchillo envenenado': { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'Un cuchillo impregnado de veneno de araña. +3 de ataque. Los golpes pueden envenenar.' },
+  'látigo de garras':    { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'Un látigo improvisado con garras de esqueleto. +4 de ataque.' },
+  'red resistente':      { type: 'misc', description: 'Una red de araña y cuerda trenzadas. Casi imposible de romper.' },
+  'collar de garras':    { type: 'misc', description: 'Un collar artesanal de dientes y seda de araña. Emana poder primitivo.' },
+  'grimorio del abismo': { type: 'weapon', effect: 'attack_bonus', amount: 10, description: 'Un grimorio sellado con poder abismal. +10 de ataque mágico.' },
 };
 
 // ─── Funciones públicas ───────────────────────────────────────────────────────
