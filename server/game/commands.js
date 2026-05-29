@@ -111,6 +111,8 @@ const COMMAND_ALIASES = {
   news: 'news', cronica: 'news', crónica: 'news', noticias: 'news', historial: 'news', diario: 'news',
   // forage / buscar ítems ocultos (T094)
   forage: 'forage', buscar: 'forage', explorar: 'forage', hurgar: 'forage', rebuscar: 'forage', rastrear: 'forage',
+  // pet / mascota (T095)
+  pet: 'pet', mascota: 'pet', compañero: 'pet', familiar: 'pet',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -206,6 +208,7 @@ Comandos disponibles:
   recipes / recetas     — Ver el libro de recetas de crafteo conocidas
   news / crónica        — Ver el historial de eventos globales del dungeon
   forage / buscar       — Explorar la sala en busca de ítems ocultos (cooldown 3 min, sin monstruos)
+  pet [adopt <tipo>]    — Adoptar una mascota (rata, murciélago, araña, etc.) o ver tu compañero
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();

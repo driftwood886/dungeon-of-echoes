@@ -150,7 +150,10 @@ function describeRoom(roomId, excludePlayerId = null) {
   const others = db.getPlayersInRoom(roomId)
     .filter(p => p.id !== excludePlayerId);
   if (others.length > 0) {
-    const playerList = others.map(p => `  • ${p.username} (HP: ${p.hp}/${p.max_hp})`).join('\n');
+    const playerList = others.map(p => {
+      const petTag = p.pet ? ` 🐾(${p.pet})` : '';
+      return `  • ${p.username}${petTag} (HP: ${p.hp}/${p.max_hp})`;
+    }).join('\n');
     lines.push(`\nJugadores aquí:\n${playerList}`);
   }
 

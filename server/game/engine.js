@@ -116,6 +116,7 @@ function execute(playerId, input) {
     case 'recipes':      result = cmdRecipes(); break;
     case 'news':         result = cmdNews(); break;
     case 'forage':       result = cmdForage(player); break;
+    case 'pet':          result = cmdPet(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -412,6 +413,7 @@ function cmdStatus(player) {
     `Duelos:   ⚔️ ${duelWins} ganados / ${duelLosses} perdidos`,
     `Ubicación: ${roomName}`,
     player.guild ? `Hermandad: [${player.guild}]` : `Hermandad: (sin guild)`,
+    player.pet   ? `Mascota:   ${player.pet}` : `Mascota:   (sin compañero)`,
     ...(statusLines.length ? ['', ...statusLines] : []),
   ].join('\n');
 
@@ -2287,5 +2289,99 @@ function cmdForage(player) {
 }
 
 // Re-export final con T094
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS };
+
+// ─── T095: Sistema de Mascotas ───────────────────────────────────────────────
+
+/**
+ * Mascotas disponibles en el dungeon.
+ * Cada mascota tiene un nombre descriptivo, emoji, tipo y costo en oro.
+ */
+const PET_CATALOG = {
+  'rata':          { name: '🐀 Rata Mazmorrera', cost: 20,  desc: 'Una rata gris con ojos brillantes. Te sigue a todas partes olfateando el suelo.' },
+  'murciélago':    { name: '🦇 Murciélago Nocturno', cost: 25, desc: 'Un murciélago que se posa en tu hombro y chilla suavemente al detectar peligros cercanos.' },
+  'araña':         { name: '🕷️ Araña Doméstica', cost: 20,  desc: 'Una araña pequeña que teje su tela en tu mochila. Curiosamente, trae buena suerte.' },
+  'serpiente':     { name: '🐍 Serpiente de Mazmorra', cost: 30, desc: 'Una serpiente verde no venenosa. Se enrolla en tu brazo y sisea suavemente.' },
+  'escarabajo':    { name: '🪲 Escarabajo de Cristal', cost: 15, desc: 'Un escarabajo cuya caparazón refleja la luz como un prisma. Coleccionistas lo buscan.' },
+};
+
+/**
+ * pet [adopt <tipo>] [liberar] — Sistema de mascotas.
+ * Sin argumentos: muestra tu mascota actual.
+ * adopt <tipo>: adoptar una mascota (cuesta oro).
+ * liberar: liberar tu mascota actual.
+ */
+function cmdPet(player, args) {
+  player = db.getPlayer(player.id);
+  const sub = args && args[0] ? args[0].toLowerCase() : '';
+
+  // Sin argumentos o "pet ver": mostrar mascota actual
+  if (!sub || sub === 'ver' || sub === 'show') {
+    if (!player.pet) {
+      const available = Object.keys(PET_CATALOG).map(k => {
+        const p = PET_CATALOG[k];
+        return `  • ${k.padEnd(12)} ${p.name} (${p.cost}g)`;
+      }).join('\n');
+      return { text: `No tenés ninguna mascota.\n\n🐾 Mascotas disponibles:\n${available}\n\nUsá: pet adopt <tipo>  (p.ej.: pet adopt rata)` };
+    }
+    return { text: `🐾 Tu mascota: ${player.pet}\n\nUsá "pet liberar" si querés dejarla ir.` };
+  }
+
+  // Liberar mascota
+  if (sub === 'liberar' || sub === 'release' || sub === 'soltar' || sub === 'dejar') {
+    if (!player.pet) {
+      return { text: 'No tenés ninguna mascota para liberar.' };
+    }
+    const old = player.pet;
+    db.updatePlayer(player.id, { pet: null });
+    return {
+      text: `Dejás ir a tu ${old}. Se pierde en las sombras del dungeon... Que le vaya bien.`,
+      event: `${player.username} libera a su mascota.`,
+      eventRoomId: player.current_room_id,
+    };
+  }
+
+  // Adoptar mascota
+  if (sub === 'adopt' || sub === 'adoptar' || sub === 'comprar' || sub === 'tomar') {
+    const typeName = args.slice(1).join(' ').toLowerCase().trim();
+    if (!typeName) {
+      const available = Object.keys(PET_CATALOG).map(k => {
+        const p = PET_CATALOG[k];
+        return `  • ${k.padEnd(12)} ${p.name} (${p.cost}g)`;
+      }).join('\n');
+      return { text: `¿Qué mascota querés adoptar?\n\n🐾 Disponibles:\n${available}\n\nEjemplo: pet adopt rata` };
+    }
+
+    if (player.pet) {
+      return { text: `Ya tenés una mascota: ${player.pet}. Liberala primero con "pet liberar".` };
+    }
+
+    const petData = PET_CATALOG[typeName];
+    if (!petData) {
+      const available = Object.keys(PET_CATALOG).join(', ');
+      return { text: `No existe esa mascota. Tipos disponibles: ${available}` };
+    }
+
+    const gold = player.gold || 0;
+    if (gold < petData.cost) {
+      return { text: `No tenés suficiente oro. ${petData.name} cuesta ${petData.cost}g y tenés ${gold}g.` };
+    }
+
+    db.updatePlayer(player.id, {
+      gold: gold - petData.cost,
+      pet: petData.name,
+    });
+
+    return {
+      text: `🐾 ¡Adoptaste a ${petData.name}! (-${petData.cost}g)\n${petData.desc}\nTu mascota aparece en tu "status" y junto a tu nombre en la sala.`,
+      event: `${player.username} adoptó una mascota: ${petData.name}!`,
+      eventRoomId: player.current_room_id,
+    };
+  }
+
+  return { text: 'Uso: pet           — ver tu mascota\n     pet adopt <tipo> — adoptar una mascota\n     pet liberar      — liberar tu mascota\nEjemplo: pet adopt murciélago' };
+}
+
+// Re-export final con T095
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS };
 
