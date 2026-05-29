@@ -19,6 +19,12 @@ const db = require('../db/db');
 
 const FLEE_CHANCE = 0.5; // 50% de probabilidad de huir con éxito
 
+// Monstruos que pueden envenenar y su probabilidad
+const POISONERS = {
+  'Araña Tejedora': { chance: 0.4, damage: 2, turns: 4 },
+  'Murciélago Vampiro': { chance: 0.2, damage: 1, turns: 3 },
+};
+
 // ─── Funciones públicas ───────────────────────────────────────────────────────
 
 /**
@@ -40,6 +46,32 @@ function attackRound(player, monster) {
   let monsterDead = false;
   let playerDead  = false;
   let loot        = [];
+
+  // ── Efecto de veneno (al inicio del turno) ───────────────────────────────
+  const statusFx = player.status_effects || {};
+  if (statusFx.poisoned) {
+    const p = statusFx.poisoned;
+    const poisonDmg = p.damage || 2;
+    player.hp = Math.max(0, player.hp - poisonDmg);
+    p.turns = (p.turns || 1) - 1;
+    lines.push(`☠ El veneno te quema por dentro (${poisonDmg} dmg). (${player.hp}/${player.max_hp} HP)`);
+
+    if (p.turns <= 0) {
+      delete statusFx.poisoned;
+      lines.push(`✅ El veneno en tu sangre se disipa.`);
+    }
+
+    // Persistir estado
+    db.updatePlayer(player.id, { hp: player.hp, status_effects: JSON.stringify(statusFx) });
+
+    if (player.hp <= 0) {
+      playerDead = true;
+      lines.push(`💀 ¡El veneno acabó contigo! Respawneás en la entrada del dungeon...`);
+      const fp = db.getPlayer(player.id);
+      db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (fp.deaths || 0) + 1, status_effects: '{}' });
+      return { lines, monsterDead, playerDead, loot };
+    }
+  }
 
   // ── Player ataca ─────────────────────────────────────────────────────────
   const playerDmg = calcDamage(player.attack);
@@ -92,15 +124,26 @@ function attackRound(player, monster) {
 
   lines.push(`🩸 El ${monster.name} te golpea y causa ${dmgToPlayer} de daño. (${player.hp}/${player.max_hp} HP)`);
 
+  // ── Posible envenenamiento del monstruo ──────────────────────────────────
+  const poisonerDef = POISONERS[monster.name];
+  if (poisonerDef && Math.random() < poisonerDef.chance) {
+    const currentFx = player.status_effects || {};
+    if (!currentFx.poisoned) {
+      currentFx.poisoned = { damage: poisonerDef.damage, turns: poisonerDef.turns };
+      player.status_effects = currentFx;
+      lines.push(`🕷 ¡El ${monster.name} te envenenó! Perderás ${poisonerDef.damage} HP por turno durante ${poisonerDef.turns} turnos. (Usá \"use antídoto\" para curarte)`);
+    }
+  }
+
   // Actualizar jugador en BD
-  db.updatePlayer(player.id, { hp: player.hp });
+  db.updatePlayer(player.id, { hp: player.hp, status_effects: JSON.stringify(player.status_effects || {}) });
 
   if (player.hp <= 0) {
     playerDead = true;
     lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon...`);
-    // Reset: HP mínimo, volver a sala 1, incrementar deaths
+    // Reset: HP mínimo, volver a sala 1, incrementar deaths, limpiar efectos
     const freshPlayer2 = db.getPlayer(player.id);
-    db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (freshPlayer2.deaths || 0) + 1 });
+    db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (freshPlayer2.deaths || 0) + 1, status_effects: '{}' });
   }
 
   return { lines, monsterDead, playerDead, loot };

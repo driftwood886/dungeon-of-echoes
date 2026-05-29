@@ -105,6 +105,7 @@ async function main() {
         kills: player.kills || 0,
         equipped_weapon: player.equipped_weapon || null,
         pending_messages: db.countPendingMessages(player.id),
+        status_effects: player.status_effects || {},
       },
       other_players: others,
       recent_events: events,

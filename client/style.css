@@ -463,6 +463,20 @@ html, body {
   background: rgba(255, 107, 107, 0.2);
 }
 
+/* ── Veneno / efectos de estado ──────────────────────────── */
+.poison-warning {
+  color: #a8ff78;
+  font-size: 0.85em;
+}
+
+#status-effects-section {
+  border: 1px solid #a8ff78;
+  border-radius: 4px;
+  padding: 4px 6px;
+  background: rgba(168, 255, 120, 0.07);
+  animation: msgFlash 2s ease infinite;
+}
+
 /* Cursor parpadeante en el input */
 #cmd-input:focus { outline: none; }
 

@@ -181,6 +181,7 @@ function seedIfEmpty() {
     migrateDoors();
     migrateExpandedDungeon();
     migrateTraps();
+    migrateAntidotes();
     return;
   }
 
@@ -198,6 +199,7 @@ function seedIfEmpty() {
   migrateDoors();
   migrateExpandedDungeon();
   migrateTraps();
+  migrateAntidotes();
 }
 
 /**
@@ -424,6 +426,32 @@ function migrateTraps() {
 
   if (applied > 0) {
     console.log(`[seed] migrateTraps: ${applied} trampas agregadas al dungeon. 🪤`);
+  }
+}
+
+/**
+ * Agrega antídotos al dungeon si aún no están presentes.
+ * - Sala 7 (Pozo Sin Fondo): un antídoto en el suelo
+ * - Araña Tejedora (id 7): actualiza loot para incluir antídoto
+ */
+function migrateAntidotes() {
+  // Sala 7: agregar antídoto si no hay ninguno
+  const room7 = db.getRoom(7);
+  if (room7) {
+    const items7 = room7.items || [];
+    if (!items7.includes('antídoto') && !items7.includes('antidoto')) {
+      db.updateRoomItems(7, [...items7, 'antídoto']);
+      console.log('[seed] migrateAntidotes: antídoto agregado en Sala 7 (Pozo Sin Fondo)');
+    }
+  }
+  // Sala 5 (Capilla): también un antídoto (near murciélago vampiro)
+  const room5 = db.getRoom(5);
+  if (room5) {
+    const items5 = room5.items || [];
+    if (!items5.includes('antídoto') && !items5.includes('antidoto')) {
+      db.updateRoomItems(5, [...items5, 'hierba curativa']);
+      console.log('[seed] migrateAntidotes: hierba curativa agregada en Sala 5 (Capilla Olvidada)');
+    }
   }
 }
 

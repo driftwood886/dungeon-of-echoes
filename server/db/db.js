@@ -111,6 +111,7 @@ async function init() {
     `ALTER TABLE rooms   ADD COLUMN trap   TEXT`,
     `ALTER TABLE players ADD COLUMN last_rest TEXT`,
     `ALTER TABLE players ADD COLUMN deaths INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE players ADD COLUMN status_effects TEXT NOT NULL DEFAULT '{}'`,
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -167,13 +168,19 @@ function run(sql, params = []) {
 
 function getPlayer(id) {
   const p = one('SELECT * FROM players WHERE id = ?', [id]);
-  if (p) p.inventory = JSON.parse(p.inventory);
+  if (p) {
+    p.inventory = JSON.parse(p.inventory);
+    p.status_effects = p.status_effects ? JSON.parse(p.status_effects) : {};
+  }
   return p;
 }
 
 function getPlayerByUsername(username) {
   const p = one('SELECT * FROM players WHERE username = ?', [username]);
-  if (p) p.inventory = JSON.parse(p.inventory);
+  if (p) {
+    p.inventory = JSON.parse(p.inventory);
+    p.status_effects = p.status_effects ? JSON.parse(p.status_effects) : {};
+  }
   return p;
 }
 
@@ -202,7 +209,7 @@ function touchPlayer(id) {
 
 function getPlayersInRoom(roomId) {
   return all('SELECT * FROM players WHERE current_room_id = ?', [roomId])
-    .map(p => ({ ...p, inventory: JSON.parse(p.inventory) }));
+    .map(p => ({ ...p, inventory: JSON.parse(p.inventory), status_effects: p.status_effects ? JSON.parse(p.status_effects) : {} }));
 }
 
 // ─── Rooms ───────────────────────────────────────────────────────────────────

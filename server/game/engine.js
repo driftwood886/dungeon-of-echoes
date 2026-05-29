@@ -239,6 +239,13 @@ function cmdStatus(player) {
     ? `Arma:     ${player.equipped_weapon}`
     : `Arma:     (desarmado — ataque base)`;
 
+  // Efectos de estado activos
+  const statusFx = player.status_effects || {};
+  const statusLines = [];
+  if (statusFx.poisoned) {
+    statusLines.push(`☠ ENVENENADO — ${statusFx.poisoned.turns} turno(s) restante(s) (${statusFx.poisoned.damage} dmg/turno). Usá "use antídoto" para curarte.`);
+  }
+
   const text = [
     `\n=== ${player.username.toUpperCase()} ===`,
     `Nivel:    ${level}  (${xp} XP total | kills: ${kills} | muertes: ${deaths})`,
@@ -248,6 +255,7 @@ function cmdStatus(player) {
     `Defensa:  ${player.defense}`,
     weaponLine,
     `Ubicación: ${roomName}`,
+    ...(statusLines.length ? ['', ...statusLines] : []),
   ].join('\n');
 
   return { text };
@@ -376,6 +384,17 @@ function cmdUse(player, itemQuery) {
     db.updatePlayer(player.id, { inventory: newInv });
 
     resultText = `Bebés la ${found}. Recuperás ${newHp - oldHp} HP. (${newHp}/${player.max_hp} HP)`;
+
+  } else if (def.type === 'antidote' && def.effect === 'cure_poison') {
+    const statusFx = player.status_effects || {};
+    if (!statusFx.poisoned) {
+      return { text: `Usás ${found} pero no estás envenenado. Guardás el antídoto... espera, ya lo consumiste.` };
+    }
+    delete statusFx.poisoned;
+    // Consumir el ítem
+    const newInv2 = removeFirst(player.inventory, found);
+    db.updatePlayer(player.id, { inventory: newInv2, status_effects: JSON.stringify(statusFx) });
+    resultText = `✅ Bebés el ${found}. El veneno se neutraliza de inmediato. Te sentís mejor.`;
 
   } else if (def.type === 'weapon') {
     // Equipar el arma: aumenta el ataque base del jugador

@@ -184,6 +184,19 @@ function updateSidebar(data) {
       el.pendingMsgRow.style.display = 'none';
     }
 
+    // Efectos de estado (veneno, etc.)
+    const statusSection = document.getElementById('status-effects-section');
+    const statusContent = document.getElementById('sidebar-status-effects');
+    if (statusSection && statusContent) {
+      const fx = player.status_effects || {};
+      if (fx.poisoned) {
+        statusContent.textContent = `☠ ENVENENADO — ${fx.poisoned.turns} turno(s), ${fx.poisoned.damage} dmg/turno`;
+        statusSection.style.display = '';
+      } else {
+        statusSection.style.display = 'none';
+      }
+    }
+
     // Inventario
     const inv = player.inventory;
     el.sidebarInventory.textContent =

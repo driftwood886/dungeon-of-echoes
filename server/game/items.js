@@ -25,6 +25,11 @@ const ITEM_CATALOG = {
   'poción menor':        { type: 'potion', effect: 'heal', amount: 8,  description: 'Una poción débil. Restaura 8 HP.' },
   'poción de poder':     { type: 'potion', effect: 'heal', amount: 20, description: 'Una poción oscura que restaura 20 HP y deja un zumbido en los huesos.' },
 
+  // ── Antídotos ────────────────────────────────────────────────────────────────
+  'antídoto':            { type: 'antidote', effect: 'cure_poison', description: 'Un frasco con líquido verde pálido. Cura inmediatamente el envenenamiento.' },
+  'antidoto':            { type: 'antidote', effect: 'cure_poison', description: 'Un frasco con líquido verde pálido. Cura inmediatamente el envenenamiento.' },
+  'hierba curativa':     { type: 'antidote', effect: 'cure_poison', description: 'Un manojo de hierba que los druidas usan para purificar venenos.' },
+
   // ── Armas (dungeon base) ──────────────────────────────────────────────────
   'espada oxidada':      { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'Una espada vieja con filo irregular. +3 de ataque.' },
   'cuchillo oxidado':    { type: 'weapon', effect: 'attack_bonus', amount: 1,  description: 'Un cuchillo pequeño y oxidado. +1 de ataque.' },
