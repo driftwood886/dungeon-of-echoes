@@ -298,12 +298,22 @@ function getActivePlayers(cutoff) {
   }));
 }
 
+function getLeaderboard(limit = 10) {
+  return all(
+    `SELECT username, level, xp, kills, hp, max_hp
+     FROM players
+     ORDER BY kills DESC, xp DESC, level DESC
+     LIMIT ?`,
+    [limit]
+  );
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
   init, persist,
   // players
-  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, getPlayersInRoom, getActivePlayers,
+  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, getPlayersInRoom, getActivePlayers, getLeaderboard,
   // rooms
   getRoom, getAllRooms, upsertRoom, updateRoomItems,
   // monsters

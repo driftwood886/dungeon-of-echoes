@@ -127,6 +127,28 @@ async function main() {
     });
   });
 
+  /**
+   * GET /api/leaderboard
+   * Devuelve la tabla de líderes global (top 10 por kills, luego XP).
+   * Útil para que clientes externos y LLMs consulten el ranking.
+   */
+  app.get('/api/leaderboard', (req, res) => {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
+    const leaders = db.getLeaderboard(limit);
+    res.json({
+      count: leaders.length,
+      leaderboard: leaders.map((p, idx) => ({
+        rank: idx + 1,
+        username: p.username,
+        level: p.level || 1,
+        xp: p.xp || 0,
+        kills: p.kills || 0,
+        hp: p.hp,
+        max_hp: p.max_hp,
+      })),
+    });
+  });
+
   // 5. Crear servidor HTTP
   /**
    * POST /api/action  — Endpoint LLM-friendly (T034)

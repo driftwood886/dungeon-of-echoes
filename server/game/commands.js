@@ -47,6 +47,8 @@ const COMMAND_ALIASES = {
   map: 'map', mapa: 'map',
   // who
   who: 'who', jugadores: 'who', online: 'who', quién: 'who', quien: 'who',
+  // score / ranking
+  score: 'score', ranking: 'score', scores: 'score', top: 'score', tabla: 'score', marcador: 'score',
   // flee
   flee: 'flee', huir: 'flee', escapar: 'flee', correr: 'flee',
   // say
@@ -123,6 +125,7 @@ Comandos disponibles:
   equip <arma>          — Equipar un arma del inventario explícitamente
   map / mapa            — Ver el mapa ASCII del dungeon
   who / jugadores       — Ver los aventureros activos en el dungeon
+  score / ranking       — Ver la tabla de líderes global
   examine <objetivo>    — Examinar un monstruo, ítem o la sala
   say <mensaje>         — Hablar con jugadores en la misma habitación
   shout <mensaje>       — Gritar a todo el dungeon

@@ -51,6 +51,7 @@ function execute(playerId, input) {
     case 'equip':     result = cmdEquip(player, action.args.join(' ')); break;
     case 'map':       result = cmdMap(player); break;
     case 'who':       result = cmdWho(); break;
+    case 'score':     result = cmdScore(); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -462,6 +463,40 @@ function cmdWho() {
     ``,
     `(jugadores activos en los últimos 5 minutos)`,
   ];
+
+  return { text: lines.join('\n') };
+}
+
+/**
+ * score — Tabla de líderes global ordenada por kills (luego XP, luego nivel).
+ */
+function cmdScore() {
+  const leaders = db.getLeaderboard(10);
+
+  if (leaders.length === 0) {
+    return { text: 'Aún no hay aventureros en la tabla de líderes.' };
+  }
+
+  const lines = [
+    `╔═══════════════════════════════════════════════════╗`,
+    `║         🏆  TABLA DE LÍDERES — TOP 10  🏆         ║`,
+    `╠═══════════════════════════════════════════════════╣`,
+    `║  #   Aventurero        Lv    XP   Kills   HP      ║`,
+    `╠═══════════════════════════════════════════════════╣`,
+  ];
+
+  leaders.forEach((p, idx) => {
+    const rank   = String(idx + 1).padStart(2, ' ');
+    const name   = (p.username || '???').substring(0, 14).padEnd(14, ' ');
+    const level  = String(p.level || 1).padStart(3, ' ');
+    const xp     = String(p.xp || 0).padStart(5, ' ');
+    const kills  = String(p.kills || 0).padStart(5, ' ');
+    const hp     = `${p.hp}/${p.max_hp}`.padStart(7, ' ');
+    const medal  = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
+    lines.push(`║ ${medal}${rank}  ${name}  ${level}  ${xp}  ${kills}  ${hp}  ║`);
+  });
+
+  lines.push(`╚═══════════════════════════════════════════════════╝`);
 
   return { text: lines.join('\n') };
 }
