@@ -273,12 +273,26 @@ function getRecentEvents(roomId, limit = 5) {
   ).reverse();
 }
 
+function getActivePlayers(cutoff) {
+  return all(
+    `SELECT p.*, r.name AS room_name
+     FROM players p
+     LEFT JOIN rooms r ON r.id = p.current_room_id
+     WHERE p.last_seen >= ?
+     ORDER BY p.last_seen DESC`,
+    [cutoff]
+  ).map(p => ({
+    ...p,
+    inventory: JSON.parse(p.inventory || '[]'),
+  }));
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
   init, persist,
   // players
-  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, getPlayersInRoom,
+  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, getPlayersInRoom, getActivePlayers,
   // rooms
   getRoom, getAllRooms, upsertRoom, updateRoomItems,
   // monsters

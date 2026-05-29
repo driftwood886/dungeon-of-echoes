@@ -105,6 +105,28 @@ async function main() {
     });
   });
 
+  /**
+   * GET /api/players/online
+   * Lista jugadores que estuvieron activos en los últimos 5 minutos.
+   * Útil para que LLMs y clientes puedan mostrar quién está conectado.
+   */
+  app.get('/api/players/online', (req, res) => {
+    // SQLite datetime('now') usa formato 'YYYY-MM-DD HH:MM:SS' (sin T ni Z)
+    const cutoffDate = new Date(Date.now() - 5 * 60 * 1000);
+    const cutoff = cutoffDate.toISOString().replace('T', ' ').split('.')[0];
+    const activePlayers = db.getActivePlayers(cutoff);
+    res.json({
+      count: activePlayers.length,
+      players: activePlayers.map(p => ({
+        username: p.username,
+        hp: p.hp,
+        max_hp: p.max_hp,
+        room: p.room_name || `sala #${p.current_room_id}`,
+        last_seen: p.last_seen,
+      })),
+    });
+  });
+
   // 5. Crear servidor HTTP
   /**
    * POST /api/action  — Endpoint LLM-friendly (T034)
