@@ -60,6 +60,9 @@ function registerHandlers(io) {
     // ── command ───────────────────────────────────────────────────────────────
     // El cliente envía un comando de texto.
     // Respuesta: { result: string } o { error }
+    let lastCommandTime = 0;
+    let lastCommand     = '';
+
     socket.on('command', (data, ack) => {
       if (!currentPlayerId) {
         return ack && ack({ error: 'Tenés que hacer "join" primero.' });
@@ -69,6 +72,14 @@ function registerHandlers(io) {
       if (!command || typeof command !== 'string') {
         return ack && ack({ error: 'Se requiere un command.' });
       }
+
+      // Protección anti-spam: ignorar el mismo comando dentro de 500ms
+      const now = Date.now();
+      if (command === lastCommand && now - lastCommandTime < 500) {
+        return ack && ack({ result: '(ignorado — demasiado rápido, esperá un momento)' });
+      }
+      lastCommand     = command;
+      lastCommandTime = now;
 
       const result = engine.execute(currentPlayerId, command);
 
