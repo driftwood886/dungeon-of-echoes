@@ -111,7 +111,15 @@ function describeRoom(roomId, excludePlayerId = null) {
   lines.push(room.description);
 
   if (monsters.length > 0) {
-    const monsterList = monsters.map(m => `  • ${m.name} (${m.hp}/${m.max_hp} HP)`).join('\n');
+    const monsterList = monsters.map(m => {
+      const pct = m.max_hp > 0 ? m.hp / m.max_hp : 0;
+      const barLen = 10;
+      const filled = Math.round(pct * barLen);
+      const bar = '[' + '█'.repeat(filled) + '░'.repeat(barLen - filled) + ']';
+      // Color indicator: green >=70%, yellow >=30%, red <30%
+      const cond = pct >= 0.7 ? '★' : pct >= 0.3 ? '◆' : '☠';
+      return `  • ${m.name} ${bar} ${m.hp}/${m.max_hp} HP ${cond}`;
+    }).join('\n');
     lines.push(`\nCriaturas:\n${monsterList}`);
   }
 
