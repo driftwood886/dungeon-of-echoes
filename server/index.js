@@ -108,14 +108,18 @@ async function main() {
   // 5. Crear servidor HTTP
   const server = http.createServer(app);
 
-  // 6. Socket.io (se va a configurar en Fase 4)
-  // const io = require('socket.io')(server, { cors: { origin: '*' } });
-  // require('./socket/handlers')(io);
+  // 6. Socket.io — Multijugador en tiempo real (Fase 4)
+  const { Server } = require('socket.io');
+  const io = new Server(server, {
+    cors: { origin: '*' },
+  });
+  const { registerHandlers } = require('./socket/handlers');
+  registerHandlers(io);
 
   // 7. Arrancar servidor
   server.listen(PORT, () => {
     console.log(`\n🏰 Dungeon of Echoes corriendo en http://localhost:${PORT}`);
-    console.log(`   Versión 0.3.0 — Combate + ítems activos`);
+    console.log(`   Versión 0.4.0 — Socket.io multijugador activo`);
     console.log(`   Presioná Ctrl+C para apagar\n`);
   });
 

@@ -95,7 +95,12 @@ function exitsText(room) {
  * @param {number} roomId
  * @returns {string}
  */
-function describeRoom(roomId) {
+/**
+ * describeRoom — Devuelve una descripción textual de la habitación.
+ * @param {number} roomId
+ * @param {string|null} excludePlayerId — no listar este jugador (el observador)
+ */
+function describeRoom(roomId, excludePlayerId = null) {
   const data = getRoomFull(roomId);
   if (!data) return 'Esa habitación no existe.';
 
@@ -112,6 +117,14 @@ function describeRoom(roomId) {
 
   if (room.items.length > 0) {
     lines.push(`\nObjetos en el suelo: ${room.items.join(', ')}`);
+  }
+
+  // Otros jugadores presentes (T024)
+  const others = db.getPlayersInRoom(roomId)
+    .filter(p => p.id !== excludePlayerId);
+  if (others.length > 0) {
+    const playerList = others.map(p => `  • ${p.username} (HP: ${p.hp}/${p.max_hp})`).join('\n');
+    lines.push(`\nJugadores aquí:\n${playerList}`);
   }
 
   lines.push(`\nSalidas: ${exitsText(room)}`);

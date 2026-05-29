@@ -66,7 +66,7 @@ function execute(playerId, input) {
  * look — Describe la habitación actual.
  */
 function cmdLook(player) {
-  const text = dungeon.describeRoom(player.current_room_id);
+  const text = dungeon.describeRoom(player.current_room_id, player.id);
   return { text };
 }
 
@@ -99,7 +99,7 @@ function cmdMove(player, direction) {
 
   // Construir respuesta
   const moveText = `Vas hacia el ${dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction}.`;
-  const roomDesc = dungeon.describeRoom(targetId);
+  const roomDesc = dungeon.describeRoom(targetId, player.id);
 
   return {
     text: `${moveText}\n${roomDesc}`,
