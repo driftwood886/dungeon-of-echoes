@@ -110,6 +110,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN equipped_weapon TEXT`,
     `ALTER TABLE rooms   ADD COLUMN trap   TEXT`,
     `ALTER TABLE players ADD COLUMN last_rest TEXT`,
+    `ALTER TABLE players ADD COLUMN deaths INTEGER NOT NULL DEFAULT 0`,
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }

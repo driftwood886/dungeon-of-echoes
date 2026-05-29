@@ -98,8 +98,9 @@ function attackRound(player, monster) {
   if (player.hp <= 0) {
     playerDead = true;
     lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon...`);
-    // Reset: HP mínimo, volver a sala 1
-    db.updatePlayer(player.id, { hp: 5, current_room_id: 1 });
+    // Reset: HP mínimo, volver a sala 1, incrementar deaths
+    const freshPlayer2 = db.getPlayer(player.id);
+    db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (freshPlayer2.deaths || 0) + 1 });
   }
 
   return { lines, monsterDead, playerDead, loot };
@@ -127,7 +128,8 @@ function tryFlee(player, monster) {
   let line = `🏃 Intentás huir pero el ${monster.name} te bloquea y te golpea (${dmgToPlayer} dmg). (${player.hp}/${player.max_hp} HP)`;
 
   if (player.hp <= 0) {
-    db.updatePlayer(player.id, { hp: 5, current_room_id: 1 });
+    const freshPlayer3 = db.getPlayer(player.id);
+    db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (freshPlayer3.deaths || 0) + 1 });
     line += `\n💀 ¡Moriste! Respawneás en la entrada del dungeon...`;
   }
 

@@ -233,6 +233,7 @@ function cmdStatus(player) {
   const level  = player.level || 1;
   const xp     = player.xp    || 0;
   const kills  = player.kills || 0;
+  const deaths = player.deaths || 0;
   const xpBar  = buildBar(xp % 50, 50, 10);
   const weaponLine = player.equipped_weapon
     ? `Arma:     ${player.equipped_weapon}`
@@ -240,7 +241,7 @@ function cmdStatus(player) {
 
   const text = [
     `\n=== ${player.username.toUpperCase()} ===`,
-    `Nivel:    ${level}  (${xp} XP total | kills: ${kills})`,
+    `Nivel:    ${level}  (${xp} XP total | kills: ${kills} | muertes: ${deaths})`,
     `XP sig.:  ${xpBar} ${xp % 50}/50`,
     `HP:       ${hpBar} ${player.hp}/${player.max_hp}`,
     `Ataque:   ${player.attack}`,
@@ -557,7 +558,8 @@ function cmdWho() {
       const hpBar = buildBar(p.hp, p.max_hp, 8);
       const hpText = `${p.hp}/${p.max_hp}`;
       const level = p.level || 1;
-      return `  ${p.username.padEnd(16)} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  │  ${p.room_name || 'Desconocido'}`;
+      const deaths = p.deaths || 0;
+      return `  ${p.username.padEnd(16)} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}  │  ${p.room_name || 'Desconocido'}`;
     }),
     ``,
     `(jugadores activos en los últimos 5 minutos)`,
