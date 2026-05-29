@@ -270,6 +270,24 @@ function sendCommand(rawCmd) {
     return;
   }
 
+  // Comandos especiales de chat: van por su propio evento Socket.io
+  const sayMatch   = cmd.match(/^(?:say|decir|hablar)\s+(.+)/i);
+  const shoutMatch = cmd.match(/^(?:shout|gritar|grito)\s+(.+)/i);
+
+  if (sayMatch) {
+    state.socket.emit('say', { message: sayMatch[1] }, (res) => {
+      if (res && res.error) addMsg(res.error, 'error');
+    });
+    return;
+  }
+
+  if (shoutMatch) {
+    state.socket.emit('shout', { message: shoutMatch[1] }, (res) => {
+      if (res && res.error) addMsg(res.error, 'error');
+    });
+    return;
+  }
+
   state.socket.emit('command', { command: cmd }, (res) => {
     if (res.error) {
       addMsg(res.error, 'error');

@@ -46,6 +46,12 @@ function execute(playerId, input) {
     case 'flee':      result = cmdFlee(player); break;
     case 'pick':      result = cmdPick(player, action.args.join(' ')); break;
     case 'use':       result = cmdUse(player, action.args.join(' ')); break;
+    case 'say':
+      result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
+      break;
+    case 'shout':
+      result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
+      break;
     case 'help':      result = { text: HELP_TEXT }; break;
     case 'unknown':
       result = { text: `Comando desconocido: "${action.input}". Escribí "help" para ver los comandos.` };

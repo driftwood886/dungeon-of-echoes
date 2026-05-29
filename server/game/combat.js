@@ -71,7 +71,7 @@ function attackRound(player, monster) {
   const dmgToPlayer = Math.max(1, monsterDmg - Math.floor(player.defense || 0));
   player.hp = Math.max(0, player.hp - dmgToPlayer);
 
-  lines.push(`🩸 El ${monster.name} te golpea y causá ${dmgToPlayer} de daño. (${player.hp}/${player.max_hp} HP)`);
+  lines.push(`🩸 El ${monster.name} te golpea y causa ${dmgToPlayer} de daño. (${player.hp}/${player.max_hp} HP)`);
 
   // Actualizar jugador en BD
   db.updatePlayer(player.id, { hp: player.hp });
