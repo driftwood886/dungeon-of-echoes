@@ -47,6 +47,10 @@ const el = {
   hpText:         $('hp-text'),
   statAtk:        $('stat-atk'),
   statDef:        $('stat-def'),
+  statLevel:      $('stat-level'),
+  statXp:         $('stat-xp'),
+  statKills:      $('stat-kills'),
+  statWeapon:     $('stat-weapon'),
   sidebarExits:   $('sidebar-exits'),
   sidebarMonsters:$('sidebar-monsters'),
   sidebarRoomItems:$('sidebar-room-items'),
@@ -128,6 +132,10 @@ function updateSidebar(data) {
     el.hpText.style.color = pct <= 25 ? 'var(--red)' : pct <= 50 ? 'var(--amber)' : 'var(--green)';
     el.statAtk.textContent = player.attack ?? '--';
     el.statDef.textContent = player.defense ?? '--';
+    el.statLevel.textContent = player.level ?? '--';
+    el.statXp.textContent   = player.xp ?? '--';
+    el.statKills.textContent = player.kills ?? '--';
+    el.statWeapon.textContent = player.equipped_weapon || 'puños';
 
     // Inventario
     const inv = player.inventory;
