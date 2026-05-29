@@ -1,0 +1,19 @@
+{
+  "name": "dungeon-of-echoes",
+  "version": "0.1.0",
+  "description": "MUD-lite multijugador basado en texto. Exploración, combate y ítems en tiempo real.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "keywords": ["mud", "game", "multiplayer", "text-adventure"],
+  "author": "driftwood886",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.3",
+    "socket.io": "^4.7.4",
+    "sql.js": "^1.11.0"
+  }
+}

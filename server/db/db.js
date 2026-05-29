@@ -1,0 +1,289 @@
+/**
+ * db.js — Módulo de acceso a SQLite (via sql.js / WebAssembly)
+ *
+ * sql.js usa SQLite compilado a WASM, sin dependencias nativas.
+ * La base de datos vive en memoria durante el proceso; se persiste a disco
+ * periódicamente y al apagar el servidor.
+ */
+
+'use strict';
+
+const initSqlJs = require('sql.js');
+const fs = require('fs');
+const path = require('path');
+const { randomUUID } = require('crypto');
+
+const DB_PATH = path.join(__dirname, '../../db/dungeon.sqlite');
+
+let db = null; // instancia global de sql.js Database
+
+// ─── Inicialización ──────────────────────────────────────────────────────────
+
+async function init() {
+  const SQL = await initSqlJs();
+
+  // Cargar desde disco si existe
+  if (fs.existsSync(DB_PATH)) {
+    const fileBuffer = fs.readFileSync(DB_PATH);
+    db = new SQL.Database(fileBuffer);
+    console.log('[db] Cargada BD existente desde', DB_PATH);
+  } else {
+    db = new SQL.Database();
+    console.log('[db] Nueva BD en memoria');
+  }
+
+  // Crear tablas
+  db.run(`
+    CREATE TABLE IF NOT EXISTS players (
+      id          TEXT PRIMARY KEY,
+      username    TEXT UNIQUE NOT NULL,
+      hp          INTEGER NOT NULL DEFAULT 30,
+      max_hp      INTEGER NOT NULL DEFAULT 30,
+      attack      INTEGER NOT NULL DEFAULT 5,
+      defense     INTEGER NOT NULL DEFAULT 2,
+      current_room_id INTEGER NOT NULL DEFAULT 1,
+      inventory   TEXT NOT NULL DEFAULT '[]',
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      last_seen   TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS rooms (
+      id          INTEGER PRIMARY KEY,
+      name        TEXT NOT NULL,
+      description TEXT NOT NULL,
+      exits       TEXT NOT NULL DEFAULT '{}',
+      items       TEXT NOT NULL DEFAULT '[]',
+      is_generated INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS monsters (
+      id          INTEGER PRIMARY KEY,
+      name        TEXT NOT NULL,
+      description TEXT NOT NULL,
+      hp          INTEGER NOT NULL,
+      max_hp      INTEGER NOT NULL,
+      attack      INTEGER NOT NULL DEFAULT 4,
+      room_id     INTEGER,
+      loot        TEXT NOT NULL DEFAULT '[]',
+      respawn_room_id INTEGER,
+      respawn_at  TEXT
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS events (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      player_id TEXT,
+      room_id   INTEGER,
+      action    TEXT NOT NULL,
+      result    TEXT NOT NULL,
+      timestamp TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  // Guardar al disco periódicamente (cada 30 segundos)
+  setInterval(persist, 30_000);
+
+  // Guardar al apagar
+  process.on('exit', persist);
+  process.on('SIGINT', () => { persist(); process.exit(0); });
+  process.on('SIGTERM', () => { persist(); process.exit(0); });
+
+  console.log('[db] Inicializada OK');
+  return db;
+}
+
+function persist() {
+  if (!db) return;
+  try {
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const data = db.export();
+    fs.writeFileSync(DB_PATH, Buffer.from(data));
+    console.log('[db] Persistida en disco');
+  } catch (err) {
+    console.error('[db] Error al persistir:', err.message);
+  }
+}
+
+// ─── Helpers internos ────────────────────────────────────────────────────────
+
+function one(sql, params = []) {
+  const stmt = db.prepare(sql);
+  stmt.bind(params);
+  if (stmt.step()) {
+    const row = stmt.getAsObject();
+    stmt.free();
+    return row;
+  }
+  stmt.free();
+  return null;
+}
+
+function all(sql, params = []) {
+  const results = db.exec(sql, params);
+  if (!results.length) return [];
+  const { columns, values } = results[0];
+  return values.map(row => Object.fromEntries(columns.map((c, i) => [c, row[i]])));
+}
+
+function run(sql, params = []) {
+  db.run(sql, params);
+}
+
+// ─── Players ─────────────────────────────────────────────────────────────────
+
+function getPlayer(id) {
+  const p = one('SELECT * FROM players WHERE id = ?', [id]);
+  if (p) p.inventory = JSON.parse(p.inventory);
+  return p;
+}
+
+function getPlayerByUsername(username) {
+  const p = one('SELECT * FROM players WHERE username = ?', [username]);
+  if (p) p.inventory = JSON.parse(p.inventory);
+  return p;
+}
+
+function createPlayer(username) {
+  const id = randomUUID();
+  run(
+    `INSERT INTO players (id, username) VALUES (?, ?)`,
+    [id, username]
+  );
+  return getPlayer(id);
+}
+
+function updatePlayer(id, fields) {
+  const updates = Object.keys(fields)
+    .map(k => `${k} = ?`)
+    .join(', ');
+  const values = Object.values(fields).map(v =>
+    typeof v === 'object' ? JSON.stringify(v) : v
+  );
+  run(`UPDATE players SET ${updates} WHERE id = ?`, [...values, id]);
+}
+
+function touchPlayer(id) {
+  run(`UPDATE players SET last_seen = datetime('now') WHERE id = ?`, [id]);
+}
+
+function getPlayersInRoom(roomId) {
+  return all('SELECT * FROM players WHERE current_room_id = ?', [roomId])
+    .map(p => ({ ...p, inventory: JSON.parse(p.inventory) }));
+}
+
+// ─── Rooms ───────────────────────────────────────────────────────────────────
+
+function getRoom(id) {
+  const r = one('SELECT * FROM rooms WHERE id = ?', [id]);
+  if (r) {
+    r.exits = JSON.parse(r.exits);
+    r.items = JSON.parse(r.items);
+  }
+  return r;
+}
+
+function getAllRooms() {
+  return all('SELECT * FROM rooms').map(r => ({
+    ...r,
+    exits: JSON.parse(r.exits),
+    items: JSON.parse(r.items),
+  }));
+}
+
+function upsertRoom(room) {
+  run(
+    `INSERT OR REPLACE INTO rooms (id, name, description, exits, items, is_generated)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      room.id,
+      room.name,
+      room.description,
+      JSON.stringify(room.exits),
+      JSON.stringify(room.items || []),
+      room.is_generated ? 1 : 0,
+    ]
+  );
+}
+
+function updateRoomItems(roomId, items) {
+  run('UPDATE rooms SET items = ? WHERE id = ?', [JSON.stringify(items), roomId]);
+}
+
+// ─── Monsters ────────────────────────────────────────────────────────────────
+
+function getMonster(id) {
+  const m = one('SELECT * FROM monsters WHERE id = ?', [id]);
+  if (m) m.loot = JSON.parse(m.loot);
+  return m;
+}
+
+function getMonstersInRoom(roomId) {
+  return all('SELECT * FROM monsters WHERE room_id = ?', [roomId])
+    .map(m => ({ ...m, loot: JSON.parse(m.loot) }));
+}
+
+function upsertMonster(monster) {
+  run(
+    `INSERT OR REPLACE INTO monsters
+       (id, name, description, hp, max_hp, attack, room_id, loot, respawn_room_id, respawn_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      monster.id,
+      monster.name,
+      monster.description,
+      monster.hp,
+      monster.max_hp,
+      monster.attack,
+      monster.room_id,
+      JSON.stringify(monster.loot || []),
+      monster.respawn_room_id,
+      monster.respawn_at || null,
+    ]
+  );
+}
+
+function updateMonster(id, fields) {
+  const updates = Object.keys(fields).map(k => `${k} = ?`).join(', ');
+  const values = Object.values(fields).map(v =>
+    typeof v === 'object' ? JSON.stringify(v) : v
+  );
+  run(`UPDATE monsters SET ${updates} WHERE id = ?`, [...values, id]);
+}
+
+// ─── Events ──────────────────────────────────────────────────────────────────
+
+function logEvent(playerId, roomId, action, result) {
+  run(
+    `INSERT INTO events (player_id, room_id, action, result) VALUES (?, ?, ?, ?)`,
+    [playerId, roomId, action, result]
+  );
+}
+
+function getRecentEvents(roomId, limit = 5) {
+  return all(
+    `SELECT * FROM events WHERE room_id = ? ORDER BY id DESC LIMIT ?`,
+    [roomId, limit]
+  ).reverse();
+}
+
+// ─── Exports ─────────────────────────────────────────────────────────────────
+
+module.exports = {
+  init, persist,
+  // players
+  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, getPlayersInRoom,
+  // rooms
+  getRoom, getAllRooms, upsertRoom, updateRoomItems,
+  // monsters
+  getMonster, getMonstersInRoom, upsertMonster, updateMonster,
+  // events
+  logEvent, getRecentEvents,
+  // acceso raw (por si acaso)
+  raw: () => db,
+};
