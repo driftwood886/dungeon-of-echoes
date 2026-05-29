@@ -685,6 +685,8 @@ function cmdGive(player, args) {
     text: `Le das ${found} a ${target.username}.${extraMsg}`,
     event: `${player.username} le da ${found} a ${target.username}.`,
     eventRoomId: player.current_room_id,
+    targetPlayerId: target.id,
+    targetPlayerMsg: `${player.username} te da ${found}.`,
   };
 }
 

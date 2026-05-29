@@ -17,6 +17,9 @@
 const db     = require('../db/db');
 const engine = require('../game/engine');
 
+// Mapa global: playerId → socket (para enviar mensajes directos)
+const playerSockets = new Map();
+
 /**
  * @param {import('socket.io').Server} io
  */
@@ -40,6 +43,9 @@ function registerHandlers(io) {
       const player = engine.getOrCreatePlayer(username.trim().slice(0, 20));
       currentPlayerId = player.id;
       currentRoomId   = player.current_room_id;
+
+      // Registrar socket del jugador para mensajes directos
+      playerSockets.set(currentPlayerId, socket);
 
       // Unirse al room de Socket.io de la habitación actual
       socket.join(`room_${currentRoomId}`);
@@ -100,6 +106,17 @@ function registerHandlers(io) {
         }
       }
 
+      // Si el resultado incluye un mensaje directo para otro jugador (ej: give)
+      if (result.targetPlayerId && result.targetPlayerMsg) {
+        const targetSocket = playerSockets.get(result.targetPlayerId);
+        if (targetSocket) {
+          targetSocket.emit('event', {
+            type: 'received_item',
+            message: result.targetPlayerMsg,
+          });
+        }
+      }
+
       // Si el jugador cambió de habitación, actualizar rooms de Socket.io
       const player = db.getPlayer(currentPlayerId);
       if (player && player.current_room_id !== currentRoomId) {
@@ -154,6 +171,9 @@ function registerHandlers(io) {
     // ── disconnect ────────────────────────────────────────────────────────────
     socket.on('disconnect', () => {
       if (!currentPlayerId) return;
+
+      // Limpiar del mapa de sockets directos
+      playerSockets.delete(currentPlayerId);
 
       const player = db.getPlayer(currentPlayerId);
       if (player) {
