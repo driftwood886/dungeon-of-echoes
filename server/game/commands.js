@@ -53,6 +53,8 @@ const COMMAND_ALIASES = {
   score: 'score', ranking: 'score', scores: 'score', top: 'score', tabla: 'score', marcador: 'score',
   // give / dar
   give: 'give', dar: 'give', entregar: 'give', pasar: 'give', ofrecer: 'give',
+  // loot / saquear
+  loot: 'loot', saquear: 'loot', recoger_todo: 'loot', recogertodo: 'loot', botín: 'loot', botin: 'loot',
   // flee
   flee: 'flee', huir: 'flee', escapar: 'flee', correr: 'flee',
   // say
@@ -131,6 +133,7 @@ Comandos disponibles:
   who / jugadores       — Ver los aventureros activos en el dungeon
   score / ranking       — Ver la tabla de líderes global
   give <ítem> <jugador> — Dar un ítem a otro jugador en la misma sala
+  loot / saquear        — Recoger todos los ítems del suelo de la sala
   unequip / desequipar  — Guardar el arma y volver a puños (ataque 5)
   examine <objetivo>    — Examinar un monstruo, ítem o la sala
   say <mensaje>         — Hablar con jugadores en la misma habitación

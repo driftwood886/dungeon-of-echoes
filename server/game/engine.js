@@ -54,6 +54,7 @@ function execute(playerId, input) {
     case 'who':       result = cmdWho(); break;
     case 'score':     result = cmdScore(); break;
     case 'give':      result = cmdGive(player, action.args); break;
+    case 'loot':      result = cmdLoot(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -514,6 +515,36 @@ function cmdScore() {
   lines.push(`╚═══════════════════════════════════════════════════╝`);
 
   return { text: lines.join('\n') };
+}
+
+/**
+ * loot — Recoger todos los ítems del suelo de la sala de una vez.
+ */
+function cmdLoot(player) {
+  player = db.getPlayer(player.id);
+  const room = db.getRoom(player.current_room_id);
+
+  if (!room) {
+    return { text: 'Error: habitación no encontrada.' };
+  }
+
+  const floorItems = room.items || [];
+  if (floorItems.length === 0) {
+    return { text: 'No hay nada en el suelo para recoger.' };
+  }
+
+  // Transferir todos los ítems del suelo al inventario
+  const newInventory = [...player.inventory, ...floorItems];
+  db.updatePlayer(player.id, { inventory: newInventory });
+  db.updateRoomItems(room.id, []);
+
+  const lista = floorItems.map(i => `  • ${i}`).join('\n');
+
+  return {
+    text: `Recogés todo del suelo (${floorItems.length} ítem${floorItems.length !== 1 ? 's' : ''}):\n${lista}`,
+    event: `${player.username} saquea el suelo de la sala.`,
+    eventRoomId: room.id,
+  };
 }
 
 /**
