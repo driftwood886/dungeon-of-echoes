@@ -115,6 +115,7 @@ function execute(playerId, input) {
     case 'craft':        result = cmdCraft(player, action.args); break;
     case 'recipes':      result = cmdRecipes(); break;
     case 'news':         result = cmdNews(); break;
+    case 'forage':       result = cmdForage(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -154,6 +155,7 @@ function execute(playerId, input) {
           help: 'help', ayuda: 'help',
           inspect: 'inspect', inspeccionar: 'inspect', observar: 'inspect',
           news: 'news', cronica: 'news', crónica: 'news', noticias: 'news', historial: 'news',
+          forage: 'forage', buscar: 'forage', explorar: 'forage', hurgar: 'forage', rebuscar: 'forage',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
@@ -2153,3 +2155,137 @@ function cmdNews() {
 
 // Re-export final con T093
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS };
+
+// ─── T094: Forage / Buscar ───────────────────────────────────────────────────
+
+/**
+ * Tabla de ítems que se pueden encontrar al explorar una sala.
+ * Cada entrada tiene: item (nombre), prob (probabilidad 0-1), gold (alternativa en oro)
+ */
+const FORAGE_TABLE = [
+  // Hierbas y consumibles (comunes)
+  { item: 'hierba curativa',  prob: 0.18, type: 'item' },
+  { item: 'poción menor',     prob: 0.12, type: 'item' },
+  { item: 'antídoto',         prob: 0.08, type: 'item' },
+  // Monedas (comunes)
+  { gold: 3,  prob: 0.20, type: 'gold', label: '3 monedas de cobre' },
+  { gold: 7,  prob: 0.12, type: 'gold', label: '7 monedas de plata' },
+  { gold: 15, prob: 0.05, type: 'gold', label: '¡15 monedas de oro!' },
+  // Materiales de crafteo (poco comunes)
+  { item: 'hueso pulido',         prob: 0.07, type: 'item' },
+  { item: 'cristal fragmentado',  prob: 0.05, type: 'item' },
+  { item: 'veneno concentrado',   prob: 0.04, type: 'item' },
+  // Nada (probabilidad de fracaso)
+  // El resto de probabilidad (~0.09) = no encontrás nada
+];
+
+const FORAGE_COOLDOWN_MS = 3 * 60 * 1000; // 3 minutos por sala
+
+/**
+ * forage / buscar — Explorar la sala en busca de ítems ocultos.
+ * Cooldown de 3 min por sala. No funciona si hay monstruos vivos.
+ */
+function cmdForage(player) {
+  player = db.getPlayer(player.id);
+  const room = db.getRoom(player.current_room_id);
+
+  // Verificar que no hay monstruos en la sala
+  const monsters = db.getMonstersInRoom(player.current_room_id);
+  if (monsters.length > 0) {
+    const names = monsters.map(m => m.name).join(', ');
+    return { text: `No podés buscar con calma mientras hay monstruos aquí: ${names}.` };
+  }
+
+  // Verificar cooldown por sala
+  let forageData = {};
+  try {
+    forageData = JSON.parse(player.forage_data || '{}');
+  } catch (_) { forageData = {}; }
+
+  const roomKey = String(player.current_room_id);
+  const lastForage = forageData[roomKey] ? Number(forageData[roomKey]) : 0;
+  const now = Date.now();
+  const elapsed = now - lastForage;
+
+  if (elapsed < FORAGE_COOLDOWN_MS) {
+    const remaining = Math.ceil((FORAGE_COOLDOWN_MS - elapsed) / 1000);
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    return { text: `Ya rebuscaste en esta sala recientemente. Podés intentar de nuevo en ${mins}m ${secs}s.` };
+  }
+
+  // Determinar qué se encuentra (tirar probabilidades)
+  let roll = Math.random();
+  let found = null;
+
+  for (const entry of FORAGE_TABLE) {
+    if (roll < entry.prob) {
+      found = entry;
+      break;
+    }
+    roll -= entry.prob;
+  }
+
+  // Actualizar cooldown
+  forageData[roomKey] = now;
+  // Limpiar entradas viejas (solo guardar últimas 20 salas)
+  const keys = Object.keys(forageData);
+  if (keys.length > 20) {
+    const oldest = keys.sort((a, b) => forageData[a] - forageData[b])[0];
+    delete forageData[oldest];
+  }
+  db.updatePlayer(player.id, { forage_data: JSON.stringify(forageData) });
+
+  // Construir respuesta
+  const intro = [
+    `Buscás con cuidado entre las grietas, los rincones y el suelo de ${room.name}...`,
+    `Revisás meticulosamente cada rincón oscuro de ${room.name}...`,
+    `Tus ojos expertos rastrean el suelo y las paredes de ${room.name}...`,
+    `Con paciencia, inspeccionás cada piedra y grieta de ${room.name}...`,
+  ];
+  const introLine = intro[Math.floor(Math.random() * intro.length)];
+
+  if (!found) {
+    const failMsgs = [
+      'No encontrás nada de valor. Solo polvo y sombras.',
+      'Después de revisar bien, te vas con las manos vacías.',
+      'Nada. Esta sala parece haber sido saqueada antes.',
+      'Buscás largo y tendido. No hay nada oculto aquí.',
+    ];
+    return { text: `${introLine}\n${failMsgs[Math.floor(Math.random() * failMsgs.length)]}` };
+  }
+
+  if (found.type === 'gold') {
+    const currentGold = player.gold || 0;
+    db.updatePlayer(player.id, { gold: currentGold + found.gold });
+    return { text: `${introLine}\n💰 ¡Encontrás ${found.label}! (Oro total: ${currentGold + found.gold}g)` };
+  }
+
+  // Ítem
+  const inv = [...player.inventory, found.item];
+  db.updatePlayer(player.id, { inventory: JSON.stringify(inv) });
+
+  // Evaluar si hay quest de recoger ítems
+  const freshForQuest = db.getPlayer(player.id);
+  let questLine = '';
+  const qResult = quests.recordProgress(freshForQuest, 'pick', { itemName: found.item });
+  if (qResult) {
+    db.updatePlayer(player.id, { quest_progress: qResult.questProgress });
+    if (qResult.justCompleted && qResult.reward) {
+      const r = qResult.reward;
+      const freshQ2 = db.getPlayer(player.id);
+      db.updatePlayer(player.id, { gold: (freshQ2.gold || 0) + r.gold, xp: (freshQ2.xp || 0) + r.xp });
+      questLine = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP.`;
+      db.logGlobalEvent('quest', `📜 ${player.username} completó la misión y ganó ${r.gold}g + ${r.xp} XP.`);
+    }
+  }
+
+  return {
+    text: `${introLine}\n🌿 ¡Encontrás: ${found.item}! Se agrega a tu inventario.${questLine}`,
+    event: null, // Acción silenciosa, sin broadcast a la sala
+  };
+}
+
+// Re-export final con T094
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS };
+

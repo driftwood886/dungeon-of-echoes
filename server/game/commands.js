@@ -109,6 +109,8 @@ const COMMAND_ALIASES = {
   recipes: 'recipes', recetas: 'recipes', libro_recetas: 'recipes',
   // news / crónica / historial de eventos globales (T093)
   news: 'news', cronica: 'news', crónica: 'news', noticias: 'news', historial: 'news', diario: 'news',
+  // forage / buscar ítems ocultos (T094)
+  forage: 'forage', buscar: 'forage', explorar: 'forage', hurgar: 'forage', rebuscar: 'forage', rastrear: 'forage',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -203,6 +205,7 @@ Comandos disponibles:
   craft <ítem1> con <ítem2> — Combinar dos ítems del inventario para crear algo nuevo
   recipes / recetas     — Ver el libro de recetas de crafteo conocidas
   news / crónica        — Ver el historial de eventos globales del dungeon
+  forage / buscar       — Explorar la sala en busca de ítems ocultos (cooldown 3 min, sin monstruos)
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -242,6 +245,7 @@ const COMMAND_HELP = {
     craft:     'craft <ítem1> con <ítem2> / craftear <ítem1> + <ítem2>\\n  Combinar dos ítems de tu inventario para crear un nuevo objeto.\\n  Los ítems originales se consumen. Usá "recetas" para ver las combinaciones disponibles.',
     recipes:   'recipes / recetas\\n  Ver el libro de recetas de crafteo conocidas.\\n  Mostrá todas las combinaciones posibles de dos ingredientes y su resultado.',
     news:      'news / crónica / noticias\\n  Ver la crónica de eventos globales del dungeon.\\n  Registra automáticamente: boss derrotado, quests completadas, logros desbloqueados, duelos ganados y subidas de nivel importantes.',
+    forage:    'forage / buscar / explorar\\n  Buscar ítems ocultos en la sala actual.\\n  Cooldown de 3 minutos por sala. No funciona si hay monstruos vivos.\\n  Podés encontrar: hierbas curativas, pociones, monedas de oro, materiales de crafteo.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };
