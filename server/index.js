@@ -106,6 +106,58 @@ async function main() {
   });
 
   // 5. Crear servidor HTTP
+  /**
+   * POST /api/action  — Endpoint LLM-friendly (T034)
+   * Body: { player_id: string, command: string }
+   * Devuelve: resultado de texto + estado completo post-acción
+   */
+  app.post('/api/action', (req, res) => {
+    const { player_id, command } = req.body;
+    if (!player_id || !command) {
+      return res.status(400).json({ error: 'Se requiere player_id y command.' });
+    }
+
+    const result = execute(player_id, command);
+
+    // Construir estado post-acción igual que /api/state
+    const player  = db.getPlayer(player_id);
+    if (!player) return res.status(404).json({ error: 'Jugador no encontrado.' });
+
+    const room     = db.getRoom(player.current_room_id);
+    const monsters = db.getMonstersInRoom(player.current_room_id);
+    const others   = db.getPlayersInRoom(player.current_room_id)
+                       .filter(p => p.id !== player.id)
+                       .map(p => `${p.username} (HP: ${p.hp}/${p.max_hp})`);
+    const events   = db.getRecentEvents(player.current_room_id, 5)
+                       .map(e => e.result);
+
+    res.json({
+      result: result.text,
+      state: {
+        room: {
+          id: room.id,
+          name: room.name,
+          description: room.description,
+          exits: Object.keys(room.exits),
+          monsters: monsters.map(m => ({ name: m.name, hp: m.hp, max_hp: m.max_hp })),
+          items: room.items,
+        },
+        player: {
+          id: player.id,
+          username: player.username,
+          hp: player.hp,
+          max_hp: player.max_hp,
+          attack: player.attack,
+          defense: player.defense,
+          inventory: player.inventory,
+        },
+        other_players: others,
+        recent_events: events,
+      },
+    });
+  });
+
+  // 5. Crear servidor HTTP
   const server = http.createServer(app);
 
   // 6. Socket.io — Multijugador en tiempo real (Fase 4)
