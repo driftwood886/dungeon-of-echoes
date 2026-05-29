@@ -5,7 +5,9 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "node --watch server/index.js",
+    "reset": "node scripts/reset-db.js",
+    "bot": "node llm_bot.js"
   },
   "keywords": ["mud", "game", "multiplayer", "text-adventure"],
   "author": "driftwood886",
