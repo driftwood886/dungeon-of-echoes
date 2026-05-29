@@ -101,6 +101,8 @@ const COMMAND_ALIASES = {
   accept: 'accept', aceptar: 'accept', acepto: 'accept',
   // decline / rechazar duelo
   decline: 'decline', rechazar: 'decline', rechazo: 'decline', negar: 'decline',
+  // world / evento global
+  world: 'world', evento: 'world', mundo: 'world', dungeon_event: 'world', 'evento-dungeon': 'world',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -191,6 +193,7 @@ Comandos disponibles:
   duel <jugador>        — Retar a un duelo PvP a otro aventurero en la misma sala
   accept                — Aceptar el reto de duelo pendiente
   decline               — Rechazar el reto de duelo pendiente
+  world / evento        — Ver el evento global activo del dungeon (si hay alguno)
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();

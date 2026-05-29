@@ -14,6 +14,7 @@
 'use strict';
 
 const db = require('../db/db');
+const worldEvents = require('./worldEvents');
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -108,7 +109,12 @@ function attackRound(player, monster) {
     }
 
     // Actualizar kills y XP del jugador
-    const xpGain = Math.max(5, Math.floor(monster.max_hp * 2));
+    const xpBase = Math.max(5, Math.floor(monster.max_hp * 2));
+    // Bonus de XP si hay evento invasión
+    const activeEv = worldEvents.getCurrentEvent();
+    const xpGain = activeEv && activeEv.id === 'invasion'
+      ? Math.floor(xpBase * 1.5)
+      : xpBase;
     const freshPlayer = db.getPlayer(player.id);
     const newKills = (freshPlayer.kills || 0) + 1;
     const newXp    = (freshPlayer.xp    || 0) + xpGain;
@@ -131,10 +137,14 @@ function attackRound(player, monster) {
 
   // ── Monstruo contraataca ──────────────────────────────────────────────────
   const monsterDmg = calcDamage(monster.attack);
-  const dmgToPlayer = Math.max(1, monsterDmg - Math.floor(player.defense || 0));
+  // Bonus daño si hay evento luna de sangre
+  const activeEvMon = worldEvents.getCurrentEvent();
+  const bloodmoonBonus = (activeEvMon && activeEvMon.id === 'bloodmoon') ? 2 : 0;
+  const dmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus - Math.floor(player.defense || 0));
   player.hp = Math.max(0, player.hp - dmgToPlayer);
 
-  lines.push(`🩸 El ${monster.name} te golpea y causa ${dmgToPlayer} de daño. (${player.hp}/${player.max_hp} HP)`);
+  const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🩸(+${bloodmoonBonus} Luna de Sangre)` : '';
+  lines.push(`🩸 El ${monster.name} te golpea y causa ${dmgToPlayer} de daño.${bloodmoonSuffix} (${player.hp}/${player.max_hp} HP)`);
 
   // ── Posible envenenamiento del monstruo ──────────────────────────────────
   const poisonerDef = POISONERS[monster.name];

@@ -18,6 +18,7 @@ const combat  = require('./combat');
 const items   = require('./items');
 const ach     = require('./achievements');
 const quests  = require('./quests');
+const worldEvents = require('./worldEvents');
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // Cada sala puede tener un efecto que se aplica al entrar.
@@ -98,6 +99,7 @@ function execute(playerId, input) {
     case 'duel':         result = cmdDuel(player, action.args.join(' ')); break;
     case 'accept':       result = cmdAcceptDuel(player); break;
     case 'decline':      result = cmdDeclineDuel(player); break;
+    case 'world':        result = cmdWorld(); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -1700,6 +1702,23 @@ function cmdGuildChat(player, args) {
     guildBroadcast: player.guild,
     guildBroadcastMsg: `[GUILD ${player.guild}] ${player.username}: ${msg}`,
     guildBroadcastExcludeSelf: player.id,
+  };
+}
+
+
+/**
+ * world — Ver el evento global actual del dungeon
+ */
+function cmdWorld() {
+  const ev = worldEvents.getCurrentEvent();
+  if (!ev) {
+    const nextText = worldEvents.getNextEventText();
+    return { text: `🌍 El dungeon está en calma.\n${nextText}\n\nEventos posibles: Invasión de los Abismos, Niebla Espesa, Luna de Sangre, Bendición del Santuario, Maldición del Lich.` };
+  }
+  const minLeft = Math.floor(ev.remainingMs / 60_000);
+  const secLeft = Math.floor((ev.remainingMs % 60_000) / 1000);
+  return {
+    text: `🌍 EVENTO ACTIVO: ${ev.name}\n${ev.description}\n⏱ Tiempo restante: ${minLeft}m ${secLeft}s`,
   };
 }
 

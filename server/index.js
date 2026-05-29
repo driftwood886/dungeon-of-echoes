@@ -14,6 +14,7 @@ const { seedIfEmpty }        = require('./db/seed');
 const { execute, getOrCreatePlayer, ROOM_EFFECTS } = require('./game/engine');
 const { checkRespawns }      = require('./game/combat');
 const quests                 = require('./game/quests');
+const worldEvents            = require('./game/worldEvents');
 
 const PORT = process.env.PORT || 3000;
 
@@ -257,6 +258,18 @@ async function main() {
     });
   });
 
+  /**
+   * GET /api/world — Evento global activo del dungeon (T090)
+   */
+  app.get('/api/world', (req, res) => {
+    const ev = worldEvents.getCurrentEvent();
+    const nextText = worldEvents.getNextEventText();
+    res.json({
+      active_event: ev || null,
+      next_event_info: ev ? null : nextText,
+    });
+  });
+
   // 5. Crear servidor HTTP
   /**
    * POST /api/action  — Endpoint LLM-friendly (T034)
@@ -349,6 +362,18 @@ async function main() {
       console.log(`[quests] Quest rotada: ${newQuest.questDef.title}`);
     }
   }, 5 * 60_000);
+
+  // 11. World Events loop: verificar cada 60 segundos si hay que activar/desactivar evento
+  setInterval(() => {
+    const result = worldEvents.tick();
+    if (result) {
+      io.emit('shout', {
+        username: '🌍 DUNGEON',
+        message: result.message,
+      });
+      console.log(`[worldEvents] ${result.type}: ${result.event.name}`);
+    }
+  }, 60_000);
 }
 
 main().catch(err => {
