@@ -134,6 +134,16 @@ async function init() {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
   }
 
+  // Tabla de historial de eventos globales (T093)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS global_events (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      type       TEXT NOT NULL,
+      message    TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // Guardar al apagar
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });
@@ -447,6 +457,28 @@ function getAllGuilds() {
   `);
 }
 
+// ─── Eventos Globales (T093) ─────────────────────────────────────────────────
+
+/**
+ * Registra un evento global en la crónica del dungeon.
+ * @param {string} type    — Categoría: 'boss', 'quest', 'achievement', 'duel', 'level', 'misc'
+ * @param {string} message — Descripción del evento para mostrar a los jugadores
+ */
+function logGlobalEvent(type, message) {
+  run('INSERT INTO global_events (type, message) VALUES (?, ?)', [type, message]);
+}
+
+/**
+ * Devuelve los últimos N eventos globales, ordenados del más reciente al más viejo.
+ * @param {number} limit — Máximo de eventos a devolver (default 10)
+ */
+function getGlobalEvents(limit = 10) {
+  return all(
+    'SELECT * FROM global_events ORDER BY id DESC LIMIT ?',
+    [limit]
+  );
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -463,6 +495,8 @@ module.exports = {
   saveOfflineMessage, getPendingMessages, markMessagesDelivered, countPendingMessages,
   // guilds
   getGuild, getGuildMembers, createGuild, deleteGuild, setPlayerGuild, getAllGuilds,
+  // global events (T093)
+  logGlobalEvent, getGlobalEvents,
   // acceso raw (por si acaso)
   raw: () => db,
 };

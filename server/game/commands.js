@@ -107,6 +107,8 @@ const COMMAND_ALIASES = {
   craft: 'craft', craftear: 'craft', fabricar: 'craft', combinar: 'craft', alquimia: 'craft', crear: 'craft', forjar: 'craft',
   // recipes / recetas
   recipes: 'recipes', recetas: 'recipes', libro_recetas: 'recipes',
+  // news / crónica / historial de eventos globales (T093)
+  news: 'news', cronica: 'news', crónica: 'news', noticias: 'news', historial: 'news', diario: 'news',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -200,6 +202,7 @@ Comandos disponibles:
   world / evento        — Ver el evento global activo del dungeon (si hay alguno)
   craft <ítem1> con <ítem2> — Combinar dos ítems del inventario para crear algo nuevo
   recipes / recetas     — Ver el libro de recetas de crafteo conocidas
+  news / crónica        — Ver el historial de eventos globales del dungeon
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -238,6 +241,7 @@ const COMMAND_HELP = {
     gc:        'gc <mensaje> / gchat <mensaje>\\n  Enviar un mensaje al chat de hermandad. Solo los miembros de tu guild lo verán.\\n  Aparece en formato: [GUILD NombreGuild] TuNombre: mensaje',
     craft:     'craft <ítem1> con <ítem2> / craftear <ítem1> + <ítem2>\\n  Combinar dos ítems de tu inventario para crear un nuevo objeto.\\n  Los ítems originales se consumen. Usá "recetas" para ver las combinaciones disponibles.',
     recipes:   'recipes / recetas\\n  Ver el libro de recetas de crafteo conocidas.\\n  Mostrá todas las combinaciones posibles de dos ingredientes y su resultado.',
+    news:      'news / crónica / noticias\\n  Ver la crónica de eventos globales del dungeon.\\n  Registra automáticamente: boss derrotado, quests completadas, logros desbloqueados, duelos ganados y subidas de nivel importantes.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };

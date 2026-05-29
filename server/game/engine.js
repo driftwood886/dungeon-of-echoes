@@ -114,6 +114,7 @@ function execute(playerId, input) {
     case 'world':        result = cmdWorld(); break;
     case 'craft':        result = cmdCraft(player, action.args); break;
     case 'recipes':      result = cmdRecipes(); break;
+    case 'news':         result = cmdNews(); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -152,6 +153,7 @@ function execute(playerId, input) {
           rest: 'rest', descansar: 'rest',
           help: 'help', ayuda: 'help',
           inspect: 'inspect', inspeccionar: 'inspect', observar: 'inspect',
+          news: 'news', cronica: 'news', crónica: 'news', noticias: 'news', historial: 'news',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
@@ -454,6 +456,23 @@ function cmdAttack(player, targetName) {
     const poisonSurvived = !!(combatResult && combatResult.poisonSurvived);
     const newAchs = ach.checkAchievements(freshForAch, { bossKill, poisonSurvived });
     achLines = ach.formatNewAchievements(newAchs);
+
+    // ── Registrar eventos globales (T093) ───────────────────────────────────
+    if (bossKill) {
+      db.logGlobalEvent('boss', `⚔️ ${player.username} derrotó al ${monster.name} y lo mandó al abismo.`);
+    }
+    // Logros nuevos → registrar el primero en la crónica
+    if (newAchs && newAchs.length > 0) {
+      db.logGlobalEvent('achievement', `🏅 ${player.username} desbloqueó el logro "${newAchs[0].name}".`);
+    }
+    // Subida de nivel a múltiplos de 5
+    const newLevel = freshForAch.level || 1;
+    if (monsterDead && newLevel >= 5 && newLevel % 5 === 0) {
+      const prevLevel = newLevel - 1;
+      if (prevLevel < newLevel && prevLevel % 5 !== 0 || (freshForAch.xp || 0) % 50 < 10) {
+        db.logGlobalEvent('level', `⬆️ ${player.username} alcanzó el nivel ${newLevel}. ¡Un aventurero formidable!`);
+      }
+    }
   }
 
   // ── Progreso de quest ────────────────────────────────────────────────────
@@ -464,13 +483,15 @@ function cmdAttack(player, targetName) {
     if (qResult) {
       db.updatePlayer(player.id, { quest_progress: qResult.questProgress });
       if (qResult.justCompleted && qResult.reward) {
-        const r = qResult.reward;
-        const freshQ2 = db.getPlayer(player.id);
-        db.updatePlayer(player.id, {
-          gold: (freshQ2.gold || 0) + r.gold,
-          xp: (freshQ2.xp || 0) + r.xp,
-        });
-        questLines = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
+      const r = qResult.reward;
+      const freshQ2 = db.getPlayer(player.id);
+      db.updatePlayer(player.id, {
+        gold: (freshQ2.gold || 0) + r.gold,
+        xp: (freshQ2.xp || 0) + r.xp,
+      });
+      questLines = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
+      // Registrar en crónica global (T093)
+      db.logGlobalEvent('quest', `📜 ${player.username} completó la misión y ganó ${r.gold}g + ${r.xp} XP.`);
       } else {
         const info = quests.getPlayerProgress(db.getPlayer(player.id));
         if (info && !info.completed) {
@@ -1946,6 +1967,9 @@ function cmdAcceptDuel(player) {
 
     resultMsg = `🏆 ¡${winner.username} gana el duelo! ${loser.username} pierde ${goldTransfer} monedas de oro.\n` +
                 `   ${winner.username}: ${winnerHp}/${winner.max_hp} HP | ${loser.username}: ${loserHp}/${loser.max_hp} HP`;
+
+    // Registrar en crónica global (T093)
+    db.logGlobalEvent('duel', `⚔️ ${winner.username} venció a ${loser.username} en duelo y ganó ${goldTransfer}g.`);
   }
 
   const combatLog = log.slice(0, 10).join('\n'); // solo primeras 10 líneas para no spamear
@@ -2084,3 +2108,48 @@ function cmdRecipes() {
 // Rexportar con las nuevas funciones
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS };
 
+// ─── T093: Crónica / Historial de Eventos Globales ───────────────────────────
+
+/**
+ * news — Mostrar los últimos 10 eventos de la crónica del dungeon.
+ * Registra automáticamente: boss muerto, quest completada, logro desbloqueado,
+ * duel ganado, nivel 5/10/15... alcanzado.
+ */
+function cmdNews() {
+  const events = db.getGlobalEvents(10);
+
+  if (!events || events.length === 0) {
+    return { text: '📰 La crónica del dungeon está vacía. ¡Sé el primero en dejar tu marca!' };
+  }
+
+  const TYPE_ICONS = {
+    boss:        '⚔️',
+    quest:       '📜',
+    achievement: '🏅',
+    duel:        '⚔️',
+    level:       '⬆️',
+    misc:        '📣',
+  };
+
+  const lines = [
+    `╔═══════════════════════════════════════════════════╗`,
+    `║        📰  CRÓNICA DEL DUNGEON  (últimos 10)      ║`,
+    `╠═══════════════════════════════════════════════════╣`,
+  ];
+
+  for (const ev of events) {
+    // Formatear timestamp: "2026-05-29 23:45:00" → "23:45"
+    const ts = ev.created_at ? ev.created_at.slice(11, 16) : '??:??';
+    const icon = TYPE_ICONS[ev.type] || '📣';
+    const msg = ev.message.length > 60 ? ev.message.slice(0, 57) + '...' : ev.message;
+    lines.push(`║ [${ts}] ${msg.padEnd(45)} ║`);
+  }
+
+  lines.push(`╚═══════════════════════════════════════════════════╝`);
+  lines.push(`(Registra: boss, quests, logros, duelos, niveles)`);
+
+  return { text: lines.join('\n') };
+}
+
+// Re-export final con T093
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS };
