@@ -69,6 +69,8 @@ const COMMAND_ALIASES = {
   unlock: 'unlock', abrir: 'unlock', desbloquear: 'unlock', destrancar: 'unlock',
   // disarm / desactivar trampa
   disarm: 'disarm', desactivar: 'disarm', desarmar: 'disarm', trampa: 'disarm',
+  // rest / descansar
+  rest: 'rest', descansar: 'rest', dormir: 'rest', recuperar: 'rest', campear: 'rest',
   // say
   say: 'say', decir: 'say', hablar: 'say',
   // shout

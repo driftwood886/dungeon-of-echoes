@@ -65,6 +65,7 @@ function execute(playerId, input) {
     case 'reply':     result = cmdReply(player, action.args); break;
     case 'unlock':    result = cmdUnlock(player, action.args[0]); break;
     case 'disarm':    result = cmdDisarm(player); break;
+    case 'rest':      result = cmdRest(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -1051,6 +1052,52 @@ function cmdDisarm(player) {
     text: `${trap.disarm_msg}\n✅ La trampa está desactivada. Usaste: "${trap.item_needed}".`,
     event: `${player.username} desactiva una trampa en la sala.`,
     eventRoomId: room.id,
+  };
+}
+
+/**
+ * rest / descansar — Recuperar HP si no hay monstruos en la sala.
+ * Cooldown: 60 segundos entre usos.
+ * Recupera entre 3 y 5 HP (aleatorio), sin superar max_hp.
+ */
+function cmdRest(player) {
+  player = db.getPlayer(player.id);
+
+  if (player.hp >= player.max_hp) {
+    return { text: '💤 Ya estás al máximo de HP. No necesitás descansar.' };
+  }
+
+  // Verificar que no haya monstruos en la sala
+  const monsters = db.getMonstersInRoom(player.current_room_id);
+  if (monsters.length > 0) {
+    const names = monsters.map(m => m.name).join(', ');
+    return { text: `⚔️  No podés descansar con enemigos presentes: ${names}.` };
+  }
+
+  // Verificar cooldown (60 segundos)
+  const COOLDOWN_MS = 60_000;
+  if (player.last_rest) {
+    const elapsed = Date.now() - new Date(player.last_rest).getTime();
+    if (elapsed < COOLDOWN_MS) {
+      const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+      return { text: `💤 Necesitás esperar ${remaining} segundo${remaining !== 1 ? 's' : ''} antes de descansar de nuevo.` };
+    }
+  }
+
+  // Recuperar HP (3 a 5 HP)
+  const heal = Math.floor(Math.random() * 3) + 3; // 3, 4 o 5
+  const newHp = Math.min(player.max_hp, player.hp + heal);
+  const restored = newHp - player.hp;
+
+  db.updatePlayer(player.id, {
+    hp: newHp,
+    last_rest: new Date().toISOString(),
+  });
+
+  const hpBar = buildBar(newHp, player.max_hp, 20);
+
+  return {
+    text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP. ${hpBar} ${newHp}/${player.max_hp} HP`,
   };
 }
 
