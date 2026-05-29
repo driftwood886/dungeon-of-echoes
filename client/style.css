@@ -266,8 +266,9 @@ html, body {
 .msg-line.msg-event   { color: var(--cyan); }
 .msg-line.msg-say     { color: #cc88ff; }
 .msg-line.msg-shout   { color: var(--amber); font-weight: bold; }
-.msg-line.msg-whisper { color: #ffaaff; font-style: italic; }
-.msg-line.msg-tell    { color: #ffcc66; font-style: italic; }
+.msg-line.msg-whisper    { color: #ffaaff; font-style: italic; }
+.msg-line.msg-tell       { color: #ffcc66; font-style: italic; }
+.msg-line.msg-guild_chat { color: #66ffcc; font-style: italic; border-left: 2px solid #33cc99; padding-left: 4px; }
 .msg-line.msg-error   { color: var(--red); }
 .msg-line.msg-combat  { color: #ff7744; }
 .msg-line.msg-loot    { color: #ffdd44; }

@@ -91,6 +91,10 @@ const COMMAND_ALIASES = {
   inspect: 'inspect', inspeccionar: 'inspect', observar: 'inspect', ver_jugador: 'inspect',
   // quest / misión
   quest: 'quest', misión: 'quest', mision: 'quest', tarea: 'quest', objetivo: 'quest',
+  // guild / hermandad
+  guild: 'guild', hermandad: 'guild', gremio: 'guild', clan: 'guild', faccion: 'guild', facción: 'guild',
+  // gc / guild chat
+  gc: 'gc', gchat: 'gc', guildchat: 'gc',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -176,6 +180,8 @@ Comandos disponibles:
   rest / descansar      — Recuperar HP si no hay monstruos (cooldown 60s)
   inspect <jugador>     — Examinar a otro aventurero en la misma sala
   quest / misión        — Ver la quest activa y tu progreso
+  guild <acción>        — Gestionar tu hermandad (create/join/leave/info/list)
+  gc <mensaje>          — Chat de hermandad (solo ven los miembros del mismo guild)
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -210,6 +216,8 @@ const COMMAND_HELP = {
   emote:     'emote <acción> / accion <acción> / me <acción>\n  Expresar una acción en tercera persona visible para todos en la sala.\n  Ej: "emote suspira profundo" → todos ven: "✨ NombreJugador suspira profundo"',
   help:      'help / ayuda\n  Mostrar la lista de comandos.\n  help <comando>: ayuda detallada sobre un comando específico.',
   inspect:   'inspect <jugador> / inspeccionar <jugador>\n  Examinar a otro aventurero que esté en la misma sala.\n  Muestra su nivel, HP, arma equipada, kills, muertes y logros desbloqueados.',
+  guild:     'guild create <nombre>  — Crear una nueva hermandad (cuestan 50 oro)\nguild join <nombre>    — Unirse a una hermandad existente\nguild leave            — Abandonar tu hermandad actual\nguild info             — Ver info de tu hermandad (miembros, líder)\nguild list             — Listar todas las hermandades activas',
+  gc:        'gc <mensaje> / gchat <mensaje>\n  Enviar un mensaje al chat de hermandad. Solo los miembros de tu guild lo verán.\n  Aparece en formato: [GUILD NombreGuild] TuNombre: mensaje',
 };
 
 module.exports = { parse, HELP_TEXT, COMMAND_HELP };

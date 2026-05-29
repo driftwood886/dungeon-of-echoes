@@ -321,6 +321,8 @@ function initSocket() {
       addMsg(`🔇 ${data.message}`, 'whisper');
     } else if (data.type === 'tell') {
       addMsg(`📨 ${data.message}`, 'tell');
+    } else if (data.type === 'guild_chat') {
+      addMsg(`🛡 ${data.message}`, 'guild_chat');
     } else if (data.type === 'offline_messages') {
       addSeparator();
       addMsg(data.message, 'tell');

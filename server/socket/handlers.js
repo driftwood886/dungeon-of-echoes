@@ -129,6 +129,23 @@ function registerHandlers(io) {
         });
       }
 
+      // Guild chat broadcast — enviar solo a jugadores del mismo guild
+      if (result.guildBroadcast && result.guildBroadcastMsg) {
+        const guildName = result.guildBroadcast;
+        const members = db.getGuildMembers(guildName);
+        for (const member of members) {
+          // Excluir al propio emisor si corresponde (para gc)
+          if (result.guildBroadcastExcludeSelf && member.id === result.guildBroadcastExcludeSelf) continue;
+          const memberSocket = playerSockets.get(member.id);
+          if (memberSocket) {
+            memberSocket.emit('event', {
+              type: 'guild_chat',
+              message: result.guildBroadcastMsg,
+            });
+          }
+        }
+      }
+
       // Si el resultado incluye un mensaje directo para otro jugador (ej: give, whisper)
       if (result.targetPlayerId && result.targetPlayerMsg) {
         const targetSocket = playerSockets.get(result.targetPlayerId);

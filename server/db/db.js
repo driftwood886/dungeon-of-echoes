@@ -103,6 +103,16 @@ async function init() {
 
   // Migraciones: agregar columnas nuevas si no existen
   // sql.js lanza error si la columna ya existe, lo ignoramos.
+  // Tabla de guilds
+  db.run(`
+    CREATE TABLE IF NOT EXISTS guilds (
+      id          TEXT PRIMARY KEY,
+      name        TEXT UNIQUE NOT NULL,
+      leader_id   TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   const migrations = [
     `ALTER TABLE players ADD COLUMN xp     INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE players ADD COLUMN level  INTEGER NOT NULL DEFAULT 1`,
@@ -115,6 +125,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN gold INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE players ADD COLUMN achievements TEXT NOT NULL DEFAULT '[]'`,
     `ALTER TABLE players ADD COLUMN quest_progress TEXT NOT NULL DEFAULT '{}'`,
+    `ALTER TABLE players ADD COLUMN guild TEXT`,
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -397,6 +408,42 @@ function countPendingMessages(targetPlayerId) {
   return row ? row.cnt : 0;
 }
 
+// ─── Guilds ───────────────────────────────────────────────────────────────────
+
+function getGuild(name) {
+  return one('SELECT * FROM guilds WHERE name = ?', [name]);
+}
+
+function getGuildMembers(guildName) {
+  return all(
+    'SELECT id, username, level, hp, max_hp, kills, current_room_id FROM players WHERE guild = ?',
+    [guildName]
+  );
+}
+
+function createGuild(id, name, leaderId) {
+  run('INSERT INTO guilds (id, name, leader_id) VALUES (?, ?, ?)', [id, name, leaderId]);
+}
+
+function deleteGuild(name) {
+  run('DELETE FROM guilds WHERE name = ?', [name]);
+}
+
+function setPlayerGuild(playerId, guildName) {
+  run('UPDATE players SET guild = ? WHERE id = ?', [guildName || null, playerId]);
+}
+
+function getAllGuilds() {
+  return all(`
+    SELECT g.name, g.leader_id, p.username AS leader_name,
+           COUNT(m.id) AS member_count
+    FROM guilds g
+    LEFT JOIN players p ON p.id = g.leader_id
+    LEFT JOIN players m ON m.guild = g.name
+    GROUP BY g.name
+  `);
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -411,6 +458,8 @@ module.exports = {
   logEvent, getRecentEvents,
   // offline messages (tell)
   saveOfflineMessage, getPendingMessages, markMessagesDelivered, countPendingMessages,
+  // guilds
+  getGuild, getGuildMembers, createGuild, deleteGuild, setPlayerGuild, getAllGuilds,
   // acceso raw (por si acaso)
   raw: () => db,
 };

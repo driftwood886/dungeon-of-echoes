@@ -89,6 +89,8 @@ function execute(playerId, input) {
     case 'achievements': result = cmdAchievements(player); break;
     case 'inspect':      result = cmdInspect(player, action.args.join(' ')); break;
     case 'quest':        result = cmdQuest(player); break;
+    case 'guild':        result = cmdGuild(player, action.args); break;
+    case 'gc':           result = cmdGuildChat(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -302,6 +304,7 @@ function cmdStatus(player) {
     `Oro:      💰 ${gold}g`,
     weaponLine,
     `Ubicación: ${roomName}`,
+    player.guild ? `Hermandad: [${player.guild}]` : `Hermandad: (sin guild)`,
     ...(statusLines.length ? ['', ...statusLines] : []),
   ].join('\n');
 
@@ -703,7 +706,8 @@ function cmdWho() {
       const hpText = `${p.hp}/${p.max_hp}`;
       const level = p.level || 1;
       const deaths = p.deaths || 0;
-      return `  ${p.username.padEnd(16)} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}  │  ${p.room_name || 'Desconocido'}`;
+      const guildTag = p.guild ? ` [${p.guild}]` : '';
+      return `  ${(p.username + guildTag).padEnd(22)} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}  │  ${p.room_name || 'Desconocido'}`;
     }),
     ``,
     `(jugadores activos en los últimos 5 minutos)`,
@@ -1495,7 +1499,201 @@ function cmdInspect(player, targetName) {
   };
 }
 
-/** Helper: barra de HP ASCII */
+/**
+ * guild <subcomando> [args] — Gestionar hermandades/guilds.
+ *
+ * Subcomandos:
+ *   create <nombre>  — Crear una nueva hermandad (cuesta 50 oro)
+ *   join <nombre>    — Unirse a una hermandad existente
+ *   leave            — Abandonar la hermandad actual
+ *   info             — Ver info de tu hermandad (miembros, líder)
+ *   list             — Listar todas las hermandades activas
+ */
+function cmdGuild(player, args) {
+  if (!args || args.length === 0) {
+    return { text: 'Usá: guild create <nombre> | guild join <nombre> | guild leave | guild info | guild list' };
+  }
+
+  // Refrescar desde BD
+  player = db.getPlayer(player.id);
+  const sub = args[0].toLowerCase();
+  const guildArg = args.slice(1).join(' ').trim();
+
+  // ── guild list ──────────────────────────────────────────────────────────────
+  if (sub === 'list' || sub === 'lista') {
+    const guilds = db.getAllGuilds();
+    if (guilds.length === 0) {
+      return { text: 'No hay ninguna hermandad activa todavía. ¡Creá la primera con "guild create <nombre>"!' };
+    }
+    const lines = [
+      '=== HERMANDADES ACTIVAS ===',
+      ...guilds.map(g => `  [${g.name}]  Líder: ${g.leader_name || '?'}  Miembros: ${g.member_count}`),
+    ];
+    return { text: lines.join('\n') };
+  }
+
+  // ── guild info ──────────────────────────────────────────────────────────────
+  if (sub === 'info' || sub === 'información' || sub === 'información') {
+    if (!player.guild) {
+      return { text: 'No pertenecés a ninguna hermandad. Usá "guild join <nombre>" o "guild create <nombre>".' };
+    }
+    const guild = db.getGuild(player.guild);
+    if (!guild) {
+      // Datos inconsistentes — limpiar
+      db.setPlayerGuild(player.id, null);
+      return { text: 'Tu hermandad ya no existe. Tu afiliación fue removida.' };
+    }
+    const members = db.getGuildMembers(player.guild);
+    const leaderName = members.find(m => m.id === guild.leader_id)?.username || '(desconocido)';
+    const memberLines = members.map(m => {
+      const tag = m.id === guild.leader_id ? ' 👑' : '';
+      return `  ${m.username}${tag}  Lv${m.level || 1}  ❤${m.hp}/${m.max_hp}`;
+    });
+    const lines = [
+      `══ 🛡 Hermandad: [${guild.name}] ══`,
+      `Líder: ${leaderName}`,
+      `Miembros (${members.length}):`,
+      ...memberLines,
+    ];
+    return { text: lines.join('\n') };
+  }
+
+  // ── guild leave ─────────────────────────────────────────────────────────────
+  if (sub === 'leave' || sub === 'abandonar' || sub === 'salir') {
+    if (!player.guild) {
+      return { text: 'No pertenecés a ninguna hermandad.' };
+    }
+    const guildName = player.guild;
+    const guild = db.getGuild(guildName);
+
+    // Si el líder se va y hay más miembros, pasarle el liderazgo al primero encontrado
+    if (guild && guild.leader_id === player.id) {
+      const members = db.getGuildMembers(guildName).filter(m => m.id !== player.id);
+      if (members.length > 0) {
+        // Promover al primer miembro como nuevo líder
+        const { randomUUID } = require('crypto');
+        db.deleteGuild(guildName);
+        db.createGuild(randomUUID(), guildName, members[0].id);
+        db.setPlayerGuild(player.id, null);
+        return {
+          text: `Abandonaste la hermandad [${guildName}]. ${members[0].username} es el nuevo líder.`,
+          event: `⚔ ${player.username} abandonó la hermandad [${guildName}]. ¡${members[0].username} es el nuevo líder!`,
+          eventRoomId: player.current_room_id,
+          guildBroadcast: guildName,
+          guildBroadcastMsg: `⚔ ${player.username} abandonó la hermandad. ${members[0].username} es el nuevo líder.`,
+        };
+      } else {
+        // Solo queda el líder — disolver la hermandad
+        db.deleteGuild(guildName);
+        db.setPlayerGuild(player.id, null);
+        return {
+          text: `Eras el último miembro. La hermandad [${guildName}] fue disuelta.`,
+          event: `⚔ La hermandad [${guildName}] fue disuelta por ${player.username}.`,
+          eventRoomId: player.current_room_id,
+        };
+      }
+    }
+
+    db.setPlayerGuild(player.id, null);
+    return {
+      text: `Abandonaste la hermandad [${guildName}].`,
+      guildBroadcast: guildName,
+      guildBroadcastMsg: `⚔ ${player.username} abandonó la hermandad.`,
+    };
+  }
+
+  // ── guild join ──────────────────────────────────────────────────────────────
+  if (sub === 'join' || sub === 'unirse' || sub === 'entrar') {
+    if (!guildArg) {
+      return { text: 'Usá: guild join <nombre_de_hermandad>' };
+    }
+    if (player.guild) {
+      return { text: `Ya pertenecés a la hermandad [${player.guild}]. Salí primero con "guild leave".` };
+    }
+    const guild = db.getGuild(guildArg);
+    if (!guild) {
+      return { text: `No existe ninguna hermandad llamada "${guildArg}". Verificá el nombre con "guild list".` };
+    }
+    db.setPlayerGuild(player.id, guild.name);
+    return {
+      text: `¡Te uniste a la hermandad [${guild.name}]! Podés chatear con tus compañeros usando "gc <mensaje>".`,
+      guildBroadcast: guild.name,
+      guildBroadcastMsg: `⚔ ¡${player.username} se unió a la hermandad!`,
+    };
+  }
+
+  // ── guild create ────────────────────────────────────────────────────────────
+  if (sub === 'create' || sub === 'crear' || sub === 'fundar') {
+    if (!guildArg) {
+      return { text: 'Usá: guild create <nombre_de_hermandad>' };
+    }
+    if (guildArg.length > 20) {
+      return { text: 'El nombre de la hermandad no puede superar los 20 caracteres.' };
+    }
+    if (!/^[a-zA-Z0-9áéíóúÁÉÍÓÚüÜñÑ _-]+$/.test(guildArg)) {
+      return { text: 'El nombre solo puede tener letras, números, espacios, guiones y guiones bajos.' };
+    }
+    if (player.guild) {
+      return { text: `Ya pertenecés a la hermandad [${player.guild}]. Salí primero con "guild leave".` };
+    }
+
+    // Costo de fundación: 50 oro
+    const gold = player.gold || 0;
+    if (gold < 50) {
+      return { text: `Fundar una hermandad cuesta 50 de oro. Tenés ${gold}g. ¡Conseguí más monedas y volvé!` };
+    }
+
+    // Verificar si ya existe
+    const existing = db.getGuild(guildArg);
+    if (existing) {
+      return { text: `Ya existe una hermandad llamada "${guildArg}". Elegí otro nombre.` };
+    }
+
+    // Crear guild
+    const { randomUUID } = require('crypto');
+    const guildId = randomUUID();
+    db.createGuild(guildId, guildArg, player.id);
+    db.setPlayerGuild(player.id, guildArg);
+    db.updatePlayer(player.id, { gold: gold - 50 });
+
+    return {
+      text: `⚔ ¡Hermandad [${guildArg}] fundada! Te costo 50 de oro. Sos el líder 👑.\nInvitá jugadores diciéndoles que usen "guild join ${guildArg}". Chateá con "gc <mensaje>".`,
+      event: `⚔ ¡${player.username} fundó la hermandad [${guildArg}]!`,
+      eventRoomId: player.current_room_id,
+    };
+  }
+
+  return { text: `Subcomando desconocido: "${sub}". Usá guild create | join | leave | info | list` };
+}
+
+/**
+ * gc <mensaje> — Chat de hermandad (broadcast solo a los miembros del mismo guild).
+ */
+function cmdGuildChat(player, args) {
+  // Refrescar player
+  player = db.getPlayer(player.id);
+
+  if (!player.guild) {
+    return { text: 'No pertenecés a ninguna hermandad. Usá "guild join <nombre>" primero.' };
+  }
+
+  const msg = args.join(' ').trim();
+  if (!msg) {
+    return { text: 'Escribí el mensaje. Ej: gc Hola compañeros' };
+  }
+  if (msg.length > 200) {
+    return { text: 'Mensaje demasiado largo (máx 200 caracteres).' };
+  }
+
+  return {
+    text: `[GUILD ${player.guild}] ${player.username}: ${msg}`,
+    guildBroadcast: player.guild,
+    guildBroadcastMsg: `[GUILD ${player.guild}] ${player.username}: ${msg}`,
+    guildBroadcastExcludeSelf: player.id,
+  };
+}
+
+
 function buildHpBar(hp, maxHp, len = 8) {
   const filled = Math.round((hp / maxHp) * len);
   return '[' + '█'.repeat(filled) + '░'.repeat(len - filled) + ']';
