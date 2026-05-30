@@ -255,6 +255,7 @@ function execute(playerId, input, context) {
     case 'nick':         result = cmdNick(player, action.args); break;
     case 'history':      result = cmdHistory(player); break;
     case 'find':         result = cmdFind(player, action.args); break;
+    case 'guide':        result = cmdGuide(action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -6712,6 +6713,239 @@ function cmdFind(player, args) {
   else lines.push(`╚${border}╝`);
 
   return { text: lines.join('\n') };
+}
+
+// ─── T170: cmdGuide ───────────────────────────────────────────────────────────
+// Guía de inicio rápido dividida en secciones navegables.
+function cmdGuide(args) {
+  const W = 56;
+  const border = '═'.repeat(W);
+  const div    = '─'.repeat(W);
+
+  // Secciones disponibles
+  const SECTIONS = {
+    '1': 'primeros',
+    '2': 'combate',
+    '3': 'economia',
+    '4': 'clases',
+    '5': 'crafteo',
+    '6': 'tips',
+    primeros: 'primeros',
+    combate: 'combate',
+    economía: 'economia', economia: 'economia',
+    clases: 'clases',
+    crafteo: 'crafteo',
+    tips: 'tips', avanzados: 'tips',
+  };
+
+  const section = args && args.length > 0
+    ? SECTIONS[(args[0] || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')] || null
+    : null;
+
+  function box(title, lines) {
+    const header = ` ${title} `;
+    const pad = Math.max(0, W - header.length);
+    const padL = Math.floor(pad / 2);
+    const padR = pad - padL;
+    const rows = [];
+    rows.push(`╔${border}╗`);
+    rows.push(`║${'═'.repeat(padL)}${header}${'═'.repeat(padR)}║`);
+    rows.push(`╠${border}╣`);
+    for (const line of lines) {
+      const text = String(line);
+      // Soporte de líneas largas: truncar a W-4 y centrar
+      const display = text.length <= W - 2 ? text : text.substring(0, W - 5) + '...';
+      rows.push(`║ ${display.padEnd(W - 2)} ║`);
+    }
+    rows.push(`╚${border}╝`);
+    return rows.join('\n');
+  }
+
+  if (!section) {
+    // Índice
+    const indexLines = [
+      '📖 GUÍA DEL AVENTURERO — Dungeon of Echoes',
+      '',
+      'Escribí: guide <número o nombre>',
+      '',
+      '  1. primeros  — Cómo empezar: look, move, status',
+      '  2. combate   — Pelear, huir, habilidades, clases',
+      '  3. economia  — Oro, tienda, subastas, duelos',
+      '  4. clases    — Guerrero, Mago y Pícaro explicados',
+      '  5. crafteo   — Recetas de alquimia disponibles',
+      '  6. tips      — Trucos y mecánicas avanzadas',
+      '',
+      '  Ej: guide 2   |   guide combate',
+    ];
+    return { text: box('ÍNDICE DE LA GUÍA', indexLines) };
+  }
+
+  if (section === 'primeros') {
+    const lines = [
+      '🧭 PRIMEROS PASOS',
+      div,
+      'Al conectarte llegarás a la Antesala del Dungeon.',
+      'Si es tu primera vez, el tutorial te guiará.',
+      '',
+      'COMANDOS BÁSICOS:',
+      '  look / mirar      — Ver la habitación actual',
+      '  move norte        — Moverte (n/s/e/o también sirven)',
+      '  status / estado   — Ver HP, XP, nivel, oro',
+      '  inventory / inv   — Ver lo que llevás encima',
+      '  map / mapa        — Minimapa ASCII del dungeon',
+      '',
+      'SOBREVIVIR:',
+      '  pick <ítem>       — Recoger algo del suelo',
+      '  use <poción>      — Usar una poción de salud',
+      '  heal              — Atajo rápido para curar',
+      '  rest / descansar  — Recuperar HP si no hay monstruos',
+      '',
+      'COMUNICACIÓN:',
+      '  say hola          — Hablar con quienes están en tu sala',
+      '  shout hola!       — Gritar para todo el dungeon',
+      '  who               — Ver quién está conectado',
+    ];
+    return { text: box('PRIMEROS PASOS', lines) };
+  }
+
+  if (section === 'combate') {
+    const lines = [
+      '⚔️  SISTEMA DE COMBATE',
+      div,
+      'attack <monstruo>  — Iniciar combate por turnos',
+      'flee / huir        — Escapar (mueve a sala adyacente)',
+      '',
+      'MECÁNICAS ESPECIALES:',
+      '  🎯 Golpe crítico — 10% de chance (×2 daño)',
+      '  💨 Esquiva       — 8% de chance (evita daño)',
+      '  ☠  Veneno        — Araña/Vampiro pueden envenenarate',
+      '  🐾 Huida enemigo — Monstruo con <25% HP puede escapar',
+      '',
+      'HABILIDADES (al subir niveles):',
+      '  smash / golpetazo (Lv3) — ×1.8 daño, CD 45s',
+      '  shield_bash (Lv6)       — Stun + daño',
+      '  rally / arenga (Lv10)   — +2 ATK a todo el grupo',
+      '',
+      'POSTURAS (comando stance):',
+      '  agresivo  — +2 ATK, -1 DEF, 5% extra de fallo',
+      '  defensivo — -1 ATK, +2 DEF',
+      '  equilibrado — stats normales (por defecto)',
+      '',
+      'CLASES AFECTAN el combate — guide 4 para más info.',
+    ];
+    return { text: box('COMBATE', lines) };
+  }
+
+  if (section === 'economia') {
+    const lines = [
+      '💰 ECONOMÍA Y COMERCIO',
+      div,
+      'El oro se consigue matando monstruos, recogiendo',
+      'monedas del suelo, completando quests y duelos.',
+      '',
+      'TIENDA (sala 4 — Cámara del Tesoro):',
+      '  shop / tienda     — Ver lo que vende Aldric',
+      '  buy <ítem>        — Comprar (reputación = descuento)',
+      '  sell <ítem>       — Vender ítems (40% del precio)',
+      '',
+      'SUBASTAS (sala 17 — Casa de Subastas):',
+      '  subasta <ítem> <precio>  — Poner algo a remate',
+      '  pujar <monto>            — Hacer una oferta',
+      '  subastas                 — Ver subastas activas',
+      '',
+      'TRANSFERENCIAS:',
+      '  pay <jugador> <oro>  — Enviar oro directamente',
+      '  give <ítem> <jugador>— Regalar un ítem',
+      '',
+      'REPUTACIÓN da descuentos: Respetado -5%, Famoso -10%,',
+      'Legendario -15%. Ver fama para tu nivel actual.',
+    ];
+    return { text: box('ECONOMÍA', lines) };
+  }
+
+  if (section === 'clases') {
+    const lines = [
+      '🏛  CLASES DE PERSONAJE',
+      div,
+      'Elegí con: clase guerrero/mago/picaro',
+      'Podés cambiar antes de 5 kills. Después es permanente.',
+      '',
+      '⚔  GUERRERO',
+      '  HP: 35 | ATK: 6 | Maná: 10',
+      '  Ventaja: más HP y daño base. Ideal para principiantes.',
+      '  Consejo: usá stance agresivo para maximizar daño.',
+      '',
+      '🔮 MAGO',
+      '  HP: 22 | ATK: 4 | Maná: 35',
+      '  Hechizos ×1.5 de poder. Regen de maná 2× más rápido.',
+      '  Hechizos: cast bola-de-fuego / escudo / curación',
+      '  Consejo: conservá maná para hechizos de alto impacto.',
+      '',
+      '🗡  PÍCARO',
+      '  HP: 28 | ATK: 5 | Maná: 15',
+      '  Golpe crítico 25% (vs. 10% base). Esquiva 20% (vs. 8%).',
+      '  Consejo: ideal para grinding solo con alta supervivencia.',
+    ];
+    return { text: box('CLASES DE PERSONAJE', lines) };
+  }
+
+  if (section === 'crafteo') {
+    const lines = [
+      '⚗️  SISTEMA DE CRAFTEO / ALQUIMIA',
+      div,
+      'Uso: craft <ítem1> con <ítem2>',
+      '     craft <ítem1> + <ítem2>',
+      '     recetas  — Ver todas las recetas conocidas',
+      '',
+      'RECETAS PRINCIPALES:',
+      '  veneno + cuchillo       → cuchillo envenenado',
+      '  hierba curativa + poción→ poción de vida',
+      '  núcleo de forja +',
+      '    espada oxidada        → espada de obsidiana',
+      '  fragmento de hielo +',
+      '    cristal resonante     → lanza espectral',
+      '  pergamino + tinta mágica→ pergamino de furia',
+      '',
+      'NOTA: Los ítems originales se consumen.',
+      'NOTA: Craftear avanza el logro secreto "Artesano".',
+      '',
+      'TIP: Usá forage en salas sin monstruos para conseguir',
+      '     materiales de crafteo (hierbas, fragmentos, etc.)',
+    ];
+    return { text: box('CRAFTEO Y ALQUIMIA', lines) };
+  }
+
+  if (section === 'tips') {
+    const lines = [
+      '💡 TIPS Y MECÁNICAS AVANZADAS',
+      div,
+      'EXPLORACIÓN:',
+      '  path <sala>    — Ruta más corta con BFS automático',
+      '  peek <dir>     — Espiar sala sin entrar',
+      '  find <cosa>    — Dónde encontrar ítems o monstruos',
+      '  recall / volver— Teletransporte a sala 1 (CD 10min)',
+      '',
+      'COMBATE AVANZADO:',
+      '  study <monstruo>— Analizar debilidades y habilidades',
+      '  dungeon/overview — Estado general del dungeon',
+      '  search          — Registrar cadáveres (30% loot extra)',
+      '',
+      'SOCIAL:',
+      '  guild create/join — Crear o unirse a hermandad',
+      '  duel <jugador>    — Retar a duelo (apuestas de oro)',
+      '  party <jugador>   — Grupo para compartir XP',
+      '  inspect <jugador> — Ver estadísticas de otro jugador',
+      '',
+      'MISC:',
+      '  macro set atk attack goblin — Guardar shortcuts',
+      '  !atk — Ejecutar macro "atk" rápidamente',
+      '  challenge / desafío — Ver tu misión diaria personal',
+      '  news / crónica      — Últimos eventos del dungeon',
+    ];
+    return { text: box('TIPS AVANZADOS', lines) };
+  }
+
+  return { text: 'Sección no encontrada. Escribí "guide" para ver el índice.' };
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather };

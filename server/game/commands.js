@@ -217,6 +217,8 @@ const COMMAND_ALIASES = {
   history: 'history', historial: 'history', cmds: 'history', comandos: 'history',
   // find / buscar (T167)
   find: 'find', encontrar: 'find', localizar: 'find', donde: 'find', 'dónde': 'find',
+  // guide / guía (T170)
+  guide: 'guide', guia: 'guide', guía: 'guide', manual: 'guide', inicio: 'guide', empezar: 'guide',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -358,6 +360,7 @@ Comandos disponibles:
   greet <jugador>     — Saludar a otro jugador en la sala. Saludo mutuo en 30s = +1 rep para ambos.
   search [monstruo]  — Registrar el cadáver de un monstruo recién muerto (últimos 2 min). 30% chance de loot extra.
   find <ítem/monstruo> — Buscar dónde encontrar algo: salas donde aparece, qué monstruos lo dropean, si hay en el suelo.
+  guide [sección]     — Guía de inicio rápido: primeros/combate/economia/clases/crafteo/tips. Ej: guide 2
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
