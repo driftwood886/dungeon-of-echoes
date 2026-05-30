@@ -514,6 +514,30 @@ function getGlobalEvents(limit = 10) {
   );
 }
 
+/**
+ * Devuelve eventos globales ocurridos después de una fecha.
+ * @param {string} afterIso — ISO timestamp
+ * @param {number} limit
+ */
+function getGlobalEventsSince(afterIso, limit = 20) {
+  return all(
+    'SELECT * FROM global_events WHERE created_at > ? ORDER BY id DESC LIMIT ?',
+    [afterIso, limit]
+  );
+}
+
+/**
+ * Cuenta kills totales en el dungeon (desde global_events tipo 'level' o de events tabla).
+ * Aproximación: contar eventos de tipo 'boss' o 'achievement' desde una fecha.
+ */
+function countKillsSince(afterIso) {
+  const result = one(
+    `SELECT COUNT(*) as total FROM events WHERE action LIKE 'attack%' AND timestamp > ?`,
+    [afterIso]
+  );
+  return result ? result.total : 0;
+}
+
 // ─── Subastas (T098) ─────────────────────────────────────────────────────────
 
 /**
@@ -608,7 +632,7 @@ module.exports = {
   // guilds
   getGuild, getGuildMembers, createGuild, deleteGuild, setPlayerGuild, getAllGuilds,
   // global events (T093)
-  logGlobalEvent, getGlobalEvents,
+  logGlobalEvent, getGlobalEvents, getGlobalEventsSince, countKillsSince,
   // subastas (T098)
   createAuction, getActiveAuctions, getAuction, placeBid, closeExpiredAuctions,
   // acceso raw (por si acaso)

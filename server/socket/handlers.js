@@ -66,6 +66,52 @@ function registerHandlers(io) {
         welcomeText = tutModule.getStepMessage(1) + '\n\n' + lookResult.text;
       }
 
+      // T106: Mensaje "bienvenida de regreso" si estuvo ausente más de 1 hora
+      const lastSeen = player.last_seen ? new Date(player.last_seen).getTime() : 0;
+      const absenceMs = Date.now() - lastSeen;
+      const ONE_HOUR_MS = 60 * 60 * 1000;
+      if (lastSeen > 0 && absenceMs > ONE_HOUR_MS) {
+        const hoursAway = Math.floor(absenceMs / ONE_HOUR_MS);
+        const minutesAway = Math.floor((absenceMs % ONE_HOUR_MS) / 60000);
+        const absenceStr = hoursAway > 0
+          ? `${hoursAway}h ${minutesAway}m`
+          : `${minutesAway} minutos`;
+
+        // Consultar eventos desde la última vez
+        const lastSeenIso = new Date(lastSeen).toISOString().replace('T', ' ').split('.')[0];
+        const killsSince = db.countKillsSince(lastSeenIso);
+        const recentEvents = db.getGlobalEventsSince(lastSeenIso, 5);
+
+        // Buscar si el boss fue derrotado
+        const bossEvents = recentEvents.filter(e => e.type === 'boss');
+
+        const returnLines = [
+          `🏰 ¡Bienvenido de regreso, ${player.username}!`,
+          `   Estuviste ausente ${absenceStr}.`,
+        ];
+
+        if (killsSince > 0) {
+          returnLines.push(`   ⚔️  Durante tu ausencia hubo ${killsSince} enfrentamiento(s) en el dungeon.`);
+        }
+
+        if (bossEvents.length > 0) {
+          returnLines.push(`   💀 ¡EL BOSS FUE DERROTADO mientras estabas fuera!`);
+          returnLines.push(`      ${bossEvents[0].message}`);
+        }
+
+        if (recentEvents.length > 0) {
+          returnLines.push(`   📜 Noticias recientes (crónica):`);
+          recentEvents.slice(0, 3).forEach(ev => {
+            returnLines.push(`      · ${ev.message}`);
+          });
+        } else {
+          returnLines.push(`   📜 El dungeon estuvo tranquilo durante tu ausencia.`);
+        }
+
+        returnLines.push('');
+        welcomeText = returnLines.join('\n') + '\n' + welcomeText;
+      }
+
       // Entregar mensajes offline pendientes (tell)
       const pending = db.getPendingMessages(player.id);
       if (pending.length > 0) {
