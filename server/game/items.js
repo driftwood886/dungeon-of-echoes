@@ -103,6 +103,15 @@ const ITEM_CATALOG = {
   'red resistente':      { type: 'misc', description: 'Una red de araña y cuerda trenzadas. Casi imposible de romper.' },
   'collar de garras':    { type: 'misc', description: 'Un collar artesanal de dientes y seda de araña. Emana poder primitivo.' },
   'grimorio del abismo': { type: 'weapon', effect: 'attack_bonus', amount: 10, on_hit: { type: 'shadow_bolt', chance: 0.20, bonus_damage: 8 }, description: 'Un grimorio sellado con poder abismal. +10 de ataque mágico. 20% de chance de lanzar un rayo de sombra (+8 daño extra).' },
+
+  // ── Armaduras (T152) ─────────────────────────────────────────────────────
+  'cota de malla':       { type: 'armor', effect: 'defense_bonus', amount: 3,  description: 'Una cota de malla de hierro. Pesada pero fiable. +3 de defensa.' },
+  'cuero endurecido':    { type: 'armor', effect: 'defense_bonus', amount: 2,  description: 'Armadura de cuero tratado con resina. Flexible y ligera. +2 de defensa.' },
+  'túnica encantada':    { type: 'armor', effect: 'defense_bonus', amount: 4,  description: 'Una túnica de tela mágica que repele golpes. +4 de defensa. Ideal para magos.' },
+  'armadura de placas':  { type: 'armor', effect: 'defense_bonus', amount: 5,  description: 'Placas de acero que cubren el cuerpo. La protección más alta del dungeon. +5 de defensa.' },
+  'veste de sombra':     { type: 'armor', effect: 'defense_bonus', amount: 3,  description: 'Una veste tejida con esencia de sombra. Casi invisible en la oscuridad. +3 de defensa.' },
+  'capa de araña':       { type: 'armor', effect: 'defense_bonus', amount: 2,  description: 'Una capa tejida con hilo de seda de araña. Ligera y sorprendentemente resistente. +2 de defensa.' },
+  'peto de huesos':      { type: 'armor', effect: 'defense_bonus', amount: 4,  description: 'Un peto forjado con huesos del dungeon. Macabro pero efectivo. +4 de defensa.' },
 };
 
 // ─── Funciones públicas ───────────────────────────────────────────────────────
@@ -182,6 +191,13 @@ const ITEM_RARITY = {
   'corona rota':              'raro',
   'escudo de gladiador':      'raro',
   'grimorio élfico':          'raro',
+
+  // ── Armaduras (T152) ─────────────────────────────────────────────────────
+  'armadura de placas':   'épico',
+  'túnica encantada':     'épico',
+  'peto de huesos':       'raro',
+  'veste de sombra':      'raro',
+  'cota de malla':        'raro',
 };
 
 // Emojis de rareza para la UI

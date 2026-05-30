@@ -519,7 +519,41 @@ function migrateAuctionRoom() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot };
+
+/**
+ * T152: Agregar armaduras al loot de algunos monstruos.
+ * Idempotente: solo actualiza si el loot actual no contiene ya la armadura.
+ */
+function migrateArmorLoot() {
+  // Guardia Espectral (id 6) → alabarda de huesos + peto de huesos
+  const ghost = db.getMonster(6);
+  if (ghost && !ghost.loot.includes('peto de huesos')) {
+    db.upsertMonster({ ...ghost, loot: [...ghost.loot, 'peto de huesos'] });
+    console.log('[seed] migrateArmorLoot: peto de huesos agregado a Guardia Espectral (id 6).');
+  }
+
+  // Campeón Espectral (id 13) → armadura de placas
+  const champ = db.getMonster(13);
+  if (champ && !champ.loot.includes('armadura de placas')) {
+    db.upsertMonster({ ...champ, loot: [...champ.loot, 'armadura de placas'] });
+    console.log('[seed] migrateArmorLoot: armadura de placas agregada a Campeón Espectral (id 13).');
+  }
+
+  // Sombra del Vacío (id 22) → veste de sombra
+  const shadow = db.getMonster(22);
+  if (shadow && !shadow.loot.includes('veste de sombra')) {
+    db.upsertMonster({ ...shadow, loot: [...shadow.loot, 'veste de sombra'] });
+    console.log('[seed] migrateArmorLoot: veste de sombra agregada a Sombra del Vacío (id 22).');
+  }
+
+  // Araña Tejedora (id 7) → capa de araña
+  const spider = db.getMonster(7);
+  if (spider && !spider.loot.includes('capa de araña')) {
+    db.upsertMonster({ ...spider, loot: [...spider.loot, 'capa de araña'] });
+    console.log('[seed] migrateArmorLoot: capa de araña agregada a Araña Tejedora (id 7).');
+  }
+}
 
 /**
  * Sala de la Fuente de Rejuvenecimiento (T103): sala 18 conectada al norte de la sala 10 (Santuario Profano).

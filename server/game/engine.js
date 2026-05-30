@@ -147,6 +147,8 @@ function execute(playerId, input, context) {
     case 'examine':   result = cmdExamine(player, action.args.join(' ')); break;
     case 'equip':     result = cmdEquip(player, action.args.join(' ')); break;
     case 'unequip':   result = cmdUnequip(player); break;
+    case 'wear':      result = cmdWear(player, action.args.join(' ')); break;
+    case 'unwear':    result = cmdUnwear(player); break;
     case 'map':       result = cmdMap(player); break;
     case 'who':       result = cmdWho(); break;
     case 'score':     result = cmdScore(player, action.args); break;
@@ -264,6 +266,8 @@ function execute(playerId, input, context) {
           party: 'party', grupo: 'party', equipo: 'party',
           drink: 'drink', beber: 'drink', tomar: 'drink',
           study: 'study', estudiar: 'study', analizar: 'study', investigar: 'study',
+          wear: 'wear', ponerse: 'wear', vestir: 'wear',
+          unwear: 'unwear', quitarse: 'unwear', desvestir: 'unwear',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
@@ -571,6 +575,9 @@ function cmdStatus(player) {
     `Defensa:  ${player.defense}`,
     `Oro:      💰 ${gold}g`,
     weaponLine,
+    player.equipped_armor
+      ? `Armadura: 🛡 ${player.equipped_armor}`
+      : `Armadura: (sin armadura — defensa base)`,
     `Duelos:   ⚔️ ${duelWins} ganados / ${duelLosses} perdidos`,
     `Reputación: ${repLevel.icon} ${repLevel.name} (${repLevel.points} pts)${repNextText}`,
     `Ubicación: ${roomName}`,
@@ -1143,6 +1150,11 @@ function cmdDrop(player, itemQuery) {
     updates.equipped_weapon = null;
     updates.attack = 5;
   }
+  // T152: Si era la armadura equipada, desequipar (volver a defensa base)
+  if (player.equipped_armor && player.equipped_armor === found) {
+    updates.equipped_armor = null;
+    updates.defense = 2;
+  }
 
   db.updatePlayer(player.id, updates);
 
@@ -1152,7 +1164,9 @@ function cmdDrop(player, itemQuery) {
     db.updateRoomItems(room.id, [...room.items, found]);
   }
 
-  const extraMsg = updates.equipped_weapon === null ? ' Ya no tenés ningún arma equipada (ataque: 5).' : '';
+  let extraMsg = '';
+  if (updates.equipped_weapon === null) extraMsg += ' Ya no tenés ningún arma equipada (ataque: 5).';
+  if (updates.equipped_armor === null)  extraMsg += ' Ya no tenés armadura (defensa: 2).';
 
   return {
     text: `Dejás ${found} en el suelo.${extraMsg}`,
@@ -1612,6 +1626,62 @@ function cmdUnequip(player) {
 }
 
 /**
+ * wear <armadura> — Equipar una armadura del inventario (T152).
+ */
+function cmdWear(player, itemQuery) {
+  if (!itemQuery || !itemQuery.trim()) {
+    return { text: 'Indicá qué armadura querés ponerte. Ej: "wear cota de malla".' };
+  }
+
+  player = db.getPlayer(player.id);
+
+  const found = items.findItem(player.inventory, itemQuery.trim());
+  if (!found) {
+    return { text: `No tenés ninguna "${itemQuery}" en el inventario.` };
+  }
+
+  const def = items.getItemDef(found);
+  if (!def || def.type !== 'armor') {
+    return { text: `${found} no es una armadura que puedas ponerte. Para armas usá "equip".` };
+  }
+
+  const oldDefense = player.defense || 2;
+  const newDefense = 2 + def.amount; // base 2 + bonus de la armadura
+  const oldArmor = player.equipped_armor;
+  db.updatePlayer(player.id, { defense: newDefense, equipped_armor: found });
+
+  const change = newDefense - oldDefense;
+  const changeStr = change >= 0 ? `+${change}` : `${change}`;
+  const swapMsg = oldArmor ? ` (reemplaza ${oldArmor})` : '';
+
+  return {
+    text: `Te ponés ${found}${swapMsg}. Defensa: ${oldDefense} → ${newDefense} (${changeStr}).\n${def.description}`,
+    event: `${player.username} se pone ${found}.`,
+    eventRoomId: player.current_room_id,
+  };
+}
+
+/**
+ * unwear — Quitarse la armadura actual y volver a defensa base (T152).
+ */
+function cmdUnwear(player) {
+  player = db.getPlayer(player.id);
+
+  if (!player.equipped_armor) {
+    return { text: 'No tenés ninguna armadura puesta.' };
+  }
+
+  const armorName = player.equipped_armor;
+  db.updatePlayer(player.id, { defense: 2, equipped_armor: null });
+
+  return {
+    text: `Te quitás ${armorName}. Volvés a la defensa base (defensa: 2).`,
+    event: `${player.username} se quita ${armorName}.`,
+    eventRoomId: player.current_room_id,
+  };
+}
+
+/**
  * give <ítem> <jugador> — Pasar un ítem a otro jugador en la misma sala.
  *
  * Sintaxis: give espada larga Ana
@@ -1683,11 +1753,18 @@ function cmdGive(player, args) {
     giverUpdates.equipped_weapon = null;
     giverUpdates.attack = 5;
   }
+  // T152: Si era la armadura equipada, desequipar
+  if (player.equipped_armor && player.equipped_armor === found) {
+    giverUpdates.equipped_armor = null;
+    giverUpdates.defense = 2;
+  }
 
   db.updatePlayer(player.id,  giverUpdates);
   db.updatePlayer(target.id,  { inventory: newTargetInv });
 
-  const extraMsg = giverUpdates.equipped_weapon === null ? ' (perdiste tu arma equipada, ataque vuelve a 5)' : '';
+  let extraMsg = '';
+  if (giverUpdates.equipped_weapon === null) extraMsg += ' (perdiste tu arma equipada, ataque vuelve a 5)';
+  if (giverUpdates.equipped_armor === null)  extraMsg += ' (perdiste tu armadura, defensa vuelve a 2)';
 
   return {
     text: `Le das ${found} a ${target.username}.${extraMsg}`,
@@ -2622,6 +2699,10 @@ const SHOP_CATALOG = [
   { name: 'antorcha',                price: 5,  description: 'Ilumina pasillos oscuros. Dura varias horas.' },
   { name: 'cuerda',                  price: 10, description: 'Desactiva trampas de pinchos. 15m de largo.' },
   { name: 'llave oxidada',           price: 50, description: 'Abre cierta puerta al norte del Pozo. El mercader no explica más.' },
+  // T152: Armaduras
+  { name: 'cuero endurecido',        price: 30, description: 'Armadura ligera. +2 defensa.' },
+  { name: 'cota de malla',           price: 60, description: 'Armadura de hierro. +3 defensa.' },
+  { name: 'túnica encantada',        price: 80, description: 'Armadura mágica. +4 defensa. Ideal para magos.' },
 ];
 
 // Precios de venta al mercader (jugador → mercader) — 40% del valor
@@ -4503,6 +4584,7 @@ function cmdProfile(player) {
     `║${line('Hermandad', fresh.guild ? `[${fresh.guild}]` : '(independiente)')}║`,
     `║${line('Mascota  ', fresh.pet || '(sin compañero)')}║`,
     `║${line('Arma     ', fresh.equipped_weapon || '(desarmado)')}║`,
+    `║${line('Armadura ', fresh.equipped_armor || '(sin armadura)')}║`,
     `╟${'─'.repeat(W)}╢`,
     `║${line('Logros   ', `${achCount} desbloqueados`)}║`,
     `║  ${achIcons.slice(0, W - 2)}║`,

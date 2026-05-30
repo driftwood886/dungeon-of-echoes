@@ -196,6 +196,12 @@ function updateSidebar(data) {
     el.statKills.textContent = player.kills ?? '--';
     el.statWeapon.textContent = player.equipped_weapon || 'puños';
 
+    // T152: Mostrar armadura en sidebar
+    const armorEl = document.getElementById('stat-armor');
+    if (armorEl) {
+      armorEl.textContent = player.equipped_armor ? `🛡 ${player.equipped_armor}` : '(sin armadura)';
+    }
+
     // Mostrar oro en sidebar
     const goldEl = document.getElementById('stat-gold');
     if (goldEl) goldEl.textContent = `💰 ${player.gold || 0}g`;

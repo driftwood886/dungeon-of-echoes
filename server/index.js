@@ -10,7 +10,7 @@ const http    = require('http');
 const path    = require('path');
 
 const db                     = require('./db/db');
-const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom } = require('./db/seed');
+const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot } = require('./db/seed');
 const { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions } = require('./game/engine');
 const { checkRespawns }      = require('./game/combat');
 const quests                 = require('./game/quests');
@@ -28,6 +28,7 @@ async function main() {
   migrateFountainRoom();
   migrateEchoRooms();
   migrateTrainingRoom();
+  migrateArmorLoot(); // T152
 
   // 2. Crear app Express
   const app = express();
@@ -113,6 +114,7 @@ async function main() {
         xp: player.xp || 0,
         kills: player.kills || 0,
         equipped_weapon: player.equipped_weapon || null,
+        equipped_armor: player.equipped_armor || null,
         pending_messages: db.countPendingMessages(player.id),
         status_effects: player.status_effects || {},
         gold: player.gold || 0,
@@ -366,6 +368,7 @@ async function main() {
           xp: player.xp || 0,
           kills: player.kills || 0,
           equipped_weapon: player.equipped_weapon || null,
+          equipped_armor: player.equipped_armor || null,
         },
         other_players: others,
         recent_events: events,

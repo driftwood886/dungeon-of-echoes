@@ -47,6 +47,10 @@ const COMMAND_ALIASES = {
   equip: 'equip', equipar: 'equip', empuñar: 'equip', portar: 'equip',
   // unequip
   unequip: 'unequip', desequipar: 'unequip', guardar: 'unequip', enfundar: 'unequip',
+  // wear (T152: equipar armadura)
+  wear: 'wear', ponerse: 'wear', vestir: 'wear', armarse: 'wear', poner: 'wear',
+  // unwear (T152: quitarse armadura)
+  unwear: 'unwear', quitarse: 'unwear', desvestir: 'unwear', quitar: 'unwear',
   // map
   map: 'map', mapa: 'map',
   // who
@@ -264,13 +268,15 @@ Comandos disponibles:
   drop <ítem>           — Tirar un ítem al suelo
   use <ítem>            — Usar un ítem (poción → consume, arma → equipar)
   equip <arma>          — Equipar un arma del inventario explícitamente
+  unequip / desequipar  — Guardar el arma y volver a puños (ataque 5)
+  wear <armadura>       — Ponerse una armadura del inventario (+defensa)
+  unwear / quitarse     — Quitarse la armadura (volver a defensa base)
   map / mapa            — Ver el mapa ASCII del dungeon
   who / jugadores       — Ver los aventureros activos en el dungeon
   score / ranking       — Ver la tabla de líderes global
   give <ítem> <jugador> — Dar un ítem a otro jugador en la misma sala
   loot / saquear        — Recoger todos los ítems del suelo de la sala
   heal / curar          — Usar la primera poción del inventario (atajo rápido)
-  unequip / desequipar  — Guardar el arma y volver a puños (ataque 5)
   examine <objetivo>    — Examinar un monstruo, ítem o la sala
   say <mensaje>         — Hablar con jugadores en la misma habitación
   shout <mensaje>       — Gritar a todo el dungeon
@@ -345,8 +351,10 @@ const COMMAND_HELP = {
   loot:      'loot / saquear\n  Recoger TODOS los ítems del suelo de la sala de un solo golpe.',
   drop:      'drop <ítem> / tirar <ítem>\n  Tirar un ítem de tu inventario al suelo de la sala actual.',
   use:       'use <ítem> / usar <ítem>\n  Usar un ítem del inventario. Pociones: consumen y restauran HP. Armas: se equipan.',
-  equip:     'equip <arma> / equipar <arma>\n  Equipar un arma del inventario explícitamente. Aumenta tu stat de ataque.',
-  unequip:   'unequip / desequipar / enfundar\n  Guardar el arma equipada y volver a pelear con los puños (ataque base: 5).',
+  equip:     'equip <arma> / equipar <arma>\\n  Equipar un arma del inventario explícitamente. Aumenta tu stat de ataque.',
+  unequip:   'unequip / desequipar / enfundar\\n  Guardar el arma equipada y volver a pelear con los puños (ataque base: 5).',
+  wear:      'wear <armadura> / ponerse <armadura> / vestir <armadura>\\n  Equipar una armadura del inventario. Aumenta tu stat de defensa (base 2).\\n  Las armaduras se obtienen del loot de monstruos, en la tienda del mercader (sala 4), o como recompensa de quests.\\n  Ejemplos: cuero endurecido (+2 DEF), cota de malla (+3 DEF), armadura de placas (+5 DEF).',
+  unwear:    'unwear / quitarse / desvestir\\n  Quitarse la armadura equipada y volver a la defensa base (2).',
   examine:   'examine <objetivo> / examinar <objetivo> / x <objetivo>\n  Examinar un monstruo, ítem (del inventario o del suelo) o la sala.\n  Sin argumento: vista detallada de la habitación actual.',
   give:      'give <ítem> <jugador> / dar <ítem> <jugador>\n  Pasar un ítem de tu inventario a otro jugador que esté en la misma sala.',
   map:       'map / mapa\n  Ver el mapa ASCII del dungeon con tu posición marcada con ★.',
