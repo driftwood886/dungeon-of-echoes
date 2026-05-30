@@ -251,6 +251,8 @@ const COMMAND_ALIASES = {
   bulletin: 'bulletin', tablón: 'bulletin', tablon: 'bulletin', anuncios: 'bulletin', boletin: 'bulletin', boletín: 'bulletin',
   // enchant / encantamiento de armas con runas (T190)
   enchant: 'enchant', encantar: 'enchant', encantamiento: 'enchant', rune_enchant: 'enchant',
+  // trivia / acertijo del dungeon (T193)
+  trivia: 'trivia', acertijo: 'trivia', riddle: 'trivia', enigma: 'trivia', adivinanza: 'trivia',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)

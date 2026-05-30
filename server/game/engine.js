@@ -78,6 +78,20 @@ const STREAK_HITO_BONUS = 10; // XP extra al alcanzar cada hito de racha
 // XP bonus de +2 por sala descubierta por primera vez en la sesión
 const sessionExploredRooms = new Map();
 
+// ── Sistema de combos (T192) ───────────────────────────────────────────────────
+// comboMap: playerId → { monsterId, count }
+// Atacar al mismo monstruo consecutivamente incrementa el combo (máx 5).
+// Cada nivel de combo da +1 daño al siguiente ataque.
+// Se resetea al cambiar de objetivo, al morir, o al morir el monstruo.
+const comboMap = new Map();
+const COMBO_MAX = 5;
+const COMBO_MSGS = {
+  2: '⚡ ¡COMBO x2!',
+  3: '🔥 ¡COMBO x3!',
+  4: '💥 ¡COMBO x4! ¡Estás en llamas!',
+  5: '🌟 ¡COMBO MÁXIMO x5! ¡Golpe devastador!',
+};
+
 // ── Fuente de Rejuvenecimiento (T103) ─────────────────────────────────────────
 // Sala 18 — Cámara de la Fuente Eterna.
 // Cooldown global: 10 minutos por sala (no por jugador).
@@ -238,6 +252,7 @@ function execute(playerId, input, context) {
     case 'calendar':     result = cmdCalendar(player); break;
     case 'bulletin':     result = cmdBulletin(player, action.args, context); break;
     case 'enchant':      result = cmdEnchant(player, action.args); break;
+    case 'trivia':       result = cmdTrivia(player, action.args); break;
     case 'drink':        result = cmdDrink(player); break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
@@ -857,8 +872,37 @@ function cmdAttack(player, targetName) {
     return _cmdTrainingFight(player, monster);
   }
 
+  // ── T192: Sistema de combos ────────────────────────────────────────────────
+  // Calcular nivel de combo ANTES del ataque, para aplicar bonus al daño
+  const prevCombo = comboMap.get(player.id);
+  let comboCount = 0;
+  if (prevCombo && prevCombo.monsterId === monster.id) {
+    comboCount = Math.min(COMBO_MAX, prevCombo.count + 1);
+  } else {
+    comboCount = 1;
+  }
+  // Aplicar bonus de combo como modificador temporal al ataque del jugador
+  const comboBonusDmg = Math.max(0, comboCount - 1); // 0 en x1, +1 en x2, +2 en x3...
+  if (comboBonusDmg > 0) {
+    player = { ...player, attack: (player.attack || 5) + comboBonusDmg };
+  }
+
   const combatResult = combat.attackRound(player, monster);
   const { lines, monsterDead, playerDead, globalEvent } = combatResult;
+
+  // ── T192: Actualizar comboMap post-ronda ────────────────────────────────────
+  if (playerDead) {
+    comboMap.delete(player.id); // reset al morir
+  } else if (monsterDead) {
+    comboMap.delete(player.id); // reset al matar
+  } else {
+    comboMap.set(player.id, { monsterId: monster.id, count: comboCount });
+  }
+  // Agregar mensaje de combo si aplica
+  let comboMsg = '';
+  if (!playerDead && comboCount >= 2) {
+    comboMsg = '\n' + (COMBO_MSGS[comboCount] || `⚡ ¡COMBO x${comboCount}!`) + ` (+${comboBonusDmg} dmg)`;
+  }
 
   let eventText = null;
   if (monsterDead) {
@@ -1094,7 +1138,7 @@ function cmdAttack(player, targetName) {
   }
 
   return {
-    text: lines.join('\n') + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg,
+    text: lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg,
     event: eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || null,
@@ -8426,5 +8470,178 @@ function cmdEnchant(player, args) {
   return { text: msg };
 }
 
-// Sobreescribir module.exports para incluir T190
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant };
+// ─────────────────────────────────────────────────────────────────────────────
+// T193: Sistema de acertijos del dungeon
+// Comando: trivia / acertijo / riddle / enigma
+// El jugador obtiene un acertijo aleatorio temático.
+// Responde con: trivia <respuesta> (o acertijo <respuesta>)
+// Si acierta: +10 XP y +5g. Cooldown 5 minutos entre acertijos.
+// Si falla: mensaje de error. 60s para responder antes de que expire.
+// ─────────────────────────────────────────────────────────────────────────────
+const TRIVIA_QUESTIONS = [
+  { q: 'Tiene dientes pero no muerde; tiene hojas pero no es árbol. ¿Qué soy?', a: ['libro', 'libros'], hint: 'guarda palabras' },
+  { q: 'Soy más fuerte que el hierro pero el agua me vence. ¿Qué soy?', a: ['fuego', 'el fuego'], hint: 'calienta y destruye' },
+  { q: 'Cuanto más me secas, más mojado te quedas. ¿Qué soy?', a: ['toalla', 'una toalla'], hint: 'se usa tras el baño' },
+  { q: 'Tengo ciudades sin casas, montañas sin árboles, agua sin peces. ¿Qué soy?', a: ['mapa', 'un mapa'], hint: 'guía al viajero' },
+  { q: 'Caminan de noche y de día pero nunca se van a ningún lado. ¿Qué son?', a: ['pies', 'los pies', 'zapatos'], hint: 'los tenés en las extremidades' },
+  { q: 'Soy invisible pero puedo tumbarte un árbol. ¿Qué soy?', a: ['viento', 'el viento', 'aire'], hint: 'mueve las hojas' },
+  { q: 'Entre más tomo, más dejo atrás. ¿Qué soy?', a: ['camino', 'un camino', 'pasos'], hint: 'se crea al avanzar' },
+  { q: 'Tiene boca pero no habla, tiene orillas pero no hay playa. ¿Qué soy?', a: ['río', 'un río'], hint: 'fluye hacia el mar' },
+  { q: 'Soy lo que tienes cuando naces y pierdes al crecer. ¿Qué soy?', a: ['inocencia', 'la inocencia', 'dientes de leche', 'juventud'], hint: 'nadie la puede comprar' },
+  { q: 'Vuelo sin alas, lloro sin ojos. Oscurezco el cielo y el sol. ¿Qué soy?', a: ['nube', 'una nube', 'nubes'], hint: 'trae lluvia al dungeon' },
+  { q: 'En el dungeon, cuantos más monstruos matas, más crece esto. ¿Qué es?', a: ['experiencia', 'xp', 'nivel', 'el nivel'], hint: 'aparece en status' },
+  { q: 'El mercader la vende pero no la usa; el aventurero la compra pero no la muestra. ¿Qué es?', a: ['tumba', 'una tumba', 'lápida', 'sepultura', 'muerte'], hint: 'nadie quiere necesitarla' },
+  { q: 'Soy eterno mientras se habla de mí. Muero en el silencio. ¿Qué soy?', a: ['memoria', 'la memoria', 'recuerdo', 'historia', 'leyenda'], hint: 'los bardos me preservan' },
+  { q: 'Tiene llama pero no quema, tiene luz pero no calienta. ¿Qué soy?', a: ['luna', 'la luna'], hint: 'brilla de noche sobre el dungeon' },
+  { q: 'Cuanto más grande, menos peso. ¿Qué soy?', a: ['agujero', 'un agujero', 'vacío', 'el vacío'], hint: 'las paredes del dungeon lo tienen' },
+  { q: 'Soy veloz pero no corro; soy fuerte pero no golpeo; vengo antes del trueno. ¿Qué soy?', a: ['relámpago', 'rayo', 'el rayo', 'el relámpago', 'luz'], hint: 'ilumina el cielo en tormenta' },
+  { q: 'No tengo cuerpo pero dejo huella; no tengo voz pero cuento historias. ¿Qué soy?', a: ['escritura', 'las letras', 'texto', 'palabra', 'palabras', 'libro'], hint: 'el README del dungeon' },
+  { q: 'Muero si me mojan pero el agua es mi hogar. ¿Qué soy?', a: ['fuego', 'el fuego', 'llama'], hint: 'los dragones lo escupen' },
+  { q: 'Me tienen todos los ricos, los pobres la necesitan para vivir, y si la comes morís. ¿Qué es?', a: ['nada', 'la nada', 'el vacío'], hint: 'está en el Abismo Eterno' },
+  { q: 'Tiene cabeza y cola pero no tiene cuerpo. ¿Qué soy?', a: ['moneda', 'una moneda', 'monedas'], hint: 'el mercader las ama' },
+];
+
+// triviaMap: playerId → { questionIdx, expiresAt }
+const triviaMap = new Map();
+const TRIVIA_COOLDOWNS = new Map(); // playerId → timestamp del último éxito
+const TRIVIA_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos
+const TRIVIA_TIMEOUT_MS = 60 * 1000; // 60 segundos para responder
+
+/**
+ * T193: Comando trivia / acertijo
+ * Sin args: propone un acertijo nuevo (si no hay uno activo).
+ * Con args: intenta responder el acertijo activo.
+ */
+function cmdTrivia(player, args) {
+  const now = Date.now();
+
+  // Verificar cooldown de éxito
+  const lastSuccess = TRIVIA_COOLDOWNS.get(player.id) || 0;
+  const cooldownLeft = Math.ceil((TRIVIA_COOLDOWN_MS - (now - lastSuccess)) / 1000);
+
+  // ¿Hay un acertijo activo?
+  const active = triviaMap.get(player.id);
+
+  // Sin args: proponer nuevo acertijo o mostrar el activo
+  if (!args || args.length === 0) {
+    // Si hay uno activo y no expiró, mostrarlo de nuevo
+    if (active && active.expiresAt > now) {
+      const q = TRIVIA_QUESTIONS[active.questionIdx];
+      const secsLeft = Math.ceil((active.expiresAt - now) / 1000);
+      const W = 52;
+      const lines = [
+        '┌' + '─'.repeat(W - 2) + '┐',
+        `│${'  🧩 ACERTIJO ACTIVO'.padEnd(W - 2)}│`,
+        '├' + '─'.repeat(W - 2) + '┤',
+        `│ ${('Tiempo restante: ' + secsLeft + 's').padEnd(W - 3)}│`,
+        '├' + '─'.repeat(W - 2) + '┤',
+      ];
+      // Wrap del enunciado
+      const words = q.q.split(' ');
+      let line = '';
+      for (const w of words) {
+        if ((line + w).length > W - 4) {
+          lines.push(`│ ${line.trimEnd().padEnd(W - 3)}│`);
+          line = '';
+        }
+        line += w + ' ';
+      }
+      if (line.trim()) lines.push(`│ ${line.trimEnd().padEnd(W - 3)}│`);
+      lines.push('├' + '─'.repeat(W - 2) + '┤');
+      lines.push(`│ ${'Respondé con: acertijo <tu respuesta>'.padEnd(W - 3)}│`);
+      lines.push('└' + '─'.repeat(W - 2) + '┘');
+      return { text: lines.join('\n') };
+    }
+
+    // Cooldown post-éxito
+    if (lastSuccess > 0 && cooldownLeft > 0) {
+      return { text: `🧩 Descansá un poco, aventurero. Podés pedir otro acertijo en ${cooldownLeft}s.` };
+    }
+
+    // Proponer nuevo acertijo (evitar repetir el mismo)
+    let idx;
+    do {
+      idx = Math.floor(Math.random() * TRIVIA_QUESTIONS.length);
+    } while (active && active.questionIdx === idx && TRIVIA_QUESTIONS.length > 1);
+
+    triviaMap.set(player.id, { questionIdx: idx, expiresAt: now + TRIVIA_TIMEOUT_MS });
+
+    const q = TRIVIA_QUESTIONS[idx];
+    const W = 52;
+    const lines = [
+      '┌' + '─'.repeat(W - 2) + '┐',
+      `│${'  🧩 ACERTIJO DEL DUNGEON'.padEnd(W - 2)}│`,
+      '├' + '─'.repeat(W - 2) + '┤',
+      `│ ${'Premio: +10 XP · +5 🪙 de oro'.padEnd(W - 3)}│`,
+      `│ ${'Tiempo: 60 segundos'.padEnd(W - 3)}│`,
+      '├' + '─'.repeat(W - 2) + '┤',
+    ];
+    const words = q.q.split(' ');
+    let line = '';
+    for (const w of words) {
+      if ((line + w).length > W - 4) {
+        lines.push(`│ ${line.trimEnd().padEnd(W - 3)}│`);
+        line = '';
+      }
+      line += w + ' ';
+    }
+    if (line.trim()) lines.push(`│ ${line.trimEnd().padEnd(W - 3)}│`);
+    lines.push('├' + '─'.repeat(W - 2) + '┤');
+    lines.push(`│ ${'Respondé: acertijo <respuesta>'.padEnd(W - 3)}│`);
+    lines.push('└' + '─'.repeat(W - 2) + '┘');
+    return { text: lines.join('\n') };
+  }
+
+  // Con args: intentar responder
+  if (!active || active.expiresAt <= now) {
+    // Expiró o no hay activo
+    if (active && active.expiresAt <= now) {
+      triviaMap.delete(player.id);
+      const oldQ = TRIVIA_QUESTIONS[active.questionIdx];
+      return { text: `⏰ ¡Tiempo agotado! La respuesta era: "${oldQ.a[0]}".\nEscribí "acertijo" para intentar uno nuevo.` };
+    }
+    return { text: `🧩 No tenés ningún acertijo activo. Escribí "acertijo" para recibir uno.` };
+  }
+
+  // Verificar respuesta
+  const q = TRIVIA_QUESTIONS[active.questionIdx];
+  const answer = args.join(' ').toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // normalizar tildes
+
+  const correctAnswers = q.a.map(ans =>
+    ans.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  );
+
+  if (correctAnswers.includes(answer)) {
+    // ¡Correcto!
+    triviaMap.delete(player.id);
+    TRIVIA_COOLDOWNS.set(player.id, now);
+    const freshP = db.getPlayer(player.id);
+    const newXp = (freshP.xp || 0) + 10;
+    const newGold = (freshP.gold || 0) + 5;
+    const newLevel = Math.floor(newXp / 50) + 1;
+    const levelUp = newLevel > (freshP.level || 1);
+    const updates = { xp: newXp, gold: newGold };
+    if (levelUp) {
+      updates.level = newLevel;
+      updates.max_hp = (freshP.max_hp || 30) + 5;
+      updates.hp = Math.min(freshP.hp, updates.max_hp);
+      updates.attack = (freshP.attack || 5) + 1;
+    }
+    db.updatePlayer(player.id, updates);
+    // Registrar en diario
+    db.addJournalEntry(player.id, 'trivia', `🧩 Acertijo resuelto: +10 XP · +5g.`);
+    let msg = `✅ ¡CORRECTO, ${player.username}! La respuesta era "${q.a[0]}".\n`;
+    msg += `   +10 XP · +5 🪙 de oro ganados.\n`;
+    msg += `   Próximo acertijo disponible en 5 minutos.`;
+    if (levelUp) msg += `\n✨ ¡SUBISTE AL NIVEL ${newLevel}!`;
+    return { text: msg };
+  } else {
+    // Incorrecto
+    const secsLeft = Math.ceil((active.expiresAt - now) / 1000);
+    return { text: `❌ Eso no es correcto. Pista: ${q.hint}.\n   Te quedan ${secsLeft}s para responder. ¡Intentalo de nuevo!` };
+  }
+}
+
+// Sobreescribir module.exports para incluir T190+T192+T193
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap };

@@ -364,6 +364,9 @@ function registerHandlers(io) {
       engine.killStreakMap.delete(currentPlayerId);
       engine.sessionExploredRooms.delete(currentPlayerId);
 
+      // T192: Limpiar combo al desconectar
+      if (engine.comboMap) engine.comboMap.delete(currentPlayerId);
+
       // T164: Limpiar historial de comandos de sesión
       engine.sessionCommandHistory.delete(currentPlayerId);
 
