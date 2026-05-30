@@ -170,6 +170,8 @@ const COMMAND_ALIASES = {
   trade: 'trade', intercambiar: 'trade', intercambio: 'trade', trueque: 'trade', cambiar: 'trade',
   // lore / enciclopedia de ítems (T137)
   lore: 'lore', enciclopedia: 'lore', info: 'lore', descripcion: 'lore', descripción: 'lore',
+  // peek / espiar (T139)
+  peek: 'peek', espiar: 'peek', asomarse: 'peek', mirar_dir: 'peek', atisbar: 'peek',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -289,6 +291,7 @@ Comandos disponibles:
   reputation / fama     — Ver tu reputación detallada con barra de progreso (gana pts por kills, quests y logros)
   recall / volver       — Teletransportarse a la entrada del dungeon (sala 1). Costo: 5 HP. Cooldown: 10 min.
   trade <jug> <ítem>   — Proponer intercambio seguro de ítems (el otro acepta/rechaza con trade accept/decline).
+  peek <dir> / espiar  — Espiar en una dirección sin moverse: ver nombre de sala, monstruos e ítems del suelo.
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -343,6 +346,7 @@ const COMMAND_HELP = {
     recall:    'recall / volver / retornar\\\\n  Teletransportarse a la entrada del dungeon (sala 1).\\\\n  Costo: 5 HP. Cooldown: 10 minutos.\\\\n  Útil para escapar de zonas peligrosas o volver rápido al mercader.',
     trade:     'trade <jugador> <ítem> / intercambiar <jugador> <ítem>\\\\n  Proponer un intercambio seguro de ítems con otro jugador en la misma sala.\\\\n  El jugador destino puede responder con:\\\\n    trade accept — aceptar el trueque (se intercambian los ítems)\\\\n    trade cancel/decline — rechazar la propuesta\\\\n  La propuesta expira en 30 segundos.\\\\n  Diferencia con give: trade requiere que ambos estén de acuerdo.',
   lore:      'lore <item> / enciclopedia <item>',
+  peek:      'peek <dirección> / espiar <dirección> / asomarse <dirección>\\n  Espiar en una dirección sin moverse.\\n  Muestra el nombre de la sala adyacente, si hay monstruos (sin detalles de HP) y si hay ítems en el suelo.\\n  No funciona si la salida está bloqueada con llave.\\n  Útil para scouting antes de entrar a una sala peligrosa.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };

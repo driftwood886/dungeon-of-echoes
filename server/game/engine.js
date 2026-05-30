@@ -190,6 +190,7 @@ function execute(playerId, input, context) {
     case 'recall':       result = cmdRecall(player); break;
     case 'trade':        result = cmdTrade(player, action.args); break;
     case 'lore':         result = cmdLore(action.args.join(' ')); break;
+    case 'peek':         result = cmdPeek(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -4934,6 +4935,87 @@ function cmdReputation(player) {
     '║    🏅 Logro desbloqueado: +3 pts     ║',
     '╚' + '═'.repeat(40) + '╝',
   ];
+
+  return { text: lines.join('\n') };
+}
+
+/**
+ * T139: peek <dirección> / espiar <dirección>
+ * Mirar en una dirección sin moverse.
+ * Muestra: nombre de la sala, si hay monstruos (sin detalles de HP), si hay ítems.
+ * No funciona si la salida está bloqueada con llave.
+ */
+function cmdPeek(player, args) {
+  if (!args || args.length === 0) {
+    return {
+      text: [
+        'Espiar en una dirección sin moverte.',
+        'Uso: peek <dirección>  /  espiar <dirección>',
+        'Ej: peek norte  |  espiar este',
+      ].join('\n'),
+    };
+  }
+
+  const roomFull = dungeon.getRoomFull(player.current_room_id);
+  if (!roomFull) return { text: 'No podés leer el entorno.' };
+  const { room } = roomFull;
+
+  const dirArg = args[0];
+  const exit = dungeon.resolveExit(room, dirArg);
+
+  if (!exit) {
+    const dirName = dirArg;
+    return { text: `No hay salida hacia el ${dirName}.` };
+  }
+
+  // Si la salida requiere llave → no se puede espiar (está bloqueada)
+  if (exit.key) {
+    return { text: `La salida está bloqueada con 🔒. No podés ver nada a través de ella.` };
+  }
+
+  // Cargar la sala destino
+  const targetFull = dungeon.getRoomFull(exit.targetId);
+  if (!targetFull) return { text: 'No podés ver nada en esa dirección.' };
+
+  const { room: target, monsters } = targetFull;
+
+  // Construir el reporte de lo que se ve
+  const DIR_NAMES_ES = { north: 'norte', south: 'sur', east: 'este', west: 'oeste', up: 'arriba', down: 'abajo' };
+  const normalized = dungeon.normalizeDirection(dirArg) || dirArg;
+  const dirLabel = DIR_NAMES_ES[normalized] || dirArg;
+
+  const lines = [
+    `👁️  Espiás hacia el ${dirLabel}...`,
+    ``,
+    `📍 ${target.name}`,
+  ];
+
+  // Monstruos (solo nombres, sin HP)
+  const aliveMonsters = monsters.filter(m => m.room_id !== null);
+  if (aliveMonsters.length > 0) {
+    const names = aliveMonsters.map(m => `⚔️ ${m.name}`).join(', ');
+    lines.push(`🐉 Criaturas: ${names}`);
+  } else {
+    lines.push(`🕊️ Sin criaturas a la vista.`);
+  }
+
+  // Ítems en el suelo
+  const floorItems = target.items || [];
+  if (floorItems.length > 0) {
+    const itemList = floorItems.slice(0, 5).map(i => {
+      const emoji = items.getRarityEmoji(i);
+      return `${emoji} ${i}`;
+    }).join(', ');
+    const extra = floorItems.length > 5 ? ` (+${floorItems.length - 5} más)` : '';
+    lines.push(`🎒 Suelo: ${itemList}${extra}`);
+  } else {
+    lines.push(`🌑 Sin ítems en el suelo.`);
+  }
+
+  // Trampa activa
+  if (target.trap && target.trap.active) {
+    lines.push(`⚠️  ¡Trampa activa detectada!`);
+  }
 
   return { text: lines.join('\n') };
 }
