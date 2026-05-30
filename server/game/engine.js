@@ -593,6 +593,19 @@ function cmdMove(player, direction) {
     }
   }
 
+  // T207: Eventos cinemáticos de primera visita para salas especiales
+  const CINEMATIC_EVENTS = {
+    15: '⛪ A medida que cruzás el umbral de la Catedral de la Oscuridad, el eco de tus pasos revela la inmensidad del lugar. Las vidrieras rotas dejan entrar rayos de luz violácea. Sentís el peso de siglos de oscuridad posarse sobre tus hombros.',
+    22: '🪦 La Cripta de los Valientes te recibe en silencio. Las placas en las paredes murmuran nombres olvidados. Una voz que no existe te susurra: "¿Serás digno de ser recordado aquí, o morirás en el anonimato?"',
+    14: '⚒️ El calor del Taller de la Forja te golpea al entrar. Las yunques abandonadas todavía tienen forma de espadas a medio crear. El fuego del hogar nunca se apagó — lleva ardiendo siglos, alimentado por algo que no es madera.',
+    11: '❄️ La Galería de Hielo detiene tu respiración. Las paredes de cristal azul reflejan tu imagen distorsionada en docenas de ángulos. En uno de los reflejos, tu imagen te devuelve la mirada... medio segundo antes que vos.',
+    20: '🕳️ Al asomarte al Abismo Eterno, el vacío te mira de vuelta. No hay fondo visible. Solo oscuridad infinita, y el certero presentimiento de que algo muy antiguo — y muy hambriento — acaba de notar tu presencia.',
+  };
+
+  const cinematicEvent = (firstVisitEver && CINEMATIC_EVENTS[targetId])
+    ? `\n\n✨ ${CINEMATIC_EVENTS[targetId]}`
+    : '';
+
   // T165: Badge de primera visita permanente
   const firstVisitMsg = firstVisitEver ? `\n\n🌟 ¡Primera vez que explorás esta sala! (${visitResult.visited.length} salas descubiertas en total)` : '';
 
@@ -629,7 +642,7 @@ function cmdMove(player, direction) {
   }
 
   return {
-    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${extremeWeatherMsg}`,
+    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${extremeWeatherMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
