@@ -83,6 +83,22 @@ const RECIPES = [
     result: 'poción de poder',
     message: 'Disolvés el cristal helado en la tinta de kraken. La mezcla forma una poción densa y humeante.',
   },
+  // ── Recetas del Dungeon Extendido (T132) ─────────────────────────────────
+  {
+    ingredients: ['cristal resonante', 'esencia de eco'],
+    result: 'lanza espectral del eco',
+    message: 'El cristal resonante absorbe la esencia del Eco Viviente. La energía solidifica en una lanza fantasmal que vibra con las voces de los caídos.',
+  },
+  {
+    ingredients: ['fragmento de vacío', 'esencia del abismo'],
+    result: 'daga del vacío',
+    message: 'El fragmento del Abismo Eterno y la esencia de la Sombra del Vacío se fusionan. La daga resultante parece absorber la realidad misma.',
+  },
+  {
+    ingredients: ['cristal resonante', 'polvo de eco'],
+    result: 'amuleto del eco',
+    message: 'Combinás el cristal con el polvo. El amuleto resultante pulsa con ecos de memorias antiguas.',
+  },
 ];
 
 // ─── Catálogo de ítems artesanales nuevos ─────────────────────────────────────
@@ -94,6 +110,10 @@ const CRAFTED_ITEMS = {
   'red resistente':     { type: 'misc', description: 'Una red de araña y cuerda trenzadas. Casi imposible de romper. Podría usarse para atrapar cosas.' },
   'collar de garras':   { type: 'misc', description: 'Un collar artesanal de dientes y seda de araña. Emana poder primitivo.' },
   'grimorio del abismo':{ type: 'weapon', effect: 'attack_bonus', amount: 10, description: 'Un grimorio sellado con el poder de la perla negra abismal. +10 de ataque mágico.' },
+  // Ítems del Dungeon Extendido (T132)
+  'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 8, description: 'Una lanza fantasmal que resuena con voces de los caídos. +8 de ataque. Vibra al contacto con criaturas espectrales.' },
+  'daga del vacío':     { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una daga que parece absorber la realidad. +12 de ataque. El arma más poderosa forjada en las profundidades del Abismo.' },
+  'amuleto del eco':    { type: 'misc', description: 'Un amuleto que pulsa con ecos de memorias antiguas. Los sabios dicen que protege su portador de los efectos de la Cámara del Eco.' },
 };
 
 // ─── Función de crafteo ────────────────────────────────────────────────────────

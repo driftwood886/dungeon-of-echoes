@@ -519,7 +519,7 @@ function migrateAuctionRoom() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms };
 
 /**
  * Sala de la Fuente de Rejuvenecimiento (T103): sala 18 conectada al norte de la sala 10 (Santuario Profano).
@@ -545,5 +545,82 @@ function migrateFountainRoom() {
       db.upsertRoom({ ...room10, exits: exits10 });
       console.log('[seed] migrateFountainRoom: Sala 10 actualizada con salida north → 18.');
     }
+  }
+}
+
+/**
+ * T132 — Dungeon Extendido: Cámara del Eco (sala 19) y Abismo Eterno (sala 20).
+ * Sala 19 conectada al sur de la sala 15 (Catedral de la Oscuridad).
+ * Sala 20 conectada al sur de la sala 19 (Cámara del Eco).
+ * Monstruos: Eco Viviente (id 21) en sala 19, Sombra del Vacío (id 22) en sala 20.
+ */
+function migrateEchoRooms() {
+  // Sala 19 — Cámara del Eco
+  const echoRoom = db.getRoom(19);
+  if (!echoRoom) {
+    db.upsertRoom({
+      id: 19,
+      name: 'Cámara del Eco',
+      description: 'Una sala circular de paredes perfectamente lisas. Todo sonido aquí regresa multiplicado, distorsionado, como voces de los muertos. El suelo está cubierto de cristales resonantes que vibran al pisarlos. El eco de tus propios pasos te sigue como una sombra.',
+      exits: { north: 15, south: 20 },
+      items: ['cristal resonante', 'polvo de eco'],
+    });
+    console.log('[seed] migrateEchoRooms: Sala 19 (Cámara del Eco) creada.');
+
+    // Conectar sala 15 hacia el sur con sala 19
+    const room15 = db.getRoom(15);
+    if (room15) {
+      const exits15 = room15.exits || {};
+      exits15.south = 19;
+      db.upsertRoom({ ...room15, exits: exits15 });
+      console.log('[seed] migrateEchoRooms: Sala 15 actualizada con salida south → 19.');
+    }
+  }
+
+  // Sala 20 — Abismo Eterno
+  const abyssRoom = db.getRoom(20);
+  if (!abyssRoom) {
+    db.upsertRoom({
+      id: 20,
+      name: 'Abismo Eterno',
+      description: 'El fondo del dungeon. Una grieta infinita en el suelo emite un resplandor violeta que hipnotiza a quien lo mira demasiado tiempo. El aire es denso, casi líquido. Las sombras aquí tienen vida propia y parecen curiosas por los intrusos. Una sensación de vacío absoluto te envuelve.',
+      exits: { north: 19 },
+      items: ['fragmento de vacío', 'cristal resonante'],
+    });
+    console.log('[seed] migrateEchoRooms: Sala 20 (Abismo Eterno) creada.');
+  }
+
+  // Monstruo: Eco Viviente (id 21) en sala 19
+  const ecoViviente = db.getMonster(21);
+  if (!ecoViviente) {
+    db.upsertMonster({
+      id: 21,
+      name: 'Eco Viviente',
+      description: 'Una entidad translúcida que imita las formas de aventureros caídos. Sus ataques son ecos de los golpes que recibió quien murió aquí. Vibra y se distorsiona en el aire.',
+      hp: 35,
+      max_hp: 35,
+      attack: 7,
+      room_id: 19,
+      loot: ['cristal resonante', 'polvo de eco', 'esencia de eco'],
+      respawn_room_id: 19,
+    });
+    console.log('[seed] migrateEchoRooms: Eco Viviente (id 21) creado en sala 19.');
+  }
+
+  // Monstruo: Sombra del Vacío (id 22) en sala 20
+  const sombraVacio = db.getMonster(22);
+  if (!sombraVacio) {
+    db.upsertMonster({
+      id: 22,
+      name: 'Sombra del Vacío',
+      description: 'Una forma oscura que parece un agujero en la realidad. Sus bordes se disuelven en la oscuridad. Ataca con tentáculos de oscuridad pura que drenan la energía vital. Es el guardián final del dungeon.',
+      hp: 60,
+      max_hp: 60,
+      attack: 10,
+      room_id: 20,
+      loot: ['fragmento de vacío', 'cristal resonante', 'esencia del abismo', 'monedas de oro'],
+      respawn_room_id: 20,
+    });
+    console.log('[seed] migrateEchoRooms: Sombra del Vacío (id 22) creado en sala 20.');
   }
 }

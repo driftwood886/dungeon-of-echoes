@@ -84,6 +84,18 @@ const ITEM_CATALOG = {
   'filacteria rota':     { type: 'misc', description: 'La filacteria del Lich Anciano, destruida. Sin ella, el Lich no puede regresar... ¿verdad?' },
   'esencia de sombra':   { type: 'misc', description: 'La esencia condensada de las sombras del dungeon. Vibra en la oscuridad.' },
 
+  // ── Ítems del Dungeon Extendido — Cámara del Eco y Abismo Eterno (T132) ────
+  'cristal resonante':   { type: 'misc', description: 'Un cristal que vibra con el eco de los muertos. Emite un suave hum que aumenta con la luna. Material artesanal valioso.' },
+  'polvo de eco':        { type: 'misc', description: 'Polvo que cayó de las paredes de la Cámara del Eco. Brilla con luz tenue al agitarlo.' },
+  'esencia de eco':      { type: 'misc', description: 'La esencia destilada de un Eco Viviente. Guarda la memoria de aventureros caídos.' },
+  'fragmento de vacío':  { type: 'misc', description: 'Un fragmento del Abismo Eterno. Absorbe la luz a su alrededor. Los sabios lo llaman "la nada solidificada".' },
+  'esencia del abismo':  { type: 'misc', description: 'La esencia pura de la Sombra del Vacío. Vibra con una energía oscura y antigua. Ingrediente de recetas de alquimia avanzada.' },
+
+  // ── Armas artesanales avanzadas — Dungeon Extendido (T132) ──────────────────
+  'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 8, description: 'Una lanza fantasmal que resuena con voces de los caídos. +8 de ataque.' },
+  'daga del vacío':      { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una daga que parece absorber la realidad. +12 de ataque. El arma más poderosa de las profundidades.' },
+  'amuleto del eco':     { type: 'misc', description: 'Un amuleto que pulsa con ecos de memorias antiguas. Protección de la Cámara del Eco.' },
+
   // ── Ítems artesanales (resultado de crafteo — T092) ───────────────────────
   'espada envenenada':   { type: 'weapon', effect: 'attack_bonus', amount: 5,  on_hit: { type: 'poison', chance: 0.35, damage: 2, turns: 3 }, description: 'Una espada que supura veneno verde. +5 de ataque. 35% de chance de envenenar al objetivo por 3 turnos.' },
   'cuchillo envenenado': { type: 'weapon', effect: 'attack_bonus', amount: 3,  on_hit: { type: 'poison', chance: 0.35, damage: 1, turns: 4 }, description: 'Un cuchillo impregnado de veneno de araña. +3 de ataque. 35% de chance de envenenar al objetivo por 4 turnos.' },

@@ -37,6 +37,10 @@ const ROOM_EFFECTS = {
   1:  { type: 'heal', amount: 3, label: '✨ Aura Sagrada', msg: '✨ El aura sagrada de la entrada te reconforta. (+3 HP)' },
   // Sala 15 — Catedral Maldita: maldición drena HP
   15: { type: 'damage', amount: 3, label: '💀 Maldición del Lich', msg: '💀 Una maldición oscura te drena la vitalidad al entrar. (-3 HP)' },
+  // Sala 19 — Cámara del Eco: confusión mental (-1 ATK)
+  19: { type: 'debuff', stat: 'attack', amount: -1, label: '🔊 Ecos Enloquecedores', msg: '🔊 Los ecos multiplicados te confunden y desorientan. (-1 ATK mientras estés aquí)' },
+  // Sala 20 — Abismo Eterno: el vacío drena energía (-2 HP al entrar)
+  20: { type: 'damage', amount: 2, label: '🌑 Vacío Eterno', msg: '🌑 La presencia del Abismo Eterno drena tu energía vital. (-2 HP)' },
 };
 
 // ── Registro en memoria: último remitente de whisper/tell por jugador ─────────
