@@ -172,6 +172,7 @@ function execute(playerId, input, context) {
     case 'useSkill':     result = cmdUseSkill(player, action.args, context); break;
     case 'note':         result = cmdNote(player, action.args); break;
     case 'changelog':    result = cmdChangelog(); break;
+    case 'server':       result = cmdServerStats(); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -3997,6 +3998,10 @@ module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAucti
  */
 function cmdChangelog() {
   const CHANGELOG = [
+    { version: '0.23', date: '2026-05-30', changes: [
+      '✨ NUEVO: comando server/estadísticas — estado global del servidor en caja ASCII',
+      '✨ NUEVO: endpoint REST /api/stats — estadísticas públicas para integración LLM',
+    ]},
     { version: '0.22', date: '2026-05-30', changes: [
       '🐛 BUG: subasta con ítems de nombre compuesto (crash resuelto)',
       '🐛 BUG: habilidades activas (smash/bash/rally) crash por REST (resuelto)',
@@ -4047,3 +4052,62 @@ function cmdChangelog() {
   return { text: lines.join('\n') };
 }
 
+
+// ─── T119: Estadísticas globales del servidor ────────────────────────────────
+
+/**
+ * server/stats/estadísticas — Muestra estadísticas globales del dungeon en caja ASCII
+ */
+function cmdServerStats() {
+  try {
+    const cutoff5min = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const rawDb = db.raw();
+
+    const totalPlayersR = rawDb.exec('SELECT COUNT(*) FROM players')[0];
+    const totalPlayers = totalPlayersR ? totalPlayersR.values[0][0] : 0;
+
+    const activePR = rawDb.exec(`SELECT COUNT(*) FROM players WHERE last_seen >= '${cutoff5min}'`)[0];
+    const activePlayers = activePR ? activePR.values[0][0] : 0;
+
+    const killsR = rawDb.exec('SELECT SUM(kills) FROM players')[0];
+    const totalKills = killsR ? (killsR.values[0][0] || 0) : 0;
+
+    const goldR = rawDb.exec('SELECT SUM(gold) FROM players')[0];
+    const totalGold = goldR ? (goldR.values[0][0] || 0) : 0;
+
+    const monstersR = rawDb.exec('SELECT COUNT(*) FROM monsters WHERE room_id IS NOT NULL')[0];
+    const activeMonsters = monstersR ? monstersR.values[0][0] : 0;
+
+    const uptimeSec = Math.floor(process.uptime());
+    const uptimeMin = Math.floor(uptimeSec / 60);
+    const uptimeHrs = Math.floor(uptimeMin / 60);
+    const uptimeStr = uptimeHrs > 0
+      ? `${uptimeHrs}h ${uptimeMin % 60}m ${uptimeSec % 60}s`
+      : `${uptimeMin}m ${uptimeSec % 60}s`;
+
+    const W = 44;
+    const row = (label, value) => {
+      const line = `  ${label}: ${value}`;
+      return `║${line.padEnd(W)}║`;
+    };
+
+    const lines = [
+      `╔${'═'.repeat(W)}╗`,
+      `║${'  🏰 DUNGEON OF ECHOES — ESTADO DEL SERVIDOR'.slice(0, W).padEnd(W)}║`,
+      `╠${'═'.repeat(W)}╣`,
+      row('👤 Jugadores registrados', totalPlayers),
+      row('🟢 Activos (últimos 5min)', activePlayers),
+      row('⚔️  Muertes totales',       totalKills),
+      row('💰 Oro en circulación',     totalGold + 'g'),
+      row('👾 Monstruos activos',      activeMonsters),
+      row('⏱  Uptime del servidor',    uptimeStr),
+      `╚${'═'.repeat(W)}╝`,
+    ];
+
+    return { text: lines.join('\n') };
+  } catch (err) {
+    return { text: `Error obteniendo estadísticas: ${err.message}` };
+  }
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats };

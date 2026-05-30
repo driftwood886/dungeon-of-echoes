@@ -17,6 +17,7 @@ const quests                 = require('./game/quests');
 const worldEvents            = require('./game/worldEvents');
 
 const PORT = process.env.PORT || 3000;
+const SERVER_START = Date.now(); // T119: uptime del servidor
 
 async function main() {
   // 1. Inicializar base de datos
@@ -238,6 +239,39 @@ async function main() {
       console.log('[admin] DB exportada via /api/admin/db-export');
     } catch (err) {
       res.status(500).json({ error: 'Error al exportar BD: ' + err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats — Estadísticas públicas del servidor (T119)
+   */
+  app.get('/api/stats', (req, res) => {
+    try {
+      const cutoff5min = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const totalPlayers = db.raw().exec('SELECT COUNT(*) as cnt FROM players')[0];
+      const activePlayers = db.raw().exec(
+        `SELECT COUNT(*) as cnt FROM players WHERE last_seen >= '${cutoff5min}'`
+      )[0];
+      const totalKills = db.raw().exec('SELECT SUM(kills) as s FROM players')[0];
+      const totalGold = db.raw().exec('SELECT SUM(gold) as s FROM players')[0];
+      const activeMonsters = db.raw().exec('SELECT COUNT(*) as cnt FROM monsters WHERE room_id IS NOT NULL')[0];
+      const uptimeSec = Math.floor((Date.now() - SERVER_START) / 1000);
+      const uptimeMin = Math.floor(uptimeSec / 60);
+      const uptimeHrs = Math.floor(uptimeMin / 60);
+
+      res.json({
+        players_total:   totalPlayers   ? totalPlayers.values[0][0]   : 0,
+        players_online:  activePlayers  ? activePlayers.values[0][0]  : 0,
+        kills_total:     totalKills     ? (totalKills.values[0][0] || 0)     : 0,
+        gold_in_economy: totalGold      ? (totalGold.values[0][0] || 0)      : 0,
+        monsters_active: activeMonsters ? activeMonsters.values[0][0] : 0,
+        uptime_seconds:  uptimeSec,
+        uptime_human:    uptimeHrs > 0
+          ? `${uptimeHrs}h ${uptimeMin % 60}m`
+          : `${uptimeMin}m ${uptimeSec % 60}s`,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
   });
 
