@@ -37,6 +37,36 @@ const BOSS_MONSTERS = {
   },
 };
 
+// T145: Habilidades especiales de monstruos
+// tipo: 'mana_drain' | 'web' | 'amplify' | 'blind'
+const MONSTER_SPECIALS = {
+  'Lich Anciano': {
+    chance: 0.20,
+    type: 'mana_drain',
+    amount: 8,
+    msg: '🌀 ¡El Lich Anciano te drena la energía arcana! (-{amount} maná)',
+  },
+  'Araña Tejedora': {
+    chance: 0.15,
+    type: 'web',
+    turns: 1,
+    msg: '🕸 ¡La Araña Tejedora te envuelve en telarañas! No podrás atacar el próximo turno.',
+  },
+  'Eco Viviente': {
+    chance: 0.25,
+    type: 'amplify',
+    multiplier: 1.8,
+    msg: '🔊 ¡El Eco Viviente amplifica su golpe con ondas de sonido resonante! (×1.8 daño)',
+  },
+  'Sombra del Vacío': {
+    chance: 0.20,
+    type: 'blind',
+    amount: 2,
+    turns: 2,
+    msg: '🌑 ¡La Sombra del Vacío oscurece tu visión! (-{amount} DEF por {turns} turnos)',
+  },
+};
+
 
 
 /**
@@ -89,6 +119,52 @@ function attackRound(player, monster) {
   }
 
   // ── Player ataca ─────────────────────────────────────────────────────────
+  // T145: Verificar si el jugador está enredado en telarañas (webbed)
+  const freshForWeb = db.getPlayer(player.id);
+  const webFx = freshForWeb.status_effects ? (typeof freshForWeb.status_effects === 'string' ? JSON.parse(freshForWeb.status_effects) : freshForWeb.status_effects) : {};
+  if (webFx.webbed && webFx.webbed.turns > 0) {
+    webFx.webbed.turns -= 1;
+    if (webFx.webbed.turns <= 0) {
+      delete webFx.webbed;
+      lines.push(`🕸 Las telarañas que te retenían se deshacen. ¡Podés atacar de nuevo!`);
+    } else {
+      lines.push(`🕸 Estás atrapado en telarañas y no podés atacar este turno.`);
+    }
+    db.updatePlayer(player.id, { status_effects: JSON.stringify(webFx) });
+    // Saltar el ataque del jugador, pero el monstruo sí contraataca (seguir flujo)
+    // Copiamos webFx a player.status_effects para que la actualización final sea coherente
+    player.status_effects = webFx;
+    // Ir directo a la fase de ataque del monstruo (sin retornar)
+    const monsterDmgW = calcDamage(monster.attack);
+    const activeEvW = worldEvents.getCurrentEvent();
+    const bloodmoonBonusW = (activeEvW && activeEvW.id === 'bloodmoon') ? 2 : 0;
+    const dodgeChanceW = 0.08 + (classes.getPlayerClass(player) ? (classes.getPlayerClass(player).dodge_bonus || 0) / 100 : 0);
+    if (Math.random() < dodgeChanceW) {
+      lines.push(`💨 ¡Incluso atrapado, esquivás el ataque del ${monster.name}!`);
+    } else {
+      const freshForShieldW = db.getPlayer(player.id);
+      const shieldActiveW = freshForShieldW.shield_active || 0;
+      let dmgToPlayerW = Math.max(1, monsterDmgW + bloodmoonBonusW - Math.floor(player.defense || 0));
+      if (shieldActiveW) {
+        const absorb = 5;
+        dmgToPlayerW = Math.max(0, dmgToPlayerW - absorb);
+        db.updatePlayer(player.id, { shield_active: 0 });
+        lines.push(`🛡️ ¡Tu escudo mágico absorbe algo de daño! (→ ${dmgToPlayerW})`);
+      }
+      player.hp = Math.max(0, player.hp - dmgToPlayerW);
+      lines.push(`🩸 El ${monster.name} aprovecha que estás enredado y te golpea por ${dmgToPlayerW} de daño. (${player.hp}/${player.max_hp} HP)`);
+    }
+    db.updatePlayer(player.id, { hp: player.hp });
+    if (player.hp <= 0) {
+      playerDead = true;
+      lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon...`);
+      const fpW = db.getPlayer(player.id);
+      db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (fpW.deaths || 0) + 1, status_effects: '{}' });
+      db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name} (atrapado en telarañas).`);
+    }
+    return { lines, monsterDead, playerDead, loot, poisonSurvived };
+  }
+
   // T120: bonus de +1 ATK si el jugador tiene mascota
   const petBonus = player.pet ? 1 : 0;
   const effectiveAtk = player.attack + petBonus;
@@ -280,10 +356,13 @@ function attackRound(player, monster) {
   if (isEvasion) {
     lines.push(`💨 ¡Esquivás el ataque del ${monster.name}! Ningún daño recibido.`);
   } else {
-    const rawDmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus - Math.floor(player.defense || 0));
-
+    // T145: Si el jugador está cegado, su DEF efectiva se reduce
+    const freshForBlindCheck = db.getPlayer(player.id);
+    const blindFx = freshForBlindCheck.status_effects ? (typeof freshForBlindCheck.status_effects === 'string' ? JSON.parse(freshForBlindCheck.status_effects) : freshForBlindCheck.status_effects) : {};
+    const blindDef = blindFx.blinded ? (blindFx.blinded.amount || 0) : 0;
+    const rawDmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus - Math.floor((player.defense || 0) - blindDef));
     // T104: Escudo mágico activo absorbe 5 de daño
-    const freshForShield = db.getPlayer(player.id);
+    const freshForShield = freshForBlindCheck; // reusar la lectura
     const shieldActive = freshForShield.shield_active || 0;
     let dmgToPlayer = rawDmgToPlayer;
     if (shieldActive) {
@@ -308,10 +387,64 @@ function attackRound(player, monster) {
         lines.push(`🕷 ¡El ${monster.name} te envenenó! Perderás ${poisonerDef.damage} HP por turno durante ${poisonerDef.turns} turnos. (Usá \"use antídoto\" para curarte)`);
       }
     }
+
+    // ── T145: Habilidad especial del monstruo ────────────────────────────────
+    const specialDef = MONSTER_SPECIALS[monster.name];
+    if (specialDef && Math.random() < specialDef.chance) {
+      const spFx = player.status_effects ? (typeof player.status_effects === 'string' ? JSON.parse(player.status_effects) : player.status_effects) : {};
+      const rawMsg = specialDef.msg
+        .replace('{amount}', specialDef.amount || '')
+        .replace('{turns}', specialDef.turns || '');
+
+      if (specialDef.type === 'mana_drain') {
+        // Drenar maná del jugador
+        const freshForMana = db.getPlayer(player.id);
+        const curMana = freshForMana.mana || 0;
+        const drained = Math.min(curMana, specialDef.amount);
+        db.updatePlayer(player.id, { mana: Math.max(0, curMana - drained) });
+        lines.push(rawMsg + (drained < specialDef.amount ? ` (solo tenías ${curMana} maná)` : ''));
+
+      } else if (specialDef.type === 'web') {
+        // Enredar al jugador por N turnos
+        if (!spFx.webbed) {
+          spFx.webbed = { turns: specialDef.turns };
+          player.status_effects = spFx;
+          lines.push(rawMsg);
+        }
+
+      } else if (specialDef.type === 'amplify') {
+        // El daño del ataque actual se amplifica (ya fue aplicado, aplicar daño extra)
+        const extraDmg = Math.max(1, Math.floor(monsterDmg * (specialDef.multiplier - 1)));
+        player.hp = Math.max(0, player.hp - extraDmg);
+        lines.push(`${rawMsg} (+${extraDmg} daño extra!) (${player.hp}/${player.max_hp} HP)`);
+
+      } else if (specialDef.type === 'blind') {
+        // Reducir DEF por N turnos
+        if (!spFx.blinded) {
+          spFx.blinded = { amount: specialDef.amount, turns: specialDef.turns };
+          player.status_effects = spFx;
+          lines.push(rawMsg);
+        }
+      }
+    }
   } // fin else (no esquivó)
 
   // Actualizar jugador en BD
   db.updatePlayer(player.id, { hp: player.hp, status_effects: JSON.stringify(player.status_effects || {}) });
+
+  // ── T145: Aplicar efecto ceguera (blinded) al contador de DEF ──────────────
+  // El efecto blinded ya se aplica como debuff en los siguientes turnos al calcular daño.
+  // Aquí descontamos un turno al efecto blinded si está activo.
+  const freshForBlind = db.getPlayer(player.id);
+  const bFx = freshForBlind.status_effects ? (typeof freshForBlind.status_effects === 'string' ? JSON.parse(freshForBlind.status_effects) : freshForBlind.status_effects) : {};
+  if (bFx.blinded && bFx.blinded.turns > 0) {
+    bFx.blinded.turns -= 1;
+    if (bFx.blinded.turns <= 0) {
+      delete bFx.blinded;
+      lines.push(`👁 Tu visión se recupera. La oscuridad se disipa.`);
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(bFx), defense: player.defense }); // defense ya estaba OK
+    }
+  }
 
   if (player.hp <= 0) {
     playerDead = true;
@@ -504,4 +637,5 @@ module.exports = {
   findMonsterInRoom,
   checkRespawns,
   BOSS_MONSTERS,
+  MONSTER_SPECIALS,
 };

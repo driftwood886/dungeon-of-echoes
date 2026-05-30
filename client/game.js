@@ -253,8 +253,18 @@ function updateSidebar(data) {
     const statusContent = document.getElementById('sidebar-status-effects');
     if (statusSection && statusContent) {
       const fx = player.status_effects || {};
+      const effectLines = [];
       if (fx.poisoned) {
-        statusContent.textContent = `☠ ENVENENADO — ${fx.poisoned.turns} turno(s), ${fx.poisoned.damage} dmg/turno`;
+        effectLines.push(`☠ ENVENENADO — ${fx.poisoned.turns} turno(s), ${fx.poisoned.damage} dmg/turno`);
+      }
+      if (fx.webbed) {
+        effectLines.push(`🕸 ENREDADO — ${fx.webbed.turns} turno(s) sin atacar`);
+      }
+      if (fx.blinded) {
+        effectLines.push(`🌑 CEGADO — ${fx.blinded.turns} turno(s), -${fx.blinded.amount} DEF`);
+      }
+      if (effectLines.length > 0) {
+        statusContent.textContent = effectLines.join(' | ');
         statusSection.style.display = '';
       } else {
         statusSection.style.display = 'none';

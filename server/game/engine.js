@@ -530,6 +530,12 @@ function cmdStatus(player) {
   if (statusFx.poisoned) {
     statusLines.push(`☠ ENVENENADO — ${statusFx.poisoned.turns} turno(s) restante(s) (${statusFx.poisoned.damage} dmg/turno). Usá "use antídoto" para curarte.`);
   }
+  if (statusFx.webbed) {
+    statusLines.push(`🕸 ENREDADO — ${statusFx.webbed.turns} turno(s) sin poder atacar.`);
+  }
+  if (statusFx.blinded) {
+    statusLines.push(`🌑 CEGADO — ${statusFx.blinded.turns} turno(s) restante(s) (-${statusFx.blinded.amount} DEF efectiva).`);
+  }
 
   const text = [
     `\n=== ${player.username.toUpperCase()} ===`,
@@ -1160,6 +1166,10 @@ function cmdExamine(player, query) {
   const monster = monsters.find(m => m.name.toLowerCase().includes(qLow));
   if (monster) {
     const bar = buildBar(monster.hp, monster.max_hp, 20);
+    const specialDef = combat.MONSTER_SPECIALS[monster.name];
+    const specialLine = specialDef
+      ? `⚡ Habilidad especial: ${specialDef.msg.replace('{amount}', specialDef.amount || '').replace('{turns}', specialDef.turns || '')} (${Math.round(specialDef.chance * 100)}% de chance)`
+      : null;
     return {
       text: [
         `=== ${monster.name.toUpperCase()} ===`,
@@ -1169,6 +1179,7 @@ function cmdExamine(player, query) {
         monster.loot && monster.loot.length
           ? `Posible loot: ${monster.loot.join(', ')}`
           : 'No parece llevar nada de valor.',
+        ...(specialLine ? [specialLine] : []),
       ].join('\n'),
     };
   }
