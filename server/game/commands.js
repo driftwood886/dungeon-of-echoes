@@ -288,7 +288,7 @@ const COMMAND_HELP = {
   inventory: 'inventory / inv / i / inventario\n  Mostrar los ítems que llevás encima.',
   status:    'status / estado / stats\n  Mostrar tus stats completos: HP, ataque, defensa, nivel, XP, kills y arma equipada.',
   attack:    'attack <monstruo> / atacar <monstruo>\n  Atacar a un monstruo de la sala. Un turno: vos atacás, el monstruo responde.\n  Repetí el comando para continuar hasta que uno de los dos muera.',
-  flee:      'flee / huir / escapar\n  Intentar huir del combate. Hay un 60% de chance de éxito. Si falla, el monstruo ataca igual.',
+  flee:      'flee / huir / escapar / correr\n  Intentar huir del combate (50% de chance de éxito).\n  Si huís con éxito: se muestra el estado de salud del monstruo (% HP) y la sala a la que te escapaste.\n  Si fallás: el monstruo te golpea igualmente (daño normal menos defensa).',
   pick:      'pick <ítem> / tomar <ítem> / recoger <ítem>\n  Recoger un ítem del suelo y guardarlo en tu inventario.',
   loot:      'loot / saquear\n  Recoger TODOS los ítems del suelo de la sala de un solo golpe.',
   drop:      'drop <ítem> / tirar <ítem>\n  Tirar un ítem de tu inventario al suelo de la sala actual.',

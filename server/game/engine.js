@@ -658,6 +658,7 @@ function cmdAttack(player, targetName) {
  */
 function cmdFlee(player) {
   player = db.getPlayer(player.id);
+  const room = db.getRoom(player.current_room_id);
   const monsters = db.getMonstersInRoom(player.current_room_id);
 
   if (monsters.length === 0) {
@@ -666,12 +667,14 @@ function cmdFlee(player) {
 
   // Huir del primer monstruo (el más relevante)
   const monster = monsters[0];
-  const { fled, line } = combat.tryFlee(player, monster);
+  const { fled, line, destRoomId } = combat.tryFlee(player, monster, room);
 
   return {
     text: line,
     event: fled ? `${player.username} huye de la sala.` : `${player.username} intenta huir pero falla.`,
     eventRoomId: player.current_room_id,
+    // Si huyó con éxito, el eventRoomId debe ser la sala de origen para notificar a quienes estaban ahí
+    ...(fled && destRoomId ? { eventRoomId: room.id } : {}),
   };
 }
 

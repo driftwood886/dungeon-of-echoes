@@ -350,13 +350,41 @@ function attackRound(player, monster) {
  * Intento de huida del combate.
  * @param {object} player
  * @param {object} monster
- * @returns {{ fled: boolean, line: string }}
+ * @param {object|null} room — sala actual (para elegir sala de escape)
+ * @returns {{ fled: boolean, line: string, destRoomId: number|null }}
  */
-function tryFlee(player, monster) {
+function tryFlee(player, monster, room) {
+  // Porcentaje de HP del monstruo
+  const monsterHpPct = Math.round((monster.hp / monster.max_hp) * 100);
+  const monsterHpDesc = monsterHpPct <= 25
+    ? `herido de gravedad (${monsterHpPct}% HP)`
+    : monsterHpPct <= 50
+      ? `maltrecho (${monsterHpPct}% HP)`
+      : monsterHpPct <= 75
+        ? `dañado (${monsterHpPct}% HP)`
+        : `casi intacto (${monsterHpPct}% HP)`;
+
   if (Math.random() < FLEE_CHANCE) {
+    // Mover al jugador a una sala adyacente aleatoria
+    let destRoomId = null;
+    let destRoomName = null;
+    if (room) {
+      const exits = room.exits || {};
+      const exitRooms = Object.values(exits)
+        .map(v => (typeof v === 'object' ? v.room_id : v))
+        .filter(id => typeof id === 'number');
+      if (exitRooms.length > 0) {
+        destRoomId = exitRooms[Math.floor(Math.random() * exitRooms.length)];
+        const destRoom = db.getRoom(destRoomId);
+        destRoomName = destRoom ? destRoom.name : null;
+        db.updatePlayer(player.id, { current_room_id: destRoomId });
+      }
+    }
+    const toText = destRoomName ? ` Te refugiás en «${destRoomName}».` : '';
     return {
       fled: true,
-      line: `🏃 ¡Conseguís huir del ${monster.name}! Te alejás tambaleante.`,
+      destRoomId,
+      line: `🏃 ¡Conseguís huir del ${monster.name} (${monsterHpDesc})!${toText}`,
     };
   }
   // El monstruo golpea al intentar huir
@@ -365,7 +393,7 @@ function tryFlee(player, monster) {
   player.hp = Math.max(0, player.hp - dmgToPlayer);
   db.updatePlayer(player.id, { hp: player.hp });
 
-  let line = `🏃 Intentás huir pero el ${monster.name} te bloquea y te golpea (${dmgToPlayer} dmg). (${player.hp}/${player.max_hp} HP)`;
+  let line = `🏃 Intentás huir pero el ${monster.name} (${monsterHpDesc}) te bloquea y te golpea (${dmgToPlayer} dmg). Tu HP: ${player.hp}/${player.max_hp}.`;
 
   if (player.hp <= 0) {
     const freshPlayer3 = db.getPlayer(player.id);
@@ -374,7 +402,7 @@ function tryFlee(player, monster) {
     line += `\n💀 ¡Moriste! Respawneás en la entrada del dungeon...`;
   }
 
-  return { fled: false, line };
+  return { fled: false, destRoomId: null, line };
 }
 
 /**
