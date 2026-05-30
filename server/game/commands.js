@@ -207,6 +207,8 @@ const COMMAND_ALIASES = {
   score_time: 'score_time',
   // stance / postura de combate (T161)
   stance: 'stance', postura: 'stance', combate_postura: 'stance',
+  // path / ruta (T162)
+  path: 'path', ruta: 'path', navegacion: 'path', navegar: 'path', 'como-llegar': 'path',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -412,6 +414,7 @@ const COMMAND_HELP = {
   session:   'session / sesion / sesión\\\\\\\\n  Ver las estadísticas de tu sesión actual.\\\\\\\\n  Muestra: tiempo conectado, kills, XP ganada, oro ganado y comandos ejecutados.\\\\\\\\n  También se muestra automáticamente al desconectarse.',
   sessions:  'sessions / historial_sesiones / mis-sesiones\\\\\\\\n  Ver el historial de tus últimas 5 sesiones guardadas.\\\\\\\\n  Las sesiones se guardan al desconectar.\\\\\\\\n  También muestra tu tiempo de juego total acumulado.\\\\\\\\n  Nota: Las sesiones muy cortas (0 min) igual se registran.',
   stance:    'stance [postura] / postura [postura]\\\\n  Ver o cambiar tu postura de combate.\\\\n  Posturas: agresivo (+2ATK/-1DEF/5% miss extra), defensivo (-1ATK/+2DEF), equilibrado.\\\\n  La postura persiste entre sesiones.',
+  path:      'path <destino> / ruta <destino>\\\\n  Calcular la ruta más corta hasta una sala.\\\\n  Destino puede ser un ID numérico (ej: path 15) o parte del nombre (ej: path catedral).\\\\n  Muestra los pasos como comandos move con nombre de sala de destino.\\\\n  Sin cooldown. Útil para navegar el dungeon eficientemente.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };

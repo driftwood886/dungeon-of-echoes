@@ -241,6 +241,7 @@ function execute(playerId, input, context) {
     case 'sessions':     result = cmdSessions(player); break;
     case 'score_time':   result = cmdScoreTime(); break;
     case 'stance':       result = cmdStance(player, action.args); break;
+    case 'path':         result = cmdPath(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -6355,3 +6356,127 @@ function cmdStance(player, args) {
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// T162: cmdPath — Ruta más corta a una sala (BFS)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Mapeo de dirección interna a texto en español
+const DIR_NAMES = {
+  north: 'norte', south: 'sur', east: 'este', west: 'oeste',
+  up: 'arriba', down: 'abajo',
+  norte: 'norte', sur: 'sur', este: 'este', oeste: 'oeste',
+  arriba: 'arriba', abajo: 'abajo',
+};
+
+/**
+ * path/ruta <sala_id | nombre_sala> — Calcular ruta más corta con BFS.
+ */
+function cmdPath(player, args) {
+  player = db.getPlayer(player.id);
+  if (!args || args.length === 0) {
+    return { text: 'Uso: path <id_sala o nombre>  Ej: path 15  /  path "Catedral Maldita"' };
+  }
+
+  const query = args.join(' ').trim().toLowerCase();
+  const allRooms = db.getAllRooms();
+
+  // Intentar por ID numérico primero
+  let targetRoom = null;
+  const asNum = parseInt(query, 10);
+  if (!isNaN(asNum)) {
+    targetRoom = allRooms.find(r => r.id === asNum);
+  }
+  // Si no, buscar por nombre (parcial, case-insensitive, sin tildes)
+  if (!targetRoom) {
+    const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const normQuery = norm(query);
+    // Búsqueda exacta primero
+    targetRoom = allRooms.find(r => norm(r.name) === normQuery);
+    // Luego parcial
+    if (!targetRoom) {
+      targetRoom = allRooms.find(r => norm(r.name).includes(normQuery));
+    }
+  }
+
+  if (!targetRoom) {
+    return { text: `No encontré ninguna sala llamada "${args.join(' ')}". Usá el ID numérico (1-${allRooms.length}) o parte del nombre.` };
+  }
+
+  const startId = player.current_room_id;
+
+  if (targetRoom.id === startId) {
+    return { text: `Ya estás en "${targetRoom.name}". No necesitás moverte.` };
+  }
+
+  // Construir grafo: roomId → lista de { dir, toId }
+  const graph = {};
+  for (const room of allRooms) {
+    graph[room.id] = [];
+    const exits = room.exits || {};
+    for (const [dir, dest] of Object.entries(exits)) {
+      const destId = typeof dest === 'object' ? dest.room_id : dest;
+      if (destId) graph[room.id].push({ dir, toId: destId });
+    }
+  }
+
+  // BFS
+  const queue = [{ id: startId, path: [] }];
+  const visited = new Set([startId]);
+
+  let found = null;
+  while (queue.length > 0) {
+    const { id, path } = queue.shift();
+    if (id === targetRoom.id) {
+      found = path;
+      break;
+    }
+    for (const edge of (graph[id] || [])) {
+      if (!visited.has(edge.toId)) {
+        visited.add(edge.toId);
+        queue.push({ id: edge.toId, path: [...path, { dir: edge.dir, toId: edge.toId }] });
+      }
+    }
+  }
+
+  if (!found) {
+    return { text: `No hay ruta accesible desde tu sala actual hasta "${targetRoom.name}". Puede haber puertas bloqueadas en el camino.` };
+  }
+
+  // Construir respuesta
+  const lines = [
+    `╔═══════════════════════════════════════════════╗`,
+    `║  🗺  RUTA HASTA: ${targetRoom.name.substring(0, 26).padEnd(26)} ║`,
+    `╠═══════════════════════════════════════════════╣`,
+    `║  Distancia: ${String(found.length).padStart(2)} paso${found.length !== 1 ? 's' : ' '}                          ║`,
+    `╠═══════════════════════════════════════════════╣`,
+  ];
+
+  found.forEach((step, i) => {
+    const room = allRooms.find(r => r.id === step.toId);
+    const roomName = room ? room.name.substring(0, 22) : `Sala ${step.toId}`;
+    const dirText = (DIR_NAMES[step.dir] || step.dir).padEnd(6);
+    lines.push(`║  ${String(i + 1).padStart(2)}. move ${dirText}  →  ${roomName.padEnd(22)} ║`);
+  });
+
+  lines.push(`╠═══════════════════════════════════════════════╣`);
+  const cmdList = found.map(s => `move ${DIR_NAMES[s.dir] || s.dir}`).join('; ');
+  // Wrap long command sequence
+  if (cmdList.length <= 43) {
+    lines.push(`║  Secuencia: ${cmdList.padEnd(34)} ║`);
+  } else {
+    lines.push(`║  Secuencia rápida (copiá y pegá):             ║`);
+    lines.push(`╠═══════════════════════════════════════════════╣`);
+    // Split into chunks of ~43 chars
+    let rem = cmdList;
+    while (rem.length > 0) {
+      const chunk = rem.substring(0, 43);
+      rem = rem.substring(43);
+      lines.push(`║  ${chunk.padEnd(45)} ║`);
+    }
+  }
+  lines.push(`╚═══════════════════════════════════════════════╝`);
+
+  return { text: lines.join('\n') };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES };
