@@ -4368,6 +4368,11 @@ const PET_CATALOG = {
  * adopt <tipo>: adoptar una mascota (cuesta oro).
  * liberar: liberar tu mascota actual.
  */
+// T199: Calcular nivel de mascota según kills del dueño (cada 20 kills sube un nivel, máx 5)
+function getPetLevel(playerKills) {
+  return Math.min(5, Math.floor((playerKills || 0) / 20) + 1);
+}
+
 function cmdPet(player, args) {
   player = db.getPlayer(player.id);
   const sub = args && args[0] ? args[0].toLowerCase() : '';
@@ -4381,7 +4386,11 @@ function cmdPet(player, args) {
       }).join('\n');
       return { text: `No tenés ninguna mascota.\n\n🐾 Mascotas disponibles:\n${available}\n\nUsá: pet adopt <tipo>  (p.ej.: pet adopt rata)` };
     }
-    return { text: `🐾 Tu mascota: ${player.pet}\n\nUsá "pet liberar" si querés dejarla ir.` };
+    // T199: mostrar nivel de mascota
+    const petLv = getPetLevel(player.kills);
+    const petBar = '⭐'.repeat(petLv) + '☆'.repeat(5 - petLv);
+    const petBonus = petLv >= 3 ? ` (+${petLv - 2} dmg bonus en combate)` : '';
+    return { text: `🐾 Tu mascota: ${player.pet}\n   Nivel: ${petLv}/5 ${petBar}${petBonus}\n   (Sube de nivel cada 20 kills — tenés ${player.kills || 0} kills)\n\nUsá "pet liberar" si querés dejarla ir.` };
   }
 
   // Liberar mascota

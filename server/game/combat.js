@@ -307,7 +307,10 @@ function attackRound(player, monster) {
     if (petDef) {
       const [, petStats] = petDef;
       if (Math.random() < petStats.chance) {
-        const petDmg = petStats.minDmg + Math.floor(Math.random() * (petStats.maxDmg - petStats.minDmg + 1));
+        // T199: bonus de daño según nivel de mascota (Lv3=+1, Lv4=+2, Lv5=+3)
+        const petLevel = Math.min(5, Math.floor((player.kills || 0) / 20) + 1);
+        const petLvBonus = petLevel >= 3 ? petLevel - 2 : 0;
+        const petDmg = petStats.minDmg + Math.floor(Math.random() * (petStats.maxDmg - petStats.minDmg + 1)) + petLvBonus;
         monster.hp = Math.max(0, monster.hp - petDmg);
         db.updateMonster(monster.id, { hp: monster.hp });
         lines.push(`${petStats.emoji} ¡Tu ${petStats.name} ataca al ${monster.name} y causa ${petDmg} de daño! (${monster.hp}/${monster.max_hp} HP)`);
