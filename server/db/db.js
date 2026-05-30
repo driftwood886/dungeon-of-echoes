@@ -148,6 +148,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN notes TEXT NOT NULL DEFAULT '[]'`,          // T116: notas personales del jugador
     `ALTER TABLE players ADD COLUMN reputation INTEGER NOT NULL DEFAULT 0`,      // T125: sistema de reputación
     `ALTER TABLE players ADD COLUMN last_recall TEXT`,                            // T131: comando recall
+    `ALTER TABLE players ADD COLUMN runes TEXT NOT NULL DEFAULT '{}'`,             // T140: runas coleccionables
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -807,6 +808,67 @@ function addReputation(playerId, amount) {
   return { newPoints, level: newLevel, leveledUp };
 }
 
+// ─── Sistema de Runas (T140) ─────────────────────────────────────────────────
+
+const RUNE_TYPES = ['fuego', 'hielo', 'sombra', 'luz', 'caos'];
+const RUNE_EMOJIS = { fuego: '🔥', hielo: '❄️', sombra: '🌑', luz: '✨', caos: '🌀' };
+// Al completar set de 3, bonus permanente
+const RUNE_BONUSES = {
+  fuego:  { stat: 'attack',  amount: 1,  label: '+1 ATK permanente' },
+  hielo:  { stat: 'max_hp',  amount: 5,  label: '+5 HP máximo permanente' },
+  sombra: { stat: 'defense', amount: 1,  label: '+1 DEF permanente' },
+  luz:    { stat: 'max_hp',  amount: 3,  label: '+3 HP máximo permanente' },
+  caos:   { stat: 'mana',    amount: 3,  label: '+3 maná máximo permanente' },
+};
+
+/**
+ * Intenta dar una runa aleatoria al jugador (15% de chance).
+ * Si el jugador ya tiene 2 del mismo tipo y recibe una 3ra, se fusionan automáticamente
+ * y se aplica el bonus permanente. Devuelve un mensaje o null.
+ */
+function tryAddRune(playerId) {
+  if (Math.random() > 0.15) return null; // 15% de chance
+
+  const player = getPlayer(playerId);
+  if (!player) return null;
+
+  let runes;
+  try { runes = JSON.parse(player.runes || '{}'); } catch (_) { runes = {}; }
+
+  // Elegir runa aleatoria, priorizando las que el jugador no tiene en máximo (2)
+  const available = RUNE_TYPES.filter(t => (runes[t] || 0) < 2);
+  const pool = available.length > 0 ? available : RUNE_TYPES;
+  const type = pool[Math.floor(Math.random() * pool.length)];
+
+  const current = runes[type] || 0;
+
+  if (current >= 2) {
+    // Fusión: se completa el set de 3
+    delete runes[type];
+    updatePlayer(playerId, { runes: JSON.stringify(runes) });
+
+    // Aplicar bonus permanente
+    const bonus = RUNE_BONUSES[type];
+    const pFresh = getPlayer(playerId);
+    const newVal = (pFresh[bonus.stat] || 0) + bonus.amount;
+    updatePlayer(playerId, { [bonus.stat]: newVal });
+
+    return `✨ ¡Obtuviste la Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]}!\n¡Completaste un set de 3! Las runas se FUSIONAN → ${bonus.label}`;
+  } else {
+    // Agregar runa normal
+    runes[type] = current + 1;
+    updatePlayer(playerId, { runes: JSON.stringify(runes) });
+    const needed = 3 - (current + 1);
+    return `🔮 Encontrás una Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]}! (${current + 1}/3 — necesitás ${needed} más para la fusión)`;
+  }
+}
+
+function getPlayerRunes(playerId) {
+  const player = getPlayer(playerId);
+  if (!player) return {};
+  try { return JSON.parse(player.runes || '{}'); } catch (_) { return {}; }
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -833,4 +895,6 @@ module.exports = {
   raw: () => db,
   // T115: logros secretos
   trackRoomVisit, addGoldSpent, addCraftsCount,
+  // T140: runas coleccionables
+  tryAddRune, getPlayerRunes, RUNE_TYPES, RUNE_EMOJIS, RUNE_BONUSES,
 };

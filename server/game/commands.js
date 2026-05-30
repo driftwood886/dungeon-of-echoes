@@ -172,6 +172,8 @@ const COMMAND_ALIASES = {
   lore: 'lore', enciclopedia: 'lore', info: 'lore', descripcion: 'lore', descripción: 'lore',
   // peek / espiar (T139)
   peek: 'peek', espiar: 'peek', asomarse: 'peek', mirar_dir: 'peek', atisbar: 'peek',
+  // runas / runes (T140)
+  runas: 'runas', runes: 'runas', runas: 'runas', runacoleccion: 'runas', 'colección-runas': 'runas',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -292,6 +294,7 @@ Comandos disponibles:
   recall / volver       — Teletransportarse a la entrada del dungeon (sala 1). Costo: 5 HP. Cooldown: 10 min.
   trade <jug> <ítem>   — Proponer intercambio seguro de ítems (el otro acepta/rechaza con trade accept/decline).
   peek <dir> / espiar  — Espiar en una dirección sin moverse: ver nombre de sala, monstruos e ítems del suelo.
+  runas / runes        — Ver tu colección de runas (obtenés runas al matar; 3 iguales se fusionan en un bonus permanente).
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();

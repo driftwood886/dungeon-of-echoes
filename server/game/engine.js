@@ -191,6 +191,7 @@ function execute(playerId, input, context) {
     case 'trade':        result = cmdTrade(player, action.args); break;
     case 'lore':         result = cmdLore(action.args.join(' ')); break;
     case 'peek':         result = cmdPeek(player, action.args); break;
+    case 'runas':        result = cmdRunas(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -582,6 +583,13 @@ function cmdAttack(player, targetName) {
     db.addBestiaryKill(player.id, monster.name);
   }
 
+  // ── Runas coleccionables (T140) ──────────────────────────────────────────
+  let runeMsg = '';
+  if (monsterDead) {
+    const rm = db.tryAddRune(player.id);
+    if (rm) runeMsg = '\n' + rm;
+  }
+
   // ── Evaluar logros tras el combate ──────────────────────────────────────
   let achLines = '';
   const freshForAch = db.getPlayer(player.id);
@@ -707,7 +715,7 @@ function cmdAttack(player, targetName) {
   }
 
   return {
-    text: lines.join('\n') + achLines + questLines + partyXpLines,
+    text: lines.join('\n') + achLines + questLines + partyXpLines + runeMsg,
     event: eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || null,
@@ -4935,6 +4943,57 @@ function cmdReputation(player) {
     '║    🏅 Logro desbloqueado: +3 pts     ║',
     '╚' + '═'.repeat(40) + '╝',
   ];
+
+  return { text: lines.join('\n') };
+}
+
+/**
+ * T140: runas / runes — Ver la colección de runas del jugador.
+ */
+function cmdRunas(player) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: 'Error al leer tu perfil.' };
+
+  let runes;
+  try { runes = JSON.parse(fresh.runes || '{}'); } catch (_) { runes = {}; }
+
+  const { RUNE_TYPES, RUNE_EMOJIS, RUNE_BONUSES } = db;
+
+  const lines = [
+    '',
+    '╔' + '═'.repeat(44) + '╗',
+    '║       🔮 COLECCIÓN DE RUNAS                 ║',
+    '╟' + '─'.repeat(44) + '╢',
+  ];
+
+  let hasAny = false;
+  for (const type of RUNE_TYPES) {
+    const count = runes[type] || 0;
+    const emoji = RUNE_EMOJIS[type];
+    const bonus = RUNE_BONUSES[type];
+    const filled = '◆'.repeat(count);
+    const empty  = '◇'.repeat(3 - count);
+    const bar = filled + empty;
+    const label = type.charAt(0).toUpperCase() + type.slice(1);
+    const line = `  ${emoji} ${label.padEnd(7)} [${bar}] ${count}/3`;
+    const bonusNote = count >= 2 ? `  ← ¡1 más fusiona!` : '';
+    lines.push('║' + (line + bonusNote).padEnd(44) + '║');
+    if (count > 0) hasAny = true;
+  }
+
+  if (!hasAny) {
+    lines.splice(3, 0, '║  (Aún no tenés runas. Matá monstruos!)         ║');
+  }
+
+  lines.push('╟' + '─'.repeat(44) + '╢');
+  lines.push('║  Al juntar 3 del mismo tipo se FUSIONAN:        ║');
+  for (const type of RUNE_TYPES) {
+    const b = RUNE_BONUSES[type];
+    const emoji = RUNE_EMOJIS[type];
+    lines.push(`║  ${emoji} ${(type + ':').padEnd(8)} ${b.label.padEnd(33)}║`);
+  }
+  lines.push('║  (15% de chance de obtener una runa al matar)  ║');
+  lines.push('╚' + '═'.repeat(44) + '╝');
 
   return { text: lines.join('\n') };
 }
