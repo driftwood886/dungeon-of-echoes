@@ -121,6 +121,8 @@ const COMMAND_ALIASES = {
   bid: 'bid', pujar: 'bid', puja: 'bid', apostar: 'bid', ofrecer_oro: 'bid',
   // auctions / listar subastas (T098)
   auctions: 'auctions', subastas: 'auctions', remates: 'auctions', mercado: 'auctions', sala_subasta: 'auctions',
+  // dice / dados (T100)
+  dice: 'dice', dado: 'dice', dados: 'dice', tirar: 'dice', roll: 'dice', rodar: 'dice',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -217,6 +219,7 @@ Comandos disponibles:
   news / crónica        — Ver el historial de eventos globales del dungeon
   forage / buscar       — Explorar la sala en busca de ítems ocultos (cooldown 3 min, sin monstruos)
   pet [adopt <tipo>]    — Adoptar una mascota (rata, murciélago, araña, etc.) o ver tu compañero
+  dados <NdM>           — Tirar dados (ej: dados 2d6, dice 1d20). Resultado visible para toda la sala
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -258,8 +261,9 @@ const COMMAND_HELP = {
     news:      'news / crónica / noticias\\n  Ver la crónica de eventos globales del dungeon.\\n  Registra automáticamente: boss derrotado, quests completadas, logros desbloqueados, duelos ganados y subidas de nivel importantes.',
     forage:    'forage / buscar / explorar\\n  Buscar ítems ocultos en la sala actual.\\n  Cooldown de 3 minutos por sala. No funciona si hay monstruos vivos.\\n  Podés encontrar: hierbas curativas, pociones, monedas de oro, materiales de crafteo.',
     auction:   'subasta <ítem> <precio_min> / auction <item> <min_price>\\n  Poner un ítem tuyo a subasta en la Casa de Subastas (sala 17, al este de la Cámara del Tesoro).\\n  La subasta dura 5 minutos. El ítem se retira de tu inventario inmediatamente.\\n  Si hay ganador: el vendedor recibe el oro, el ganador recibe el ítem.\\n  Si nadie puja: el ítem vuelve al vendedor.',
-    bid:       'pujar <id_subasta> <monto> / bid <auction_id> <amount>\\n  Realizar una puja en una subasta activa.\\n  La puja debe ser mayor a la puja actual. Si alguien supera tu puja, recibís tu oro de vuelta.\\n  El oro se descuenta al pujar y se devuelve si te superan.',
-    auctions:  'subastas / auctions / remates\\n  Ver todas las subastas activas en la Casa de Subastas.\\n  Muestra: ID, ítem, precio mínimo, puja actual, tiempo restante y vendedor.',
+    bid:       'pujar <id_subasta> <monto> / bid <auction_id> <amount>\\\\n  Realizar una puja en una subasta activa.\\\\n  La puja debe ser mayor a la puja actual. Si alguien supera tu puja, recibís tu oro de vuelta.\\\\n  El oro se descuenta al pujar y se devuelve si te superan.',
+    auctions:  'subastas / auctions / remates\\\\n  Ver todas las subastas activas en la Casa de Subastas.\\\\n  Muestra: ID, ítem, precio mínimo, puja actual, tiempo restante y vendedor.',
+    dice:      'dados <NdM> / dice <NdM> / roll <NdM>\\\\n  Tirar dados en la sala. Ej: \"dados 2d6\" tira dos dados de 6 caras.\\\\n  El resultado es visible para todos los jugadores presentes en la sala.\\\\n  Formatos soportados: 1d4, 1d6, 1d8, 1d10, 1d12, 1d20, 1d100, hasta 10d100.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };

@@ -125,6 +125,7 @@ function execute(playerId, input) {
     case 'rest':      result = cmdRest(player); break;
     case 'meditate':  result = cmdMeditate(player); break;
     case 'emote':     result = cmdEmote(player, action.args.join(' ')); break;
+    case 'dice':      result = cmdDice(player, action.args.join(' ')); break;
     case 'shop':      result = cmdShop(player); break;
     case 'buy':       result = cmdBuy(player, action.args.join(' ')); break;
     case 'sell':      result = cmdSell(player, action.args.join(' ')); break;
@@ -188,6 +189,7 @@ function execute(playerId, input) {
           auction: 'auction', subasta: 'auction', subastar: 'auction',
           bid: 'bid', pujar: 'bid',
           auctions: 'auctions', subastas: 'auctions',
+          dice: 'dice', dado: 'dice', dados: 'dice', roll: 'dice',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
@@ -1436,6 +1438,53 @@ function cmdEmote(player, action) {
   return {
     text: emoteText,                          // el jugador también lo ve
     event: emoteText,                         // broadcast a la sala
+    eventRoomId: player.current_room_id,
+  };
+}
+
+/**
+ * dice <NdM> — Tirar dados (T100).
+ * Broadcast del resultado a toda la sala.
+ *
+ * @param {object} player
+ * @param {string} notation — e.g. "2d6", "1d20", "d12"
+ */
+function cmdDice(player, notation) {
+  if (!notation || !notation.trim()) {
+    return { text: 'Uso: dados <NdM>  — ej: dados 2d6  /  dados 1d20' };
+  }
+
+  const raw = notation.trim().toLowerCase();
+
+  // Parsear: opcional N, "d", M  (el prefijo "d" sin número es 1 dado)
+  const match = raw.match(/^(\d+)?d(\d+)$/);
+  if (!match) {
+    return { text: `❌ Formato inválido. Usá NdM — ej: "2d6", "1d20", "d10"` };
+  }
+
+  const numDice = parseInt(match[1] || '1', 10);
+  const sides   = parseInt(match[2], 10);
+
+  // Límites razonables
+  if (numDice < 1 || numDice > 10) {
+    return { text: '❌ Podés tirar entre 1 y 10 dados.' };
+  }
+  if (sides < 2 || sides > 100) {
+    return { text: '❌ Los dados deben tener entre 2 y 100 caras.' };
+  }
+
+  const rolls = [];
+  for (let i = 0; i < numDice; i++) {
+    rolls.push(Math.floor(Math.random() * sides) + 1);
+  }
+  const total = rolls.reduce((a, b) => a + b, 0);
+
+  const rollStr = rolls.length > 1 ? `[${rolls.join(' + ')}] = ${total}` : `${total}`;
+  const diceText = `🎲 ${player.username} tira ${numDice}d${sides}: ${rollStr}`;
+
+  return {
+    text: diceText,
+    event: diceText,          // broadcast a la sala
     eventRoomId: player.current_room_id,
   };
 }
