@@ -1563,6 +1563,9 @@ function cmdScore(player, args) {
   if (mode === 'tiempo' || mode === 'time' || mode === 'playtime' || mode === 'horas') {
     return cmdScoreTime();
   }
+  if (mode === 'amigos' || mode === 'friends' || mode === 'social') {  // T177
+    return cmdScoreFriends(player);
+  }
 
   // Modo default: kills + XP
   const leaders = db.getLeaderboard(10);
@@ -1591,7 +1594,7 @@ function cmdScore(player, args) {
   });
 
   lines.push(`╚═════════════════════════════════════════════════════╝`);
-  lines.push(`  Subcategorías: "score oro" | "score duelos" | "score rep" | "score crafteos" | "score tiempo"`);
+  lines.push(`  Subcategorías: "score oro" | "score duelos" | "score rep" | "score crafteos" | "score tiempo" | "score amigos"`);
 
   return { text: lines.join('\n') };
 }
@@ -7031,7 +7034,64 @@ function cmdFriend(player, args) {
   return { text: 'Subcomandos disponibles: friend list, friend add <jugador>, friend remove <jugador>' };
 }
 
-// ─── T174: cmdWanted ──────────────────────────────────────────────────────────
+// ─── T177: cmdScoreFriends ────────────────────────────────────────────────────
+/**
+ * score amigos / score friends — Ranking de kills entre tus amigos.
+ * Incluye al propio jugador. Se muestra con indicador "← vos".
+ */
+function cmdScoreFriends(player) {
+  let friends;
+  try { friends = JSON.parse(player.friends || '[]'); } catch (_) { friends = []; }
+
+  if (friends.length === 0) {
+    return {
+      text: '👥 No tenés amigos agregados aún.\n' +
+            '   Usá "friend add <jugador>" para agregar alguien.\n' +
+            '   Luego "score amigos" mostrará el ranking entre vos y ellos.',
+    };
+  }
+
+  // Incluir al propio jugador + sus amigos
+  const usernames = [player.username, ...friends];
+  const players = [];
+  for (const uname of usernames) {
+    const p = db.getPlayerByUsername(uname);
+    if (p) players.push(p);
+  }
+
+  if (players.length < 2) {
+    return { text: '👥 Ninguno de tus amigos tiene cuenta activa en el dungeon.' };
+  }
+
+  // Ordenar por kills desc, luego XP
+  players.sort((a, b) => (b.kills || 0) - (a.kills || 0) || (b.xp || 0) - (a.xp || 0));
+
+  const lines = [
+    '╔═══════════════════════════════════════════╗',
+    '║      👥 RANKING ENTRE TUS AMIGOS 👥       ║',
+    '╠═══════════════════════════════════════════╣',
+    '║  #  Aventurero         Lv   Kills    XP   ║',
+    '╠═══════════════════════════════════════════╣',
+  ];
+
+  players.slice(0, 10).forEach((p, idx) => {
+    const pos    = String(idx + 1).padStart(2);
+    const name   = (p.username || '???').substring(0, 14).padEnd(14);
+    const level  = String(p.level || 1).padStart(3);
+    const kills  = String(p.kills || 0).padStart(5);
+    const xp     = String(p.xp || 0).padStart(6);
+    const isMe   = p.id === player.id ? ' ←' : '  ';
+    const medal  = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
+    lines.push(`║ ${medal}${pos} ${name}  ${level}  ${kills}  ${xp}${isMe}║`);
+  });
+
+  lines.push('╚═══════════════════════════════════════════╝');
+  lines.push(`  ${players.length} aventureros (vos + ${friends.length} amigo(s)).`);
+
+  return { text: lines.join('\n') };
+}
+
+// ─── T174: cmdWanted ─────────────────────────────────────────────────────────
 /**
  * wanted [jugador] — Mostrar bounties activas en formato "SE BUSCA" ASCII art.
  * Sin args: todos. Con arg: solo ese jugador.
