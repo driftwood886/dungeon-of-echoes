@@ -23,6 +23,7 @@ const tutorial = require('./tutorial');
 const crafting = require('./crafting');
 const classes  = require('./classes'); // T107: sistema de clases
 const skills   = require('./skills');  // T114: habilidades activas por nivel
+const ambient  = require('./ambient'); // T121: período del día
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // Cada sala puede tener un efecto que se aplica al entrar.
@@ -173,6 +174,7 @@ function execute(playerId, input, context) {
     case 'note':         result = cmdNote(player, action.args); break;
     case 'changelog':    result = cmdChangelog(); break;
     case 'server':       result = cmdServerStats(); break;
+    case 'time':         result = cmdTime(); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -4009,6 +4011,7 @@ function cmdChangelog() {
       '✨ NUEVO: endpoint REST /api/stats — estadísticas públicas para integración LLM',
       '✨ NUEVO: bonus de mascota en combate (+1 ATK efectivo si tenés compañero)',
       '✨ NUEVO: mascota avisa trampas (15% de chance de evitar el daño al entrar)',
+      '✨ NUEVO: comando time/hora — hora del servidor y período del día con descripción',
     ]},
     { version: '0.22', date: '2026-05-30', changes: [
       '🐛 BUG: subasta con ítems de nombre compuesto (crash resuelto)',
@@ -4119,3 +4122,48 @@ function cmdServerStats() {
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats };
+
+// ─── T121: Comando time/hora ──────────────────────────────────────────────────
+
+/**
+ * time / hora — Muestra la hora del servidor y el período del día actual.
+ */
+function cmdTime() {
+  const now = new Date();
+  const hour = now.getUTCHours();
+  const min  = now.getUTCMinutes();
+  const timeStr = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')} UTC`;
+
+  const period = ambient.getTimePeriod();
+  const PERIOD_INFO = {
+    morning:   { emoji: '🌅', name: 'Amanecer',   desc: 'Los primeros rayos de luz se filtran. Los monstruos aún adormecidos.',       range: '05:00–11:59' },
+    afternoon: { emoji: '☀️',  name: 'Mediodía',   desc: 'El dungeon vibra de actividad. Los monstruos están en su punto más activo.', range: '12:00–17:59' },
+    evening:   { emoji: '🌇', name: 'Atardecer',  desc: 'La luz mengua. Las criaturas nocturnas despiertan.',                         range: '18:00–22:59' },
+    midnight:  { emoji: '🌙', name: 'Medianoche', desc: 'Oscuridad total. El dungeon pertenece a las sombras.',                       range: '23:00–04:59' },
+  };
+
+  const p = PERIOD_INFO[period] || PERIOD_INFO.midnight;
+
+  // Calcular próximo período
+  const nextPeriods = { morning: 'afternoon', afternoon: 'evening', evening: 'midnight', midnight: 'morning' };
+  const nextPeriodName = PERIOD_INFO[nextPeriods[period]].name;
+  const nextHours = { morning: 12, afternoon: 18, evening: 23, midnight: 5 };
+  const nextH = nextHours[period];
+  const minsLeft = ((nextH * 60) - (hour * 60 + min) + 24 * 60) % (24 * 60);
+  const timeLeftStr = `${Math.floor(minsLeft / 60)}h ${minsLeft % 60}m`;
+
+  const lines = [
+    ``,
+    `${p.emoji} HORA DEL SERVIDOR: ${timeStr}`,
+    `   Período: ${p.name} (${p.range})`,
+    `   ${p.desc}`,
+    ``,
+    `⏱ Próximo período: ${nextPeriodName} en ~${timeLeftStr}`,
+    ``,
+    `💡 La hora afecta los textos ambientales, la decoración del mapa y los eventos globales.`,
+  ];
+
+  return { text: lines.join('\n') };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime };

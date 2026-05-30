@@ -154,6 +154,8 @@ const COMMAND_ALIASES = {
   changelog: 'changelog', novedades: 'changelog', actualizaciones: 'changelog', updates: 'changelog', parche: 'changelog', patch: 'changelog',
   // server stats (T119)
   server: 'server', estadísticas: 'server', estadisticas: 'server', serverstats: 'server', uptime: 'server', info: 'server',
+  // time (T121)
+  time: 'time', hora: 'time', reloj: 'time', horario: 'time', 'qué-hora': 'time', periodo: 'time',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -266,6 +268,7 @@ Comandos disponibles:
   note / apunte         — Notas personales: "note add <texto>" para agregar, "note list" para ver, "note del <n>" para borrar
   changelog / novedades — Ver las últimas actualizaciones y mejoras del juego
   server / estadísticas — Ver estadísticas globales del servidor (jugadores, kills, oro, uptime)
+  time / hora           — Ver la hora actual del servidor y el período del día (amanecer/mediodía/atardecer/noche)
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
