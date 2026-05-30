@@ -158,6 +158,8 @@ const COMMAND_ALIASES = {
   time: 'time', hora: 'time', reloj: 'time', horario: 'time', 'qué-hora': 'time', periodo: 'time',
   // enemies (T122)
   enemies: 'enemies', enemigos: 'enemies', mobs: 'enemies', bestias: 'enemies', criaturas: 'enemies', 'top-enemies': 'enemies', top: 'enemies',
+  // compare (T123)
+  compare: 'compare', comparar: 'compare', versus: 'compare', vs: 'compare', duelo_stats: 'compare',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -272,6 +274,7 @@ Comandos disponibles:
   server / estadísticas — Ver estadísticas globales del servidor (jugadores, kills, oro, uptime)
   time / hora           — Ver la hora actual del servidor y el período del día (amanecer/mediodía/atardecer/noche)
   enemies [N] / top [N] — Ver los N monstruos más poderosos del dungeon (vivos y en respawn con tiempo restante)
+  compare <jugador>     — Comparar tus stats con otro aventurero en la misma sala (clase, nivel, HP, ATK, kills, etc.)
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -320,6 +323,7 @@ const COMMAND_HELP = {
     drink:     'drink / beber / tomar\\n  Beber de la Fuente Eterna en la Cámara de la Fuente Eterna (sala 18, al norte del Santuario Profano).\\n  Restaura tu HP completamente.\\n  Cooldown GLOBAL de 10 minutos: una vez que alguien bebe, la fuente tarda 10 min en recargarse.\\n  Nadie puede usarla durante ese tiempo. No funciona si ya estás al máximo de HP.',
     journal:   'journal / diario\\n  Ver tu diario personal de aventurero.\\n  Se registra automáticamente cuando: derrotes un boss, completes una quest, desbloquees un logro, subas de nivel o mueras.\\n  Muestra las últimas 10 entradas con tipo, fecha y descripción.',
     enemies:   'enemies [N] / enemigos [N] / top [N]\\n  Ver los N monstruos más poderosos del dungeon (ordenados por HP máximo).\\n  Muestra: nombre, estado (vivo/respawn), sala donde habitan y estadísticas.\\n  N es opcional, por defecto 10. Máximo 20.',
+    compare:   'compare <jugador> / comparar <jugador> / vs <jugador>\\n  Comparar tus stats con los de otro aventurero que esté en la misma sala.\\n  Tabla visual con: clase, título, nivel, XP, HP con barra, maná, ATK, DEF, kills, muertes, oro y arma equipada.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };

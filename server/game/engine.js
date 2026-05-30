@@ -176,6 +176,7 @@ function execute(playerId, input, context) {
     case 'server':       result = cmdServerStats(); break;
     case 'time':         result = cmdTime(); break;
     case 'enemies':      result = cmdEnemies(action.args); break;
+    case 'compare':      result = cmdCompare(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -4010,6 +4011,7 @@ function cmdChangelog() {
     { version: '0.24', date: '2026-05-30', changes: [
       '✨ NUEVO: comando enemies/top [N] — monstruos más poderosos del dungeon con estado y tiempo de respawn',
       '⚡ MEJORA: enemies muestra 📍 si el monstruo está vivo y 🔮 con tiempo restante si está en respawn',
+      '✨ NUEVO: comando compare/vs <jugador> — tabla comparativa de stats lado a lado con otro aventurero',
     ]},
     { version: '0.23', date: '2026-05-30', changes: [
       '✨ NUEVO: comando server/estadísticas — estado global del servidor en caja ASCII',
@@ -4238,4 +4240,102 @@ function cmdEnemies(args) {
   return { text: lines.join('\n') };
 }
 
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies };
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare };
+
+// ─── T123: Comando compare/comparar — comparar stats con otro jugador ────────
+
+/**
+ * compare <jugador> — Tabla comparativa de stats entre el jugador actual y otro en la misma sala.
+ */
+function cmdCompare(player, args) {
+  if (!args || !args.length) {
+    return { text: 'Uso: compare <nombre_jugador>  — comparar tus stats con otro aventurero en la sala.' };
+  }
+
+  const targetName = args.join(' ').trim().toLowerCase();
+  const playersInRoom = db.getPlayersInRoom(player.current_room_id);
+  const target = playersInRoom.find(p =>
+    p.id !== player.id && p.username.toLowerCase().includes(targetName)
+  );
+
+  if (!target) {
+    return { text: `No hay ningún aventurero llamado "${args.join(' ')}" en esta sala.` };
+  }
+
+  const { CLASSES } = require('./classes');
+
+  function getClassInfo(p) {
+    const cls = p.player_class ? CLASSES[p.player_class] : null;
+    return cls ? `${cls.emoji} ${cls.name}` : '❓ Sin clase';
+  }
+
+  function getWeapon(p) {
+    return p.equipped_weapon || 'Puños';
+  }
+
+  function hpBar(hp, maxHp, len = 8) {
+    const filled = Math.round((hp / maxHp) * len);
+    return '█'.repeat(Math.max(0, filled)) + '░'.repeat(Math.max(0, len - filled));
+  }
+
+  const title1 = getTitle(player.kills || 0);
+  const title2 = getTitle(target.kills || 0);
+
+  const W = 54;
+  const COL = 18;
+
+  function row(label, v1, v2) {
+    const l = label.padEnd(12);
+    const c1 = String(v1).padEnd(COL);
+    const c2 = String(v2).padEnd(COL);
+    const full = `  ${l}  ${c1}  ${c2}`;
+    return `║${full.slice(0, W)}║`;
+  }
+
+  function divider() {
+    return `║${'─'.repeat(W)}║`;
+  }
+
+  function header(text) {
+    return `║${text.padEnd(W)}║`;
+  }
+
+  const p1Name = player.username.slice(0, 16);
+  const p2Name = target.username.slice(0, 16);
+  const nameRow = `  ${''.padEnd(12)}  ${p1Name.padEnd(COL)}  ${p2Name.padEnd(COL)}`;
+
+  const lines = [
+    '',
+    `╔${'═'.repeat(W)}╗`,
+    header(`  ⚔ COMPARACIÓN DE AVENTUREROS`),
+    `╠${'═'.repeat(W)}╣`,
+    `║${nameRow.slice(0, W)}║`,
+    divider(),
+    row('Clase',   getClassInfo(player), getClassInfo(target)),
+    row('Título',  title1.full, title2.full),
+    row('Nivel',   player.level || 1, target.level || 1),
+    row('XP',      player.xp || 0, target.xp || 0),
+    divider(),
+    row('HP',
+      `${player.hp}/${player.max_hp} [${hpBar(player.hp, player.max_hp)}]`,
+      `${target.hp}/${target.max_hp} [${hpBar(target.hp, target.max_hp)}]`
+    ),
+    row('Maná',
+      `${player.mana || 0}/${player.max_mana || 20}`,
+      `${target.mana || 0}/${target.max_mana || 20}`
+    ),
+    row('ATK',     player.attack || 5, target.attack || 5),
+    row('DEF',     player.defense || 3, target.defense || 3),
+    divider(),
+    row('Kills',   player.kills || 0, target.kills || 0),
+    row('Muertes', player.deaths || 0, target.deaths || 0),
+    row('Oro',     `${player.gold || 0}g`, `${target.gold || 0}g`),
+    divider(),
+    row('Arma',    getWeapon(player).slice(0, COL - 1), getWeapon(target).slice(0, COL - 1)),
+    `╚${'═'.repeat(W)}╝`,
+  ];
+
+  return { text: lines.join('\n') };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare };
