@@ -153,6 +153,8 @@ async function init() {
     `ALTER TABLE players ADD COLUMN macros TEXT NOT NULL DEFAULT '{}'`,           // T142: macros personales
     `ALTER TABLE players ADD COLUMN equipped_armor TEXT`,                         // T152: sistema de armaduras
     `ALTER TABLE players ADD COLUMN active_scrolls TEXT NOT NULL DEFAULT '{}'`,   // T153: pergaminos mágicos activos
+    `ALTER TABLE players ADD COLUMN stance TEXT NOT NULL DEFAULT 'equilibrado'`,  // T161: postura de combate
+    `ALTER TABLE players ADD COLUMN playtime_minutes INTEGER NOT NULL DEFAULT 0`, // T157: tiempo de juego total
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }

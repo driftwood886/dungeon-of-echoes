@@ -205,6 +205,8 @@ const COMMAND_ALIASES = {
   sessions: 'sessions', historial_sesiones: 'sessions', 'mis-sesiones': 'sessions', historial_juego: 'sessions',
   // score_time / ranking por tiempo (T158)
   score_time: 'score_time',
+  // stance / postura de combate (T161)
+  stance: 'stance', postura: 'stance', combate_postura: 'stance',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -407,8 +409,9 @@ const COMMAND_HELP = {
   write:     'write <mensaje> / escribir <mensaje> / grabar <mensaje>\\\\\\\\n  Grabar un mensaje en la pared de la sala actual (máx 80 caracteres).\\\\\\\\n  Máximo 10 mensajes por sala. Los más viejos se borran cuando se supera el límite.\\\\\\\\n  Todos los jugadores que entren a la sala verán el indicador y pueden leerlo con "read".',
   read:      'read / leer / pared\\\\\\\\n  Leer las inscripciones en la pared de la sala actual.\\\\\\\\n  Muestra quién lo escribió y cuándo.',
   study:     'study <monstruo> / estudiar <monstruo> / analizar <monstruo>\\\\n  Analizar un monstruo en la sala actual.\\\\n  Muestra tipo, HP/ATK actuales, habilidades especiales con probabilidad,\\\\n  debilidades, resistencias y consejo estratégico.',
-  session:   'session / sesion / sesión\\\\n  Ver las estadísticas de tu sesión actual.\\\\n  Muestra: tiempo conectado, kills, XP ganada, oro ganado y comandos ejecutados.\\\\n  También se muestra automáticamente al desconectarse.',
-  sessions:  'sessions / historial_sesiones / mis-sesiones\\\\n  Ver el historial de tus últimas 5 sesiones guardadas.\\\\n  Las sesiones se guardan al desconectar.\\\\n  También muestra tu tiempo de juego total acumulado.\\\\n  Nota: Las sesiones muy cortas (0 min) igual se registran.',
+  session:   'session / sesion / sesión\\\\\\\\n  Ver las estadísticas de tu sesión actual.\\\\\\\\n  Muestra: tiempo conectado, kills, XP ganada, oro ganado y comandos ejecutados.\\\\\\\\n  También se muestra automáticamente al desconectarse.',
+  sessions:  'sessions / historial_sesiones / mis-sesiones\\\\\\\\n  Ver el historial de tus últimas 5 sesiones guardadas.\\\\\\\\n  Las sesiones se guardan al desconectar.\\\\\\\\n  También muestra tu tiempo de juego total acumulado.\\\\\\\\n  Nota: Las sesiones muy cortas (0 min) igual se registran.',
+  stance:    'stance [postura] / postura [postura]\\\\n  Ver o cambiar tu postura de combate.\\\\n  Posturas: agresivo (+2ATK/-1DEF/5% miss extra), defensivo (-1ATK/+2DEF), equilibrado.\\\\n  La postura persiste entre sesiones.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };

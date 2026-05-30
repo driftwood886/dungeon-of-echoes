@@ -94,6 +94,13 @@ const TITLES = [
   { min: 150, label: 'Leyenda',    icon: '🌟' },
 ];
 
+// ── Posturas de combate (T161) ────────────────────────────────────────────────
+const STANCES = {
+  agresivo:    { icon: '⚔️',  atkMod: +2, defMod: -1, extraMiss: 0.05, desc: 'Atacás más fuerte pero quedás más expuesto. +2 ATK / -1 DEF / 5% más chance de fallar.' },
+  defensivo:   { icon: '🛡️',  atkMod: -1, defMod: +2, extraMiss: 0,    desc: 'Priorizás la defensa. -1 ATK / +2 DEF.' },
+  equilibrado: { icon: '⚖️',  atkMod:  0, defMod:  0, extraMiss: 0,    desc: 'Postura estándar, sin modificadores.' },
+};
+
 /**
  * Devuelve el título del jugador basado en sus kills.
  * @param {number} kills
@@ -233,6 +240,7 @@ function execute(playerId, input, context) {
     case 'session':      result = cmdSession(player, context); break;
     case 'sessions':     result = cmdSessions(player); break;
     case 'score_time':   result = cmdScoreTime(); break;
+    case 'stance':       result = cmdStance(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -630,6 +638,11 @@ function cmdStatus(player) {
     player.equipped_armor
       ? `Armadura: 🛡 ${player.equipped_armor}`
       : `Armadura: (sin armadura — defensa base)`,
+    (() => {
+      const stanceName = player.stance || 'equilibrado';
+      const st = (typeof STANCES !== 'undefined' ? STANCES : {})[stanceName];
+      return st ? `Postura:  ${st.icon} ${stanceName}` : null;
+    })(),
     `Duelos:   ⚔️ ${duelWins} ganados / ${duelLosses} perdidos`,
     `Reputación: ${repLevel.icon} ${repLevel.name} (${repLevel.points} pts)${repNextText}`,
     `Ubicación: ${roomName}`,
@@ -1492,7 +1505,8 @@ function cmdWho() {
       const afkTag = afkPlayers.has(p.id) ? ' 💤' : '';
       const streak = killStreakMap.get(p.id) || 0;
       const streakTag = streak >= 5 ? ` 🔥${streak}` : '';
-      return `  ${(p.username + guildTag).padEnd(22)} ${titleIcon}${repIcon} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}${afkTag}${streakTag}  │  ${p.room_name || 'Desconocido'}`;
+      const stanceIcon = STANCES[p.stance || 'equilibrado'] ? STANCES[p.stance || 'equilibrado'].icon : '';
+      return `  ${(p.username + guildTag).padEnd(22)} ${titleIcon}${repIcon} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}${afkTag}${streakTag} ${stanceIcon} │  ${p.room_name || 'Desconocido'}`;
     }),
     ``,
     `(jugadores activos en los últimos 5 minutos)`,
@@ -6282,5 +6296,62 @@ function cmdScoreTime() {
   return { text: lines.join('\n') };
 }
 
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms };
+// ─────────────────────────────────────────────────────────────────────────────
+// T161: cmdStance — Posturas de combate
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * stance [postura] — Ver o cambiar postura de combate.
+ */
+function cmdStance(player, args) {
+  player = db.getPlayer(player.id);
+  const input = args && args[0] ? args[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : null;
+
+  const currentStance = player.stance || 'equilibrado';
+
+  // Sin argumento: mostrar postura actual
+  if (!input) {
+    const s = STANCES[currentStance] || STANCES.equilibrado;
+    const lines = [
+      `╔════════════════════════════════════════╗`,
+      `║         ⚔  POSTURA DE COMBATE  ⚔       ║`,
+      `╠════════════════════════════════════════╣`,
+      `║  Postura actual: ${(s.icon + ' ' + currentStance.padEnd(14)).substring(0, 16).padEnd(21)}║`,
+      `╠════════════════════════════════════════╣`,
+    ];
+    for (const [name, data] of Object.entries(STANCES)) {
+      const active = name === currentStance ? ' ◄' : '  ';
+      lines.push(`║ ${data.icon} ${name.padEnd(12)}  ATK${data.atkMod >= 0 ? '+' : ''}${data.atkMod} DEF${data.defMod >= 0 ? '+' : ''}${data.defMod}${active.padEnd(2)} ║`);
+    }
+    lines.push(`╠════════════════════════════════════════╣`);
+    lines.push(`║ Cambiá con: stance agresivo/defensivo  ║`);
+    lines.push(`║            stance equilibrado          ║`);
+    lines.push(`╚════════════════════════════════════════╝`);
+    return { text: lines.join('\n') };
+  }
+
+  // Alias / normalización
+  let target = input;
+  if (target === 'ofensivo' || target === 'ofensiva' || target === 'agresiva') target = 'agresivo';
+  if (target === 'defensiva') target = 'defensivo';
+  if (target === 'balanceado' || target === 'normal' || target === 'neutro' || target === 'neutral') target = 'equilibrado';
+
+  if (!STANCES[target]) {
+    return { text: `Postura desconocida: "${args[0]}". Las posturas válidas son: agresivo, defensivo, equilibrado.` };
+  }
+
+  if (target === currentStance) {
+    return { text: `Ya estás en postura ${STANCES[target].icon} ${target}.` };
+  }
+
+  db.updatePlayer(player.id, { stance: target });
+
+  const s = STANCES[target];
+  return {
+    text: `${s.icon} Adoptás la postura **${target}**.\n${s.desc}`,
+    event: 'stance_change',
+  };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES };
 

@@ -185,7 +185,36 @@ function attackRound(player, monster) {
     for (const k of expiredScrollKeys) delete scrolls[k];
     db.updatePlayer(player.id, { active_scrolls: JSON.stringify(scrolls) });
   }
-  const effectiveAtk = player.attack + petBonus + scrollAtkBonus;
+  // T161: modificadores de postura de combate
+  const STANCE_DATA = {
+    agresivo:    { atkMod: +2, defMod: -1, extraMiss: 0.05 },
+    defensivo:   { atkMod: -1, defMod: +2, extraMiss: 0 },
+    equilibrado: { atkMod:  0, defMod:  0, extraMiss: 0 },
+  };
+  const stanceName = player.stance || 'equilibrado';
+  const stanceMods = STANCE_DATA[stanceName] || STANCE_DATA.equilibrado;
+
+  const effectiveAtk = player.attack + petBonus + scrollAtkBonus + stanceMods.atkMod;
+  const effectiveDef = (player.defense || 0) + scrollDefBonus + stanceMods.defMod;
+
+  // Miss extra por postura agresiva
+  if (stanceMods.extraMiss > 0 && Math.random() < stanceMods.extraMiss) {
+    lines.push(`⚔️ [Postura agresiva] El ataque salvaje falla el blanco!`);
+    // turno del monstruo igualmente
+    const rawMissReturn = Math.max(1, calcDamage(monster.attack) - Math.floor(effectiveDef));
+    player.hp = Math.max(0, player.hp - rawMissReturn);
+    db.updatePlayer(player.id, { hp: player.hp });
+    if (player.hp <= 0) {
+      lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon...`);
+      const fpM = db.getPlayer(player.id);
+      db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (fpM.deaths || 0) + 1, status_effects: '{}' });
+      db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name} (golpe tras postura agresiva fallida).`);
+      return { lines, monsterDead: false, playerDead: true, loot: [], poisonSurvived: false };
+    }
+    lines.push(`⚡ El ${monster.name} contraataca: ${rawMissReturn} de daño. (Tus HP: ${player.hp}/${player.max_hp})`);
+    return { lines, monsterDead: false, playerDead: false, loot: [], poisonSurvived: false };
+  }
+
   const playerDmg = calcDamage(effectiveAtk);
   // T107: bonus crítico de clase (Pícaro tiene +15% sobre base del 10%)
   const clsData = classes.getPlayerClass(player);
@@ -378,7 +407,7 @@ function attackRound(player, monster) {
     const freshForBlindCheck = db.getPlayer(player.id);
     const blindFx = freshForBlindCheck.status_effects ? (typeof freshForBlindCheck.status_effects === 'string' ? JSON.parse(freshForBlindCheck.status_effects) : freshForBlindCheck.status_effects) : {};
     const blindDef = blindFx.blinded ? (blindFx.blinded.amount || 0) : 0;
-    const rawDmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus - Math.floor((player.defense || 0) - blindDef + scrollDefBonus));
+    const rawDmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus - Math.floor((effectiveDef || player.defense || 0) - blindDef));
     // T104: Escudo mágico activo absorbe 5 de daño
     const freshForShield = freshForBlindCheck; // reusar la lectura
     const shieldActive = freshForShield.shield_active || 0;
