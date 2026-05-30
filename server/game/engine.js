@@ -22,6 +22,7 @@ const worldEvents = require('./worldEvents');
 const tutorial = require('./tutorial');
 const crafting = require('./crafting');
 const classes  = require('./classes'); // T107: sistema de clases
+const skills   = require('./skills');  // T114: habilidades activas por nivel
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // Cada sala puede tener un efecto que se aplica al entrar.
@@ -167,6 +168,8 @@ function execute(playerId, input) {
     case 'bestiary':     result = cmdBestiary(player); break;
     case 'profile':      result = cmdProfile(player); break;
     case 'journal':      result = cmdJournal(player); break;
+    case 'skills':       result = cmdSkills(player); break;
+    case 'useSkill':     result = cmdUseSkill(player, action.args, context); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -3610,6 +3613,227 @@ function cmdProfile(player) {
   ];
 
   return { text: lines.join('\n') };
+}
+
+/**
+ * T114: skills/habilidades — Ver habilidades desbloqueadas y cooldowns.
+ */
+function cmdSkills(player) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: 'Error al leer tus habilidades.' };
+
+  const level = fresh.level || 1;
+  const unlocked = skills.getUnlockedSkills(level);
+  const cooldowns = skills.getCooldowns(fresh);
+  const now = Date.now();
+
+  const lines = ['⚡ HABILIDADES ACTIVAS', '─'.repeat(40)];
+
+  // Habilidades desbloqueadas
+  if (unlocked.length === 0) {
+    lines.push('  Aún no desbloqueaste ninguna habilidad.');
+    lines.push('  (Nivel 3: Golpetazo · Nivel 6: Golpe de Escudo · Nivel 10: Arenga)');
+  } else {
+    for (const sk of unlocked) {
+      const exp = cooldowns[sk.id];
+      const remaining = exp ? Math.max(0, Math.ceil((new Date(exp) - now) / 1000)) : 0;
+      const status = remaining > 0 ? `⏳ ${remaining}s cooldown` : '✅ Lista';
+      lines.push(`  ⚡ ${sk.name} [${sk.aliases[0]}]`);
+      lines.push(`     ${sk.description}`);
+      lines.push(`     Estado: ${status}`);
+    }
+  }
+
+  // Habilidades aún bloqueadas
+  const locked = skills.ALL_SKILLS.filter(sk => level < sk.required_level);
+  if (locked.length > 0) {
+    lines.push('─'.repeat(40));
+    lines.push('🔒 Bloqueadas:');
+    for (const sk of locked) {
+      lines.push(`  🔒 ${sk.name} (Nivel ${sk.required_level}) — ${sk.description}`);
+    }
+  }
+
+  return { text: lines.join('\n') };
+}
+
+/**
+ * T114: useSkill — Usar una habilidad activa.
+ * context: { broadcast, getPlayerSocket, ... } — contexto de socket handlers
+ */
+function cmdUseSkill(player, args, context) {
+  if (!args || args.length === 0) {
+    return { text: 'Uso: smash | escudo_bash | arenga. Ver habilidades disponibles con "skills".' };
+  }
+
+  const freshPlayer = db.getPlayer(player.id);
+  if (!freshPlayer) return { text: 'Error al leer tu perfil.' };
+
+  const skillAlias = args[0].toLowerCase();
+  const skillId = skills.resolveSkillAlias(skillAlias);
+  if (!skillId) {
+    return { text: `Habilidad "${skillAlias}" no reconocida. Usá "skills" para ver las disponibles.` };
+  }
+
+  const { ok, error, skill } = skills.canUseSkill(freshPlayer, skillId);
+  if (!ok) return { text: error };
+
+  const room = db.getRoom(freshPlayer.current_room_id);
+
+  // ── Golpetazo (smash) ─────────────────────────────────────────────────────
+  if (skillId === 'smash') {
+    const monsters = db.getMonstersInRoom(freshPlayer.current_room_id);
+    const alive = monsters.filter(m => m.hp > 0);
+    if (alive.length === 0) {
+      return { text: '⚡ No hay monstruos aquí para golpear.' };
+    }
+    // Atacar el primer monstruo de la sala
+    const target = alive[0];
+    const baseDmg = freshPlayer.attack || 5;
+    const rawDmg = Math.max(1, Math.floor(baseDmg * skill.dmg_multiplier));
+    const variation = Math.floor(rawDmg * 0.2);
+    const dmg = rawDmg + Math.floor(Math.random() * (variation * 2 + 1)) - variation;
+    const finalDmg = Math.max(1, dmg - Math.floor(target.defense || 0));
+    const newHp = Math.max(0, target.hp - finalDmg);
+    db.updateMonster(target.id, { hp: newHp });
+    // Aplicar cooldown
+    const newCooldowns = skills.applyCooldown(freshPlayer, 'smash');
+    db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldowns });
+
+    const dead = newHp <= 0;
+    let text = `⚡ ¡GOLPETAZO! Golpeás al ${target.name} con toda tu fuerza causando ${finalDmg} de daño (×1.8)!`;
+    if (dead) {
+      text += `\n💀 El ${target.name} sucumbe ante tu brutal ataque.`;
+      // Respawn y loot como en ataque normal
+      if (target.respawn_room_id) {
+        const respawnAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+        db.updateMonster(target.id, { hp: 0, room_id: null, respawn_at: respawnAt });
+      }
+      // XP básico
+      const xpGain = Math.max(5, Math.floor(target.max_hp * 2));
+      const newXp = (freshPlayer.xp || 0) + xpGain;
+      const newLevel = 1 + Math.floor(newXp / 50);
+      const levelUp = newLevel > (freshPlayer.level || 1);
+      db.updatePlayer(freshPlayer.id, { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 });
+      text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
+      db.addBestiaryKill(freshPlayer.id, target.name);
+      if (levelUp) db.addJournalEntry(freshPlayer.id, 'level', `⬆️ Subiste al nivel ${newLevel} tras el Golpetazo.`);
+    } else {
+      text += `\n  El ${target.name} tiene ${newHp}/${target.max_hp} HP.`;
+      text += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+    }
+
+    // Broadcast a la sala
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `⚡ ${freshPlayer.username} usa Golpetazo sobre el ${target.name}! (-${finalDmg} HP)`);
+    }
+    return { text };
+  }
+
+  // ── Golpe de Escudo (shield_bash) ─────────────────────────────────────────
+  if (skillId === 'shield_bash') {
+    const monsters = db.getMonstersInRoom(freshPlayer.current_room_id);
+    const alive = monsters.filter(m => m.hp > 0);
+    if (alive.length === 0) {
+      return { text: '⚡ No hay monstruos aquí para golpear con el escudo.' };
+    }
+    const target = alive[0];
+    const baseDmg = freshPlayer.attack || 5;
+    const variation = Math.floor(baseDmg * 0.2);
+    const rawDmg = baseDmg + Math.floor(Math.random() * (variation * 2 + 1)) - variation;
+    const finalDmg = Math.max(1, rawDmg - Math.floor(target.defense || 0));
+    const newHp = Math.max(0, target.hp - finalDmg);
+    // Stun: guardar en status_effects del monstruo
+    const monsterEffects = target.status_effects ? JSON.parse(target.status_effects || '{}') : {};
+    monsterEffects.stunned = { turns: 1 };
+    db.updateMonster(target.id, { hp: newHp, status_effects: JSON.stringify(monsterEffects) });
+    // Cooldown
+    const newCooldowns = skills.applyCooldown(freshPlayer, 'shield_bash');
+    db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldowns });
+
+    const dead = newHp <= 0;
+    let text = `🛡️ ¡GOLPE DE ESCUDO! Golpeás al ${target.name} con tu escudo (${finalDmg} dmg) aturdiéndolo!`;
+    if (dead) {
+      text += `\n💀 El impacto fue tan brutal que el ${target.name} cae fulminado.`;
+      if (target.respawn_room_id) {
+        const respawnAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+        db.updateMonster(target.id, { hp: 0, room_id: null, respawn_at: respawnAt });
+      }
+      const xpGain = Math.max(5, Math.floor(target.max_hp * 2));
+      const newXp = (freshPlayer.xp || 0) + xpGain;
+      const newLevel = 1 + Math.floor(newXp / 50);
+      const levelUp = newLevel > (freshPlayer.level || 1);
+      db.updatePlayer(freshPlayer.id, { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 });
+      text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
+      db.addBestiaryKill(freshPlayer.id, target.name);
+    } else {
+      text += `\n  El ${target.name} está aturdido (no ataca el próximo turno). HP: ${newHp}/${target.max_hp}.`;
+      text += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+    }
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `🛡️ ${freshPlayer.username} usa Golpe de Escudo sobre el ${target.name}! (-${finalDmg} HP, aturdido)`);
+    }
+    return { text };
+  }
+
+  // ── Arenga (rally) ────────────────────────────────────────────────────────
+  if (skillId === 'rally') {
+    const party = freshPlayer.party_id ? db.getPartyMembers(freshPlayer.party_id) : [];
+    const sameRoom = party.filter(m => m.id !== freshPlayer.id && m.current_room_id === freshPlayer.current_room_id);
+
+    if (sameRoom.length === 0) {
+      return { text: '⚡ No hay compañeros de grupo en tu sala para arenga. Formá un grupo primero (party).' };
+    }
+
+    // Aplicar buff ATK temporal a todos en la sala (incluido el jugador)
+    const allInRoom = [freshPlayer, ...sameRoom];
+    const buffDuration = skill.duration_seconds * 1000;
+    const buffExpiresAt = new Date(Date.now() + buffDuration).toISOString();
+
+    for (const member of allInRoom) {
+      const mFresh = db.getPlayer(member.id);
+      if (!mFresh) continue;
+      const effects = mFresh.status_effects ? JSON.parse(mFresh.status_effects || '{}') : {};
+      effects.rally = { atk_bonus: skill.atk_bonus, expires_at: buffExpiresAt };
+      // Actualizar el ATK temporalmente
+      const newAtk = (mFresh.attack || 5) + skill.atk_bonus;
+      db.updatePlayer(mFresh.id, { attack: newAtk, status_effects: JSON.stringify(effects) });
+    }
+
+    // Cooldown
+    const newCooldowns = skills.applyCooldown(freshPlayer, 'rally');
+    db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldowns });
+
+    const members_list = sameRoom.map(m => m.username).join(', ');
+    const text = `⚡ ¡ARENGA! Tu grito de batalla infunde fuerza a ${members_list} y a vos mismo.\n  +${skill.atk_bonus} ATK para todos por ${skill.duration_seconds}s.\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `⚡ ${freshPlayer.username} arenga a su grupo: +${skill.atk_bonus} ATK por ${skill.duration_seconds}s!`);
+    }
+
+    // Programar reverción del buff
+    setTimeout(() => {
+      for (const member of allInRoom) {
+        try {
+          const mFresh2 = db.getPlayer(member.id);
+          if (!mFresh2) continue;
+          const eff = mFresh2.status_effects ? JSON.parse(mFresh2.status_effects || '{}') : {};
+          if (eff.rally) {
+            delete eff.rally;
+            const revertAtk = Math.max(1, (mFresh2.attack || 5) - skill.atk_bonus);
+            db.updatePlayer(mFresh2.id, { attack: revertAtk, status_effects: JSON.stringify(eff) });
+          }
+        } catch (_) {}
+      }
+    }, buffDuration);
+
+    return { text };
+  }
+
+  return { text: `Habilidad "${skillId}" no implementada aún.` };
 }
 
 /**

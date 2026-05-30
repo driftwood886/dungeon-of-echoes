@@ -141,6 +141,13 @@ const COMMAND_ALIASES = {
   profile: 'profile', perfil: 'profile', tarjeta: 'profile', ficha: 'profile', carnet: 'profile',
   // journal / diario (T113)
   journal: 'journal', diario: 'journal', bitacora2: 'journal', memorias: 'journal', cronica_personal: 'journal', historial_personal: 'journal',
+  // skills / habilidades (T114)
+  skills: 'skills', habilidades: 'skills', habilidad: 'skills', poderes: 'skills', capacidades: 'skills',
+  // useSkill — habilidades activas de combate (T114)
+  smash: 'useSkill', golpetazo: 'useSkill', golpe_potente: 'useSkill', destrozo: 'useSkill',
+  // eslint-disable-next-line camelcase
+  shield_bash: 'useSkill', escudo_bash: 'useSkill', bash: 'useSkill', escudazo: 'useSkill', golpe_escudo: 'useSkill',
+  rally: 'useSkill', arenga: 'useSkill', motivar: 'useSkill', grito_batalla: 'useSkill',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -246,6 +253,10 @@ Comandos disponibles:
   bestiario             — Ver tu registro de monstruos cazados con estadísticas
   perfil / profile      — Tarjeta de aventurero completa con todos los stats en formato visual
   diario / journal      — Ver tu diario personal: logros, subidas de nivel, muertes y boss derrotados
+  skills / habilidades  — Ver tus habilidades activas desbloqueadas y sus cooldowns (Lv3/6/10)
+  smash / golpetazo     — Habilidad: golpe potente ×1.8 daño (requiere Nivel 3, cooldown 45s)
+  bash / escudo_bash    — Habilidad: golpe de escudo + stun al monstruo 1 turno (Nivel 6, 60s)
+  rally / arenga        — Habilidad: +2 ATK al grupo en la sala por 60s (Nivel 10, 2min)
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();

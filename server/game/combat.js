@@ -248,6 +248,22 @@ function attackRound(player, monster) {
     return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
   }
 
+  // ── T114: Verificar si el monstruo está aturdido (shield_bash stun) ────────
+  const monsterFxForStun = monster.status_effects ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects) : {};
+  if (monsterFxForStun.stunned && monsterFxForStun.stunned.turns > 0) {
+    monsterFxForStun.stunned.turns -= 1;
+    if (monsterFxForStun.stunned.turns <= 0) {
+      delete monsterFxForStun.stunned;
+      lines.push(`😵 El ${monster.name} se recupera del aturdimiento.`);
+    } else {
+      lines.push(`😵 El ${monster.name} está aturdido y no puede atacar este turno.`);
+    }
+    monster.status_effects = monsterFxForStun;
+    db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterFxForStun) });
+    db.updatePlayer(player.id, { hp: player.hp, status_effects: JSON.stringify(player.status_effects || {}) });
+    return { lines, monsterDead, playerDead, loot };
+  }
+
   // ── Monstruo contraataca ──────────────────────────────────────────────────
   const monsterDmg = calcDamage(monster.attack);
   // Bonus daño si hay evento luna de sangre

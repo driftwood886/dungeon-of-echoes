@@ -141,6 +141,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN bestiary TEXT NOT NULL DEFAULT '{}'`, // T108: bestiario personal
     `ALTER TABLE monsters ADD COLUMN status_effects TEXT NOT NULL DEFAULT '{}'`, // T110: efectos on_hit en monstruos
     `ALTER TABLE players ADD COLUMN journal TEXT NOT NULL DEFAULT '[]'`, // T113: diario del aventurero
+    `ALTER TABLE players ADD COLUMN skill_cooldowns TEXT NOT NULL DEFAULT '{}'`, // T114: cooldowns de habilidades activas
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
