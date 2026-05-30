@@ -370,6 +370,14 @@ function cmdMove(player, direction) {
   // Actualizar posición del jugador
   db.updatePlayer(player.id, { current_room_id: targetId });
 
+  // T115: Registrar sala visitada para logro secreto Cartógrafo
+  db.trackRoomVisit(player.id, targetId);
+  const freshForCartog = db.getPlayer(player.id);
+  if (freshForCartog) {
+    const cartogAchs = ach.checkAchievements(freshForCartog, {});
+    // Los nuevos logros se notificarán en la respuesta si los hay
+  }
+
   // Construir respuesta
   const moveText = `Vas hacia el ${dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction}.`;
   const roomDesc = dungeon.describeRoom(targetId, player.id);
@@ -1955,6 +1963,9 @@ function cmdBuy(player, itemQuery) {
   const newInventory = [...player.inventory, item.name];
   db.updatePlayer(player.id, { gold: newGold, inventory: newInventory });
 
+  // T115: Trackear oro gastado para logro secreto Mecenas
+  db.addGoldSpent(player.id, item.price);
+
   // Evaluar logros de compra
   const freshBuyer = db.getPlayer(player.id);
   const buyAchs = ach.checkAchievements(freshBuyer, { boughtSomething: true });
@@ -2434,8 +2445,21 @@ function cmdAcceptDuel(player) {
       duel_losses: (loser.duel_losses || 0) + 1,
     });
 
+    // T115: Logro secreto Último Aliento — ganar un duelo con 1 HP
+    let secretAchNotif = '';
+    if (winnerHp === 1) {
+      const freshWinner = db.getPlayer(winner.id);
+      if (freshWinner) {
+        const duelAchs = ach.checkAchievements(freshWinner, { duelSurvivedAt1Hp: true });
+        if (duelAchs.length > 0) {
+          secretAchNotif = ach.formatNewAchievements(duelAchs);
+        }
+      }
+    }
+
     resultMsg = `🏆 ¡${winner.username} gana el duelo! ${loser.username} pierde ${goldTransfer} monedas de oro.\n` +
-                `   ${winner.username}: ${winnerHp}/${winner.max_hp} HP | ${loser.username}: ${loserHp}/${loser.max_hp} HP`;
+                `   ${winner.username}: ${winnerHp}/${winner.max_hp} HP | ${loser.username}: ${loserHp}/${loser.max_hp} HP` +
+                secretAchNotif;
 
     // Registrar en crónica global (T093)
     db.logGlobalEvent('duel', `⚔️ ${winner.username} venció a ${loser.username} en duelo y ganó ${goldTransfer}g.`);
@@ -2574,6 +2598,17 @@ function cmdCraft(player, args) {
   inv.push(craftResult.result);
 
   db.updatePlayer(player.id, { inventory: JSON.stringify(inv) });
+
+  // T115: Trackear crafteos para logro secreto Artesano
+  db.addCraftsCount(player.id);
+  const freshCrafter = db.getPlayer(player.id);
+  if (freshCrafter) {
+    const craftAchs = ach.checkAchievements(freshCrafter, {});
+    const craftAchLines = ach.formatNewAchievements(craftAchs);
+    if (craftAchLines) {
+      return { text: craftResult.text + craftAchLines };
+    }
+  }
 
   return { text: craftResult.text };
 }

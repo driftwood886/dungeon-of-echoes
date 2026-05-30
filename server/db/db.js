@@ -142,6 +142,9 @@ async function init() {
     `ALTER TABLE monsters ADD COLUMN status_effects TEXT NOT NULL DEFAULT '{}'`, // T110: efectos on_hit en monstruos
     `ALTER TABLE players ADD COLUMN journal TEXT NOT NULL DEFAULT '[]'`, // T113: diario del aventurero
     `ALTER TABLE players ADD COLUMN skill_cooldowns TEXT NOT NULL DEFAULT '{}'`, // T114: cooldowns de habilidades activas
+    `ALTER TABLE players ADD COLUMN gold_spent INTEGER NOT NULL DEFAULT 0`,    // T115: logros secretos (oro gastado)
+    `ALTER TABLE players ADD COLUMN crafts_count INTEGER NOT NULL DEFAULT 0`,  // T115: logros secretos (crafteos)
+    `ALTER TABLE players ADD COLUMN rooms_visited TEXT NOT NULL DEFAULT '[]'`, // T115: logros secretos (salas visitadas)
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -679,6 +682,53 @@ function closeExpiredAuctions() {
   return expired;
 }
 
+// ─── T115: Helpers para logros secretos ───────────────────────────────────────
+
+/**
+ * Registra una visita a una sala. Devuelve el array actualizado de salas visitadas.
+ * @param {string|number} playerId
+ * @param {number} roomId
+ * @returns {number[]} array de IDs de salas visitadas (sin duplicados)
+ */
+function trackRoomVisit(playerId, roomId) {
+  const p = getPlayer(playerId);
+  if (!p) return [];
+  let visited = [];
+  try { visited = JSON.parse(p.rooms_visited || '[]'); } catch (_) {}
+  if (!visited.includes(roomId)) {
+    visited.push(roomId);
+    updatePlayer(playerId, { rooms_visited: JSON.stringify(visited) });
+  }
+  return visited;
+}
+
+/**
+ * Incrementa gold_spent del jugador en `amount`.
+ * @param {string|number} playerId
+ * @param {number} amount
+ * @returns {number} nuevo total de gold_spent
+ */
+function addGoldSpent(playerId, amount) {
+  const p = getPlayer(playerId);
+  if (!p) return 0;
+  const newTotal = (p.gold_spent || 0) + amount;
+  updatePlayer(playerId, { gold_spent: newTotal });
+  return newTotal;
+}
+
+/**
+ * Incrementa crafts_count del jugador en 1 y devuelve el nuevo total.
+ * @param {string|number} playerId
+ * @returns {number} nuevo total de crafteos
+ */
+function addCraftsCount(playerId) {
+  const p = getPlayer(playerId);
+  if (!p) return 0;
+  const newTotal = (p.crafts_count || 0) + 1;
+  updatePlayer(playerId, { crafts_count: newTotal });
+  return newTotal;
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -701,4 +751,6 @@ module.exports = {
   createAuction, getActiveAuctions, getAuction, placeBid, closeExpiredAuctions,
   // acceso raw (por si acaso)
   raw: () => db,
+  // T115: logros secretos
+  trackRoomVisit, addGoldSpent, addCraftsCount,
 };

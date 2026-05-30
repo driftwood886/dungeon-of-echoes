@@ -87,6 +87,53 @@ const ACHIEVEMENTS = [
     desc: 'Comprar algo en la tienda del Mercader Aldric',
     check: (_p, ctx) => !!(ctx && ctx.boughtSomething),
   },
+  // ─── T115: Logros secretos ────────────────────────────────────────────────
+  {
+    id: 'temerario',
+    icon: '☠️',
+    name: 'Temerario',
+    desc: 'Morir 3 veces sin rendirse',
+    secret: true,
+    check: (p, _ctx) => (p.deaths || 0) >= 3,
+  },
+  {
+    id: 'mecenas',
+    icon: '💎',
+    name: 'Mecenas',
+    desc: 'Gastar 200 monedas de oro en la tienda',
+    secret: true,
+    check: (p, _ctx) => (p.gold_spent || 0) >= 200,
+  },
+  {
+    id: 'artesano',
+    icon: '⚗️',
+    name: 'Artesano',
+    desc: 'Craftear 5 ítems en el taller de alquimia',
+    secret: true,
+    check: (p, _ctx) => (p.crafts_count || 0) >= 5,
+  },
+  {
+    id: 'ultimo_aliento',
+    icon: '💔',
+    name: 'Último Aliento',
+    desc: 'Sobrevivir un duelo con 1 HP restante',
+    secret: true,
+    check: (_p, ctx) => !!(ctx && ctx.duelSurvivedAt1Hp),
+  },
+  {
+    id: 'cartografo',
+    icon: '🗺️',
+    name: 'Cartógrafo',
+    desc: 'Visitar todas las salas del dungeon',
+    secret: true,
+    // salas 1-18 = 18 salas (sala 17 = Casa de Subastas, sala 18 = Fuente Eterna)
+    check: (p, _ctx) => {
+      let visited = [];
+      try { visited = JSON.parse(p.rooms_visited || '[]'); } catch (_) {}
+      const ALL_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18];
+      return ALL_ROOMS.every(id => visited.includes(id));
+    },
+  },
 ];
 
 // ─── checkAchievements ─────────────────────────────────────────────────────────
@@ -135,11 +182,28 @@ function getPlayerAchievements(player) {
  */
 function formatAchievements(player) {
   const earned = getPlayerAchievements(player);
-  if (earned.length === 0) {
-    return 'Aún no tenés ningún logro. ¡Seguí explorando!';
+  const current = JSON.parse(player.achievements || '[]');
+  // Logros públicos
+  const publicAchs = ACHIEVEMENTS.filter(a => !a.secret);
+  const secretAchs = ACHIEVEMENTS.filter(a => a.secret);
+  const secretEarned = secretAchs.filter(a => current.includes(a.id));
+  const secretPending = secretAchs.length - secretEarned.length;
+
+  if (earned.length === 0 && secretEarned.length === 0) {
+    const lockLine = secretPending > 0 ? `\n  🔒 ${secretPending} logro(s) secreto(s) sin descubrir` : '';
+    return `Aún no tenés ningún logro. ¡Seguí explorando!${lockLine}`;
   }
-  const lines = earned.map(a => `  ${a.icon} ${a.name} — ${a.desc}`);
-  return `Logros (${earned.length}/${ACHIEVEMENTS.length}):\n${lines.join('\n')}`;
+
+  const allEarned = earned; // incluye secretos ya desbloqueados (getPlayerAchievements los devuelve todos)
+  const totalPublic = publicAchs.length;
+  const lines = allEarned.map(a => `  ${a.icon} ${a.name}${a.secret ? ' 🔒' : ''} — ${a.desc}`);
+
+  let header = `Logros (${allEarned.length}/${totalPublic + secretAchs.length}):`;
+  const result = `${header}\n${lines.join('\n')}`;
+  if (secretPending > 0) {
+    return result + `\n  🔒 ${secretPending} logro(s) secreto(s) aún sin descubrir...`;
+  }
+  return result;
 }
 
 /**
