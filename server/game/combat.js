@@ -16,6 +16,7 @@
 const db = require('../db/db');
 const worldEvents = require('./worldEvents');
 const classes = require('./classes'); // T107: bonus de clase
+const items = require('./items');    // T110: efectos on_hit de armas crafteadas
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -104,6 +105,107 @@ function attackRound(player, monster) {
 
   // Actualizar monstruo en BD
   db.updateMonster(monster.id, { hp: monster.hp });
+
+  // ── T110: Efecto on_hit del arma equipada ────────────────────────────────
+  // Si el jugador tiene un arma crafteada con efecto especial, aplicarlo al monstruo (si sigue vivo)
+  if (monster.hp > 0) {
+    const equippedWeapon = player.equipped_weapon;
+    if (equippedWeapon) {
+      const weaponDef = items.getItemDef(equippedWeapon);
+      if (weaponDef && weaponDef.on_hit) {
+        const onHit = weaponDef.on_hit;
+        if (Math.random() < onHit.chance) {
+          if (onHit.type === 'poison') {
+            // Envenenar al monstruo: se guarda en monster status_effects JSON
+            const monsterFx = monster.status_effects ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects) : {};
+            if (!monsterFx.poisoned) {
+              monsterFx.poisoned = { damage: onHit.damage, turns: onHit.turns };
+              monster.status_effects = monsterFx;
+              db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterFx) });
+              lines.push(`🕷 ¡Tu ${equippedWeapon} envenena al ${monster.name}! (${onHit.damage} dmg/turno por ${onHit.turns} turnos)`);
+            }
+          } else if (onHit.type === 'shadow_bolt') {
+            // Rayo de sombra: daño extra inmediato
+            const shadowDmg = onHit.bonus_damage || 8;
+            monster.hp = Math.max(0, monster.hp - shadowDmg);
+            db.updateMonster(monster.id, { hp: monster.hp });
+            lines.push(`🌑 ¡El grimorio libera un RAYO DE SOMBRA! ${shadowDmg} daño extra al ${monster.name}. (${monster.hp}/${monster.max_hp} HP)`);
+            if (monster.hp <= 0) {
+              monsterDead = true;
+              lines.push(`💀 ¡El ${monster.name} cae derrotado por las sombras!`);
+              const { droppedLoot, globalEvent } = dropLoot(monster, player.current_room_id);
+              loot = droppedLoot;
+              if (loot.length > 0) lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
+              else lines.push(`El ${monster.name} no deja nada.`);
+              const xpBase2 = Math.max(5, Math.floor(monster.max_hp * 2));
+              const activeEv2 = worldEvents.getCurrentEvent();
+              const xpGain2 = activeEv2 && activeEv2.id === 'invasion' ? Math.floor(xpBase2 * 1.5) : xpBase2;
+              const freshPl2 = db.getPlayer(player.id);
+              const newKills2 = (freshPl2.kills || 0) + 1;
+              const newXp2    = (freshPl2.xp    || 0) + xpGain2;
+              const oldLevel2 = freshPl2.level || 1;
+              const newLevel2 = Math.floor(newXp2 / 50) + 1;
+              const updates2  = { kills: newKills2, xp: newXp2, level: newLevel2 };
+              if (newLevel2 > oldLevel2) {
+                updates2.max_hp = (freshPl2.max_hp || 30) + 5;
+                updates2.hp = Math.min(freshPl2.hp, updates2.max_hp);
+                updates2.attack = (freshPl2.attack || 5) + 1;
+                lines.push(`✨ ¡Subiste al nivel ${newLevel2}! +5 HP máx, +1 ataque.`);
+              }
+              lines.push(`⭐ +${xpGain2} XP (total: ${newXp2} | kills: ${newKills2} | nivel: ${newLevel2})`);
+              db.updatePlayer(player.id, updates2);
+              return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // ── Efecto de veneno del monstruo (si está envenenado por on_hit) ─────────
+  if (monster.hp > 0 && monster.status_effects) {
+    const mFx = typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects;
+    if (mFx.poisoned) {
+      const mpd = mFx.poisoned;
+      const mpDmg = mpd.damage || 1;
+      monster.hp = Math.max(0, monster.hp - mpDmg);
+      mpd.turns = (mpd.turns || 1) - 1;
+      lines.push(`☠ El veneno drena al ${monster.name} (${mpDmg} dmg). (${monster.hp}/${monster.max_hp} HP)`);
+      if (mpd.turns <= 0) {
+        delete mFx.poisoned;
+        lines.push(`El veneno en ${monster.name} se disipa.`);
+      }
+      monster.status_effects = mFx;
+      db.updateMonster(monster.id, { hp: monster.hp, status_effects: JSON.stringify(mFx) });
+      if (monster.hp <= 0) {
+        monsterDead = true;
+        lines.push(`💀 ¡El ${monster.name} cae derrotado por el veneno!`);
+        const { droppedLoot, globalEvent } = dropLoot(monster, player.current_room_id);
+        loot = droppedLoot;
+        if (loot.length > 0) lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
+        else lines.push(`El ${monster.name} no deja nada.`);
+        const xpBase3 = Math.max(5, Math.floor(monster.max_hp * 2));
+        const activeEv3 = worldEvents.getCurrentEvent();
+        const xpGain3 = activeEv3 && activeEv3.id === 'invasion' ? Math.floor(xpBase3 * 1.5) : xpBase3;
+        const freshPl3 = db.getPlayer(player.id);
+        const newKills3 = (freshPl3.kills || 0) + 1;
+        const newXp3    = (freshPl3.xp    || 0) + xpGain3;
+        const oldLevel3 = freshPl3.level || 1;
+        const newLevel3 = Math.floor(newXp3 / 50) + 1;
+        const updates3  = { kills: newKills3, xp: newXp3, level: newLevel3 };
+        if (newLevel3 > oldLevel3) {
+          updates3.max_hp = (freshPl3.max_hp || 30) + 5;
+          updates3.hp = Math.min(freshPl3.hp, updates3.max_hp);
+          updates3.attack = (freshPl3.attack || 5) + 1;
+          lines.push(`✨ ¡Subiste al nivel ${newLevel3}! +5 HP máx, +1 ataque.`);
+        }
+        lines.push(`⭐ +${xpGain3} XP (total: ${newXp3} | kills: ${newKills3} | nivel: ${newLevel3})`);
+        db.updatePlayer(player.id, updates3);
+        return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
+      }
+    }
+  }
+
 
   if (monster.hp <= 0) {
     monsterDead = true;
@@ -339,6 +441,7 @@ function checkRespawns() {
       hp: m.max_hp,
       room_id: m.respawn_room_id,
       respawn_at: null,
+      status_effects: '{}', // T110: limpiar efectos de veneno al respawnear
     });
     console.log(`[combat] Respawn: ${m.name} en sala ${m.respawn_room_id}`);
   }

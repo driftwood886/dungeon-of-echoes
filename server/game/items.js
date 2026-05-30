@@ -85,12 +85,12 @@ const ITEM_CATALOG = {
   'esencia de sombra':   { type: 'misc', description: 'La esencia condensada de las sombras del dungeon. Vibra en la oscuridad.' },
 
   // ── Ítems artesanales (resultado de crafteo — T092) ───────────────────────
-  'espada envenenada':   { type: 'weapon', effect: 'attack_bonus', amount: 5,  description: 'Una espada que supura veneno verde. +5 de ataque. Los golpes pueden envenenar al objetivo.' },
-  'cuchillo envenenado': { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'Un cuchillo impregnado de veneno de araña. +3 de ataque. Los golpes pueden envenenar.' },
+  'espada envenenada':   { type: 'weapon', effect: 'attack_bonus', amount: 5,  on_hit: { type: 'poison', chance: 0.35, damage: 2, turns: 3 }, description: 'Una espada que supura veneno verde. +5 de ataque. 35% de chance de envenenar al objetivo por 3 turnos.' },
+  'cuchillo envenenado': { type: 'weapon', effect: 'attack_bonus', amount: 3,  on_hit: { type: 'poison', chance: 0.35, damage: 1, turns: 4 }, description: 'Un cuchillo impregnado de veneno de araña. +3 de ataque. 35% de chance de envenenar al objetivo por 4 turnos.' },
   'látigo de garras':    { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'Un látigo improvisado con garras de esqueleto. +4 de ataque.' },
   'red resistente':      { type: 'misc', description: 'Una red de araña y cuerda trenzadas. Casi imposible de romper.' },
   'collar de garras':    { type: 'misc', description: 'Un collar artesanal de dientes y seda de araña. Emana poder primitivo.' },
-  'grimorio del abismo': { type: 'weapon', effect: 'attack_bonus', amount: 10, description: 'Un grimorio sellado con poder abismal. +10 de ataque mágico.' },
+  'grimorio del abismo': { type: 'weapon', effect: 'attack_bonus', amount: 10, on_hit: { type: 'shadow_bolt', chance: 0.20, bonus_damage: 8 }, description: 'Un grimorio sellado con poder abismal. +10 de ataque mágico. 20% de chance de lanzar un rayo de sombra (+8 daño extra).' },
 };
 
 // ─── Funciones públicas ───────────────────────────────────────────────────────

@@ -139,6 +139,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN shield_active INTEGER NOT NULL DEFAULT 0`, // T104: escudo activo
     `ALTER TABLE players ADD COLUMN player_class TEXT NOT NULL DEFAULT 'sin_clase'`, // T107: clase de personaje
     `ALTER TABLE players ADD COLUMN bestiary TEXT NOT NULL DEFAULT '{}'`, // T108: bestiario personal
+    `ALTER TABLE monsters ADD COLUMN status_effects TEXT NOT NULL DEFAULT '{}'`, // T110: efectos on_hit en monstruos
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -437,9 +438,30 @@ function getActivePlayers(cutoff) {
 
 function getLeaderboard(limit = 10) {
   return all(
-    `SELECT username, level, xp, kills, hp, max_hp, deaths
+    `SELECT username, level, xp, kills, hp, max_hp, deaths, gold, duel_wins
      FROM players
      ORDER BY kills DESC, xp DESC, level DESC
+     LIMIT ?`,
+    [limit]
+  );
+}
+
+// T112: Rankings alternativos
+function getLeaderboardByGold(limit = 10) {
+  return all(
+    `SELECT username, level, gold, kills
+     FROM players
+     ORDER BY gold DESC, level DESC
+     LIMIT ?`,
+    [limit]
+  );
+}
+
+function getLeaderboardByDuels(limit = 10) {
+  return all(
+    `SELECT username, level, duel_wins, duel_losses, kills
+     FROM players
+     ORDER BY duel_wins DESC, level DESC
      LIMIT ?`,
     [limit]
   );
@@ -640,7 +662,7 @@ function closeExpiredAuctions() {
 module.exports = {
   init, persist,
   // players
-  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, getPlayersInRoom, getActivePlayers, getLeaderboard, getPartyMembers,
+  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers,
   // rooms
   getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, checkTrapRespawns,
   // monsters

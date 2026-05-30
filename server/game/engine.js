@@ -126,8 +126,9 @@ function execute(playerId, input) {
     case 'unequip':   result = cmdUnequip(player); break;
     case 'map':       result = cmdMap(player); break;
     case 'who':       result = cmdWho(); break;
-    case 'score':     result = cmdScore(); break;
+    case 'score':     result = cmdScore(player, action.args); break;
     case 'give':      result = cmdGive(player, action.args); break;
+    case 'pay':       result = cmdPay(player, action.args); break;
     case 'loot':      result = cmdLoot(player); break;
     case 'whisper':   result = cmdWhisper(player, action.args); break;
     case 'tell':      result = cmdTell(player, action.args); break;
@@ -959,9 +960,20 @@ function cmdWho() {
 }
 
 /**
- * score — Tabla de líderes global ordenada por kills (luego XP, luego nivel).
+ * score — Tabla de líderes. Sin args: kills+XP. Con args: "oro" o "duelos".
+ * T112: Rankings extendidos
  */
-function cmdScore() {
+function cmdScore(player, args) {
+  const mode = (args && args[0]) ? args[0].toLowerCase() : '';
+
+  if (mode === 'oro' || mode === 'gold' || mode === 'riqueza') {
+    return cmdScoreGold();
+  }
+  if (mode === 'duelos' || mode === 'duel' || mode === 'duelo' || mode === 'pvp') {
+    return cmdScoreDuels();
+  }
+
+  // Modo default: kills + XP
   const leaders = db.getLeaderboard(10);
 
   if (leaders.length === 0) {
@@ -988,7 +1000,64 @@ function cmdScore() {
   });
 
   lines.push(`╚═════════════════════════════════════════════════════╝`);
+  lines.push(`  Subcategorías: "score oro" (riqueza) | "score duelos" (PvP)`);
 
+  return { text: lines.join('\n') };
+}
+
+/**
+ * T112: Ranking por riqueza (oro)
+ */
+function cmdScoreGold() {
+  const leaders = db.getLeaderboardByGold(10);
+  if (leaders.length === 0) {
+    return { text: 'Aún no hay aventureros en la tabla de riqueza.' };
+  }
+  const lines = [
+    `╔═════════════════════════════════════════╗`,
+    `║    💰  RANKING DE RIQUEZA — TOP 10  💰  ║`,
+    `╠═════════════════════════════════════════╣`,
+    `║  #   Aventurero        Lv    Oro   Kills ║`,
+    `╠═════════════════════════════════════════╣`,
+  ];
+  leaders.forEach((p, idx) => {
+    const rank  = String(idx + 1).padStart(2, ' ');
+    const name  = (p.username || '???').substring(0, 14).padEnd(14, ' ');
+    const level = String(p.level || 1).padStart(3, ' ');
+    const gold  = String(p.gold || 0).padStart(5, ' ');
+    const kills = String(p.kills || 0).padStart(5, ' ');
+    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
+    lines.push(`║ ${medal}${rank}  ${name}  ${level}  ${gold}g  ${kills} ║`);
+  });
+  lines.push(`╚═════════════════════════════════════════╝`);
+  return { text: lines.join('\n') };
+}
+
+/**
+ * T112: Ranking por duelos PvP
+ */
+function cmdScoreDuels() {
+  const leaders = db.getLeaderboardByDuels(10);
+  if (leaders.length === 0) {
+    return { text: 'Aún no hay aventureros en la tabla de duelos.' };
+  }
+  const lines = [
+    `╔═══════════════════════════════════════════╗`,
+    `║  ⚔️  RANKING DE DUELOS PvP — TOP 10  ⚔️   ║`,
+    `╠═══════════════════════════════════════════╣`,
+    `║  #   Aventurero         Lv  Wins  Losses  ║`,
+    `╠═══════════════════════════════════════════╣`,
+  ];
+  leaders.forEach((p, idx) => {
+    const rank   = String(idx + 1).padStart(2, ' ');
+    const name   = (p.username || '???').substring(0, 15).padEnd(15, ' ');
+    const level  = String(p.level || 1).padStart(3, ' ');
+    const wins   = String(p.duel_wins || 0).padStart(4, ' ');
+    const losses = String(p.duel_losses || 0).padStart(6, ' ');
+    const medal  = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
+    lines.push(`║ ${medal}${rank}  ${name}  ${level}  ${wins}  ${losses}  ║`);
+  });
+  lines.push(`╚═══════════════════════════════════════════╝`);
   return { text: lines.join('\n') };
 }
 
@@ -1071,7 +1140,26 @@ function cmdUnequip(player) {
  */
 function cmdGive(player, args) {
   if (!args || args.length < 2) {
-    return { text: 'Uso: give <ítem> <jugador>. Ej: "give espada Ana".' };
+    return { text: 'Uso: give <ítem> <jugador>. Ej: "give espada Ana". Para oro: "give 50 oro Ana" o "pay Ana 50".' };
+  }
+
+  // ── T111: Detectar transferencia de oro: "give <cantidad> oro <jugador>" ────
+  // Formatos: "give 50 oro Ana", "give oro 50 Ana" (flexible)
+  const lowerArgs = args.map(a => a.toLowerCase());
+  const oroIdx = lowerArgs.indexOf('oro');
+  if (oroIdx >= 0) {
+    // Buscar el número y el nombre del destino
+    const remaining = args.filter((_, i) => i !== oroIdx);
+    const amountIdx = remaining.findIndex(a => /^\d+$/.test(a));
+    if (amountIdx >= 0) {
+      const amount = parseInt(remaining[amountIdx], 10);
+      const nameArgs = remaining.filter((_, i) => i !== amountIdx);
+      const targetName = nameArgs.join(' ').trim();
+      if (targetName && amount > 0) {
+        return cmdPayGold(player, amount, targetName);
+      }
+    }
+    return { text: 'Uso para transferir oro: "give 50 oro Ana".' };
   }
 
   // Último argumento = nombre del jugador destinatario
@@ -1128,6 +1216,66 @@ function cmdGive(player, args) {
     targetPlayerId: target.id,
     targetPlayerMsg: `${player.username} te da ${found}.`,
   };
+}
+
+// ── T111: Transferencia de oro entre jugadores ──────────────────────────────
+/**
+ * cmdPayGold — Transferir oro a otro jugador (sin restricción de sala).
+ * Llamado internamente por cmdGive y por el comando 'pay'.
+ */
+function cmdPayGold(player, amount, targetName) {
+  player = db.getPlayer(player.id);
+  if (!Number.isInteger(amount) || amount <= 0) {
+    return { text: 'La cantidad de oro debe ser un número positivo.' };
+  }
+
+  const gold = player.gold || 0;
+  if (gold < amount) {
+    return { text: `No tenés suficiente oro. Tenés ${gold}g y querés enviar ${amount}g.` };
+  }
+
+  const target = db.getPlayerByUsername(targetName);
+  if (!target) {
+    return { text: `No existe ningún jugador llamado "${targetName}".` };
+  }
+  if (target.id === player.id) {
+    return { text: 'No podés enviarte oro a vos mismo.' };
+  }
+
+  const targetGold = target.gold || 0;
+  db.updatePlayer(player.id, { gold: gold - amount });
+  db.updatePlayer(target.id, { gold: targetGold + amount });
+
+  // Registrar en global_events
+  db.logGlobalEvent('gold_transfer', `💰 ${player.username} transfirió ${amount}g a ${target.username}.`);
+
+  return {
+    text: `💰 Le enviás ${amount} monedas de oro a ${target.username}. Tu oro: ${gold - amount}g.`,
+    targetPlayerId: target.id,
+    targetPlayerMsg: `💰 ${player.username} te envió ${amount} monedas de oro. Tu oro: ${targetGold + amount}g.`,
+  };
+}
+
+/**
+ * pay <jugador> <cantidad> — Alias directo de transferencia de oro.
+ * También soporta: pay <cantidad> <jugador>
+ */
+function cmdPay(player, args) {
+  if (!args || args.length < 2) {
+    return { text: 'Uso: pay <jugador> <cantidad>. Ej: "pay Ana 50".' };
+  }
+  // Detectar cuál es el número y cuál el nombre
+  const numIdx = args.findIndex(a => /^\d+$/.test(a));
+  if (numIdx < 0) {
+    return { text: 'Indicá la cantidad de oro. Ej: "pay Ana 50".' };
+  }
+  const amount = parseInt(args[numIdx], 10);
+  const nameArgs = args.filter((_, i) => i !== numIdx);
+  const targetName = nameArgs.join(' ').trim();
+  if (!targetName) {
+    return { text: 'Indicá el jugador destinatario. Ej: "pay Ana 50".' };
+  }
+  return cmdPayGold(player, amount, targetName);
 }
 
 // ─── Whisper ─────────────────────────────────────────────────────────────────

@@ -55,6 +55,8 @@ const COMMAND_ALIASES = {
   score: 'score', ranking: 'score', scores: 'score', top: 'score', tabla: 'score', marcador: 'score',
   // give / dar
   give: 'give', dar: 'give', entregar: 'give', pasar: 'give', ofrecer: 'give',
+  // pay / pagar / transferir oro
+  pay: 'pay', pagar: 'pay', transferir: 'pay', enviar: 'pay', mandar: 'pay',
   // loot / saquear
   loot: 'loot', saquear: 'loot', recoger_todo: 'loot', recogertodo: 'loot', botín: 'loot', botin: 'loot',
   // flee
