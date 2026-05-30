@@ -116,6 +116,7 @@ async function main() {
         mana: player.mana != null ? player.mana : 20,
         max_mana: player.max_mana || 20,
         shield_active: player.shield_active || 0,
+        player_class: player.player_class || 'sin_clase',
       },
       other_players: others,
       recent_events: events,

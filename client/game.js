@@ -179,6 +179,14 @@ function updateSidebar(data) {
     const goldEl = document.getElementById('stat-gold');
     if (goldEl) goldEl.textContent = `💰 ${player.gold || 0}g`;
 
+    // T107: Mostrar clase en sidebar
+    const classEl = document.getElementById('stat-class');
+    if (classEl) {
+      const cls = player.player_class || 'sin_clase';
+      const clsNames = { guerrero: '⚔️ Guerrero', mago: '🔮 Mago', picaro: '🗡️ Pícaro' };
+      classEl.textContent = clsNames[cls] || 'sin clase';
+    }
+
     // T104: Mostrar maná en sidebar
     const mana = player.mana != null ? player.mana : 20;
     const maxMana = player.max_mana || 20;

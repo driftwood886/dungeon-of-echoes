@@ -131,6 +131,8 @@ const COMMAND_ALIASES = {
   cast: 'cast', lanzar: 'cast', hechizar: 'cast', invocar: 'cast', magic: 'cast',
   // spells / hechizos (T104)
   spells: 'spells', hechizos: 'spells', magia: 'spells', conjuros: 'spells', grimorios: 'spells',
+  // clase / class (T107)
+  clase: 'clase', class: 'clase', profesion: 'clase', profesión: 'clase', vocacion: 'clase', vocación: 'clase', oficio: 'clase',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -232,6 +234,7 @@ Comandos disponibles:
   beber / drink         — Beber de la Fuente Eterna (sala 18): restaura HP completo. Cooldown global 10 min
   cast <hechizo>        — Lanzar un hechizo (bola de fuego, escudo, curación). Requiere maná
   hechizos / spells     — Ver tus hechizos disponibles y el maná actual
+  clase                 — Ver o elegir tu clase de personaje (guerrero/mago/pícaro)
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();

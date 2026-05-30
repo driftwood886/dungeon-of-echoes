@@ -128,7 +128,10 @@ function registerHandlers(io) {
       }
 
       console.log(`[socket] ${player.username} (${socket.id}) unido a sala ${currentRoomId}`);
-      ack && ack({ player_id: player.id, username: player.username, welcome: welcomeText });
+      // T107: Si el jugador no tiene clase, agregar recordatorio al welcome
+      const classReminder = engine.getClassReminder(player);
+      const finalWelcomeText = classReminder ? welcomeText + classReminder : welcomeText;
+      ack && ack({ player_id: player.id, username: player.username, welcome: finalWelcomeText });
     });
 
     // ── command ───────────────────────────────────────────────────────────────

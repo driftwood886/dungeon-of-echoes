@@ -21,6 +21,7 @@ const quests  = require('./quests');
 const worldEvents = require('./worldEvents');
 const tutorial = require('./tutorial');
 const crafting = require('./crafting');
+const classes  = require('./classes'); // T107: sistema de clases
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // Cada sala puede tener un efecto que se aplica al entrar.
@@ -161,6 +162,7 @@ function execute(playerId, input) {
     case 'drink':        result = cmdDrink(player); break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
+    case 'clase':        result = cmdClase(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -454,6 +456,9 @@ function cmdStatus(player) {
   const text = [
     `\n=== ${player.username.toUpperCase()} ===`,
     `Título:   ${getTitle(kills).full}`,
+    player.player_class && player.player_class !== 'sin_clase'
+      ? `Clase:    ${(classes.getPlayerClass(player) || {}).emoji || ''} ${(classes.getPlayerClass(player) || {}).name || player.player_class}`
+      : `Clase:    (sin clase — usá "clase" para elegir)`,
     `Nivel:    ${level}  (${xp} XP total | kills: ${kills} | muertes: ${deaths})`,
     `XP sig.:  ${xpBar} ${xp % 50}/50`,
     `HP:       ${hpBar} ${player.hp}/${player.max_hp}`,
@@ -2327,6 +2332,14 @@ function getOrCreatePlayer(username) {
   return player;
 }
 
+// T107: Recordatorio de clase al terminar el tutorial (usado en handlers.js)
+function getClassReminder(player) {
+  if (!player.player_class || player.player_class === 'sin_clase') {
+    return `\n🎭 ¡No olvides elegir tu CLASE! Escribí "clase" para ver las opciones (guerrero, mago, pícaro).`;
+  }
+  return null;
+}
+
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS };
 
 // ─── T092: Crafteo/Alquimia ───────────────────────────────────────────────────
@@ -3024,7 +3037,10 @@ function regenMana(player) {
   const now = Date.now();
   const lastRegen = player.last_mana_regen ? new Date(player.last_mana_regen).getTime() : 0;
   const minutesPassed = (now - lastRegen) / 60000;
-  const manaGained = Math.floor(minutesPassed); // 1 maná por minuto
+  // T107: Mago regenera 2x más rápido (2 maná/minuto en vez de 1)
+  const clsData = classes.getPlayerClass(player);
+  const regenRate = (clsData && clsData.name === 'Mago') ? 2 : 1;
+  const manaGained = Math.floor(minutesPassed * regenRate);
 
   if (manaGained <= 0) return player;
 
@@ -3111,11 +3127,16 @@ function cmdCast(player, args) {
     }
 
     const dmg = spell.amount;
-    const newHp = Math.max(0, target.hp - dmg);
+    // T107: Mago tiene spell_power 1.5 (hechizos hacen 50% más daño)
+    const playerCls = classes.getPlayerClass(player);
+    const spellPower = playerCls ? (playerCls.spell_power || 1.0) : 1.0;
+    const finalDmg = Math.round(dmg * spellPower);
+    const newHp = Math.max(0, target.hp - finalDmg);
     db.updatePlayer(player.id, { mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
 
     lines.push(`🪄 Lanzás ${spell.icon} **${spellName}** sobre ${target.name}!`);
-    lines.push(`   ${target.name} recibe ${dmg} puntos de daño mágico. (HP: ${target.hp} → ${newHp})`);
+    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago)` : '';
+    lines.push(`   ${target.name} recibe ${finalDmg} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
 
     if (newHp <= 0) {
       // Monstruo muerto
@@ -3217,6 +3238,92 @@ function cmdSpells(player) {
   return { text: lines.join('\n') };
 }
 
+/**
+ * clase [guerrero|mago|picaro] — T107: Ver o elegir clase de personaje.
+ * - Sin args: muestra la clase actual del jugador y la lista de opciones.
+ * - Con args: elige la clase indicada (solo si el jugador aún no tiene clase asignada,
+ *   o si lleva menos de 5 kills — período de prueba).
+ */
+function cmdClase(player, args) {
+  player = db.getPlayer(player.id);
+  const currentClass = player.player_class || 'sin_clase';
+
+  if (!args || args.length === 0) {
+    // Solo mostrar estado actual
+    const clsData = classes.getPlayerClass(player);
+    const header = clsData
+      ? `🎭 Tu clase actual: ${clsData.emoji} ${clsData.name.toUpperCase()}\n   ${clsData.description}`
+      : `🎭 Tu clase actual: (sin clase) — todavía no elegiste tu vocación.`;
+
+    const lines = [
+      header,
+      ``,
+      `Clases disponibles:`,
+      classes.formatClassList(),
+      ``,
+      `Para elegir una clase: clase <nombre>`,
+      `Ej: clase guerrero  |  clase mago  |  clase picaro`,
+      ``,
+      currentClass === 'sin_clase'
+        ? `⚠️  Podés elegir tu clase en cualquier momento.`
+        : `⚠️  Solo podés cambiar de clase si tenés menos de 5 kills (período de prueba).`,
+    ];
+    return { text: lines.join('\n') };
+  }
+
+  // Elegir/cambiar clase
+  const rawInput = args.join(' ').toLowerCase().trim();
+  const className = classes.resolveClass(rawInput);
+
+  if (!className) {
+    return { text: `❌ Clase desconocida: "${rawInput}".\nClases disponibles: guerrero, mago, picaro\nEjemplo: clase guerrero` };
+  }
+
+  // Verificar período de prueba (menos de 5 kills = puede cambiar)
+  const kills = player.kills || 0;
+  const canChange = currentClass === 'sin_clase' || kills < 5;
+
+  if (!canChange) {
+    const clsData = classes.getPlayerClass(player);
+    return { text: `⚠️ Ya tenés ${kills} kills — tu clase ${clsData.emoji} ${clsData.name} quedó confirmada.\nNo se puede cambiar de clase después del período de prueba (5 kills).` };
+  }
+
+  // Aplicar la clase
+  const clsStats = classes.getClassStats(className);
+  db.updatePlayer(player.id, {
+    player_class: className,
+    hp: clsStats.hp,
+    max_hp: clsStats.max_hp,
+    attack: clsStats.attack,
+    defense: clsStats.defense,
+    mana: clsStats.mana,
+    max_mana: clsStats.max_mana,
+  });
+
+  const lines = [
+    `✅ ¡Elegiste la clase ${clsStats.emoji} ${clsStats.name.toUpperCase()}!`,
+    `   ${clsStats.description}`,
+    ``,
+    `📊 Tus nuevos stats:`,
+    `   HP:     ${clsStats.hp}/${clsStats.max_hp}`,
+    `   ATK:    ${clsStats.attack}   DEF: ${clsStats.defense}`,
+    `   Maná:   ${clsStats.mana}/${clsStats.max_mana}`,
+    ``,
+    `🌟 Ventajas de clase:`,
+    ...clsStats.perks.map(p => `   ▸ ${p}`),
+  ];
+
+  if (className === 'picaro') {
+    lines.push(``, `💡 Como Pícaro tus golpes críticos son del 25% y esquivas el 20% de ataques.`);
+  } else if (className === 'mago') {
+    lines.push(``, `💡 Como Mago tus hechizos hacen 1.5× de daño y la recarga de maná es 2× más rápida.`);
+  } else if (className === 'guerrero') {
+    lines.push(``, `💡 Como Guerrero absorbés más daño y tenés mayor HP máximo.`);
+  }
+
+  return { text: lines.join('\n') };
+}
+
 // Sobreescribir module.exports para incluir T104
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG };
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder };
 

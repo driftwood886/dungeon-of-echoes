@@ -137,6 +137,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN max_mana INTEGER NOT NULL DEFAULT 20`, // T104
     `ALTER TABLE players ADD COLUMN last_mana_regen TEXT`,                // T104: timestamp última recarga
     `ALTER TABLE players ADD COLUMN shield_active INTEGER NOT NULL DEFAULT 0`, // T104: escudo activo
+    `ALTER TABLE players ADD COLUMN player_class TEXT NOT NULL DEFAULT 'sin_clase'`, // T107: clase de personaje
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }

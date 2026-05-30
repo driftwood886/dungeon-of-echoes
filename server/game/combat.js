@@ -15,6 +15,7 @@
 
 const db = require('../db/db');
 const worldEvents = require('./worldEvents');
+const classes = require('./classes'); // T107: bonus de clase
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -87,7 +88,10 @@ function attackRound(player, monster) {
 
   // ── Player ataca ─────────────────────────────────────────────────────────
   const playerDmg = calcDamage(player.attack);
-  const isCrit = Math.random() < 0.10;  // T101: 10% golpe crítico
+  // T107: bonus crítico de clase (Pícaro tiene +15% sobre base del 10%)
+  const clsData = classes.getPlayerClass(player);
+  const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0);
+  const isCrit = Math.random() < critChance;
   const rawPlayerDmg = isCrit ? playerDmg * 2 : playerDmg;
   const dmgToMonster = Math.max(1, rawPlayerDmg - Math.floor(monster.defense || 0));
   monster.hp = Math.max(0, monster.hp - dmgToMonster);
@@ -148,7 +152,9 @@ function attackRound(player, monster) {
   const bloodmoonBonus = (activeEvMon && activeEvMon.id === 'bloodmoon') ? 2 : 0;
 
   // T101: 8% de esquiva — el jugador evita el daño por completo
-  const isEvasion = Math.random() < 0.08;
+  // T107: Pícaro tiene +12% de esquiva extra
+  const dodgeChance = 0.08 + (clsData ? (clsData.dodge_bonus || 0) / 100 : 0);
+  const isEvasion = Math.random() < dodgeChance;
   if (isEvasion) {
     lines.push(`💨 ¡Esquivás el ataque del ${monster.name}! Ningún daño recibido.`);
   } else {
