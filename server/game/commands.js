@@ -253,6 +253,8 @@ const COMMAND_ALIASES = {
   enchant: 'enchant', encantar: 'enchant', encantamiento: 'enchant', rune_enchant: 'enchant',
   // trivia / acertijo del dungeon (T193)
   trivia: 'trivia', acertijo: 'trivia', riddle: 'trivia', enigma: 'trivia', adivinanza: 'trivia',
+  // worldgoals / metas globales del servidor (T194)
+  worldgoals: 'worldgoals', metas: 'worldgoals', metasglobales: 'worldgoals', 'world-goals': 'worldgoals', globalmetas: 'worldgoals', comunidad: 'worldgoals',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)

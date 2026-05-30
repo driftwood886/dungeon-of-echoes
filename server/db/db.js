@@ -249,6 +249,18 @@ async function init() {
     )
   `);
 
+  // T194: Tabla de metas globales (world goals)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS world_goals (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      category   TEXT NOT NULL,
+      milestone  INTEGER NOT NULL,
+      value      INTEGER NOT NULL DEFAULT 0,
+      reached_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // T156: Tabla de historial de sesiones
   db.run(`
     CREATE TABLE IF NOT EXISTS sessions (
@@ -1309,6 +1321,75 @@ function expireOldBulletinPosts() {
   run(`DELETE FROM bulletin_board WHERE expires_at <= datetime('now')`);
 }
 
+// ─── World Goals (T194) ───────────────────────────────────────────────────────
+
+// Definición de hitos por categoría
+const WORLD_GOAL_MILESTONES = {
+  kills:    [100, 500, 1000, 5000, 10000],
+  crafts:   [50, 200, 500, 2000],
+  gold:     [1000, 5000, 20000, 100000],
+  duels:    [20, 100, 500],
+};
+
+const WORLD_GOAL_LABELS = {
+  kills: '⚔️  Monstruos abatidos',
+  crafts: '⚗️  Ítems crafteados',
+  gold:  '🪙 Oro recolectado',
+  duels: '🥊 Duelos jugados',
+};
+
+function getWorldGoalState(category) {
+  // Devuelve el acumulado actual en la BD
+  const row = one(`SELECT value FROM world_goals WHERE category = ? ORDER BY id DESC LIMIT 1`, [category]);
+  return row ? row.value : 0;
+}
+
+// Incrementar contador; si alcanza un hito nuevo, devuelve el hito
+function incrementWorldGoal(category, amount) {
+  if (!WORLD_GOAL_MILESTONES[category]) return null;
+
+  const currentRow = one(
+    `SELECT value FROM world_goals WHERE category = ? AND reached_at IS NULL ORDER BY id DESC LIMIT 1`,
+    [category]
+  );
+  const current = currentRow ? currentRow.value : 0;
+  const newValue = current + amount;
+
+  if (currentRow) {
+    run(`UPDATE world_goals SET value = ? WHERE category = ? AND reached_at IS NULL AND rowid = (SELECT rowid FROM world_goals WHERE category = ? AND reached_at IS NULL ORDER BY id DESC LIMIT 1)`,
+      [newValue, category, category]);
+  } else {
+    run(`INSERT INTO world_goals (category, milestone, value) VALUES (?, 0, ?)`, [category, newValue]);
+  }
+
+  // Verificar si se superó algún hito no alcanzado
+  const milestones = WORLD_GOAL_MILESTONES[category];
+  for (const m of milestones) {
+    if (current < m && newValue >= m) {
+      // Hito alcanzado
+      run(`UPDATE world_goals SET reached_at = datetime('now'), milestone = ? WHERE category = ? AND reached_at IS NULL ORDER BY id DESC LIMIT 1`,
+        [m, category]);
+      return m;
+    }
+  }
+  return null;
+}
+
+function getWorldGoalsDisplay() {
+  const result = {};
+  for (const [cat, milestones] of Object.entries(WORLD_GOAL_MILESTONES)) {
+    const current = getWorldGoalState(cat);
+    // Próximo hito sin alcanzar
+    const next = milestones.find(m => {
+      const reached = one(`SELECT id FROM world_goals WHERE category = ? AND milestone = ? AND reached_at IS NOT NULL`, [cat, m]);
+      return !reached;
+    }) || milestones[milestones.length - 1];
+    result[cat] = { current, next, label: WORLD_GOAL_LABELS[cat], milestones };
+  }
+  return result;
+}
+
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -1354,4 +1435,6 @@ module.exports = {
   createMarketListing, getActiveMarketListings, getMarketListing, buyMarketItem, cancelMarketListing, expireOldMarketListings, getPlayerMarketListings,
   // T188: tablón global de anuncios
   addBulletinPost, getBulletinPosts, getPlayerBulletinPosts, deleteBulletinPost, expireOldBulletinPosts,
+  // T194: metas globales del servidor
+  incrementWorldGoal, getWorldGoalsDisplay, WORLD_GOAL_MILESTONES, WORLD_GOAL_LABELS,
 };

@@ -253,6 +253,7 @@ function execute(playerId, input, context) {
     case 'bulletin':     result = cmdBulletin(player, action.args, context); break;
     case 'enchant':      result = cmdEnchant(player, action.args); break;
     case 'trivia':       result = cmdTrivia(player, action.args); break;
+    case 'worldgoals':   result = cmdWorldGoals(); break;
     case 'drink':        result = cmdDrink(player); break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
@@ -918,6 +919,15 @@ function cmdAttack(player, targetName) {
     db.addBestiaryKill(player.id, monster.name);
   }
 
+  // ── Metas globales (T194) — contabilizar kill ─────────────────────────────
+  let worldGoalMsg = '';
+  if (monsterDead) {
+    const hitMilestone = db.incrementWorldGoal('kills', 1);
+    if (hitMilestone) {
+      worldGoalMsg = `\n🌍 ¡HITO GLOBAL! El dungeon acumula ${hitMilestone.toLocaleString()} monstruos abatidos entre todos los aventureros.`;
+    }
+  }
+
   // ── Runas coleccionables (T140) ──────────────────────────────────────────
   let runeMsg = '';
   if (monsterDead) {
@@ -1138,10 +1148,10 @@ function cmdAttack(player, targetName) {
   }
 
   return {
-    text: lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg,
+    text: lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg + worldGoalMsg,
     event: eventText,
     eventRoomId: player.current_room_id,
-    globalEvent: globalEvent || null,
+    globalEvent: globalEvent || (worldGoalMsg ? worldGoalMsg.replace(/\n/, '') : null) || null,
     sessionKill: !!monsterDead,  // T155: tracking de kills de sesión
     // T189: guild quest broadcast (si aplica)
     ...(combatResult.guildBroadcast ? {
@@ -1296,8 +1306,14 @@ function cmdPick(player, itemQuery) {
         }
       }
     }
+    // T194: Metas globales — incrementar oro recolectado
+    const goldGoalHit = db.incrementWorldGoal('gold', amount);
+    let goldGoalMsg = '';
+    if (goldGoalHit) {
+      goldGoalMsg = `\n🌍 ¡HITO GLOBAL! El dungeon acumula ${goldGoalHit.toLocaleString()} monedas de oro recolectadas entre todos.`;
+    }
     return {
-      text: `💰 Recogés ${found}. +${amount} monedas de oro. Tenés ${newGold}g en total.${goldAchLines}${goldQuestLine}${goldChallengeMsg}${guildGoldMsg}`,
+      text: `💰 Recogés ${found}. +${amount} monedas de oro. Tenés ${newGold}g en total.${goldAchLines}${goldQuestLine}${goldChallengeMsg}${guildGoldMsg}${goldGoalMsg}`,
       event: `${player.username} recoge algo del suelo.`,
       eventRoomId: room.id,
     };
@@ -3741,6 +3757,12 @@ function cmdAcceptDuel(player) {
 
     // Registrar en crónica global (T093)
     db.logGlobalEvent('duel', `⚔️ ${winner.username} venció a ${loser.username} en duelo y ganó ${goldTransfer}g.`);
+
+    // T194: Metas globales — incrementar duelos
+    const duelGoalHit = db.incrementWorldGoal('duels', 1);
+    if (duelGoalHit) {
+      resultMsg += `\n🌍 ¡HITO GLOBAL! El servidor registra ${duelGoalHit.toLocaleString()} duelos en total.`;
+    }
   }
 
   const combatLog = log.slice(0, 10).join('\n'); // solo primeras 10 líneas para no spamear
@@ -3951,6 +3973,13 @@ function cmdCraft(player, args) {
   // T115: Trackear crafteos para logro secreto Artesano
   db.addCraftsCount(player.id);
 
+  // T194: Metas globales — incrementar crafteos
+  const craftGoalHit = db.incrementWorldGoal('crafts', 1);
+  let craftGoalMsg = '';
+  if (craftGoalHit) {
+    craftGoalMsg = `\n🌍 ¡HITO GLOBAL! El servidor alcanza ${craftGoalHit.toLocaleString()} ítems crafteados entre todos los aventureros.`;
+  }
+
   // T141: Desafío diario de crafteo
   const craftCr = db.updateDailyChallengeProgress(player.id, 'craft', null);
   let craftChallengeMsg = '';
@@ -3995,11 +4024,11 @@ function cmdCraft(player, args) {
     const craftAchs = ach.checkAchievements(freshCrafter, {});
     const craftAchLines = ach.formatNewAchievements(craftAchs);
     if (craftAchLines) {
-      return { text: craftResult.text + craftAchLines + craftChallengeMsg + guildCraftMsg };
+      return { text: craftResult.text + craftAchLines + craftChallengeMsg + guildCraftMsg + craftGoalMsg };
     }
   }
 
-  return { text: craftResult.text + craftChallengeMsg + guildCraftMsg };
+  return { text: craftResult.text + craftChallengeMsg + guildCraftMsg + craftGoalMsg };
 }
 
 function cmdRecipes() {
@@ -5400,6 +5429,12 @@ module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAucti
  */
 function cmdChangelog() {
   const CHANGELOG = [
+    { version: '0.29', date: '2026-05-30', changes: [
+      '✨ NUEVO: metas globales del servidor (comando worldgoals/metas)',
+      '🌍 Contadores acumulativos de kills, crafteos, oro y duelos de todos los aventureros',
+      '🏆 Al alcanzar un hito (100/500/1000/5000 kills, etc.) broadcast global al servidor',
+      '📊 Barras de progreso ASCII para ver el estado actual de cada meta',
+    ]},
     { version: '0.28', date: '2026-05-30', changes: [
       '✨ NUEVO: misiones colectivas de guild (guild quest)',
       '⚔ Cada hermandad tiene una misión activa: matar monstruos, craftear, recoger oro',
@@ -8645,3 +8680,47 @@ function cmdTrivia(player, args) {
 
 // Sobreescribir module.exports para incluir T190+T192+T193
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap };
+
+// ─── T194: worldgoals/metas — metas globales del servidor ────────────────────
+/**
+ * Muestra los contadores globales acumulativos del servidor con barras de progreso.
+ * No requiere parámetros; solo lectura.
+ */
+function cmdWorldGoals() {
+  const goals = db.getWorldGoalsDisplay();
+  const W = 52;
+  const pad = (s, w) => { const str = String(s); return str + ' '.repeat(Math.max(0, w - str.length)); };
+  const bar = (current, next, width) => {
+    const filled = Math.min(width, Math.floor((current / next) * width));
+    return '█'.repeat(filled) + '░'.repeat(width - filled);
+  };
+
+  const lines = [];
+  lines.push(`╔${'═'.repeat(W)}╗`);
+  lines.push(`║${'🌍 METAS GLOBALES DEL SERVIDOR'.padStart(Math.floor((W + 30) / 2)).padEnd(W)}║`);
+  lines.push(`╠${'═'.repeat(W)}╣`);
+
+  for (const [cat, data] of Object.entries(goals)) {
+    const pct = data.next > 0 ? Math.min(100, Math.floor((data.current / data.next) * 100)) : 100;
+    lines.push(`║  ${pad(data.label, W - 3)} ║`);
+    lines.push(`║  ${pad(`${data.current.toLocaleString()} / ${data.next.toLocaleString()} (${pct}%)`, W - 3)} ║`);
+    lines.push(`║  [${bar(data.current, data.next, W - 7)}] ║`);
+    // Hitos superados
+    const reached = data.milestones.filter(m => m <= data.current);
+    if (reached.length > 0) {
+      const reachedStr = `   ✅ Superado: ${reached.map(m => m.toLocaleString()).join(', ')}`;
+      lines.push(`║  ${pad(reachedStr.slice(0, W - 3), W - 3)} ║`);
+    }
+    lines.push(`╟${'─'.repeat(W)}╢`);
+  }
+  lines.pop(); // quitar último separador
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  lines.push(`║  ${'Cada kill, crafteo, oro y duelo cuenta para toda'.padEnd(W - 3)} ║`);
+  lines.push(`║  ${'la comunidad. ¡Al alcanzar un hito, broadcast!'.padEnd(W - 3)} ║`);
+  lines.push(`╚${'═'.repeat(W)}╝`);
+  return { text: lines.join('\n') };
+}
+
+// Actualizar module.exports con T194
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals };
+
