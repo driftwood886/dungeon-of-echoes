@@ -143,6 +143,7 @@ function execute(playerId, input, context) {
     case 'whisper':   result = cmdWhisper(player, action.args); break;
     case 'tell':      result = cmdTell(player, action.args); break;
     case 'reply':     result = cmdReply(player, action.args); break;
+    case 'inbox':     result = cmdInbox(player, action.args); break;
     case 'unlock':    result = cmdUnlock(player, action.args[0]); break;
     case 'disarm':    result = cmdDisarm(player); break;
     case 'rest':      result = cmdRest(player); break;
@@ -221,6 +222,7 @@ function execute(playerId, input, context) {
           whisper: 'whisper', susurrar: 'whisper',
           tell: 'tell', mensaje: 'tell',
           reply: 'reply', responder: 'reply',
+          inbox: 'inbox', bandeja: 'inbox', mensajes: 'inbox', buzon: 'inbox',
           unlock: 'unlock', abrir: 'unlock', desbloquear: 'unlock',
           emote: 'emote', accion: 'emote', me: 'emote',
           rest: 'rest', descansar: 'rest',
@@ -1565,6 +1567,38 @@ function cmdReply(player, args) {
     targetPlayerMsg: targetMsg,
     targetEventType: 'whisper',
   };
+}
+
+
+/**
+ * inbox — Bandeja de entrada: últimos 5 mensajes de whisper/tell recibidos.
+ * Incluye mensajes offline entregados y pendientes.
+ */
+function cmdInbox(player, args) {
+  const limit = args && args[0] && !isNaN(args[0]) ? Math.min(parseInt(args[0]), 20) : 5;
+  const messages = db.getRecentMessages(player.id, limit);
+
+  if (!messages || messages.length === 0) {
+    return { text: '📭 Bandeja vacía. No tenés mensajes recibidos.' };
+  }
+
+  const lines = ['📬 **Bandeja de entrada** (últimos mensajes recibidos):'];
+  lines.push('┌' + '─'.repeat(50) + '┐');
+
+  for (const msg of messages) {
+    const ts = new Date(msg.created_at || Date.now());
+    const time = ts.toISOString().replace('T', ' ').slice(0, 16);
+    const status = msg.delivered ? '✓' : '🆕';
+    lines.push(`│ ${status} [${time}] De: ${msg.sender_username}`);
+    // Truncar mensaje si es muy largo
+    const text = msg.message.length > 45 ? msg.message.slice(0, 42) + '...' : msg.message;
+    lines.push(`│   \"${text}\"`);
+  }
+
+  lines.push('└' + '─'.repeat(50) + '┘');
+  lines.push(`  Mostrando ${messages.length} de los últimos mensajes.`);
+
+  return { text: lines.join('\n') };
 }
 
 

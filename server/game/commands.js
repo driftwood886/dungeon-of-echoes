@@ -67,6 +67,8 @@ const COMMAND_ALIASES = {
   tell: 'tell', mensaje: 'tell', escribir: 'tell',
   // reply (contestar el último whisper/tell recibido)
   reply: 'reply', responder: 'reply', contestar: 'reply', r: 'reply',
+  // inbox (bandeja de entrada de mensajes)
+  inbox: 'inbox', bandeja: 'inbox', mensajes: 'inbox', buzon: 'inbox', buzón: 'inbox',
   // unlock / abrir puerta
   unlock: 'unlock', abrir: 'unlock', desbloquear: 'unlock', destrancar: 'unlock',
   // disarm / desactivar trampa
@@ -246,6 +248,7 @@ Comandos disponibles:
   whisper <jug> <msg>   — Mensaje privado a otro jugador (en cualquier sala)
   tell <jug> <msg>      — Mensaje privado con aviso offline (llega aunque no esté conectado)
   reply <msg>           — Contestar el último whisper/tell recibido (sin escribir el nombre)
+  inbox                 — Ver los últimos 5 mensajes de whisper/tell recibidos (bandeja)
   unlock <dir>          — Abrir una puerta bloqueada usando la llave del inventario (permanente)
   emote <acción>        — Expresar una acción visible para todos en la sala (ej: emote sonríe)
   rest / descansar      — Recuperar HP si no hay monstruos (cooldown 60s)
@@ -313,7 +316,8 @@ const COMMAND_HELP = {
   shout:     'shout <mensaje> / gritar <mensaje>\n  Gritar un mensaje que todos los jugadores del dungeon escuchan.',
   whisper:   'whisper <jugador> <mensaje> / susurrar <jugador> <mensaje>\n  Enviar un mensaje privado a otro jugador (en cualquier sala). Solo el destinatario lo ve.',
   tell:      'tell <jugador> <mensaje>\n  Igual que whisper pero con persistencia offline: si el jugador no está conectado, el mensaje\n  se guarda en la BD y se le entrega la próxima vez que haga login.',
-  reply:     'reply <mensaje> / responder <mensaje>\n  Contestar automáticamente al último jugador que te envió un whisper o tell,\n  sin necesidad de escribir su nombre. Atajo: "r <mensaje>".',
+  reply:     'reply <mensaje> / responder <mensaje>\\n  Contestar automáticamente al último jugador que te envió un whisper o tell,\\n  sin necesidad de escribir su nombre. Atajo: "r <mensaje>".',
+  inbox:     'inbox / bandeja / mensajes\\n  Ver los últimos 5 mensajes de whisper/tell recibidos.\\n  Incluye mensajes offline entregados y pendientes.\\n  inbox <n>: ver los últimos N mensajes (máx 20).',
   unlock:    'unlock / abrir <dir> / desbloquear <dir>\n  Abrir permanentemente una puerta bloqueada usando la llave del inventario.\n  La puerta queda abierta para todos los jugadores. La llave se consume.',
   emote:     'emote <acción> / accion <acción> / me <acción>\n  Expresar una acción en tercera persona visible para todos en la sala.\n  Ej: "emote suspira profundo" → todos ven: "✨ NombreJugador suspira profundo"',
   help:      'help / ayuda\n  Mostrar la lista de comandos.\n  help <comando>: ayuda detallada sobre un comando específico.',

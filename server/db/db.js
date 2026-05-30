@@ -547,6 +547,13 @@ function countPendingMessages(targetPlayerId) {
   return row ? row.cnt : 0;
 }
 
+function getRecentMessages(targetPlayerId, limit = 5) {
+  return all(
+    `SELECT * FROM offline_messages WHERE target_player_id = ? ORDER BY id DESC LIMIT ?`,
+    [targetPlayerId, limit]
+  ).reverse();
+}
+
 // ─── Guilds ───────────────────────────────────────────────────────────────────
 
 function getGuild(name) {
@@ -815,7 +822,7 @@ module.exports = {
   // events
   logEvent, getRecentEvents,
   // offline messages (tell)
-  saveOfflineMessage, getPendingMessages, markMessagesDelivered, countPendingMessages,
+  saveOfflineMessage, getPendingMessages, markMessagesDelivered, countPendingMessages, getRecentMessages,
   // guilds
   getGuild, getGuildMembers, createGuild, deleteGuild, setPlayerGuild, getAllGuilds,
   // global events (T093)
