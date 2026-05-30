@@ -157,6 +157,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN playtime_minutes INTEGER NOT NULL DEFAULT 0`, // T157: tiempo de juego total
     `ALTER TABLE players ADD COLUMN nickname TEXT`,                                // T163: apodo del personaje
     `ALTER TABLE players ADD COLUMN name_color TEXT`,                              // T171: color de nombre en chat
+    `ALTER TABLE players ADD COLUMN friends TEXT NOT NULL DEFAULT '[]'`,           // T173: lista de amigos (JSON array de usernames)
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }

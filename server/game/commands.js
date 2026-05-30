@@ -219,6 +219,8 @@ const COMMAND_ALIASES = {
   find: 'find', encontrar: 'find', localizar: 'find', donde: 'find', 'dónde': 'find',
   // guide / guía (T170)
   guide: 'guide', guia: 'guide', guía: 'guide', manual: 'guide', inicio: 'guide', empezar: 'guide',
+  // friend / amigos (T173)
+  friend: 'friend', amigo: 'friend', amigos: 'friend', friends: 'friend',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)

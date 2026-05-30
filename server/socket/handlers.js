@@ -19,6 +19,8 @@ const engine = require('../game/engine');
 
 // Mapa global: playerId → socket (para enviar mensajes directos)
 const playerSockets = new Map();
+// T173: Exponer playerSockets globalmente para que engine.js pueda verificar online status
+global.playerSocketsMap = playerSockets;
 
 // T154: Mapa global: playerId → sala previa (para comando back)
 const previousRoomMap = new Map();
@@ -174,6 +176,28 @@ function registerHandlers(io) {
       }
       const finalWelcomeText = (classReminder ? welcomeText + classReminder : welcomeText) + challengeReminder;
       ack && ack({ player_id: player.id, username: player.username, welcome: finalWelcomeText });
+
+      // T173: Notificar a amigos de este jugador que se conectó
+      setImmediate(() => {
+        try {
+          const freshP = db.getPlayer(player.id);
+          let allPlayers = null;
+          // Recorrer todos los jugadores online y ver si tienen a este jugador en su lista de amigos
+          for (const [onlineId, onlineSocket] of playerSockets.entries()) {
+            if (onlineId === player.id) continue;
+            const onlinePlayer = db.getPlayer(onlineId);
+            if (!onlinePlayer) continue;
+            let theirFriends;
+            try { theirFriends = JSON.parse(onlinePlayer.friends || '[]'); } catch (_) { theirFriends = []; }
+            if (theirFriends.some(f => f.toLowerCase() === player.username.toLowerCase())) {
+              onlineSocket.emit('event', {
+                type: 'friend_online',
+                message: `👥 Tu amigo ${player.username} se conectó al dungeon.`,
+              });
+            }
+          }
+        } catch (_) {}
+      });
     });
 
     // ── command ───────────────────────────────────────────────────────────────

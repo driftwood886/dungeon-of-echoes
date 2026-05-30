@@ -256,6 +256,7 @@ function execute(playerId, input, context) {
     case 'history':      result = cmdHistory(player); break;
     case 'find':         result = cmdFind(player, action.args); break;
     case 'guide':        result = cmdGuide(action.args); break;
+    case 'friend':       result = cmdFriend(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -6973,6 +6974,59 @@ function cmdGuide(args) {
   }
 
   return { text: 'Sección no encontrada. Escribí "guide" para ver el índice.' };
+}
+
+// ─── T173: cmdFriend ──────────────────────────────────────────────────────────
+// Sistema de amigos: friend add/remove/list/online
+function cmdFriend(player, args) {
+  player = db.getPlayer(player.id);
+  let friends;
+  try { friends = JSON.parse(player.friends || '[]'); } catch (_) { friends = []; }
+
+  const sub = (args && args[0] || '').toLowerCase();
+
+  if (!sub || sub === 'list' || sub === 'lista' || sub === 'ver') {
+    if (friends.length === 0) {
+      return { text: 'No tenés amigos agregados aún.\nUsá "friend add <jugador>" para agregar alguien.\nUsá "friend list" para ver tu lista.' };
+    }
+    // Verificar cuáles están online (playerSockets es un Map en handlers)
+    const lines = [`╔${'═'.repeat(42)}╗`, `║  👥 TUS AMIGOS${''.padEnd(28)}║`, `╠${'═'.repeat(42)}╣`];
+    for (const name of friends) {
+      const friendPlayer = db.getPlayerByUsername(name);
+      if (!friendPlayer) { lines.push(`║  ✖ ${name} (cuenta eliminada)`.padEnd(43) + '║'); continue; }
+      const online = global.playerSocketsMap && global.playerSocketsMap.has(friendPlayer.id);
+      const status = online ? '🟢 online' : '⚫ offline';
+      lines.push(`║  ${name.padEnd(20)} ${status.padEnd(12)}║`);
+    }
+    lines.push(`╚${'═'.repeat(42)}╝`);
+    return { text: lines.join('\n') };
+  }
+
+  if (sub === 'add' || sub === 'agregar' || sub === 'añadir') {
+    const targetName = (args[1] || '').trim().toLowerCase();
+    if (!targetName) return { text: 'Uso: friend add <nombre del jugador>' };
+    if (targetName === player.username.toLowerCase()) return { text: 'No podés agregarte a vos mismo.' };
+    const target = db.getPlayerByUsername(targetName);
+    if (!target) return { text: `No existe ningún jugador llamado "${targetName}".` };
+    if (friends.some(f => f.toLowerCase() === targetName)) {
+      return { text: `${target.username} ya está en tu lista de amigos.` };
+    }
+    friends.push(target.username);
+    db.updatePlayer(player.id, { friends: JSON.stringify(friends) });
+    return { text: `✅ ${target.username} agregado a tu lista de amigos. Recibirás notificación cuando se conecte.` };
+  }
+
+  if (sub === 'remove' || sub === 'remover' || sub === 'eliminar' || sub === 'quitar' || sub === 'borrar') {
+    const targetName = (args[1] || '').trim().toLowerCase();
+    if (!targetName) return { text: 'Uso: friend remove <nombre del jugador>' };
+    const idx = friends.findIndex(f => f.toLowerCase() === targetName);
+    if (idx === -1) return { text: `${targetName} no está en tu lista de amigos.` };
+    const removed = friends.splice(idx, 1)[0];
+    db.updatePlayer(player.id, { friends: JSON.stringify(friends) });
+    return { text: `${removed} eliminado de tu lista de amigos.` };
+  }
+
+  return { text: 'Subcomandos disponibles: friend list, friend add <jugador>, friend remove <jugador>' };
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather };
