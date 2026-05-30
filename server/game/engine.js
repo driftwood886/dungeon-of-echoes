@@ -171,6 +171,7 @@ function execute(playerId, input, context) {
     case 'skills':       result = cmdSkills(player); break;
     case 'useSkill':     result = cmdUseSkill(player, action.args, context); break;
     case 'note':         result = cmdNote(player, action.args); break;
+    case 'changelog':    result = cmdChangelog(); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -3990,3 +3991,59 @@ function cmdNote(player, args) {
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal };
+
+/**
+ * T117: changelog — novedades del juego in-game.
+ */
+function cmdChangelog() {
+  const CHANGELOG = [
+    { version: '0.22', date: '2026-05-30', changes: [
+      '🐛 BUG: subasta con ítems de nombre compuesto (crash resuelto)',
+      '🐛 BUG: habilidades activas (smash/bash/rally) crash por REST (resuelto)',
+      '🐛 BUG: pociones se consumían con HP al máximo (resuelto)',
+      '🐛 BUG: "attack golem" no funcionaba para "Gólem de Piedra" (tildes, resuelto)',
+      '✨ NUEVO: comando note/apunte — notas personales del aventurero',
+      '✨ NUEVO: comando changelog/novedades — esto que estás leyendo',
+    ]},
+    { version: '0.21', date: '2026-05-30', changes: [
+      '✨ NUEVO: habilidades activas por nivel (smash Lv3, shield_bash Lv6, rally Lv10)',
+      '✨ NUEVO: logros secretos (5 logros ocultos: Temerario, Mecenas, Artesano, Último Aliento, Cartógrafo)',
+    ]},
+    { version: '0.20', date: '2026-05-30', changes: [
+      '✨ NUEVO: bestiario personal (comando bestiario/bestiary)',
+      '✨ NUEVO: perfil de aventurero en caja ASCII (comando perfil/profile)',
+    ]},
+    { version: '0.19', date: '2026-05-30', changes: [
+      '✨ NUEVO: 3 clases de personaje — Guerrero, Mago, Pícaro (comando clase)',
+      '✨ NUEVO: sistema de magia con maná (cast bola-de-fuego/escudo/curación)',
+      '✨ NUEVO: decoración horaria en el minimapa (sol/luna/amanecer/atardecer)',
+      '✨ NUEVO: mensaje de bienvenida de regreso tras 1+ hora de ausencia',
+    ]},
+    { version: '0.18', date: '2026-05-30', changes: [
+      '✨ NUEVO: efectos on_hit en armas crafteadas (veneno, rayo de sombra)',
+      '✨ NUEVO: comando pay/pagar — transferir oro entre jugadores',
+      '✨ NUEVO: rankings extendidos (score oro, score duelos)',
+    ]},
+  ];
+
+  const W = 48;
+  const lines = [
+    `╔${'═'.repeat(W)}╗`,
+    `║${'  📋 NOVEDADES DEL DUNGEON OF ECHOES'.padEnd(W)}║`,
+    `╚${'═'.repeat(W)}╝`,
+    '',
+  ];
+
+  for (const entry of CHANGELOG) {
+    lines.push(`  ▸ v${entry.version} (${entry.date})`);
+    for (const c of entry.changes) {
+      lines.push(`    ${c}`);
+    }
+    lines.push('');
+  }
+
+  lines.push('Para más historia del proyecto: github.com/driftwood886/dungeon-of-echoes');
+
+  return { text: lines.join('\n') };
+}
+

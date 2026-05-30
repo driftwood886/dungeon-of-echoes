@@ -150,6 +150,8 @@ const COMMAND_ALIASES = {
   rally: 'useSkill', arenga: 'useSkill', motivar: 'useSkill', grito_batalla: 'useSkill',
   // note / apunte (T116)
   note: 'note', apunte: 'note', apuntes: 'note', notas: 'note', nota: 'note', memo: 'note', memos: 'note',
+  // changelog / novedades (T117)
+  changelog: 'changelog', novedades: 'changelog', actualizaciones: 'changelog', updates: 'changelog', parche: 'changelog', patch: 'changelog',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
