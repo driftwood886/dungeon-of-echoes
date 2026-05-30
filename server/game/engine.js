@@ -44,6 +44,30 @@ const lastWhisperSender = new Map();
 // pendingDuels.get(targetPlayerId) → { challengerId, challengerUsername, roomId, expiresAt }
 const pendingDuels = new Map();
 
+// ── Sistema de títulos/rangos (T099) ─────────────────────────────────────────
+// Título calculado on-the-fly a partir de los kills del jugador.
+const TITLES = [
+  { min: 0,   label: 'Novato',     icon: '🌱' },
+  { min: 5,   label: 'Explorador', icon: '🗺️' },
+  { min: 15,  label: 'Guerrero',   icon: '⚔️' },
+  { min: 40,  label: 'Veterano',   icon: '🛡️' },
+  { min: 80,  label: 'Campeón',    icon: '🏆' },
+  { min: 150, label: 'Leyenda',    icon: '🌟' },
+];
+
+/**
+ * Devuelve el título del jugador basado en sus kills.
+ * @param {number} kills
+ * @returns {{ label: string, icon: string, full: string }}
+ */
+function getTitle(kills) {
+  let title = TITLES[0];
+  for (const t of TITLES) {
+    if (kills >= t.min) title = t;
+  }
+  return { label: title.label, icon: title.icon, full: `${title.icon} ${title.label}` };
+}
+
 /**
  * Ejecuta un comando de texto para un jugador y devuelve el resultado.
  *
@@ -410,6 +434,7 @@ function cmdStatus(player) {
 
   const text = [
     `\n=== ${player.username.toUpperCase()} ===`,
+    `Título:   ${getTitle(kills).full}`,
     `Nivel:    ${level}  (${xp} XP total | kills: ${kills} | muertes: ${deaths})`,
     `XP sig.:  ${xpBar} ${xp % 50}/50`,
     `HP:       ${hpBar} ${player.hp}/${player.max_hp}`,
@@ -842,7 +867,8 @@ function cmdWho() {
       const level = p.level || 1;
       const deaths = p.deaths || 0;
       const guildTag = p.guild ? ` [${p.guild}]` : '';
-      return `  ${(p.username + guildTag).padEnd(22)} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}  │  ${p.room_name || 'Desconocido'}`;
+      const titleIcon = getTitle(p.kills || 0).icon;
+      return `  ${(p.username + guildTag).padEnd(22)} ${titleIcon} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}  │  ${p.room_name || 'Desconocido'}`;
     }),
     ``,
     `(jugadores activos en los últimos 5 minutos)`,
@@ -1614,7 +1640,7 @@ function cmdInspect(player, targetName) {
 
   const lines = [
     `══ 🔍 Inspeccionás a ${target.username} ══`,
-    `Nivel ${target.level || 1} · ${target.xp || 0} XP total`,
+    `Título ${getTitle(target.kills || 0).full} · Nivel ${target.level || 1} · ${target.xp || 0} XP total`,
     `HP: ${target.hp}/${target.max_hp} ${hpBar} ${hpLabel}`,
     `ATK ${target.attack} · DEF ${target.defense}`,
     `Arma: ${weapon}`,
@@ -2643,5 +2669,5 @@ function resolveExpiredAuctions(broadcastFn) {
 }
 
 // Re-export final con T095 + T098
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions };
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle };
 
