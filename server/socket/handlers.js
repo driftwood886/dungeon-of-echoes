@@ -158,7 +158,12 @@ function registerHandlers(io) {
       lastCommand     = command;
       lastCommandTime = now;
 
-      const result = engine.execute(currentPlayerId, command);
+      const context = {
+        broadcastToRoom: (roomId, excludePlayerId, message) => {
+          io.to(`room_${roomId}`).emit('event', { type: 'action', message });
+        },
+      };
+      const result = engine.execute(currentPlayerId, command, context);
 
       // Si el resultado incluye un evento para broadcast
       if (result.event) {

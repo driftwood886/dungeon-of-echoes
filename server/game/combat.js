@@ -383,8 +383,9 @@ function tryFlee(player, monster) {
  */
 function findMonsterInRoom(roomId, targetName) {
   const monsters = db.getMonstersInRoom(roomId);
-  const name = targetName.toLowerCase().trim();
-  return monsters.find(m => m.name.toLowerCase().includes(name)) || null;
+  const normalize = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const name = normalize(targetName.trim());
+  return monsters.find(m => normalize(m.name).includes(name)) || null;
 }
 
 // ─── Helpers privados ─────────────────────────────────────────────────────────

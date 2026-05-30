@@ -90,7 +90,7 @@ function getTitle(kills) {
  *   - text: respuesta para el jugador
  *   - event: descripción del evento para broadcast (opcional)
  */
-function execute(playerId, input) {
+function execute(playerId, input, context) {
   const player = db.getPlayer(playerId);
   if (!player) {
     return { text: 'Error: jugador no encontrado.' };
@@ -758,6 +758,9 @@ function cmdUse(player, itemQuery) {
 
   if (def.type === 'potion' && def.effect === 'heal') {
     const oldHp = player.hp;
+    if (player.hp >= player.max_hp) {
+      return { text: `Ya estás al máximo de HP (${player.hp}/${player.max_hp}). Guardás la ${found}.` };
+    }
     const newHp = Math.min(player.max_hp, player.hp + def.amount);
     db.updatePlayer(player.id, { hp: newHp });
 
@@ -3033,7 +3036,7 @@ function cmdAuction(player, args) {
   }
 
   const itemName = args.slice(0, -1).join(' ').toLowerCase().trim();
-  const inventory = JSON.parse(player.inventory || '[]');
+  const inventory = player.inventory || [];
   const itemIndex = inventory.findIndex(i => i.toLowerCase() === itemName);
   if (itemIndex === -1) {
     return { text: `No tenés "${itemName}" en el inventario.\nUsá "inventario" para ver tus ítems.` };
