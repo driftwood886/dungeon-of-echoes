@@ -178,6 +178,7 @@ function execute(playerId, input, context) {
     case 'enemies':      result = cmdEnemies(action.args); break;
     case 'compare':      result = cmdCompare(player, action.args); break;
     case 'reputation':   result = cmdReputation(player); break;
+    case 'recall':       result = cmdRecall(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -1783,6 +1784,57 @@ function cmdRest(player) {
 
   return {
     text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP. ${hpBar} ${newHp}/${player.max_hp} HP`,
+  };
+}
+
+/**
+ * T131: recall / volver — Teletransportarse a la sala de inicio (sala 1).
+ * Cooldown: 10 minutos. Cuesta 5 HP.
+ */
+function cmdRecall(player) {
+  player = db.getPlayer(player.id);
+
+  const START_ROOM = 1;
+  const COOLDOWN_MS = 10 * 60 * 1000; // 10 minutos
+  const HP_COST = 5;
+
+  // Ya estás en la sala de inicio
+  if (player.current_room_id === START_ROOM) {
+    return { text: '🏠 Ya estás en la entrada del dungeon. No hay a dónde volver.' };
+  }
+
+  // Verificar cooldown
+  if (player.last_recall) {
+    const elapsed = Date.now() - new Date(player.last_recall).getTime();
+    if (elapsed < COOLDOWN_MS) {
+      const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+      return { text: `🔮 El hechizo de retorno aún se está recargando. Espera ${timeStr}.` };
+    }
+  }
+
+  // Verificar HP suficiente
+  if (player.hp <= HP_COST) {
+    return { text: `🔮 No tenés suficiente energía para el retorno. Necesitás más de ${HP_COST} HP.` };
+  }
+
+  // Realizar el teletransporte
+  const newHp = player.hp - HP_COST;
+  const room = db.getRoom(START_ROOM);
+  const roomName = room ? room.name : 'Entrada del Dungeon';
+
+  db.updatePlayer(player.id, {
+    current_room_id: START_ROOM,
+    hp: newHp,
+    last_recall: new Date().toISOString(),
+  });
+
+  return {
+    text: `🔮 Invocás el antiguo hechizo de retorno...\nUn destello de luz te envuelve. Aparecés en ${roomName}.\n⚡ Costo: ${HP_COST} HP. HP actual: ${newHp}/${player.max_hp}.`,
+    event: `${player.username} desaparece en un destello de luz.`,
+    eventRoomId: player.current_room_id,
   };
 }
 

@@ -147,6 +147,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN rooms_visited TEXT NOT NULL DEFAULT '[]'`, // T115: logros secretos (salas visitadas)
     `ALTER TABLE players ADD COLUMN notes TEXT NOT NULL DEFAULT '[]'`,          // T116: notas personales del jugador
     `ALTER TABLE players ADD COLUMN reputation INTEGER NOT NULL DEFAULT 0`,      // T125: sistema de reputación
+    `ALTER TABLE players ADD COLUMN last_recall TEXT`,                            // T131: comando recall
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
