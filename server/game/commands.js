@@ -261,7 +261,8 @@ Comandos disponibles:
   smash / golpetazo     — Habilidad: golpe potente ×1.8 daño (requiere Nivel 3, cooldown 45s)
   bash / escudo_bash    — Habilidad: golpe de escudo + stun al monstruo 1 turno (Nivel 6, 60s)
   rally / arenga        — Habilidad: +2 ATK al grupo en la sala por 60s (Nivel 10, 2min)
-  note / apunte         — Notas personales: \"note add <texto>\" para agregar, \"note list\" para ver, \"note del <n>\" para borrar
+  note / apunte         — Notas personales: "note add <texto>" para agregar, "note list" para ver, "note del <n>" para borrar
+  changelog / novedades — Ver las últimas actualizaciones y mejoras del juego
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
