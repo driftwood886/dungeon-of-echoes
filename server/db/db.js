@@ -164,6 +164,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN hardcore_generation INTEGER NOT NULL DEFAULT 1`, // T175: generación del personaje (I, II, III...)
     `ALTER TABLE guilds   ADD COLUMN guild_quest TEXT`,                               // T189: quest colectiva de guild (JSON)
     `ALTER TABLE players ADD COLUMN vault TEXT NOT NULL DEFAULT '[]'`,                // T200: bóveda personal
+    `ALTER TABLE players ADD COLUMN epitaph TEXT`,                                    // T201: epitafio personal
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }

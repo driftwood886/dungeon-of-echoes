@@ -300,6 +300,7 @@ function execute(playerId, input, context) {
     case 'guide':        result = cmdGuide(action.args); break;
     case 'friend':       result = cmdFriend(player, action.args); break;
     case 'vault':        result = cmdVault(player, action.args); break;         // T200
+    case 'epitaph':      result = cmdEpitaph(player, action.args); break;       // T201
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -3373,6 +3374,8 @@ function cmdInspect(player, targetName) {
     `Kills: ${target.kills || 0} · Muertes: ${target.deaths || 0}`,
     `Logros: ${achDisplay}`,
     target.gold !== undefined ? `Oro: 💰 ${target.gold}g` : null,
+    // T201: Mostrar epitafio si el jugador está caído (modo hardcore fallen)
+    target.fallen ? `✝ Caído en Hardcore — Epitafio: "${target.epitaph || autoEpitaph(target)}"` : null,
   ].filter(Boolean).join('\n');
 
   return {
@@ -7740,6 +7743,11 @@ function cmdMemorial() {
       const dt   = p.fallen_at ? p.fallen_at.replace('T', ' ').slice(0, 10) : '???';
       const row  = `  ${name} ${lv} ${ki} ${dt}`;
       lines.push(`║${row.padEnd(W)}║`);
+      // T201: Mostrar epitafio si existe
+      if (p.epitaph) {
+        const eRow = `  ↳ "${p.epitaph}"`;
+        lines.push(`║${eRow.padEnd(W)}║`);
+      }
     }
   }
 
@@ -9033,6 +9041,51 @@ function cmdTriviaPub(player, args, context) {
 
 // Actualizar module.exports con T196+T197+T198
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals, checkAndSetRecords };
+
+// ══════════════════════════════════════════════════════════════════════════════
+// T201: autoEpitaph + cmdEpitaph — Epitafios personales
+// ══════════════════════════════════════════════════════════════════════════════
+
+/** Genera un epitafio automático si el jugador no tiene uno personalizado. */
+function autoEpitaph(player) {
+  const classNames = {
+    guerrero: 'guerrero', mago: 'mago', picaro: 'pícaro', sin_clase: 'aventurero',
+  };
+  const cls = classNames[player.player_class] || 'aventurero';
+  const kills = player.kills || 0;
+  const level = player.level || 1;
+  if (kills === 0) return `Un ${cls} de nivel ${level} que nunca mató a nadie.`;
+  if (kills < 5)  return `${cls.charAt(0).toUpperCase() + cls.slice(1)} de nivel ${level}. Mató ${kills} veces. Prometía.`;
+  if (kills < 20) return `Vino, vio, mató ${kills} veces. Nivel ${level}.`;
+  if (kills < 50) return `${kills} kills, nivel ${level}. El dungeon lo recuerda.`;
+  return `Leyenda del dungeon. ${kills} kills. Nivel ${level}. Descansa, ${cls}.`;
+}
+
+/** T201: Escribir o ver el epitafio personal. */
+function cmdEpitaph(player, args) {
+  if (!args || args.length === 0) {
+    // Ver el propio epitafio
+    const fresh = db.getPlayer(player.id);
+    const current = fresh.epitaph;
+    const auto    = autoEpitaph(fresh);
+    const lines = [];
+    lines.push(`══ 🪦 Tu Epitafio ══`);
+    if (current) {
+      lines.push(`Personalizado: "${current}"`);
+    } else {
+      lines.push(`(Sin epitafio. Epitafio automático: "${auto}")`);
+    }
+    lines.push(`Usá: epitafio <texto> para establecer tu epitafio (máx 80 chars).`);
+    lines.push(`Aparece en el memorial si morís en modo Hardcore.`);
+    return { text: lines.join('\n') };
+  }
+
+  const text = args.join(' ').trim().slice(0, 80);
+  if (text.length < 3) return { text: 'El epitafio debe tener al menos 3 caracteres.' };
+
+  db.updatePlayer(player.id, { epitaph: text });
+  return { text: `🪦 Epitafio guardado: "${text}"\nAparecerá en el memorial si morís en modo Hardcore.` };
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // T200: cmdVault — Bóveda personal (hasta 10 ítems, solo en sala 1)

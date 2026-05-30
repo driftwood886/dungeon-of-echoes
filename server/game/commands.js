@@ -243,6 +243,8 @@ const COMMAND_ALIASES = {
   friend: 'friend', amigo: 'friend', amigos: 'friend', friends: 'friend',
   // vault / bóveda personal (T200)
   vault: 'vault', boveda: 'vault', bóveda: 'vault', cofre: 'vault', deposito: 'vault', depósito: 'vault',
+  // epitaph / epitafio personal (T201)
+  epitaph: 'epitaph', epitafio: 'epitaph', lapida: 'epitaph', lápida: 'epitaph', tumba: 'epitaph',
   // pray / rezar — altares mágicos (T184)
   pray: 'pray', rezar: 'pray', orar: 'pray', ofrenda: 'pray', altar: 'pray',
   // preview / previsualizar ítem (T185)
