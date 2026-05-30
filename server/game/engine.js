@@ -175,6 +175,7 @@ function execute(playerId, input, context) {
     case 'changelog':    result = cmdChangelog(); break;
     case 'server':       result = cmdServerStats(); break;
     case 'time':         result = cmdTime(); break;
+    case 'enemies':      result = cmdEnemies(action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -4006,6 +4007,10 @@ module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAucti
  */
 function cmdChangelog() {
   const CHANGELOG = [
+    { version: '0.24', date: '2026-05-30', changes: [
+      '✨ NUEVO: comando enemies/top [N] — monstruos más poderosos del dungeon con estado y tiempo de respawn',
+      '⚡ MEJORA: enemies muestra 📍 si el monstruo está vivo y 🔮 con tiempo restante si está en respawn',
+    ]},
     { version: '0.23', date: '2026-05-30', changes: [
       '✨ NUEVO: comando server/estadísticas — estado global del servidor en caja ASCII',
       '✨ NUEVO: endpoint REST /api/stats — estadísticas públicas para integración LLM',
@@ -4167,3 +4172,70 @@ function cmdTime() {
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime };
+
+// ─── T122: Comando enemies/enemigos — monstruos del dungeon ordenados por HP ──
+
+/**
+ * enemies [n] — Muestra los monstruos más poderosos del dungeon con estado actual.
+ * Útil para planificar rutas de grindeo.
+ */
+function cmdEnemies(args) {
+  const limit = Math.min(20, Math.max(1, parseInt((args && args[0]) || '10') || 10));
+  const rawDb = db.raw();
+
+  // Obtener todos los monstruos junto con el nombre de su sala.
+  // Si room_id es NULL (monstruo en respawn), usar respawn_room_id para mostrar dónde reaparecerá.
+  const rows = rawDb.exec(`
+    SELECT m.id, m.name, m.hp, m.max_hp, m.attack, m.room_id, m.respawn_at,
+      CASE WHEN m.room_id IS NOT NULL THEN r.name ELSE rr.name END as room_name
+    FROM monsters m
+    LEFT JOIN rooms r ON m.room_id = r.id
+    LEFT JOIN rooms rr ON m.respawn_room_id = rr.id
+    ORDER BY m.max_hp DESC
+    LIMIT ${limit}
+  `);
+
+  if (!rows.length || !rows[0].values.length) {
+    return { text: 'No hay monstruos registrados en el dungeon.' };
+  }
+
+  const W = 52;
+  const lines = [
+    ``,
+    `╔${'═'.repeat(W)}╗`,
+    `║${'  👾 MONSTRUOS DEL DUNGEON (por poder)'.padEnd(W)}║`,
+    `╠${'═'.repeat(W)}╣`,
+  ];
+
+  for (const row of rows[0].values) {
+    const [id, name, hp, maxHp, attack, room_id, respawnAt, roomName] = row;
+    let status;
+    if (room_id) {
+      status = `⚔ VIVO (${hp}/${maxHp} HP)`;
+    } else if (respawnAt) {
+      const secsLeft = Math.max(0, Math.ceil((new Date(respawnAt) - Date.now()) / 1000));
+      const minsLeft = Math.ceil(secsLeft / 60);
+      status = secsLeft > 60 ? `💤 ${minsLeft}min` : `💤 ${secsLeft}s`;
+    } else {
+      status = `💤 Respawn`;
+    }
+    const location = roomName ? roomName : `Sala ${room_id || '?'}`;
+    const prefix = room_id ? '📍' : '🔮';
+    const attackStr = `ATK ${attack}`;
+
+    const line1 = `  ${name}`.padEnd(22) + status.padEnd(22);
+    const line2 = `  ${prefix} ${location}`.padEnd(30) + attackStr;
+    lines.push(`║${line1.slice(0,W)}║`);
+    lines.push(`║${line2.slice(0,W)}║`);
+    lines.push(`║${'─'.repeat(W)}║`);
+  }
+
+  // Quitar última línea divisoria y poner cierre
+  lines.pop();
+  lines.push(`╚${'═'.repeat(W)}╝`);
+  lines.push(`\n💡 Usá "map" para ver el minimapa del dungeon.`);
+
+  return { text: lines.join('\n') };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies };

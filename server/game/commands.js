@@ -52,7 +52,7 @@ const COMMAND_ALIASES = {
   // who
   who: 'who', jugadores: 'who', online: 'who', quién: 'who', quien: 'who',
   // score / ranking
-  score: 'score', ranking: 'score', scores: 'score', top: 'score', tabla: 'score', marcador: 'score',
+  score: 'score', ranking: 'score', scores: 'score', tabla: 'score', marcador: 'score',
   // give / dar
   give: 'give', dar: 'give', entregar: 'give', pasar: 'give', ofrecer: 'give',
   // pay / pagar / transferir oro
@@ -156,6 +156,8 @@ const COMMAND_ALIASES = {
   server: 'server', estadísticas: 'server', estadisticas: 'server', serverstats: 'server', uptime: 'server', info: 'server',
   // time (T121)
   time: 'time', hora: 'time', reloj: 'time', horario: 'time', 'qué-hora': 'time', periodo: 'time',
+  // enemies (T122)
+  enemies: 'enemies', enemigos: 'enemies', mobs: 'enemies', bestias: 'enemies', criaturas: 'enemies', 'top-enemies': 'enemies', top: 'enemies',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -269,6 +271,7 @@ Comandos disponibles:
   changelog / novedades — Ver las últimas actualizaciones y mejoras del juego
   server / estadísticas — Ver estadísticas globales del servidor (jugadores, kills, oro, uptime)
   time / hora           — Ver la hora actual del servidor y el período del día (amanecer/mediodía/atardecer/noche)
+  enemies [N] / top [N] — Ver los N monstruos más poderosos del dungeon (vivos y en respawn con tiempo restante)
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -293,7 +296,7 @@ const COMMAND_HELP = {
   give:      'give <ítem> <jugador> / dar <ítem> <jugador>\n  Pasar un ítem de tu inventario a otro jugador que esté en la misma sala.',
   map:       'map / mapa\n  Ver el mapa ASCII del dungeon con tu posición marcada con ★.',
   who:       'who / jugadores / online\n  Listar todos los aventureros activos en el dungeon (vistos en los últimos 5 minutos).',
-  score:     'score / ranking / top\n  Ver la tabla de líderes global: los 10 mejores por kills, XP y nivel.',
+  score:     'score / ranking\n  Ver la tabla de líderes global: los 10 mejores por kills, XP y nivel.',
   say:       'say <mensaje> / decir <mensaje>\n  Hablar con los jugadores que están en la misma sala.',
   shout:     'shout <mensaje> / gritar <mensaje>\n  Gritar un mensaje que todos los jugadores del dungeon escuchan.',
   whisper:   'whisper <jugador> <mensaje> / susurrar <jugador> <mensaje>\n  Enviar un mensaje privado a otro jugador (en cualquier sala). Solo el destinatario lo ve.',
@@ -316,6 +319,7 @@ const COMMAND_HELP = {
     dice:      'dados <NdM> / dice <NdM> / roll <NdM>\\\\\\\\n  Tirar dados en la sala. Ej: \\\"dados 2d6\\\" tira dos dados de 6 caras.\\\\\\\\n  El resultado es visible para todos los jugadores presentes en la sala.\\\\\\\\n  Formatos soportados: 1d4, 1d6, 1d8, 1d10, 1d12, 1d20, 1d100, hasta 10d100.',
     drink:     'drink / beber / tomar\\n  Beber de la Fuente Eterna en la Cámara de la Fuente Eterna (sala 18, al norte del Santuario Profano).\\n  Restaura tu HP completamente.\\n  Cooldown GLOBAL de 10 minutos: una vez que alguien bebe, la fuente tarda 10 min en recargarse.\\n  Nadie puede usarla durante ese tiempo. No funciona si ya estás al máximo de HP.',
     journal:   'journal / diario\\n  Ver tu diario personal de aventurero.\\n  Se registra automáticamente cuando: derrotes un boss, completes una quest, desbloquees un logro, subas de nivel o mueras.\\n  Muestra las últimas 10 entradas con tipo, fecha y descripción.',
+    enemies:   'enemies [N] / enemigos [N] / top [N]\\n  Ver los N monstruos más poderosos del dungeon (ordenados por HP máximo).\\n  Muestra: nombre, estado (vivo/respawn), sala donde habitan y estadísticas.\\n  N es opcional, por defecto 10. Máximo 20.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };
