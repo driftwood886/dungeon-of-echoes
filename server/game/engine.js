@@ -162,6 +162,8 @@ function execute(playerId, input, context) {
     case 'duel':         result = cmdDuel(player, action.args.join(' ')); break;
     case 'accept':       result = cmdAcceptDuel(player); break;
     case 'decline':      result = cmdDeclineDuel(player); break;
+    case 'bounty':       result = cmdBounty(player, action.args.join(' ')); break;
+    case 'bounties':     result = cmdBounties(player); break;
     case 'world':        result = cmdWorld(); break;
     case 'craft':        result = cmdCraft(player, action.args); break;
     case 'recipes':      result = cmdRecipes(); break;
@@ -3183,6 +3185,12 @@ function cmdAcceptDuel(player) {
                 `   ${winner.username}: ${winnerHp}/${winner.max_hp} HP | ${loser.username}: ${loserHp}/${loser.max_hp} HP` +
                 secretAchNotif;
 
+    // T144: Cobrar bounties activas sobre el perdedor
+    const bountyClaimed = db.claimBounty(loser.id, winner.id, winner.username);
+    if (bountyClaimed > 0) {
+      resultMsg += `\n💰 ¡${winner.username} cobra ${bountyClaimed}g en recompensas pendientes sobre ${loser.username}!`;
+    }
+
     // Registrar en crónica global (T093)
     db.logGlobalEvent('duel', `⚔️ ${winner.username} venció a ${loser.username} en duelo y ganó ${goldTransfer}g.`);
   }
@@ -3216,6 +3224,77 @@ function cmdDeclineDuel(player) {
     targetPlayerMsg: `🚫 ${player.username} rechazó tu reto de duelo.`,
     targetEventType: 'duel_declined',
   };
+}
+
+// ─── T144: Bounties ────────────────────────────────────────────────────────────
+
+/**
+ * bounty <jugador> <cantidad> — Poner una recompensa sobre un jugador.
+ * La recompensa se activa con victorias en duelos. Expira en 30 minutos.
+ */
+function cmdBounty(player, args) {
+  const parts = args.trim().split(/\s+/);
+  if (parts.length < 2) {
+    return { text: 'Uso: bounty <jugador> <cantidad>\nEj: bounty Ana 50\nMínimo: 10 monedas de oro.' };
+  }
+
+  const amountStr = parts[parts.length - 1];
+  const targetName = parts.slice(0, parts.length - 1).join(' ');
+  const amount = parseInt(amountStr, 10);
+
+  if (isNaN(amount) || amount < 10) {
+    return { text: '⚠️ El monto mínimo de una recompensa es 10 monedas de oro.' };
+  }
+
+  const freshPlayer = db.getPlayer(player.id);
+  if ((freshPlayer.gold || 0) < amount) {
+    return { text: `No tenés suficiente oro. Tenés ${freshPlayer.gold || 0}g, necesitás ${amount}g.` };
+  }
+
+  // No se puede poner bounty sobre uno mismo
+  if (targetName.toLowerCase() === freshPlayer.username.toLowerCase()) {
+    return { text: '⚠️ No podés poner una recompensa sobre vos mismo.' };
+  }
+
+  const target = db.getPlayerByUsername(targetName);
+  if (!target) {
+    return { text: `No existe ningún aventurero con el nombre \"${targetName}\".` };
+  }
+
+  // Agregar bounty (descuenta el oro)
+  db.addBounty(freshPlayer.id, freshPlayer.username, target.id, target.username, amount);
+
+  return {
+    text: `💰 ¡Recompensa de ${amount}g publicada sobre ${target.username}! Expira en 30 minutos.\n   Quien gane un duelo contra ${target.username} cobrará automáticamente.`,
+    event: `💰 ¡${freshPlayer.username} ofrece ${amount}g de recompensa por la cabeza de ${target.username}!`,
+  };
+}
+
+/**
+ * bounties — Listar todas las recompensas activas en el dungeon.
+ */
+function cmdBounties(player) {
+  const all = db.getAllActiveBounties();
+  if (all.length === 0) {
+    return { text: '🔍 No hay recompensas activas en el dungeon.' };
+  }
+
+  const lines = [];
+  lines.push('╔══════════════════════════════════════════╗');
+  lines.push('║       💰 TABLERO DE RECOMPENSAS          ║');
+  lines.push('╠══════════════════════════════════════════╣');
+
+  for (const b of all) {
+    const expiresIn = Math.max(0, Math.round((new Date(b.expires_at) - Date.now()) / 60000));
+    const row = `║  ${b.target_name.padEnd(12)} ${String(b.amount + 'g').padStart(5)} — por ${b.poster_name.padEnd(10)} (${expiresIn}min)`;
+    lines.push(row.substring(0, 44).padEnd(44) + ' ║');
+  }
+
+  lines.push('╚══════════════════════════════════════════╝');
+  lines.push(`  Total: ${all.length} recompensa(s) activa(s).`);
+  lines.push(`  Las recompensas se cobran al ganar un duelo contra el objetivo.`);
+
+  return { text: lines.join('\n') };
 }
 
 

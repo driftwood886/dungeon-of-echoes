@@ -183,6 +183,22 @@ async function init() {
     )
   `);
 
+  // T144: Tabla de bounties (recompensas PvP)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS bounties (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      poster_id     TEXT NOT NULL,
+      poster_name   TEXT NOT NULL,
+      target_id     TEXT NOT NULL,
+      target_name   TEXT NOT NULL,
+      amount        INTEGER NOT NULL,
+      expires_at    TEXT NOT NULL,
+      claimed       INTEGER NOT NULL DEFAULT 0,
+      claimed_by    TEXT,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // Guardar al apagar
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });
@@ -930,6 +946,101 @@ function updateDailyChallengeProgress(playerId, type, target, amount = 1) {
   return { challenge: ch, reward };
 }
 
+// ─── T144: Bounties (recompensas PvP) ────────────────────────────────────────
+
+/**
+ * Crea una nueva bounty sobre un jugador objetivo.
+ * Descuenta el oro del poster inmediatamente.
+ */
+function addBounty(posterId, posterName, targetId, targetName, amount) {
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  db.run(
+    `INSERT INTO bounties (poster_id, poster_name, target_id, target_name, amount, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [posterId, posterName, targetId, targetName, amount, expiresAt]
+  );
+  // Descontar oro del poster
+  const poster = getPlayer(posterId);
+  updatePlayer(posterId, { gold: Math.max(0, (poster.gold || 0) - amount) });
+}
+
+/**
+ * Obtiene todas las bounties activas (no reclamadas, no expiradas) sobre un jugador.
+ */
+function getBountiesOnPlayer(targetId) {
+  const now = new Date().toISOString();
+  const rows = db.exec(
+    `SELECT * FROM bounties WHERE target_id = ? AND claimed = 0 AND expires_at > ? ORDER BY created_at DESC`,
+    [targetId, now]
+  );
+  if (!rows || !rows[0] || !rows[0].values) return [];
+  return rows[0].values.map(r => _mapRow(rows[0].columns, r));
+}
+
+/**
+ * Obtiene todas las bounties activas en el dungeon.
+ */
+function getAllActiveBounties() {
+  const now = new Date().toISOString();
+  const rows = db.exec(
+    `SELECT * FROM bounties WHERE claimed = 0 AND expires_at > ? ORDER BY amount DESC, created_at DESC`,
+    [now]
+  );
+  if (!rows || !rows[0] || !rows[0].values) return [];
+  return rows[0].values.map(r => _mapRow(rows[0].columns, r));
+}
+
+/**
+ * Reclama todas las bounties activas sobre targetId y da el oro al claimerId.
+ * Retorna el total de oro reclamado.
+ */
+function claimBounty(targetId, claimerId, claimerName) {
+  const bounties = getBountiesOnPlayer(targetId);
+  if (bounties.length === 0) return 0;
+  let total = 0;
+  for (const b of bounties) {
+    db.run(
+      `UPDATE bounties SET claimed = 1, claimed_by = ? WHERE id = ?`,
+      [claimerName, b.id]
+    );
+    total += b.amount;
+  }
+  if (total > 0) {
+    const claimer = getPlayer(claimerId);
+    updatePlayer(claimerId, { gold: (claimer.gold || 0) + total });
+  }
+  return total;
+}
+
+/**
+ * Expira las bounties vencidas y devuelve el oro a los poster.
+ * Retorna cuántas se expiraron.
+ */
+function expireOldBounties() {
+  const now = new Date().toISOString();
+  const rows = db.exec(
+    `SELECT * FROM bounties WHERE claimed = 0 AND expires_at <= ?`,
+    [now]
+  );
+  if (!rows || !rows[0] || !rows[0].values) return 0;
+  const expired = rows[0].values.map(r => _mapRow(rows[0].columns, r));
+  for (const b of expired) {
+    db.run(`UPDATE bounties SET claimed = 1 WHERE id = ?`, [b.id]);
+    const poster = getPlayer(b.poster_id);
+    if (poster) {
+      updatePlayer(b.poster_id, { gold: (poster.gold || 0) + b.amount });
+    }
+  }
+  return expired.length;
+}
+
+// Helper: mapear columnas y valores sql.js a objeto
+function _mapRow(cols, vals) {
+  const obj = {};
+  cols.forEach((c, i) => { obj[c] = vals[i]; });
+  return obj;
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -960,4 +1071,6 @@ module.exports = {
   tryAddRune, getPlayerRunes, RUNE_TYPES, RUNE_EMOJIS, RUNE_BONUSES,
   // T141: desafío diario personal
   getDailyChallenge, updateDailyChallengeProgress,
+  // T144: bounties
+  addBounty, getBountiesOnPlayer, getAllActiveBounties, claimBounty, expireOldBounties,
 };

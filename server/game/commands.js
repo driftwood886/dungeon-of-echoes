@@ -103,6 +103,8 @@ const COMMAND_ALIASES = {
   gc: 'gc', gchat: 'gc', guildchat: 'gc',
   // duel / duelo PvP
   duel: 'duel', duelo: 'duel', retar: 'duel', desafiar: 'duel', pvp: 'duel',
+  bounty: 'bounty', recompensa: 'bounty', cabeza: 'bounty',
+  bounties: 'bounties', recompensas: 'bounties', tablero: 'bounties',
   // accept / aceptar duelo
   accept: 'accept', aceptar: 'accept', acepto: 'accept',
   // decline / rechazar duelo

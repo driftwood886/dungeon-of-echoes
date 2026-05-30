@@ -407,6 +407,11 @@ async function main() {
     }
   }, 10_000);
 
+  // T144: Bounty expiration loop — expirar recompensas vencidas y devolver oro cada minuto
+  setInterval(() => {
+    db.expireOldBounties();
+  }, 60_000);
+
   // 10. Quest loop: iniciar quest activa + rotar cada 5 minutos si pasaron 30 min
   quests.loadQuest();
   setInterval(() => {
