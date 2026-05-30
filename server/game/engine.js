@@ -214,6 +214,8 @@ function execute(playerId, input, context) {
     case 'read':         result = cmdReadWall(player); break;
     case 'greet':        result = cmdGreet(player, action.args, context); break;
     case 'search':       result = cmdSearch(player, action.args); break;
+    case 'study':        result = cmdStudy(player, action.args); break;
+    case 'dungeon':      result = cmdDungeonStatus(); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -261,6 +263,7 @@ function execute(playerId, input, context) {
           dice: 'dice', dado: 'dice', dados: 'dice', roll: 'dice',
           party: 'party', grupo: 'party', equipo: 'party',
           drink: 'drink', beber: 'drink', tomar: 'drink',
+          study: 'study', estudiar: 'study', analizar: 'study', investigar: 'study',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
@@ -5714,6 +5717,206 @@ function cmdSearch(player, args) {
       event: `🔍 ${player.username} rebusca el cadáver del ${target.name} y encuentra algo.`,
       eventRoomId: player.current_room_id,
     };
+  }
+}
+
+// ─── T150: Comando study/estudiar ────────────────────────────────────────────
+// Analiza un monstruo en la sala: debilidades, resistencias, habilidades especiales y estrategia recomendada.
+const MONSTER_LORE = {
+  'Goblin Merodeador':    { tipo: 'humanoide', debil: ['fuego', 'luz'], resiste: [], nota: 'Objetivo fácil. Usa cualquier hechizo para eliminarlo rápido.' },
+  'Esqueleto Guerrero':  { tipo: 'no-muerto', debil: ['luz', 'contundente'], resiste: ['veneno', 'frío'], nota: 'Inmune a veneno. El hechizo de curación puede dañarlo (son no-muertos).' },
+  'Rata Gigante':         { tipo: 'bestia', debil: ['fuego', 'veneno'], resiste: [], nota: 'Débil, pero en grupos puede ser peligrosa. Objetivo rápido.' },
+  'Espectro del Corredor':{ tipo: 'espectro', debil: ['luz', 'magia'], resiste: ['físico', 'veneno'], nota: 'Casi inmune a ataques físicos. Usa magia o la bola de fuego.' },
+  'Gólem de Piedra':      { tipo: 'constructo', debil: ['magia', 'frío'], resiste: ['físico', 'veneno', 'fuego'], nota: 'Muy resistente. El frío puede fracturar su cuerpo de piedra.' },
+  'Murciélago Vampiro':   { tipo: 'bestia', debil: ['luz', 'fuego'], resiste: ['frío', 'veneno'], nota: 'Te puede envenenar. Considera llevar antídoto.' },
+  'Araña Tejedora':       { tipo: 'bestia', debil: ['fuego', 'luz'], resiste: ['veneno'], nota: '¡Puede enredarte! Tienes 85% de chance de atacar normalmente cada turno.' },
+  'Guardia Espectral':    { tipo: 'no-muerto', debil: ['luz', 'sagrado'], resiste: ['veneno', 'frío'], nota: 'Alto ataque. Usa escudo antes de empezar el combate.' },
+  'Lich Anciano':         { tipo: 'no-muerto', debil: ['luz', 'sagrado'], resiste: ['veneno', 'frío', 'fuego'], nota: 'PELIGROSO: drena maná. Si eres Mago, ten pociones de maná listas.' },
+  'Gólem de Hielo':       { tipo: 'constructo', debil: ['fuego', 'magia'], resiste: ['frío', 'agua'], nota: 'Vulnerable al fuego. La bola de fuego hace el doble de sentido aquí.' },
+  'Cazador de Sombras':   { tipo: 'demonio', debil: ['luz', 'sagrado'], resiste: ['oscuridad', 'veneno'], nota: 'Alto daño. Mantén tu defensa alta con el hechizo de escudo.' },
+  'Elemental de Fuego':   { tipo: 'elemental', debil: ['agua', 'frío'], resiste: ['fuego', 'veneno'], nota: 'Inmune a fuego. Usa bola de fuego? Mala idea. Usa golpetazo o habilidades físicas.' },
+  'Eco Viviente':         { tipo: 'aberración', debil: ['silencio', 'magia'], resiste: ['físico'], nota: 'Puede amplificar sus golpes ×1.8. Liquídalo rápido para evitar que use su habilidad.' },
+  'Sombra del Vacío':     { tipo: 'sombra', debil: ['luz', 'magia'], resiste: ['físico', 'frío', 'veneno'], nota: 'Puede cegarme (-DEF). El Pícaro con su esquiva natural (20%) aguanta mejor.' },
+  'Goblin de Práctica':   { tipo: 'humanoide', debil: ['todo'], resiste: [], nota: 'Goblin de entrenamiento. No sueltan loot real ni cuentan como kills.' },
+};
+
+function cmdStudy(player, args) {
+  const targetName = args.join(' ');
+  if (!targetName) {
+    return { text: '📖 Uso: study <monstruo> / estudiar <monstruo>\nEjemplo: study goblin\nDeberías estar en la misma sala que el monstruo para estudiarlo.' };
+  }
+
+  // Buscar monstruo en la sala
+  const monster = combat.findMonsterInRoom(player.current_room_id, targetName);
+  if (!monster) {
+    return { text: `📖 No hay ningún "${targetName}" en esta sala para estudiar.\nUsá look para ver qué hay aquí.` };
+  }
+
+  const lore = MONSTER_LORE[monster.name];
+  const { MONSTER_SPECIALS } = combat;
+  const special = MONSTER_SPECIALS[monster.name];
+
+  const lines = [];
+  const W = 48;
+  const pad = s => s + ' '.repeat(Math.max(0, W - s.length));
+  lines.push(`┌${'─'.repeat(W)}┐`);
+  lines.push(`│ 📖 ANÁLISIS: ${monster.name.toUpperCase()}`);
+  lines.push(`├${'─'.repeat(W)}┤`);
+
+  // Tipo y stats
+  const tipo = lore ? lore.tipo : 'desconocido';
+  lines.push(`│  Tipo:     ${tipo}`);
+  lines.push(`│  HP:       ${monster.hp}/${monster.max_hp}    ATK: ${monster.attack}`);
+
+  // Habilidades especiales
+  if (special) {
+    const tipos = { mana_drain: '🌀 Drenaje de maná', web: '🕸 Inmovilización', amplify: '🔊 Amplificación de golpe', blind: '🌑 Ceguera' };
+    const tipoNombre = tipos[special.type] || special.type;
+    const chances = Math.round(special.chance * 100);
+    lines.push(`│  ⚡ Habilidad especial (${chances}%): ${tipoNombre}`);
+  }
+
+  // Debilidades y resistencias
+  if (lore) {
+    if (lore.debil.length > 0) {
+      lines.push(`│  💥 Débil vs: ${lore.debil.join(', ')}`);
+    }
+    if (lore.resiste.length > 0) {
+      lines.push(`│  🛡 Resiste: ${lore.resiste.join(', ')}`);
+    }
+  }
+
+  // Estado actual
+  const statusEffects = (() => { try { return JSON.parse(monster.status_effects || 'null'); } catch (_) { return null; } })();
+  if (statusEffects && Object.keys(statusEffects).length > 0) {
+    const efectos = Object.keys(statusEffects).map(k => k).join(', ');
+    lines.push(`│  ☠ Estado actual: ${efectos}`);
+  }
+
+  // Nota estratégica
+  if (lore && lore.nota) {
+    lines.push(`├${'─'.repeat(W)}┤`);
+    // Partir la nota en líneas de ~44 chars
+    const words = lore.nota.split(' ');
+    let line = '│  💡 ';
+    for (const word of words) {
+      if ((line + word).length > W + 4) {
+        lines.push(line);
+        line = '│     ' + word + ' ';
+      } else {
+        line += word + ' ';
+      }
+    }
+    if (line.trim() !== '│') lines.push(line.trimEnd());
+  } else {
+    lines.push(`│  💡 No hay lore registrado sobre este ser.`);
+  }
+
+  lines.push(`└${'─'.repeat(W)}┘`);
+
+  return { text: lines.join('\n') };
+}
+
+// ─── T151: Comando dungeon/estado del dungeon ─────────────────────────────────
+// Muestra un resumen narrativo del estado actual del dungeon: zonas peligrosas,
+// boss vivo/muerto, quest activa, trampas armadas, loot disponible.
+function cmdDungeonStatus() {
+  try {
+    const rawDb = db.raw();
+
+    // Obtener todas las salas
+    const rooms = db.getAllRooms();
+
+    // Monstruos vivos (room_id != null)
+    const monstersAlive = rawDb.exec('SELECT id, name, room_id, hp, max_hp FROM monsters WHERE room_id IS NOT NULL')[0];
+    const monsterRows = monstersAlive ? monstersAlive.values : [];
+
+    // Cuántos ítems en total en el suelo
+    let totalItemsOnFloor = 0;
+    let roomsWithItems = 0;
+    let trapsArmed = 0;
+    for (const room of rooms) {
+      try {
+        const items = JSON.parse(room.items || '[]');
+        if (items.length > 0) { totalItemsOnFloor += items.length; roomsWithItems++; }
+      } catch (_) {}
+      try {
+        const trap = JSON.parse(room.trap || 'null');
+        if (trap && trap.active) trapsArmed++;
+      } catch (_) {}
+    }
+
+    // Boss vivo?
+    const bossR = rawDb.exec("SELECT id, hp, max_hp, room_id FROM monsters WHERE id = 10")[0];
+    const bossRow = bossR ? bossR.values[0] : null;
+    const bossAlive = bossRow && bossRow[3] !== null;
+    const bossHp = bossRow ? bossRow[1] : 0;
+    const bossMaxHp = bossRow ? bossRow[2] : 0;
+
+    // Quest activa (módulo quests)
+    let questInfo = 'Ninguna activa';
+    try {
+      const { getCurrentQuest } = require('./quests.js');
+      const q = getCurrentQuest();
+      if (q) questInfo = `${q.name} — ${q.description}`;
+    } catch (_) {}
+
+    // Evento global activo
+    let eventInfo = 'Calma total';
+    try {
+      const ev = worldEvents.getCurrentEvent();
+      if (ev) eventInfo = ev.name;
+    } catch (_) {}
+
+    // Construir tabla de zonas peligrosas
+    const dangerZones = [];
+    for (const row of monsterRows) {
+      const [mid, mname, mroomId, mhp, mmaxhp] = row;
+      const room = rooms.find(r => r.id === mroomId);
+      if (room) dangerZones.push({ roomName: room.name, monsterName: mname, hp: mhp, maxHp: mmaxhp });
+    }
+
+    const W = 52;
+    const lines = [];
+    lines.push(`╔${'═'.repeat(W)}╗`);
+    lines.push(`║${'  🗺 ESTADO DEL DUNGEON OF ECHOES'.padEnd(W)}║`);
+    lines.push(`╠${'═'.repeat(W)}╣`);
+
+    // Boss
+    const bossLine = bossAlive
+      ? `  ☠ Boss: VIVO — ${bossHp}/${bossMaxHp} HP (¡PELIGRO!)`
+      : `  ☠ Boss: En respawn (el dungeon respira...)`
+    ;
+    lines.push(`║${bossLine.padEnd(W)}║`);
+
+    // Quest
+    lines.push(`║${'  📜 Quest: '.padEnd(4)}${questInfo.slice(0, W - 9).padEnd(W - 4)}║`.slice(0, W + 2));
+    lines.push(`║${'  🌍 Evento: ' + eventInfo.slice(0, 38).padEnd(40)}║`);
+    lines.push(`║${'  ⚠️  Trampas armadas: ' + trapsArmed + ' de ' + (trapsArmed + (trapsArmed === 0 ? 4 : 0)) + ' posibles'}${' '.repeat(Math.max(0, W - 22))}║`.slice(0, W + 2));
+    lines.push(`║${'  💎 Ítems en el suelo: ' + totalItemsOnFloor + ' (en ' + roomsWithItems + ' salas)'}${' '.repeat(Math.max(0, W - 25))}║`.slice(0, W + 2));
+    lines.push(`╠${'═'.repeat(W)}╣`);
+
+    if (dangerZones.length === 0) {
+      lines.push(`║${'  El dungeon está inusualmente silencioso...'.padEnd(W)}║`);
+    } else {
+      lines.push(`║${'  ZONAS PELIGROSAS:'.padEnd(W)}║`);
+      for (const z of dangerZones.slice(0, 8)) {
+        const hpBar = Math.round((z.hp / z.maxHp) * 5);
+        const bar = '█'.repeat(hpBar) + '░'.repeat(5 - hpBar);
+        const line = `  • ${z.roomName.slice(0, 20)}: ${z.monsterName.slice(0, 15)} [${bar}]`;
+        lines.push(`║${line.padEnd(W)}║`);
+      }
+      if (dangerZones.length > 8) {
+        lines.push(`║${'  ... y ' + (dangerZones.length - 8) + ' monstruo(s) más.'.padEnd(W - 8)}║`.slice(0, W + 2));
+      }
+    }
+
+    lines.push(`╚${'═'.repeat(W)}╝`);
+    lines.push(`Tip: usa "look" al entrar a una sala, "study <monstruo>" para analizar enemigos.`);
+
+    return { text: lines.join('\n') };
+  } catch (err) {
+    return { text: `Error al obtener estado del dungeon: ${err.message}` };
   }
 }
 
