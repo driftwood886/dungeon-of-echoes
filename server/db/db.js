@@ -210,6 +210,21 @@ async function init() {
     )
   `);
 
+  // T181: Tabla de mercado de jugadores (precio fijo)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS market_listings (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      seller_id   TEXT NOT NULL,
+      seller_name TEXT NOT NULL,
+      item_name   TEXT NOT NULL,
+      price       INTEGER NOT NULL,
+      expires_at  TEXT NOT NULL,
+      sold        INTEGER NOT NULL DEFAULT 0,
+      buyer_name  TEXT,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // T147: Tabla de mensajes en las paredes (graffiti)
   db.run(`
     CREATE TABLE IF NOT EXISTS wall_messages (
@@ -1182,6 +1197,53 @@ function getFallenHardcorePlayers() {
   );
 }
 
+// ─── T181: Mercado de jugadores (precio fijo) ─────────────────────────────────
+
+function createMarketListing(sellerId, sellerName, itemName, price, durationMs = 60 * 60 * 1000) {
+  const expiresAt = new Date(Date.now() + durationMs).toISOString();
+  run(
+    `INSERT INTO market_listings (seller_id, seller_name, item_name, price, expires_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [sellerId, sellerName, itemName, price, expiresAt]
+  );
+  return one(`SELECT * FROM market_listings WHERE seller_id = ? AND item_name = ? AND sold = 0 ORDER BY id DESC LIMIT 1`, [sellerId, itemName]);
+}
+
+function getActiveMarketListings() {
+  return all(
+    `SELECT * FROM market_listings WHERE sold = 0 AND expires_at > datetime('now') ORDER BY created_at ASC`
+  );
+}
+
+function getPlayerMarketListings(sellerId) {
+  return all(
+    `SELECT * FROM market_listings WHERE seller_id = ? AND sold = 0 AND expires_at > datetime('now') ORDER BY created_at ASC`,
+    [sellerId]
+  );
+}
+
+function getMarketListing(id) {
+  return one(`SELECT * FROM market_listings WHERE id = ?`, [id]);
+}
+
+function buyMarketItem(listingId, buyerName) {
+  run(`UPDATE market_listings SET sold = 1, buyer_name = ? WHERE id = ?`, [buyerName, listingId]);
+}
+
+function cancelMarketListing(listingId) {
+  run(`UPDATE market_listings SET sold = 1 WHERE id = ?`, [listingId]);
+}
+
+function expireOldMarketListings() {
+  const expired = all(
+    `SELECT * FROM market_listings WHERE sold = 0 AND expires_at <= datetime('now')`
+  );
+  for (const l of expired) {
+    run(`UPDATE market_listings SET sold = 1 WHERE id = ?`, [l.id]);
+  }
+  return expired;
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -1221,4 +1283,6 @@ module.exports = {
   // T156-T158: sesiones e historial de tiempo
   saveSession, getPlayerSessions, getLeaderboardByPlaytime,
   getFallenHardcorePlayers,
+  // T181: mercado de jugadores
+  createMarketListing, getActiveMarketListings, getMarketListing, buyMarketItem, cancelMarketListing, expireOldMarketListings, getPlayerMarketListings,
 };

@@ -230,6 +230,7 @@ function registerHandlers(io) {
         },
         previousRoomId: previousRoomMap.get(currentPlayerId) || null,
         sessionData: sessionDataMap.get(currentPlayerId) || null,
+        playerSockets,
       };
       const result = engine.execute(currentPlayerId, command, context);
 

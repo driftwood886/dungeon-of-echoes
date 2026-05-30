@@ -420,6 +420,29 @@ async function main() {
     db.expireOldBounties();
   }, 60_000);
 
+  // T181: Expirar anuncios del mercado cada 5 minutos (devolver ítems a vendedores)
+  setInterval(() => {
+    const expired = db.expireOldMarketListings();
+    for (const listing of expired) {
+      // Devolver el ítem al vendedor si existe
+      const seller = db.getPlayer(listing.seller_id);
+      if (seller) {
+        const inv = seller.inventory || [];
+        inv.push(listing.item_name);
+        db.updatePlayer(listing.seller_id, { inventory: JSON.stringify(inv) });
+        // Notificar al vendedor si está online
+        const { playerSockets } = require('./socket/handlers');
+        const sellerSocket = playerSockets.get(listing.seller_id);
+        if (sellerSocket) {
+          sellerSocket.emit('event', {
+            type: 'info',
+            text: `⏰ Tu anuncio de "${listing.item_name}" expiró sin venderse. El ítem fue devuelto a tu inventario.`,
+          });
+        }
+      }
+    }
+  }, 5 * 60_000);
+
   // 10. Quest loop: iniciar quest activa + rotar cada 5 minutos si pasaron 30 min
   quests.loadQuest();
   setInterval(() => {

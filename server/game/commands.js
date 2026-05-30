@@ -139,7 +139,9 @@ const COMMAND_ALIASES = {
   // bid / pujar (T098)
   bid: 'bid', pujar: 'bid', puja: 'bid', apostar: 'bid', ofrecer_oro: 'bid',
   // auctions / listar subastas (T098)
-  auctions: 'auctions', subastas: 'auctions', remates: 'auctions', mercado: 'auctions', sala_subasta: 'auctions',
+  auctions: 'auctions', subastas: 'auctions', remates: 'auctions', sala_subasta: 'auctions',
+  // market / mercado de jugadores (T181)
+  market: 'market', mercado: 'market', tianguis: 'market', tablero: 'market', tablón: 'market',
   // dice / dados (T100)
   dice: 'dice', dado: 'dice', dados: 'dice', tirar: 'dice', roll: 'dice', rodar: 'dice',
   // drink / beber (T103)

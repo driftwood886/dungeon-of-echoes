@@ -230,6 +230,7 @@ function execute(playerId, input, context) {
     case 'auction':      result = cmdAuction(player, action.args); break;
     case 'bid':          result = cmdBid(player, action.args); break;
     case 'auctions':     result = cmdAuctions(); break;
+    case 'market':       result = cmdMarket(player, action.args, context); break;
     case 'drink':        result = cmdDrink(player); break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
@@ -7453,3 +7454,197 @@ function toRoman(n) {
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial };
+
+// ─── T181: Mercado de jugadores ───────────────────────────────────────────────
+
+/**
+ * market <subcomando> [args...]
+ * Subcomandos: post, list, buy, mine, cancel
+ */
+function cmdMarket(player, args, context) {
+  player = db.getPlayer(player.id);
+
+  if (!args || args.length === 0) {
+    return {
+      text: [
+        '🛒 Mercado de Jugadores',
+        '  Comprá y vendé ítems a precio fijo desde cualquier sala.',
+        '',
+        '  market list              — ver todos los anuncios activos',
+        '  market post <ítem> <precio> — publicar un ítem',
+        '  market buy <id>          — comprar un anuncio',
+        '  market mine              — ver tus anuncios activos',
+        '  market cancel <id>       — retirar tu anuncio',
+      ].join('\n'),
+    };
+  }
+
+  const sub = args[0].toLowerCase();
+
+  // ─── list ───────────────────────────────────────────────────────────────────
+  if (sub === 'list' || sub === 'listar' || sub === 'ver') {
+    const listings = db.getActiveMarketListings();
+    if (listings.length === 0) {
+      return { text: '🛒 El mercado está vacío.\n\nPublicá algo con: market post <ítem> <precio>' };
+    }
+    const W = 58;
+    const line = '─'.repeat(W);
+    const rows = listings.map(l => {
+      const timeLeft = formatTimeLeft(l.expires_at);
+      const seller = l.seller_name.slice(0, 14).padEnd(14);
+      const item   = l.item_name.slice(0, 24).padEnd(24);
+      const price  = `${l.price}g`.padStart(6);
+      return `  #${String(l.id).padEnd(3)} ${item} ${price}  ${seller}  ⏳${timeLeft}`;
+    });
+    const hdr = `  #ID  Ítem${''.padEnd(20)} Precio  Vendedor`;
+    return {
+      text: [
+        `╔${line}╗`,
+        `║${'  🛒 MERCADO DE JUGADORES'.padEnd(W)}║`,
+        `╠${line}╣`,
+        `║${hdr.padEnd(W)}║`,
+        `╠${line}╣`,
+        ...rows.map(r => `║${r.padEnd(W)}║`),
+        `╚${line}╝`,
+        `  (${listings.length} anuncio${listings.length !== 1 ? 's' : ''} activo${listings.length !== 1 ? 's' : ''})`,
+        `  Comprá con: market buy <id>`,
+      ].join('\n'),
+    };
+  }
+
+  // ─── mine ───────────────────────────────────────────────────────────────────
+  if (sub === 'mine' || sub === 'mis' || sub === 'mios') {
+    const listings = db.getPlayerMarketListings(player.id);
+    if (listings.length === 0) {
+      return { text: '🛒 No tenés anuncios activos en el mercado.\n\nPublicá algo con: market post <ítem> <precio>' };
+    }
+    const rows = listings.map(l => `  #${l.id} | ${l.item_name} | ${l.price}g | ⏳${formatTimeLeft(l.expires_at)}`);
+    return {
+      text: `🛒 Tus anuncios activos:\n\n${rows.join('\n')}\n\nRetirá con: market cancel <id>`,
+    };
+  }
+
+  // ─── post ────────────────────────────────────────────────────────────────────
+  if (sub === 'post' || sub === 'publicar' || sub === 'vender') {
+    const rest = args.slice(1);
+    if (rest.length < 2) {
+      return { text: 'Uso: market post <ítem> <precio>\nEjemplo: market post "espada oxidada" 25' };
+    }
+    const priceArg = rest[rest.length - 1];
+    const price = parseInt(priceArg, 10);
+    if (isNaN(price) || price < 1) {
+      return { text: `Precio inválido: "${priceArg}". Debe ser un número mayor a 0.` };
+    }
+    const itemName = rest.slice(0, -1).join(' ').toLowerCase().trim();
+    const inventory = player.inventory || [];
+    const itemIndex = inventory.findIndex(i => i.toLowerCase() === itemName);
+    if (itemIndex === -1) {
+      return { text: `No tenés "${itemName}" en el inventario.\nUsá "inventario" para ver tus ítems.` };
+    }
+
+    // Verificar que no tenga demasiados anuncios activos
+    const myListings = db.getPlayerMarketListings(player.id);
+    if (myListings.length >= 5) {
+      return { text: `Tenés ${myListings.length} anuncios activos (máx 5). Cancelá uno antes de publicar más.` };
+    }
+
+    // Retirar ítem del inventario
+    inventory.splice(itemIndex, 1);
+    db.updatePlayer(player.id, { inventory: JSON.stringify(inventory) });
+
+    const listing = db.createMarketListing(player.id, player.username, itemName, price);
+    return {
+      text: `🛒 Anuncio publicado!\n  Ítem: ${itemName}\n  Precio: ${price}g\n  ID: #${listing.id}\n  Expira en: 1 hora\n\nOtros jugadores pueden comprarlo con: market buy ${listing.id}`,
+    };
+  }
+
+  // ─── buy ─────────────────────────────────────────────────────────────────────
+  if (sub === 'buy' || sub === 'comprar') {
+    const idArg = args[1];
+    const listingId = parseInt(idArg, 10);
+    if (!idArg || isNaN(listingId)) {
+      return { text: 'Uso: market buy <id>\nEjemplo: market buy 3\n\nUsá "market list" para ver los IDs.' };
+    }
+    const listing = db.getMarketListing(listingId);
+    if (!listing || listing.sold) {
+      return { text: `El anuncio #${listingId} no existe o ya fue vendido.\nUsá "market list" para ver los activos.` };
+    }
+    const now = new Date().toISOString();
+    if (listing.expires_at <= now) {
+      return { text: `El anuncio #${listingId} ya expiró.` };
+    }
+    if (listing.seller_id === player.id) {
+      return { text: 'No podés comprar tu propio anuncio. Usá "market cancel <id>" para retirarlo.' };
+    }
+    if ((player.gold || 0) < listing.price) {
+      return { text: `No tenés suficiente oro. Necesitás ${listing.price}g y tenés ${player.gold || 0}g.` };
+    }
+
+    // Transacción: descontar oro, dar ítem, marcar como vendido
+    db.updatePlayer(player.id, { gold: (player.gold || 0) - listing.price });
+
+    // Acreditar al vendedor si existe
+    const seller = db.getPlayer(listing.seller_id);
+    if (seller) {
+      db.updatePlayer(listing.seller_id, { gold: (seller.gold || 0) + listing.price });
+    }
+
+    // Dar ítem al comprador
+    const inventory = player.inventory || [];
+    inventory.push(listing.item_name);
+    db.updatePlayer(player.id, { inventory: JSON.stringify(inventory) });
+
+    db.buyMarketItem(listingId, player.username);
+
+    const result = {
+      text: `🛒 ¡Compra exitosa!\n  Ítem: ${listing.item_name}\n  Precio pagado: ${listing.price}g\n  Vendedor: ${listing.seller_name}\n\nEl ítem fue agregado a tu inventario.`,
+      roomEvent: `🛒 ${player.username} compró "${listing.item_name}" en el mercado.`,
+    };
+
+    // Notificar al vendedor si está online
+    if (context && context.playerSockets) {
+      const sellerSocket = context.playerSockets.get(listing.seller_id);
+      if (sellerSocket) {
+        sellerSocket.emit('event', {
+          type: 'info',
+          text: `🛒 ¡${player.username} compró tu "${listing.item_name}" por ${listing.price}g! El oro fue acreditado.`,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  // ─── cancel ──────────────────────────────────────────────────────────────────
+  if (sub === 'cancel' || sub === 'cancelar' || sub === 'retirar') {
+    const idArg = args[1];
+    const listingId = parseInt(idArg, 10);
+    if (!idArg || isNaN(listingId)) {
+      return { text: 'Uso: market cancel <id>\nEjemplo: market cancel 3\n\nUsá "market mine" para ver tus anuncios.' };
+    }
+    const listing = db.getMarketListing(listingId);
+    if (!listing) {
+      return { text: `El anuncio #${listingId} no existe.` };
+    }
+    if (listing.seller_id !== player.id) {
+      return { text: `El anuncio #${listingId} no es tuyo.` };
+    }
+    if (listing.sold) {
+      return { text: `El anuncio #${listingId} ya fue vendido o cancelado.` };
+    }
+
+    // Devolver el ítem al inventario
+    const inventory = player.inventory || [];
+    inventory.push(listing.item_name);
+    db.updatePlayer(player.id, { inventory: JSON.stringify(inventory) });
+    db.cancelMarketListing(listingId);
+
+    return {
+      text: `🛒 Anuncio #${listingId} cancelado. "${listing.item_name}" devuelto a tu inventario.`,
+    };
+  }
+
+  return {
+    text: `Subcomando desconocido: "${sub}"\nUsá "market" sin argumentos para ver la ayuda.`,
+  };
+}
