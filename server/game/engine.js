@@ -65,6 +65,17 @@ const pendingTrades = new Map();
 const afkPlayers = new Set();
 const afkCooldowns = new Map();
 
+// ── Killing Spree (T159) ──────────────────────────────────────────────────────
+// killStreakMap: playerId → número de kills consecutivos sin morir
+// Se resetea al morir. Bonus XP en hitos: 5, 10, 15, 20...
+const killStreakMap = new Map();
+const STREAK_HITO_BONUS = 10; // XP extra al alcanzar cada hito de racha
+
+// ── XP por exploración de sesión (T160) ───────────────────────────────────────
+// sessionExploredRooms: playerId → Set de room IDs visitados en esta sesión
+// XP bonus de +2 por sala descubierta por primera vez en la sesión
+const sessionExploredRooms = new Map();
+
 // ── Fuente de Rejuvenecimiento (T103) ─────────────────────────────────────────
 // Sala 18 — Cámara de la Fuente Eterna.
 // Cooldown global: 10 minutos por sala (no por jugador).
@@ -439,6 +450,29 @@ function cmdMove(player, direction) {
   const roomsCr = db.updateDailyChallengeProgress(player.id, 'rooms', null, roomsVisited.includes(targetId) ? 0 : 1);
   // (Solo suma si es una sala nueva en esta sesión; el progreso se acumula naturalmente)
 
+  // ── T160: XP por exploración de sesión ───────────────────────────────────
+  // +2 XP la primera vez que se visita una sala en esta sesión
+  let explorationMsg = '';
+  if (!sessionExploredRooms.has(player.id)) {
+    sessionExploredRooms.set(player.id, new Set());
+  }
+  const exploredSet = sessionExploredRooms.get(player.id);
+  if (!exploredSet.has(targetId)) {
+    exploredSet.add(targetId);
+    const freshExp = db.getPlayer(player.id);
+    const newXp = (freshExp.xp || 0) + 2;
+    const newLevel = Math.floor(newXp / 50) + 1;
+    const levelUp = newLevel > (freshExp.level || 1);
+    const upd = { xp: newXp, level: newLevel };
+    if (levelUp) {
+      upd.max_hp = (freshExp.max_hp || 30) + 5;
+      upd.hp = Math.min(freshExp.hp, upd.max_hp);
+      upd.attack = (freshExp.attack || 5) + 1;
+    }
+    db.updatePlayer(player.id, upd);
+    explorationMsg = `\n🗺️ ¡Sala descubierta esta sesión! +2 XP de explorador.${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!` : ''}`;
+  }
+
   // Construir respuesta
   const moveText = `Vas hacia el ${dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction}.`;
   const roomDesc = dungeon.describeRoom(targetId, player.id);
@@ -486,7 +520,7 @@ function cmdMove(player, direction) {
   }
 
   return {
-    text: `${moveText}\n${roomDesc}${trapText}${effectText}`,
+    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -601,8 +635,12 @@ function cmdStatus(player) {
     `Ubicación: ${roomName}`,
     player.guild ? `Hermandad: [${player.guild}]` : `Hermandad: (sin guild)`,
     player.pet   ? `Mascota:   ${player.pet}` : `Mascota:   (sin compañero)`,
+    (() => {
+      const streak = killStreakMap.get(player.id) || 0;
+      return streak >= 3 ? `Racha:    🔥 ${streak} kills consecutivos` : null;
+    })(),
     ...(statusLines.length ? ['', ...statusLines] : []),
-  ].join('\n');
+  ].filter(l => l !== null).join('\n');
 
   // Agregar íconos de logros al final
   const achIcons = ach.formatAchievementIcons(player);
@@ -919,8 +957,41 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // ── T159: Killing Spree ──────────────────────────────────────────────────
+  let streakMsg = '';
+  if (monsterDead) {
+    const prevStreak = killStreakMap.get(player.id) || 0;
+    const newStreak = prevStreak + 1;
+    killStreakMap.set(player.id, newStreak);
+    // Hitos: 5, 10, 15, 20...
+    if (newStreak >= 5 && newStreak % 5 === 0) {
+      const bonusXp = STREAK_HITO_BONUS;
+      const freshStreak = db.getPlayer(player.id);
+      const newXp = (freshStreak.xp || 0) + bonusXp;
+      const newLevel = Math.floor(newXp / 50) + 1;
+      const levelUp = newLevel > (freshStreak.level || 1);
+      const upd = { xp: newXp, level: newLevel };
+      if (levelUp) {
+        upd.max_hp = (freshStreak.max_hp || 30) + 5;
+        upd.hp = Math.min(freshStreak.hp, upd.max_hp);
+        upd.attack = (freshStreak.attack || 5) + 1;
+      }
+      db.updatePlayer(player.id, upd);
+      const streakLabel = newStreak >= 20 ? '💥 ¡IMPARABLE!' : newStreak >= 15 ? '🔥 ¡Dominando el Dungeon!' : newStreak >= 10 ? '⚡ ¡Racha Brutal!' : '🔥 ¡Racha de Kills!';
+      streakMsg = `\n${streakLabel} ${newStreak} kills seguidos. +${bonusXp} XP de bonificación.${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!` : ''}`;
+    } else if (newStreak >= 3) {
+      streakMsg = `\n🔥 Racha: ${newStreak} kills consecutivos sin morir.`;
+    }
+  } else if (playerDead) {
+    const oldStreak = killStreakMap.get(player.id) || 0;
+    if (oldStreak >= 3) {
+      streakMsg = `\n💔 Se acabó tu racha de ${oldStreak} kills.`;
+    }
+    killStreakMap.set(player.id, 0);
+  }
+
   return {
-    text: lines.join('\n') + achLines + questLines + partyXpLines + runeMsg + challengeMsg,
+    text: lines.join('\n') + achLines + questLines + partyXpLines + runeMsg + challengeMsg + streakMsg,
     event: eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || null,
@@ -1419,7 +1490,9 @@ function cmdWho() {
       const titleIcon = getTitle(p.kills || 0).icon;
       const repIcon = db.getReputationLevel(p.reputation || 0).icon;
       const afkTag = afkPlayers.has(p.id) ? ' 💤' : '';
-      return `  ${(p.username + guildTag).padEnd(22)} ${titleIcon}${repIcon} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}${afkTag}  │  ${p.room_name || 'Desconocido'}`;
+      const streak = killStreakMap.get(p.id) || 0;
+      const streakTag = streak >= 5 ? ` 🔥${streak}` : '';
+      return `  ${(p.username + guildTag).padEnd(22)} ${titleIcon}${repIcon} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}${afkTag}${streakTag}  │  ${p.room_name || 'Desconocido'}`;
     }),
     ``,
     `(jugadores activos en los últimos 5 minutos)`,
@@ -6209,5 +6282,5 @@ function cmdScoreTime() {
   return { text: lines.join('\n') };
 }
 
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk };
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms };
 

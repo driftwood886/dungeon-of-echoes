@@ -333,6 +333,10 @@ function registerHandlers(io) {
       // T146: Limpiar flag AFK al desconectar
       engine.clearAfk(currentPlayerId);
 
+      // T159/T160: Limpiar racha de kills y salas exploradas de la sesión
+      engine.killStreakMap.delete(currentPlayerId);
+      engine.sessionExploredRooms.delete(currentPlayerId);
+
       // T155: Mostrar resumen de sesión al desconectar
       const sessData = sessionDataMap.get(currentPlayerId);
       if (sessData) {
