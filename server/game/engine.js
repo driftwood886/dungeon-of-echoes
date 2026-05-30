@@ -177,6 +177,7 @@ function execute(playerId, input, context) {
     case 'time':         result = cmdTime(); break;
     case 'enemies':      result = cmdEnemies(action.args); break;
     case 'compare':      result = cmdCompare(player, action.args); break;
+    case 'reputation':   result = cmdReputation(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -470,6 +471,10 @@ function cmdStatus(player) {
   const duelWins   = player.duel_wins   || 0;
   const duelLosses = player.duel_losses || 0;
   const xpBar  = buildBar(xp % 50, 50, 10);
+  const repLevel = db.getReputationLevel(player.reputation || 0);
+  const repNextText = repLevel.nextThreshold
+    ? ` (+${repLevel.nextThreshold - repLevel.points} pts para siguiente)`
+    : ' (máx)';
   const weaponLine = player.equipped_weapon
     ? `Arma:     ${player.equipped_weapon}`
     : `Arma:     (desarmado — ataque base)`;
@@ -495,6 +500,7 @@ function cmdStatus(player) {
     `Oro:      💰 ${gold}g`,
     weaponLine,
     `Duelos:   ⚔️ ${duelWins} ganados / ${duelLosses} perdidos`,
+    `Reputación: ${repLevel.icon} ${repLevel.name} (${repLevel.points} pts)${repNextText}`,
     `Ubicación: ${roomName}`,
     player.guild ? `Hermandad: [${player.guild}]` : `Hermandad: (sin guild)`,
     player.pet   ? `Mascota:   ${player.pet}` : `Mascota:   (sin compañero)`,
@@ -550,6 +556,22 @@ function cmdAttack(player, targetName) {
     const newAchs = ach.checkAchievements(freshForAch, { bossKill, poisonSurvived });
     achLines = ach.formatNewAchievements(newAchs);
 
+    // T125: reputación por kill (+1) y por logros nuevos (+3 c/u)
+    if (monsterDead) {
+      const repKill = db.addReputation(player.id, 1);
+      if (repKill.leveledUp) {
+        achLines += `\n${repKill.level.icon} ¡Tu reputación aumenta a **${repKill.level.name}**! (${repKill.newPoints} pts)`;
+      }
+    }
+    if (newAchs && newAchs.length > 0) {
+      for (const _a of newAchs) {
+        const repAch = db.addReputation(player.id, 3);
+        if (repAch.leveledUp) {
+          achLines += `\n${repAch.level.icon} ¡Tu reputación aumenta a **${repAch.level.name}**! (${repAch.newPoints} pts)`;
+        }
+      }
+    }
+
     // ── Registrar eventos globales (T093) ───────────────────────────────────
     if (bossKill) {
       db.logGlobalEvent('boss', `⚔️ ${player.username} derrotó al ${monster.name} y lo mandó al abismo.`);
@@ -596,6 +618,11 @@ function cmdAttack(player, targetName) {
         xp: (freshQ2.xp || 0) + r.xp,
       });
       questLines = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
+      // T125: reputación por quest completada (+5)
+      const repQuest = db.addReputation(player.id, 5);
+      if (repQuest.leveledUp) {
+        questLines += `\n${repQuest.level.icon} ¡Tu reputación aumenta a **${repQuest.level.name}**! (${repQuest.newPoints} pts)`;
+      }
       // Registrar en crónica global (T093)
       db.logGlobalEvent('quest', `📜 ${player.username} completó la misión y ganó ${r.gold}g + ${r.xp} XP.`);
       // T113: Diario
@@ -996,7 +1023,8 @@ function cmdWho() {
       const deaths = p.deaths || 0;
       const guildTag = p.guild ? ` [${p.guild}]` : '';
       const titleIcon = getTitle(p.kills || 0).icon;
-      return `  ${(p.username + guildTag).padEnd(22)} ${titleIcon} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}  │  ${p.room_name || 'Desconocido'}`;
+      const repIcon = db.getReputationLevel(p.reputation || 0).icon;
+      return `  ${(p.username + guildTag).padEnd(22)} ${titleIcon}${repIcon} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}  │  ${p.room_name || 'Desconocido'}`;
     }),
     ``,
     `(jugadores activos en los últimos 5 minutos)`,
@@ -3609,6 +3637,7 @@ function cmdProfile(player) {
   const duelWins   = fresh.duel_wins   || 0;
   const duelLosses = fresh.duel_losses || 0;
   const kd = deaths > 0 ? (kills / deaths).toFixed(2) : kills > 0 ? '∞' : '-';
+  const repLevel = db.getReputationLevel(fresh.reputation || 0);
 
   // Barra de HP
   const hpBar = buildBar(fresh.hp, fresh.max_hp, 16);
@@ -3655,6 +3684,7 @@ function cmdProfile(player) {
     `║${line('Kills ', `${kills}  ·  Muertes: ${deaths}  ·  K/D: ${kd}`)}║`,
     `║${line('Duelos', `⚔️ ${duelWins} ganados / ${duelLosses} perdidos`)}║`,
     `║${line('Oro   ', `💰 ${gold}g`)}║`,
+    `║${line('Reputa', `${repLevel.icon} ${repLevel.name} (${repLevel.points} pts)`)}║`,
     `╟${'─'.repeat(W)}╢`,
     `║${line('Hermandad', fresh.guild ? `[${fresh.guild}]` : '(independiente)')}║`,
     `║${line('Mascota  ', fresh.pet || '(sin compañero)')}║`,
@@ -4341,4 +4371,56 @@ function cmdCompare(player, args) {
   return { text: lines.join('\n') };
 }
 
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare };
+/**
+ * T125: reputation — Ver tu reputación detallada.
+ */
+function cmdReputation(player) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: 'Error al leer tu perfil.' };
+  const rep = db.getReputationLevel(fresh.reputation || 0);
+
+  const LEVELS = [
+    { min: 0,   name: 'Desconocido', icon: '👤' },
+    { min: 10,  name: 'Conocido',    icon: '🗣️' },
+    { min: 25,  name: 'Respetado',   icon: '🏅' },
+    { min: 50,  name: 'Famoso',      icon: '⭐' },
+    { min: 100, name: 'Legendario',  icon: '🌟' },
+  ];
+
+  const barLen = 20;
+  const nextT = rep.nextThreshold || rep.points || 1;
+  const prevIdx = LEVELS.findLastIndex(l => l.name !== rep.name && l.min < (rep.nextThreshold || 999));
+  const prevT = prevIdx >= 0 ? LEVELS[prevIdx].min : 0;
+  const curIdx = LEVELS.findIndex(l => l.name === rep.name);
+  const actualPrevT = curIdx > 0 ? LEVELS[curIdx - 1].min : 0;
+  const range = (rep.nextThreshold || rep.points) - actualPrevT;
+  const progress = range > 0 ? Math.min(rep.points - actualPrevT, range) : 0;
+  const filled = range > 0 ? Math.round((progress / range) * barLen) : barLen;
+  const repBar = '█'.repeat(Math.max(0, filled)) + '░'.repeat(Math.max(0, barLen - filled));
+
+  const nextLevelName = rep.nextThreshold ? (LEVELS[curIdx + 1]?.name || '???') : null;
+  const nextText = nextLevelName
+    ? '  ' + rep.points + '/' + rep.nextThreshold + ' pts (+' + (rep.nextThreshold - rep.points) + ' para ' + nextLevelName + ')'
+    : '  ¡Reputación máxima alcanzada!';
+
+  const pad = (s, n) => (s + ' '.repeat(n)).slice(0, n);
+
+  const lines = [
+    '',
+    '╔' + '═'.repeat(40) + '╗',
+    '║' + pad('       ' + rep.icon + ' REPUTACIÓN: ' + rep.name.toUpperCase(), 40) + '║',
+    '╟' + '─'.repeat(40) + '╢',
+    '║' + pad('  ' + fresh.username + ' — ' + rep.points + ' puntos de reputación', 40) + '║',
+    '║' + pad('  [' + repBar + ']' + nextText, 40) + '║',
+    '╟' + '─'.repeat(40) + '╢',
+    '║  Cómo ganar reputación:             ║',
+    '║    ⚔ Kill monstruo:    +1 pt        ║',
+    '║    📜 Quest completada: +5 pts       ║',
+    '║    🏅 Logro desbloqueado: +3 pts     ║',
+    '╚' + '═'.repeat(40) + '╝',
+  ];
+
+  return { text: lines.join('\n') };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation };

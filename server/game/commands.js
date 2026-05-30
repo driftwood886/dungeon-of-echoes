@@ -160,6 +160,8 @@ const COMMAND_ALIASES = {
   enemies: 'enemies', enemigos: 'enemies', mobs: 'enemies', bestias: 'enemies', criaturas: 'enemies', 'top-enemies': 'enemies', top: 'enemies',
   // compare (T123)
   compare: 'compare', comparar: 'compare', versus: 'compare', vs: 'compare', duelo_stats: 'compare',
+  // reputation (T125)
+  reputation: 'reputation', reputacion: 'reputation', reputación: 'reputation', fama: 'reputation', renombre: 'reputation',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -275,6 +277,7 @@ Comandos disponibles:
   time / hora           — Ver la hora actual del servidor y el período del día (amanecer/mediodía/atardecer/noche)
   enemies [N] / top [N] — Ver los N monstruos más poderosos del dungeon (vivos y en respawn con tiempo restante)
   compare <jugador>     — Comparar tus stats con otro aventurero en la misma sala (clase, nivel, HP, ATK, kills, etc.)
+  reputation / fama     — Ver tu reputación detallada con barra de progreso (gana pts por kills, quests y logros)
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -324,6 +327,7 @@ const COMMAND_HELP = {
     journal:   'journal / diario\\n  Ver tu diario personal de aventurero.\\n  Se registra automáticamente cuando: derrotes un boss, completes una quest, desbloquees un logro, subas de nivel o mueras.\\n  Muestra las últimas 10 entradas con tipo, fecha y descripción.',
     enemies:   'enemies [N] / enemigos [N] / top [N]\\n  Ver los N monstruos más poderosos del dungeon (ordenados por HP máximo).\\n  Muestra: nombre, estado (vivo/respawn), sala donde habitan y estadísticas.\\n  N es opcional, por defecto 10. Máximo 20.',
     compare:   'compare <jugador> / comparar <jugador> / vs <jugador>\\n  Comparar tus stats con los de otro aventurero que esté en la misma sala.\\n  Tabla visual con: clase, título, nivel, XP, HP con barra, maná, ATK, DEF, kills, muertes, oro y arma equipada.',
+    reputation: 'reputation / reputacion / fama / renombre\\n  Ver tu nivel de reputación actual con barra de progreso.\\n  Niveles: Desconocido (0) → Conocido (10) → Respetado (25) → Famoso (50) → Legendario (100).\\n  Ganás puntos por: matar monstruos (+1), completar quests (+5), desbloquear logros (+3).\\n  Tu reputación se muestra en \"status\" y en \"who\".',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };

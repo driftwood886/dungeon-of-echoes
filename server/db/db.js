@@ -146,6 +146,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN crafts_count INTEGER NOT NULL DEFAULT 0`,  // T115: logros secretos (crafteos)
     `ALTER TABLE players ADD COLUMN rooms_visited TEXT NOT NULL DEFAULT '[]'`, // T115: logros secretos (salas visitadas)
     `ALTER TABLE players ADD COLUMN notes TEXT NOT NULL DEFAULT '[]'`,          // T116: notas personales del jugador
+    `ALTER TABLE players ADD COLUMN reputation INTEGER NOT NULL DEFAULT 0`,      // T125: sistema de reputación
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -730,12 +731,61 @@ function addCraftsCount(playerId) {
   return newTotal;
 }
 
+// ─── Reputación (T125) ────────────────────────────────────────────────────────
+
+/**
+ * Niveles de reputación con umbrales de puntos.
+ * Desconocido: 0–9 | Conocido: 10–24 | Respetado: 25–49 | Famoso: 50–99 | Legendario: 100+
+ */
+const REPUTATION_LEVELS = [
+  { min: 0,   name: 'Desconocido', icon: '👤' },
+  { min: 10,  name: 'Conocido',    icon: '🗣️' },
+  { min: 25,  name: 'Respetado',   icon: '🏅' },
+  { min: 50,  name: 'Famoso',      icon: '⭐' },
+  { min: 100, name: 'Legendario',  icon: '🌟' },
+];
+
+/**
+ * Devuelve el nivel de reputación para una cantidad de puntos.
+ * @param {number} points
+ * @returns {{ name: string, icon: string, points: number, nextThreshold: number|null }}
+ */
+function getReputationLevel(points) {
+  let level = REPUTATION_LEVELS[0];
+  for (const l of REPUTATION_LEVELS) {
+    if (points >= l.min) level = l;
+  }
+  const idx = REPUTATION_LEVELS.indexOf(level);
+  const next = idx < REPUTATION_LEVELS.length - 1 ? REPUTATION_LEVELS[idx + 1].min : null;
+  return { ...level, points, nextThreshold: next };
+}
+
+/**
+ * Incrementa la reputación del jugador en `amount` puntos.
+ * @param {string|number} playerId
+ * @param {number} amount — puntos a agregar (kill=1, quest=5, logro=3)
+ * @returns {{ newPoints: number, level: object, leveledUp: boolean }}
+ */
+function addReputation(playerId, amount) {
+  const p = getPlayer(playerId);
+  if (!p) return { newPoints: 0, level: getReputationLevel(0), leveledUp: false };
+  const oldPoints = p.reputation || 0;
+  const newPoints = oldPoints + amount;
+  updatePlayer(playerId, { reputation: newPoints });
+  const oldLevel = getReputationLevel(oldPoints);
+  const newLevel = getReputationLevel(newPoints);
+  const leveledUp = newLevel.name !== oldLevel.name;
+  return { newPoints, level: newLevel, leveledUp };
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
   init, persist,
   // players
   getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, addJournalEntry, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers,
+  // reputación (T125)
+  addReputation, getReputationLevel,
   // rooms
   getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, checkTrapRespawns,
   // monsters
