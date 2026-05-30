@@ -89,7 +89,10 @@ function attackRound(player, monster) {
   }
 
   // ── Player ataca ─────────────────────────────────────────────────────────
-  const playerDmg = calcDamage(player.attack);
+  // T120: bonus de +1 ATK si el jugador tiene mascota
+  const petBonus = player.pet ? 1 : 0;
+  const effectiveAtk = player.attack + petBonus;
+  const playerDmg = calcDamage(effectiveAtk);
   // T107: bonus crítico de clase (Pícaro tiene +15% sobre base del 10%)
   const clsData = classes.getPlayerClass(player);
   const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0);

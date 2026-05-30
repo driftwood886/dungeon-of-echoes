@@ -388,18 +388,24 @@ function cmdMove(player, direction) {
   // ── Verificar trampa en la sala destino ─────────────────────────────────
   let trapText = '';
   const targetRoomFull = db.getRoom(targetId);
+  // T120: si el jugador tiene mascota, 15% de chance de avisar la trampa antes de activarse
   if (targetRoomFull && targetRoomFull.trap && targetRoomFull.trap.active) {
     const trap = targetRoomFull.trap;
-    // Refrescar jugador para HP actualizado
-    player = db.getPlayer(player.id);
-    const newHp = Math.max(0, player.hp - trap.damage);
-    db.updatePlayer(player.id, { hp: newHp });
-    trapText = `\n\n${trap.description}\n💥 Perdés ${trap.damage} HP. (${newHp}/${player.max_hp} HP)`;
-    if (newHp === 0) {
-      trapText += '\n☠️  Has muerto a causa de la trampa. Renacés en la Entrada.';
-      db.updatePlayer(player.id, { hp: player.max_hp, current_room_id: 1 });
+    // Aviso de mascota (T120): 15% de chance de prevenir el daño
+    if (player.pet && Math.random() < 0.15) {
+      trapText = `\n\n🐾 ¡Tu ${player.pet} te advierte a tiempo! Evitás la trampa: ${trap.description.split('–')[0].trim()}.`;
+    } else {
+      // Refrescar jugador para HP actualizado
+      player = db.getPlayer(player.id);
+      const newHp = Math.max(0, player.hp - trap.damage);
+      db.updatePlayer(player.id, { hp: newHp });
+      trapText = `\n\n${trap.description}\n💥 Perdés ${trap.damage} HP. (${newHp}/${player.max_hp} HP)`;
+      if (newHp === 0) {
+        trapText += '\n☠️  Has muerto a causa de la trampa. Renacés en la Entrada.';
+        db.updatePlayer(player.id, { hp: player.max_hp, current_room_id: 1 });
+      }
+      trapText += '\n💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla.';
     }
-    trapText += '\n💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla.';
   }
 
   // ── Efecto pasivo de sala (T087) ─────────────────────────────────────────
@@ -480,7 +486,7 @@ function cmdStatus(player) {
     `Nivel:    ${level}  (${xp} XP total | kills: ${kills} | muertes: ${deaths})`,
     `XP sig.:  ${xpBar} ${xp % 50}/50`,
     `HP:       ${hpBar} ${player.hp}/${player.max_hp}`,
-    `Ataque:   ${player.attack}`,
+    `Ataque:   ${player.attack}${player.pet ? ` (+1 🐾 mascota = ${player.attack + 1} efectivo)` : ''}`,
     `Defensa:  ${player.defense}`,
     `Oro:      💰 ${gold}g`,
     weaponLine,
@@ -3637,7 +3643,7 @@ function cmdProfile(player) {
     `║${line('Nivel', `${level}  ·  ${xp} XP total`)}║`,
     `║${line('HP   ', `${hpBar} ${fresh.hp}/${fresh.max_hp}`)}║`,
     `║${line('Maná ', `${manaBar} ${fresh.mana || 0}/${fresh.max_mana || 20}`)}║`,
-    `║${line('ATK  ', `${fresh.attack}  ·  DEF: ${fresh.defense}`)}║`,
+    `║${line('ATK  ', `${fresh.attack}${fresh.pet ? ` +1🐾=${fresh.attack+1}` : ''}  ·  DEF: ${fresh.defense}`)}║`,
     `╟${'─'.repeat(W)}╢`,
     `║${line('Kills ', `${kills}  ·  Muertes: ${deaths}  ·  K/D: ${kd}`)}║`,
     `║${line('Duelos', `⚔️ ${duelWins} ganados / ${duelLosses} perdidos`)}║`,
@@ -4001,6 +4007,8 @@ function cmdChangelog() {
     { version: '0.23', date: '2026-05-30', changes: [
       '✨ NUEVO: comando server/estadísticas — estado global del servidor en caja ASCII',
       '✨ NUEVO: endpoint REST /api/stats — estadísticas públicas para integración LLM',
+      '✨ NUEVO: bonus de mascota en combate (+1 ATK efectivo si tenés compañero)',
+      '✨ NUEVO: mascota avisa trampas (15% de chance de evitar el daño al entrar)',
     ]},
     { version: '0.22', date: '2026-05-30', changes: [
       '🐛 BUG: subasta con ítems de nombre compuesto (crash resuelto)',
