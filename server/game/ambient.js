@@ -118,4 +118,74 @@ function getAmbientText(room) {
   return pool[idx];
 }
 
-module.exports = { getAmbientText, getTimePeriod, classifyRoom };
+// ─── T168: Mini-eventos narrativos ───────────────────────────────────────────
+// Al hacer `look`, 15% de chance de que aparezca un evento narrativo corto.
+// Completamente inocuo — solo atmósfera.
+
+const NARRATIVE_EVENTS = {
+  cold: [
+    'Un crujido seco resuena en algún lugar entre el hielo. Algo se está moviendo.',
+    'Ves tu aliento congelarse en el aire y luego desaparecer silenciosamente.',
+    'Por un momento crees ver una figura humana en el hielo de la pared. Solo es una ilusión... ¿verdad?',
+    'El viento gélido cesa de repente. El silencio resultante es más inquietante que el frío.',
+  ],
+  sacred: [
+    'Una voz muy lejana recita algo ininteligible. Luego el silencio regresa.',
+    'Las llamas de las velas titilan sin viento. Como si algo las respirara.',
+    'Sientes que alguien te observa desde las sombras del altar. Nadie está ahí.',
+    'Un olor a incienso antiguo llega de ninguna parte y desaparece igual de rápido.',
+  ],
+  fire: [
+    'Las llamas parpadean y por un segundo muestran formas que no deberían estar ahí.',
+    'Un gemido metálico recorre las paredes. La presión del calor expande el hierro.',
+    'El humo forma una espiral perfecta antes de disiparse. Demasiado perfecta para ser accidental.',
+    'Una chispa solitaria flota en el aire más tiempo del que debería ser posible.',
+  ],
+  water: [
+    'Algo se mueve bajo la superficie del agua. Demasiado grande para ser un pez.',
+    'Las ondas del agua van en dirección contraria a como deberían. Nadie las perturbó.',
+    'Un eco apagado llega desde las profundidades. Como alguien hablando bajo el agua.',
+    'La superficie del lago refleja un techo distinto al que ves arriba. Por un segundo.',
+  ],
+  dark: [
+    'Una sombra se mueve contra la pared. Ningún objeto la proyecta.',
+    'Escuchás pasos detrás tuyo. Cuando girás, no hay nadie.',
+    'Por un instante ves dos puntos brillantes en la oscuridad. Parpadeás y desaparecen.',
+    'El silencio aquí tiene textura. Algo lo llena que no es sonido.',
+  ],
+  throne: [
+    'El polvo en el trono parece perturbado, como si alguien lo hubiera ocupado recientemente.',
+    'Un tapiz desgarrado se balancea solo. No hay corriente de aire.',
+    'Creés escuchar el roce de una corona sobre piedra. Una vez. Solo una.',
+    'Las antorchas apagadas huelen a azufre fresco. Alguien o algo estuvo aquí.',
+  ],
+  cave: [
+    'El corredor vibra levemente bajo tus pies. Algo grande se mueve más abajo.',
+    'Un murciélago te roza el hombro y desaparece en la oscuridad. No hace ningún sonido.',
+    'Las estalactitas gotean en un ritmo que suena demasiado regular para ser natural.',
+    'Ves marcas de garras nuevas en la piedra. No estaban antes... ¿o sí?',
+  ],
+  generic: [
+    'Un escalofrio recorre tu espalda sin razón aparente.',
+    'Por un momento el dungeon entero enmudece. Luego todo vuelve a la normalidad.',
+    'Una rata corre por el borde de la sala y desaparece por una grieta invisible.',
+    'Creés oír una campana muy lejana. Una sola vez.',
+    'El polvo del suelo se arremolina brevemente, como perturbado por pies invisibles.',
+    'Algo gotea en la oscuridad con un ritmo casi musical.',
+  ],
+};
+
+/**
+ * getNarrativeEvent(room) → string|null
+ *
+ * 15% de chance de devolver un mini-evento narrativo.
+ * Usa Math.random() para verdadera aleatoriedad — estos eventos son sorpresivos.
+ */
+function getNarrativeEvent(room) {
+  if (Math.random() > 0.15) return null;
+  const type = classifyRoom(room);
+  const pool = NARRATIVE_EVENTS[type] ?? NARRATIVE_EVENTS.generic;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+module.exports = { getAmbientText, getTimePeriod, classifyRoom, getNarrativeEvent };

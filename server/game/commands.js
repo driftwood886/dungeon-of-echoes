@@ -115,6 +115,8 @@ const COMMAND_ALIASES = {
   decline: 'decline', rechazar: 'decline', rechazo: 'decline', negar: 'decline',
   // world / evento global
   world: 'world', evento: 'world', mundo: 'world', dungeon_event: 'world', 'evento-dungeon': 'world',
+  // T166: clima
+  weather: 'weather', clima: 'weather', tiempo: 'weather', atmosfera: 'weather', atmósfera: 'weather',
   // craft / craftear
   craft: 'craft', craftear: 'craft', fabricar: 'craft', combinar: 'craft', alquimia: 'craft', crear: 'craft', forjar: 'craft',
   // recipes / recetas

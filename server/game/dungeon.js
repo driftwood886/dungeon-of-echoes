@@ -11,6 +11,7 @@
 
 const db      = require('../db/db');
 const ambient = require('./ambient');
+const weather = require('./weather'); // T166: clima del dungeon
 const items   = require('./items');
 
 // Nombres de dirección en español
@@ -137,8 +138,19 @@ function describeRoom(roomId, excludePlayerId = null) {
     lines.push(`\n🌫️ ${ambientLine}`);
   }
 
+  // T168: Mini-evento narrativo (15% de chance, inocuo, pura atmósfera)
+  const narrativeEvent = ambient.getNarrativeEvent(room);
+  if (narrativeEvent) {
+    lines.push(`\n💭 ${narrativeEvent}`);
+  }
+
   if (monsters.length > 0) {
+    // T166: Niebla densa — ocultar HP de los monstruos
+    const foggy = weather.isFoggy();
     const monsterList = monsters.map(m => {
+      if (foggy) {
+        return `  • ${m.name} [🌁 oculto por la niebla]`;
+      }
       const pct = m.max_hp > 0 ? m.hp / m.max_hp : 0;
       const barLen = 10;
       const filled = Math.round(pct * barLen);

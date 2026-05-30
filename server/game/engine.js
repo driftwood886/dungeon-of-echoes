@@ -19,6 +19,7 @@ const items   = require('./items');
 const ach     = require('./achievements');
 const quests  = require('./quests');
 const worldEvents = require('./worldEvents');
+const weather     = require('./weather'); // T166: clima del dungeon
 const tutorial = require('./tutorial');
 const crafting = require('./crafting');
 const classes  = require('./classes'); // T107: sistema de clases
@@ -206,6 +207,7 @@ function execute(playerId, input, context) {
     case 'bounty':       result = cmdBounty(player, action.args.join(' ')); break;
     case 'bounties':     result = cmdBounties(player); break;
     case 'world':        result = cmdWorld(); break;
+    case 'weather':      result = cmdWeather(); break;
     case 'craft':        result = cmdCraft(player, action.args); break;
     case 'recipes':      result = cmdRecipes(); break;
     case 'news':         result = cmdNews(); break;
@@ -2376,7 +2378,10 @@ function cmdRest(player) {
   }
 
   // Recuperar HP (3 a 5 HP)
-  const heal = Math.floor(Math.random() * 3) + 3; // 3, 4 o 5
+  const baseHeal = Math.floor(Math.random() * 3) + 3; // 3, 4 o 5
+  // T166: Viento helado penaliza el descanso (-1 HP, mín 1)
+  const weatherPenalty = weather.getRestPenalty();
+  const heal = Math.max(1, baseHeal - weatherPenalty);
   const newHp = Math.min(player.max_hp, player.hp + heal);
   const restored = newHp - player.hp;
 
@@ -2386,9 +2391,10 @@ function cmdRest(player) {
   });
 
   const hpBar = buildBar(newHp, player.max_hp, 20);
+  const coldSuffix = weatherPenalty > 0 ? ` ❄️ (El viento helado reduce la recuperación)` : '';
 
   return {
-    text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP. ${hpBar} ${newHp}/${player.max_hp} HP`,
+    text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP.${coldSuffix} ${hpBar} ${newHp}/${player.max_hp} HP`,
   };
 }
 
@@ -6555,4 +6561,46 @@ function cmdHistory(player) {
   return { text: lines.join('\n') };
 }
 
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory };
+/**
+ * T166 — clima/weather: ver el clima actual del dungeon.
+ */
+function cmdWeather() {
+  const w = weather.getCurrentWeather();
+  const remainingMs = w.changesInMs;
+  const min = Math.floor(remainingMs / 60_000);
+  const sec = Math.floor((remainingMs % 60_000) / 1000);
+  const remainingStr = min > 0 ? `${min}m ${sec}s` : `${sec}s`;
+
+  const EFFECT_DESC = {
+    'monster_damage_plus_1': '⚠️  Los monstruos hacen +1 de daño.',
+    'xp_multiplier_1_1':     '🌟 La XP ganada se multiplica ×1.1.',
+    'rest_minus_1':          '❄️  Descansar recupera 1 HP menos.',
+    'hide_monster_hp':       '👁  HP de monstruos oculto en look.',
+    null:                    '✅ Sin efectos especiales.',
+  };
+  const effectLine = EFFECT_DESC[w.effect] || '✅ Sin efectos especiales.';
+
+  // Descripción cortada a 40 chars por línea
+  const desc = w.description;
+  const desc1 = desc.substring(0, 40).padEnd(40);
+  const desc2 = desc.length > 40 ? desc.substring(40, 80).padEnd(40) : null;
+
+  const lines = [
+    `╔══════════════════════════════════════════╗`,
+    `║   ${w.emoji} CLIMA DEL DUNGEON                    ║`,
+    `╠══════════════════════════════════════════╣`,
+    `║  ${w.name.padEnd(40)} ║`,
+    `╠══════════════════════════════════════════╣`,
+    `║  ${desc1} ║`,
+    ...(desc2 ? [`║  ${desc2} ║`] : []),
+    `╠══════════════════════════════════════════╣`,
+    `║  ${effectLine.padEnd(40)} ║`,
+    `╠══════════════════════════════════════════╣`,
+    `║  Cambia en: ${remainingStr.padEnd(29)} ║`,
+    `╚══════════════════════════════════════════╝`,
+  ];
+
+  return { text: lines.join('\n') };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather };

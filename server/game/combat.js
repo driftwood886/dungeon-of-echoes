@@ -15,6 +15,7 @@
 
 const db = require('../db/db');
 const worldEvents = require('./worldEvents');
+const weather     = require('./weather');
 const classes = require('./classes'); // T107: bonus de clase
 const items = require('./items');    // T110: efectos on_hit de armas crafteadas
 
@@ -349,11 +350,11 @@ function attackRound(player, monster) {
 
     // Actualizar kills y XP del jugador
     const xpBase = Math.max(5, Math.floor(monster.max_hp * 2));
-    // Bonus de XP si hay evento invasión
+    // Bonus de XP si hay evento invasión o clima de calma arcana (T166)
     const activeEv = worldEvents.getCurrentEvent();
-    const xpGain = activeEv && activeEv.id === 'invasion'
-      ? Math.floor(xpBase * 1.5)
-      : xpBase;
+    const invasionMult = (activeEv && activeEv.id === 'invasion') ? 1.5 : 1.0;
+    const weatherXpMult = weather.getXpMultiplier(); // 1.1 si calma arcana, 1.0 si no
+    const xpGain = Math.floor(xpBase * invasionMult * weatherXpMult);
     const freshPlayer = db.getPlayer(player.id);
     const newKills = (freshPlayer.kills || 0) + 1;
     const newXp    = (freshPlayer.xp    || 0) + xpGain;
@@ -392,9 +393,10 @@ function attackRound(player, monster) {
 
   // ── Monstruo contraataca ──────────────────────────────────────────────────
   const monsterDmg = calcDamage(monster.attack);
-  // Bonus daño si hay evento luna de sangre
+  // Bonus daño si hay evento luna de sangre o clima lluvia de esporas (T166)
   const activeEvMon = worldEvents.getCurrentEvent();
   const bloodmoonBonus = (activeEvMon && activeEvMon.id === 'bloodmoon') ? 2 : 0;
+  const weatherDmgBonus = weather.getMonsterDamageBonus(); // +1 si spore_rain
 
   // T101: 8% de esquiva — el jugador evita el daño por completo
   // T107: Pícaro tiene +12% de esquiva extra
@@ -407,7 +409,7 @@ function attackRound(player, monster) {
     const freshForBlindCheck = db.getPlayer(player.id);
     const blindFx = freshForBlindCheck.status_effects ? (typeof freshForBlindCheck.status_effects === 'string' ? JSON.parse(freshForBlindCheck.status_effects) : freshForBlindCheck.status_effects) : {};
     const blindDef = blindFx.blinded ? (blindFx.blinded.amount || 0) : 0;
-    const rawDmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus - Math.floor((effectiveDef || player.defense || 0) - blindDef));
+    const rawDmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus + weatherDmgBonus - Math.floor((effectiveDef || player.defense || 0) - blindDef));
     // T104: Escudo mágico activo absorbe 5 de daño
     const freshForShield = freshForBlindCheck; // reusar la lectura
     const shieldActive = freshForShield.shield_active || 0;
@@ -422,7 +424,8 @@ function attackRound(player, monster) {
     player.hp = Math.max(0, player.hp - dmgToPlayer);
 
     const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🩸(+${bloodmoonBonus} Luna de Sangre)` : '';
-    lines.push(`🩸 El ${monster.name} te golpea y causa ${dmgToPlayer} de daño.${bloodmoonSuffix} (${player.hp}/${player.max_hp} HP)`);
+    const weatherDmgSuffix = weatherDmgBonus > 0 ? ` 🍄(+${weatherDmgBonus} Esporas)` : '';
+    lines.push(`🩸 El ${monster.name} te golpea y causa ${dmgToPlayer} de daño.${bloodmoonSuffix}${weatherDmgSuffix} (${player.hp}/${player.max_hp} HP)`);
 
     // ── Posible envenenamiento del monstruo ──────────────────────────────────
     const poisonerDef = POISONERS[monster.name];

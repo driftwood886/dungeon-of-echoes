@@ -15,6 +15,7 @@ const { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions } = req
 const { checkRespawns }      = require('./game/combat');
 const quests                 = require('./game/quests');
 const worldEvents            = require('./game/worldEvents');
+const weather                = require('./game/weather');
 const { registerHandlers, playerSockets, previousRoomMap } = require('./socket/handlers');
 
 const PORT = process.env.PORT || 3000;
@@ -441,6 +442,16 @@ async function main() {
         message: result.message,
       });
       console.log(`[worldEvents] ${result.type}: ${result.event.name}`);
+    }
+
+    // T166: Weather tick — cambiar clima cada 60 minutos
+    const weatherResult = weather.tick();
+    if (weatherResult) {
+      io.emit('shout', {
+        username: '🌦️ CLIMA',
+        message: weatherResult.message,
+      });
+      console.log(`[weather] Nuevo clima: ${weatherResult.weather.name}`);
     }
   }, 60_000);
 
