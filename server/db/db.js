@@ -140,6 +140,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN player_class TEXT NOT NULL DEFAULT 'sin_clase'`, // T107: clase de personaje
     `ALTER TABLE players ADD COLUMN bestiary TEXT NOT NULL DEFAULT '{}'`, // T108: bestiario personal
     `ALTER TABLE monsters ADD COLUMN status_effects TEXT NOT NULL DEFAULT '{}'`, // T110: efectos on_hit en monstruos
+    `ALTER TABLE players ADD COLUMN journal TEXT NOT NULL DEFAULT '[]'`, // T113: diario del aventurero
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -268,7 +269,7 @@ function touchPlayer(id) {
  * @param {string} monsterName
  */
 function addBestiaryKill(playerId, monsterName) {
-  const player = get('SELECT bestiary FROM players WHERE id = ?', [playerId]);
+  const player = one('SELECT bestiary FROM players WHERE id = ?', [playerId]);
   if (!player) return;
   const bestiary = player.bestiary ? JSON.parse(player.bestiary) : {};
   const key = monsterName.toLowerCase();
@@ -278,6 +279,26 @@ function addBestiaryKill(playerId, monsterName) {
   bestiary[key].kills += 1;
   bestiary[key].last_kill = new Date().toISOString();
   run('UPDATE players SET bestiary = ? WHERE id = ?', [JSON.stringify(bestiary), playerId]);
+}
+
+/**
+ * T113: Agregar entrada al diario personal del aventurero.
+ * @param {string} playerId
+ * @param {string} type — tipo de evento: 'boss'|'quest'|'achievement'|'level'|'death'
+ * @param {string} message — texto corto del evento
+ */
+function addJournalEntry(playerId, type, message) {
+  const player = one('SELECT journal FROM players WHERE id = ?', [playerId]);
+  if (!player) return;
+  const journal = player.journal ? JSON.parse(player.journal) : [];
+  journal.push({
+    type,
+    message,
+    at: new Date().toISOString(),
+  });
+  // Mantener solo los últimos 50 entries para no inflar la BD
+  if (journal.length > 50) journal.splice(0, journal.length - 50);
+  run('UPDATE players SET journal = ? WHERE id = ?', [JSON.stringify(journal), playerId]);
 }
 
 function getPlayersInRoom(roomId) {
@@ -662,7 +683,7 @@ function closeExpiredAuctions() {
 module.exports = {
   init, persist,
   // players
-  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers,
+  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, addJournalEntry, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers,
   // rooms
   getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, checkTrapRespawns,
   // monsters

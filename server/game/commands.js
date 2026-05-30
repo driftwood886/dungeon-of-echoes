@@ -139,6 +139,8 @@ const COMMAND_ALIASES = {
   bestiary: 'bestiary', bestiario: 'bestiary', monstruos: 'bestiary', cazados: 'bestiary', bitacora: 'bestiary', bitácora: 'bestiary',
   // profile (T109)
   profile: 'profile', perfil: 'profile', tarjeta: 'profile', ficha: 'profile', carnet: 'profile',
+  // journal / diario (T113)
+  journal: 'journal', diario: 'journal', bitacora2: 'journal', memorias: 'journal', cronica_personal: 'journal', historial_personal: 'journal',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -243,6 +245,7 @@ Comandos disponibles:
   clase                 — Ver o elegir tu clase de personaje (guerrero/mago/pícaro)
   bestiario             — Ver tu registro de monstruos cazados con estadísticas
   perfil / profile      — Tarjeta de aventurero completa con todos los stats en formato visual
+  diario / journal      — Ver tu diario personal: logros, subidas de nivel, muertes y boss derrotados
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -289,6 +292,7 @@ const COMMAND_HELP = {
     auctions:  'subastas / auctions / remates\\\\\\\\n  Ver todas las subastas activas en la Casa de Subastas.\\\\\\\\n  Muestra: ID, ítem, precio mínimo, puja actual, tiempo restante y vendedor.',
     dice:      'dados <NdM> / dice <NdM> / roll <NdM>\\\\\\\\n  Tirar dados en la sala. Ej: \\\"dados 2d6\\\" tira dos dados de 6 caras.\\\\\\\\n  El resultado es visible para todos los jugadores presentes en la sala.\\\\\\\\n  Formatos soportados: 1d4, 1d6, 1d8, 1d10, 1d12, 1d20, 1d100, hasta 10d100.',
     drink:     'drink / beber / tomar\\n  Beber de la Fuente Eterna en la Cámara de la Fuente Eterna (sala 18, al norte del Santuario Profano).\\n  Restaura tu HP completamente.\\n  Cooldown GLOBAL de 10 minutos: una vez que alguien bebe, la fuente tarda 10 min en recargarse.\\n  Nadie puede usarla durante ese tiempo. No funciona si ya estás al máximo de HP.',
+    journal:   'journal / diario\\n  Ver tu diario personal de aventurero.\\n  Se registra automáticamente cuando: derrotes un boss, completes una quest, desbloquees un logro, subas de nivel o mueras.\\n  Muestra las últimas 10 entradas con tipo, fecha y descripción.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };

@@ -166,6 +166,7 @@ function execute(playerId, input) {
     case 'clase':        result = cmdClase(player, action.args); break;
     case 'bestiary':     result = cmdBestiary(player); break;
     case 'profile':      result = cmdProfile(player); break;
+    case 'journal':      result = cmdJournal(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -528,10 +529,16 @@ function cmdAttack(player, targetName) {
     // ── Registrar eventos globales (T093) ───────────────────────────────────
     if (bossKill) {
       db.logGlobalEvent('boss', `⚔️ ${player.username} derrotó al ${monster.name} y lo mandó al abismo.`);
+      // T113: Diario del aventurero
+      db.addJournalEntry(player.id, 'boss', `☠️ Derrotaste al ${monster.name}.`);
     }
     // Logros nuevos → registrar el primero en la crónica
     if (newAchs && newAchs.length > 0) {
       db.logGlobalEvent('achievement', `🏅 ${player.username} desbloqueó el logro "${newAchs[0].name}".`);
+      // T113: Diario — registrar cada logro nuevo
+      for (const a of newAchs) {
+        db.addJournalEntry(player.id, 'achievement', `🏅 Logro desbloqueado: "${a.name}".`);
+      }
     }
     // Subida de nivel a múltiplos de 5
     const newLevel = freshForAch.level || 1;
@@ -539,6 +546,13 @@ function cmdAttack(player, targetName) {
       const prevLevel = newLevel - 1;
       if (prevLevel < newLevel && prevLevel % 5 !== 0 || (freshForAch.xp || 0) % 50 < 10) {
         db.logGlobalEvent('level', `⬆️ ${player.username} alcanzó el nivel ${newLevel}. ¡Un aventurero formidable!`);
+      }
+    }
+    // T113: Registrar en diario toda subida de nivel
+    if (monsterDead) {
+      const prevLevelForJournal = player.level || 1;
+      if (newLevel > prevLevelForJournal) {
+        db.addJournalEntry(player.id, 'level', `⬆️ Subiste al nivel ${newLevel}.`);
       }
     }
   }
@@ -560,6 +574,8 @@ function cmdAttack(player, targetName) {
       questLines = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
       // Registrar en crónica global (T093)
       db.logGlobalEvent('quest', `📜 ${player.username} completó la misión y ganó ${r.gold}g + ${r.xp} XP.`);
+      // T113: Diario
+      db.addJournalEntry(player.id, 'quest', `📜 Quest completada: +${r.gold}g, +${r.xp} XP.`);
       } else {
         const info = quests.getPlayerProgress(db.getPlayer(player.id));
         if (info && !info.completed) {
@@ -3596,4 +3612,53 @@ function cmdProfile(player) {
   return { text: lines.join('\n') };
 }
 
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile };
+/**
+ * T113: journal/diario — Diario personal del aventurero.
+ * Muestra las últimas 10 entradas registradas automáticamente.
+ */
+function cmdJournal(player) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: 'Error al leer tu diario.' };
+
+  const journal = fresh.journal ? JSON.parse(fresh.journal) : [];
+  if (journal.length === 0) {
+    return { text: '📖 Tu diario está vacío. ¡Empieza a aventurarte para escribir tu historia!' };
+  }
+
+  // Mostrar los últimos 10 entries (más recientes al final)
+  const entries = journal.slice(-10).reverse();
+  const TYPE_LABELS = {
+    boss:        '⚔️  Boss',
+    quest:       '📜 Quest',
+    achievement: '🏅 Logro',
+    level:       '⬆️  Nivel',
+    death:       '💀 Muerte',
+  };
+
+  const W = 50;
+  const lines = [
+    `╔${'═'.repeat(W)}╗`,
+    `║${'  📖 DIARIO DE ' + (fresh.username).toUpperCase() + '  '.padEnd(W - 16 - fresh.username.length)}║`,
+    `╟${'─'.repeat(W)}╢`,
+  ];
+
+  for (const e of entries) {
+    const typeLabel = TYPE_LABELS[e.type] || '📝 Evento';
+    const dateStr  = e.at ? new Date(e.at).toISOString().replace('T', ' ').slice(0, 16) : '??';
+    const header   = `${typeLabel}  ${dateStr}`;
+    const msg      = e.message || '';
+    // Truncar si es necesario
+    const msgTrunc = msg.length > W - 2 ? msg.slice(0, W - 5) + '...' : msg;
+    lines.push(`║  ${header.slice(0, W - 4).padEnd(W - 3)}║`);
+    lines.push(`║    ${msgTrunc.padEnd(W - 5)}║`);
+    lines.push(`╟${'─'.repeat(W)}╢`);
+  }
+
+  // Reemplazar el último separador por el cierre
+  lines[lines.length - 1] = `╚${'═'.repeat(W)}╝`;
+  lines.push(`(${journal.length} entradas en total · mostrando las últimas ${entries.length})`);
+
+  return { text: lines.join('\n') };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal };

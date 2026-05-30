@@ -83,6 +83,7 @@ function attackRound(player, monster) {
       lines.push(`💀 ¡El veneno acabó contigo! Respawneás en la entrada del dungeon...`);
       const fp = db.getPlayer(player.id);
       db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (fp.deaths || 0) + 1, status_effects: '{}' });
+      db.addJournalEntry(player.id, 'death', `💀 Muerto por veneno luchando contra ${monster.name}.`);
       return { lines, monsterDead, playerDead, loot, poisonSurvived };
     }
   }
@@ -299,6 +300,7 @@ function attackRound(player, monster) {
     // Reset: HP mínimo, volver a sala 1, incrementar deaths, limpiar efectos
     const freshPlayer2 = db.getPlayer(player.id);
     db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (freshPlayer2.deaths || 0) + 1, status_effects: '{}' });
+    db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name}.`);
   }
 
   // ── Huida del monstruo (< 25% HP) ────────────────────────────────────────
@@ -349,6 +351,7 @@ function tryFlee(player, monster) {
   if (player.hp <= 0) {
     const freshPlayer3 = db.getPlayer(player.id);
     db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (freshPlayer3.deaths || 0) + 1 });
+    db.addJournalEntry(player.id, 'death', `💀 Muerto intentando huir del ${monster.name}.`);
     line += `\n💀 ¡Moriste! Respawneás en la entrada del dungeon...`;
   }
 
