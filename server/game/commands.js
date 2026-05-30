@@ -135,6 +135,8 @@ const COMMAND_ALIASES = {
   clase: 'clase', class: 'clase', profesion: 'clase', profesión: 'clase', vocacion: 'clase', vocación: 'clase', oficio: 'clase',
   // bestiary (T108)
   bestiary: 'bestiary', bestiario: 'bestiary', monstruos: 'bestiary', cazados: 'bestiary', bitacora: 'bestiary', bitácora: 'bestiary',
+  // profile (T109)
+  profile: 'profile', perfil: 'profile', tarjeta: 'profile', ficha: 'profile', carnet: 'profile',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -238,6 +240,7 @@ Comandos disponibles:
   hechizos / spells     — Ver tus hechizos disponibles y el maná actual
   clase                 — Ver o elegir tu clase de personaje (guerrero/mago/pícaro)
   bestiario             — Ver tu registro de monstruos cazados con estadísticas
+  perfil / profile      — Tarjeta de aventurero completa con todos los stats en formato visual
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();

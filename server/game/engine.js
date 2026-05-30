@@ -164,6 +164,7 @@ function execute(playerId, input) {
     case 'spells':       result = cmdSpells(player); break;
     case 'clase':        result = cmdClase(player, action.args); break;
     case 'bestiary':     result = cmdBestiary(player); break;
+    case 'profile':      result = cmdProfile(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -3367,3 +3368,84 @@ function cmdBestiary(player) {
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary };
+
+/**
+ * T109: cmdProfile — Tarjeta de aventurero completa en formato ASCII enmarcado.
+ */
+function cmdProfile(player) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: 'Error al leer tu perfil.' };
+
+  const cls = classes.getPlayerClass(fresh);
+  const clsEmoji = cls ? cls.emoji : '❓';
+  const clsName  = cls ? cls.name  : 'Sin clase';
+  const title = getTitle(fresh.kills || 0);
+  const level = fresh.level || 1;
+  const xp    = fresh.xp    || 0;
+  const kills = fresh.kills || 0;
+  const deaths = fresh.deaths || 0;
+  const gold  = fresh.gold  || 0;
+  const duelWins   = fresh.duel_wins   || 0;
+  const duelLosses = fresh.duel_losses || 0;
+  const kd = deaths > 0 ? (kills / deaths).toFixed(2) : kills > 0 ? '∞' : '-';
+
+  // Barra de HP
+  const hpBar = buildBar(fresh.hp, fresh.max_hp, 16);
+  const manaBar = buildBar(fresh.mana || 0, fresh.max_mana || 20, 16);
+
+  // Logros
+  const bestiary = fresh.bestiary ? JSON.parse(fresh.bestiary) : {};
+  const bestiaryCount = Object.keys(bestiary).length;
+  const totalBestiaryKills = Object.values(bestiary).reduce((s, e) => s + e.kills, 0);
+
+  const achIcons = ach.formatAchievementIcons(fresh);
+  const achCount = (() => {
+    try {
+      const arr = JSON.parse(fresh.achievements || '[]');
+      return arr.length;
+    } catch(_) { return 0; }
+  })();
+
+  // Función para centrar texto en ancho 44
+  const W = 44;
+  const center = (s) => {
+    const pad = Math.max(0, Math.floor((W - s.length) / 2));
+    return ' '.repeat(pad) + s;
+  };
+
+  const line = (label, value) => {
+    const full = `  ${label}: ${value}`;
+    return full.slice(0, W);
+  };
+
+  const lines = [
+    ``,
+    `╔${'═'.repeat(W)}╗`,
+    `║${center('⚔  TARJETA DE AVENTURERO  ⚔')}║`,
+    `╠${'═'.repeat(W)}╣`,
+    `║${center(`✦ ${fresh.username.toUpperCase()} ✦`)}║`,
+    `║${center(`${clsEmoji} ${clsName}  ·  ${title.full}`)}║`,
+    `╟${'─'.repeat(W)}╢`,
+    `║${line('Nivel', `${level}  ·  ${xp} XP total`)}║`,
+    `║${line('HP   ', `${hpBar} ${fresh.hp}/${fresh.max_hp}`)}║`,
+    `║${line('Maná ', `${manaBar} ${fresh.mana || 0}/${fresh.max_mana || 20}`)}║`,
+    `║${line('ATK  ', `${fresh.attack}  ·  DEF: ${fresh.defense}`)}║`,
+    `╟${'─'.repeat(W)}╢`,
+    `║${line('Kills ', `${kills}  ·  Muertes: ${deaths}  ·  K/D: ${kd}`)}║`,
+    `║${line('Duelos', `⚔️ ${duelWins} ganados / ${duelLosses} perdidos`)}║`,
+    `║${line('Oro   ', `💰 ${gold}g`)}║`,
+    `╟${'─'.repeat(W)}╢`,
+    `║${line('Hermandad', fresh.guild ? `[${fresh.guild}]` : '(independiente)')}║`,
+    `║${line('Mascota  ', fresh.pet || '(sin compañero)')}║`,
+    `║${line('Arma     ', fresh.equipped_weapon || '(desarmado)')}║`,
+    `╟${'─'.repeat(W)}╢`,
+    `║${line('Logros   ', `${achCount} desbloqueados`)}║`,
+    `║  ${achIcons.slice(0, W - 2)}║`,
+    `║${line('Bestiario', `${bestiaryCount} tipos cazados · ${totalBestiaryKills} kills totales`)}║`,
+    `╚${'═'.repeat(W)}╝`,
+  ];
+
+  return { text: lines.join('\n') };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile };
