@@ -206,6 +206,8 @@ function execute(playerId, input, context) {
     case 'decline':      result = cmdDeclineDuel(player); break;
     case 'bounty':       result = cmdBounty(player, action.args.join(' ')); break;
     case 'bounties':     result = cmdBounties(player); break;
+    case 'wanted':       result = cmdWanted(player, action.args.join(' ')); break;  // T174
+    case 'rank':         result = cmdRank(player, action.args.join(' ')); break;    // T176
     case 'world':        result = cmdWorld(); break;
     case 'weather':      result = cmdWeather(); break;
     case 'craft':        result = cmdCraft(player, action.args); break;
@@ -7027,6 +7029,176 @@ function cmdFriend(player, args) {
   }
 
   return { text: 'Subcomandos disponibles: friend list, friend add <jugador>, friend remove <jugador>' };
+}
+
+// ─── T174: cmdWanted ──────────────────────────────────────────────────────────
+/**
+ * wanted [jugador] — Mostrar bounties activas en formato "SE BUSCA" ASCII art.
+ * Sin args: todos. Con arg: solo ese jugador.
+ */
+function cmdWanted(player, arg) {
+  const all = db.getAllActiveBounties();
+
+  // Filtrar si se dio un nombre
+  let filtered = all;
+  const query = (arg || '').trim().toLowerCase();
+  if (query) {
+    filtered = all.filter(b => b.target_name.toLowerCase().includes(query));
+    if (filtered.length === 0) {
+      return { text: `🔍 No hay recompensas activas sobre "${arg}".` };
+    }
+  } else if (all.length === 0) {
+    return { text: '🔍 El dungeon está en paz: no hay aventureros con precio sobre su cabeza.' };
+  }
+
+  // Agrupar por objetivo
+  const grouped = {};
+  for (const b of filtered) {
+    const k = b.target_name;
+    if (!grouped[k]) grouped[k] = { target: k, total: 0, posters: [] };
+    grouped[k].total += b.amount;
+    const minLeft = Math.max(0, Math.round((new Date(b.expires_at) - Date.now()) / 60000));
+    grouped[k].posters.push({ poster: b.poster_name, amount: b.amount, minLeft });
+  }
+
+  const W = 38; // ancho interior
+  const sep = '╠' + '═'.repeat(W) + '╣';
+  const sepLight = '╟' + '─'.repeat(W) + '╢';
+  const lines = [];
+
+  const targetsArr = Object.values(grouped).sort((a, b) => b.total - a.total);
+
+  for (let i = 0; i < targetsArr.length; i++) {
+    const g = targetsArr[i];
+    if (i === 0) {
+      lines.push('╔' + '═'.repeat(W) + '╗');
+    } else {
+      lines.push(sep);
+    }
+
+    const title = ' ⚠ SE BUSCA ⚠ ';
+    lines.push('║' + title.padStart(Math.floor((W + title.length) / 2)).padEnd(W) + '║');
+
+    const nameLabel = g.target.length > W - 4 ? g.target.slice(0, W - 4) + '…' : g.target;
+    const namePadded = nameLabel.padStart(Math.floor((W + nameLabel.length) / 2)).padEnd(W);
+    lines.push('║' + namePadded + '║');
+
+    const rewardLine = `💰 RECOMPENSA TOTAL: ${g.total}g`;
+    lines.push('║' + rewardLine.padStart(Math.floor((W + rewardLine.length) / 2)).padEnd(W) + '║');
+
+    lines.push(sepLight);
+
+    for (const p of g.posters) {
+      const entry = `  + ${p.poster.padEnd(12)} ${String(p.amount + 'g').padStart(4)}  (${p.minLeft}min)`;
+      lines.push(('║' + entry).substring(0, W + 1).padEnd(W + 1) + '║');
+    }
+
+    lines.push(sepLight);
+    const note = '  Se cobra ganando un duelo.';
+    lines.push('║' + note.padEnd(W) + '║');
+  }
+
+  lines.push('╚' + '═'.repeat(W) + '╝');
+  lines.push(`  ${targetsArr.length} buscado(s). Usá: bounty <jugador> <monto> para poner una.`);
+
+  return { text: lines.join('\n') };
+}
+
+// ─── T176: cmdRank ────────────────────────────────────────────────────────────
+/**
+ * rank <estadística> — Ver tu posición global en una estadística específica.
+ * Soporta: kills, gold/oro, xp, level/nivel, rep/reputacion
+ */
+function cmdRank(player, arg) {
+  const stat = (arg || '').trim().toLowerCase();
+
+  const STATS = {
+    kills:      { col: 'kills',      label: 'matanzas',          unit: 'kills',  icon: '⚔️' },
+    gold:       { col: 'gold',       label: 'riqueza',           unit: 'monedas', icon: '💰' },
+    oro:        { col: 'gold',       label: 'riqueza',           unit: 'monedas', icon: '💰' },
+    xp:         { col: 'xp',         label: 'experiencia',       unit: 'XP',     icon: '✨' },
+    level:      { col: 'level',      label: 'nivel',             unit: 'nivel',  icon: '🎖️' },
+    nivel:      { col: 'level',      label: 'nivel',             unit: 'nivel',  icon: '🎖️' },
+    rep:        { col: 'reputation', label: 'reputación',        unit: 'pts rep', icon: '🌟' },
+    reputacion: { col: 'reputation', label: 'reputación',        unit: 'pts rep', icon: '🌟' },
+    reputación: { col: 'reputation', label: 'reputación',        unit: 'pts rep', icon: '🌟' },
+    deaths:     { col: 'deaths',     label: 'muertes',           unit: 'muertes', icon: '☠️' },
+    muertes:    { col: 'deaths',     label: 'muertes',           unit: 'muertes', icon: '☠️' },
+    time:       { col: 'playtime_minutes', label: 'tiempo de juego', unit: 'min', icon: '⏱️' },
+    tiempo:     { col: 'playtime_minutes', label: 'tiempo de juego', unit: 'min', icon: '⏱️' },
+  };
+
+  const chosen = STATS[stat];
+  if (!stat || !chosen) {
+    const opts = ['kills', 'gold/oro', 'xp', 'level/nivel', 'rep', 'deaths/muertes', 'time/tiempo'];
+    return { text: `Uso: rank <estadística>\nOpciones: ${opts.join(', ')}\nEj: rank kills` };
+  }
+
+  const rawDb = db.raw();
+  if (!rawDb) return { text: 'Error de base de datos.' };
+
+  // Obtener todos los jugadores ordenados desc por la columna
+  const results = rawDb.exec(
+    `SELECT id, username, ${chosen.col} FROM players ORDER BY ${chosen.col} DESC, username ASC`
+  );
+  if (!results.length) return { text: 'No hay datos de jugadores todavía.' };
+
+  const { columns, values } = results[0];
+  const rows = values.map(r => Object.fromEntries(columns.map((c, i) => [c, r[i]])));
+
+  const myIdx = rows.findIndex(r => r.id === player.id);
+  if (myIdx === -1) return { text: 'No encontré tus datos.' };
+
+  const myVal = rows[myIdx][chosen.col] || 0;
+  const myPos = myIdx + 1;
+  const total = rows.length;
+
+  const percentile = total > 1 ? Math.round(((total - myPos) / (total - 1)) * 100) : 100;
+
+  const lines = [''];
+  lines.push(`${chosen.icon} TU POSICIÓN — ${chosen.label.toUpperCase()}`);
+  lines.push('─'.repeat(36));
+  lines.push(`  Jugador: ${player.username}`);
+  lines.push(`  Posición: #${myPos} de ${total} aventureros`);
+  lines.push(`  Valor: ${myVal} ${chosen.unit}`);
+  lines.push(`  Percentil: top ${100 - percentile}% del dungeon`);
+  lines.push('');
+
+  if (myPos === 1) {
+    lines.push('  🏆 ¡Sos el #1 en el dungeon!');
+  } else {
+    // Jugador que está justo antes en el ranking
+    const above = rows[myIdx - 1];
+    const aboveVal = above[chosen.col] || 0;
+    const diff = aboveVal - myVal;
+    lines.push(`  Para superar a ${above.username} (${aboveVal} ${chosen.unit})`);
+    lines.push(`  necesitás ${diff} ${chosen.unit} más.`);
+  }
+
+  if (myPos < total) {
+    const below = rows[myIdx + 1];
+    const belowVal = below[chosen.col] || 0;
+    const lead = myVal - belowVal;
+    lines.push(`  Llevás ${lead} ${chosen.unit} de ventaja sobre ${below.username}.`);
+  }
+
+  // Top 3 breve
+  lines.push('');
+  lines.push('  TOP 3:');
+  for (let i = 0; i < Math.min(3, rows.length); i++) {
+    const r = rows[i];
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
+    const marker = r.id === player.id ? ' ← vos' : '';
+    lines.push(`  ${medal} ${r.username.padEnd(14)} ${r[chosen.col] || 0} ${chosen.unit}${marker}`);
+  }
+  if (myPos > 3) {
+    lines.push(`  ...`);
+    const marker = ' ← vos';
+    lines.push(`  #${String(myPos).padEnd(2)} ${player.username.padEnd(14)} ${myVal} ${chosen.unit}${marker}`);
+  }
+  lines.push('');
+
+  return { text: lines.join('\n') };
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather };

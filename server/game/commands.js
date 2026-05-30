@@ -57,6 +57,8 @@ const COMMAND_ALIASES = {
   who: 'who', jugadores: 'who', online: 'who', quién: 'who', quien: 'who',
   // score / ranking
   score: 'score', ranking: 'score', scores: 'score', tabla: 'score', marcador: 'score',
+  // T176: rank / mi posición en el ranking
+  rank: 'rank', posicion: 'rank', posición: 'rank', miposicion: 'rank', 'mi-posicion': 'rank',
   // give / dar
   give: 'give', dar: 'give', entregar: 'give', pasar: 'give', ofrecer: 'give',
   // pay / pagar / transferir oro
@@ -109,6 +111,8 @@ const COMMAND_ALIASES = {
   duel: 'duel', duelo: 'duel', retar: 'duel', desafiar: 'duel', pvp: 'duel',
   bounty: 'bounty', recompensa: 'bounty', cabeza: 'bounty',
   bounties: 'bounties', recompensas: 'bounties', tablero: 'bounties',
+  // T174: wanted / se busca
+  wanted: 'wanted', 'se-busca': 'wanted', sebusca: 'wanted', buscado: 'wanted', carteles: 'wanted',
   // accept / aceptar duelo
   accept: 'accept', aceptar: 'accept', acepto: 'accept',
   // decline / rechazar duelo
@@ -363,6 +367,8 @@ Comandos disponibles:
   search [monstruo]  — Registrar el cadáver de un monstruo recién muerto (últimos 2 min). 30% chance de loot extra.
   find <ítem/monstruo> — Buscar dónde encontrar algo: salas donde aparece, qué monstruos lo dropean, si hay en el suelo.
   guide [sección]     — Guía de inicio rápido: primeros/combate/economia/clases/crafteo/tips. Ej: guide 2
+  wanted [jugador]    — Carteles de SE BUSCA: bounties activas en el dungeon, agrupadas por objetivo.
+  rank <stat>         — Tu posición global en una estadística (kills, gold, xp, level, rep, deaths, time).
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
