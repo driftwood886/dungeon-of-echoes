@@ -213,6 +213,7 @@ function execute(playerId, input, context) {
     case 'write':        result = cmdWrite(player, action.args); break;
     case 'read':         result = cmdReadWall(player); break;
     case 'greet':        result = cmdGreet(player, action.args, context); break;
+    case 'search':       result = cmdSearch(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -5605,6 +5606,113 @@ function cmdGreet(player, args, context) {
       targetPlayerId: target.id,
       targetPlayerMsg: `👋 ${player.username} te saluda. ¡Respondé con "saludar ${player.username}" en los próximos 30s para un saludo mutuo y +1 reputación!`,
       targetEventType: 'greet',
+    };
+  }
+}
+
+// ── T149: Comando search/registrar — registrar cadáver de monstruo ───────────
+
+// Tabla de loot especial al registrar cadáveres
+const SEARCH_LOOT_TABLE = [
+  { item: 'monedas de oro',    gold: 5,  prob: 0.25, label: '5 monedas de oro' },
+  { item: 'hueso pulido',      prob: 0.20, type: 'item' },
+  { item: 'hierba curativa',   prob: 0.15, type: 'item' },
+  { item: 'cristal fragmentado', prob: 0.10, type: 'item' },
+  { item: 'poción menor',      prob: 0.08, type: 'item' },
+  { item: 'veneno concentrado', prob: 0.05, type: 'item' },
+  { gold: 12, prob: 0.07, type: 'gold', label: '12 monedas de oro' },
+  // resto = nada (~0.10)
+];
+
+// Cooldown por cadáver registrado: guardar en memoria (monsterId → lastSearched)
+const searchedCorpses = new Map(); // monsterId → playerId que lo registró
+
+/**
+ * search/registrar <monstruo> — Registrar el cadáver de un monstruo recién matado.
+ * Solo funciona si el monstruo murió en los últimos 2 minutos en esta sala.
+ * 30% chance de encontrar loot adicional.
+ * Cada cadáver solo puede ser registrado una vez (por cualquier jugador).
+ */
+function cmdSearch(player, args) {
+  player = db.getPlayer(player.id);
+  const monsters = db.getMonstersInRoom(player.current_room_id);
+
+  if (monsters.length > 0) {
+    return { text: '⚔ Hay criaturas vivas en la sala. Terminá el combate antes de rebuscar cadáveres.' };
+  }
+
+  // Buscar cadáveres recientes en la sala
+  const corpses = db.getRecentlyDeadMonsters(player.current_room_id, 2);
+
+  if (corpses.length === 0) {
+    return { text: '🦴 No hay cadáveres recientes para registrar aquí. (Los monstruos deben haber muerto hace menos de 2 minutos.)' };
+  }
+
+  // Si se especifica un monstruo, filtrarlo
+  let target = null;
+  if (args && args.length > 0) {
+    const query = args.join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    target = corpses.find(m => {
+      const mName = m.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return mName.includes(query) || query.includes(mName);
+    });
+    if (!target) {
+      const list = corpses.map(m => m.name).join(', ');
+      return { text: `🦴 No encontré el cadáver de "${args.join(' ')}". Cadáveres disponibles: ${list}` };
+    }
+  } else if (corpses.length === 1) {
+    target = corpses[0];
+  } else {
+    const list = corpses.map(m => m.name).join(', ');
+    return { text: `🦴 Hay varios cadáveres. Especificá cuál registrar: ${list}\nEj: search ${corpses[0].name}` };
+  }
+
+  // Verificar si ya fue registrado
+  if (searchedCorpses.has(target.id)) {
+    const who = searchedCorpses.get(target.id);
+    return { text: `🦴 El cadáver del ${target.name} ya fue registrado por ${who}.` };
+  }
+
+  // Marcar como registrado
+  searchedCorpses.set(target.id, player.username);
+
+  // Tirar la suerte (30% de encontrar algo)
+  const roll = Math.random();
+  let cumProb = 0;
+  let found = null;
+  for (const entry of SEARCH_LOOT_TABLE) {
+    cumProb += entry.prob;
+    if (roll < cumProb) { found = entry; break; }
+  }
+
+  if (!found) {
+    return {
+      text: `🔍 Revisás el cadáver del ${target.name}... No encontrás nada de valor.`,
+      event: `🔍 ${player.username} rebusca el cadáver del ${target.name}.`,
+      eventRoomId: player.current_room_id,
+    };
+  }
+
+  // Entregar el hallazgo
+  if (found.type === 'gold' || found.gold) {
+    const amount = found.gold || 5;
+    db.updatePlayer(player.id, { gold: (player.gold || 0) + amount });
+    return {
+      text: `🔍 Revisás el cadáver del ${target.name}... ¡Encontrás ${found.label || `${amount} monedas`}! (+${amount} oro)`,
+      event: `🔍 ${player.username} rebusca el cadáver del ${target.name} y encuentra algo valioso.`,
+      eventRoomId: player.current_room_id,
+    };
+  } else {
+    // Ítem: poner en el suelo de la sala
+    const room = db.getRoom(player.current_room_id);
+    let roomItems = [];
+    try { roomItems = JSON.parse(room.items || '[]'); } catch (_) { roomItems = []; }
+    roomItems.push(found.item);
+    db.updateRoomItems(player.current_room_id, roomItems);
+    return {
+      text: `🔍 Revisás el cadáver del ${target.name}... ¡Encontrás ${found.item}! Quedó en el suelo.`,
+      event: `🔍 ${player.username} rebusca el cadáver del ${target.name} y encuentra algo.`,
+      eventRoomId: player.current_room_id,
     };
   }
 }

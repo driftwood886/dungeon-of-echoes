@@ -187,6 +187,8 @@ const COMMAND_ALIASES = {
   read: 'read', leer: 'read', pared: 'read',
   // greet / saludar a otro jugador
   greet: 'greet', saludar: 'greet', hola: 'greet', saludo: 'greet', hi: 'greet',
+  // search / registrar cadáver de monstruo recién muerto (T149)
+  search: 'search', registrar: 'search', rebuscar: 'search', revisar: 'search', cadaver: 'search', cadáver: 'search',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -320,6 +322,7 @@ Comandos disponibles:
   write <mensaje>     — Grabar un mensaje en la pared de la sala actual.
   read / leer         — Leer las inscripciones que dejaron otros en esta sala.
   greet <jugador>     — Saludar a otro jugador en la sala. Saludo mutuo en 30s = +1 rep para ambos.
+  search [monstruo]  — Registrar el cadáver de un monstruo recién muerto (últimos 2 min). 30% chance de loot extra.
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();

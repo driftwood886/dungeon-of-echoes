@@ -1083,6 +1083,21 @@ function getWallMessages(roomId, limit = 10) {
   );
 }
 
+// ─── Monstruos muertos recientes (T149) ──────────────────────────────────────
+
+/**
+ * Devuelve monstruos que murieron recientemente en una sala (respawn_room_id = roomId,
+ * room_id IS NULL, respawn_at dentro de los próximos `withinMinutes` minutos).
+ * Si murieron hace poco, el cadáver todavía "está" en la sala.
+ */
+function getRecentlyDeadMonsters(roomId, withinMinutes = 2) {
+  const cutoff = new Date(Date.now() + withinMinutes * 60_000).toISOString();
+  return all(
+    `SELECT * FROM monsters WHERE respawn_room_id = ? AND room_id IS NULL AND respawn_at IS NOT NULL AND respawn_at <= ?`,
+    [roomId, cutoff]
+  );
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -1117,4 +1132,6 @@ module.exports = {
   addBounty, getBountiesOnPlayer, getAllActiveBounties, claimBounty, expireOldBounties,
   // T147: mensajes en las paredes (graffiti)
   addWallMessage, getWallMessages,
+  // T149: monstruos muertos recientes
+  getRecentlyDeadMonsters,
 };
