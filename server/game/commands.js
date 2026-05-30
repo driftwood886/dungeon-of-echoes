@@ -59,6 +59,8 @@ const COMMAND_ALIASES = {
   score: 'score', ranking: 'score', scores: 'score', tabla: 'score', marcador: 'score',
   // T176: rank / mi posición en el ranking
   rank: 'rank', posicion: 'rank', posición: 'rank', miposicion: 'rank', 'mi-posicion': 'rank',
+  // T175: hardcore mode
+  hardcore: 'hardcore', 'modo-hardcore': 'hardcore', permadeath: 'hardcore',
   // give / dar
   give: 'give', dar: 'give', entregar: 'give', pasar: 'give', ofrecer: 'give',
   // pay / pagar / transferir oro
@@ -369,6 +371,7 @@ Comandos disponibles:
   guide [sección]     — Guía de inicio rápido: primeros/combate/economia/clases/crafteo/tips. Ej: guide 2
   wanted [jugador]    — Carteles de SE BUSCA: bounties activas en el dungeon, agrupadas por objetivo.
   rank <stat>         — Tu posición global en una estadística (kills, gold, xp, level, rep, deaths, time).
+  hardcore [on/off]   — Modo Hardcore: si morís, tu personaje cae para siempre (ghost mode). Solo antes del primer kill.
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();

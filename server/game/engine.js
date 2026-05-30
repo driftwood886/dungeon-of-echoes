@@ -145,10 +145,13 @@ function execute(playerId, input, context) {
   // ── Lógica de tutorial (T091) ──────────────────────────────────────────────
   const tutorialStep = player.tutorial_step;
   if (tutorialStep && tutorialStep > 0 && player.current_room_id === tutorial.TUTORIAL_ROOM_ID) {
-    const tutResult = handleTutorialCommand(player, action, tutorialStep);
-    if (tutResult) {
-      db.logEvent(playerId, player.current_room_id, input, tutResult.text.slice(0, 200));
-      return tutResult;
+    // T175: Permitir el comando hardcore durante el tutorial (se puede activar antes del primer kill)
+    if (action.command !== 'hardcore') {
+      const tutResult = handleTutorialCommand(player, action, tutorialStep);
+      if (tutResult) {
+        db.logEvent(playerId, player.current_room_id, input, tutResult.text.slice(0, 200));
+        return tutResult;
+      }
     }
   }
 
@@ -158,6 +161,13 @@ function execute(playerId, input, context) {
   // Si el jugador está AFK, bloquear todos los comandos excepto 'afk' (y comandos de chat pasivos)
   if (afkPlayers.has(player.id) && action.command !== 'afk') {
     return { text: `💤 Estás en modo ausente (AFK). Escribí "afk" para volver al juego.` };
+  }
+
+  // ── T175: Ghost mode (Hardcore fallen) ────────────────────────────────────
+  // Si el jugador cayó en modo Hardcore, solo puede usar comandos pasivos
+  const GHOST_ALLOWED = new Set(['look', 'status', 'who', 'score', 'profile', 'bestiary', 'journal', 'news', 'dungeon', 'history', 'help', 'changelog', 'server', 'time', 'enemies', 'compare', 'reputation', 'path', 'guide', 'find', 'runas', 'map', 'hardcore', 'read', 'lore', 'weather', 'world', 'challenge', 'rank', 'inventory']);
+  if (player.fallen === 1 && !GHOST_ALLOWED.has(action.command)) {
+    return { text: `✝ Tu personaje cayó en modo Hardcore. Solo podés usar comandos pasivos.\n  (look, status, who, score, map, etc.)\n  Escribí "hardcore" para ver tu estado.` };
   }
 
   switch (action.command) {
@@ -208,6 +218,7 @@ function execute(playerId, input, context) {
     case 'bounties':     result = cmdBounties(player); break;
     case 'wanted':       result = cmdWanted(player, action.args.join(' ')); break;  // T174
     case 'rank':         result = cmdRank(player, action.args.join(' ')); break;    // T176
+    case 'hardcore':     result = cmdHardcore(player, action.args); break;          // T175
     case 'world':        result = cmdWorld(); break;
     case 'weather':      result = cmdWeather(); break;
     case 'craft':        result = cmdCraft(player, action.args); break;
@@ -648,6 +659,7 @@ function cmdStatus(player) {
 
   const text = [
     `\n=== ${player.username.toUpperCase()} ===`,
+    player.fallen === 1 ? `☠ CAÍDO en HARDCORE — modo fantasma ✝` : (player.is_hardcore === 1 ? `🔴 MODO HARDCORE ACTIVO` : null),
     player.nickname ? `Apodo:    "${player.nickname}"` : null,
     `Título:   ${getTitle(kills).full}`,
     player.player_class && player.player_class !== 'sin_clase'
@@ -1081,12 +1093,13 @@ function cmdFlee(player, targetQuery) {
     monster = monsters[0];
   }
 
-  const { fled, line, destRoomId } = combat.tryFlee(player, monster, room);
+  const { fled, line, destRoomId, globalEvent: fleeGlobalEvent } = combat.tryFlee(player, monster, room);
 
   return {
     text: line,
     event: fled ? `${player.username} huye de la sala.` : `${player.username} intenta huir pero falla.`,
     eventRoomId: room.id,
+    ...(fleeGlobalEvent ? { globalEvent: fleeGlobalEvent } : {}),
   };
 }
 
@@ -1584,13 +1597,15 @@ function cmdScore(player, args) {
 
   leaders.forEach((p, idx) => {
     const rank   = String(idx + 1).padStart(2, ' ');
-    const name   = (p.username || '???').substring(0, 14).padEnd(14, ' ');
+    const rawName = (p.username || '???').substring(0, 12);
+    const hcTag  = p.is_hardcore ? (p.fallen ? '✝' : '🔴') : '  ';
+    const name   = rawName.padEnd(14, ' ');
     const level  = String(p.level || 1).padStart(3, ' ');
     const xp     = String(p.xp || 0).padStart(5, ' ');
     const kills  = String(p.kills || 0).padStart(5, ' ');
     const deaths = String(p.deaths || 0).padStart(8, ' ');
     const medal  = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
-    lines.push(`║ ${medal}${rank}  ${name}  ${level}  ${xp}  ${kills}  ${deaths}  ║`);
+    lines.push(`║ ${medal}${rank}  ${hcTag}${name}  ${level}  ${xp}  ${kills}  ${deaths}  ║`);
   });
 
   lines.push(`╚═════════════════════════════════════════════════════╝`);
@@ -5143,6 +5158,12 @@ module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAucti
  */
 function cmdChangelog() {
   const CHANGELOG = [
+    { version: '0.26', date: '2026-05-30', changes: [
+      '✨ NUEVO: modo Hardcore (comando hardcore on/off)',
+      '☠ Si morís en modo Hardcore, tu personaje queda como ✝ fantasma (solo comandos pasivos)',
+      '🔴 Visible en score con emoji: 🔴 vivo, ✝ caído',
+      '⚡ Broadcast global dramático al caer un aventurero hardcore',
+    ]},
     { version: '0.25', date: '2026-05-30', changes: [
       '✨ NUEVO: sistema de armaduras — wear/unwear, 7 tipos, loot de monstruos y tienda',
       '✨ NUEVO: pergaminos mágicos — 3 tipos de buff temporal de combate (furia/escudo/velocidad)',
@@ -7261,4 +7282,85 @@ function cmdRank(player, arg) {
   return { text: lines.join('\n') };
 }
 
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather };
+/**
+ * T175: cmdHardcore — Activar/desactivar modo Hardcore.
+ * Si el jugador muere en modo hardcore, queda marcado como "caído" (ghost mode).
+ * Solo se puede activar antes del primer kill (período de prueba).
+ * Los caídos aparecen en el score con ✝.
+ */
+function cmdHardcore(player, args) {
+  player = db.getPlayer(player.id);
+  const mode = (args && args[0]) ? args[0].toLowerCase() : '';
+  const isHardcore = player.is_hardcore === 1;
+  const isFallen   = player.fallen === 1;
+
+  // Ver estado actual (sin args)
+  if (!mode || mode === 'estado' || mode === 'status') {
+    const lines = [''];
+    lines.push(`☠ MODO HARDCORE ☠`);
+    lines.push('─'.repeat(34));
+    if (isFallen) {
+      lines.push(`  Estado: ✝ CAÍDO — modo fantasma activo`);
+      lines.push(`  Caíste el ${player.fallen_at ? player.fallen_at.replace('T', ' ').slice(0, 16) : 'fecha desconocida'}`);
+      lines.push(`  Solo podés usar comandos pasivos (look, status, who, etc.)`);
+      lines.push(`  Tu personaje es la generación ${toRoman(player.hardcore_generation || 1)}`);
+    } else if (isHardcore) {
+      lines.push(`  Estado: 🔴 HARDCORE ACTIVO`);
+      lines.push(`  Si morís, tu personaje queda como ✝ fantasma.`);
+      lines.push(`  "hardcore off" para desactivar (solo si tenés 0 kills)`);
+    } else {
+      lines.push(`  Estado: ⚫ MODO NORMAL`);
+      lines.push(`  "hardcore on" para activar (solo si tenés 0 kills)`);
+      lines.push(`  Advertencia: una vez activado, no se puede desactivar con kills.`);
+    }
+    lines.push('');
+    return { text: lines.join('\n') };
+  }
+
+  // Activar hardcore
+  if (mode === 'on' || mode === 'activar' || mode === 'habilitar') {
+    if (isFallen) {
+      return { text: '✝ Tu personaje ya cayó. No podés reactivar el modo hardcore en un fantasma.' };
+    }
+    if (isHardcore) {
+      return { text: '🔴 El modo Hardcore ya está activo. Cada decisión cuenta.' };
+    }
+    const kills = player.kills || 0;
+    if (kills > 0) {
+      return { text: `No podés activar el modo Hardcore después de tu primer kill.\nTenés ${kills} kills — el período de prueba terminó.` };
+    }
+    db.updatePlayer(player.id, { is_hardcore: 1 });
+    return { text: '🔴 MODO HARDCORE ACTIVADO.\n\n  Si morís, tu personaje queda como ✝ fantasma permanente.\n  Solo comandos pasivos estarán disponibles.\n  No hay vuelta atrás... buena suerte, aventurero.' };
+  }
+
+  // Desactivar hardcore
+  if (mode === 'off' || mode === 'desactivar' || mode === 'deshabilitar') {
+    if (isFallen) {
+      return { text: '✝ Tu personaje ya cayó. No podés desactivar nada.' };
+    }
+    if (!isHardcore) {
+      return { text: 'El modo Hardcore no está activo.' };
+    }
+    const kills = player.kills || 0;
+    if (kills > 0) {
+      return { text: `No podés desactivar el modo Hardcore una vez que empezaste a matar.\nTenés ${kills} kills — comprometiste tu destino.` };
+    }
+    db.updatePlayer(player.id, { is_hardcore: 0 });
+    return { text: '⚫ Modo Hardcore desactivado. Jugás en modo normal.' };
+  }
+
+  return { text: 'Uso: hardcore [on/off]\nVer estado: hardcore' };
+}
+
+/** Convertir número a romano (para generaciones I, II, III...) */
+function toRoman(n) {
+  const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1];
+  const syms = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I'];
+  let result = '';
+  for (let i = 0; i < vals.length; i++) {
+    while (n >= vals[i]) { result += syms[i]; n -= vals[i]; }
+  }
+  return result;
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman };

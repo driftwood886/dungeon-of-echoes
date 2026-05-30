@@ -158,6 +158,10 @@ async function init() {
     `ALTER TABLE players ADD COLUMN nickname TEXT`,                                // T163: apodo del personaje
     `ALTER TABLE players ADD COLUMN name_color TEXT`,                              // T171: color de nombre en chat
     `ALTER TABLE players ADD COLUMN friends TEXT NOT NULL DEFAULT '[]'`,           // T173: lista de amigos (JSON array de usernames)
+    `ALTER TABLE players ADD COLUMN is_hardcore INTEGER NOT NULL DEFAULT 0`,       // T175: modo hardcore
+    `ALTER TABLE players ADD COLUMN fallen INTEGER NOT NULL DEFAULT 0`,            // T175: caído en modo hardcore
+    `ALTER TABLE players ADD COLUMN fallen_at TEXT`,                               // T175: timestamp de caída
+    `ALTER TABLE players ADD COLUMN hardcore_generation INTEGER NOT NULL DEFAULT 1`, // T175: generación del personaje (I, II, III...)
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -526,7 +530,7 @@ function getActivePlayers(cutoff) {
 
 function getLeaderboard(limit = 10) {
   return all(
-    `SELECT username, level, xp, kills, hp, max_hp, deaths, gold, duel_wins
+    `SELECT username, level, xp, kills, hp, max_hp, deaths, gold, duel_wins, is_hardcore, fallen
      FROM players
      ORDER BY kills DESC, xp DESC, level DESC
      LIMIT ?`,

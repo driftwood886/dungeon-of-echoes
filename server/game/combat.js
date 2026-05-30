@@ -23,6 +23,48 @@ const items = require('./items');    // T110: efectos on_hit de armas crafteadas
 
 const FLEE_CHANCE = 0.5; // 50% de probabilidad de huir con éxito
 
+/**
+ * T175: handlePlayerDeath — Centraliza la lógica de muerte del jugador.
+ * Si el jugador está en modo hardcore, lo marca como fallen en lugar de respawnear normalmente.
+ * @returns {{ globalEvent?: string }} — objeto con globalEvent si fue muerte hardcore
+ */
+function handlePlayerDeath(playerId, lines, causeDescription) {
+  const freshP = db.getPlayer(playerId);
+  if (!freshP) return {};
+  const deaths = (freshP.deaths || 0) + 1;
+  if (freshP.is_hardcore === 1 && freshP.fallen !== 1) {
+    // MUERTE HARDCORE — marcar como fallen
+    const gen = freshP.hardcore_generation || 1;
+    db.updatePlayer(playerId, {
+      hp: 1, // HP fantasma
+      fallen: 1,
+      fallen_at: new Date().toISOString(),
+      deaths,
+      status_effects: '{}',
+    });
+    const genRoman = toRomanLocal(gen);
+    const broadcastMsg = `☠ ✝ EL AVENTURERO CAÍDO ✝ ☠\n  ${freshP.username} ${genRoman} ha caído para siempre en modo HARDCORE.\n  Descansa en paz, valiente. El dungeon recuerda tu sacrificio.`;
+    lines.push(`💀 MUERTE HARDCORE — Tu personaje ${freshP.username} ${genRoman} ha CAÍDO.`);
+    lines.push(`  Quedás como ✝ fantasma. Solo podés usar comandos pasivos.`);
+    lines.push(`  Escribí "hardcore" para ver tu estado.`);
+    return { globalEvent: broadcastMsg };
+  } else {
+    // Muerte normal
+    db.updatePlayer(playerId, { hp: 5, current_room_id: 1, deaths, status_effects: '{}' });
+    return {};
+  }
+}
+
+function toRomanLocal(n) {
+  const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1];
+  const syms = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I'];
+  let result = '';
+  for (let i = 0; i < vals.length; i++) {
+    while (n >= vals[i]) { result += syms[i]; n -= vals[i]; }
+  }
+  return result;
+}
+
 // Monstruos que pueden envenenar y su probabilidad
 const POISONERS = {
   'Araña Tejedora': { chance: 0.4, damage: 2, turns: 4 },
@@ -90,6 +132,7 @@ function attackRound(player, monster) {
   let playerDead  = false;
   let loot        = [];
   let poisonSurvived = false;
+  let globalEventHardcore = null; // T175: para muerte hardcore en combate principal
 
   // ── Efecto de veneno (al inicio del turno) ───────────────────────────────
   const statusFx = player.status_effects || {};
@@ -112,10 +155,9 @@ function attackRound(player, monster) {
     if (player.hp <= 0) {
       playerDead = true;
       lines.push(`💀 ¡El veneno acabó contigo! Respawneás en la entrada del dungeon...`);
-      const fp = db.getPlayer(player.id);
-      db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (fp.deaths || 0) + 1, status_effects: '{}' });
       db.addJournalEntry(player.id, 'death', `💀 Muerto por veneno luchando contra ${monster.name}.`);
-      return { lines, monsterDead, playerDead, loot, poisonSurvived };
+      const hcResult = handlePlayerDeath(player.id, lines, 'veneno');
+      return { lines, monsterDead, playerDead, loot, poisonSurvived, ...(hcResult.globalEvent ? { globalEvent: hcResult.globalEvent } : {}) };
     }
   }
 
@@ -159,9 +201,9 @@ function attackRound(player, monster) {
     if (player.hp <= 0) {
       playerDead = true;
       lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon...`);
-      const fpW = db.getPlayer(player.id);
-      db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (fpW.deaths || 0) + 1, status_effects: '{}' });
       db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name} (atrapado en telarañas).`);
+      const hcResultW = handlePlayerDeath(player.id, lines, 'telarañas');
+      return { lines, monsterDead, playerDead, loot, poisonSurvived, ...(hcResultW.globalEvent ? { globalEvent: hcResultW.globalEvent } : {}) };
     }
     return { lines, monsterDead, playerDead, loot, poisonSurvived };
   }
@@ -207,10 +249,9 @@ function attackRound(player, monster) {
     db.updatePlayer(player.id, { hp: player.hp });
     if (player.hp <= 0) {
       lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon...`);
-      const fpM = db.getPlayer(player.id);
-      db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (fpM.deaths || 0) + 1, status_effects: '{}' });
       db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name} (golpe tras postura agresiva fallida).`);
-      return { lines, monsterDead: false, playerDead: true, loot: [], poisonSurvived: false };
+      const hcResultM = handlePlayerDeath(player.id, lines, 'postura agresiva');
+      return { lines, monsterDead: false, playerDead: true, loot: [], poisonSurvived: false, ...(hcResultM.globalEvent ? { globalEvent: hcResultM.globalEvent } : {}) };
     }
     lines.push(`⚡ El ${monster.name} contraataca: ${rawMissReturn} de daño. (Tus HP: ${player.hp}/${player.max_hp})`);
     return { lines, monsterDead: false, playerDead: false, loot: [], poisonSurvived: false };
@@ -499,10 +540,9 @@ function attackRound(player, monster) {
   if (player.hp <= 0) {
     playerDead = true;
     lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon...`);
-    // Reset: HP mínimo, volver a sala 1, incrementar deaths, limpiar efectos
-    const freshPlayer2 = db.getPlayer(player.id);
-    db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (freshPlayer2.deaths || 0) + 1, status_effects: '{}' });
     db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name}.`);
+    const hcResult2 = handlePlayerDeath(player.id, lines, `combate con ${monster.name}`);
+    if (hcResult2.globalEvent) globalEventHardcore = hcResult2.globalEvent;
   }
 
   // ── Huida del monstruo (< 25% HP) ────────────────────────────────────────
@@ -526,7 +566,7 @@ function attackRound(player, monster) {
     }
   }
 
-  return { lines, monsterDead, playerDead, loot, poisonSurvived };
+  return { lines, monsterDead, playerDead, loot, poisonSurvived, ...(globalEventHardcore ? { globalEvent: globalEventHardcore } : {}) };
 }
 
 /**
@@ -579,10 +619,10 @@ function tryFlee(player, monster, room) {
   let line = `🏃 Intentás huir pero el ${monster.name} (${monsterHpDesc}) te bloquea y te golpea (${dmgToPlayer} dmg). Tu HP: ${player.hp}/${player.max_hp}.`;
 
   if (player.hp <= 0) {
-    const freshPlayer3 = db.getPlayer(player.id);
-    db.updatePlayer(player.id, { hp: 5, current_room_id: 1, deaths: (freshPlayer3.deaths || 0) + 1 });
     db.addJournalEntry(player.id, 'death', `💀 Muerto intentando huir del ${monster.name}.`);
     line += `\n💀 ¡Moriste! Respawneás en la entrada del dungeon...`;
+    const hcResultFlee = handlePlayerDeath(player.id, [], 'huida');
+    return { fled: false, destRoomId: null, line, ...(hcResultFlee.globalEvent ? { globalEvent: hcResultFlee.globalEvent } : {}) };
   }
 
   return { fled: false, destRoomId: null, line };
