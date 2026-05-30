@@ -145,6 +145,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN gold_spent INTEGER NOT NULL DEFAULT 0`,    // T115: logros secretos (oro gastado)
     `ALTER TABLE players ADD COLUMN crafts_count INTEGER NOT NULL DEFAULT 0`,  // T115: logros secretos (crafteos)
     `ALTER TABLE players ADD COLUMN rooms_visited TEXT NOT NULL DEFAULT '[]'`, // T115: logros secretos (salas visitadas)
+    `ALTER TABLE players ADD COLUMN notes TEXT NOT NULL DEFAULT '[]'`,          // T116: notas personales del jugador
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }

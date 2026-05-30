@@ -170,6 +170,7 @@ function execute(playerId, input, context) {
     case 'journal':      result = cmdJournal(player); break;
     case 'skills':       result = cmdSkills(player); break;
     case 'useSkill':     result = cmdUseSkill(player, action.args, context); break;
+    case 'note':         result = cmdNote(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -3919,6 +3920,71 @@ function cmdJournal(player) {
   // Reemplazar el último separador por el cierre
   lines[lines.length - 1] = `╚${'═'.repeat(W)}╝`;
   lines.push(`(${journal.length} entradas en total · mostrando las últimas ${entries.length})`);
+
+  return { text: lines.join('\n') };
+}
+
+/**
+ * T116: note / apunte — notas personales del jugador.
+ * Subcomandos: add <texto>, list (default), del <n>
+ */
+function cmdNote(player, args) {
+  player = db.getPlayer(player.id);
+  const MAX_NOTES = 10;
+  const raw = player.notes;
+  const notes = Array.isArray(raw) ? raw : (raw ? JSON.parse(raw) : []);
+
+  const sub = args && args[0] ? args[0].toLowerCase() : 'list';
+
+  // ── note add <texto> ───────────────────────────────────────────────────────
+  if (sub === 'add' || sub === 'agregar' || sub === 'nueva' || sub === 'nuevo') {
+    const text = args.slice(1).join(' ').trim();
+    if (!text) {
+      return { text: '📝 Escribí el apunte después del comando.\n  Ej: note add Llave oxidada está en sala 8' };
+    }
+    if (text.length > 200) {
+      return { text: `📝 El apunte es demasiado largo (${text.length}/200 caracteres). Sé más conciso.` };
+    }
+    if (notes.length >= MAX_NOTES) {
+      return { text: `📝 Ya tenés ${MAX_NOTES} apuntes (el máximo). Borrá alguno con "note del <número>" para hacer espacio.` };
+    }
+    const entry = { text, at: new Date().toISOString().slice(0, 16).replace('T', ' ') };
+    notes.push(entry);
+    db.updatePlayer(player.id, { notes: JSON.stringify(notes) });
+    return { text: `📝 Apunte guardado (#${notes.length}): "${text}"` };
+  }
+
+  // ── note del <n> ──────────────────────────────────────────────────────────
+  if (sub === 'del' || sub === 'borrar' || sub === 'eliminar' || sub === 'delete' || sub === 'rm') {
+    const idx = parseInt(args[1], 10);
+    if (isNaN(idx) || idx < 1 || idx > notes.length) {
+      return { text: `📝 Número inválido. Tenés ${notes.length} apunte(s). Usá un número entre 1 y ${notes.length}.` };
+    }
+    const removed = notes.splice(idx - 1, 1)[0];
+    db.updatePlayer(player.id, { notes: JSON.stringify(notes) });
+    return { text: `🗑️ Apunte #${idx} eliminado: "${removed.text}"` };
+  }
+
+  // ── note list (default) ────────────────────────────────────────────────────
+  if (notes.length === 0) {
+    return { text: '📝 No tenés apuntes todavía.\n  Agregá uno con: note add <texto>\n  Ejemplo: note add La llave oxidada está en sala 8' };
+  }
+
+  const W = 44;
+  const lines = [
+    `╔${'═'.repeat(W)}╗`,
+    `║${'  📝 TUS APUNTES'.padEnd(W)}║`,
+    `╟${'─'.repeat(W)}╢`,
+  ];
+  notes.forEach((n, i) => {
+    const header = `#${i + 1}  ${n.at || ''}`;
+    const body = n.text.length > W - 4 ? n.text.slice(0, W - 7) + '...' : n.text;
+    lines.push(`║  ${header.slice(0, W - 4).padEnd(W - 2)}║`);
+    lines.push(`║    ${body.padEnd(W - 4)}║`);
+    if (i < notes.length - 1) lines.push(`╟${'─'.repeat(W)}╢`);
+  });
+  lines.push(`╚${'═'.repeat(W)}╝`);
+  lines.push(`(${notes.length}/${MAX_NOTES} apuntes · "note del <n>" para borrar)`);
 
   return { text: lines.join('\n') };
 }

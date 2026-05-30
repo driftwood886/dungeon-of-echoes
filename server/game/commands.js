@@ -148,6 +148,8 @@ const COMMAND_ALIASES = {
   // eslint-disable-next-line camelcase
   shield_bash: 'useSkill', escudo_bash: 'useSkill', bash: 'useSkill', escudazo: 'useSkill', golpe_escudo: 'useSkill',
   rally: 'useSkill', arenga: 'useSkill', motivar: 'useSkill', grito_batalla: 'useSkill',
+  // note / apunte (T116)
+  note: 'note', apunte: 'note', apuntes: 'note', notas: 'note', nota: 'note', memo: 'note', memos: 'note',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -257,6 +259,7 @@ Comandos disponibles:
   smash / golpetazo     — Habilidad: golpe potente ×1.8 daño (requiere Nivel 3, cooldown 45s)
   bash / escudo_bash    — Habilidad: golpe de escudo + stun al monstruo 1 turno (Nivel 6, 60s)
   rally / arenga        — Habilidad: +2 ATK al grupo en la sala por 60s (Nivel 10, 2min)
+  note / apunte         — Notas personales: \"note add <texto>\" para agregar, \"note list\" para ver, \"note del <n>\" para borrar
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
