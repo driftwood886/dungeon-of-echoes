@@ -301,6 +301,7 @@ function registerHandlers(io) {
       const msg = message.trim().slice(0, 200);
       io.to(`room_${currentRoomId}`).emit('say', {
         username: player.username,
+        name_color: player.name_color || null,
         message: msg,
       });
       ack && ack({ ok: true });
@@ -318,6 +319,7 @@ function registerHandlers(io) {
       const msg = message.trim().slice(0, 200);
       io.emit('shout', {
         username: player.username,
+        name_color: player.name_color || null,
         message: msg,
       });
       ack && ack({ ok: true });

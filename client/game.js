@@ -442,12 +442,32 @@ function initSocket() {
 
   // Chat local
   socket.on('say', (data) => {
-    addMsg(`${data.username} dice: "${data.message}"`, 'say');
+    const nameColor = data.name_color ? ` style="color:${data.name_color}"` : '';
+    const nameHtml = `<span${nameColor}>${data.username}</span>`;
+    const div = document.createElement('div');
+    div.className = 'msg-line msg-say';
+    const tsSpan = document.createElement('span');
+    tsSpan.className = 'msg-ts';
+    tsSpan.textContent = `[${ts()}]`;
+    div.appendChild(tsSpan);
+    div.innerHTML += `${nameHtml} dice: "${data.message}"`;
+    el.messagesList.appendChild(div);
+    el.messagesScroll.scrollTop = el.messagesScroll.scrollHeight;
   });
 
   // Grito global
   socket.on('shout', (data) => {
-    addMsg(`[GRITO] ${data.username}: "${data.message}"`, 'shout');
+    const nameColor = data.name_color ? ` style="color:${data.name_color}"` : '';
+    const nameHtml = `<span${nameColor}>${data.username}</span>`;
+    const div = document.createElement('div');
+    div.className = 'msg-line msg-shout';
+    const tsSpan = document.createElement('span');
+    tsSpan.className = 'msg-ts';
+    tsSpan.textContent = `[${ts()}]`;
+    div.appendChild(tsSpan);
+    div.innerHTML += `[GRITO] ${nameHtml}: "${data.message}"`;
+    el.messagesList.appendChild(div);
+    el.messagesScroll.scrollTop = el.messagesScroll.scrollHeight;
   });
 }
 

@@ -6521,27 +6521,54 @@ function cmdNick(player, args) {
     if (!player.nickname) {
       return { text: `No tenés apodo asignado. Usá "nick <apodo>" para elegir uno (máx 20 chars, sin espacios).\nTu nombre sigue siendo: ${player.username}` };
     }
-    return { text: `Tu apodo actual es: "${player.nickname}"\nUsá "nick quitar" para eliminarlo, o "nick <nuevo>" para cambiarlo.` };
+    const colorInfo = player.name_color ? ` [color: ${player.name_color}]` : '';
+    return { text: `Tu apodo actual es: "${player.nickname}"${colorInfo}\nUsá "nick quitar" para eliminarlo, "nick <nuevo>" para cambiarlo, o "nick color <color>" para elegir un color.` };
   }
 
-  const input = args.join('').trim();
+  const input = args.join(' ').trim();
 
   if (input === 'quitar' || input === 'borrar' || input === 'clear') {
     db.updatePlayer(player.id, { nickname: null });
     return { text: `Apodo eliminado. Tu nombre de aventurero vuelve a ser "${player.username}".` };
   }
 
+  // T171: subcomando nick color <color>
+  if (args[0] && (args[0].toLowerCase() === 'color' || args[0].toLowerCase() === 'colour')) {
+    const VALID_COLORS = {
+      verde: 'green', green: 'green',
+      cian: 'cyan', cyan: 'cyan', celeste: 'cyan',
+      amarillo: 'yellow', yellow: 'yellow',
+      magenta: 'magenta', violeta: 'magenta', rosa: 'magenta',
+      rojo: 'red', red: 'red',
+      blanco: 'white', white: 'white',
+      quitar: null, ninguno: null, none: null, borrar: null,
+    };
+    const colorInput = (args[1] || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (colorInput === '' || colorInput === 'quitar' || colorInput === 'ninguno' || colorInput === 'none' || colorInput === 'borrar') {
+      db.updatePlayer(player.id, { name_color: null });
+      return { text: '🎨 Color de nombre eliminado. Tu nombre aparecerá en el color por defecto.' };
+    }
+    const color = VALID_COLORS[colorInput];
+    if (!color && color !== null) {
+      return { text: `Color no reconocido. Opciones: verde, cian, amarillo, magenta, rojo, blanco.\nEj: nick color cian` };
+    }
+    db.updatePlayer(player.id, { name_color: color });
+    const colorNames = { green: 'verde 🟢', cyan: 'cian 🔵', yellow: 'amarillo 🟡', magenta: 'magenta 🟣', red: 'rojo 🔴', white: 'blanco ⬜' };
+    return { text: `🎨 Color de nombre actualizado a ${colorNames[color]}. Aparecerá en el chat cuando uses say/shout/emote.` };
+  }
+
   // Validar: máx 20 chars, sin espacios, alfanumérico + guiones/underscores
-  if (input.length > 20) {
+  const singleWord = args.join('').trim();
+  if (singleWord.length > 20) {
     return { text: 'El apodo no puede superar los 20 caracteres.' };
   }
-  if (!/^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9_\-]+$/.test(input)) {
+  if (!/^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9_\-]+$/.test(singleWord)) {
     return { text: 'El apodo solo puede tener letras, números, guiones y underscores (sin espacios).' };
   }
 
-  db.updatePlayer(player.id, { nickname: input });
+  db.updatePlayer(player.id, { nickname: singleWord });
   return {
-    text: `✅ Apodo actualizado a "${input}". Aparecerá en "who", "status" y cuando otros jugadores te vean.\nTu username sigue siendo "${player.username}" para whisper/tell/give/etc.`,
+    text: `✅ Apodo actualizado a "${singleWord}". Aparecerá en "who", "status" y cuando otros jugadores te vean.\nTu username sigue siendo "${player.username}" para whisper/tell/give/etc.\nTip: usá "nick color <color>" para elegir el color de tu nombre en el chat.`,
   };
 }
 
