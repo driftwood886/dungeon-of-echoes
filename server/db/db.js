@@ -132,6 +132,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN forage_data TEXT NOT NULL DEFAULT '{}'`,
     `ALTER TABLE players ADD COLUMN pet TEXT`,
     `ALTER TABLE players ADD COLUMN last_meditate TEXT`,
+    `ALTER TABLE players ADD COLUMN party_id TEXT`,  // T102: sistema de grupos
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -257,6 +258,16 @@ function touchPlayer(id) {
 function getPlayersInRoom(roomId) {
   return all('SELECT * FROM players WHERE current_room_id = ?', [roomId])
     .map(p => ({ ...p, inventory: JSON.parse(p.inventory), status_effects: p.status_effects ? JSON.parse(p.status_effects) : {} }));
+}
+
+/**
+ * Obtiene todos los miembros de un grupo (T102).
+ * @param {string} partyId
+ * @returns {object[]}
+ */
+function getPartyMembers(partyId) {
+  if (!partyId) return [];
+  return all('SELECT id, username, hp, max_hp, level, current_room_id, kills, party_id FROM players WHERE party_id = ?', [partyId]);
 }
 
 // ─── Rooms ───────────────────────────────────────────────────────────────────
@@ -581,7 +592,7 @@ function closeExpiredAuctions() {
 module.exports = {
   init, persist,
   // players
-  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, getPlayersInRoom, getActivePlayers, getLeaderboard,
+  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, getPlayersInRoom, getActivePlayers, getLeaderboard, getPartyMembers,
   // rooms
   getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, checkTrapRespawns,
   // monsters

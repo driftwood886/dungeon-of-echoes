@@ -10,7 +10,7 @@ const http    = require('http');
 const path    = require('path');
 
 const db                     = require('./db/db');
-const { seedIfEmpty, migrateAuctionRoom } = require('./db/seed');
+const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom } = require('./db/seed');
 const { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions } = require('./game/engine');
 const { checkRespawns }      = require('./game/combat');
 const quests                 = require('./game/quests');
@@ -23,6 +23,7 @@ async function main() {
   await db.init();
   seedIfEmpty();
   migrateAuctionRoom();
+  migrateFountainRoom();
 
   // 2. Crear app Express
   const app = express();
@@ -115,6 +116,11 @@ async function main() {
       },
       other_players: others,
       recent_events: events,
+      party: player.party_id
+        ? db.getPartyMembers(player.party_id)
+            .filter(m => m.id !== player.id)
+            .map(m => ({ username: m.username, hp: m.hp, max_hp: m.max_hp, level: m.level || 1 }))
+        : null,
     });
   });
 

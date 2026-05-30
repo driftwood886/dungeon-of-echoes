@@ -255,10 +255,25 @@ function updateSidebar(data) {
         const trapTypeNames = { spike: 'pinchos 🗡️', poison: 'esporas venenosas ☣️', cold: 'frío sobrenatural ❄️', flood: 'inundación 💧' };
         const typeName = trapTypeNames[room.trap.type] || room.trap.type;
         sidebarTrap.textContent = `Tipo: ${typeName}`;
-        trapSection.style.display = '';
+        trapSection.style.display = ''';
       } else {
         trapSection.style.display = 'none';
       }
+    }
+  }
+
+  // Panel de grupo (T102)
+  const partySection = document.getElementById('party-section');
+  const partyContent = document.getElementById('sidebar-party');
+  if (partySection && partyContent) {
+    const partyMembers = data.party;
+    if (partyMembers && partyMembers.length > 0) {
+      partyContent.textContent = partyMembers
+        .map(m => `  ${m.username} Lv${m.level} ❤${m.hp}/${m.max_hp}`)
+        .join('\n');
+      partySection.style.display = '';
+    } else {
+      partySection.style.display = 'none';
     }
   }
 }

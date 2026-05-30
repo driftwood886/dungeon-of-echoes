@@ -44,6 +44,17 @@ const lastWhisperSender = new Map();
 // pendingDuels.get(targetPlayerId) → { challengerId, challengerUsername, roomId, expiresAt }
 const pendingDuels = new Map();
 
+// ── Sistema de grupos/party (T102) ────────────────────────────────────────────
+// pendingPartyInvites.get(targetPlayerId) → { inviterId, inviterUsername, partyId, expiresAt }
+const pendingPartyInvites = new Map();
+
+// ── Fuente de Rejuvenecimiento (T103) ─────────────────────────────────────────
+// Sala 18 — Cámara de la Fuente Eterna.
+// Cooldown global: 10 minutos por sala (no por jugador).
+const FOUNTAIN_ROOM_ID = 18;
+const FOUNTAIN_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutos
+let fountainCooldownUntil = 0; // timestamp en ms (0 = disponible)
+
 // ── Sistema de títulos/rangos (T099) ─────────────────────────────────────────
 // Título calculado on-the-fly a partir de los kills del jugador.
 const TITLES = [
@@ -126,6 +137,7 @@ function execute(playerId, input) {
     case 'meditate':  result = cmdMeditate(player); break;
     case 'emote':     result = cmdEmote(player, action.args.join(' ')); break;
     case 'dice':      result = cmdDice(player, action.args.join(' ')); break;
+    case 'party':     result = cmdParty(player, action.args); break;
     case 'shop':      result = cmdShop(player); break;
     case 'buy':       result = cmdBuy(player, action.args.join(' ')); break;
     case 'sell':      result = cmdSell(player, action.args.join(' ')); break;
@@ -146,6 +158,7 @@ function execute(playerId, input) {
     case 'auction':      result = cmdAuction(player, action.args); break;
     case 'bid':          result = cmdBid(player, action.args); break;
     case 'auctions':     result = cmdAuctions(); break;
+    case 'drink':        result = cmdDrink(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -190,6 +203,8 @@ function execute(playerId, input) {
           bid: 'bid', pujar: 'bid',
           auctions: 'auctions', subastas: 'auctions',
           dice: 'dice', dado: 'dice', dados: 'dice', roll: 'dice',
+          party: 'party', grupo: 'party', equipo: 'party',
+          drink: 'drink', beber: 'drink', tomar: 'drink',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
@@ -539,8 +554,43 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // ── XP compartido con el grupo (T102) ────────────────────────────────────
+  let partyXpLines = '';
+  if (monsterDead) {
+    const freshP = db.getPlayer(player.id);
+    if (freshP.party_id) {
+      const allMembers = db.getPartyMembers(freshP.party_id);
+      // Solo los que están en la misma sala (excluir al jugador que ya recibió XP)
+      const companions = allMembers.filter(m => m.id !== player.id && m.current_room_id === player.current_room_id);
+      if (companions.length > 0) {
+        // XP compartido: 75% de lo que recibió el atacante (bonus por cooperar)
+        const xpBase = Math.max(5, Math.floor(monster.max_hp * 2));
+        const sharedXp = Math.max(1, Math.floor(xpBase * 0.75));
+        const bonusLines = [];
+        for (const comp of companions) {
+          const freshComp = db.getPlayer(comp.id);
+          if (!freshComp) continue;
+          const newXp    = (freshComp.xp    || 0) + sharedXp;
+          const newLevel = Math.floor(newXp / 50) + 1;
+          const levelUp  = newLevel > (freshComp.level || 1);
+          const upd = { xp: newXp, level: newLevel };
+          if (levelUp) {
+            upd.max_hp = (freshComp.max_hp || 30) + 5;
+            upd.hp     = Math.min(freshComp.hp, upd.max_hp);
+            upd.attack = (freshComp.attack || 5) + 1;
+          }
+          db.updatePlayer(comp.id, upd);
+          bonusLines.push(`  ${comp.username}: +${sharedXp} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`);
+        }
+        if (bonusLines.length > 0) {
+          partyXpLines = `\n⚔ XP de grupo compartida:\n${bonusLines.join('\n')}`;
+        }
+      }
+    }
+  }
+
   return {
-    text: lines.join('\n') + achLines + questLines,
+    text: lines.join('\n') + achLines + questLines + partyXpLines,
     event: eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || null,
@@ -1489,7 +1539,130 @@ function cmdDice(player, notation) {
   };
 }
 
-// ─── NPC Mercader ──────────────────────────────────────────────────────────
+/**
+ * party [<subcomando>] — Gestionar grupo de aventureros (T102).
+ *
+ * Subcomandos:
+ *   party <nombre>   — Invitar a alguien de la misma sala (o unirse a invitación pendiente)
+ *   party leave      — Abandonar el grupo actual
+ *   party           — Ver miembros del grupo
+ *   party accept     — Aceptar la invitación pendiente de party
+ *   party decline    — Rechazar la invitación
+ *
+ * Mecánica de XP compartido: al matar un monstruo, si el player está en un grupo,
+ * la XP se divide entre los miembros presentes en la misma sala.
+ */
+function cmdParty(player, args) {
+  const sub = (args[0] || '').toLowerCase();
+
+  // ── Sin argumento: mostrar miembros del grupo ─────────────────────────────
+  if (!sub || sub === 'info') {
+    player = db.getPlayer(player.id);
+    if (!player.party_id) {
+      return { text: 'No estás en ningún grupo.\nUsá "party <nombre_jugador>" para invitar a alguien de tu sala.' };
+    }
+    const members = db.getPartyMembers(player.party_id);
+    if (members.length === 0) {
+      db.updatePlayer(player.id, { party_id: null });
+      return { text: 'Tu grupo se disolvió (nadie más está en él).' };
+    }
+    const lines = ['⚔ Grupo de aventureros:'];
+    for (const m of members) {
+      const hpBar = buildBar(m.hp, m.max_hp, 8);
+      const room = db.getRoom(m.current_room_id);
+      const roomName = room ? room.name : '???';
+      lines.push(`  ${m.username.padEnd(16)} Lv${m.level || 1} ${hpBar} ${m.hp}/${m.max_hp}  📍${roomName}`);
+    }
+    return { text: lines.join('\n') };
+  }
+
+  // ── leave / salir ─────────────────────────────────────────────────────────
+  if (sub === 'leave' || sub === 'salir' || sub === 'abandonar') {
+    player = db.getPlayer(player.id);
+    if (!player.party_id) {
+      return { text: 'No estás en ningún grupo.' };
+    }
+    db.updatePlayer(player.id, { party_id: null });
+    return {
+      text: 'Abandonaste el grupo.',
+      event: `${player.username} abandona el grupo.`,
+      eventRoomId: player.current_room_id,
+    };
+  }
+
+  // ── accept / aceptar ──────────────────────────────────────────────────────
+  if (sub === 'accept' || sub === 'aceptar' || sub === 'acepto') {
+    const invite = pendingPartyInvites.get(player.id);
+    if (!invite || Date.now() > invite.expiresAt) {
+      pendingPartyInvites.delete(player.id);
+      return { text: 'No hay ninguna invitación de grupo pendiente.' };
+    }
+    pendingPartyInvites.delete(player.id);
+
+    // Unirse al grupo del invitador
+    db.updatePlayer(player.id,      { party_id: invite.partyId });
+    db.updatePlayer(invite.inviterId, { party_id: invite.partyId }); // por si acaso
+    const members = db.getPartyMembers(invite.partyId);
+    const names = members.map(m => m.username).join(', ');
+    return {
+      text: `✅ Te uniste al grupo de ${invite.inviterUsername}.\nMiembros: ${names}`,
+      targetPlayerId: invite.inviterId,
+      targetPlayerMsg: `✅ ${player.username} aceptó unirse a tu grupo.`,
+    };
+  }
+
+  // ── decline / rechazar ────────────────────────────────────────────────────
+  if (sub === 'decline' || sub === 'rechazar' || sub === 'rechazo') {
+    const invite = pendingPartyInvites.get(player.id);
+    if (!invite) return { text: 'No hay ninguna invitación de grupo pendiente.' };
+    pendingPartyInvites.delete(player.id);
+    return {
+      text: `Rechazaste la invitación de ${invite.inviterUsername}.`,
+      targetPlayerId: invite.inviterId,
+      targetPlayerMsg: `${player.username} rechazó unirse a tu grupo.`,
+    };
+  }
+
+  // ── Invitar a un jugador ──────────────────────────────────────────────────
+  const targetName = args.join(' ').toLowerCase();
+  const roomPlayers = db.getPlayersInRoom(player.current_room_id);
+  const target = roomPlayers.find(
+    p => p.username.toLowerCase().includes(targetName) && p.id !== player.id
+  );
+  if (!target) {
+    return { text: `No hay ningún jugador llamado "${args.join(' ')}" en esta sala.` };
+  }
+  if (target.party_id) {
+    return { text: `${target.username} ya está en un grupo.` };
+  }
+
+  // Verificar límite de 4 miembros
+  player = db.getPlayer(player.id);
+  const partyId = player.party_id || `party-${player.id}-${Date.now()}`;
+  const currentMembers = db.getPartyMembers(partyId);
+  if (currentMembers.length >= 4) {
+    return { text: '❌ El grupo está lleno (máximo 4 miembros).' };
+  }
+
+  // Asegurar que el invitador tenga el party_id
+  if (!player.party_id) {
+    db.updatePlayer(player.id, { party_id: partyId });
+  }
+
+  // Guardar invitación (válida por 60s)
+  pendingPartyInvites.set(target.id, {
+    inviterId: player.id,
+    inviterUsername: player.username,
+    partyId,
+    expiresAt: Date.now() + 60_000,
+  });
+
+  return {
+    text: `📨 Invitaste a ${target.username} a unirse a tu grupo. (Esperando respuesta...)`,
+    targetPlayerId: target.id,
+    targetPlayerMsg: `📨 ${player.username} te invita a unirse a su grupo. Escribí "party accept" para aceptar o "party decline" para rechazar. (60s)`,
+  };
+}
 
 /**
  * La Sala 4 (Cámara del Tesoro) tiene un mercader NPC.
@@ -2425,6 +2598,53 @@ function cmdMeditate(player) {
 
   return {
     text: `🧘 Cerrás los ojos y vaciás la mente. El dungeon desaparece por un momento.${petLine}\nRecuperás ${restored} HP. ${hpBar} ${newHp}/${player.max_hp} HP`,
+  };
+}
+
+// ─── T103: Fuente de Rejuvenecimiento ────────────────────────────────────────
+
+/**
+ * drink/beber — Beber de la Fuente Eterna (sala 18).
+ *
+ * Recupera HP completo. Cooldown global de 10 minutos (no por jugador, por sala).
+ * Si la fuente está en cooldown, nadie puede usarla hasta que se recargue.
+ */
+function cmdDrink(player) {
+  player = db.getPlayer(player.id);
+
+  if (player.current_room_id !== FOUNTAIN_ROOM_ID) {
+    return { text: '💧 No hay ninguna fuente aquí.\n   La Fuente Eterna se encuentra en la Cámara de la Fuente Eterna (al norte del Santuario Profano).' };
+  }
+
+  if (player.hp >= player.max_hp) {
+    return { text: '💧 Ya estás al máximo de HP. El agua brilla tentadoramente pero no la necesitás ahora.' };
+  }
+
+  // Verificar cooldown global
+  const now = Date.now();
+  if (fountainCooldownUntil > now) {
+    const remaining = Math.ceil((fountainCooldownUntil - now) / 1000);
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    const timeStr = mins > 0
+      ? `${mins} minuto${mins !== 1 ? 's' : ''} y ${secs}s`
+      : `${secs} segundo${secs !== 1 ? 's' : ''}`;
+    return { text: `💧 La fuente brilla tenuemente. Sus aguas se están recargando...\n   Disponible en: ${timeStr}.\n   Las runas en la pared pulsan lentamente.` };
+  }
+
+  // Usar la fuente
+  const restored = player.max_hp - player.hp;
+  db.updatePlayer(player.id, { hp: player.max_hp });
+
+  // Activar cooldown global
+  fountainCooldownUntil = now + FOUNTAIN_COOLDOWN_MS;
+
+  const hpBar = buildBar(player.max_hp, player.max_hp, 20);
+
+  return {
+    text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! +${restored} HP.\n${hpBar} ${player.max_hp}/${player.max_hp} HP\n\n⏳ La fuente empieza a atenuarse... necesitará 10 minutos para recargarse.`,
+    event: `${player.username} bebe de la Fuente Eterna. Un resplandor plateado llena la sala.`,
+    eventRoomId: FOUNTAIN_ROOM_ID,
   };
 }
 

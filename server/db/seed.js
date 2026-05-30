@@ -519,4 +519,31 @@ function migrateAuctionRoom() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom };
+
+/**
+ * Sala de la Fuente de Rejuvenecimiento (T103): sala 18 conectada al norte de la sala 10 (Santuario Profano).
+ * La fuente recupera HP completo pero tiene cooldown global de 10 min por sala.
+ */
+function migrateFountainRoom() {
+  const fountainRoom = db.getRoom(18);
+  if (!fountainRoom) {
+    db.upsertRoom({
+      id: 18,
+      name: 'Cámara de la Fuente Eterna',
+      description: 'Una cámara circular tallada en mármol blanco, luminosa pese a la oscuridad del dungeon. En el centro burbujea una fuente de agua plateada que nunca se agota. El agua tiene propiedades curativas legendarias. En las paredes, runas antiguas advierten: "El poder de la fuente requiere descanso. Quien abuse de ella hallará agua vacía."',
+      exits: { south: 10 },
+      items: [],
+    });
+    console.log('[seed] migrateFountainRoom: Sala 18 (Cámara de la Fuente Eterna) creada.');
+
+    // Actualizar sala 10 para que tenga salida al norte hacia sala 18
+    const room10 = db.getRoom(10);
+    if (room10) {
+      const exits10 = room10.exits || {};
+      exits10.north = 18;
+      db.upsertRoom({ ...room10, exits: exits10 });
+      console.log('[seed] migrateFountainRoom: Sala 10 actualizada con salida north → 18.');
+    }
+  }
+}

@@ -123,6 +123,8 @@ const COMMAND_ALIASES = {
   auctions: 'auctions', subastas: 'auctions', remates: 'auctions', mercado: 'auctions', sala_subasta: 'auctions',
   // dice / dados (T100)
   dice: 'dice', dado: 'dice', dados: 'dice', tirar: 'dice', roll: 'dice', rodar: 'dice',
+  // drink / beber (T103)
+  drink: 'drink', beber: 'drink', tomar: 'drink', hidratarse: 'drink', fuente: 'drink',
   // party / grupo (T102)
   party: 'party', grupo: 'party', equipo: 'party', alianza: 'party',
 };
@@ -223,6 +225,7 @@ Comandos disponibles:
   pet [adopt <tipo>]    — Adoptar una mascota (rata, murciélago, araña, etc.) o ver tu compañero
   dados <NdM>           — Tirar dados (ej: dados 2d6, dice 1d20). Resultado visible para toda la sala
   party [<jugador>]     — Gestionar tu grupo: invitar/unirse, ver miembros, party leave para salir
+  beber / drink         — Beber de la Fuente Eterna (sala 18): restaura HP completo. Cooldown global 10 min
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -266,8 +269,9 @@ const COMMAND_HELP = {
     forage:    'forage / buscar / explorar\\n  Buscar ítems ocultos en la sala actual.\\n  Cooldown de 3 minutos por sala. No funciona si hay monstruos vivos.\\n  Podés encontrar: hierbas curativas, pociones, monedas de oro, materiales de crafteo.',
     auction:   'subasta <ítem> <precio_min> / auction <item> <min_price>\\n  Poner un ítem tuyo a subasta en la Casa de Subastas (sala 17, al este de la Cámara del Tesoro).\\n  La subasta dura 5 minutos. El ítem se retira de tu inventario inmediatamente.\\n  Si hay ganador: el vendedor recibe el oro, el ganador recibe el ítem.\\n  Si nadie puja: el ítem vuelve al vendedor.',
     bid:       'pujar <id_subasta> <monto> / bid <auction_id> <amount>\\\\n  Realizar una puja en una subasta activa.\\\\n  La puja debe ser mayor a la puja actual. Si alguien supera tu puja, recibís tu oro de vuelta.\\\\n  El oro se descuenta al pujar y se devuelve si te superan.',
-    auctions:  'subastas / auctions / remates\\\\n  Ver todas las subastas activas en la Casa de Subastas.\\\\n  Muestra: ID, ítem, precio mínimo, puja actual, tiempo restante y vendedor.',
-    dice:      'dados <NdM> / dice <NdM> / roll <NdM>\\\\n  Tirar dados en la sala. Ej: \"dados 2d6\" tira dos dados de 6 caras.\\\\n  El resultado es visible para todos los jugadores presentes en la sala.\\\\n  Formatos soportados: 1d4, 1d6, 1d8, 1d10, 1d12, 1d20, 1d100, hasta 10d100.',
+    auctions:  'subastas / auctions / remates\\\\\\\\n  Ver todas las subastas activas en la Casa de Subastas.\\\\\\\\n  Muestra: ID, ítem, precio mínimo, puja actual, tiempo restante y vendedor.',
+    dice:      'dados <NdM> / dice <NdM> / roll <NdM>\\\\\\\\n  Tirar dados en la sala. Ej: \\\"dados 2d6\\\" tira dos dados de 6 caras.\\\\\\\\n  El resultado es visible para todos los jugadores presentes en la sala.\\\\\\\\n  Formatos soportados: 1d4, 1d6, 1d8, 1d10, 1d12, 1d20, 1d100, hasta 10d100.',
+    drink:     'drink / beber / tomar\\n  Beber de la Fuente Eterna en la Cámara de la Fuente Eterna (sala 18, al norte del Santuario Profano).\\n  Restaura tu HP completamente.\\n  Cooldown GLOBAL de 10 minutos: una vez que alguien bebe, la fuente tarda 10 min en recargarse.\\n  Nadie puede usarla durante ese tiempo. No funciona si ya estás al máximo de HP.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };
