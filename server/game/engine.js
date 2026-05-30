@@ -231,6 +231,7 @@ function execute(playerId, input, context) {
     case 'bid':          result = cmdBid(player, action.args); break;
     case 'auctions':     result = cmdAuctions(); break;
     case 'market':       result = cmdMarket(player, action.args, context); break;
+    case 'gesture':      result = cmdGesture(player, action.args[0]); break;
     case 'drink':        result = cmdDrink(player); break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
@@ -7646,5 +7647,62 @@ function cmdMarket(player, args, context) {
 
   return {
     text: `Subcomando desconocido: "${sub}"\nUsá "market" sin argumentos para ver la ayuda.`,
+  };
+}
+
+// ─── T182: Gestos sociales rápidos ───────────────────────────────────────────
+
+const GESTURE_TEXTS = {
+  bow: [
+    'hace una reverencia solemne.',
+    'inclina la cabeza respetuosamente.',
+    'se inclina en una reverencia profunda.',
+  ],
+  wave: [
+    'saluda con la mano efusivamente.',
+    'agita la mano en señal de saludo.',
+    'hace señas de saludo desde lejos.',
+  ],
+  laugh: [
+    'ríe a carcajadas.',
+    'suelta una risotada estrepitosa.',
+    'se carcajea sin poder contenerse.',
+  ],
+  cry: [
+    'llora desconsoladamente.',
+    'limpia una lágrima furtiva.',
+    'solloza en silencio.',
+  ],
+  dance: [
+    'baila con total descaro en medio del dungeon.',
+    'se mueve al ritmo de música imaginaria.',
+    'ejecuta unos pasos de baile peculiares.',
+  ],
+  shrug: [
+    'se encoge de hombros con indiferencia.',
+    'levanta los hombros como diciendo "qué sé yo".',
+    'hace un gesto de "ni idea".',
+  ],
+  facepalm: [
+    'se lleva la mano a la cara con resignación.',
+    'cubre su cara con ambas manos.',
+    'suspira y sacude la cabeza.',
+  ],
+  flex: [
+    'flexiona los músculos con orgullo.',
+    'hace una pose heroica y exagerada.',
+    'muestra sus bíceps al mundo.',
+  ],
+};
+
+function cmdGesture(player, gestureType) {
+  player = db.getPlayer(player.id);
+  const texts = GESTURE_TEXTS[gestureType];
+  if (!texts) return { text: 'Gesto desconocido.' };
+  const text = texts[Math.floor(Math.random() * texts.length)];
+  const name = player.nickname || player.username;
+  return {
+    text: `✨ ${name} ${text}`,
+    roomEvent: `✨ ${name} ${text}`,
   };
 }

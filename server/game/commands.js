@@ -142,6 +142,15 @@ const COMMAND_ALIASES = {
   auctions: 'auctions', subastas: 'auctions', remates: 'auctions', sala_subasta: 'auctions',
   // market / mercado de jugadores (T181)
   market: 'market', mercado: 'market', tianguis: 'market', tablero: 'market', tablón: 'market',
+  // gestos sociales (T182)
+  bow: 'gesture', reverencia: 'gesture', inclinarse: 'gesture',
+  wave: 'gesture', ola: 'gesture', saludar_mano: 'gesture', adios: 'gesture',
+  laugh: 'gesture', reir: 'gesture', reír: 'gesture', carcajada: 'gesture',
+  cry: 'gesture', llorar: 'gesture', sollozar: 'gesture',
+  dance: 'gesture', bailar: 'gesture', danzar: 'gesture',
+  shrug: 'gesture', encoger: 'gesture', encogerse: 'gesture',
+  facepalm: 'gesture', palma: 'gesture', vergüenza: 'gesture',
+  flex: 'gesture', musculos: 'gesture', músculos: 'gesture', posar: 'gesture',
   // dice / dados (T100)
   dice: 'dice', dado: 'dice', dados: 'dice', tirar: 'dice', roll: 'dice', rodar: 'dice',
   // drink / beber (T103)
@@ -277,6 +286,21 @@ function parse(input) {
   if (canonical === 'move' && rest.length > 0) {
     const dir = normalizeDirection(rest[0]) || rest[0];
     return { command: 'move', args: [dir], raw: trimmed };
+  }
+
+  // Para 'gesture', pasar el alias como primer arg (para saber qué gesto es)
+  if (canonical === 'gesture') {
+    const GESTURE_MAP = {
+      bow: 'bow', reverencia: 'bow', inclinarse: 'bow',
+      wave: 'wave', ola: 'wave', saludar_mano: 'wave', adios: 'wave',
+      laugh: 'laugh', reir: 'laugh', reír: 'laugh', carcajada: 'laugh',
+      cry: 'cry', llorar: 'cry', sollozar: 'cry',
+      dance: 'dance', bailar: 'dance', danzar: 'dance',
+      shrug: 'shrug', encoger: 'shrug', encogerse: 'shrug',
+      facepalm: 'facepalm', palma: 'facepalm', vergüenza: 'facepalm',
+      flex: 'flex', musculos: 'flex', músculos: 'flex', posar: 'flex',
+    };
+    return { command: 'gesture', args: [GESTURE_MAP[first] || first, ...rest], raw: trimmed };
   }
 
   return {
