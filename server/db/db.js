@@ -236,6 +236,18 @@ async function init() {
     )
   `);
 
+  // T188: Tablón global de anuncios
+  db.run(`
+    CREATE TABLE IF NOT EXISTS bulletin_board (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      author_id   TEXT NOT NULL,
+      author_name TEXT NOT NULL,
+      message     TEXT NOT NULL,
+      expires_at  TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // T156: Tabla de historial de sesiones
   db.run(`
     CREATE TABLE IF NOT EXISTS sessions (
@@ -1244,6 +1256,42 @@ function expireOldMarketListings() {
   return expired;
 }
 
+// ─── T188: Tablón global de anuncios ─────────────────────────────────────────
+
+function addBulletinPost(authorId, authorName, message) {
+  const expiresAt = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(); // 6 horas
+  run(
+    `INSERT INTO bulletin_board (author_id, author_name, message, expires_at) VALUES (?, ?, ?, ?)`,
+    [authorId, authorName, message, expiresAt]
+  );
+}
+
+function getBulletinPosts(limit = 10) {
+  return all(
+    `SELECT * FROM bulletin_board WHERE expires_at > datetime('now') ORDER BY created_at DESC LIMIT ?`,
+    [limit]
+  );
+}
+
+function getPlayerBulletinPosts(authorId) {
+  return all(
+    `SELECT * FROM bulletin_board WHERE author_id = ? AND expires_at > datetime('now') ORDER BY created_at DESC`,
+    [authorId]
+  );
+}
+
+function deleteBulletinPost(id, authorId) {
+  const post = one(`SELECT * FROM bulletin_board WHERE id = ?`, [id]);
+  if (!post) return false;
+  if (post.author_id !== authorId) return 'unauthorized';
+  run(`DELETE FROM bulletin_board WHERE id = ?`, [id]);
+  return true;
+}
+
+function expireOldBulletinPosts() {
+  run(`DELETE FROM bulletin_board WHERE expires_at <= datetime('now')`);
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -1285,4 +1333,6 @@ module.exports = {
   getFallenHardcorePlayers,
   // T181: mercado de jugadores
   createMarketListing, getActiveMarketListings, getMarketListing, buyMarketItem, cancelMarketListing, expireOldMarketListings, getPlayerMarketListings,
+  // T188: tablón global de anuncios
+  addBulletinPost, getBulletinPosts, getPlayerBulletinPosts, deleteBulletinPost, expireOldBulletinPosts,
 };

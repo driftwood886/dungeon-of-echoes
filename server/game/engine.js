@@ -235,6 +235,7 @@ function execute(playerId, input, context) {
     case 'pray':         result = cmdPray(player, action.args); break;
     case 'preview':      result = cmdPreview(player, action.args); break;
     case 'calendar':     result = cmdCalendar(player); break;
+    case 'bulletin':     result = cmdBulletin(player, action.args, context); break;
     case 'drink':        result = cmdDrink(player); break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
@@ -8099,6 +8100,73 @@ function cmdCalendar(player) {
     lines.push(`║  ${'Todas las trampas están desactivadas'.padEnd(W - 3)} ║`);
   }
 
+  lines.push(`╚${'═'.repeat(W)}╝`);
+  return { text: lines.join('\n') };
+}
+
+// ─── T188: bulletin/tablón — tablón global de anuncios ───────────────────────
+function cmdBulletin(player, args, context) {
+  player = db.getPlayer(player.id);
+  const sub = (args[0] || '').toLowerCase();
+  const W = 52;
+  const pad = (s, w) => { const str = String(s); return str + ' '.repeat(Math.max(0, w - str.length)); };
+
+  // ── bulletin post <mensaje> ──────────────────────────────────────────────
+  if (sub === 'post' || sub === 'publicar' || sub === 'nuevo' || sub === 'add') {
+    const msg = args.slice(1).join(' ').trim();
+    if (!msg) return { text: '📋 Uso: bulletin post <mensaje> (máx 100 chars)' };
+    if (msg.length > 100) return { text: `📋 El mensaje es muy largo (${msg.length}/100 chars).` };
+    // Verificar límite: máx 3 posts activos por jugador
+    const myPosts = db.getPlayerBulletinPosts(player.id);
+    if (myPosts.length >= 3) {
+      return { text: '📋 Ya tenés 3 anuncios activos. Eliminá uno con `bulletin del <id>` antes de publicar otro.' };
+    }
+    db.addBulletinPost(player.id, player.username, msg);
+    // Broadcast global
+    return {
+      text: `📋 Anuncio publicado! Expira en 6 horas.\n   "${msg}"`,
+      globalEvent: `📋 [TABLÓN] ${player.username}: ${msg}`,
+    };
+  }
+
+  // ── bulletin del/borrar <id> ─────────────────────────────────────────────
+  if (sub === 'del' || sub === 'borrar' || sub === 'cancel' || sub === 'cancelar') {
+    const id = parseInt(args[1]);
+    if (isNaN(id)) return { text: '📋 Uso: bulletin del <id>' };
+    const result = db.deleteBulletinPost(id, player.id);
+    if (result === false) return { text: `📋 No existe ningún anuncio con id ${id}.` };
+    if (result === 'unauthorized') return { text: '📋 Solo podés borrar tus propios anuncios.' };
+    return { text: `📋 Anuncio #${id} eliminado.` };
+  }
+
+  // ── bulletin list / sin args — listar posts ──────────────────────────────
+  const posts = db.getBulletinPosts(10);
+  const lines = [];
+  lines.push(`╔${'═'.repeat(W)}╗`);
+  lines.push(`║${'📋 TABLÓN GLOBAL DE ANUNCIOS'.padStart(Math.floor((W + 28) / 2)).padEnd(W)}║`);
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  if (posts.length === 0) {
+    lines.push(`║  ${'(sin anuncios activos)'.padEnd(W - 3)} ║`);
+  } else {
+    for (const post of posts) {
+      const ts = post.created_at ? post.created_at.slice(5, 16).replace('T', ' ') : '??';
+      const header = `#${post.id} ${post.author_name} [${ts}]`;
+      lines.push(`║ ${pad(header, W - 2)} ║`);
+      // Partir mensaje largo en líneas de W-4 chars
+      const msgChunks = [];
+      for (let i = 0; i < post.message.length; i += W - 5) {
+        msgChunks.push(post.message.slice(i, i + W - 5));
+      }
+      for (const chunk of msgChunks) {
+        lines.push(`║   ${pad(chunk, W - 4)} ║`);
+      }
+      lines.push(`╟${'─'.repeat(W)}╢`);
+    }
+    lines.pop(); // quitar el último separador
+  }
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  lines.push(`║  ${'bulletin post <msg>  — publicar (máx 100 chars, 6h)'.padEnd(W - 3)} ║`);
+  lines.push(`║  ${'bulletin del <id>    — borrar tu anuncio'.padEnd(W - 3)} ║`);
   lines.push(`╚${'═'.repeat(W)}╝`);
   return { text: lines.join('\n') };
 }

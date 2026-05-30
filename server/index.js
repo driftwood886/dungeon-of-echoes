@@ -511,6 +511,15 @@ async function main() {
       console.error('[sacredRegen] Error:', e.message);
     }
   }, 10_000);
+
+  // 14. T188: Expiración de posts del tablón cada hora
+  setInterval(() => {
+    try {
+      db.expireOldBulletinPosts();
+    } catch (e) {
+      console.error('[bulletin] Error expirando posts:', e.message);
+    }
+  }, 60 * 60 * 1000);
 }
 
 main().catch(err => {

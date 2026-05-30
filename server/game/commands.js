@@ -245,6 +245,8 @@ const COMMAND_ALIASES = {
   preview: 'preview', probar: 'preview', comparar_item: 'preview', previsualizar: 'preview', 'equip?': 'preview',
   // calendar / temporizadores (T187)
   calendar: 'calendar', eventos: 'calendar', timers: 'calendar', temporizadores: 'calendar', agenda: 'calendar',
+  // bulletin / tablón global de anuncios (T188)
+  bulletin: 'bulletin', tablón: 'bulletin', tablon: 'bulletin', anuncios: 'bulletin', boletin: 'bulletin', boletín: 'bulletin',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
