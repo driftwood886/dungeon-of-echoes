@@ -494,6 +494,16 @@ function getLeaderboardByDuels(limit = 10) {
   );
 }
 
+function getLeaderboardByReputation(limit = 10) {
+  return all(
+    `SELECT username, level, reputation, kills
+     FROM players
+     ORDER BY reputation DESC, level DESC
+     LIMIT ?`,
+    [limit]
+  );
+}
+
 // ─── Offline Messages (tell) ─────────────────────────────────────────────────
 
 function saveOfflineMessage(senderUsername, targetPlayerId, message) {
@@ -785,7 +795,7 @@ module.exports = {
   // players
   getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, addJournalEntry, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers,
   // reputación (T125)
-  addReputation, getReputationLevel,
+  addReputation, getReputationLevel, getLeaderboardByReputation,
   // rooms
   getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, checkTrapRespawns,
   // monsters

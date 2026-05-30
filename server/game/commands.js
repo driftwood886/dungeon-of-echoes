@@ -302,7 +302,7 @@ const COMMAND_HELP = {
   give:      'give <ítem> <jugador> / dar <ítem> <jugador>\n  Pasar un ítem de tu inventario a otro jugador que esté en la misma sala.',
   map:       'map / mapa\n  Ver el mapa ASCII del dungeon con tu posición marcada con ★.',
   who:       'who / jugadores / online\n  Listar todos los aventureros activos en el dungeon (vistos en los últimos 5 minutos).',
-  score:     'score / ranking\n  Ver la tabla de líderes global: los 10 mejores por kills, XP y nivel.',
+  score:     'score / ranking\n  Ver la tabla de líderes global: los 10 mejores por kills, XP y nivel.\n  Subcategorías: \"score oro\" (riqueza) | \"score duelos\" (PvP) | \"score rep\" (reputación)',
   say:       'say <mensaje> / decir <mensaje>\n  Hablar con los jugadores que están en la misma sala.',
   shout:     'shout <mensaje> / gritar <mensaje>\n  Gritar un mensaje que todos los jugadores del dungeon escuchan.',
   whisper:   'whisper <jugador> <mensaje> / susurrar <jugador> <mensaje>\n  Enviar un mensaje privado a otro jugador (en cualquier sala). Solo el destinatario lo ve.',

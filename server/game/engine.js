@@ -1046,6 +1046,9 @@ function cmdScore(player, args) {
   if (mode === 'duelos' || mode === 'duel' || mode === 'duelo' || mode === 'pvp') {
     return cmdScoreDuels();
   }
+  if (mode === 'rep' || mode === 'reputacion' || mode === 'reputación' || mode === 'fama') {
+    return cmdScoreReputation();
+  }
 
   // Modo default: kills + XP
   const leaders = db.getLeaderboard(10);
@@ -1074,7 +1077,7 @@ function cmdScore(player, args) {
   });
 
   lines.push(`╚═════════════════════════════════════════════════════╝`);
-  lines.push(`  Subcategorías: "score oro" (riqueza) | "score duelos" (PvP)`);
+  lines.push(`  Subcategorías: "score oro" (riqueza) | "score duelos" (PvP) | "score rep" (reputación)`);
 
   return { text: lines.join('\n') };
 }
@@ -1135,9 +1138,33 @@ function cmdScoreDuels() {
   return { text: lines.join('\n') };
 }
 
-/**
- * heal — Usar la primera poción del inventario (atajo rápido de combate).
- */
+function cmdScoreReputation() {
+  const leaders = db.getLeaderboardByReputation(10);
+  if (leaders.length === 0) {
+    return { text: 'Aún no hay aventureros con reputación en el dungeon.' };
+  }
+  const lines = [
+    `╔═══════════════════════════════════════════════╗`,
+    `║   🌟  RANKING DE REPUTACIÓN — TOP 10  🌟       ║`,
+    `╠═══════════════════════════════════════════════╣`,
+    `║  #   Aventurero         Lv    Rep  Nivel       ║`,
+    `╠═══════════════════════════════════════════════╣`,
+  ];
+  leaders.forEach((p, idx) => {
+    const rank   = String(idx + 1).padStart(2, ' ');
+    const name   = (p.username || '???').substring(0, 15).padEnd(15, ' ');
+    const level  = String(p.level || 1).padStart(3, ' ');
+    const rep    = String(p.reputation || 0).padStart(5, ' ');
+    const repInfo = db.getReputationLevel(p.reputation || 0);
+    const repName = `${repInfo.icon} ${repInfo.name}`.padEnd(12, ' ');
+    const medal  = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
+    lines.push(`║ ${medal}${rank}  ${name}  ${level}  ${rep}  ${repName}║`);
+  });
+  lines.push(`╚═══════════════════════════════════════════════╝`);
+  lines.push(`  Usá "score" para kills/XP, "score oro" para riqueza, "score duelos" para PvP.`);
+  return { text: lines.join('\n') };
+}
+
 function cmdHeal(player) {
   player = db.getPlayer(player.id);
 
