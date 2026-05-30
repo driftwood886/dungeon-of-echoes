@@ -519,7 +519,7 @@ function migrateAuctionRoom() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom };
 
 /**
  * Sala de la Fuente de Rejuvenecimiento (T103): sala 18 conectada al norte de la sala 10 (Santuario Profano).
@@ -622,5 +622,83 @@ function migrateEchoRooms() {
       respawn_room_id: 20,
     });
     console.log('[seed] migrateEchoRooms: Sombra del Vacío (id 22) creado en sala 20.');
+  }
+}
+
+/**
+ * T143 — Sala de Entrenamiento (sala 21) conectada al sur de sala 16 (Antesala del Dungeon).
+ * Contiene 3 maniquíes de paja (ids 23, 24, 25) que se regeneran solos.
+ * El combate aquí NO da XP, kills ni loot real — solo estadísticas.
+ */
+function migrateTrainingRoom() {
+  // Sala 21 — Sala de Práctica
+  const trainingRoom = db.getRoom(21);
+  if (!trainingRoom) {
+    db.upsertRoom({
+      id: 21,
+      name: 'Sala de Práctica',
+      description: 'Una sala acolchada con muros de madera reforzada. Tres maniquíes de paja cuelgan de postes de hierro, listos para ser golpeados sin misericordia. En la pared hay una pizarra con inscripciones: "Aquí no hay gloria, solo entrenamiento. Nada de lo que pase aquí cuenta en el registro."',
+      exits: { north: 16 },
+      items: [],
+    });
+    console.log('[seed] migrateTrainingRoom: Sala 21 (Sala de Práctica) creada.');
+
+    // Conectar sala 16 para que tenga salida al sur hacia sala 21
+    const room16 = db.getRoom(16);
+    if (room16) {
+      const exits16 = room16.exits || {};
+      exits16.south = 21;
+      db.upsertRoom({ ...room16, exits: exits16 });
+      console.log('[seed] migrateTrainingRoom: Sala 16 actualizada con salida south → 21.');
+    }
+  }
+
+  // Maniquí 1 (id 23)
+  if (!db.getMonster(23)) {
+    db.upsertMonster({
+      id: 23,
+      name: 'Maniquí de Paja',
+      description: 'Un muñeco de entrenamiento relleno de paja y arena. Sus ojos de carbón parecen burlarse de vos. Aguanta golpes sin quejarse.',
+      hp: 20,
+      max_hp: 20,
+      attack: 2,
+      room_id: 21,
+      loot: [],
+      respawn_room_id: 21,
+    });
+    console.log('[seed] migrateTrainingRoom: Maniquí de Paja #1 (id 23) creado.');
+  }
+
+  // Maniquí 2 (id 24)
+  if (!db.getMonster(24)) {
+    db.upsertMonster({
+      id: 24,
+      name: 'Maniquí Blindado',
+      description: 'Un maniquí recubierto con placas de madera y cuero endurecido. Más resistente que el básico. Ideal para practicar ataques potentes.',
+      hp: 35,
+      max_hp: 35,
+      attack: 3,
+      defense: 2,
+      room_id: 21,
+      loot: [],
+      respawn_room_id: 21,
+    });
+    console.log('[seed] migrateTrainingRoom: Maniquí Blindado #2 (id 24) creado.');
+  }
+
+  // Maniquí 3 (id 25)
+  if (!db.getMonster(25)) {
+    db.upsertMonster({
+      id: 25,
+      name: 'Maniquí Veloz',
+      description: 'Un maniquí montado en un pivote giratorio que contraataca con rapidez. Golpea más fuerte que los otros pero cae rápido. Perfecto para practicar esquivas.',
+      hp: 15,
+      max_hp: 15,
+      attack: 5,
+      room_id: 21,
+      loot: [],
+      respawn_room_id: 21,
+    });
+    console.log('[seed] migrateTrainingRoom: Maniquí Veloz #3 (id 25) creado.');
   }
 }

@@ -10,7 +10,7 @@ const http    = require('http');
 const path    = require('path');
 
 const db                     = require('./db/db');
-const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms } = require('./db/seed');
+const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom } = require('./db/seed');
 const { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions } = require('./game/engine');
 const { checkRespawns }      = require('./game/combat');
 const quests                 = require('./game/quests');
@@ -27,6 +27,7 @@ async function main() {
   migrateAuctionRoom();
   migrateFountainRoom();
   migrateEchoRooms();
+  migrateTrainingRoom();
 
   // 2. Crear app Express
   const app = express();
@@ -394,6 +395,17 @@ async function main() {
 
   // 9. Trap respawn loop: reactivar trampas desactivadas cada 60 segundos
   setInterval(() => db.checkTrapRespawns(), 60_000);
+
+  // T143: Training dummy regen loop — regenerar maniquíes en sala 21 cada 10 segundos
+  const TRAINING_DUMMY_IDS_SERVER = [23, 24, 25];
+  setInterval(() => {
+    for (const dummyId of TRAINING_DUMMY_IDS_SERVER) {
+      const dummy = db.getMonster(dummyId);
+      if (dummy && dummy.hp < dummy.max_hp) {
+        db.updateMonster(dummyId, { hp: dummy.max_hp, room_id: 21 });
+      }
+    }
+  }, 10_000);
 
   // 10. Quest loop: iniciar quest activa + rotar cada 5 minutos si pasaron 30 min
   quests.loadQuest();

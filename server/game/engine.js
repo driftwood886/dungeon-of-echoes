@@ -557,9 +557,129 @@ function cmdStatus(player) {
   return { text: text + '\n' + achLine };
 }
 
+// T143: IDs de maniquíes de entrenamiento (sala 21)
+const TRAINING_ROOM_ID = 21;
+const TRAINING_DUMMY_IDS = new Set([23, 24, 25]);
+
+/**
+ * T143: _cmdTrainingFight — Combate completo contra un maniquí en la Sala de Práctica.
+ * Resuelve el combate turno a turno hasta que el maniquí muere o el jugador queda en < 5 HP.
+ * No otorga XP, kills ni loot. Al terminar muestra estadísticas detalladas y regenera el maniquí.
+ */
+function _cmdTrainingFight(player, monster) {
+  const lines = [];
+  const monsterNameArticle = monster.name;
+
+  lines.push(`🎯 ¡Iniciás sesión de entrenamiento contra el ${monsterNameArticle}!`);
+  lines.push(`   (Nada de lo que pase aquí afecta tu registro real.)`);
+  lines.push(`${'─'.repeat(44)}`);
+
+  // Estadísticas del combate
+  const stats = {
+    turns: 0,
+    dmg_dealt: 0,
+    dmg_received: 0,
+    crits: 0,
+    dodges: 0,
+    player_hp_start: player.hp,
+  };
+
+  // Clonar HP del monstruo para la simulación (no persistimos daño)
+  let monsterHp = monster.hp;
+  const monsterMaxHp = monster.max_hp;
+
+  // Estado local del jugador (sin persistir cambios de HP salvo al final)
+  let playerHp = player.hp;
+
+  const classes = require('./classes');
+  const clsData = classes.getPlayerClass(player);
+  const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0);
+  const dodgeChance = 0.08 + (clsData ? (clsData.dodge_bonus || 0) / 100 : 0);
+
+  let MAX_TURNS = 50; // seguridad
+  while (monsterHp > 0 && playerHp > 4 && MAX_TURNS-- > 0) {
+    stats.turns++;
+
+    // Jugador ataca
+    const petBonus = player.pet ? 1 : 0;
+    const atkBase = (player.attack || 5) + petBonus;
+    const variance = Math.floor(atkBase * 0.2);
+    const rawDmg = atkBase + (variance > 0 ? Math.floor(Math.random() * (variance * 2 + 1)) - variance : 0);
+    const isCrit = Math.random() < critChance;
+    const playerDmg = Math.max(1, (isCrit ? rawDmg * 2 : rawDmg) - (monster.defense || 0));
+    monsterHp = Math.max(0, monsterHp - playerDmg);
+
+    if (isCrit) {
+      stats.crits++;
+      lines.push(`  T${stats.turns} 💥 CRÍTICO: ${playerDmg} dmg al maniquí (${monsterHp}/${monsterMaxHp} HP)`);
+    } else {
+      lines.push(`  T${stats.turns} ⚔  Atacás: ${playerDmg} dmg al maniquí (${monsterHp}/${monsterMaxHp} HP)`);
+    }
+    stats.dmg_dealt += playerDmg;
+
+    if (monsterHp <= 0) break;
+
+    // Maniquí contraataca
+    const monAtk = monster.attack || 2;
+    const monVariance = Math.floor(monAtk * 0.2);
+    const monRaw = monAtk + (monVariance > 0 ? Math.floor(Math.random() * (monVariance * 2 + 1)) - monVariance : 0);
+    const isDodge = Math.random() < dodgeChance;
+    if (isDodge) {
+      stats.dodges++;
+      lines.push(`  T${stats.turns} 💨 Esquivás el golpe del maniquí!`);
+    } else {
+      const dmgToPlayer = Math.max(1, monRaw - (player.defense || 0));
+      playerHp = Math.max(0, playerHp - dmgToPlayer);
+      stats.dmg_received += dmgToPlayer;
+      lines.push(`  T${stats.turns} 🩸 Maniquí te golpea: ${dmgToPlayer} dmg (${playerHp}/${player.max_hp} HP)`);
+    }
+  }
+
+  lines.push(`${'─'.repeat(44)}`);
+
+  if (monsterHp <= 0) {
+    lines.push(`💥 ¡Destrozaste al ${monsterNameArticle} en ${stats.turns} turnos!`);
+  } else {
+    lines.push(`⚠️  Retirás del entrenamiento con HP bajo (${playerHp}/${player.max_hp} HP).`);
+  }
+
+  // Actualizar HP del jugador (los golpes recibidos son reales en entrenamiento)
+  if (playerHp !== player.hp) {
+    db.updatePlayer(player.id, { hp: playerHp });
+  }
+
+  // Regenerar el maniquí inmediatamente
+  db.updateMonster(monster.id, { hp: monsterMaxHp, room_id: monster.room_id || 21 });
+
+  // Calcular DPS estimado
+  const dps = stats.turns > 0 ? (stats.dmg_dealt / stats.turns).toFixed(1) : '0';
+
+  // Mostrar estadísticas
+  lines.push(`${'─'.repeat(44)}`);
+  lines.push(`📊 ESTADÍSTICAS DE ENTRENAMIENTO`);
+  lines.push(`  Turnos:         ${stats.turns}`);
+  lines.push(`  Daño infligido: ${stats.dmg_dealt} total  (DPS: ${dps})`);
+  lines.push(`  Golpes críticos:${stats.crits} (${stats.turns > 0 ? Math.round(stats.crits / stats.turns * 100) : 0}% de crits)`);
+  lines.push(`  Daño recibido:  ${stats.dmg_received} total`);
+  lines.push(`  Esquivas:       ${stats.dodges} / ${stats.turns} turnos`);
+  lines.push(`  HP final:       ${playerHp}/${player.max_hp}`);
+  lines.push(`${'─'.repeat(44)}`);
+  lines.push(`🔄 El ${monsterNameArticle} se regenera para el próximo round.`);
+  if (clsData) {
+    lines.push(`💡 Clase activa: ${clsData.name} · Crit: ${Math.round(critChance * 100)}% · Esquiva: ${Math.round(dodgeChance * 100)}%`);
+  }
+
+  return {
+    text: lines.join('\n'),
+    event: `${player.username} practica combate contra el ${monsterNameArticle}.`,
+    eventRoomId: TRAINING_ROOM_ID,
+  };
+}
+
 /**
  * attack <nombre> — Atacar a un monstruo de la habitación.
  */
+
 function cmdAttack(player, targetName) {
   if (!targetName || !targetName.trim()) {
     return { text: 'Indicá a quién querés atacar. Ej: "attack goblin".' };
@@ -571,6 +691,13 @@ function cmdAttack(player, targetName) {
   const monster = combat.findMonsterInRoom(player.current_room_id, targetName.trim());
   if (!monster) {
     return { text: `No hay ningún "${targetName}" aquí.` };
+  }
+
+  // ── T143: Modo entrenamiento ───────────────────────────────────────────────
+  // Si el jugador está en la Sala de Práctica atacando un maniquí, corre el combate
+  // completo en un solo comando con estadísticas detalladas. Sin XP, kills ni loot.
+  if (player.current_room_id === TRAINING_ROOM_ID && TRAINING_DUMMY_IDS.has(monster.id)) {
+    return _cmdTrainingFight(player, monster);
   }
 
   const combatResult = combat.attackRound(player, monster);
