@@ -301,6 +301,9 @@ function registerHandlers(io) {
       // Limpiar del mapa de sockets directos
       playerSockets.delete(currentPlayerId);
 
+      // T146: Limpiar flag AFK al desconectar
+      engine.clearAfk(currentPlayerId);
+
       const player = db.getPlayer(currentPlayerId);
       if (player) {
         socket.to(`room_${currentRoomId}`).emit('event', {

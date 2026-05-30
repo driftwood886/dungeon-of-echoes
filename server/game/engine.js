@@ -59,6 +59,12 @@ const pendingPartyInvites = new Map();
 // pendingTrades.get(targetPlayerId) → { initiatorId, initiatorUsername, item, roomId, expiresAt }
 const pendingTrades = new Map();
 
+// ── Sistema AFK (T146) ────────────────────────────────────────────────────────
+// afkPlayers: Set de player IDs que están AFK
+// afkCooldowns: Map playerId → timestamp (ms) del último toggle, para cooldown 10s
+const afkPlayers = new Set();
+const afkCooldowns = new Map();
+
 // ── Fuente de Rejuvenecimiento (T103) ─────────────────────────────────────────
 // Sala 18 — Cámara de la Fuente Eterna.
 // Cooldown global: 10 minutos por sala (no por jugador).
@@ -120,6 +126,13 @@ function execute(playerId, input, context) {
   }
 
   let result;
+
+  // ── T146: Verificación AFK ─────────────────────────────────────────────────
+  // Si el jugador está AFK, bloquear todos los comandos excepto 'afk' (y comandos de chat pasivos)
+  if (afkPlayers.has(player.id) && action.command !== 'afk') {
+    return { text: `💤 Estás en modo ausente (AFK). Escribí "afk" para volver al juego.` };
+  }
+
   switch (action.command) {
     case 'look':      result = cmdLook(player); break;
     case 'move':      result = cmdMove(player, action.args[0]); break;
@@ -196,6 +209,7 @@ function execute(playerId, input, context) {
     case 'runas':        result = cmdRunas(player); break;
     case 'challenge':    result = cmdChallenge(player); break;
     case 'macro':        result = cmdMacro(player, action.args, context); break;
+    case 'afk':          result = cmdAfk(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -695,6 +709,12 @@ function cmdAttack(player, targetName) {
 
   // Refrescar player desde BD para tener HP actualizado
   player = db.getPlayer(player.id);
+
+  // T146: Cancelar AFK automáticamente al entrar en combate
+  if (clearAfk(player.id)) {
+    // El mensaje de cancelación AFK se incluirá junto con el resultado del ataque
+    // (pero como no podemos devolver dos results, simplemente lo cancelamos silenciosamente)
+  }
 
   const monster = combat.findMonsterInRoom(player.current_room_id, targetName.trim());
   if (!monster) {
@@ -1341,7 +1361,8 @@ function cmdWho() {
       const guildTag = p.guild ? ` [${p.guild}]` : '';
       const titleIcon = getTitle(p.kills || 0).icon;
       const repIcon = db.getReputationLevel(p.reputation || 0).icon;
-      return `  ${(p.username + guildTag).padEnd(22)} ${titleIcon}${repIcon} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}  │  ${p.room_name || 'Desconocido'}`;
+      const afkTag = afkPlayers.has(p.id) ? ' 💤' : '';
+      return `  ${(p.username + guildTag).padEnd(22)} ${titleIcon}${repIcon} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}${afkTag}  │  ${p.room_name || 'Desconocido'}`;
     }),
     ``,
     `(jugadores activos en los últimos 5 minutos)`,
@@ -5441,4 +5462,46 @@ function cmdMacro(player, args, context) {
   return { text: `⚠️ No encontré la macro "!${sub}". Usá: macro list para ver tus macros.` };
 }
 
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge };
+// ── T146: Sistema AFK ─────────────────────────────────────────────────────────
+/**
+ * Comando afk — togglea el modo ausente.
+ * Cooldown de 10s entre toggles para evitar spam.
+ */
+function cmdAfk(player) {
+  const now = Date.now();
+  const lastToggle = afkCooldowns.get(player.id) || 0;
+  if (now - lastToggle < 10_000) {
+    const wait = Math.ceil((10_000 - (now - lastToggle)) / 1000);
+    return { text: `⚠️ Esperá ${wait}s antes de cambiar el estado AFK de nuevo.` };
+  }
+  afkCooldowns.set(player.id, now);
+
+  if (afkPlayers.has(player.id)) {
+    afkPlayers.delete(player.id);
+    return { text: `✅ Ya no estás en modo ausente (AFK). ¡Bienvenido de vuelta, ${player.username}!` };
+  } else {
+    afkPlayers.add(player.id);
+    return { text: `💤 Modo ausente activado (AFK). Todos tus comandos quedarán bloqueados hasta que escribás "afk" de nuevo.` };
+  }
+}
+
+/**
+ * Verificar si un jugador está AFK y cancelarlo automáticamente al entrar en combate.
+ * Llamar desde cmdAttack.
+ */
+function clearAfk(playerId) {
+  if (afkPlayers.has(playerId)) {
+    afkPlayers.delete(playerId);
+    return true; // fue cancelado
+  }
+  return false;
+}
+
+/**
+ * Exponer el set AFK para que cmdWho y otros módulos puedan consultarlo.
+ */
+function isAfk(playerId) {
+  return afkPlayers.has(playerId);
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk };

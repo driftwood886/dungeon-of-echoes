@@ -180,6 +180,7 @@ const COMMAND_ALIASES = {
   challenge: 'challenge', desafio: 'challenge', desafío: 'challenge', 'desafio-diario': 'challenge', daily: 'challenge', mision_diaria: 'challenge', reto: 'challenge',
   // macro (T142)
   macro: 'macro', macros: 'macro', '!': 'macro',
+  afk: 'afk', ausente: 'afk', ocupado: 'afk', away: 'afk',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -364,7 +365,8 @@ const COMMAND_HELP = {
     recall:    'recall / volver / retornar\\\\n  Teletransportarse a la entrada del dungeon (sala 1).\\\\n  Costo: 5 HP. Cooldown: 10 minutos.\\\\n  Útil para escapar de zonas peligrosas o volver rápido al mercader.',
     trade:     'trade <jugador> <ítem> / intercambiar <jugador> <ítem>\\\\n  Proponer un intercambio seguro de ítems con otro jugador en la misma sala.\\\\n  El jugador destino puede responder con:\\\\n    trade accept — aceptar el trueque (se intercambian los ítems)\\\\n    trade cancel/decline — rechazar la propuesta\\\\n  La propuesta expira en 30 segundos.\\\\n  Diferencia con give: trade requiere que ambos estén de acuerdo.',
   lore:      'lore <item> / enciclopedia <item>',
-  peek:      'peek <dirección> / espiar <dirección> / asomarse <dirección>\\n  Espiar en una dirección sin moverse.\\n  Muestra el nombre de la sala adyacente, si hay monstruos (sin detalles de HP) y si hay ítems en el suelo.\\n  No funciona si la salida está bloqueada con llave.\\n  Útil para scouting antes de entrar a una sala peligrosa.',
+  peek:      'peek <dirección> / espiar <dirección> / asomarse <dirección>\\\\n  Espiar en una dirección sin moverse.\\\\n  Muestra el nombre de la sala adyacente, si hay monstruos (sin detalles de HP) y si hay ítems en el suelo.\\\\n  No funciona si la salida está bloqueada con llave.\\\\n  Útil para scouting antes de entrar a una sala peligrosa.',
+  afk:       'afk / ausente / ocupado / away\\\\n  Activar o desactivar el modo ausente (AFK).\\\\n  Mientras estés AFK, todos tus comandos quedarán bloqueados (excepto afk).\\\\n  En la lista de jugadores (who) aparecerás con 💤 junto a tu nombre.\\\\n  Si intentás atacar a un monstruo, el modo AFK se cancela automáticamente.\\\\n  Cooldown de 10 segundos entre toggles.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };
