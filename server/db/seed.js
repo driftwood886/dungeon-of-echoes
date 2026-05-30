@@ -519,7 +519,7 @@ function migrateAuctionRoom() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom };
 
 /**
  * T152: Agregar armaduras al loot de algunos monstruos.
@@ -761,5 +761,37 @@ function migrateScrollLoot() {
   if (shadow && !shadow.loot.includes('pergamino de escudo')) {
     db.updateMonster(22, { loot: [...shadow.loot, 'pergamino de escudo'] });
     console.log('[seed] migrateScrollLoot: pergamino de escudo agregado a Sombra del Vacío (id 22).');
+  }
+}
+
+/**
+ * T179 — Cripta de los Valientes (sala 22).
+ * Sala especial conectada al sur de la sala 15 (Catedral de la Oscuridad).
+ * Las placas en la pared son wall_messages generados automáticamente al caer un jugador Hardcore.
+ */
+function migrateCryptRoom() {
+  const cryptRoom = db.getRoom(22);
+  if (!cryptRoom) {
+    db.upsertRoom({
+      id: 22,
+      name: 'Cripta de los Valientes',
+      description: 'Una cámara fría tallada en piedra oscura. Las paredes están cubiertas de placas grabadas, cada una con el nombre de un aventurero que cayó en el Dungeon sin rendirse. El aire huele a cera de velas apagadas. Una inscripción en el arco de entrada dice: \"Aquí descansan los que eligieron la gloria por encima de la seguridad.\" El silencio aquí es absoluto, reverente.',
+      exits: { north: 15 },
+      items: [],
+    });
+    console.log('[seed] migrateCryptRoom: Sala 22 (Cripta de los Valientes) creada.');
+
+    // Conectar sala 15 para que tenga salida al sur hacia sala 22
+    const room15 = db.getRoom(15);
+    if (room15) {
+      const exits15 = room15.exits || {};
+      // sala 15 ya tiene south → sala 19 (Cámara del Eco), usamos west si no hay otro
+      // En realidad podemos agregar una segunda salida; pero según el mapa original
+      // sala 15 tiene west: 14 y south: 19. Usar southwest o una dirección libre.
+      // Solución: conectar via 'down' (abajo/bajar — la cripta está enterrada bajo la catedral)
+      exits15.down = 22;
+      db.upsertRoom({ ...room15, exits: exits15 });
+      console.log('[seed] migrateCryptRoom: Sala 15 actualizada con salida down → 22.');
+    }
   }
 }

@@ -61,6 +61,7 @@ const COMMAND_ALIASES = {
   rank: 'rank', posicion: 'rank', posición: 'rank', miposicion: 'rank', 'mi-posicion': 'rank',
   // T175: hardcore mode
   hardcore: 'hardcore', 'modo-hardcore': 'hardcore', permadeath: 'hardcore',
+  memorial: 'memorial', muro: 'memorial', homenaje: 'memorial', fallen: 'memorial', caidos: 'memorial',
   // give / dar
   give: 'give', dar: 'give', entregar: 'give', pasar: 'give', ofrecer: 'give',
   // pay / pagar / transferir oro

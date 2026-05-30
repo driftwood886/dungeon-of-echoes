@@ -143,6 +143,15 @@ const ACHIEVEMENTS = [
     secret: true,
     check: (p, _ctx) => (p.playtime_minutes || 0) >= 60,
   },
+  // T180: Logro Hardcore — Superviviente Implacable
+  {
+    id: 'superviviente_implacable',
+    icon: '💀🔴',
+    name: 'Superviviente Implacable',
+    desc: 'Alcanzar el nivel 10 en Modo Hardcore sin morir',
+    secret: true,
+    check: (p, _ctx) => p.is_hardcore === 1 && p.fallen !== 1 && (p.level || 1) >= 10,
+  },
 ];
 
 // ─── checkAchievements ─────────────────────────────────────────────────────────

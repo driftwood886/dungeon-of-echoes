@@ -47,6 +47,12 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
     lines.push(`💀 MUERTE HARDCORE — Tu personaje ${freshP.username} ${genRoman} ha CAÍDO.`);
     lines.push(`  Quedás como ✝ fantasma. Solo podés usar comandos pasivos.`);
     lines.push(`  Escribí "hardcore" para ver tu estado.`);
+    // T179: Grabar placa en la Cripta de los Valientes (sala 22)
+    try {
+      const dt = new Date().toISOString().replace('T', ' ').slice(0, 16);
+      const plaque = `✝ ${freshP.username} ${genRoman} — Niv. ${freshP.level} — ${freshP.kills} kills — ${dt}`;
+      db.addWallMessage(22, plaque, 'El Dungeon');
+    } catch (_) { /* si la sala 22 no existe aún, no falla el servidor */ }
     return { globalEvent: broadcastMsg };
   } else {
     // Muerte normal

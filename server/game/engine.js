@@ -165,7 +165,7 @@ function execute(playerId, input, context) {
 
   // ── T175: Ghost mode (Hardcore fallen) ────────────────────────────────────
   // Si el jugador cayó en modo Hardcore, solo puede usar comandos pasivos
-  const GHOST_ALLOWED = new Set(['look', 'status', 'who', 'score', 'profile', 'bestiary', 'journal', 'news', 'dungeon', 'history', 'help', 'changelog', 'server', 'time', 'enemies', 'compare', 'reputation', 'path', 'guide', 'find', 'runas', 'map', 'hardcore', 'read', 'lore', 'weather', 'world', 'challenge', 'rank', 'inventory']);
+  const GHOST_ALLOWED = new Set(['look', 'status', 'who', 'score', 'profile', 'bestiary', 'journal', 'news', 'dungeon', 'history', 'help', 'changelog', 'server', 'time', 'enemies', 'compare', 'reputation', 'path', 'guide', 'find', 'runas', 'map', 'hardcore', 'read', 'lore', 'weather', 'world', 'challenge', 'rank', 'inventory', 'memorial']);
   if (player.fallen === 1 && !GHOST_ALLOWED.has(action.command)) {
     return { text: `✝ Tu personaje cayó en modo Hardcore. Solo podés usar comandos pasivos.\n  (look, status, who, score, map, etc.)\n  Escribí "hardcore" para ver tu estado.` };
   }
@@ -219,6 +219,7 @@ function execute(playerId, input, context) {
     case 'wanted':       result = cmdWanted(player, action.args.join(' ')); break;  // T174
     case 'rank':         result = cmdRank(player, action.args.join(' ')); break;    // T176
     case 'hardcore':     result = cmdHardcore(player, action.args); break;          // T175
+    case 'memorial':     result = cmdMemorial(); break;                              // T178
     case 'world':        result = cmdWorld(); break;
     case 'weather':      result = cmdWeather(); break;
     case 'craft':        result = cmdCraft(player, action.args); break;
@@ -2198,6 +2199,7 @@ function cmdMap(player) {
     13: 'Caverna',
     14: 'Coliseo',
     15: 'Catedral',
+    22: 'Cripta',
   };
 
   function cell(id) {
@@ -2223,19 +2225,20 @@ function cmdMap(player) {
   // Fila baja: 11 | 5-1
 
   const lines = [
-    'MAPA DEL DUNGEON (15 salas)',
+    'MAPA DEL DUNGEON (16 salas + zonas especiales)',
     timeDecor,
     '',
     // Fila top: Prisión (arriba de 4) y Forja/Coliseo/Catedral (zona nueva)
     `         ${c(8)}                   ${c(12)}───${c(14)}───${c(15)}`,
-    `              │                        │         │`,
+    `              │                        │         │       │↓`,
     // Fila principal izquierda + santuario/conexión + zonas nuevas
-    `${c(7)}───${c(3)}───${c(4)}   ${c(10)}───${c(9)}───${c(6)}───${c(2)}   ${c(13)}`,
+    `${c(7)}───${c(3)}───${c(4)}   ${c(10)}───${c(9)}───${c(6)}───${c(2)}   ${c(13)}  ${c(22)}`,
     `  │              │                    │         │`,
     `${c(11)}          ${c(5)}───${c(1)}               │`,
     `                                       └───zona expandida`,
     '',
     `★ = tu ubicación actual (sala ${here}: ${NAMES[here] || '?'})`,
+    `(Cripta: sala 15 → bajar)`,
   ];
 
   return { text: lines.join('\n') };
@@ -7400,6 +7403,44 @@ function cmdHardcore(player, args) {
   return { text: 'Uso: hardcore [on/off/new]\nVer estado: hardcore\nCrear sucesor (tras caída): hardcore new' };
 }
 
+/**
+ * T178: cmdMemorial — Lista de todos los aventureros caídos en modo Hardcore.
+ */
+function cmdMemorial() {
+  const fallen = db.getFallenHardcorePlayers();
+  const W = 54;
+  const line = '═'.repeat(W);
+  const lines = [];
+  lines.push(`╔${line}╗`);
+  lines.push(`║${'  ✝  MEMORIAL DE LOS CAÍDOS  ✝'.padStart(Math.floor((W + 30) / 2)).padEnd(W)}║`);
+  lines.push(`║${'Aventureros perdidos en Modo Hardcore'.padStart(Math.floor((W + 38) / 2)).padEnd(W)}║`);
+  lines.push(`╠${line}╣`);
+
+  if (fallen.length === 0) {
+    lines.push(`║${''.padEnd(W)}║`);
+    lines.push(`║${'  Ningún valiente ha caído todavía.'.padEnd(W)}║`);
+    lines.push(`║${'  El Dungeon aguarda su primera víctima...'.padEnd(W)}║`);
+    lines.push(`║${''.padEnd(W)}║`);
+  } else {
+    const header = `  ${'NOMBRE'.padEnd(24)} ${'NIV'.padEnd(5)} ${'KILLS'.padEnd(6)} FECHA`;
+    lines.push(`║${header.padEnd(W)}║`);
+    lines.push(`╠${'─'.repeat(W)}╣`);
+    for (const p of fallen) {
+      const gen  = `(${toRoman(p.hardcore_generation || 1)})`;
+      const name = `✝ ${p.username} ${gen}`.slice(0, 24).padEnd(24);
+      const lv   = String(p.level).padEnd(5);
+      const ki   = String(p.kills).padEnd(6);
+      const dt   = p.fallen_at ? p.fallen_at.replace('T', ' ').slice(0, 10) : '???';
+      const row  = `  ${name} ${lv} ${ki} ${dt}`;
+      lines.push(`║${row.padEnd(W)}║`);
+    }
+  }
+
+  lines.push(`╚${line}╝`);
+  lines.push(`  (${fallen.length} aventurero${fallen.length !== 1 ? 's' : ''} caído${fallen.length !== 1 ? 's' : ''} en total)`);
+  return { text: lines.join('\n') };
+}
+
 /** Convertir número a romano (para generaciones I, II, III...) */
 function toRoman(n) {
   const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1];
@@ -7411,4 +7452,4 @@ function toRoman(n) {
   return result;
 }
 
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman };
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial };

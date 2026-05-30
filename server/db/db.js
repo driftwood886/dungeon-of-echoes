@@ -1172,6 +1172,16 @@ function getLeaderboardByPlaytime(limit = 10) {
   );
 }
 
+// T178: Obtener todos los jugadores caídos en modo Hardcore, ordenados por nivel desc
+function getFallenHardcorePlayers() {
+  return all(
+    `SELECT username, level, kills, fallen_at, hardcore_generation
+     FROM players
+     WHERE is_hardcore = 1 AND fallen = 1
+     ORDER BY level DESC, kills DESC`
+  );
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -1210,4 +1220,5 @@ module.exports = {
   getRecentlyDeadMonsters,
   // T156-T158: sesiones e historial de tiempo
   saveSession, getPlayerSessions, getLeaderboardByPlaytime,
+  getFallenHardcorePlayers,
 };
