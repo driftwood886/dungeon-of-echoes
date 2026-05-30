@@ -422,6 +422,10 @@ function initSocket() {
       addMsg(`🚫 ${data.message}`, 'system');
     } else if (data.type === 'sacred_regen') {
       addMsg(data.message, 'system');
+    } else if (data.type === 'session_summary') {
+      addSeparator();
+      addMsg(data.message, 'system');
+      addSeparator();
     } else if (data.type === 'offline_messages') {
       addSeparator();
       addMsg(data.message, 'tell');

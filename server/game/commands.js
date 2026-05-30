@@ -199,6 +199,8 @@ const COMMAND_ALIASES = {
   study: 'study', estudiar: 'study', analizar: 'study', investigar: 'study', examinar_monstruo: 'study',
   // dungeon / estado del dungeon (T151)
   dungeon: 'dungeon', 'dungeon-status': 'dungeon', 'estado-dungeon': 'dungeon', mapa_global: 'dungeon', overview: 'dungeon',
+  // session / estadísticas de sesión (T155)
+  session: 'session', sesion: 'session', sesión: 'session', 'mi-sesion': 'session', stats_sesion: 'session',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -328,6 +330,7 @@ Comandos disponibles:
   trade <jug> <ítem>   — Proponer intercambio seguro de ítems (el otro acepta/rechaza con trade accept/decline).
   peek <dir> / espiar  — Espiar en una dirección sin moverse: ver nombre de sala, monstruos e ítems del suelo.
   runas / runes        — Ver tu colección de runas (obtenés runas al matar; 3 iguales se fusionan en un bonus permanente).
+  session / sesión     — Ver estadísticas de tu sesión actual (kills, XP, oro ganados y tiempo conectado).
   challenge / desafío  — Ver tu desafío diario personal y el progreso hacia él.
   macro list           — Ver tus macros guardadas (hasta 5).
   macro set <n> <cmd> — Guardar macro (puede incluir secuencia con ;).
@@ -398,6 +401,7 @@ const COMMAND_HELP = {
   write:     'write <mensaje> / escribir <mensaje> / grabar <mensaje>\\\\\\\\n  Grabar un mensaje en la pared de la sala actual (máx 80 caracteres).\\\\\\\\n  Máximo 10 mensajes por sala. Los más viejos se borran cuando se supera el límite.\\\\\\\\n  Todos los jugadores que entren a la sala verán el indicador y pueden leerlo con "read".',
   read:      'read / leer / pared\\\\\\\\n  Leer las inscripciones en la pared de la sala actual.\\\\\\\\n  Muestra quién lo escribió y cuándo.',
   study:     'study <monstruo> / estudiar <monstruo> / analizar <monstruo>\\\\n  Analizar un monstruo en la sala actual.\\\\n  Muestra tipo, HP/ATK actuales, habilidades especiales con probabilidad,\\\\n  debilidades, resistencias y consejo estratégico.',
+  session:   'session / sesion / sesión\\\\n  Ver las estadísticas de tu sesión actual.\\\\n  Muestra: tiempo conectado, kills, XP ganada, oro ganado y comandos ejecutados.\\\\n  También se muestra automáticamente al desconectarse.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };

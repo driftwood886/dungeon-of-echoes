@@ -219,6 +219,7 @@ function execute(playerId, input, context) {
     case 'search':       result = cmdSearch(player, action.args); break;
     case 'study':        result = cmdStudy(player, action.args); break;
     case 'dungeon':      result = cmdDungeonStatus(); break;
+    case 'session':      result = cmdSession(player, context); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -921,6 +922,7 @@ function cmdAttack(player, targetName) {
     event: eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || null,
+    sessionKill: !!monsterDead,  // T155: tracking de kills de sesión
   };
 }
 
@@ -6083,6 +6085,40 @@ function cmdDungeonStatus() {
   } catch (err) {
     return { text: `Error al obtener estado del dungeon: ${err.message}` };
   }
+}
+
+/**
+ * T155: cmdSession — Mostrar resumen de la sesión actual.
+ *
+ * Usa los datos de sesión del contexto (sessionDataMap en handlers.js).
+ */
+function cmdSession(player, context) {
+  const sessData = context && context.sessionData;
+  if (!sessData) {
+    return { text: '📊 No hay datos de sesión disponibles (reconectate para iniciar una nueva sesión).' };
+  }
+
+  const elapsedMs = Date.now() - sessData.startTime;
+  const elapsedMin = Math.floor(elapsedMs / 60000);
+  const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
+
+  const freshPlayer = db.getPlayer(player.id);
+  const xpGained = freshPlayer ? Math.max(0, (freshPlayer.xp || 0) - sessData.xpStart) : 0;
+  const goldGained = freshPlayer ? (freshPlayer.gold || 0) - sessData.goldStart : 0;
+
+  const W = 40;
+  const lines = [];
+  lines.push(`╔${'═'.repeat(W)}╗`);
+  lines.push(`║${'  📊 ESTADÍSTICAS DE SESIÓN'.padEnd(W)}║`);
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  lines.push(`║${'  ⏱ Tiempo conectado:'.padEnd(22)}${`${elapsedMin}m ${elapsedSec}s`.padEnd(W - 22)}║`);
+  lines.push(`║${'  ⚔️  Kills en sesión:'.padEnd(22)}${String(sessData.kills).padEnd(W - 22)}║`);
+  lines.push(`║${'  ✨ XP ganada:'.padEnd(22)}${('+' + xpGained).padEnd(W - 22)}║`);
+  lines.push(`║${'  🪙 Oro ganado:'.padEnd(22)}${((goldGained >= 0 ? '+' : '') + goldGained).padEnd(W - 22)}║`);
+  lines.push(`║${'  🎮 Comandos usados:'.padEnd(22)}${String(sessData.commands).padEnd(W - 22)}║`);
+  lines.push(`╚${'═'.repeat(W)}╝`);
+
+  return { text: lines.join('\n') };
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk };

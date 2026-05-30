@@ -23,6 +23,10 @@ const playerSockets = new Map();
 // T154: Mapa global: playerId → sala previa (para comando back)
 const previousRoomMap = new Map();
 
+// T155: Mapa global: playerId → datos de sesión
+// { startTime, kills, xpStart, goldStart, commands }
+const sessionDataMap = new Map();
+
 /**
  * @param {import('socket.io').Server} io
  */
@@ -49,6 +53,16 @@ function registerHandlers(io) {
 
       // Registrar socket del jugador para mensajes directos
       playerSockets.set(currentPlayerId, socket);
+
+      // T155: Inicializar datos de sesión
+      const freshPlayer = db.getPlayer(currentPlayerId);
+      sessionDataMap.set(currentPlayerId, {
+        startTime: Date.now(),
+        kills: 0,
+        xpStart: freshPlayer ? (freshPlayer.xp || 0) : 0,
+        goldStart: freshPlayer ? (freshPlayer.gold || 0) : 0,
+        commands: 0,
+      });
 
       // Unirse al room de Socket.io de la habitación actual
       socket.join(`room_${currentRoomId}`);
@@ -191,8 +205,16 @@ function registerHandlers(io) {
           io.to(`room_${roomId}`).emit('event', { type: 'action', message });
         },
         previousRoomId: previousRoomMap.get(currentPlayerId) || null,
+        sessionData: sessionDataMap.get(currentPlayerId) || null,
       };
       const result = engine.execute(currentPlayerId, command, context);
+
+      // T155: Incrementar contador de comandos y kills de sesión
+      const sessData = sessionDataMap.get(currentPlayerId);
+      if (sessData) {
+        sessData.commands++;
+        if (result.sessionKill) sessData.kills++;
+      }
 
       // Si el resultado incluye un evento para broadcast
       if (result.event) {
@@ -311,6 +333,27 @@ function registerHandlers(io) {
       // T146: Limpiar flag AFK al desconectar
       engine.clearAfk(currentPlayerId);
 
+      // T155: Mostrar resumen de sesión al desconectar
+      const sessData = sessionDataMap.get(currentPlayerId);
+      if (sessData) {
+        const player = db.getPlayer(currentPlayerId);
+        const elapsedMs = Date.now() - sessData.startTime;
+        const elapsedMin = Math.floor(elapsedMs / 60000);
+        const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
+        const xpGained = player ? Math.max(0, (player.xp || 0) - sessData.xpStart) : 0;
+        const goldGained = player ? (player.gold || 0) - sessData.goldStart : 0;
+        const sessionSummary = [
+          `📊 Resumen de sesión:`,
+          `  ⏱ Tiempo conectado: ${elapsedMin}m ${elapsedSec}s`,
+          `  ⚔️  Kills en sesión: ${sessData.kills}`,
+          `  ✨ XP ganada: +${xpGained}`,
+          `  🪙 Oro ganado: ${goldGained >= 0 ? '+' : ''}${goldGained}`,
+          `  🎮 Comandos ejecutados: ${sessData.commands}`,
+        ].join('\n');
+        socket.emit('event', { type: 'session_summary', message: sessionSummary });
+        sessionDataMap.delete(currentPlayerId);
+      }
+
       const player = db.getPlayer(currentPlayerId);
       if (player) {
         socket.to(`room_${currentRoomId}`).emit('event', {
@@ -325,4 +368,4 @@ function registerHandlers(io) {
 
 }
 
-module.exports = { registerHandlers, playerSockets, previousRoomMap };
+module.exports = { registerHandlers, playerSockets, previousRoomMap, sessionDataMap };
