@@ -249,6 +249,8 @@ const COMMAND_ALIASES = {
   calendar: 'calendar', eventos: 'calendar', timers: 'calendar', temporizadores: 'calendar', agenda: 'calendar',
   // bulletin / tablón global de anuncios (T188)
   bulletin: 'bulletin', tablón: 'bulletin', tablon: 'bulletin', anuncios: 'bulletin', boletin: 'bulletin', boletín: 'bulletin',
+  // enchant / encantamiento de armas con runas (T190)
+  enchant: 'enchant', encantar: 'enchant', encantamiento: 'enchant', rune_enchant: 'enchant',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)

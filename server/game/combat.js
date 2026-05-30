@@ -266,11 +266,21 @@ function attackRound(player, monster) {
   const playerDmg = calcDamage(effectiveAtk);
   // T107: bonus crítico de clase (Pícaro tiene +15% sobre base del 10%)
   const clsData = classes.getPlayerClass(player);
-  const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0);
+  // T190: bonus crit de encantamiento de runa sombra
+  const enchantData = scrolls['weapon_enchant'];
+  const enchantActive = enchantData && enchantData.expires_at > Date.now();
+  const enchantCritBonus = (enchantActive && enchantData.type === 'sombra') ? (enchantData.crit_bonus || 0) : 0;
+  const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0) + enchantCritBonus;
   const isCrit = Math.random() < critChance;
   const rawPlayerDmg = isCrit ? playerDmg * 2 : playerDmg;
   const dmgToMonster = Math.max(1, rawPlayerDmg - Math.floor(monster.defense || 0));
   monster.hp = Math.max(0, monster.hp - dmgToMonster);
+
+  // T190: mensaje de encantamiento activo en el primer golpe del turno
+  if (enchantActive) {
+    const enchantNames = { fuego: '🔥 Fuego', hielo: '❄️ Hielo', sombra: '🌑 Sombra', luz: '✨ Luz' };
+    lines.push(`🪄 [Encantamiento de ${enchantNames[enchantData.type] || enchantData.type} activo]`);
+  }
 
   if (isCrit) {
     lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
@@ -280,6 +290,77 @@ function attackRound(player, monster) {
 
   // Actualizar monstruo en BD
   db.updateMonster(monster.id, { hp: monster.hp });
+
+  // ── T191: Ataque de mascota ────────────────────────────────────────────────
+  // Si el jugador tiene mascota, hay chance de que ataque al monstruo (si sigue vivo)
+  if (monster.hp > 0 && player.pet) {
+    const PET_COMBAT = {
+      'rata de las mazmorras': { name: 'Rata', emoji: '🐀', chance: 0.15, minDmg: 1, maxDmg: 2, poisonChance: 0 },
+      'murciélago':            { name: 'Murciélago', emoji: '🦇', chance: 0.20, minDmg: 2, maxDmg: 3, poisonChance: 0.10 },
+      'araña doméstica':       { name: 'Araña', emoji: '🕷', chance: 0.25, minDmg: 2, maxDmg: 3, poisonChance: 0.20 },
+      'serpiente':             { name: 'Serpiente', emoji: '🐍', chance: 0.20, minDmg: 3, maxDmg: 4, poisonChance: 0.30 },
+      'escarabajo de mazmorra': { name: 'Escarabajo', emoji: '🪲', chance: 0.15, minDmg: 1, maxDmg: 2, poisonChance: 0, hpAbsorb: 1 },
+    };
+    const petKey = player.pet.toLowerCase();
+    // Buscar pet en catálogo (búsqueda parcial)
+    const petDef = Object.entries(PET_COMBAT).find(([k]) => k.includes(petKey) || petKey.includes(k));
+    if (petDef) {
+      const [, petStats] = petDef;
+      if (Math.random() < petStats.chance) {
+        const petDmg = petStats.minDmg + Math.floor(Math.random() * (petStats.maxDmg - petStats.minDmg + 1));
+        monster.hp = Math.max(0, monster.hp - petDmg);
+        db.updateMonster(monster.id, { hp: monster.hp });
+        lines.push(`${petStats.emoji} ¡Tu ${petStats.name} ataca al ${monster.name} y causa ${petDmg} de daño! (${monster.hp}/${monster.max_hp} HP)`);
+        // Veneno de mascota
+        if (petStats.poisonChance > 0 && Math.random() < petStats.poisonChance && monster.hp > 0) {
+          const mFxPet = monster.status_effects ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects) : {};
+          if (!mFxPet.poisoned) {
+            mFxPet.poisoned = { damage: 1, turns: 3 };
+            monster.status_effects = mFxPet;
+            db.updateMonster(monster.id, { status_effects: JSON.stringify(mFxPet) });
+            lines.push(`☠ ¡Tu ${petStats.name} envenena al ${monster.name}! (1 dmg/turno por 3 turnos)`);
+          }
+        }
+        // Absorción de HP (escarabajo)
+        if (petStats.hpAbsorb && monster.hp >= 0) {
+          const freshForPet = db.getPlayer(player.id);
+          const newPetHp = Math.min(freshForPet.max_hp, freshForPet.hp + petStats.hpAbsorb);
+          if (newPetHp > freshForPet.hp) {
+            db.updatePlayer(player.id, { hp: newPetHp });
+            player.hp = newPetHp;
+            lines.push(`🪲 ¡Tu Escarabajo absorbe energía vital! Recuperás ${petStats.hpAbsorb} HP.`);
+          }
+        }
+        // Verificar si el monstruo muere por el ataque de la mascota
+        if (monster.hp <= 0 && !monsterDead) {
+          monsterDead = true;
+          lines.push(`💀 ¡El ${monster.name} cae derrotado por tu mascota!`);
+          const { droppedLoot: petLoot, globalEvent: petGlobalEvent } = dropLoot(monster, player.current_room_id);
+          loot = petLoot;
+          if (loot.length > 0) lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
+          else lines.push(`El ${monster.name} no deja nada.`);
+          const xpBasePet = Math.max(5, Math.floor(monster.max_hp * 2));
+          const activeEvPet = worldEvents.getCurrentEvent();
+          const xpGainPet = activeEvPet && activeEvPet.id === 'invasion' ? Math.floor(xpBasePet * 1.5) : xpBasePet;
+          const freshPPet = db.getPlayer(player.id);
+          const newKillsPet = (freshPPet.kills || 0) + 1;
+          const newXpPet = (freshPPet.xp || 0) + xpGainPet;
+          const oldLevelPet = freshPPet.level || 1;
+          const newLevelPet = Math.floor(newXpPet / 50) + 1;
+          const updatesPet = { kills: newKillsPet, xp: newXpPet, level: newLevelPet };
+          if (newLevelPet > oldLevelPet) {
+            updatesPet.max_hp = (freshPPet.max_hp || 30) + 5;
+            updatesPet.hp = Math.min(freshPPet.hp, updatesPet.max_hp);
+            updatesPet.attack = (freshPPet.attack || 5) + 1;
+            lines.push(`✨ ¡Subiste al nivel ${newLevelPet}! +5 HP máx, +1 ataque.`);
+          }
+          lines.push(`⭐ +${xpGainPet} XP (total: ${newXpPet} | kills: ${newKillsPet} | nivel: ${newLevelPet})`);
+          db.updatePlayer(player.id, updatesPet);
+          return { lines, monsterDead, playerDead, loot, globalEvent: petGlobalEvent || null };
+        }
+      }
+    }
+  }
 
   // ── T110: Efecto on_hit del arma equipada ────────────────────────────────
   // Si el jugador tiene un arma crafteada con efecto especial, aplicarlo al monstruo (si sigue vivo)
@@ -417,6 +498,15 @@ function attackRound(player, monster) {
       lines.push(`✨ ¡Subiste al nivel ${newLevel}! +5 HP máx, +1 ataque.`);
     }
     lines.push(`⭐ +${xpGain} XP (total: ${newXp} | kills: ${newKills} | nivel: ${newLevel})`);
+    // T190: Encantamiento de luz — +3 HP al matar
+    if (enchantActive && enchantData.type === 'luz') {
+      const hpOnKill = enchantData.hp_on_kill || 3;
+      const freshForLuz = db.getPlayer(player.id);
+      const newHpLuz = Math.min(freshForLuz.max_hp, freshForLuz.hp + hpOnKill);
+      db.updatePlayer(player.id, { hp: newHpLuz });
+      lines.push(`✨ [Runa de Luz] ¡La victoria te cura ${hpOnKill} HP! (${newHpLuz}/${freshForLuz.max_hp})`);
+      updates.hp = newHpLuz;
+    }
     db.updatePlayer(player.id, updates);
 
     return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
@@ -436,6 +526,13 @@ function attackRound(player, monster) {
     db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterFxForStun) });
     db.updatePlayer(player.id, { hp: player.hp, status_effects: JSON.stringify(player.status_effects || {}) });
     return { lines, monsterDead, playerDead, loot };
+  }
+
+  // ── T190: Encantamiento de hielo — 20% chance de ralentizar (skip turno) ───
+  if (enchantActive && enchantData.type === 'hielo' && Math.random() < (enchantData.slow_chance || 0.20)) {
+    lines.push(`❄️ ¡Tu arma encantada ralentiza al ${monster.name}! No puede atacar este turno.`);
+    db.updatePlayer(player.id, { hp: player.hp, status_effects: JSON.stringify(player.status_effects || {}) });
+    return { lines, monsterDead: false, playerDead: false, loot: [] };
   }
 
   // ── Monstruo contraataca ──────────────────────────────────────────────────

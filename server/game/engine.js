@@ -237,6 +237,7 @@ function execute(playerId, input, context) {
     case 'preview':      result = cmdPreview(player, action.args); break;
     case 'calendar':     result = cmdCalendar(player); break;
     case 'bulletin':     result = cmdBulletin(player, action.args, context); break;
+    case 'enchant':      result = cmdEnchant(player, action.args); break;
     case 'drink':        result = cmdDrink(player); break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
@@ -8307,3 +8308,123 @@ function cmdBulletin(player, args, context) {
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS };
+
+// ─── T190: Encantamiento de armas con runas ─────────────────────────────────
+/**
+ * T190: enchant <tipo_runa> — Consumir 1 runa para encantar el arma equipada.
+ * Efectos por tipo:
+ *   fuego  → +2 ATK por 3 minutos
+ *   hielo  → 20% chance de ralentizar monstruo (skip turno) por 3 minutos
+ *   sombra → +15% crit adicional por 3 minutos
+ *   luz    → +3 HP al matar por 3 minutos
+ *   caos   → efecto aleatorio entre los anteriores
+ */
+function cmdEnchant(player, args) {
+  const RUNE_TYPES = ['fuego', 'hielo', 'sombra', 'luz', 'caos'];
+  const RUNE_EMOJIS = { fuego: '🔥', hielo: '❄️', sombra: '🌑', luz: '✨', caos: '🌀' };
+
+  if (!args || args.length === 0) {
+    const lines = [
+      '',
+      '╔══════════════════════════════════════════════╗',
+      '║  🪄 ENCANTAMIENTO DE ARMAS CON RUNAS         ║',
+      '╟──────────────────────────────────────────────╢',
+      '║  Consumí 1 runa para encantar tu arma (3min) ║',
+      '║                                              ║',
+      '║  🔥 fuego  → +2 ATK durante el encantamiento ║',
+      '║  ❄️ hielo  → 20% skip turno del monstruo     ║',
+      '║  🌑 sombra → +15% chance de crítico extra    ║',
+      '║  ✨ luz    → +3 HP al matar monstruo          ║',
+      '║  🌀 caos   → efecto aleatorio de los 4 arriba║',
+      '╟──────────────────────────────────────────────╢',
+      '║  Uso: enchant <tipo>  /  encantar <tipo>     ║',
+      '║  Ej:  enchant fuego  |  encantar sombra      ║',
+      '╚══════════════════════════════════════════════╝',
+    ];
+    return { text: lines.join('\n') };
+  }
+
+  const freshP = db.getPlayer(player.id);
+  if (!freshP) return { text: 'Error al leer tu perfil.' };
+
+  if (!freshP.equipped_weapon) {
+    return { text: '🪄 No tenés un arma equipada. Equipá un arma primero con `equip <arma>`.' };
+  }
+
+  let runeType = args[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // Soportar aliases
+  if (runeType === 'fire') runeType = 'fuego';
+  if (runeType === 'ice' || runeType === 'hielo') runeType = 'hielo';
+  if (runeType === 'shadow') runeType = 'sombra';
+  if (runeType === 'light') runeType = 'luz';
+  if (runeType === 'chaos') runeType = 'caos';
+
+  if (!RUNE_TYPES.includes(runeType)) {
+    return { text: `❌ Tipo de runa inválido. Tipos válidos: ${RUNE_TYPES.join(', ')}.\nUsá "enchant" sin argumentos para ver los efectos.` };
+  }
+
+  // Verificar que tiene al menos 1 runa del tipo
+  let runes;
+  try { runes = JSON.parse(freshP.runes || '{}'); } catch (_) { runes = {}; }
+
+  let effectiveType = runeType;
+
+  // Si es caos, elegir un tipo aleatorio de los otros 4
+  if (runeType === 'caos') {
+    const otherTypes = RUNE_TYPES.filter(t => t !== 'caos');
+    effectiveType = otherTypes[Math.floor(Math.random() * otherTypes.length)];
+  }
+
+  // Verificar runa disponible
+  const runeCount = runes[runeType] || 0;
+  if (runeCount <= 0) {
+    return { text: `❌ No tenés runas de ${RUNE_EMOJIS[runeType]} ${runeType}. Obtenés runas al matar monstruos (15% de chance).` };
+  }
+
+  // Consumir la runa
+  runes[runeType] = runeCount - 1;
+  if (runes[runeType] <= 0) delete runes[runeType];
+
+  // Aplicar el encantamiento en active_scrolls (reutilizamos infraestructura T153)
+  const scrolls = JSON.parse(freshP.active_scrolls || '{}');
+  const expiresAt = Date.now() + 3 * 60 * 1000; // 3 minutos
+
+  // Efecto según tipo efectivo
+  const enchantEffects = {
+    fuego:  { type: 'fuego',  atk_bonus: 2, def_bonus: 0, expires_at: expiresAt },
+    hielo:  { type: 'hielo',  atk_bonus: 0, def_bonus: 0, slow_chance: 0.20, expires_at: expiresAt },
+    sombra: { type: 'sombra', atk_bonus: 0, def_bonus: 0, crit_bonus: 0.15, expires_at: expiresAt },
+    luz:    { type: 'luz',    atk_bonus: 0, def_bonus: 0, hp_on_kill: 3, expires_at: expiresAt },
+  };
+
+  const enchant = enchantEffects[effectiveType];
+  scrolls['weapon_enchant'] = enchant;
+
+  db.updatePlayer(freshP.id, {
+    runes: JSON.stringify(runes),
+    active_scrolls: JSON.stringify(scrolls),
+  });
+
+  const emoji = RUNE_EMOJIS[runeType];
+  const effectEmoji = RUNE_EMOJIS[effectiveType];
+  const effectNames = {
+    fuego:  '+2 ATK durante 3 minutos',
+    hielo:  '20% de chance de ralentizar al monstruo (pierde su turno) por 3 minutos',
+    sombra: '+15% de chance de crítico adicional durante 3 minutos',
+    luz:    '+3 HP recuperado al matar un monstruo durante 3 minutos',
+  };
+
+  let msg = `🪄 ¡Tu ${freshP.equipped_weapon} brilla con poder runico!`;
+  if (runeType === 'caos') {
+    msg += `\n${emoji} Runa de Caos consumida → ${effectEmoji} ¡El caos elige: ${effectiveType}!`;
+  } else {
+    msg += `\n${emoji} Runa de ${runeType.charAt(0).toUpperCase() + runeType.slice(1)} consumida.`;
+  }
+  msg += `\n✨ Efecto: ${effectNames[effectiveType]}`;
+  msg += `\n   (Runas ${emoji} restantes: ${runes[runeType] || 0})`;
+
+  return { text: msg };
+}
+
+// Sobreescribir module.exports para incluir T190
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant };
