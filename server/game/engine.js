@@ -189,6 +189,7 @@ function execute(playerId, input, context) {
     case 'reputation':   result = cmdReputation(player); break;
     case 'recall':       result = cmdRecall(player); break;
     case 'trade':        result = cmdTrade(player, action.args); break;
+    case 'lore':         result = cmdLore(action.args.join(' ')); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -1015,6 +1016,84 @@ function cmdExamine(player, query) {
   }
 
   return { text: `No ves ningún "${query}" aquí para examinar.` };
+}
+
+/**
+ * lore <ítem> — Consultar la enciclopedia del dungeon sobre un ítem (T137).
+ * Funciona con cualquier ítem del catálogo, no necesitás tenerlo.
+ */
+function cmdLore(query) {
+  if (!query || !query.trim()) {
+    return {
+      text: [
+        'Enciclopedia del Dungeon — consultá el lore de cualquier ítem.',
+        'Uso: lore <nombre del ítem>',
+        'Ejemplo: lore espada de obsidiana',
+        '',
+        'Rarezas: ⬜ común  🔵 raro  🟣 épico  🟡 legendario',
+      ].join('\n'),
+    };
+  }
+
+  const query_clean = query.trim().toLowerCase();
+
+  // Buscar en el catálogo completo
+  const CATALOG = items.ITEM_CATALOG;
+  // Coincidencia exacta primero, luego parcial
+  let itemKey = Object.keys(CATALOG).find(k => k === query_clean);
+  if (!itemKey) {
+    itemKey = Object.keys(CATALOG).find(k => k.includes(query_clean) || query_clean.includes(k));
+  }
+
+  if (!itemKey) {
+    return { text: `No hay información sobre "${query}" en la enciclopedia del dungeon.\nProbá con el nombre completo del ítem.` };
+  }
+
+  const def = CATALOG[itemKey];
+  const rarity = items.getItemRarity(itemKey);
+  const rarityEmoji = items.getRarityEmoji(itemKey);
+  const rarityColor = { 'común': 'gris', 'raro': 'azul', 'épico': 'morado', 'legendario': 'dorado' }[rarity] || 'gris';
+
+  const typeNames = {
+    'weapon': 'Arma',
+    'potion': 'Poción de salud',
+    'mana_potion': 'Poción de maná',
+    'antidote': 'Antídoto',
+    'misc': 'Objeto',
+    'craft_only': 'Material de crafteo',
+  };
+  const typeName = typeNames[def.type] || def.type;
+
+  const sep = '─'.repeat(40);
+  const lines = [
+    `╔${'═'.repeat(40)}╗`,
+    `║  ${rarityEmoji} ${itemKey.toUpperCase().padEnd(37)}║`,
+    `╚${'═'.repeat(40)}╝`,
+    def.description,
+    sep,
+    `Tipo:   ${typeName}`,
+    `Rareza: ${rarityEmoji} ${rarity.charAt(0).toUpperCase() + rarity.slice(1)} (${rarityColor})`,
+  ];
+
+  if (def.effect === 'attack_bonus' && def.amount !== undefined) {
+    lines.push(`Ataque: +${def.amount}`);
+  }
+  if (def.effect === 'heal' && def.amount !== undefined) {
+    lines.push(`Cura:   +${def.amount} HP`);
+  }
+  if (def.effect === 'restore_mana' && def.amount !== undefined) {
+    lines.push(`Maná:   +${def.amount}`);
+  }
+  if (def.on_hit) {
+    const oh = def.on_hit;
+    if (oh.type === 'poison') {
+      lines.push(`On-hit: ${Math.round(oh.chance * 100)}% de envenenar (${oh.damage} dmg × ${oh.turns} turnos)`);
+    } else if (oh.type === 'shadow_bolt') {
+      lines.push(`On-hit: ${Math.round(oh.chance * 100)}% rayo de sombra (+${oh.bonus_damage} daño extra)`);
+    }
+  }
+
+  return { text: lines.join('\n') };
 }
 
 /**

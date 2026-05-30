@@ -168,6 +168,8 @@ const COMMAND_ALIASES = {
   recall: 'recall', volver: 'recall', retornar: 'recall', teletransportar: 'recall', tp: 'recall',
   // trade / intercambio (T129)
   trade: 'trade', intercambiar: 'trade', intercambio: 'trade', trueque: 'trade', cambiar: 'trade',
+  // lore / enciclopedia de ítems (T137)
+  lore: 'lore', enciclopedia: 'lore', info: 'lore', descripcion: 'lore', descripción: 'lore',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -340,6 +342,7 @@ const COMMAND_HELP = {
     reputation: 'reputation / reputacion / fama / renombre\\\\n  Ver tu nivel de reputación actual con barra de progreso.\\\\n  Niveles: Desconocido (0) → Conocido (10) → Respetado (25) → Famoso (50) → Legendario (100).\\\\n  Ganás puntos por: matar monstruos (+1), completar quests (+5), desbloquear logros (+3).\\\\n  Tu reputación se muestra en \\\"status\\\" y en \\\"who\\\".',
     recall:    'recall / volver / retornar\\\\n  Teletransportarse a la entrada del dungeon (sala 1).\\\\n  Costo: 5 HP. Cooldown: 10 minutos.\\\\n  Útil para escapar de zonas peligrosas o volver rápido al mercader.',
     trade:     'trade <jugador> <ítem> / intercambiar <jugador> <ítem>\\\\n  Proponer un intercambio seguro de ítems con otro jugador en la misma sala.\\\\n  El jugador destino puede responder con:\\\\n    trade accept — aceptar el trueque (se intercambian los ítems)\\\\n    trade cancel/decline — rechazar la propuesta\\\\n  La propuesta expira en 30 segundos.\\\\n  Diferencia con give: trade requiere que ambos estén de acuerdo.',
+  lore:      'lore <item> / enciclopedia <item>',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };
