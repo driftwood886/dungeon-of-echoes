@@ -299,6 +299,7 @@ function execute(playerId, input, context) {
     case 'find':         result = cmdFind(player, action.args); break;
     case 'guide':        result = cmdGuide(action.args); break;
     case 'friend':       result = cmdFriend(player, action.args); break;
+    case 'vault':        result = cmdVault(player, action.args); break;         // T200
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -9032,4 +9033,93 @@ function cmdTriviaPub(player, args, context) {
 
 // Actualizar module.exports con T196+T197+T198
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals, checkAndSetRecords };
+
+// ══════════════════════════════════════════════════════════════════════════════
+// T200: cmdVault — Bóveda personal (hasta 10 ítems, solo en sala 1)
+// ══════════════════════════════════════════════════════════════════════════════
+function cmdVault(player, args) {
+  const W = 48;
+  const vaultItems = JSON.parse(player.vault || '[]');
+
+  // Sin args: listar el contenido
+  if (!args || args.length === 0) {
+    const lines = [];
+    lines.push(`╔${'═'.repeat(W)}╗`);
+    lines.push(`║${'  🏛️  BÓVEDA PERSONAL'.padEnd(W)}║`);
+    lines.push(`╠${'═'.repeat(W)}╣`);
+    if (vaultItems.length === 0) {
+      lines.push(`║  (vacía)`.padEnd(W + 2) + `║`);
+    } else {
+      vaultItems.forEach((item, i) => {
+        const entry = `  ${i + 1}. ${item}`;
+        lines.push(`║${entry.padEnd(W)}║`);
+      });
+    }
+    lines.push(`╠${'═'.repeat(W)}╣`);
+    lines.push(`║  ${`${vaultItems.length}/10 ítems guardados`.padEnd(W - 2)}║`);
+    lines.push(`╠${'═'.repeat(W)}╣`);
+    lines.push(`║  vault store <ítem>  — guardar un ítem`.padEnd(W + 2) + `║`);
+    lines.push(`║  vault take <ítem>   — sacar un ítem`.padEnd(W + 2) + `║`);
+    lines.push(`╚${'═'.repeat(W)}╝`);
+    return { text: lines.join('\n') };
+  }
+
+  const subcmd = args[0].toLowerCase();
+  const itemArg = args.slice(1).join(' ').trim();
+
+  // Solo accesible en sala 1
+  if (player.current_room_id !== 1) {
+    return { text: '🏛️  La bóveda solo es accesible en la Entrada del Dungeon (sala 1). Usá `recall` para volver.' };
+  }
+
+  if (subcmd === 'store' || subcmd === 'guardar' || subcmd === 'depositar') {
+    if (!itemArg) return { text: '¿Qué ítem querés guardar? Ej: vault store espada oxidada' };
+    if (vaultItems.length >= 10) return { text: '🏛️  La bóveda está llena (10/10). Sacá algo primero.' };
+
+    const inv = JSON.parse(typeof player.inventory === 'string' ? player.inventory : JSON.stringify(player.inventory));
+    const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const idx = inv.findIndex(i => norm(i) === norm(itemArg) || norm(i).includes(norm(itemArg)));
+    if (idx === -1) return { text: `No tenés "${itemArg}" en el inventario.` };
+
+    const item = inv[idx];
+    // No se puede guardar el arma o armadura equipada
+    const fresh = db.getPlayer(player.id);
+    if (fresh.equipped_weapon && norm(fresh.equipped_weapon) === norm(item)) {
+      return { text: `Desequipá "${item}" antes de guardarlo en la bóveda.` };
+    }
+    if (fresh.equipped_armor && norm(fresh.equipped_armor) === norm(item)) {
+      return { text: `Quitáte "${item}" antes de guardarlo en la bóveda.` };
+    }
+
+    inv.splice(idx, 1);
+    vaultItems.push(item);
+    db.updatePlayer(player.id, {
+      inventory: JSON.stringify(inv),
+      vault: JSON.stringify(vaultItems),
+    });
+    return { text: `🏛️  "${item}" guardado en la bóveda. (${vaultItems.length}/10)` };
+  }
+
+  if (subcmd === 'take' || subcmd === 'sacar' || subcmd === 'retirar') {
+    if (!itemArg) return { text: '¿Qué ítem querés sacar? Ej: vault take espada oxidada' };
+
+    const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const idx = vaultItems.findIndex(i => norm(i) === norm(itemArg) || norm(i).includes(norm(itemArg)));
+    if (idx === -1) return { text: `No tenés "${itemArg}" en la bóveda.` };
+
+    const item = vaultItems[idx];
+    const inv = JSON.parse(typeof player.inventory === 'string' ? player.inventory : JSON.stringify(player.inventory));
+    if (inv.length >= 20) return { text: '🎒 El inventario está lleno. Tirá algo primero.' };
+
+    vaultItems.splice(idx, 1);
+    inv.push(item);
+    db.updatePlayer(player.id, {
+      inventory: JSON.stringify(inv),
+      vault: JSON.stringify(vaultItems),
+    });
+    return { text: `🏛️  "${item}" sacado de la bóveda y añadido al inventario.` };
+  }
+
+  return { text: 'Subcomandos: vault (listar) · vault store <ítem> · vault take <ítem>' };
+}
 

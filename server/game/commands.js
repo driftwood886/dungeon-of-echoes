@@ -241,6 +241,8 @@ const COMMAND_ALIASES = {
   guide: 'guide', guia: 'guide', guía: 'guide', manual: 'guide', inicio: 'guide', empezar: 'guide',
   // friend / amigos (T173)
   friend: 'friend', amigo: 'friend', amigos: 'friend', friends: 'friend',
+  // vault / bóveda personal (T200)
+  vault: 'vault', boveda: 'vault', bóveda: 'vault', cofre: 'vault', deposito: 'vault', depósito: 'vault',
   // pray / rezar — altares mágicos (T184)
   pray: 'pray', rezar: 'pray', orar: 'pray', ofrenda: 'pray', altar: 'pray',
   // preview / previsualizar ítem (T185)
