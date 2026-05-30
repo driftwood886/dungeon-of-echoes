@@ -108,6 +108,8 @@ const COMMAND_ALIASES = {
   quest: 'quest', misión: 'quest', mision: 'quest', tarea: 'quest', objetivo: 'quest',
   // guild / hermandad
   guild: 'guild', hermandad: 'guild', gremio: 'guild', clan: 'guild', faccion: 'guild', facción: 'guild',
+  // guild quest — atajo directo
+  'guild quest': 'guild', 'misión guild': 'guild', 'mision guild': 'guild',
   // gc / guild chat
   gc: 'gc', gchat: 'gc', guildchat: 'gc',
   // duel / duelo PvP
@@ -355,7 +357,7 @@ Comandos disponibles:
   rest / descansar      — Recuperar HP si no hay monstruos (cooldown 60s)
   inspect <jugador>     — Examinar a otro aventurero en la misma sala
   quest / misión        — Ver la quest activa y tu progreso
-  guild <acción>        — Gestionar tu hermandad (create/join/leave/info/list)
+  guild <acción>        — Gestionar tu hermandad (create/join/leave/info/list/quest)
   gc <mensaje>          — Chat de hermandad (solo ven los miembros del mismo guild)
   duel <jugador>        — Retar a un duelo PvP a otro aventurero en la misma sala
   accept                — Aceptar el reto de duelo pendiente
@@ -446,7 +448,7 @@ const COMMAND_HELP = {
   emote:     'emote <acción> / accion <acción> / me <acción>\n  Expresar una acción en tercera persona visible para todos en la sala.\n  Ej: "emote suspira profundo" → todos ven: "✨ NombreJugador suspira profundo"',
   help:      'help / ayuda\n  Mostrar la lista de comandos.\n  help <comando>: ayuda detallada sobre un comando específico.',
   inspect:   'inspect <jugador> / inspeccionar <jugador>\n  Examinar a otro aventurero que esté en la misma sala.\n  Muestra su nivel, HP, arma equipada, kills, muertes y logros desbloqueados.',
-  guild:     'guild create <nombre>  — Crear una nueva hermandad (cuestan 50 oro)\\nguild join <nombre>    — Unirse a una hermandad existente\\nguild leave            — Abandonar tu hermandad actual\\nguild info             — Ver info de tu hermandad (miembros, líder)\\nguild list             — Listar todas las hermandades activas',
+  guild:     'guild create <nombre>  — Crear una nueva hermandad (cuestan 50 oro)\\nguild join <nombre>    — Unirse a una hermandad existente\\nguild leave            — Abandonar tu hermandad actual\\nguild info             — Ver info de tu hermandad (miembros, líder)\\nguild list             — Listar todas las hermandades activas\\nguild quest            — Ver la misión colectiva activa de tu hermandad',
     gc:        'gc <mensaje> / gchat <mensaje>\\n  Enviar un mensaje al chat de hermandad. Solo los miembros de tu guild lo verán.\\n  Aparece en formato: [GUILD NombreGuild] TuNombre: mensaje',
     party:     'party / grupo\\n  Ver los miembros de tu grupo actual.\\nparty <nombre>\\n  Invitar a un jugador de tu sala a unirse al grupo.\\nparty accept / aceptar\\n  Aceptar una invitación de grupo pendiente.\\nparty decline / rechazar\\n  Rechazar una invitación de grupo.\\nparty leave / salir\\n  Abandonar el grupo actual.\\nGrupos: máximo 4 miembros. Al matar un monstruo, los compañeros en la misma sala reciben 75% de la XP.',
     craft:     'craft <ítem1> con <ítem2> / craftear <ítem1> + <ítem2>\\n  Combinar dos ítems de tu inventario para crear un nuevo objeto.\\n  Los ítems originales se consumen. Usá "recetas" para ver las combinaciones disponibles.',

@@ -18,6 +18,7 @@ const combat  = require('./combat');
 const items   = require('./items');
 const ach     = require('./achievements');
 const quests  = require('./quests');
+const guildQuests = require('./guild_quests'); // T189: quests de guild
 const worldEvents = require('./worldEvents');
 const weather     = require('./weather'); // T166: clima del dungeon
 const tutorial = require('./tutorial');
@@ -979,6 +980,50 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // ── Progreso de quest de guild (T189) ────────────────────────────────────
+  let guildQuestLines = '';
+  if (monsterDead) {
+    const freshGQ = db.getPlayer(player.id);
+    if (freshGQ && freshGQ.guild) {
+      const guildRow = db.getGuildFull(freshGQ.guild);
+      if (guildRow) {
+        const gqResult = guildQuests.recordGuildQuestContribution(
+          guildRow, player.id, 'kill', { monsterName: monster.name }
+        );
+        if (gqResult) {
+          const updatedQuest = gqResult.justCompleted && gqResult.newQuest ? gqResult.newQuest : gqResult.quest;
+          // Si completó, guardar la nueva quest en BD
+          if (gqResult.justCompleted && gqResult.newQuest) {
+            db.setGuildQuest(freshGQ.guild, JSON.stringify(gqResult.newQuest));
+            // Recompensar a todos los miembros del guild
+            const members = db.getGuildMembers(freshGQ.guild);
+            for (const m of members) {
+              const mFresh = db.getPlayer(m.id);
+              if (mFresh) {
+                db.updatePlayer(m.id, {
+                  xp:  (mFresh.xp  || 0) + 50,
+                  gold: (mFresh.gold || 0) + 30,
+                });
+                db.addReputation(m.id, 10);
+              }
+            }
+            guildQuestLines = `\n\n⚔ ¡MISIÓN DE HERMANDAD COMPLETADA! Todos los miembros de [${freshGQ.guild}] reciben +50 XP · +30 🪙 · +10 Reputación.`;
+            db.logGlobalEvent('guild_quest', `⚔ La hermandad [${freshGQ.guild}] completó su misión colectiva. ¡${player.username} dio el último golpe!`);
+            // Guardar el broadcast de guild para handlers.js
+            Object.assign(combatResult, {
+              guildBroadcast: freshGQ.guild,
+              guildBroadcastMsg: `⚔ ¡MISIÓN DE HERMANDAD COMPLETADA! +50 XP · +30 🪙 · +10 Rep para todos.`,
+            });
+          } else {
+            // Actualizar progreso en BD (sin completar aún)
+            db.setGuildQuest(freshGQ.guild, JSON.stringify(gqResult.quest));
+            guildQuestLines = `\n⚔ [${freshGQ.guild}] Misión: ${gqResult.quest.total}/${gqResult.quest.goal} — ¡Seguí luchando!`;
+          }
+        }
+      }
+    }
+  }
+
   // ── XP compartido con el grupo (T102) ────────────────────────────────────
   let partyXpLines = '';
   if (monsterDead) {
@@ -1048,11 +1093,16 @@ function cmdAttack(player, targetName) {
   }
 
   return {
-    text: lines.join('\n') + achLines + questLines + partyXpLines + runeMsg + challengeMsg + streakMsg,
+    text: lines.join('\n') + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg,
     event: eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || null,
     sessionKill: !!monsterDead,  // T155: tracking de kills de sesión
+    // T189: guild quest broadcast (si aplica)
+    ...(combatResult.guildBroadcast ? {
+      guildBroadcast: combatResult.guildBroadcast,
+      guildBroadcastMsg: combatResult.guildBroadcastMsg,
+    } : {}),
   };
 }
 
@@ -1172,8 +1222,37 @@ function cmdPick(player, itemQuery) {
     } else if (goldCr && !goldCr.challenge.done) {
       goldChallengeMsg = `\n📅 Desafío diario: ${goldCr.challenge.desc} (${goldCr.challenge.progress}/${goldCr.challenge.goal})`;
     }
+    // T189: Progreso de quest de guild (oro)
+    let guildGoldMsg = '';
+    const freshForGG = db.getPlayer(player.id);
+    if (freshForGG && freshForGG.guild) {
+      const guildRowGG = db.getGuildFull(freshForGG.guild);
+      if (guildRowGG) {
+        const gqGoldResult = guildQuests.recordGuildQuestContribution(
+          guildRowGG, player.id, 'gold', { amount }
+        );
+        if (gqGoldResult) {
+          if (gqGoldResult.justCompleted && gqGoldResult.newQuest) {
+            db.setGuildQuest(freshForGG.guild, JSON.stringify(gqGoldResult.newQuest));
+            const members = db.getGuildMembers(freshForGG.guild);
+            for (const m of members) {
+              const mFresh = db.getPlayer(m.id);
+              if (mFresh) {
+                db.updatePlayer(m.id, { xp: (mFresh.xp || 0) + 50, gold: (mFresh.gold || 0) + 30 });
+                db.addReputation(m.id, 10);
+              }
+            }
+            guildGoldMsg = `\n⚔ ¡MISIÓN DE HERMANDAD COMPLETADA! [${freshForGG.guild}] reciben +50 XP · +30 🪙 · +10 Reputación.`;
+            db.logGlobalEvent('guild_quest', `⚔ La hermandad [${freshForGG.guild}] completó su misión de oro.`);
+          } else {
+            db.setGuildQuest(freshForGG.guild, JSON.stringify(gqGoldResult.quest));
+            guildGoldMsg = `\n⚔ [${freshForGG.guild}] Misión de oro: ${gqGoldResult.quest.total}/${gqGoldResult.quest.goal}`;
+          }
+        }
+      }
+    }
     return {
-      text: `💰 Recogés ${found}. +${amount} monedas de oro. Tenés ${newGold}g en total.${goldAchLines}${goldQuestLine}${goldChallengeMsg}`,
+      text: `💰 Recogés ${found}. +${amount} monedas de oro. Tenés ${newGold}g en total.${goldAchLines}${goldQuestLine}${goldChallengeMsg}${guildGoldMsg}`,
       event: `${player.username} recoge algo del suelo.`,
       eventRoomId: room.id,
     };
@@ -3243,13 +3322,18 @@ function cmdInspect(player, targetName) {
  */
 function cmdGuild(player, args) {
   if (!args || args.length === 0) {
-    return { text: 'Usá: guild create <nombre> | guild join <nombre> | guild leave | guild info | guild list' };
+    return { text: 'Usá: guild create <nombre> | guild join <nombre> | guild leave | guild info | guild list | guild quest' };
   }
 
   // Refrescar desde BD
   player = db.getPlayer(player.id);
   const sub = args[0].toLowerCase();
   const guildArg = args.slice(1).join(' ').trim();
+
+  // ── guild quest (T189) ───────────────────────────────────────────────────────
+  if (sub === 'quest' || sub === 'misión' || sub === 'mision') {
+    return _cmdGuildQuest(player);
+  }
 
   // ── guild list ──────────────────────────────────────────────────────────────
   if (sub === 'list' || sub === 'lista') {
@@ -3395,7 +3479,22 @@ function cmdGuild(player, args) {
     };
   }
 
-  return { text: `Subcomando desconocido: "${sub}". Usá guild create | join | leave | info | list` };
+  return { text: `Subcomando desconocido: "${sub}". Usá guild create | join | leave | info | list | quest` };
+}
+
+/**
+ * guild quest — Ver la misión colectiva activa del guild (T189).
+ */
+function _cmdGuildQuest(player) {
+  if (!player.guild) {
+    return { text: 'No pertenecés a ninguna hermandad. Usá "guild join <nombre>" primero.' };
+  }
+  const guildRow = db.getGuildFull(player.guild);
+  if (!guildRow) {
+    return { text: 'Tu hermandad ya no existe. Salí con "guild leave".' };
+  }
+  const text = guildQuests.formatGuildQuest(guildRow, player.id);
+  return { text };
 }
 
 /**
@@ -3817,15 +3916,45 @@ function cmdCraft(player, args) {
   }
 
   const freshCrafter = db.getPlayer(player.id);
+
+  // T189: Progreso de quest de guild (crafteo)
+  let guildCraftMsg = '';
+  if (freshCrafter && freshCrafter.guild) {
+    const guildRowCraft = db.getGuildFull(freshCrafter.guild);
+    if (guildRowCraft) {
+      const gqCraftResult = guildQuests.recordGuildQuestContribution(
+        guildRowCraft, player.id, 'craft', {}
+      );
+      if (gqCraftResult) {
+        if (gqCraftResult.justCompleted && gqCraftResult.newQuest) {
+          db.setGuildQuest(freshCrafter.guild, JSON.stringify(gqCraftResult.newQuest));
+          const members = db.getGuildMembers(freshCrafter.guild);
+          for (const m of members) {
+            const mFresh = db.getPlayer(m.id);
+            if (mFresh) {
+              db.updatePlayer(m.id, { xp: (mFresh.xp || 0) + 50, gold: (mFresh.gold || 0) + 30 });
+              db.addReputation(m.id, 10);
+            }
+          }
+          guildCraftMsg = `\n⚔ ¡MISIÓN DE HERMANDAD COMPLETADA! Todos los miembros de [${freshCrafter.guild}] reciben +50 XP · +30 🪙 · +10 Reputación.`;
+          db.logGlobalEvent('guild_quest', `⚔ La hermandad [${freshCrafter.guild}] completó su misión de crafteo.`);
+        } else {
+          db.setGuildQuest(freshCrafter.guild, JSON.stringify(gqCraftResult.quest));
+          guildCraftMsg = `\n⚔ [${freshCrafter.guild}] Misión: ${gqCraftResult.quest.total}/${gqCraftResult.quest.goal}`;
+        }
+      }
+    }
+  }
+
   if (freshCrafter) {
     const craftAchs = ach.checkAchievements(freshCrafter, {});
     const craftAchLines = ach.formatNewAchievements(craftAchs);
     if (craftAchLines) {
-      return { text: craftResult.text + craftAchLines + craftChallengeMsg };
+      return { text: craftResult.text + craftAchLines + craftChallengeMsg + guildCraftMsg };
     }
   }
 
-  return { text: craftResult.text + craftChallengeMsg };
+  return { text: craftResult.text + craftChallengeMsg + guildCraftMsg };
 }
 
 function cmdRecipes() {
@@ -5226,6 +5355,12 @@ module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAucti
  */
 function cmdChangelog() {
   const CHANGELOG = [
+    { version: '0.28', date: '2026-05-30', changes: [
+      '✨ NUEVO: misiones colectivas de guild (guild quest)',
+      '⚔ Cada hermandad tiene una misión activa: matar monstruos, craftear, recoger oro',
+      '🏆 Al completar: todos los miembros reciben +50 XP · +30 🪙 · +10 Reputación',
+      '🔄 La misión rota automáticamente al completarse (10 tipos distintos)',
+    ]},
     { version: '0.27', date: '2026-05-30', changes: [
       '✨ NUEVO: hardcore new/sucesor — tras caer en Hardcore, creá tu personaje sucesor (I, II, III...)',
       '⚔️ El sucesor hereda el nombre con sufijo romano y comienza con Hardcore activo',

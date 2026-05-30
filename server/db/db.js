@@ -162,6 +162,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN fallen INTEGER NOT NULL DEFAULT 0`,            // T175: caído en modo hardcore
     `ALTER TABLE players ADD COLUMN fallen_at TEXT`,                               // T175: timestamp de caída
     `ALTER TABLE players ADD COLUMN hardcore_generation INTEGER NOT NULL DEFAULT 1`, // T175: generación del personaje (I, II, III...)
+    `ALTER TABLE guilds   ADD COLUMN guild_quest TEXT`,                               // T189: quest colectiva de guild (JSON)
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -679,6 +680,22 @@ function getAllGuilds() {
     LEFT JOIN players m ON m.guild = g.name
     GROUP BY g.name
   `);
+}
+
+// ─── Guild Quests (T189) ──────────────────────────────────────────────────────
+
+/**
+ * Obtener la fila completa del guild (incluyendo guild_quest).
+ */
+function getGuildFull(name) {
+  return one('SELECT * FROM guilds WHERE name = ?', [name]);
+}
+
+/**
+ * Guardar la quest activa del guild (JSON stringificado).
+ */
+function setGuildQuest(guildName, questJson) {
+  run('UPDATE guilds SET guild_quest = ? WHERE name = ?', [questJson, guildName]);
 }
 
 // ─── Eventos Globales (T093) ─────────────────────────────────────────────────
@@ -1310,6 +1327,8 @@ module.exports = {
   saveOfflineMessage, getPendingMessages, markMessagesDelivered, countPendingMessages, getRecentMessages,
   // guilds
   getGuild, getGuildMembers, createGuild, deleteGuild, setPlayerGuild, getAllGuilds,
+  // guild quests (T189)
+  getGuildFull, setGuildQuest,
   // global events (T093)
   logGlobalEvent, getGlobalEvents, getGlobalEventsSince, countKillsSince,
   // subastas (T098)
