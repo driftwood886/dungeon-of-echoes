@@ -15,6 +15,7 @@ const { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions } = req
 const { checkRespawns }      = require('./game/combat');
 const quests                 = require('./game/quests');
 const worldEvents            = require('./game/worldEvents');
+const { registerHandlers, playerSockets } = require('./socket/handlers');
 
 const PORT = process.env.PORT || 3000;
 const SERVER_START = Date.now(); // T119: uptime del servidor
@@ -378,7 +379,6 @@ async function main() {
   const io = new Server(server, {
     cors: { origin: '*' },
   });
-  const { registerHandlers } = require('./socket/handlers');
   registerHandlers(io);
 
   // 7. Arrancar servidor
@@ -427,6 +427,31 @@ async function main() {
       console.log(`[auctions] ${msg}`);
     });
   }, 30_000);
+
+  // 13. T130: Regeneración periódica de sala sagrada (sala 1 — Entrada del Dungeon)
+  // Cada 10s, los jugadores con HP < max que estén en la sala sagrada recuperan 1 HP.
+  const SACRED_ROOM_ID = 1;
+  setInterval(() => {
+    try {
+      const players = db.getPlayersInRoom(SACRED_ROOM_ID);
+      for (const p of players) {
+        if (p.hp > 0 && p.hp < p.max_hp) {
+          const newHp = Math.min(p.max_hp, p.hp + 1);
+          db.updatePlayer(p.id, { hp: newHp });
+          // Notificar solo al jugador afectado (si está conectado)
+          const targetSocket = playerSockets.get(p.id);
+          if (targetSocket) {
+            targetSocket.emit('event', {
+              type: 'sacred_regen',
+              message: `✨ El aura sagrada te restaura 1 HP. (${newHp}/${p.max_hp} HP)`,
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[sacredRegen] Error:', e.message);
+    }
+  }, 10_000);
 }
 
 main().catch(err => {

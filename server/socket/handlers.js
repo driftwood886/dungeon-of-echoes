@@ -308,4 +308,4 @@ function registerHandlers(io) {
 
 }
 
-module.exports = { registerHandlers };
+module.exports = { registerHandlers, playerSockets };

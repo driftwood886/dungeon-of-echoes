@@ -369,6 +369,16 @@ function initSocket() {
       addSeparator();
     } else if (data.type === 'duel_declined') {
       addMsg(`🚫 ${data.message}`, 'system');
+    } else if (data.type === 'trade_offer') {
+      addSeparator();
+      addMsg(`⚖️ ${data.message}`, 'duel_challenge');
+      addSeparator();
+    } else if (data.type === 'trade_accepted') {
+      addMsg(`✅ ${data.message}`, 'system');
+    } else if (data.type === 'trade_declined') {
+      addMsg(`🚫 ${data.message}`, 'system');
+    } else if (data.type === 'sacred_regen') {
+      addMsg(data.message, 'system');
     } else if (data.type === 'offline_messages') {
       addSeparator();
       addMsg(data.message, 'tell');

@@ -51,6 +51,10 @@ const pendingDuels = new Map();
 // pendingPartyInvites.get(targetPlayerId) → { inviterId, inviterUsername, partyId, expiresAt }
 const pendingPartyInvites = new Map();
 
+// ── Sistema de intercambio seguro (T129) ──────────────────────────────────────
+// pendingTrades.get(targetPlayerId) → { initiatorId, initiatorUsername, item, roomId, expiresAt }
+const pendingTrades = new Map();
+
 // ── Fuente de Rejuvenecimiento (T103) ─────────────────────────────────────────
 // Sala 18 — Cámara de la Fuente Eterna.
 // Cooldown global: 10 minutos por sala (no por jugador).
@@ -179,6 +183,7 @@ function execute(playerId, input, context) {
     case 'compare':      result = cmdCompare(player, action.args); break;
     case 'reputation':   result = cmdReputation(player); break;
     case 'recall':       result = cmdRecall(player); break;
+    case 'trade':        result = cmdTrade(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -1835,6 +1840,194 @@ function cmdRecall(player) {
     text: `🔮 Invocás el antiguo hechizo de retorno...\nUn destello de luz te envuelve. Aparecés en ${roomName}.\n⚡ Costo: ${HP_COST} HP. HP actual: ${newHp}/${player.max_hp}.`,
     event: `${player.username} desaparece en un destello de luz.`,
     eventRoomId: player.current_room_id,
+  };
+}
+
+/**
+ * T129: cmdTrade — Sistema de intercambio seguro de ítems entre dos jugadores.
+ *
+ * Flujo:
+ *  - trade <jugador> <ítem>  → propone el intercambio (el otro debe tener algo para dar)
+ *  - trade accept            → el destinatario acepta (debe también ofrecer un ítem)
+ *  - trade cancel / decline  → cancelar propuesta recibida o propia
+ *
+ * Implementación simplificada: el iniciador propone su ítem; el destinatario,
+ * al aceptar, elige el primer ítem de su inventario que no sea el que ya tiene
+ * equipado — o puede rechazar. Esto cubre el caso principal sin requerir una
+ * UI compleja de 2 pasos con sesiones paralelas.
+ *
+ * Para un trade bidireccional total, el flujo es:
+ *  A: trade B espada  → pendingTrades[B] = { A ofrece espada }
+ *  B: trade accept pocion  → acepta y ofrece pocion; intercambian
+ */
+function cmdTrade(player, args) {
+  if (!args || args.length === 0) {
+    return { text: '⚖️ Uso:\n  trade <jugador> <ítem>  — proponer intercambio\n  trade accept <ítem>    — aceptar (ofreciendo un ítem de tu inventario)\n  trade cancel/decline   — cancelar el intercambio' };
+  }
+
+  const subCmd = args[0].toLowerCase();
+
+  // ── trade cancel / decline ──────────────────────────────────────────────────
+  if (subCmd === 'cancel' || subCmd === 'decline' || subCmd === 'cancelar' || subCmd === 'rechazar') {
+    // Cancelar propuesta recibida
+    if (pendingTrades.has(player.id)) {
+      const t = pendingTrades.get(player.id);
+      pendingTrades.delete(player.id);
+      return {
+        text: '⚖️ Rechazaste la propuesta de intercambio.',
+        targetPlayerId: t.initiatorId,
+        targetPlayerMsg: `⚖️ ${player.username} rechazó tu propuesta de intercambio de "${t.item}".`,
+        targetEventType: 'trade_declined',
+      };
+    }
+    // Cancelar propuesta enviada (buscar si el jugador es initiator de algún trade)
+    for (const [targetId, trade] of pendingTrades.entries()) {
+      if (trade.initiatorId === player.id) {
+        pendingTrades.delete(targetId);
+        return { text: `⚖️ Cancelaste la propuesta de intercambio de "${trade.item}".` };
+      }
+    }
+    return { text: '⚖️ No tenés ninguna propuesta de intercambio activa.' };
+  }
+
+  // ── trade accept ────────────────────────────────────────────────────────────
+  if (subCmd === 'accept' || subCmd === 'aceptar') {
+    const trade = pendingTrades.get(player.id);
+    if (!trade) {
+      return { text: '⚖️ No tenés ninguna propuesta de intercambio pendiente. Recibís una cuando alguien te escribe "trade <tu nombre> <ítem>".' };
+    }
+    if (Date.now() > trade.expiresAt) {
+      pendingTrades.delete(player.id);
+      return { text: '⚖️ La propuesta de intercambio expiró (más de 30 segundos).' };
+    }
+
+    // El jugador aceptante debe indicar qué ítem ofrece a cambio
+    if (args.length < 2) {
+      return { text: '⚖️ Tenés que indicar qué ítem ofrecés a cambio.\nUso: trade accept <ítem que ofrecés>' };
+    }
+    const offeredItemName = args.slice(1).join(' ').toLowerCase().trim();
+
+    // Verificar que el iniciador todavía está en la sala y tiene el ítem ofrecido
+    const initiator = db.getPlayer(trade.initiatorId);
+    if (!initiator) {
+      pendingTrades.delete(player.id);
+      return { text: '⚖️ El jugador que propuso el intercambio ya no existe.' };
+    }
+    if (initiator.current_room_id !== player.current_room_id) {
+      pendingTrades.delete(player.id);
+      return { text: `⚖️ ${initiator.username} ya no está en esta sala. Intercambio cancelado.` };
+    }
+
+    // Verificar que el iniciador todavía tiene su ítem
+    const freshInitiator = db.getPlayer(trade.initiatorId);
+    const initiatorInv = Array.isArray(freshInitiator.inventory) ? freshInitiator.inventory : JSON.parse(freshInitiator.inventory || '[]');
+    const initiatorItemIdx = initiatorInv.findIndex(i => i.toLowerCase() === trade.item.toLowerCase());
+    if (initiatorItemIdx < 0) {
+      pendingTrades.delete(player.id);
+      return {
+        text: `⚖️ ${initiator.username} ya no tiene "${trade.item}" en su inventario. Intercambio cancelado.`,
+      };
+    }
+
+    // Verificar que el aceptante tiene el ítem que ofrece
+    const freshPlayer = db.getPlayer(player.id);
+    const playerInv = Array.isArray(freshPlayer.inventory) ? freshPlayer.inventory : JSON.parse(freshPlayer.inventory || '[]');
+    const playerItemIdx = playerInv.findIndex(i => i.toLowerCase().includes(offeredItemName));
+    if (playerItemIdx < 0) {
+      return { text: `⚖️ No tenés "${offeredItemName}" en tu inventario.` };
+    }
+    const playerItemActual = playerInv[playerItemIdx];
+
+    // ── Ejecutar el intercambio ──────────────────────────────────────────────
+    pendingTrades.delete(player.id);
+
+    // Quitar ítem del iniciador, darle el del aceptante
+    const newInitiatorInv = [...initiatorInv];
+    newInitiatorInv.splice(initiatorItemIdx, 1);
+    newInitiatorInv.push(playerItemActual);
+
+    // Quitar ítem del aceptante, darle el del iniciador
+    const newPlayerInv = [...playerInv];
+    newPlayerInv.splice(playerItemIdx, 1);
+    newPlayerInv.push(trade.item);
+
+    // Actualizar BD
+    const initiatorUpdates = { inventory: newInitiatorInv };
+    if (freshInitiator.equipped_weapon === trade.item) {
+      initiatorUpdates.equipped_weapon = null;
+      initiatorUpdates.attack = 5;
+    }
+    db.updatePlayer(freshInitiator.id, initiatorUpdates);
+
+    const playerUpdates = { inventory: newPlayerInv };
+    if (freshPlayer.equipped_weapon === playerItemActual) {
+      playerUpdates.equipped_weapon = null;
+      playerUpdates.attack = 5;
+    }
+    db.updatePlayer(freshPlayer.id, playerUpdates);
+
+    return {
+      text: `⚖️ ¡Intercambio completado! Diste "${playerItemActual}" y recibiste "${trade.item}".`,
+      event: `⚖️ ${player.username} e ${initiator.username} realizaron un intercambio.`,
+      eventRoomId: player.current_room_id,
+      targetPlayerId: initiator.id,
+      targetPlayerMsg: `⚖️ ¡Intercambio completado! Diste "${trade.item}" y recibiste "${playerItemActual}".`,
+      targetEventType: 'trade_accepted',
+    };
+  }
+
+  // ── trade <jugador> <ítem> — Proponer intercambio ──────────────────────────
+  if (args.length < 2) {
+    return { text: '⚖️ Uso: trade <jugador> <ítem>  — Ej: "trade Ana espada oxidada"' };
+  }
+
+  // Parsear: primer arg es el jugador, resto es el ítem
+  const targetUsername = args[0];
+  const itemName = args.slice(1).join(' ').toLowerCase().trim();
+
+  const target = db.getPlayerByUsername(targetUsername.trim());
+  if (!target) {
+    return { text: `⚖️ No existe el jugador "${targetUsername}".` };
+  }
+  if (target.id === player.id) {
+    return { text: '⚖️ No podés intercambiar ítems contigo mismo.' };
+  }
+  if (target.current_room_id !== player.current_room_id) {
+    return { text: `⚖️ ${target.username} no está en esta sala.` };
+  }
+
+  // Verificar que el proponente tiene el ítem
+  const freshPlayer = db.getPlayer(player.id);
+  const playerInv = Array.isArray(freshPlayer.inventory) ? freshPlayer.inventory : JSON.parse(freshPlayer.inventory || '[]');
+  const itemIdx = playerInv.findIndex(i => i.toLowerCase().includes(itemName));
+  if (itemIdx < 0) {
+    return { text: `⚖️ No tenés "${itemName}" en tu inventario.` };
+  }
+  const actualItem = playerInv[itemIdx];
+
+  // Verificar que no haya ya un trade pendiente para este target
+  if (pendingTrades.has(target.id)) {
+    const existing = pendingTrades.get(target.id);
+    if (existing.initiatorId === player.id) {
+      return { text: `⚖️ Ya tenés una propuesta de intercambio pendiente con ${target.username} ("${existing.item}"). Esperá que acepte o cancelá con "trade cancel".` };
+    }
+    return { text: `⚖️ ${target.username} ya tiene una propuesta de intercambio pendiente. Esperá a que la resuelva.` };
+  }
+
+  // Registrar el trade pendiente
+  pendingTrades.set(target.id, {
+    initiatorId: player.id,
+    initiatorUsername: player.username,
+    item: actualItem,
+    roomId: player.current_room_id,
+    expiresAt: Date.now() + 30_000,
+  });
+
+  return {
+    text: `⚖️ Propuesta de intercambio enviada a ${target.username}: ofrecés "${actualItem}".\n  ${target.username} debe responder con "trade accept <ítem que te ofrece>" en los próximos 30 segundos.`,
+    targetPlayerId: target.id,
+    targetPlayerMsg: `⚖️ ${player.username} te propone un intercambio: te da "${actualItem}".\n  Respondé con "trade accept <ítem de tu inventario que ofrecés>" o "trade decline" para rechazar (30s).`,
+    targetEventType: 'trade_offer',
   };
 }
 
