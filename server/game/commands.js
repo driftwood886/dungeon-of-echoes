@@ -255,6 +255,8 @@ const COMMAND_ALIASES = {
   trivia: 'trivia', acertijo: 'trivia', riddle: 'trivia', enigma: 'trivia', adivinanza: 'trivia',
   // worldgoals / metas globales del servidor (T194)
   worldgoals: 'worldgoals', metas: 'worldgoals', metasglobales: 'worldgoals', 'world-goals': 'worldgoals', globalmetas: 'worldgoals', comunidad: 'worldgoals',
+  // records / récords del servidor (T195)
+  records: 'records', récords: 'records', recores: 'records', trofeos: 'records', 'hall-of-fame': 'records', halloffame: 'records', mejores: 'records',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)

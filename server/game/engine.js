@@ -254,6 +254,7 @@ function execute(playerId, input, context) {
     case 'enchant':      result = cmdEnchant(player, action.args); break;
     case 'trivia':       result = cmdTrivia(player, action.args); break;
     case 'worldgoals':   result = cmdWorldGoals(); break;
+    case 'records':      result = cmdRecords(); break;
     case 'drink':        result = cmdDrink(player); break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
@@ -928,6 +929,13 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // ── Récords del servidor (T195) ───────────────────────────────────────────
+  let recordMsgs = [];
+  if (monsterDead) {
+    const currentCombo = comboMap.get(player.id) || 0;
+    recordMsgs = checkAndSetRecords(db.getPlayer(player.id) || player, currentCombo);
+  }
+
   // ── Runas coleccionables (T140) ──────────────────────────────────────────
   let runeMsg = '';
   if (monsterDead) {
@@ -1148,10 +1156,10 @@ function cmdAttack(player, targetName) {
   }
 
   return {
-    text: lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg + worldGoalMsg,
+    text: lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg + worldGoalMsg + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : ''),
     event: eventText,
     eventRoomId: player.current_room_id,
-    globalEvent: globalEvent || (worldGoalMsg ? worldGoalMsg.replace(/\n/, '') : null) || null,
+    globalEvent: globalEvent || (worldGoalMsg ? worldGoalMsg.replace(/\n/, '') : null) || (recordMsgs.length ? recordMsgs[0] : null) || null,
     sessionKill: !!monsterDead,  // T155: tracking de kills de sesión
     // T189: guild quest broadcast (si aplica)
     ...(combatResult.guildBroadcast ? {
@@ -5434,6 +5442,9 @@ function cmdChangelog() {
       '🌍 Contadores acumulativos de kills, crafteos, oro y duelos de todos los aventureros',
       '🏆 Al alcanzar un hito (100/500/1000/5000 kills, etc.) broadcast global al servidor',
       '📊 Barras de progreso ASCII para ver el estado actual de cada meta',
+      '✨ NUEVO: récords del servidor (comando records/trofeos)',
+      '🥇 Registra automáticamente: nivel más alto, más kills, combo máximo, más oro, más duelos',
+      '🌟 Si batés un récord, broadcast global al servidor con tu nombre',
     ]},
     { version: '0.28', date: '2026-05-30', changes: [
       '✨ NUEVO: misiones colectivas de guild (guild quest)',
@@ -8682,10 +8693,6 @@ function cmdTrivia(player, args) {
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap };
 
 // ─── T194: worldgoals/metas — metas globales del servidor ────────────────────
-/**
- * Muestra los contadores globales acumulativos del servidor con barras de progreso.
- * No requiere parámetros; solo lectura.
- */
 function cmdWorldGoals() {
   const goals = db.getWorldGoalsDisplay();
   const W = 52;
@@ -8723,4 +8730,77 @@ function cmdWorldGoals() {
 
 // Actualizar module.exports con T194
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals };
+
+// ─── T195: records/récords — tabla de récords del servidor ───────────────────
+function cmdRecords() {
+  const W = 52;
+  const pad = (s, w) => { const str = String(s); return str + ' '.repeat(Math.max(0, w - str.length)); };
+  const records = db.getAllServerRecords();
+  const defs = db.SERVER_RECORDS_DEFS;
+
+  const lines = [];
+  lines.push(`╔${'═'.repeat(W)}╗`);
+  lines.push(`║${'🏆 RÉCORDS DEL SERVIDOR'.padStart(Math.floor((W + 22) / 2)).padEnd(W)}║`);
+  lines.push(`╠${'═'.repeat(W)}╣`);
+
+  const keys = Object.keys(defs);
+  for (const key of keys) {
+    const def = defs[key];
+    const rec = records.find(r => r.record_key === key);
+    if (rec) {
+      lines.push(`║  ${pad(def.label, W - 3)} ║`);
+      const holderStr = `   ${def.icon} ${rec.holder_name} — ${rec.value.toLocaleString()} ${def.unit}`;
+      lines.push(`║  ${pad(holderStr.slice(0, W - 3), W - 3)} ║`);
+      const dateStr = `   📅 ${rec.achieved_at ? rec.achieved_at.slice(0, 16).replace('T', ' ') : '???'}`;
+      lines.push(`║  ${pad(dateStr.slice(0, W - 3), W - 3)} ║`);
+    } else {
+      lines.push(`║  ${pad(def.label, W - 3)} ║`);
+      lines.push(`║  ${pad('   (sin récord aún — ¡sé el primero!)', W - 3)} ║`);
+    }
+    lines.push(`╟${'─'.repeat(W)}╢`);
+  }
+  lines.pop();
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  lines.push(`║  ${'Los récords se actualizan automáticamente.'.padEnd(W - 3)} ║`);
+  lines.push(`╚${'═'.repeat(W)}╝`);
+  return { text: lines.join('\n') };
+}
+
+/**
+ * T195: Verificar y actualizar récords tras un kill de monstruo.
+ * Comprueba nivel, kills totales y combo.
+ * @returns {string} mensaje de récord batido (puede ser '')
+ */
+function checkAndSetRecords(player, comboValue) {
+  const msgs = [];
+  const fresh = db.getPlayer(player.id) || player;
+  const username = fresh.username;
+
+  // Nivel más alto
+  if (db.trySetServerRecord('max_level', fresh.level || 1, username)) {
+    msgs.push(`🏆 ¡RÉCORD! ${username} alcanzó el nivel más alto del servidor: ${fresh.level}`);
+  }
+  // Kills totales
+  if (db.trySetServerRecord('max_kills', fresh.kills || 0, username)) {
+    msgs.push(`⚔️ ¡RÉCORD! ${username} tiene el mayor número de kills del servidor: ${fresh.kills}`);
+  }
+  // Combo de ataque
+  if (comboValue && comboValue > 1) {
+    if (db.trySetServerRecord('max_combo', comboValue, username)) {
+      msgs.push(`⚡ ¡RÉCORD COMBO! ${username} encadenó ${comboValue}x ataques consecutivos`);
+    }
+  }
+  // Oro
+  if (db.trySetServerRecord('max_gold', fresh.gold || 0, username)) {
+    msgs.push(`💰 ¡RÉCORD! ${username} acumula más oro que nadie: ${fresh.gold}g`);
+  }
+  // Duelos ganados
+  if (db.trySetServerRecord('max_duel_kills', fresh.duel_wins || 0, username)) {
+    msgs.push(`🥊 ¡RÉCORD! ${username} lidera duelos ganados: ${fresh.duel_wins}`);
+  }
+  return msgs;
+}
+
+// Actualizar module.exports con T194+T195
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals, checkAndSetRecords };
 

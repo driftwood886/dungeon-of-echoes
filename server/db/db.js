@@ -261,6 +261,17 @@ async function init() {
     )
   `);
 
+  // T195: Tabla de récords del servidor
+  db.run(`
+    CREATE TABLE IF NOT EXISTS server_records (
+      record_key   TEXT PRIMARY KEY,
+      value        INTEGER NOT NULL DEFAULT 0,
+      holder_name  TEXT,
+      achieved_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      description  TEXT
+    )
+  `);
+
   // T156: Tabla de historial de sesiones
   db.run(`
     CREATE TABLE IF NOT EXISTS sessions (
@@ -1321,7 +1332,42 @@ function expireOldBulletinPosts() {
   run(`DELETE FROM bulletin_board WHERE expires_at <= datetime('now')`);
 }
 
-// ─── World Goals (T194) ───────────────────────────────────────────────────────
+// ─── Server Records (T195) ────────────────────────────────────────────────────
+
+const SERVER_RECORDS_DEFS = {
+  max_level:         { label: '🏆 Nivel más alto alcanzado', unit: 'nivel',    icon: '🎖️' },
+  max_kills:         { label: '⚔️  Más monstruos matados',  unit: 'kills',    icon: '⚔️' },
+  max_combo:         { label: '⚡ Combo de ataque más alto', unit: 'combo x',  icon: '⚡' },
+  max_gold:          { label: '💰 Mayor riqueza acumulada',  unit: 'oro',      icon: '💰' },
+  max_duel_kills:    { label: '🥊 Más duelos ganados',       unit: 'duelos',   icon: '🥊' },
+  max_session_kills: { label: '🔥 Más kills en una sesión',  unit: 'kills',    icon: '🔥' },
+};
+
+function getServerRecord(key) {
+  return one(`SELECT * FROM server_records WHERE record_key = ?`, [key]);
+}
+
+function getAllServerRecords() {
+  const rows = all(`SELECT * FROM server_records ORDER BY record_key`);
+  return rows;
+}
+
+// Intenta actualizar el récord; si el nuevo valor supera el anterior, actualiza y devuelve true
+function trySetServerRecord(key, value, holderName, description) {
+  const existing = getServerRecord(key);
+  if (!existing || value > existing.value) {
+    if (existing) {
+      run(`UPDATE server_records SET value = ?, holder_name = ?, achieved_at = datetime('now'), description = ? WHERE record_key = ?`,
+        [value, holderName, description || null, key]);
+    } else {
+      run(`INSERT INTO server_records (record_key, value, holder_name, description) VALUES (?, ?, ?, ?)`,
+        [key, value, holderName, description || null]);
+    }
+    return true; // récord batido
+  }
+  return false;
+}
+
 
 // Definición de hitos por categoría
 const WORLD_GOAL_MILESTONES = {
@@ -1437,4 +1483,6 @@ module.exports = {
   addBulletinPost, getBulletinPosts, getPlayerBulletinPosts, deleteBulletinPost, expireOldBulletinPosts,
   // T194: metas globales del servidor
   incrementWorldGoal, getWorldGoalsDisplay, WORLD_GOAL_MILESTONES, WORLD_GOAL_LABELS,
+  // T195: récords del servidor
+  trySetServerRecord, getAllServerRecords, SERVER_RECORDS_DEFS,
 };
