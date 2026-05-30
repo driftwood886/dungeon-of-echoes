@@ -185,6 +185,8 @@ const COMMAND_ALIASES = {
   write: 'write', escribir: 'write', grabar: 'write', inscribir: 'write',
   // read / leer mensajes de la pared
   read: 'read', leer: 'read', pared: 'read',
+  // greet / saludar a otro jugador
+  greet: 'greet', saludar: 'greet', hola: 'greet', saludo: 'greet', hi: 'greet',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -317,6 +319,7 @@ Comandos disponibles:
   macro del <nombre>  — Eliminar una macro. !<nombre> ejecuta la macro.
   write <mensaje>     — Grabar un mensaje en la pared de la sala actual.
   read / leer         — Leer las inscripciones que dejaron otros en esta sala.
+  greet <jugador>     — Saludar a otro jugador en la sala. Saludo mutuo en 30s = +1 rep para ambos.
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();

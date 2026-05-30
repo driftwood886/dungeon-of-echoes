@@ -212,6 +212,7 @@ function execute(playerId, input, context) {
     case 'afk':          result = cmdAfk(player); break;
     case 'write':        result = cmdWrite(player, action.args); break;
     case 'read':         result = cmdReadWall(player); break;
+    case 'greet':        result = cmdGreet(player, action.args, context); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -5550,4 +5551,63 @@ function cmdReadWall(player) {
   return { text: lines.join('\n') };
 }
 
+// ── T148: Comando greet/saludar ───────────────────────────────────────────────
+
+// Mapa de saludos recientes: playerId → { targetName, timestamp }
+const recentGreetings = new Map();
+const GREET_WINDOW_MS = 30_000; // 30 segundos para saludo mutuo
+
+/**
+ * Saluda a otro jugador en la sala.
+ * Si ambos se saludan mutuamente dentro de 30s, reciben +1 reputación cada uno.
+ */
+function cmdGreet(player, args, context) {
+  if (!args || args.length === 0) {
+    return { text: '👋 ¿A quién querés saludar? Usá: saludar <nombre>' };
+  }
+  const targetName = args[0].toLowerCase();
+  const others = db.getPlayersInRoom(player.current_room_id)
+    .filter(p => p.id !== player.id);
+  const target = others.find(p => p.username.toLowerCase() === targetName);
+
+  if (!target) {
+    return { text: `👋 No encontré a "${args[0]}" en esta sala.` };
+  }
+
+  const now = Date.now();
+  // Verificar si el target saludó al jugador recientemente
+  const targetGreeted = recentGreetings.get(target.id);
+  const mutualGreet = targetGreeted &&
+    targetGreeted.targetName === player.username.toLowerCase() &&
+    (now - targetGreeted.timestamp) < GREET_WINDOW_MS;
+
+  // Registrar el saludo del jugador actual
+  recentGreetings.set(player.id, { targetName: target.username.toLowerCase(), timestamp: now });
+
+  if (mutualGreet) {
+    // Saludo mutuo — bonus de reputación para ambos
+    db.addReputation(player.id, 1);
+    db.addReputation(target.id, 1);
+    recentGreetings.delete(target.id); // Evitar duplicados
+    return {
+      text: `🤝 ¡Te saludaste con ${target.username}! La interacción cálida les da +1 reputación a ambos.`,
+      event: `🤝 ${player.username} y ${target.username} se dan un saludo cordial. ¡+1 reputación para cada uno!`,
+      eventRoomId: player.current_room_id,
+      targetPlayerId: target.id,
+      targetPlayerMsg: `👋 ${player.username} te saluda. ¡Saludo mutuo! +1 reputación para cada uno.`,
+      targetEventType: 'greet',
+    };
+  } else {
+    return {
+      text: `👋 Saludaste a ${target.username}.`,
+      event: `👋 ${player.username} le da la bienvenida a ${target.username}.`,
+      eventRoomId: player.current_room_id,
+      targetPlayerId: target.id,
+      targetPlayerMsg: `👋 ${player.username} te saluda. ¡Respondé con "saludar ${player.username}" en los próximos 30s para un saludo mutuo y +1 reputación!`,
+      targetEventType: 'greet',
+    };
+  }
+}
+
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk };
+
