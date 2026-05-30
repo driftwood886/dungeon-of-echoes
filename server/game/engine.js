@@ -596,8 +596,40 @@ function cmdMove(player, direction) {
   // T165: Badge de primera visita permanente
   const firstVisitMsg = firstVisitEver ? `\n\n🌟 ¡Primera vez que explorás esta sala! (${visitResult.visited.length} salas descubiertas en total)` : '';
 
+  // T206: Efectos de climas extremos al moverse
+  let extremeWeatherMsg = '';
+  if (weather.isBlizzard()) {
+    // El blizzard causa mensaje de ralentización
+    extremeWeatherMsg = '\n\n🌨️ ¡El BLIZZARD ralentiza tus movimientos! Te abrís paso con dificultad entre la nieve sobrenatural.';
+  } else if (weather.isSporeStorm()) {
+    // La tormenta de esporas envenena al moverse en salas "dungeon" (no sagradas/especiales)
+    const SAFE_ROOMS = new Set([1, 4, 16, 17, 18, 21, 22]); // salas relativamente seguras
+    if (!SAFE_ROOMS.has(targetId)) {
+      const freshPForStorm = db.getPlayer(player.id);
+      // 40% de chance de envenenarse al entrar a una sala peligrosa
+      if (Math.random() < 0.40 && freshPForStorm && !freshPForStorm.is_poisoned) {
+        db.updatePlayer(player.id, { is_poisoned: 1 });
+        extremeWeatherMsg = '\n\n☠️ Las esporas tóxicas te envuelven al moverte. ¡Estás ENVENENADO! Buscá un antídoto.';
+      } else if (freshPForStorm && freshPForStorm.is_poisoned) {
+        extremeWeatherMsg = '\n\n☠️ Las esporas agravan tu veneno. Los corredores están saturados de toxinas.';
+      } else {
+        extremeWeatherMsg = '\n\n☠️ Las esporas tóxicas flotan en el aire — tenés suerte de no haberte envenenado esta vez.';
+      }
+    }
+  } else if (weather.isScorching()) {
+    // El calor abrasador reduce HP máx temporalmente (se aplica como mensaje informativo)
+    const freshPForHeat = db.getPlayer(player.id);
+    if (freshPForHeat && freshPForHeat.hp > freshPForHeat.max_hp - 5) {
+      const cappedHp = Math.max(1, freshPForHeat.max_hp - 5);
+      if (freshPForHeat.hp > cappedHp) {
+        db.updatePlayer(player.id, { hp: cappedHp });
+        extremeWeatherMsg = `\n\n🔥 El CALOR ABRASADOR debilita tu cuerpo. Tu HP máximo efectivo es ${freshPForHeat.max_hp - 5} temporalmente (${cappedHp}/${freshPForHeat.max_hp} HP).`;
+      }
+    }
+  }
+
   return {
-    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}`,
+    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${extremeWeatherMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -4803,7 +4835,11 @@ function regenMana(player) {
 
   if (manaGained <= 0) return player;
 
-  const newMana = Math.min(maxMana, currentMana + manaGained);
+  // T206: En calor abrasador, maná regenera al doble
+  const weatherManaBonus = weather.getManaRegenMultiplier();
+  const effectiveManaGained = Math.floor(manaGained * weatherManaBonus);
+
+  const newMana = Math.min(maxMana, currentMana + effectiveManaGained);
   db.updatePlayer(player.id, {
     mana: newMana,
     last_mana_regen: new Date().toISOString(),
@@ -7102,6 +7138,9 @@ function cmdWeather() {
     'xp_multiplier_1_1':     '🌟 La XP ganada se multiplica ×1.1.',
     'rest_minus_1':          '❄️  Descansar recupera 1 HP menos.',
     'hide_monster_hp':       '👁  HP de monstruos oculto en look.',
+    'spore_storm':           '☠️  EXTREMO: Envenenamiento pasivo al moverse.',
+    'blizzard':              '🌨️  EXTREMO: Movimiento ralentizado con mensaje.',
+    'scorching':             '🔥 EXTREMO: Maná ×2, HP máx efectivo -5.',
     null:                    '✅ Sin efectos especiales.',
   };
   const effectLine = EFFECT_DESC[w.effect] || '✅ Sin efectos especiales.';
