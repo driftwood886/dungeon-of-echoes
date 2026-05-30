@@ -123,6 +123,8 @@ const COMMAND_ALIASES = {
   auctions: 'auctions', subastas: 'auctions', remates: 'auctions', mercado: 'auctions', sala_subasta: 'auctions',
   // dice / dados (T100)
   dice: 'dice', dado: 'dice', dados: 'dice', tirar: 'dice', roll: 'dice', rodar: 'dice',
+  // party / grupo (T102)
+  party: 'party', grupo: 'party', equipo: 'party', alianza: 'party',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -220,6 +222,7 @@ Comandos disponibles:
   forage / buscar       — Explorar la sala en busca de ítems ocultos (cooldown 3 min, sin monstruos)
   pet [adopt <tipo>]    — Adoptar una mascota (rata, murciélago, araña, etc.) o ver tu compañero
   dados <NdM>           — Tirar dados (ej: dados 2d6, dice 1d20). Resultado visible para toda la sala
+  party [<jugador>]     — Gestionar tu grupo: invitar/unirse, ver miembros, party leave para salir
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -256,6 +259,7 @@ const COMMAND_HELP = {
   inspect:   'inspect <jugador> / inspeccionar <jugador>\n  Examinar a otro aventurero que esté en la misma sala.\n  Muestra su nivel, HP, arma equipada, kills, muertes y logros desbloqueados.',
   guild:     'guild create <nombre>  — Crear una nueva hermandad (cuestan 50 oro)\\nguild join <nombre>    — Unirse a una hermandad existente\\nguild leave            — Abandonar tu hermandad actual\\nguild info             — Ver info de tu hermandad (miembros, líder)\\nguild list             — Listar todas las hermandades activas',
     gc:        'gc <mensaje> / gchat <mensaje>\\n  Enviar un mensaje al chat de hermandad. Solo los miembros de tu guild lo verán.\\n  Aparece en formato: [GUILD NombreGuild] TuNombre: mensaje',
+    party:     'party / grupo\\n  Ver los miembros de tu grupo actual.\\nparty <nombre>\\n  Invitar a un jugador de tu sala a unirse al grupo.\\nparty accept / aceptar\\n  Aceptar una invitación de grupo pendiente.\\nparty decline / rechazar\\n  Rechazar una invitación de grupo.\\nparty leave / salir\\n  Abandonar el grupo actual.\\nGrupos: máximo 4 miembros. Al matar un monstruo, los compañeros en la misma sala reciben 75% de la XP.',
     craft:     'craft <ítem1> con <ítem2> / craftear <ítem1> + <ítem2>\\n  Combinar dos ítems de tu inventario para crear un nuevo objeto.\\n  Los ítems originales se consumen. Usá "recetas" para ver las combinaciones disponibles.',
     recipes:   'recipes / recetas\\n  Ver el libro de recetas de crafteo conocidas.\\n  Mostrá todas las combinaciones posibles de dos ingredientes y su resultado.',
     news:      'news / crónica / noticias\\n  Ver la crónica de eventos globales del dungeon.\\n  Registra automáticamente: boss derrotado, quests completadas, logros desbloqueados, duelos ganados y subidas de nivel importantes.',
