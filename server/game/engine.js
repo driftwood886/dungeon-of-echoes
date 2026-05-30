@@ -210,6 +210,8 @@ function execute(playerId, input, context) {
     case 'challenge':    result = cmdChallenge(player); break;
     case 'macro':        result = cmdMacro(player, action.args, context); break;
     case 'afk':          result = cmdAfk(player); break;
+    case 'write':        result = cmdWrite(player, action.args); break;
+    case 'read':         result = cmdReadWall(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -5502,6 +5504,50 @@ function clearAfk(playerId) {
  */
 function isAfk(playerId) {
   return afkPlayers.has(playerId);
+}
+
+// ── T147: Mensajes en las paredes / Graffiti ──────────────────────────────────
+
+const WALL_MAX_LEN = 80;
+
+/**
+ * Escribe un mensaje en la pared de la sala actual.
+ * Uso: write <texto>
+ */
+function cmdWrite(player, args) {
+  if (!args || args.length === 0) {
+    return { text: '📝 ¿Qué querés escribir? Usá: write <mensaje>' };
+  }
+  const msg = args.join(' ').trim();
+  if (msg.length < 2) {
+    return { text: '✏️ El mensaje es muy corto.' };
+  }
+  if (msg.length > WALL_MAX_LEN) {
+    return { text: `✏️ El mensaje es muy largo (máximo ${WALL_MAX_LEN} caracteres).` };
+  }
+  db.addWallMessage(player.current_room_id, player.username, msg);
+  return {
+    text: `✍️ Grabaste en la pared: "${msg}"`,
+    event: `✍️ ${player.username} graba algo en la pared.`,
+    eventRoomId: player.current_room_id,
+  };
+}
+
+/**
+ * Lee los mensajes escritos en la pared de la sala actual.
+ * Uso: read (wall)
+ */
+function cmdReadWall(player) {
+  const msgs = db.getWallMessages(player.current_room_id);
+  if (msgs.length === 0) {
+    return { text: '📜 Las paredes están vacías. Nadie ha dejado ningún mensaje aquí.' };
+  }
+  const lines = ['📜 Inscripciones en la pared:'];
+  for (const m of msgs) {
+    const date = m.created_at ? m.created_at.slice(5, 16).replace('T', ' ') : '';
+    lines.push(`  ✍️ ${m.player_name} [${date}]: ${m.message}`);
+  }
+  return { text: lines.join('\n') };
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk };

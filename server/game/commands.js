@@ -181,6 +181,10 @@ const COMMAND_ALIASES = {
   // macro (T142)
   macro: 'macro', macros: 'macro', '!': 'macro',
   afk: 'afk', ausente: 'afk', ocupado: 'afk', away: 'afk',
+  // write / grabar mensaje en la pared
+  write: 'write', escribir: 'write', grabar: 'write', inscribir: 'write',
+  // read / leer mensajes de la pared
+  read: 'read', leer: 'read', pared: 'read',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -311,6 +315,8 @@ Comandos disponibles:
   macro list           — Ver tus macros guardadas (hasta 5).
   macro set <n> <cmd> — Guardar macro (puede incluir secuencia con ;).
   macro del <nombre>  — Eliminar una macro. !<nombre> ejecuta la macro.
+  write <mensaje>     — Grabar un mensaje en la pared de la sala actual.
+  read / leer         — Leer las inscripciones que dejaron otros en esta sala.
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -366,7 +372,9 @@ const COMMAND_HELP = {
     trade:     'trade <jugador> <ítem> / intercambiar <jugador> <ítem>\\\\n  Proponer un intercambio seguro de ítems con otro jugador en la misma sala.\\\\n  El jugador destino puede responder con:\\\\n    trade accept — aceptar el trueque (se intercambian los ítems)\\\\n    trade cancel/decline — rechazar la propuesta\\\\n  La propuesta expira en 30 segundos.\\\\n  Diferencia con give: trade requiere que ambos estén de acuerdo.',
   lore:      'lore <item> / enciclopedia <item>',
   peek:      'peek <dirección> / espiar <dirección> / asomarse <dirección>\\\\n  Espiar en una dirección sin moverse.\\\\n  Muestra el nombre de la sala adyacente, si hay monstruos (sin detalles de HP) y si hay ítems en el suelo.\\\\n  No funciona si la salida está bloqueada con llave.\\\\n  Útil para scouting antes de entrar a una sala peligrosa.',
-  afk:       'afk / ausente / ocupado / away\\\\n  Activar o desactivar el modo ausente (AFK).\\\\n  Mientras estés AFK, todos tus comandos quedarán bloqueados (excepto afk).\\\\n  En la lista de jugadores (who) aparecerás con 💤 junto a tu nombre.\\\\n  Si intentás atacar a un monstruo, el modo AFK se cancela automáticamente.\\\\n  Cooldown de 10 segundos entre toggles.',
+  afk:       'afk / ausente / ocupado / away\\\\\\\\n  Activar o desactivar el modo ausente (AFK).\\\\\\\\n  Mientras estés AFK, todos tus comandos quedarán bloqueados (excepto afk).\\\\\\\\n  En la lista de jugadores (who) aparecerás con 💤 junto a tu nombre.\\\\\\\\n  Si intentás atacar a un monstruo, el modo AFK se cancela automáticamente.\\\\\\\\n  Cooldown de 10 segundos entre toggles.',
+  write:     'write <mensaje> / escribir <mensaje> / grabar <mensaje>\\\\n  Grabar un mensaje en la pared de la sala actual (máx 80 caracteres).\\\\n  Máximo 10 mensajes por sala. Los más viejos se borran cuando se supera el límite.\\\\n  Todos los jugadores que entren a la sala verán el indicador y pueden leerlo con "read".',
+  read:      'read / leer / pared\\\\n  Leer las inscripciones en la pared de la sala actual.\\\\n  Muestra quién lo escribió y cuándo.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };

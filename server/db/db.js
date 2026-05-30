@@ -199,6 +199,17 @@ async function init() {
     )
   `);
 
+  // T147: Tabla de mensajes en las paredes (graffiti)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS wall_messages (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_id    INTEGER NOT NULL,
+      player_name TEXT NOT NULL,
+      message    TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // Guardar al apagar
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });
@@ -1041,6 +1052,37 @@ function _mapRow(cols, vals) {
   return obj;
 }
 
+// ─── Mensajes en las paredes / Graffiti (T147) ───────────────────────────────
+
+/**
+ * Escribe un mensaje en la pared de la sala.
+ * Máximo 10 mensajes por sala; si se supera se borra el más antiguo.
+ */
+function addWallMessage(roomId, playerName, message) {
+  run('INSERT INTO wall_messages (room_id, player_name, message) VALUES (?, ?, ?)', [roomId, playerName, message]);
+  // Limpiar mensajes más viejos si hay más de 10
+  const oldest = all(
+    'SELECT id FROM wall_messages WHERE room_id = ? ORDER BY id ASC',
+    [roomId]
+  );
+  if (oldest.length > 10) {
+    const toDelete = oldest.slice(0, oldest.length - 10);
+    for (const row of toDelete) {
+      run('DELETE FROM wall_messages WHERE id = ?', [row.id]);
+    }
+  }
+}
+
+/**
+ * Devuelve los mensajes escritos en la pared de una sala (hasta limit).
+ */
+function getWallMessages(roomId, limit = 10) {
+  return all(
+    'SELECT player_name, message, created_at FROM wall_messages WHERE room_id = ? ORDER BY id ASC LIMIT ?',
+    [roomId, limit]
+  );
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -1073,4 +1115,6 @@ module.exports = {
   getDailyChallenge, updateDailyChallengeProgress,
   // T144: bounties
   addBounty, getBountiesOnPlayer, getAllActiveBounties, claimBounty, expireOldBounties,
+  // T147: mensajes en las paredes (graffiti)
+  addWallMessage, getWallMessages,
 };

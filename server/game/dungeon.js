@@ -183,6 +183,12 @@ function describeRoom(roomId, excludePlayerId = null) {
     lines.push(`\n🏪 Aldric el Mercader está aquí, sentado detrás de un improvisado mostrador de cajas.\n   "Bienvenido. Escribí 'tienda' para ver mis artículos."`);
   }
 
+  // Mensajes en las paredes (T147)
+  const wallMsgs = db.getWallMessages(roomId);
+  if (wallMsgs.length > 0) {
+    lines.push(`\n✍️ Alguien ha dejado inscripciones en la pared. (Escribí "read" para leerlas.)`);
+  }
+
   return lines.join('\n');
 }
 
