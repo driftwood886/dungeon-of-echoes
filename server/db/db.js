@@ -147,6 +147,23 @@ async function init() {
     )
   `);
 
+  // Tabla de subastas (T098)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS auctions (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      seller_id     TEXT NOT NULL,
+      seller_name   TEXT NOT NULL,
+      item_name     TEXT NOT NULL,
+      min_price     INTEGER NOT NULL,
+      current_bid   INTEGER NOT NULL DEFAULT 0,
+      bidder_id     TEXT,
+      bidder_name   TEXT,
+      ends_at       TEXT NOT NULL,
+      closed        INTEGER NOT NULL DEFAULT 0,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // Guardar al apagar
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });
@@ -482,6 +499,83 @@ function getGlobalEvents(limit = 10) {
   );
 }
 
+// ─── Subastas (T098) ─────────────────────────────────────────────────────────
+
+/**
+ * Crear una nueva subasta.
+ * @param {string} sellerId — ID del vendedor
+ * @param {string} sellerName — username del vendedor
+ * @param {string} itemName — nombre del ítem
+ * @param {number} minPrice — precio mínimo (en oro)
+ * @param {number} durationMs — duración en ms (default 5 minutos)
+ * @returns {object} — la subasta creada
+ */
+function createAuction(sellerId, sellerName, itemName, minPrice, durationMs = 5 * 60 * 1000) {
+  const endsAt = new Date(Date.now() + durationMs).toISOString();
+  run(
+    `INSERT INTO auctions (seller_id, seller_name, item_name, min_price, current_bid, ends_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [sellerId, sellerName, itemName, minPrice, 0, endsAt]
+  );
+  const row = one(`SELECT * FROM auctions WHERE seller_id = ? AND item_name = ? AND closed = 0 ORDER BY id DESC LIMIT 1`, [sellerId, itemName]);
+  return row;
+}
+
+/**
+ * Obtener subastas activas (no cerradas y no expiradas).
+ */
+function getActiveAuctions() {
+  return all(
+    `SELECT * FROM auctions WHERE closed = 0 AND ends_at > datetime('now') ORDER BY ends_at ASC`
+  );
+}
+
+/**
+ * Obtener una subasta por ID.
+ */
+function getAuction(id) {
+  return one(`SELECT * FROM auctions WHERE id = ?`, [id]);
+}
+
+/**
+ * Realizar una puja en una subasta.
+ * @returns {{ ok: boolean, error?: string }}
+ */
+function placeBid(auctionId, bidderId, bidderName, amount) {
+  const auction = getAuction(auctionId);
+  if (!auction) return { ok: false, error: 'Subasta no encontrada.' };
+  if (auction.closed) return { ok: false, error: 'Esa subasta ya está cerrada.' };
+  const now = new Date().toISOString();
+  if (auction.ends_at <= now) return { ok: false, error: 'Esa subasta ya expiró.' };
+  if (auction.seller_id === bidderId) return { ok: false, error: 'No podés pujar en tu propia subasta.' };
+
+  const minBid = auction.current_bid > 0 ? auction.current_bid + 1 : auction.min_price;
+  if (amount < minBid) {
+    return { ok: false, error: `La puja mínima es ${minBid}g. (actual: ${auction.current_bid}g, mínimo inicial: ${auction.min_price}g)` };
+  }
+
+  run(
+    `UPDATE auctions SET current_bid = ?, bidder_id = ?, bidder_name = ? WHERE id = ?`,
+    [amount, bidderId, bidderName, auctionId]
+  );
+  return { ok: true, prevBidder: auction.bidder_id, prevBidderAmount: auction.current_bid };
+}
+
+/**
+ * Cerrar subastas expiradas y resolver el remate (pagar al vendedor, dar ítem al ganador).
+ * Devuelve lista de subastas cerradas con resultado para broadcast.
+ * La lógica de inventario/gold se maneja en engine.js ya que requiere conocimiento de ítems.
+ */
+function closeExpiredAuctions() {
+  const expired = all(
+    `SELECT * FROM auctions WHERE closed = 0 AND ends_at <= datetime('now')`
+  );
+  for (const a of expired) {
+    run(`UPDATE auctions SET closed = 1 WHERE id = ?`, [a.id]);
+  }
+  return expired;
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -500,6 +594,8 @@ module.exports = {
   getGuild, getGuildMembers, createGuild, deleteGuild, setPlayerGuild, getAllGuilds,
   // global events (T093)
   logGlobalEvent, getGlobalEvents,
+  // subastas (T098)
+  createAuction, getActiveAuctions, getAuction, placeBid, closeExpiredAuctions,
   // acceso raw (por si acaso)
   raw: () => db,
 };

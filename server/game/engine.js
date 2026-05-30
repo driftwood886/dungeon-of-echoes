@@ -118,6 +118,9 @@ function execute(playerId, input) {
     case 'news':         result = cmdNews(); break;
     case 'forage':       result = cmdForage(player); break;
     case 'pet':          result = cmdPet(player, action.args); break;
+    case 'auction':      result = cmdAuction(player, action.args); break;
+    case 'bid':          result = cmdBid(player, action.args); break;
+    case 'auctions':     result = cmdAuctions(); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -158,6 +161,9 @@ function execute(playerId, input) {
           inspect: 'inspect', inspeccionar: 'inspect', observar: 'inspect',
           news: 'news', cronica: 'news', crónica: 'news', noticias: 'news', historial: 'news',
           forage: 'forage', buscar: 'forage', explorar: 'forage', hurgar: 'forage', rebuscar: 'forage',
+          auction: 'auction', subasta: 'auction', subastar: 'auction',
+          bid: 'bid', pujar: 'bid',
+          auctions: 'auctions', subastas: 'auctions',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
@@ -2438,6 +2444,204 @@ function cmdPet(player, args) {
   return { text: 'Uso: pet           — ver tu mascota\n     pet adopt <tipo> — adoptar una mascota\n     pet liberar      — liberar tu mascota\nEjemplo: pet adopt murciélago' };
 }
 
-// Re-export final con T095
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS };
+// ─── T098: Sala de Subastas ───────────────────────────────────────────────────
+
+const AUCTION_ROOM_ID = 17;
+
+/**
+ * Utilidad: formatear tiempo restante de una subasta.
+ * @param {string} endsAt — ISO string
+ * @returns {string} p.ej. "4m 32s"
+ */
+function formatTimeLeft(endsAt) {
+  const ms = new Date(endsAt).getTime() - Date.now();
+  if (ms <= 0) return 'expirada';
+  const totalSec = Math.ceil(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return min > 0 ? `${min}m ${sec}s` : `${sec}s`;
+}
+
+/**
+ * subasta <ítem> <precio_min>
+ * Pone un ítem del inventario a subasta desde la Casa de Subastas.
+ */
+function cmdAuction(player, args) {
+  player = db.getPlayer(player.id);
+
+  if (player.current_room_id !== AUCTION_ROOM_ID) {
+    return { text: '🔨 Solo podés subastar desde la Casa de Subastas (sala 17).\n  Movete al este desde la Cámara del Tesoro (sala 4).' };
+  }
+
+  if (!args || args.length < 2) {
+    return { text: 'Uso: subasta <ítem> <precio_mínimo>\nEjemplo: subasta espada 10\n\nPodés poner cualquier ítem de tu inventario a subasta.\nLa duración del remate es de 5 minutos.' };
+  }
+
+  // El último argumento es el precio, el resto es el nombre del ítem
+  const priceArg = args[args.length - 1];
+  const minPrice = parseInt(priceArg, 10);
+  if (isNaN(minPrice) || minPrice < 1) {
+    return { text: `Precio inválido: "${priceArg}". Debe ser un número mayor a 0.\nEjemplo: subasta "poción de salud" 15` };
+  }
+
+  const itemName = args.slice(0, -1).join(' ').toLowerCase().trim();
+  const inventory = JSON.parse(player.inventory || '[]');
+  const itemIndex = inventory.findIndex(i => i.toLowerCase() === itemName);
+  if (itemIndex === -1) {
+    return { text: `No tenés "${itemName}" en el inventario.\nUsá "inventario" para ver tus ítems.` };
+  }
+
+  // Verificar que no tenga otra subasta activa con el mismo ítem
+  const activeAuctions = db.getActiveAuctions();
+  const alreadyAuctioning = activeAuctions.find(a => a.seller_id === player.id && a.item_name.toLowerCase() === itemName);
+  if (alreadyAuctioning) {
+    return { text: `Ya tenés "${itemName}" en subasta (ID #${alreadyAuctioning.id}). Esperá a que cierre primero.` };
+  }
+
+  // Retirar el ítem del inventario
+  inventory.splice(itemIndex, 1);
+  db.updatePlayer(player.id, { inventory: JSON.stringify(inventory) });
+
+  // Crear subasta
+  const auction = db.createAuction(player.id, player.username, itemName, minPrice);
+
+  return {
+    text: `🔨 ¡Subasta iniciada!\n  Ítem: ${itemName}\n  Precio mínimo: ${minPrice}g\n  ID de subasta: #${auction.id}\n  Cierra en: 5 minutos\n\nOtros jugadores pueden pujar con: pujar ${auction.id} <monto>`,
+    globalEvent: `📣 ¡SUBASTA! ${player.username} pone "${itemName}" a la venta. Precio mínimo: ${minPrice}g. (ID #${auction.id}) — Usá: pujar ${auction.id} <monto>`,
+  };
+}
+
+/**
+ * subastas — listar subastas activas.
+ */
+function cmdAuctions() {
+  const auctions = db.getActiveAuctions();
+
+  if (auctions.length === 0) {
+    return { text: '🔨 No hay subastas activas en este momento.\n\nPodés crear una con: subasta <ítem> <precio_mínimo>\n(Debés estar en la Casa de Subastas, sala 17, al este de la sala 4)' };
+  }
+
+  const lines = auctions.map(a => {
+    const timeLeft = formatTimeLeft(a.ends_at);
+    const bidInfo = a.current_bid > 0
+      ? `Puja actual: ${a.current_bid}g (${a.bidder_name})`
+      : `Sin pujas (mín: ${a.min_price}g)`;
+    return `  #${a.id} | ${a.item_name} | ${bidInfo} | ⏳ ${timeLeft} | Vendedor: ${a.seller_name}`;
+  });
+
+  return {
+    text: `🔨 Subastas activas (${auctions.length}):\n\n${lines.join('\n')}\n\nPara pujar: pujar <id> <monto>  |  Para detalle: help subasta`,
+  };
+}
+
+/**
+ * pujar <id> <monto>
+ * Realizar una puja en una subasta activa.
+ */
+function cmdBid(player, args) {
+  player = db.getPlayer(player.id);
+
+  if (!args || args.length < 2) {
+    return { text: 'Uso: pujar <id_subasta> <monto>\nEjemplo: pujar 3 50\n\nUsá "subastas" para ver los remates activos y sus IDs.' };
+  }
+
+  const auctionId = parseInt(args[0], 10);
+  const amount = parseInt(args[1], 10);
+
+  if (isNaN(auctionId) || isNaN(amount) || amount < 1) {
+    return { text: 'Argumentos inválidos. Ejemplo: pujar 3 50' };
+  }
+
+  const auction = db.getAuction(auctionId);
+  if (!auction) {
+    return { text: `No existe la subasta #${auctionId}. Usá "subastas" para ver las activas.` };
+  }
+  if (auction.closed) {
+    return { text: `La subasta #${auctionId} ya está cerrada.` };
+  }
+
+  const gold = player.gold || 0;
+  if (gold < amount) {
+    return { text: `No tenés suficiente oro. Tu oro: ${gold}g. Tu puja: ${amount}g.` };
+  }
+
+  const prevBidder = auction.bidder_id;
+  const prevBidAmount = auction.current_bid;
+  const prevBidderName = auction.bidder_name;
+
+  const result = db.placeBid(auctionId, player.id, player.username, amount);
+  if (!result.ok) {
+    return { text: `❌ ${result.error}` };
+  }
+
+  // Descontar oro al nuevo postor
+  db.updatePlayer(player.id, { gold: gold - amount });
+
+  // Devolver oro al postor anterior (si había uno distinto)
+  let refundMsg = '';
+  if (prevBidder && prevBidder !== player.id && prevBidAmount > 0) {
+    const prevPlayer = db.getPlayer(prevBidder);
+    if (prevPlayer) {
+      db.updatePlayer(prevBidder, { gold: (prevPlayer.gold || 0) + prevBidAmount });
+      refundMsg = `\n💰 Se devolvieron ${prevBidAmount}g a ${prevBidderName}.`;
+    }
+  }
+
+  const timeLeft = formatTimeLeft(auction.ends_at);
+
+  return {
+    text: `✅ ¡Puja registrada!\n  Subasta #${auctionId}: ${auction.item_name}\n  Tu puja: ${amount}g\n  Tiempo restante: ${timeLeft}${refundMsg}`,
+    event: `💰 ${player.username} puja ${amount}g por "${auction.item_name}" (subasta #${auctionId})`,
+    eventRoomId: AUCTION_ROOM_ID,
+  };
+}
+
+/**
+ * Resolver subastas expiradas — llamado periódicamente desde index.js.
+ * Devuelve lista de mensajes de broadcast para emitir vía Socket.io.
+ * @param {Function} broadcastFn — función(mensaje) para broadcast global
+ */
+function resolveExpiredAuctions(broadcastFn) {
+  const expired = db.closeExpiredAuctions();
+  const messages = [];
+
+  for (const auction of expired) {
+    if (auction.current_bid > 0 && auction.bidder_id) {
+      // Hay ganador: dar ítem al ganador, dar oro al vendedor
+      const winner = db.getPlayer(auction.bidder_id);
+      const seller = db.getPlayer(auction.seller_id);
+
+      if (winner) {
+        const winnerInv = JSON.parse(winner.inventory || '[]');
+        winnerInv.push(auction.item_name);
+        db.updatePlayer(winner.id, { inventory: JSON.stringify(winnerInv) });
+      }
+      if (seller) {
+        db.updatePlayer(seller.id, { gold: (seller.gold || 0) + auction.current_bid });
+      }
+
+      const msg = `🔨 ¡REMATE CERRADO! "${auction.item_name}" vendida por ${auction.current_bid}g. Ganador: ${auction.bidder_name}. Vendedor: ${auction.seller_name} recibe ${auction.current_bid}g.`;
+      messages.push(msg);
+      if (broadcastFn) broadcastFn(msg);
+
+    } else {
+      // Sin pujas: devolver ítem al vendedor
+      const seller = db.getPlayer(auction.seller_id);
+      if (seller) {
+        const sellerInv = JSON.parse(seller.inventory || '[]');
+        sellerInv.push(auction.item_name);
+        db.updatePlayer(seller.id, { inventory: JSON.stringify(sellerInv) });
+      }
+
+      const msg = `🔨 Subasta cerrada sin pujas: "${auction.item_name}" vuelve a ${auction.seller_name}.`;
+      messages.push(msg);
+      if (broadcastFn) broadcastFn(msg);
+    }
+  }
+
+  return messages;
+}
+
+// Re-export final con T095 + T098
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions };
 

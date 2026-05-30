@@ -10,8 +10,8 @@ const http    = require('http');
 const path    = require('path');
 
 const db                     = require('./db/db');
-const { seedIfEmpty }        = require('./db/seed');
-const { execute, getOrCreatePlayer, ROOM_EFFECTS } = require('./game/engine');
+const { seedIfEmpty, migrateAuctionRoom } = require('./db/seed');
+const { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions } = require('./game/engine');
 const { checkRespawns }      = require('./game/combat');
 const quests                 = require('./game/quests');
 const worldEvents            = require('./game/worldEvents');
@@ -22,6 +22,7 @@ async function main() {
   // 1. Inicializar base de datos
   await db.init();
   seedIfEmpty();
+  migrateAuctionRoom();
 
   // 2. Crear app Express
   const app = express();
@@ -374,6 +375,14 @@ async function main() {
       console.log(`[worldEvents] ${result.type}: ${result.event.name}`);
     }
   }, 60_000);
+
+  // 12. Auction resolution loop: resolver subastas expiradas cada 30 segundos
+  setInterval(() => {
+    resolveExpiredAuctions((msg) => {
+      io.emit('shout', { username: '🔨 REMATE', message: msg });
+      console.log(`[auctions] ${msg}`);
+    });
+  }, 30_000);
 }
 
 main().catch(err => {

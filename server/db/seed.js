@@ -492,4 +492,31 @@ function migrateTutorial() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS };
+/**
+ * Sala de Subastas (T098): sala 17 conectada al este de la sala 4 (Cámara del Tesoro).
+ * Agrega la sala si no existe y actualiza la salida east de sala 4.
+ */
+function migrateAuctionRoom() {
+  const auctionRoom = db.getRoom(17);
+  if (!auctionRoom) {
+    db.upsertRoom({
+      id: 17,
+      name: 'Casa de Subastas',
+      description: 'Un salón iluminado con candelabros de bronce. Filas de gradas rodean un estrado central donde los aventureros subastan sus tesoros. Un escriba elfo anota cada puja con pluma y pergamino. Un letrero reza: "TODO REMATE ES FINAL. NO SE ACEPTAN QUEJAS."',
+      exits: { west: 4 },
+      items: [],
+    });
+    console.log('[seed] migrateAuctionRoom: Sala 17 (Casa de Subastas) creada.');
+
+    // Actualizar sala 4 para que tenga salida al este hacia sala 17
+    const room4 = db.getRoom(4);
+    if (room4) {
+      const exits4 = room4.exits || {};
+      exits4.east = 17;
+      db.upsertRoom({ ...room4, exits: exits4 });
+      console.log('[seed] migrateAuctionRoom: Sala 4 actualizada con salida east → 17.');
+    }
+  }
+}
+
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom };

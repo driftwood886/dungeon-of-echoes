@@ -115,6 +115,12 @@ const COMMAND_ALIASES = {
   forage: 'forage', buscar: 'forage', explorar: 'forage', hurgar: 'forage', rebuscar: 'forage', rastrear: 'forage',
   // pet / mascota (T095)
   pet: 'pet', mascota: 'pet', compañero: 'pet', familiar: 'pet',
+  // auction / subasta (T098)
+  auction: 'auction', subasta: 'auction', subastar: 'auction', rematar: 'auction', vender_subasta: 'auction',
+  // bid / pujar (T098)
+  bid: 'bid', pujar: 'bid', puja: 'bid', apostar: 'bid', ofrecer_oro: 'bid',
+  // auctions / listar subastas (T098)
+  auctions: 'auctions', subastas: 'auctions', remates: 'auctions', mercado: 'auctions', sala_subasta: 'auctions',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -251,6 +257,9 @@ const COMMAND_HELP = {
     recipes:   'recipes / recetas\\n  Ver el libro de recetas de crafteo conocidas.\\n  Mostrá todas las combinaciones posibles de dos ingredientes y su resultado.',
     news:      'news / crónica / noticias\\n  Ver la crónica de eventos globales del dungeon.\\n  Registra automáticamente: boss derrotado, quests completadas, logros desbloqueados, duelos ganados y subidas de nivel importantes.',
     forage:    'forage / buscar / explorar\\n  Buscar ítems ocultos en la sala actual.\\n  Cooldown de 3 minutos por sala. No funciona si hay monstruos vivos.\\n  Podés encontrar: hierbas curativas, pociones, monedas de oro, materiales de crafteo.',
+    auction:   'subasta <ítem> <precio_min> / auction <item> <min_price>\\n  Poner un ítem tuyo a subasta en la Casa de Subastas (sala 17, al este de la Cámara del Tesoro).\\n  La subasta dura 5 minutos. El ítem se retira de tu inventario inmediatamente.\\n  Si hay ganador: el vendedor recibe el oro, el ganador recibe el ítem.\\n  Si nadie puja: el ítem vuelve al vendedor.',
+    bid:       'pujar <id_subasta> <monto> / bid <auction_id> <amount>\\n  Realizar una puja en una subasta activa.\\n  La puja debe ser mayor a la puja actual. Si alguien supera tu puja, recibís tu oro de vuelta.\\n  El oro se descuenta al pujar y se devuelve si te superan.',
+    auctions:  'subastas / auctions / remates\\n  Ver todas las subastas activas en la Casa de Subastas.\\n  Muestra: ID, ítem, precio mínimo, puja actual, tiempo restante y vendedor.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };
