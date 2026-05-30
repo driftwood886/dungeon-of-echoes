@@ -234,6 +234,7 @@ function execute(playerId, input, context) {
     case 'gesture':      result = cmdGesture(player, action.args[0]); break;
     case 'pray':         result = cmdPray(player, action.args); break;
     case 'preview':      result = cmdPreview(player, action.args); break;
+    case 'calendar':     result = cmdCalendar(player); break;
     case 'drink':        result = cmdDrink(player); break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
@@ -7998,3 +7999,108 @@ const FORAGE_REST_ROOMS = {
   11: { item: 'hongo azul', chance: 0.30, msg: '🔵 El aire frío de la galería conserva unos hongos azules en perfectas condiciones. Los guardás.' },
   14: { item: 'fragmento de roca volcánica', chance: 0.25, msg: '🪨 El calor de la forja ha cristalizado unos fragmentos minerales. Te los llevás.' },
 };
+
+// ─── T187: calendar/eventos — panel de temporizadores del dungeon ──────────────
+function cmdCalendar(player) {
+  player = db.getPlayer(player.id);
+  const now = Date.now();
+  const W = 52;
+  const pad = (s, w) => { const str = String(s); return str + ' '.repeat(Math.max(0, w - str.length)); };
+  const fmt = (ms) => {
+    const secs = Math.ceil(ms / 1000);
+    if (secs <= 0) return '¡ya disponible!';
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    if (m > 0) return `${m}min ${s}s`;
+    return `${s}s`;
+  };
+
+  const lines = [];
+  lines.push(`╔${'═'.repeat(W)}╗`);
+  lines.push(`║${('⏳ PANEL DE TEMPORIZADORES DEL DUNGEON').padStart(Math.floor((W + 38) / 2)).padEnd(W)}║`);
+  lines.push(`╠${'═'.repeat(W)}╣`);
+
+  // ── Boss: Lich Anciano (monstruo ID 13) ──────────────────────────────────
+  lines.push(`║ ${'👑 BOSS'.padEnd(W - 2)} ║`);
+  const allMonsters = db.getAllMonsters();
+  const lich = allMonsters.find(m => m.id === 13);
+  if (lich) {
+    if (lich.room_id !== null) {
+      const lichHpPct = Math.round((lich.hp / lich.max_hp) * 100);
+      lines.push(`║  ${'Lich Anciano'.padEnd(20)} ${'⚔ VIVO'.padEnd(14)} HP: ${lichHpPct}%`.padEnd(W + 1) + '║');
+    } else if (lich.respawn_at) {
+      const respawnMs = new Date(lich.respawn_at).getTime() - now;
+      lines.push(`║  ${'Lich Anciano'.padEnd(20)} ${'💤 en respawn'.padEnd(14)} en: ${fmt(respawnMs)}`.padEnd(W + 1) + '║');
+    } else {
+      lines.push(`║  ${'Lich Anciano'.padEnd(20)} ${'❓ estado desconocido'.padEnd(30)}`.padEnd(W + 1) + '║');
+    }
+  }
+
+  // ── Clima ────────────────────────────────────────────────────────────────
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  lines.push(`║ ${'🌦 CLIMA ACTUAL'.padEnd(W - 2)} ║`);
+  const wState = weather.getCurrentWeather();
+  const weatherRemMs = Math.max(0, wState.changesAt - now);
+  lines.push(`║  ${pad(wState.name, 28)} cambia en: ${fmt(weatherRemMs)}`.padEnd(W + 1) + '║');
+  if (wState.effect && wState.effect !== 'none') {
+    lines.push(`║  ${('Efecto: ' + (wState.description || wState.effect)).slice(0, W - 3)}`.padEnd(W + 1) + '║');
+  }
+
+  // ── Fuente de rejuvenecimiento ───────────────────────────────────────────
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  lines.push(`║ ${'💧 FUENTE ETERNA (sala 18)'.padEnd(W - 2)} ║`);
+  if (fountainCooldownUntil > now) {
+    const remMs = fountainCooldownUntil - now;
+    lines.push(`║  ${'Estado: En recarga'.padEnd(28)} disponible en: ${fmt(remMs)}`.padEnd(W + 1) + '║');
+  } else {
+    lines.push(`║  ${'Estado: ✅ Disponible — HP completo para quien beba'}`.padEnd(W + 1) + '║');
+  }
+
+  // ── Buffs activos del jugador ────────────────────────────────────────────
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  lines.push(`║ ${'✨ TUS BUFFS ACTIVOS'.padEnd(W - 2)} ║`);
+  const scrolls = JSON.parse(player.active_scrolls || '{}');
+  const scrollEntries = Object.entries(scrolls).filter(([, v]) => {
+    const exp = new Date(v.expires_at).getTime();
+    return exp > now;
+  });
+  if (scrollEntries.length === 0) {
+    lines.push(`║  ${'(sin buffs activos)'.padEnd(W - 3)} ║`);
+  } else {
+    for (const [key, val] of scrollEntries) {
+      const remMs = new Date(val.expires_at).getTime() - now;
+      const atkStr = val.atk_bonus ? `+${val.atk_bonus}ATK` : '';
+      const defStr = val.def_bonus ? `+${val.def_bonus}DEF` : '';
+      const statStr = [atkStr, defStr].filter(Boolean).join(' ') || '?';
+      const name = key.replace('_', ' ');
+      lines.push(`║  ${pad(name, 22)} ${pad(statStr, 10)} expira en: ${fmt(remMs)}`.padEnd(W + 1) + '║');
+    }
+  }
+
+  // ── Trampas del dungeon ──────────────────────────────────────────────────
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  lines.push(`║ ${'⚠️  TRAMPAS DEL DUNGEON'.padEnd(W - 2)} ║`);
+  const allRooms = db.getAllRooms();
+  const trappedRooms = allRooms.filter(r => r.trap);
+  let trapCount = 0;
+  for (const room of trappedRooms) {
+    const trap = room.trap;
+    if (!trap || typeof trap !== 'object') continue;
+    trapCount++;
+    if (trap.active) {
+      lines.push(`║  ${pad('⚠ ' + (room.name || 'Sala ' + room.id), 30)} ${'[ARMADA]'.padEnd(W - 33)}║`);
+    } else if (trap.respawn_at) {
+      const remMs = new Date(trap.respawn_at).getTime() - now;
+      lines.push(`║  ${pad('○ ' + (room.name || 'Sala ' + room.id), 30)} ${pad('se rearma en ' + fmt(remMs), W - 33)}║`);
+    }
+    if (trapCount >= 6) { lines.push(`║  ${'(y más...)'.padEnd(W - 3)} ║`); break; }
+  }
+  if (trapCount === 0) {
+    lines.push(`║  ${'Todas las trampas están desactivadas'.padEnd(W - 3)} ║`);
+  }
+
+  lines.push(`╚${'═'.repeat(W)}╝`);
+  return { text: lines.join('\n') };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS };

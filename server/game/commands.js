@@ -243,6 +243,8 @@ const COMMAND_ALIASES = {
   pray: 'pray', rezar: 'pray', orar: 'pray', ofrenda: 'pray', altar: 'pray',
   // preview / previsualizar ítem (T185)
   preview: 'preview', probar: 'preview', comparar_item: 'preview', previsualizar: 'preview', 'equip?': 'preview',
+  // calendar / temporizadores (T187)
+  calendar: 'calendar', eventos: 'calendar', timers: 'calendar', temporizadores: 'calendar', agenda: 'calendar',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -474,6 +476,7 @@ const COMMAND_HELP = {
   find:      'find <ítem o monstruo> / encontrar <ítem o monstruo>\\\\n  Buscar información sobre dónde conseguir algo en el dungeon.\\\\n  Si es un monstruo: muestra en qué sala se encuentra (o en respawn).\\\\n  Si es un ítem: muestra qué monstruos lo dropean y si hay alguno en el suelo.\\\\n  Soporta búsqueda parcial y sin tildes. Útil para nuevos jugadores buscando equipo.',
   pray:      'pray [ítem] / rezar [ítem] / orar [ítem]\\\\n  Rezar ante un altar mágico para obtener bendiciones temporales.\\\\n  Altares: Capilla Olvidada (sala 5) y Santuario Profano (sala 10).\\\\n  Ofrecés un ítem del inventario y el altar te devuelve un buff temporal.\\\\n  Cooldown: 5 minutos entre ofrendas. Sin argumento muestra los ítems aceptados.',
   preview:   'preview <arma o armadura> / probar <ítem>\\\\n  Previsualizar cómo cambiarían tus stats si equiparas un ítem.\\\\n  Funciona con armas y armaduras del inventario.\\\\n  No modifica tu equipo — es solo informativo.\\\\n  Útil para decidir si vale la pena cambiar de equipo antes de una pelea.',
+  calendar:  'calendar / eventos / timers / temporizadores\\\\n  Panel de temporizadores del dungeon.\\\\n  Muestra: estado del boss (vivo/respawn con cuenta regresiva), clima actual con tiempo restante,\\\\n  fuente eterna (disponible o en cooldown), tus buffs activos con tiempo restante,\\\\n  y estado de las trampas del dungeon (armadas/desactivadas).',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };
