@@ -149,6 +149,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN reputation INTEGER NOT NULL DEFAULT 0`,      // T125: sistema de reputación
     `ALTER TABLE players ADD COLUMN last_recall TEXT`,                            // T131: comando recall
     `ALTER TABLE players ADD COLUMN runes TEXT NOT NULL DEFAULT '{}'`,             // T140: runas coleccionables
+    `ALTER TABLE players ADD COLUMN daily_challenge TEXT NOT NULL DEFAULT '{}'`,  // T141: desafío diario personal
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -869,6 +870,65 @@ function getPlayerRunes(playerId) {
   try { return JSON.parse(player.runes || '{}'); } catch (_) { return {}; }
 }
 
+// ─── Daily Challenge (T141) ───────────────────────────────────────────────────
+
+const DAILY_CHALLENGE_TYPES = [
+  { type: 'kill',  target: 'Goblin Merodeador',   goal: 3,  desc: 'Matar 3 Goblins Merodeadores' },
+  { type: 'kill',  target: 'Esqueleto Guerrero',  goal: 2,  desc: 'Matar 2 Esqueletos Guerreros' },
+  { type: 'kill',  target: 'Rata Gigante',        goal: 4,  desc: 'Matar 4 Ratas Gigantes' },
+  { type: 'kill',  target: 'Murciélago Vampiro',  goal: 3,  desc: 'Matar 3 Murciélagos Vampiro' },
+  { type: 'kill',  target: 'Araña Tejedora',      goal: 2,  desc: 'Matar 2 Arañas Tejedoras' },
+  { type: 'kill',  target: 'Espectro del Corredor', goal: 2, desc: 'Matar 2 Espectros del Corredor' },
+  { type: 'kill',  target: 'Gólem de Piedra',     goal: 1,  desc: 'Matar al Gólem de Piedra' },
+  { type: 'gold',  target: null,                  goal: 50, desc: 'Recoger 50 monedas de oro' },
+  { type: 'gold',  target: null,                  goal: 80, desc: 'Recoger 80 monedas de oro' },
+  { type: 'craft', target: null,                  goal: 1,  desc: 'Craftear 1 ítem' },
+  { type: 'craft', target: null,                  goal: 2,  desc: 'Craftear 2 ítems' },
+  { type: 'forage',target: null,                  goal: 2,  desc: 'Explorar (forage) 2 veces con éxito' },
+  { type: 'rooms', target: null,                  goal: 5,  desc: 'Visitar 5 salas diferentes' },
+];
+
+function getDailyChallenge(player) {
+  let ch = {};
+  try { ch = JSON.parse(player.daily_challenge || '{}'); } catch (_) { ch = {}; }
+  const today = new Date().toISOString().slice(0, 10);
+  if (ch.date !== today) {
+    // Generar nuevo desafío para hoy (determinístico basado en player.id + fecha)
+    const seed = (player.id * 31 + parseInt(today.replace(/-/g, ''), 10)) % DAILY_CHALLENGE_TYPES.length;
+    const template = DAILY_CHALLENGE_TYPES[seed];
+    ch = { date: today, type: template.type, target: template.target, goal: template.goal, desc: template.desc, progress: 0, done: false };
+    updatePlayer(player.id, { daily_challenge: JSON.stringify(ch) });
+  }
+  return ch;
+}
+
+function updateDailyChallengeProgress(playerId, type, target, amount = 1) {
+  const player = getPlayer(playerId);
+  if (!player) return null;
+  const ch = getDailyChallenge(player);
+  if (ch.done) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  if (ch.date !== today) return null;
+  if (ch.type !== type) return null;
+  if (type === 'kill' && target && ch.target && ch.target.toLowerCase() !== target.toLowerCase()) return null;
+  ch.progress = (ch.progress || 0) + amount;
+  let reward = null;
+  if (ch.progress >= ch.goal) {
+    ch.done = true;
+    ch.progress = ch.goal;
+    reward = { xp: 30, gold: 20, reputation: 5 };
+    // Aplicar recompensas
+    const xp = (player.xp || 0) + 30;
+    const gold = (player.gold || 0) + 20;
+    updatePlayer(playerId, { xp, gold, daily_challenge: JSON.stringify(ch) });
+    addReputation(playerId, 5);
+    addJournalEntry(playerId, '🏆 Desafío diario completado: ' + ch.desc);
+  } else {
+    updatePlayer(playerId, { daily_challenge: JSON.stringify(ch) });
+  }
+  return { challenge: ch, reward };
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -897,4 +957,6 @@ module.exports = {
   trackRoomVisit, addGoldSpent, addCraftsCount,
   // T140: runas coleccionables
   tryAddRune, getPlayerRunes, RUNE_TYPES, RUNE_EMOJIS, RUNE_BONUSES,
+  // T141: desafío diario personal
+  getDailyChallenge, updateDailyChallengeProgress,
 };

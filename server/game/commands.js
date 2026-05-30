@@ -173,7 +173,9 @@ const COMMAND_ALIASES = {
   // peek / espiar (T139)
   peek: 'peek', espiar: 'peek', asomarse: 'peek', mirar_dir: 'peek', atisbar: 'peek',
   // runas / runes (T140)
-  runas: 'runas', runes: 'runas', runas: 'runas', runacoleccion: 'runas', 'colección-runas': 'runas',
+  runas: 'runas', runes: 'runas', runacoleccion: 'runas', 'colección-runas': 'runas',
+  // challenge / desafío diario (T141)
+  challenge: 'challenge', desafio: 'challenge', desafío: 'challenge', 'desafio-diario': 'challenge', daily: 'challenge', mision_diaria: 'challenge', reto: 'challenge',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -295,6 +297,7 @@ Comandos disponibles:
   trade <jug> <ítem>   — Proponer intercambio seguro de ítems (el otro acepta/rechaza con trade accept/decline).
   peek <dir> / espiar  — Espiar en una dirección sin moverse: ver nombre de sala, monstruos e ítems del suelo.
   runas / runes        — Ver tu colección de runas (obtenés runas al matar; 3 iguales se fusionan en un bonus permanente).
+  challenge / desafío  — Ver tu desafío diario personal y el progreso hacia él.
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();

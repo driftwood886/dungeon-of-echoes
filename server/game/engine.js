@@ -192,6 +192,7 @@ function execute(playerId, input, context) {
     case 'lore':         result = cmdLore(action.args.join(' ')); break;
     case 'peek':         result = cmdPeek(player, action.args); break;
     case 'runas':        result = cmdRunas(player); break;
+    case 'challenge':    result = cmdChallenge(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -401,6 +402,11 @@ function cmdMove(player, direction) {
     // Los nuevos logros se notificarán en la respuesta si los hay
   }
 
+  // T141: Desafío diario de salas visitadas
+  const roomsVisited = (() => { try { return JSON.parse(freshForCartog && freshForCartog.rooms_visited || '[]'); } catch (_) { return []; } })();
+  const roomsCr = db.updateDailyChallengeProgress(player.id, 'rooms', null, roomsVisited.includes(targetId) ? 0 : 1);
+  // (Solo suma si es una sala nueva en esta sesión; el progreso se acumula naturalmente)
+
   // Construir respuesta
   const moveText = `Vas hacia el ${dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction}.`;
   const roomDesc = dungeon.describeRoom(targetId, player.id);
@@ -590,6 +596,17 @@ function cmdAttack(player, targetName) {
     if (rm) runeMsg = '\n' + rm;
   }
 
+  // ── Desafío diario (T141) ────────────────────────────────────────────────
+  let challengeMsg = '';
+  if (monsterDead) {
+    const cr = db.updateDailyChallengeProgress(player.id, 'kill', monster.name);
+    if (cr && cr.reward) {
+      challengeMsg = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+    } else if (cr && !cr.challenge.done) {
+      challengeMsg = `\n📅 Desafío diario: ${cr.challenge.desc} (${cr.challenge.progress}/${cr.challenge.goal})`;
+    }
+  }
+
   // ── Evaluar logros tras el combate ──────────────────────────────────────
   let achLines = '';
   const freshForAch = db.getPlayer(player.id);
@@ -715,7 +732,7 @@ function cmdAttack(player, targetName) {
   }
 
   return {
-    text: lines.join('\n') + achLines + questLines + partyXpLines + runeMsg,
+    text: lines.join('\n') + achLines + questLines + partyXpLines + runeMsg + challengeMsg,
     event: eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || null,
@@ -829,14 +846,20 @@ function cmdPick(player, itemQuery) {
         goldQuestLine = `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
       }
     }
+    // Desafío diario: oro (T141)
+    const goldCr = db.updateDailyChallengeProgress(player.id, 'gold', null, amount);
+    let goldChallengeMsg = '';
+    if (goldCr && goldCr.reward) {
+      goldChallengeMsg = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+    } else if (goldCr && !goldCr.challenge.done) {
+      goldChallengeMsg = `\n📅 Desafío diario: ${goldCr.challenge.desc} (${goldCr.challenge.progress}/${goldCr.challenge.goal})`;
+    }
     return {
-      text: `💰 Recogés ${found}. +${amount} monedas de oro. Tenés ${newGold}g en total.${goldAchLines}${goldQuestLine}`,
+      text: `💰 Recogés ${found}. +${amount} monedas de oro. Tenés ${newGold}g en total.${goldAchLines}${goldQuestLine}${goldChallengeMsg}`,
       event: `${player.username} recoge algo del suelo.`,
       eventRoomId: room.id,
     };
   }
-
-  // Ítem normal: agregar al inventario del jugador
   const newInventory = [...player.inventory, found];
   db.updatePlayer(player.id, { inventory: newInventory });
 
@@ -3172,16 +3195,26 @@ function cmdCraft(player, args) {
 
   // T115: Trackear crafteos para logro secreto Artesano
   db.addCraftsCount(player.id);
+
+  // T141: Desafío diario de crafteo
+  const craftCr = db.updateDailyChallengeProgress(player.id, 'craft', null);
+  let craftChallengeMsg = '';
+  if (craftCr && craftCr.reward) {
+    craftChallengeMsg = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+  } else if (craftCr && !craftCr.challenge.done) {
+    craftChallengeMsg = `\n📅 Desafío diario: ${craftCr.challenge.desc} (${craftCr.challenge.progress}/${craftCr.challenge.goal})`;
+  }
+
   const freshCrafter = db.getPlayer(player.id);
   if (freshCrafter) {
     const craftAchs = ach.checkAchievements(freshCrafter, {});
     const craftAchLines = ach.formatNewAchievements(craftAchs);
     if (craftAchLines) {
-      return { text: craftResult.text + craftAchLines };
+      return { text: craftResult.text + craftAchLines + craftChallengeMsg };
     }
   }
 
-  return { text: craftResult.text };
+  return { text: craftResult.text + craftChallengeMsg };
 }
 
 function cmdRecipes() {
@@ -3339,12 +3372,23 @@ function cmdForage(player) {
   if (found.type === 'gold') {
     const currentGold = player.gold || 0;
     db.updatePlayer(player.id, { gold: currentGold + found.gold });
-    return { text: `${introLine}\n💰 ¡Encontrás ${found.label}! (Oro total: ${currentGold + found.gold}g)` };
+    // T141: desafío diario de forage
+    const fgCr = db.updateDailyChallengeProgress(player.id, 'forage', null);
+    let fgChalMsg = '';
+    if (fgCr && fgCr.reward) fgChalMsg = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+    else if (fgCr && !fgCr.challenge.done) fgChalMsg = `\n📅 Desafío diario: ${fgCr.challenge.desc} (${fgCr.challenge.progress}/${fgCr.challenge.goal})`;
+    return { text: `${introLine}\n💰 ¡Encontrás ${found.label}! (Oro total: ${currentGold + found.gold}g)${fgChalMsg}` };
   }
 
   // Ítem
   const inv = [...player.inventory, found.item];
   db.updatePlayer(player.id, { inventory: JSON.stringify(inv) });
+
+  // T141: desafío diario de forage
+  const forageCr = db.updateDailyChallengeProgress(player.id, 'forage', null);
+  let forageChalMsg = '';
+  if (forageCr && forageCr.reward) forageChalMsg = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+  else if (forageCr && !forageCr.challenge.done) forageChalMsg = `\n📅 Desafío diario: ${forageCr.challenge.desc} (${forageCr.challenge.progress}/${forageCr.challenge.goal})`;
 
   // Evaluar si hay quest de recoger ítems
   const freshForQuest = db.getPlayer(player.id);
@@ -3362,7 +3406,7 @@ function cmdForage(player) {
   }
 
   return {
-    text: `${introLine}\n🌿 ¡Encontrás: ${found.item}! Se agrega a tu inventario.${questLine}`,
+    text: `${introLine}\n🌿 ¡Encontrás: ${found.item}! Se agrega a tu inventario.${questLine}${forageChalMsg}`,
     event: null, // Acción silenciosa, sin broadcast a la sala
   };
 }
@@ -5079,4 +5123,33 @@ function cmdPeek(player, args) {
   return { text: lines.join('\n') };
 }
 
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation };
+/**
+ * T141: challenge / desafío — Ver el desafío diario personal del jugador.
+ */
+function cmdChallenge(player) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: 'Error al leer tu perfil.' };
+  const ch = db.getDailyChallenge(fresh);
+  const progress = ch.progress || 0;
+  const pct = Math.floor((progress / ch.goal) * 20);
+  const bar = '█'.repeat(pct) + '░'.repeat(20 - pct);
+  const status = ch.done ? '✅ ¡COMPLETADO!' : `${progress}/${ch.goal}`;
+  const lines = [
+    '',
+    '╔' + '═'.repeat(44) + '╗',
+    '║       📅 DESAFÍO DEL DÍA                    ║',
+    '╟' + '─'.repeat(44) + '╢',
+    `  ${ch.desc}`,
+    `  Progreso: [${bar}] ${status}`,
+    '╟' + '─'.repeat(44) + '╢',
+    '  Recompensa: +30 XP · +20 🪙 · +5 Reputación',
+    ch.done
+      ? '  🌟 ¡Recompensa ya cobrada! Volvé mañana.'
+      : '  ⏳ Completalo antes de medianoche (UTC).',
+    '╚' + '═'.repeat(44) + '╝',
+    '',
+  ];
+  return { text: lines.join('\n') };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge };

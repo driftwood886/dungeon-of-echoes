@@ -148,7 +148,14 @@ function registerHandlers(io) {
       console.log(`[socket] ${player.username} (${socket.id}) unido a sala ${currentRoomId}`);
       // T107: Si el jugador no tiene clase, agregar recordatorio al welcome
       const classReminder = engine.getClassReminder(player);
-      const finalWelcomeText = classReminder ? welcomeText + classReminder : welcomeText;
+      // T141: Si hay desafío diario no completado, avisar
+      const freshForChallenge = db.getPlayer(player.id);
+      const dailyCh = freshForChallenge ? db.getDailyChallenge(freshForChallenge) : null;
+      let challengeReminder = '';
+      if (dailyCh && !dailyCh.done) {
+        challengeReminder = `\n\n📅 Desafío del día: ${dailyCh.desc} (${dailyCh.progress || 0}/${dailyCh.goal}). Completalo para +30 XP, +20🪙 y +5 Rep.`;
+      }
+      const finalWelcomeText = (classReminder ? welcomeText + classReminder : welcomeText) + challengeReminder;
       ack && ack({ player_id: player.id, username: player.username, welcome: finalWelcomeText });
     });
 
