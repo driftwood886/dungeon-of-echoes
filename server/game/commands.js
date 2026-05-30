@@ -134,6 +134,8 @@ const COMMAND_ALIASES = {
   news: 'news', cronica: 'news', crónica: 'news', noticias: 'news', historial: 'news', diario: 'news',
   // forage / buscar ítems ocultos (T094)
   forage: 'forage', buscar: 'forage', explorar: 'forage', hurgar: 'forage', rebuscar: 'forage', rastrear: 'forage',
+  // survey / sondear (T205)
+  survey: 'survey', sondear: 'survey', escanear: 'survey', inspeccionar_sala: 'survey', prospeccionar: 'survey', prospectar: 'survey',
   // pet / mascota (T095)
   pet: 'pet', mascota: 'pet', compañero: 'pet', familiar: 'pet',
   // auction / subasta (T098)

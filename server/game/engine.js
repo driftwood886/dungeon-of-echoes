@@ -241,6 +241,7 @@ function execute(playerId, input, context) {
     case 'recipes':      result = cmdRecipes(); break;
     case 'news':         result = cmdNews(); break;
     case 'forage':       result = cmdForage(player); break;
+    case 'survey':       result = cmdSurvey(player); break;
     case 'pet':          result = cmdPet(player, action.args); break;
     case 'auction':      result = cmdAuction(player, action.args); break;
     case 'bid':          result = cmdBid(player, action.args); break;
@@ -4132,6 +4133,7 @@ const FORAGE_TABLE = [
 ];
 
 const FORAGE_COOLDOWN_MS = 3 * 60 * 1000; // 3 minutos por sala
+const SURVEY_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutos por sala (T205)
 
 /**
  * forage / buscar — Explorar la sala en busca de ítems ocultos.
@@ -4167,7 +4169,13 @@ function cmdForage(player) {
   }
 
   // Determinar qué se encuentra (tirar probabilidades)
+  // T205: Si la sala fue sondeada recientemente, +20% bonus (reduce la prob de "nada")
+  const surveyKey = `survey_${player.current_room_id}`;
+  const surveyTs = forageData[surveyKey] ? Number(forageData[surveyKey]) : 0;
+  const surveyed = (Date.now() - surveyTs) < SURVEY_COOLDOWN_MS;
   let roll = Math.random();
+  // Si está sondeada y el roll cae en zona baja (probable "nada"), subir 20%
+  if (surveyed) roll = Math.min(roll + 0.20, 0.99);
   let found = null;
 
   for (const entry of FORAGE_TABLE) {
@@ -4367,6 +4375,86 @@ const PET_CATALOG = {
   'serpiente':     { name: '🐍 Serpiente de Mazmorra', cost: 30, desc: 'Una serpiente verde no venenosa. Se enrolla en tu brazo y sisea suavemente.' },
   'escarabajo':    { name: '🪲 Escarabajo de Cristal', cost: 15, desc: 'Un escarabajo cuya caparazón refleja la luz como un prisma. Coleccionistas lo buscan.' },
 };
+
+/**
+ * survey / sondear — Sondear la sala en busca de recursos ocultos.
+ * T205: Da información sobre dónde buscar con forage, y marca la sala como "sondeada"
+ * para obtener +20% de bonus en la siguiente operación de forage.
+ */
+const SURVEY_RESOURCES = [
+  { name: 'vetas de mineral', emoji: '⛏️', tip: 'El forage en esta sala podría revelar fragmentos de mineral valioso.' },
+  { name: 'raíces medicinales', emoji: '🌿', tip: 'Hay hierbas ocultas bajo el musgo. El forage tiene alta chance de hierbas curativas.' },
+  { name: 'ruinas antiguas', emoji: '🏛️', tip: 'Fragmentos de civilizaciones pasadas. El forage podría revelar monedas antiguas.' },
+  { name: 'hongos luminosos', emoji: '🍄', tip: 'Los hongos son abundantes aquí. El forage tiene buenas chances de materiales de alquimia.' },
+  { name: 'cristales ocultos', emoji: '💎', tip: 'Destellos en las grietas de las rocas. El forage podría revelar un cristal de cuarzo.' },
+  { name: 'polvo de huesos', emoji: '🦴', tip: 'Restos de seres olvidados. El forage podría revelar reliquias o monedas.' },
+];
+
+// Mapa en memoria: roomId -> { playerId -> timestamp }
+const surveyCooldowns = new Map();
+
+function cmdSurvey(player) {
+  player = db.getPlayer(player.id);
+  const roomId = player.current_room_id;
+  const now = Date.now();
+
+  // Verificar cooldown
+  if (!surveyCooldowns.has(roomId)) surveyCooldowns.set(roomId, new Map());
+  const roomSurveys = surveyCooldowns.get(roomId);
+  const lastSurvey = roomSurveys.get(player.id) || 0;
+  const elapsed = now - lastSurvey;
+
+  if (elapsed < SURVEY_COOLDOWN_MS) {
+    const remaining = Math.ceil((SURVEY_COOLDOWN_MS - elapsed) / 1000);
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    return { text: `🔍 Ya sondeaste esta sala recientemente.\nPodrás volver a sondear en ${mins}m ${secs}s.` };
+  }
+
+  // Probabilidad de encontrar recursos (20% nada, 80% algo)
+  const found = Math.random() < 0.80;
+  if (!found) {
+    roomSurveys.set(player.id, now);
+    return {
+      text: `🔍 Examinás la sala en detalle, buscando recursos...\n\nNo encontrás nada de particular interés. La sala parece haber sido ya saqueada.\n💡 Tip: Si querés buscar ítems ocultos igual, usá \`forage\`.`
+    };
+  }
+
+  // Elegir recurso aleatorio
+  const resource = SURVEY_RESOURCES[Math.floor(Math.random() * SURVEY_RESOURCES.length)];
+
+  // Marcar la sala como "sondeada" en BD (usamos forage_data con prefijo "survey_")
+  let forageData = {};
+  try { forageData = JSON.parse(player.forage_data || '{}'); } catch (_) {}
+  const surveyKey = `survey_${roomId}`;
+  forageData[surveyKey] = now;
+  // Limpiar entradas viejas si pasan de 30
+  const keys = Object.keys(forageData);
+  if (keys.length > 30) {
+    const oldest = keys.sort((a, b) => forageData[a] - forageData[b])[0];
+    delete forageData[oldest];
+  }
+  db.updatePlayer(player.id, { forage_data: JSON.stringify(forageData) });
+  roomSurveys.set(player.id, now);
+
+  const w = 50;
+  const line = '─'.repeat(w);
+  const title = '  🔭 SONDEO DE LA SALA  ';
+  const lines = [
+    `┌${line}┐`,
+    `│${title.padEnd(w)}│`,
+    `├${line}┤`,
+    `│  ${resource.emoji} Recurso detectado: ${resource.name.padEnd(w - 23)}│`,
+    `│                                                  │`,
+    `│  ${resource.tip.substring(0, w-4).padEnd(w-4)}│`,
+    `│                                                  │`,
+    `│  ✨ Esta sala está marcada. El próximo \`forage\`  │`,
+    `│     tendrá un 20% de bonus de éxito adicional.  │`,
+    `└${line}┘`,
+  ];
+
+  return { text: lines.join('\n') };
+}
 
 /**
  * pet [adopt <tipo>] [liberar] — Sistema de mascotas.
