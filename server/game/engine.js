@@ -5158,6 +5158,11 @@ module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAucti
  */
 function cmdChangelog() {
   const CHANGELOG = [
+    { version: '0.27', date: '2026-05-30', changes: [
+      '✨ NUEVO: hardcore new/sucesor — tras caer en Hardcore, creá tu personaje sucesor (I, II, III...)',
+      '⚔️ El sucesor hereda el nombre con sufijo romano y comienza con Hardcore activo',
+      '✝ Los personajes caídos aparecen en score con ✝ y pueden usar comandos pasivos',
+    ]},
     { version: '0.26', date: '2026-05-30', changes: [
       '✨ NUEVO: modo Hardcore (comando hardcore on/off)',
       '☠ Si morís en modo Hardcore, tu personaje queda como ✝ fantasma (solo comandos pasivos)',
@@ -7349,7 +7354,50 @@ function cmdHardcore(player, args) {
     return { text: '⚫ Modo Hardcore desactivado. Jugás en modo normal.' };
   }
 
-  return { text: 'Uso: hardcore [on/off]\nVer estado: hardcore' };
+  // T175: Crear nuevo personaje sucesor (tras caída hardcore)
+  // Uso: hardcore new  — crea <username> II, III, etc. con is_hardcore=1
+  if (mode === 'new' || mode === 'nuevo' || mode === 'sucesor' || mode === 'continuar') {
+    if (!isFallen) {
+      return { text: '✝ Solo podés crear un sucesor si tu personaje actual cayó en modo Hardcore.' };
+    }
+    // Calcular siguiente generación
+    const nextGen = (player.hardcore_generation || 1) + 1;
+    const suffix  = toRoman(nextGen);
+    const newUsername = `${player.username.replace(/ [IVXLCDM]+$/, '')} ${suffix}`.trim();
+
+    // Verificar que no exista ya
+    const existing = db.getPlayerByUsername(newUsername);
+    if (existing) {
+      return { text: `Ya existe un personaje llamado "${newUsername}". Si querés continuar, conectate con ese nombre.` };
+    }
+
+    // Crear el nuevo personaje sucesor con hardcore activo y generación correcta
+    const newPlayer = db.createPlayer(newUsername);
+    db.updatePlayer(newPlayer.id, {
+      is_hardcore: 1,
+      hardcore_generation: nextGen,
+      tutorial_step: 1,
+      current_room_id: tutorial.TUTORIAL_ROOM_ID,
+    });
+
+    const lines = [
+      ``,
+      `✝ El legado continúa...`,
+      `─`.repeat(34),
+      `  ${player.username} cayó, pero su linaje persiste.`,
+      ``,
+      `  ⚔️  Nuevo aventurero creado: ${newUsername}`,
+      `  Generación: ${suffix}`,
+      `  Modo: 🔴 HARDCORE (activado por herencia)`,
+      ``,
+      `  Conectate con el nombre "${newUsername}" para comenzar`,
+      `  la aventura de tu sucesor.`,
+      ``,
+    ];
+    return { text: lines.join('\n') };
+  }
+
+  return { text: 'Uso: hardcore [on/off/new]\nVer estado: hardcore\nCrear sucesor (tras caída): hardcore new' };
 }
 
 /** Convertir número a romano (para generaciones I, II, III...) */

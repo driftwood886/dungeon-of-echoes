@@ -371,7 +371,7 @@ Comandos disponibles:
   guide [sección]     — Guía de inicio rápido: primeros/combate/economia/clases/crafteo/tips. Ej: guide 2
   wanted [jugador]    — Carteles de SE BUSCA: bounties activas en el dungeon, agrupadas por objetivo.
   rank <stat>         — Tu posición global en una estadística (kills, gold, xp, level, rep, deaths, time).
-  hardcore [on/off]   — Modo Hardcore: si morís, tu personaje cae para siempre (ghost mode). Solo antes del primer kill.
+  hardcore [on/off/new] — Modo Hardcore: si morís, tu personaje cae para siempre (ghost mode). Solo antes del primer kill. "hardcore new" crea un sucesor tras caer.
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
