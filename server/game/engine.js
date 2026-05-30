@@ -220,6 +220,8 @@ function execute(playerId, input, context) {
     case 'study':        result = cmdStudy(player, action.args); break;
     case 'dungeon':      result = cmdDungeonStatus(); break;
     case 'session':      result = cmdSession(player, context); break;
+    case 'sessions':     result = cmdSessions(player); break;
+    case 'score_time':   result = cmdScoreTime(); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -1445,6 +1447,9 @@ function cmdScore(player, args) {
   if (mode === 'craft' || mode === 'crafteos' || mode === 'artesanos' || mode === 'alquimia') {
     return cmdScoreCrafts();
   }
+  if (mode === 'tiempo' || mode === 'time' || mode === 'playtime' || mode === 'horas') {
+    return cmdScoreTime();
+  }
 
   // Modo default: kills + XP
   const leaders = db.getLeaderboard(10);
@@ -1473,7 +1478,7 @@ function cmdScore(player, args) {
   });
 
   lines.push(`╚═════════════════════════════════════════════════════╝`);
-  lines.push(`  Subcategorías: "score oro" (riqueza) | "score duelos" (PvP) | "score rep" (reputación) | "score crafteos" (artesanos)`);
+  lines.push(`  Subcategorías: "score oro" | "score duelos" | "score rep" | "score crafteos" | "score tiempo"`);
 
   return { text: lines.join('\n') };
 }
@@ -4669,6 +4674,7 @@ function cmdProfile(player) {
     `║${line('Logros   ', `${achCount} desbloqueados`)}║`,
     `║  ${achIcons.slice(0, W - 2)}║`,
     `║${line('Bestiario', `${bestiaryCount} tipos cazados · ${totalBestiaryKills} kills totales`)}║`,
+    `║${line('Tiempo   ', (() => { const t = fresh.playtime_minutes || 0; const h = Math.floor(t/60); const m = t%60; return h > 0 ? `${h}h ${m}m` : `${m}m`; })())}║`,
     `╚${'═'.repeat(W)}╝`,
   ];
 
@@ -6118,6 +6124,88 @@ function cmdSession(player, context) {
   lines.push(`║${'  🎮 Comandos usados:'.padEnd(22)}${String(sessData.commands).padEnd(W - 22)}║`);
   lines.push(`╚${'═'.repeat(W)}╝`);
 
+  return { text: lines.join('\n') };
+}
+
+/**
+ * T156: cmdSessions — Historial de sesiones del jugador.
+ */
+function cmdSessions(player) {
+  const sessions = db.getPlayerSessions(player.id, 5);
+  const fresh = db.getPlayer(player.id);
+  const totalMin = (fresh && fresh.playtime_minutes) ? fresh.playtime_minutes : 0;
+
+  if (sessions.length === 0) {
+    return { text: '📋 Aún no hay sesiones registradas. ¡Volvé a conectarte para que se guarden!' };
+  }
+
+  const toHM = (min) => {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  const W = 52;
+  const lines = [
+    `╔${'═'.repeat(W)}╗`,
+    `║${'  📋 HISTORIAL DE SESIONES (últimas 5)'.padEnd(W)}║`,
+    `╠${'═'.repeat(W)}╣`,
+    `║${'  Fecha            Duración  Kills  XP   Oro  Cmd'.padEnd(W)}║`,
+    `╠${'═'.repeat(W)}╣`,
+  ];
+
+  sessions.forEach(s => {
+    const fecha = (s.start_time || '').substring(0, 16);
+    const dur   = toHM(s.duration_min || 0).padEnd(8);
+    const kills = String(s.kills || 0).padStart(5);
+    const xp    = String(s.xp_gained || 0).padStart(5);
+    const gold  = String(s.gold_gained || 0).padStart(5);
+    const cmd   = String(s.commands || 0).padStart(4);
+    const row   = `  ${fecha}  ${dur} ${kills}  ${xp}  ${gold}  ${cmd}`;
+    lines.push(`║${row.padEnd(W)}║`);
+  });
+
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  lines.push(`║${'  ⏱ Tiempo de juego total: '.padEnd(30)}${toHM(totalMin).padEnd(W - 30)}║`);
+  lines.push(`╚${'═'.repeat(W)}╝`);
+
+  return { text: lines.join('\n') };
+}
+
+/**
+ * T158: cmdScoreTime — Ranking por tiempo de juego total.
+ */
+function cmdScoreTime() {
+  const leaders = db.getLeaderboardByPlaytime(10);
+  if (leaders.length === 0) {
+    return { text: 'Aún no hay datos de tiempo de juego registrados.' };
+  }
+
+  const toHM = (min) => {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  const lines = [
+    `╔══════════════════════════════════════════════╗`,
+    `║   ⏱  RANKING POR TIEMPO DE JUEGO — TOP 10   ║`,
+    `╠══════════════════════════════════════════════╣`,
+    `║  #   Aventurero        Lv  Tiempo     Kills  ║`,
+    `╠══════════════════════════════════════════════╣`,
+  ];
+
+  leaders.forEach((p, idx) => {
+    const rank  = String(idx + 1).padStart(2, ' ');
+    const name  = (p.username || '???').substring(0, 14).padEnd(14, ' ');
+    const level = String(p.level || 1).padStart(3, ' ');
+    const time  = toHM(p.playtime_minutes || 0).padEnd(9);
+    const kills = String(p.kills || 0).padStart(5);
+    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
+    lines.push(`║ ${medal}${rank}  ${name}  ${level}  ${time}  ${kills}  ║`);
+  });
+
+  lines.push(`╚══════════════════════════════════════════════╝`);
   return { text: lines.join('\n') };
 }
 

@@ -351,6 +351,20 @@ function registerHandlers(io) {
           `  🎮 Comandos ejecutados: ${sessData.commands}`,
         ].join('\n');
         socket.emit('event', { type: 'session_summary', message: sessionSummary });
+
+        // T156: Guardar sesión en BD
+        try {
+          db.saveSession(currentPlayerId, {
+            startTime: sessData.startTime,
+            kills: sessData.kills,
+            xpGained,
+            goldGained,
+            commands: sessData.commands,
+          });
+        } catch (err) {
+          console.error('[session] Error guardando sesión:', err.message);
+        }
+
         sessionDataMap.delete(currentPlayerId);
       }
 

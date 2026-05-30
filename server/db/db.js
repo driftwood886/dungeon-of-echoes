@@ -212,6 +212,24 @@ async function init() {
     )
   `);
 
+  // T156: Tabla de historial de sesiones
+  db.run(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      player_id     TEXT NOT NULL,
+      start_time    TEXT NOT NULL,
+      duration_min  INTEGER NOT NULL DEFAULT 0,
+      kills         INTEGER NOT NULL DEFAULT 0,
+      xp_gained     INTEGER NOT NULL DEFAULT 0,
+      gold_gained   INTEGER NOT NULL DEFAULT 0,
+      commands      INTEGER NOT NULL DEFAULT 0,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  // T157: Columna playtime_minutes en players
+  try { db.run(`ALTER TABLE players ADD COLUMN playtime_minutes INTEGER NOT NULL DEFAULT 0`); } catch (_) {}
+
   // Guardar al apagar
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });
@@ -1100,6 +1118,45 @@ function getRecentlyDeadMonsters(roomId, withinMinutes = 2) {
   );
 }
 
+// T156: Guardar sesión al desconectar
+function saveSession(playerId, { startTime, kills, xpGained, goldGained, commands }) {
+  const startIso = new Date(startTime).toISOString().replace('T', ' ').split('.')[0];
+  const durationMin = Math.floor((Date.now() - startTime) / 60000);
+  run(
+    `INSERT INTO sessions (player_id, start_time, duration_min, kills, xp_gained, gold_gained, commands)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [playerId, startIso, durationMin, kills || 0, xpGained || 0, goldGained || 0, commands || 0]
+  );
+  // Acumular playtime_minutes en el jugador (T157)
+  run(
+    `UPDATE players SET playtime_minutes = COALESCE(playtime_minutes, 0) + ? WHERE id = ?`,
+    [durationMin, playerId]
+  );
+}
+
+// T156: Últimas 5 sesiones de un jugador
+function getPlayerSessions(playerId, limit = 5) {
+  return all(
+    `SELECT start_time, duration_min, kills, xp_gained, gold_gained, commands
+     FROM sessions
+     WHERE player_id = ?
+     ORDER BY id DESC
+     LIMIT ?`,
+    [playerId, limit]
+  );
+}
+
+// T158: Ranking por tiempo de juego total
+function getLeaderboardByPlaytime(limit = 10) {
+  return all(
+    `SELECT username, level, playtime_minutes, kills
+     FROM players
+     ORDER BY playtime_minutes DESC, level DESC
+     LIMIT ?`,
+    [limit]
+  );
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -1136,4 +1193,6 @@ module.exports = {
   addWallMessage, getWallMessages,
   // T149: monstruos muertos recientes
   getRecentlyDeadMonsters,
+  // T156-T158: sesiones e historial de tiempo
+  saveSession, getPlayerSessions, getLeaderboardByPlaytime,
 };

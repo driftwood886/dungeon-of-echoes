@@ -201,6 +201,10 @@ const COMMAND_ALIASES = {
   dungeon: 'dungeon', 'dungeon-status': 'dungeon', 'estado-dungeon': 'dungeon', mapa_global: 'dungeon', overview: 'dungeon',
   // session / estadísticas de sesión (T155)
   session: 'session', sesion: 'session', sesión: 'session', 'mi-sesion': 'session', stats_sesion: 'session',
+  // sessions / historial de sesiones (T156)
+  sessions: 'sessions', historial_sesiones: 'sessions', 'mis-sesiones': 'sessions', historial_juego: 'sessions',
+  // score_time / ranking por tiempo (T158)
+  score_time: 'score_time',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -331,6 +335,8 @@ Comandos disponibles:
   peek <dir> / espiar  — Espiar en una dirección sin moverse: ver nombre de sala, monstruos e ítems del suelo.
   runas / runes        — Ver tu colección de runas (obtenés runas al matar; 3 iguales se fusionan en un bonus permanente).
   session / sesión     — Ver estadísticas de tu sesión actual (kills, XP, oro ganados y tiempo conectado).
+  sessions / historial — Ver el historial de tus últimas 5 sesiones y el tiempo de juego total acumulado.
+  score tiempo         — Ranking por tiempo de juego total (los aventureros más veteranos).
   challenge / desafío  — Ver tu desafío diario personal y el progreso hacia él.
   macro list           — Ver tus macros guardadas (hasta 5).
   macro set <n> <cmd> — Guardar macro (puede incluir secuencia con ;).
@@ -402,6 +408,7 @@ const COMMAND_HELP = {
   read:      'read / leer / pared\\\\\\\\n  Leer las inscripciones en la pared de la sala actual.\\\\\\\\n  Muestra quién lo escribió y cuándo.',
   study:     'study <monstruo> / estudiar <monstruo> / analizar <monstruo>\\\\n  Analizar un monstruo en la sala actual.\\\\n  Muestra tipo, HP/ATK actuales, habilidades especiales con probabilidad,\\\\n  debilidades, resistencias y consejo estratégico.',
   session:   'session / sesion / sesión\\\\n  Ver las estadísticas de tu sesión actual.\\\\n  Muestra: tiempo conectado, kills, XP ganada, oro ganado y comandos ejecutados.\\\\n  También se muestra automáticamente al desconectarse.',
+  sessions:  'sessions / historial_sesiones / mis-sesiones\\\\n  Ver el historial de tus últimas 5 sesiones guardadas.\\\\n  Las sesiones se guardan al desconectar.\\\\n  También muestra tu tiempo de juego total acumulado.\\\\n  Nota: Las sesiones muy cortas (0 min) igual se registran.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };

@@ -134,6 +134,15 @@ const ACHIEVEMENTS = [
       return ALL_ROOMS.every(id => visited.includes(id));
     },
   },
+  // T157a: Logro secreto Veterano del Dungeon
+  {
+    id: 'veterano_dungeon',
+    icon: '🏰',
+    name: 'Veterano del Dungeon',
+    desc: 'Acumular 60 minutos de juego en el dungeon',
+    secret: true,
+    check: (p, _ctx) => (p.playtime_minutes || 0) >= 60,
+  },
 ];
 
 // ─── checkAchievements ─────────────────────────────────────────────────────────
