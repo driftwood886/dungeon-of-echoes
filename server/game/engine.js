@@ -1249,6 +1249,19 @@ function cmdReply(player, args) {
 function cmdMap(player) {
   const here = player.current_room_id;
 
+  // T105: Decoración según hora del servidor
+  const hour = new Date().getUTCHours();
+  let timeDecor;
+  if (hour >= 6 && hour < 10) {
+    timeDecor = '🌅 Amanecer  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ✦ ✦';
+  } else if (hour >= 10 && hour < 17) {
+    timeDecor = '☀️  Mediodía  ─────────────────────────────────';
+  } else if (hour >= 17 && hour < 21) {
+    timeDecor = '🌇 Atardecer ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ';
+  } else {
+    timeDecor = '🌙 Noche     ✦  ·  ✦  ·  ✦  ·  ✦  ·  ✦  ·  ✦';
+  }
+
   // Abreviaciones para los nombres de sala (max 9 chars para el grid)
   const NAMES = {
     1:  'Entrada',
@@ -1292,6 +1305,7 @@ function cmdMap(player) {
 
   const lines = [
     'MAPA DEL DUNGEON (15 salas)',
+    timeDecor,
     '',
     // Fila top: Prisión (arriba de 4) y Forja/Coliseo/Catedral (zona nueva)
     `         ${c(8)}                   ${c(12)}───${c(14)}───${c(15)}`,
