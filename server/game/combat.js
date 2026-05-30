@@ -87,10 +87,16 @@ function attackRound(player, monster) {
 
   // ── Player ataca ─────────────────────────────────────────────────────────
   const playerDmg = calcDamage(player.attack);
-  const dmgToMonster = Math.max(1, playerDmg - Math.floor(monster.defense || 0));
+  const isCrit = Math.random() < 0.10;  // T101: 10% golpe crítico
+  const rawPlayerDmg = isCrit ? playerDmg * 2 : playerDmg;
+  const dmgToMonster = Math.max(1, rawPlayerDmg - Math.floor(monster.defense || 0));
   monster.hp = Math.max(0, monster.hp - dmgToMonster);
 
-  lines.push(`⚔  Atacás al ${monster.name} y le causás ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
+  if (isCrit) {
+    lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
+  } else {
+    lines.push(`⚔  Atacás al ${monster.name} y le causás ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
+  }
 
   // Actualizar monstruo en BD
   db.updateMonster(monster.id, { hp: monster.hp });
@@ -140,22 +146,29 @@ function attackRound(player, monster) {
   // Bonus daño si hay evento luna de sangre
   const activeEvMon = worldEvents.getCurrentEvent();
   const bloodmoonBonus = (activeEvMon && activeEvMon.id === 'bloodmoon') ? 2 : 0;
-  const dmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus - Math.floor(player.defense || 0));
-  player.hp = Math.max(0, player.hp - dmgToPlayer);
 
-  const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🩸(+${bloodmoonBonus} Luna de Sangre)` : '';
-  lines.push(`🩸 El ${monster.name} te golpea y causa ${dmgToPlayer} de daño.${bloodmoonSuffix} (${player.hp}/${player.max_hp} HP)`);
+  // T101: 8% de esquiva — el jugador evita el daño por completo
+  const isEvasion = Math.random() < 0.08;
+  if (isEvasion) {
+    lines.push(`💨 ¡Esquivás el ataque del ${monster.name}! Ningún daño recibido.`);
+  } else {
+    const dmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus - Math.floor(player.defense || 0));
+    player.hp = Math.max(0, player.hp - dmgToPlayer);
 
-  // ── Posible envenenamiento del monstruo ──────────────────────────────────
-  const poisonerDef = POISONERS[monster.name];
-  if (poisonerDef && Math.random() < poisonerDef.chance) {
-    const currentFx = player.status_effects || {};
-    if (!currentFx.poisoned) {
-      currentFx.poisoned = { damage: poisonerDef.damage, turns: poisonerDef.turns };
-      player.status_effects = currentFx;
-      lines.push(`🕷 ¡El ${monster.name} te envenenó! Perderás ${poisonerDef.damage} HP por turno durante ${poisonerDef.turns} turnos. (Usá \"use antídoto\" para curarte)`);
+    const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🩸(+${bloodmoonBonus} Luna de Sangre)` : '';
+    lines.push(`🩸 El ${monster.name} te golpea y causa ${dmgToPlayer} de daño.${bloodmoonSuffix} (${player.hp}/${player.max_hp} HP)`);
+
+    // ── Posible envenenamiento del monstruo ──────────────────────────────────
+    const poisonerDef = POISONERS[monster.name];
+    if (poisonerDef && Math.random() < poisonerDef.chance) {
+      const currentFx = player.status_effects || {};
+      if (!currentFx.poisoned) {
+        currentFx.poisoned = { damage: poisonerDef.damage, turns: poisonerDef.turns };
+        player.status_effects = currentFx;
+        lines.push(`🕷 ¡El ${monster.name} te envenenó! Perderás ${poisonerDef.damage} HP por turno durante ${poisonerDef.turns} turnos. (Usá \"use antídoto\" para curarte)`);
+      }
     }
-  }
+  } // fin else (no esquivó)
 
   // Actualizar jugador en BD
   db.updatePlayer(player.id, { hp: player.hp, status_effects: JSON.stringify(player.status_effects || {}) });
