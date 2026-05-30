@@ -9,6 +9,27 @@
 
 'use strict';
 
+/* ── Sistema de rareza de ítems (T134) ───────────────────── */
+const ITEM_RARITY_MAP = {
+  'grimorio del abismo': 'legendario', 'daga del vacío': 'legendario',
+  'espada de obsidiana': 'épico', 'lanza espectral': 'épico',
+  'lanza espectral del eco': 'épico', 'filacteria rota': 'épico',
+  'espada envenenada': 'épico', 'alabarda de huesos': 'épico',
+  'hacha de guerra': 'épico',
+  'cuchillo envenenado': 'raro', 'látigo de garras': 'raro',
+  'poción de poder': 'raro', 'poción de maná mayor': 'raro', 'poción de vida': 'raro',
+  'cristal resonante': 'raro', 'fragmento de vacío': 'raro', 'esencia del abismo': 'raro',
+  'esencia de eco': 'raro', 'esencia de sombra': 'raro', 'perla negra': 'raro',
+  'tomo sellado': 'raro', 'collar de garras': 'raro', 'amuleto del eco': 'raro',
+  'llave maestra': 'raro', 'llave oxidada': 'raro', 'corona rota': 'raro',
+  'escudo de gladiador': 'raro', 'grimorio élfico': 'raro',
+};
+const RARITY_COLORS = { 'común': '#c0c0c0', 'raro': '#4a9eff', 'épico': '#b044e0', 'legendario': '#ffd700' };
+const RARITY_EMOJIS = { 'común': '⬜', 'raro': '🔵', 'épico': '🟣', 'legendario': '🟡' };
+function getItemRarity(name) {
+  return ITEM_RARITY_MAP[(name || '').toLowerCase().trim()] || 'común';
+}
+
 /* ── Estado local ─────────────────────────────────────────── */
 const state = {
   playerId: null,
@@ -242,10 +263,16 @@ function updateSidebar(data) {
 
     // Inventario
     const inv = player.inventory;
-    el.sidebarInventory.textContent =
-      Array.isArray(inv) && inv.length > 0
-        ? inv.map(i => `· ${i}`).join('\n')
-        : '(vacío)';
+    if (Array.isArray(inv) && inv.length > 0) {
+      el.sidebarInventory.innerHTML = inv.map(item => {
+        const rarity = getItemRarity(item);
+        const color = RARITY_COLORS[rarity] || '#c0c0c0';
+        const emoji = RARITY_EMOJIS[rarity] || '⬜';
+        return `<span style="color:${color}">${emoji} ${item}</span>`;
+      }).join('\n');
+    } else {
+      el.sidebarInventory.textContent = '(vacío)';
+    }
   }
 
   // Room

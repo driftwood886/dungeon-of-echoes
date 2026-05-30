@@ -145,9 +145,89 @@ function describeItem(name) {
   return `Un objeto misterioso llamado "${name}".`;
 }
 
+// ─── Sistema de rareza de ítems (T134) ───────────────────────────────────────
+//
+// Rarezas: común (blanco), raro (azul), épico (morado), legendario (dorado)
+// Los ítems no listados aquí son 'común' por defecto.
+
+const ITEM_RARITY = {
+  // ── Legendario ────────────────────────────────────────────────────────────
+  'grimorio del abismo':      'legendario',
+  'daga del vacío':           'legendario',
+  // ── Épico ─────────────────────────────────────────────────────────────────
+  'espada de obsidiana':      'épico',
+  'lanza espectral':          'épico',
+  'lanza espectral del eco':  'épico',
+  'filacteria rota':          'épico',
+  'espada envenenada':        'épico',
+  'alabarda de huesos':       'épico',
+  'hacha de guerra':          'épico',
+  // ── Raro ──────────────────────────────────────────────────────────────────
+  'cuchillo envenenado':      'raro',
+  'látigo de garras':         'raro',
+  'poción de poder':          'raro',
+  'poción de maná mayor':     'raro',
+  'poción de vida':           'raro',
+  'cristal resonante':        'raro',
+  'fragmento de vacío':       'raro',
+  'esencia del abismo':       'raro',
+  'esencia de eco':           'raro',
+  'esencia de sombra':        'raro',
+  'perla negra':              'raro',
+  'tomo sellado':             'raro',
+  'collar de garras':         'raro',
+  'amuleto del eco':          'raro',
+  'llave maestra':            'raro',
+  'llave oxidada':            'raro',
+  'corona rota':              'raro',
+  'escudo de gladiador':      'raro',
+  'grimorio élfico':          'raro',
+};
+
+// Emojis de rareza para la UI
+const RARITY_EMOJI = {
+  'común':      '⬜',
+  'raro':       '🔵',
+  'épico':      '🟣',
+  'legendario': '🟡',
+};
+
+// Colores CSS para el cliente
+const RARITY_COLOR = {
+  'común':      '#c0c0c0',
+  'raro':       '#4a9eff',
+  'épico':      '#b044e0',
+  'legendario': '#ffd700',
+};
+
+/**
+ * Obtiene la rareza de un ítem.
+ * @param {string} name
+ * @returns {'común'|'raro'|'épico'|'legendario'}
+ */
+function getItemRarity(name) {
+  const key = (name || '').toLowerCase().trim();
+  return ITEM_RARITY[key] || 'común';
+}
+
+/**
+ * Devuelve el emoji de rareza de un ítem.
+ * @param {string} name
+ * @returns {string}
+ */
+function getRarityEmoji(name) {
+  return RARITY_EMOJI[getItemRarity(name)] || '⬜';
+}
+
 module.exports = {
   ITEM_CATALOG,
+  ITEM_RARITY,
+  RARITY_EMOJI,
+  RARITY_COLOR,
   getItemDef,
+  getItemRarity,
+  getRarityEmoji,
   findItem,
   describeItem,
 };
+

@@ -460,8 +460,13 @@ function cmdInventory(player) {
   if (!player.inventory || player.inventory.length === 0) {
     return { text: 'Tu inventario está vacío.' };
   }
-  const items = player.inventory.map((item, i) => `  ${i + 1}. ${item}`).join('\n');
-  return { text: `Inventario:\n${items}` };
+  const itemLines = player.inventory.map((item, i) => {
+    const emoji = items.getRarityEmoji(item);
+    const rarity = items.getItemRarity(item);
+    const rarityLabel = rarity !== 'común' ? ` (${rarity})` : '';
+    return `  ${i + 1}. ${emoji} ${item}${rarityLabel}`;
+  });
+  return { text: `Inventario:\n${itemLines.join('\n')}` };
 }
 
 /**
