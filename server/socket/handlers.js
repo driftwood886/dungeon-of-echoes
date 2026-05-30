@@ -112,6 +112,24 @@ function registerHandlers(io) {
         welcomeText = returnLines.join('\n') + '\n' + welcomeText;
       }
 
+      // T118: Tip aleatorio al conectarse
+      const TIPS = [
+        '💡 Tip: escribí "changelog" o "novedades" para ver las últimas actualizaciones del juego.',
+        '💡 Tip: usá "note add <texto>" para guardar apuntes personales mientras explorás.',
+        '💡 Tip: atacá sin tilde — "attack golem" funciona igual que "attack gólem".',
+        '💡 Tip: elegí una clase con "clase guerrero/mago/pícaro" para desbloquear bonuses únicos.',
+        '💡 Tip: "forage" o "buscar" en una sala sin monstruos puede revelar ítems ocultos.',
+        '💡 Tip: las habilidades activas se desbloquean al subir de nivel: smash (Lv3), bash (Lv6), rally (Lv10).',
+        '💡 Tip: "craft <ítem1> con <ítem2>" combina ítems. Escribí "recetas" para ver las combinaciones.',
+        '💡 Tip: el mercader Aldric (sala 4) compra y vende ítems. Usá "tienda" para ver su catálogo.',
+        '💡 Tip: en "status" podés ver tu clase, título, oro y estado de veneno.',
+        '💡 Tip: "world" muestra si hay un evento global activo (invasión, luna de sangre, niebla).',
+        '💡 Tip: "rest" recupera HP si no hay monstruos en la sala. "meditar" da más HP si tenés mascota.',
+        '💡 Tip: el Boss aparece en la sala 15. Su muerte da loot especial y broadcast global.',
+      ];
+      const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
+      welcomeText = welcomeText + '\n\n' + tip;
+
       // Entregar mensajes offline pendientes (tell)
       const pending = db.getPendingMessages(player.id);
       if (pending.length > 0) {
