@@ -255,6 +255,9 @@ function execute(playerId, input, context) {
     case 'trivia':       result = cmdTrivia(player, action.args); break;
     case 'worldgoals':   result = cmdWorldGoals(); break;
     case 'records':      result = cmdRecords(); break;
+    case 'score_session': result = cmdScoreSession(player, context); break;  // T198
+    case 'card':         result = cmdCard(player); break;                     // T197
+    case 'trivia_pub':   result = cmdTriviaPub(player, action.args, context); break; // T196
     case 'drink':        result = cmdDrink(player); break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
@@ -1734,6 +1737,9 @@ function cmdScore(player, args) {
   if (mode === 'amigos' || mode === 'friends' || mode === 'social') {  // T177
     return cmdScoreFriends(player);
   }
+  if (mode === 'sesión' || mode === 'sesion' || mode === 'session' || mode === 'ahora' || mode === 'activos') {  // T198
+    return cmdScoreSession(player, context);
+  }
 
   // Modo default: kills + XP
   const leaders = db.getLeaderboard(10);
@@ -1764,7 +1770,7 @@ function cmdScore(player, args) {
   });
 
   lines.push(`╚═════════════════════════════════════════════════════╝`);
-  lines.push(`  Subcategorías: "score oro" | "score duelos" | "score rep" | "score crafteos" | "score tiempo" | "score amigos"`);
+  lines.push(`  Subcategorías: "score oro" | "score duelos" | "score rep" | "score crafteos" | "score tiempo" | "score amigos" | "score sesión"`);
 
   return { text: lines.join('\n') };
 }
@@ -8801,6 +8807,220 @@ function checkAndSetRecords(player, comboValue) {
   return msgs;
 }
 
-// Actualizar module.exports con T194+T195
+// ─────────────────────────────────────────────────────────────────────────────
+// T198: Score de sesión actual — ranking de kills entre jugadores conectados ahora
+// ─────────────────────────────────────────────────────────────────────────────
+function cmdScoreSession(player, context) {
+  const sessionMap = context && context.sessionDataMap;
+  if (!sessionMap || sessionMap.size === 0) {
+    return { text: 'No hay aventureros conectados en este momento.' };
+  }
+
+  // Recopilar datos de todos los jugadores con sesión activa
+  const entries = [];
+  for (const [playerId, sess] of sessionMap.entries()) {
+    const p = db.getPlayer(playerId);
+    if (!p) continue;
+    const elapsed = Math.floor((Date.now() - (sess.startTime || Date.now())) / 60000);
+    entries.push({
+      username: p.username,
+      kills: sess.kills || 0,
+      commands: sess.commands || 0,
+      minutes: elapsed,
+      isSelf: playerId === player.id,
+    });
+  }
+
+  // Ordenar por kills DESC, luego por comandos
+  entries.sort((a, b) => b.kills - a.kills || b.commands - a.commands);
+
+  if (entries.length === 0) {
+    return { text: 'No hay datos de sesión disponibles.' };
+  }
+
+  const W = 50;
+  const lines = [
+    `╔${'═'.repeat(W)}╗`,
+    `║${'   ⚡ RANKING DE SESIÓN — JUGADORES ACTIVOS ⚡   '.padEnd(W)}║`,
+    `╠${'═'.repeat(W)}╣`,
+    `║  ${'#   Aventurero        Kills  Cmds  Tiempo'.padEnd(W - 3)}║`,
+    `╠${'═'.repeat(W)}╣`,
+  ];
+
+  entries.forEach((e, idx) => {
+    const rank  = String(idx + 1).padStart(2);
+    const you   = e.isSelf ? '◄' : ' ';
+    const name  = e.username.substring(0, 14).padEnd(14);
+    const kills = String(e.kills).padStart(5);
+    const cmds  = String(e.commands).padStart(4);
+    const mins  = e.minutes < 60 ? `${e.minutes}m` : `${Math.floor(e.minutes / 60)}h${e.minutes % 60}m`;
+    const timeStr = mins.padStart(5);
+    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
+    lines.push(`║ ${medal}${rank} ${you} ${name}  ${kills}  ${cmds}  ${timeStr}  ║`);
+  });
+
+  lines.push(`╚${'═'.repeat(W)}╝`);
+  lines.push(`  Solo jugadores conectados ahora. Se reinicia al desconectarse.`);
+  return { text: lines.join('\n') };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T197: Comando card — tarjeta de aventurero compacta para compartir
+// ─────────────────────────────────────────────────────────────────────────────
+function cmdCard(player) {
+  const fresh = db.getPlayer(player.id) || player;
+  const title = getTitle(fresh.kills || 0);
+  const cls   = fresh.player_class || 'Sin clase';
+  const clsEmoji = cls === 'Guerrero' ? '⚔️' : cls === 'Mago' ? '🧙' : cls === 'Pícaro' ? '🗡️' : '❓';
+  const hpBar = buildBar(fresh.hp, fresh.max_hp, 12);
+  const guild = fresh.guild ? `[${fresh.guild}]` : '';
+  const hcTag = fresh.is_hardcore ? (fresh.fallen ? '✝ CAÍDO' : '🔴 HARDCORE') : '';
+  const pet   = fresh.pet ? `🐾 ${fresh.pet}` : '';
+  const achievements = (() => {
+    try {
+      const arr = JSON.parse(fresh.achievements || '[]');
+      return arr.length ? arr.slice(0, 6).join(' ') : '—';
+    } catch { return '—'; }
+  })();
+  const kd = fresh.deaths > 0 ? (((fresh.kills || 0) / fresh.deaths).toFixed(1)) : (fresh.kills || 0);
+
+  const W = 44;
+  const pad = (s, n) => String(s).substring(0, n).padEnd(n);
+  const lines = [
+    `╔${'═'.repeat(W)}╗`,
+    `║${''.padEnd(W)}║`,
+    `║  ${clsEmoji} ${pad((fresh.username || '???').toUpperCase(), W - 6)}║`,
+    `║  ${pad(`${title}  ${guild}  ${hcTag}`, W - 3)}║`,
+    `║${''.padEnd(W)}║`,
+    `╠${'═'.repeat(W)}╣`,
+    `║  HP: ${hpBar} ${fresh.hp}/${fresh.max_hp}`.padEnd(W + 2) + `║`,
+    `║  Nivel: ${fresh.level || 1}  XP: ${fresh.xp || 0}  Kills: ${fresh.kills || 0}  K/D: ${kd}`.padEnd(W + 2) + `║`,
+    `║  ATK: ${fresh.attack || 5}  DEF: ${fresh.defense || 3}  Oro: ${fresh.gold || 0}g`.padEnd(W + 2) + `║`,
+    `╠${'═'.repeat(W)}╣`,
+    `║  Logros: ${pad(achievements, W - 11)}║`,
+    pet ? `║  ${pad(pet, W - 3)}║` : null,
+    `╚${'═'.repeat(W)}╝`,
+    `  📋 Dungeon of Echoes — dungeon-of-echoes.onrender.com`,
+  ].filter(Boolean);
+
+  return { text: lines.join('\n') };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T196: Trivia pública — todos en la sala pueden responder
+// roomTriviaMap: roomId → { questionIdx, expiresAt, proposerId }
+// ─────────────────────────────────────────────────────────────────────────────
+const roomTriviaMap = new Map();
+const ROOM_TRIVIA_COOLDOWNS = new Map(); // roomId → nextAllowedAt
+
+function cmdTriviaPub(player, args, context) {
+  const roomId = player.current_room_id;
+  const now    = Date.now();
+
+  // Cooldown global de la sala (5 min tras resolver)
+  const nextAllowed = ROOM_TRIVIA_COOLDOWNS.get(roomId) || 0;
+  if (now < nextAllowed) {
+    const secs = Math.ceil((nextAllowed - now) / 1000);
+    return { text: `⏳ La sala necesita ${secs}s más de descanso antes del próximo acertijo grupal.` };
+  }
+
+  const active = roomTriviaMap.get(roomId);
+
+  // Sin args: proponer un acertijo nuevo a la sala
+  if (!args || !args.trim()) {
+    if (active && now < active.expiresAt) {
+      const remaining = Math.ceil((active.expiresAt - now) / 1000);
+      const q = TRIVIA_QUESTIONS[active.questionIdx];
+      return { text: `🧩 Ya hay un acertijo grupal activo (${remaining}s restantes):\n\n"${q.q}"\n\nResponde con: acertijo-publico <respuesta>` };
+    }
+    // Elegir pregunta (diferente a la última si es posible)
+    let idx;
+    do { idx = Math.floor(Math.random() * TRIVIA_QUESTIONS.length); }
+    while (active && active.questionIdx === idx && TRIVIA_QUESTIONS.length > 1);
+
+    roomTriviaMap.set(roomId, {
+      questionIdx: idx,
+      expiresAt: now + 90_000, // 90s (más tiempo para que varios lo intenten)
+      proposerId: player.id,
+    });
+
+    const q = TRIVIA_QUESTIONS[idx];
+    const W = 54;
+    const lines = [
+      `╔${'═'.repeat(W)}╗`,
+      `║${'  🧩 ACERTIJO GRUPAL — ¡TODOS PUEDEN RESPONDER! 🧩  '.padEnd(W)}║`,
+      `╠${'═'.repeat(W)}╣`,
+    ];
+    // Wrappear la pregunta en líneas de max W-4 chars
+    const words = q.q.split(' ');
+    let line = '';
+    for (const w of words) {
+      if ((line + ' ' + w).trim().length > W - 4) {
+        lines.push(`║  ${line.padEnd(W - 3)}║`);
+        line = w;
+      } else {
+        line = (line + ' ' + w).trim();
+      }
+    }
+    if (line) lines.push(`║  ${line.padEnd(W - 3)}║`);
+    lines.push(`╠${'═'.repeat(W)}╣`);
+    lines.push(`║  ${'Propuesto por: ' + player.username}`.padEnd(W + 2) + `║`);
+    lines.push(`║  ${'Recompensa: +15 XP · +8g · +3 reputación al ganador'.padEnd(W - 3)}║`);
+    lines.push(`║  ${'Tiempo: 90 segundos'.padEnd(W - 3)}║`);
+    lines.push(`╚${'═'.repeat(W)}╝`);
+    lines.push(`  Responde con: acertijo-publico <respuesta>`);
+
+    // Broadcast a toda la sala
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(roomId, null, lines.join('\n'));
+    }
+
+    return { text: lines.join('\n') };
+  }
+
+  // Con args: intentar responder
+  if (!active || now >= active.expiresAt) {
+    roomTriviaMap.delete(roomId);
+    return { text: '⌛ No hay ningún acertijo grupal activo en esta sala. Usá "acertijo-publico" sin argumentos para proponer uno.' };
+  }
+
+  const q = TRIVIA_QUESTIONS[active.questionIdx];
+  const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const answer    = normalize(args);
+  const correct   = q.a.some(a => normalize(a) === answer);
+
+  if (correct) {
+    roomTriviaMap.delete(roomId);
+    ROOM_TRIVIA_COOLDOWNS.set(roomId, now + 5 * 60_000);
+
+    // Recompensa al ganador — mismo patrón que cmdTrivia
+    const freshWinner = db.getPlayer(player.id);
+    const newXp   = (freshWinner.xp || 0) + 15;
+    const newGold = (freshWinner.gold || 0) + 8;
+    const newLevel = Math.floor(newXp / 50) + 1;
+    const levelUp  = newLevel > (freshWinner.level || 1);
+    const updates = { xp: newXp, gold: newGold };
+    if (levelUp) {
+      updates.level = newLevel;
+      updates.max_hp = (freshWinner.max_hp || 30) + 5;
+      updates.hp = Math.min(freshWinner.hp, updates.max_hp);
+      updates.attack = (freshWinner.attack || 5) + 1;
+    }
+    db.updatePlayer(player.id, updates);
+    db.addReputation(player.id, 3);
+    db.addJournalEntry(player.id, 'trivia_pub', `🧩 Acertijo grupal resuelto: +15 XP · +8g.`);
+
+    const msg = `🎉 ¡${player.username} resolvió el acertijo grupal! La respuesta era: "${q.a[0]}".\n${player.username} gana +15 XP · +8g · +3 reputación.`;
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(roomId, null, msg);
+    }
+    return { text: msg };
+  } else {
+    const remaining = Math.ceil((active.expiresAt - now) / 1000);
+    return { text: `❌ Incorrecto. Pista: ${q.hint}. Tiempo restante: ${remaining}s.` };
+  }
+}
+
+// Actualizar module.exports con T196+T197+T198
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals, checkAndSetRecords };
 

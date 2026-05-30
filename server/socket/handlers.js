@@ -230,6 +230,7 @@ function registerHandlers(io) {
         },
         previousRoomId: previousRoomMap.get(currentPlayerId) || null,
         sessionData: sessionDataMap.get(currentPlayerId) || null,
+        sessionDataMap,   // T198: score sesión necesita ver todos los jugadores activos
         playerSockets,
       };
       const result = engine.execute(currentPlayerId, command, context);

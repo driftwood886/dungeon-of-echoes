@@ -257,6 +257,12 @@ const COMMAND_ALIASES = {
   worldgoals: 'worldgoals', metas: 'worldgoals', metasglobales: 'worldgoals', 'world-goals': 'worldgoals', globalmetas: 'worldgoals', comunidad: 'worldgoals',
   // records / récords del servidor (T195)
   records: 'records', récords: 'records', recores: 'records', trofeos: 'records', 'hall-of-fame': 'records', halloffame: 'records', mejores: 'records',
+  // score sesión / ranking activo (T198)
+  'score_session': 'score_session', 'session-rank': 'score_session',
+  // tarjeta de aventurero (T197)
+  card: 'card', tarjeta: 'card', 'mi-tarjeta': 'card', 'ficha-publica': 'card', badge: 'card',
+  // trivia pública / grupal (T196)
+  'trivia-publica': 'trivia_pub', 'acertijo-publico': 'trivia_pub', 'trivia-grupal': 'trivia_pub', 'riddle-pub': 'trivia_pub', 'enigma-publico': 'trivia_pub',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
