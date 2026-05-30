@@ -127,6 +127,10 @@ const COMMAND_ALIASES = {
   drink: 'drink', beber: 'drink', tomar: 'drink', hidratarse: 'drink', fuente: 'drink',
   // party / grupo (T102)
   party: 'party', grupo: 'party', equipo: 'party', alianza: 'party',
+  // cast / lanzar hechizo (T104)
+  cast: 'cast', lanzar: 'cast', hechizar: 'cast', invocar: 'cast', magic: 'cast',
+  // spells / hechizos (T104)
+  spells: 'spells', hechizos: 'spells', magia: 'spells', conjuros: 'spells', grimorios: 'spells',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -226,6 +230,8 @@ Comandos disponibles:
   dados <NdM>           — Tirar dados (ej: dados 2d6, dice 1d20). Resultado visible para toda la sala
   party [<jugador>]     — Gestionar tu grupo: invitar/unirse, ver miembros, party leave para salir
   beber / drink         — Beber de la Fuente Eterna (sala 18): restaura HP completo. Cooldown global 10 min
+  cast <hechizo>        — Lanzar un hechizo (bola de fuego, escudo, curación). Requiere maná
+  hechizos / spells     — Ver tus hechizos disponibles y el maná actual
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();

@@ -46,7 +46,7 @@ const ROOMS = [
     name: 'Sala de los Ecos',
     description: 'Una cámara circular donde cada sonido rebota mil veces. El suelo está cubierto de huesos viejos y polvo.',
     exits: { south: 2, east: 4, west: 7 },
-    items: ['poción de salud', 'vela encendida'],
+    items: ['poción de salud', 'vela encendida', 'poción de maná'],
   },
   {
     id: 4,

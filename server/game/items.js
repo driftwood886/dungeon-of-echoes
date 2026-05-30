@@ -24,6 +24,8 @@ const ITEM_CATALOG = {
   'poción de vida':      { type: 'potion', effect: 'heal', amount: 25, description: 'Una poción grande que restaura 25 HP.' },
   'poción menor':        { type: 'potion', effect: 'heal', amount: 8,  description: 'Una poción débil. Restaura 8 HP.' },
   'poción de poder':     { type: 'potion', effect: 'heal', amount: 20, description: 'Una poción oscura que restaura 20 HP y deja un zumbido en los huesos.' },
+  'poción de maná':      { type: 'mana_potion', effect: 'restore_mana', amount: 10, description: 'Un frasco azul brillante. Restaura 10 puntos de maná instantáneamente.' },
+  'poción de maná mayor': { type: 'mana_potion', effect: 'restore_mana', amount: 20, description: 'Un frasco azul intenso. Restaura 20 puntos de maná.' },
 
   // ── Antídotos ────────────────────────────────────────────────────────────────
   'antídoto':            { type: 'antidote', effect: 'cure_poison', description: 'Un frasco con líquido verde pálido. Cura inmediatamente el envenenamiento.' },

@@ -152,7 +152,19 @@ function attackRound(player, monster) {
   if (isEvasion) {
     lines.push(`💨 ¡Esquivás el ataque del ${monster.name}! Ningún daño recibido.`);
   } else {
-    const dmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus - Math.floor(player.defense || 0));
+    const rawDmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus - Math.floor(player.defense || 0));
+
+    // T104: Escudo mágico activo absorbe 5 de daño
+    const freshForShield = db.getPlayer(player.id);
+    const shieldActive = freshForShield.shield_active || 0;
+    let dmgToPlayer = rawDmgToPlayer;
+    if (shieldActive) {
+      const shieldAbsorb = 5;
+      dmgToPlayer = Math.max(0, rawDmgToPlayer - shieldAbsorb);
+      db.updatePlayer(player.id, { shield_active: 0 });
+      lines.push(`🛡️ ¡Tu escudo mágico absorbe ${Math.min(shieldAbsorb, rawDmgToPlayer)} puntos de daño! (${rawDmgToPlayer} → ${dmgToPlayer})`);
+    }
+
     player.hp = Math.max(0, player.hp - dmgToPlayer);
 
     const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🩸(+${bloodmoonBonus} Luna de Sangre)` : '';

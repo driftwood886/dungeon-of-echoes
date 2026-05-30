@@ -179,6 +179,21 @@ function updateSidebar(data) {
     const goldEl = document.getElementById('stat-gold');
     if (goldEl) goldEl.textContent = `💰 ${player.gold || 0}g`;
 
+    // T104: Mostrar maná en sidebar
+    const mana = player.mana != null ? player.mana : 20;
+    const maxMana = player.max_mana || 20;
+    const manaBarFill = document.getElementById('mana-bar-fill');
+    const manaText = document.getElementById('mana-text');
+    const shieldRow = document.getElementById('shield-active-row');
+    if (manaBarFill && manaText) {
+      const manaPct = maxMana > 0 ? (mana / maxMana) * 100 : 0;
+      manaBarFill.style.width = `${manaPct}%`;
+      manaText.textContent = `${mana}/${maxMana}`;
+    }
+    if (shieldRow) {
+      shieldRow.style.display = player.shield_active ? '' : 'none';
+    }
+
     // Mensajes offline pendientes
     const pendingCount = player.pending_messages || 0;
     if (pendingCount > 0) {
@@ -255,7 +270,7 @@ function updateSidebar(data) {
         const trapTypeNames = { spike: 'pinchos 🗡️', poison: 'esporas venenosas ☣️', cold: 'frío sobrenatural ❄️', flood: 'inundación 💧' };
         const typeName = trapTypeNames[room.trap.type] || room.trap.type;
         sidebarTrap.textContent = `Tipo: ${typeName}`;
-        trapSection.style.display = ''';
+        trapSection.style.display = '';
       } else {
         trapSection.style.display = 'none';
       }

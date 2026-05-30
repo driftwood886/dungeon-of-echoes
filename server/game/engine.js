@@ -159,6 +159,8 @@ function execute(playerId, input) {
     case 'bid':          result = cmdBid(player, action.args); break;
     case 'auctions':     result = cmdAuctions(); break;
     case 'drink':        result = cmdDrink(player); break;
+    case 'cast':         result = cmdCast(player, action.args); break;
+    case 'spells':       result = cmdSpells(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -724,6 +726,21 @@ function cmdUse(player, itemQuery) {
     db.updatePlayer(player.id, { inventory: newInv });
 
     resultText = `Bebés la ${found}. Recuperás ${newHp - oldHp} HP. (${newHp}/${player.max_hp} HP)`;
+
+  } else if (def.type === 'mana_potion' && def.effect === 'restore_mana') {
+    // T104: Pociones de maná
+    const currentMana = player.mana != null ? player.mana : 20;
+    const maxMana = player.max_mana || 20;
+    const newMana = Math.min(maxMana, currentMana + def.amount);
+    const restored = newMana - currentMana;
+
+    // Consumir el ítem
+    const newInvM = removeFirst(player.inventory, found);
+    db.updatePlayer(player.id, { inventory: newInvM, mana: newMana, last_mana_regen: new Date().toISOString() });
+
+    resultText = restored > 0
+      ? `💧 Bebés la ${found}. Recuperás ${restored} maná. (${newMana}/${maxMana} maná)`
+      : `💧 Bebés la ${found} pero tu maná ya está al máximo.`;
 
   } else if (def.type === 'antidote' && def.effect === 'cure_poison') {
     const statusFx = player.status_effects || {};
@@ -2939,4 +2956,253 @@ function resolveExpiredAuctions(broadcastFn) {
 
 // Re-export final con T095 + T098
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle };
+
+// ── Sistema de Magia (T104) ────────────────────────────────────────────────────
+
+/**
+ * Catálogo de hechizos. Cada hechizo tiene:
+ *   cost: costo en maná
+ *   type: 'damage' | 'heal' | 'shield'
+ *   amount: HP a infligir/curar (o def bonus)
+ *   description: texto descriptivo
+ *   aliases: otros nombres que se aceptan
+ */
+const SPELL_CATALOG = {
+  'bola de fuego': {
+    cost: 8,
+    type: 'damage',
+    amount: 10,
+    description: 'Lanza una esfera de fuego al objetivo. Inflige 10 de daño directo.',
+    aliases: ['fuego', 'fireball', 'fire', 'flamazo', 'llama'],
+    icon: '🔥',
+  },
+  'escudo': {
+    cost: 5,
+    type: 'shield',
+    amount: 5,
+    description: 'Crea un escudo mágico que absorbe 5 puntos de daño en el próximo ataque recibido.',
+    aliases: ['shield', 'barrera', 'protección', 'proteccion'],
+    icon: '🛡️',
+  },
+  'curación': {
+    cost: 6,
+    type: 'heal',
+    amount: 15,
+    description: 'Canaliza energía curativa para restaurar 15 HP.',
+    aliases: ['curar', 'heal', 'sanación', 'sanacion', 'regenerar', 'vida'],
+    icon: '✨',
+  },
+};
+
+/**
+ * Regenerar maná basado en tiempo transcurrido (1 maná por minuto).
+ * Actualiza al jugador en BD si hubo ganancia.
+ * @returns {object} jugador fresco con maná actualizado
+ */
+function regenMana(player) {
+  const maxMana = player.max_mana || 20;
+  const currentMana = player.mana != null ? player.mana : 20;
+
+  if (currentMana >= maxMana) {
+    return player; // ya lleno, nada que hacer
+  }
+
+  const now = Date.now();
+  const lastRegen = player.last_mana_regen ? new Date(player.last_mana_regen).getTime() : 0;
+  const minutesPassed = (now - lastRegen) / 60000;
+  const manaGained = Math.floor(minutesPassed); // 1 maná por minuto
+
+  if (manaGained <= 0) return player;
+
+  const newMana = Math.min(maxMana, currentMana + manaGained);
+  db.updatePlayer(player.id, {
+    mana: newMana,
+    last_mana_regen: new Date().toISOString(),
+  });
+
+  return { ...player, mana: newMana, last_mana_regen: new Date().toISOString() };
+}
+
+/**
+ * Encuentra un hechizo por nombre o alias.
+ * @param {string} query
+ * @returns {{ key: string, spell: object }|null}
+ */
+function findSpell(query) {
+  const q = query.toLowerCase().trim();
+  for (const [key, spell] of Object.entries(SPELL_CATALOG)) {
+    if (key === q || spell.aliases.includes(q) || key.startsWith(q)) {
+      return { key, spell };
+    }
+  }
+  return null;
+}
+
+/**
+ * cast <hechizo> [objetivo] — Lanzar un hechizo.
+ * Bola de fuego requiere un monstruo en la sala como objetivo.
+ * Escudo y curación son autodirigidos.
+ */
+function cmdCast(player, args) {
+  if (!args || args.length === 0) {
+    return {
+      text: `🪄 ¿Qué hechizo querés lanzar?\nHechizos disponibles: ${Object.keys(SPELL_CATALOG).join(', ')}.\nUsá "hechizos" para ver el catálogo completo.`,
+    };
+  }
+
+  // Regenerar maná antes de calcular
+  player = regenMana(db.getPlayer(player.id));
+
+  const currentMana = player.mana != null ? player.mana : 20;
+  const maxMana = player.max_mana || 20;
+
+  // Resolver nombre del hechizo (puede ser varias palabras, ej: "bola de fuego")
+  const spellQuery = args.join(' ').toLowerCase().trim();
+  const found = findSpell(spellQuery);
+
+  if (!found) {
+    return {
+      text: `🪄 No conocés ese hechizo. Usá "hechizos" para ver los disponibles.`,
+    };
+  }
+
+  const { key: spellName, spell } = found;
+
+  // Verificar maná suficiente
+  if (currentMana < spell.cost) {
+    return {
+      text: `🪄 No tenés maná suficiente para ${spell.icon} ${spellName}.\n   Necesitás ${spell.cost} maná, tenés ${currentMana}/${maxMana}.\n   Esperá que se recargue (1 maná/minuto) o usá una poción de maná.`,
+    };
+  }
+
+  const monsters = db.getMonstersInRoom(player.current_room_id);
+  let lines = [];
+  let newMana = currentMana - spell.cost;
+  let broadcastEvent = null;
+
+  if (spell.type === 'damage') {
+    // Hechizo de daño — necesita un monstruo
+    if (monsters.length === 0) {
+      return {
+        text: `🪄 No hay ningún monstruo en la sala para atacar con ${spell.icon} ${spellName}.`,
+      };
+    }
+
+    // Si hay argumento de objetivo, buscar monstruo específico
+    let target = monsters[0]; // por defecto el primero
+    if (args.length > 1) {
+      const targetQuery = args.slice(1).join(' ').toLowerCase();
+      const matched = monsters.find(m => m.name.toLowerCase().includes(targetQuery));
+      if (matched) target = matched;
+    }
+
+    const dmg = spell.amount;
+    const newHp = Math.max(0, target.hp - dmg);
+    db.updatePlayer(player.id, { mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
+
+    lines.push(`🪄 Lanzás ${spell.icon} **${spellName}** sobre ${target.name}!`);
+    lines.push(`   ${target.name} recibe ${dmg} puntos de daño mágico. (HP: ${target.hp} → ${newHp})`);
+
+    if (newHp <= 0) {
+      // Monstruo muerto
+      db.killMonster(target.id);
+      const loot = JSON.parse(target.loot || '[]');
+      if (loot.length > 0) {
+        const room = db.getRoom(player.current_room_id);
+        const roomItems = room.items || [];
+        db.updateRoom(player.current_room_id, { items: [...roomItems, ...loot] });
+        lines.push(`   💀 ${target.name} cae fulminado! Soltó: ${loot.join(', ')}.`);
+      } else {
+        lines.push(`   💀 ${target.name} cae fulminado!`);
+      }
+      // XP y kills
+      const xpGain = Math.floor(5 + (target.max_hp || 10) / 2);
+      const newKills = (player.kills || 0) + 1;
+      const newXp = (player.xp || 0) + xpGain;
+      const newLevel = 1 + Math.floor(newXp / 50);
+      db.updatePlayer(player.id, {
+        kills: newKills,
+        xp: newXp,
+        level: newLevel,
+      });
+      lines.push(`   +${xpGain} XP (Total: ${newXp} XP, Nivel ${newLevel}).`);
+      broadcastEvent = `🔥 ¡${player.username} incineró a ${target.name} con ${spellName}!`;
+    } else {
+      db.updateMonster(target.id, { hp: newHp });
+    }
+
+    lines.push(`   💧 Maná restante: ${newMana}/${maxMana}`);
+
+  } else if (spell.type === 'heal') {
+    // Hechizo de curación
+    const maxHp = player.max_hp;
+    const newHp = Math.min(maxHp, player.hp + spell.amount);
+    const healed = newHp - player.hp;
+
+    db.updatePlayer(player.id, { hp: newHp, mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
+
+    lines.push(`🪄 Canalizás ${spell.icon} energía curativa...`);
+    lines.push(`   Recuperás ${healed} HP. (${player.hp} → ${newHp}/${maxHp})`);
+    lines.push(`   💧 Maná restante: ${newMana}/${maxMana}`);
+
+    if (healed === 0) {
+      lines[0] = `🪄 Canalizás ${spell.icon} energía curativa... pero ya tenés el HP al máximo.`;
+    }
+
+  } else if (spell.type === 'shield') {
+    // Escudo mágico
+    db.updatePlayer(player.id, { mana: newMana, shield_active: 1, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
+
+    lines.push(`🪄 Invocás ${spell.icon} un escudo mágico.`);
+    lines.push(`   El próximo ataque que recibas absorberá ${spell.amount} puntos de daño.`);
+    lines.push(`   💧 Maná restante: ${newMana}/${maxMana}`);
+  }
+
+  db.logEvent(player.id, player.current_room_id, `cast ${spellName}`, lines.join('\n'));
+
+  return {
+    text: lines.join('\n'),
+    event: broadcastEvent,
+  };
+}
+
+/**
+ * spells / hechizos — Listar los hechizos conocidos y el maná actual.
+ */
+function cmdSpells(player) {
+  // Regenerar maná antes de mostrar
+  player = regenMana(db.getPlayer(player.id));
+
+  const currentMana = player.mana != null ? player.mana : 20;
+  const maxMana = player.max_mana || 20;
+  const shieldActive = player.shield_active ? ' 🛡️ (escudo activo)' : '';
+
+  const manaBar = (() => {
+    const pct = maxMana > 0 ? currentMana / maxMana : 0;
+    const filled = Math.round(pct * 8);
+    return '['  + '█'.repeat(filled) + '░'.repeat(8 - filled) + ']';
+  })();
+
+  const lines = [
+    `🪄 SISTEMA DE MAGIA`,
+    `━━━━━━━━━━━━━━━━━━━━`,
+    `Maná: ${manaBar} ${currentMana}/${maxMana}${shieldActive}`,
+    `(Recarga: 1 maná/minuto. Pociones de maná restauran instantáneamente.)`,
+    ``,
+    `Hechizos disponibles:`,
+  ];
+
+  for (const [name, spell] of Object.entries(SPELL_CATALOG)) {
+    const canCast = currentMana >= spell.cost ? '✓' : '✗';
+    lines.push(`  ${canCast} ${spell.icon} ${name.padEnd(16)} — Coste: ${spell.cost} maná — ${spell.description}`);
+  }
+
+  lines.push(``);
+  lines.push(`Uso: cast <hechizo>  (ej: "cast bola de fuego", "cast escudo", "cast curación")`);
+
+  return { text: lines.join('\n') };
+}
+
+// Sobreescribir module.exports para incluir T104
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG };
 
