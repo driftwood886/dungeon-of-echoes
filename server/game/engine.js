@@ -1082,6 +1082,9 @@ function cmdScore(player, args) {
   if (mode === 'rep' || mode === 'reputacion' || mode === 'reputación' || mode === 'fama') {
     return cmdScoreReputation();
   }
+  if (mode === 'craft' || mode === 'crafteos' || mode === 'artesanos' || mode === 'alquimia') {
+    return cmdScoreCrafts();
+  }
 
   // Modo default: kills + XP
   const leaders = db.getLeaderboard(10);
@@ -1110,7 +1113,7 @@ function cmdScore(player, args) {
   });
 
   lines.push(`╚═════════════════════════════════════════════════════╝`);
-  lines.push(`  Subcategorías: "score oro" (riqueza) | "score duelos" (PvP) | "score rep" (reputación)`);
+  lines.push(`  Subcategorías: "score oro" (riqueza) | "score duelos" (PvP) | "score rep" (reputación) | "score crafteos" (artesanos)`);
 
   return { text: lines.join('\n') };
 }
@@ -1194,6 +1197,32 @@ function cmdScoreReputation() {
     lines.push(`║ ${medal}${rank}  ${name}  ${level}  ${rep}  ${repName}║`);
   });
   lines.push(`╚═══════════════════════════════════════════════╝`);
+  lines.push(`  Usá "score" para kills/XP, "score oro" para riqueza, "score duelos" para PvP.`);
+  return { text: lines.join('\n') };
+}
+
+// T135: Ranking por crafteos
+function cmdScoreCrafts() {
+  const leaders = db.getLeaderboardByCrafts(10);
+  if (leaders.length === 0) {
+    return { text: 'Aún no hay artesanos registrados en el dungeon.' };
+  }
+  const lines = [
+    `╔══════════════════════════════════════════╗`,
+    `║  ⚗️  RANKING DE ARTESANOS — TOP 10  ⚗️   ║`,
+    `╠══════════════════════════════════════════╣`,
+    `║  #   Aventurero         Lv   Crafteos    ║`,
+    `╠══════════════════════════════════════════╣`,
+  ];
+  leaders.forEach((p, idx) => {
+    const rank   = String(idx + 1).padStart(2, ' ');
+    const name   = (p.username || '???').substring(0, 15).padEnd(15, ' ');
+    const level  = String(p.level || 1).padStart(3, ' ');
+    const crafts = String(p.crafts_count || 0).padStart(8, ' ');
+    const medal  = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
+    lines.push(`║ ${medal}${rank}  ${name}  ${level}  ${crafts}    ║`);
+  });
+  lines.push(`╚══════════════════════════════════════════╝`);
   lines.push(`  Usá "score" para kills/XP, "score oro" para riqueza, "score duelos" para PvP.`);
   return { text: lines.join('\n') };
 }

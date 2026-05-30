@@ -505,6 +505,17 @@ function getLeaderboardByReputation(limit = 10) {
   );
 }
 
+// T135: Ranking por crafteos
+function getLeaderboardByCrafts(limit = 10) {
+  return all(
+    `SELECT username, level, crafts_count, kills
+     FROM players
+     ORDER BY crafts_count DESC, level DESC
+     LIMIT ?`,
+    [limit]
+  );
+}
+
 // ─── Offline Messages (tell) ─────────────────────────────────────────────────
 
 function saveOfflineMessage(senderUsername, targetPlayerId, message) {
@@ -796,7 +807,7 @@ module.exports = {
   // players
   getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, addJournalEntry, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers,
   // reputación (T125)
-  addReputation, getReputationLevel, getLeaderboardByReputation,
+  addReputation, getReputationLevel, getLeaderboardByReputation, getLeaderboardByCrafts,
   // rooms
   getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, checkTrapRespawns,
   // monsters
