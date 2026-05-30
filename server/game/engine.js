@@ -118,7 +118,7 @@ function execute(playerId, input, context) {
     case 'inventory': result = cmdInventory(player); break;
     case 'status':    result = cmdStatus(player); break;
     case 'attack':    result = cmdAttack(player, action.args.join(' ')); break;
-    case 'flee':      result = cmdFlee(player); break;
+    case 'flee':      result = cmdFlee(player, action.args ? action.args.join(' ') : ''); break;
     case 'pick':      result = cmdPick(player, action.args.join(' ')); break;
     case 'use':       result = cmdUse(player, action.args.join(' ')); break;
     case 'heal':      result = cmdHeal(player); break;
@@ -683,7 +683,7 @@ function cmdAttack(player, targetName) {
  * flee / huir — Intentar huir del combate.
  * Solo tiene sentido si hay monstruos en la sala.
  */
-function cmdFlee(player) {
+function cmdFlee(player, targetQuery) {
   player = db.getPlayer(player.id);
   const room = db.getRoom(player.current_room_id);
   const monsters = db.getMonstersInRoom(player.current_room_id);
@@ -692,16 +692,43 @@ function cmdFlee(player) {
     return { text: 'No hay nada de lo que huir aquí.' };
   }
 
-  // Huir del primer monstruo (el más relevante)
-  const monster = monsters[0];
+  let monster;
+  // Si se indica un monstruo específico, buscarlo
+  if (targetQuery && targetQuery.trim()) {
+    const query = targetQuery.trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    monster = monsters.find(m => {
+      const mName = m.name.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return mName.includes(query) || query.includes(mName);
+    });
+    if (!monster) {
+      const nameList = monsters.map(m => m.name).join(', ');
+      return { text: `No hay ningún "${targetQuery}" aquí del que huir.\nMonstruos presentes: ${nameList}` };
+    }
+  } else {
+    // Sin argumento: si hay múltiples, mostrar lista como sugerencia
+    if (monsters.length > 1) {
+      const nameList = monsters.map(m => m.name).join(', ');
+      // Huir del primero pero informar que hay varios
+      monster = monsters[0];
+      const { fled, line, destRoomId } = combat.tryFlee(player, monster, room);
+      const multiMsg = `⚡ Hay ${monsters.length} monstruos (${nameList}). Usá "flee <monstruo>" para huir de uno específico.\n${line}`;
+      return {
+        text: multiMsg,
+        event: fled ? `${player.username} huye de la sala.` : `${player.username} intenta huir pero falla.`,
+        eventRoomId: room.id,
+      };
+    }
+    monster = monsters[0];
+  }
+
   const { fled, line, destRoomId } = combat.tryFlee(player, monster, room);
 
   return {
     text: line,
     event: fled ? `${player.username} huye de la sala.` : `${player.username} intenta huir pero falla.`,
-    eventRoomId: player.current_room_id,
-    // Si huyó con éxito, el eventRoomId debe ser la sala de origen para notificar a quienes estaban ahí
-    ...(fled && destRoomId ? { eventRoomId: room.id } : {}),
+    eventRoomId: room.id,
   };
 }
 
@@ -1977,6 +2004,19 @@ const SHOP_CATALOG = [
 // Precios de venta al mercader (jugador → mercader) — 40% del valor
 const SELL_PRICE_RATIO = 0.4;
 
+// T127: Descuentos por reputación en la tienda
+function getRepDiscount(reputation) {
+  if (reputation >= 100) return 0.15; // Legendario -15%
+  if (reputation >= 50)  return 0.10; // Famoso -10%
+  if (reputation >= 25)  return 0.05; // Respetado -5%
+  return 0;
+}
+
+function getDiscountedPrice(basePrice, reputation) {
+  const discount = getRepDiscount(reputation);
+  return Math.max(1, Math.floor(basePrice * (1 - discount)));
+}
+
 function cmdShop(player) {
   player = db.getPlayer(player.id);
 
@@ -1985,24 +2025,45 @@ function cmdShop(player) {
   }
 
   const gold = player.gold || 0;
+  const reputation = player.reputation || 0;
+  const discount = getRepDiscount(reputation);
+  const repInfo = db.getReputationLevel(reputation);
+
   const lines = [
     '\n🏪 === TIENDA DE ALDRIC EL MERCADER ===',
     `"Bienvenido, aventurero. Tenés ${gold}g. ¿Qué necesitás?"`,
     '',
-    'ARTÍCULO                    PRECIO   DESCRIPCIÓN',
-    '─'.repeat(60),
   ];
+
+  if (discount > 0) {
+    lines.push(`${repInfo.icon} Tu reputación (${repInfo.name}) te da un descuento de ${Math.round(discount * 100)}%.`);
+    lines.push('');
+    lines.push('ARTÍCULO                    PRECIO   ORIGINAL   DESCRIPCIÓN');
+  } else {
+    lines.push('ARTÍCULO                    PRECIO   DESCRIPCIÓN');
+  }
+  lines.push('─'.repeat(60));
 
   SHOP_CATALOG.forEach((item, i) => {
     const num = String(i + 1).padStart(2, ' ');
     const namePad = item.name.padEnd(26, ' ');
-    const pricePad = `${item.price}g`.padEnd(9, ' ');
-    lines.push(`${num}. ${namePad}${pricePad}${item.description}`);
+    const finalPrice = getDiscountedPrice(item.price, reputation);
+    if (discount > 0) {
+      const pricePad = `${finalPrice}g`.padEnd(9, ' ');
+      const origPad  = `(${item.price}g)`.padEnd(11, ' ');
+      lines.push(`${num}. ${namePad}${pricePad}${origPad}${item.description}`);
+    } else {
+      const pricePad = `${finalPrice}g`.padEnd(9, ' ');
+      lines.push(`${num}. ${namePad}${pricePad}${item.description}`);
+    }
   });
 
   lines.push('─'.repeat(60));
+  if (discount === 0) {
+    lines.push('💡 Subí tu reputación (kills/quests/logros) para obtener descuentos.');
+  }
   lines.push('Comandos: "buy <ítem>" para comprar, "sell <ítem>" para vender.');
-  lines.push(`Podés vender tus ítems al ${Math.round(SELL_PRICE_RATIO * 100)}% de su valor de compra.`);
+  lines.push(`Podés vender tus ítems al ${Math.round(SELL_PRICE_RATIO * 100)}% de su valor original.`);
 
   return { text: lines.join('\n') };
 }
@@ -2028,25 +2089,30 @@ function cmdBuy(player, itemQuery) {
   }
 
   const gold = player.gold || 0;
-  if (gold < item.price) {
-    return { text: `💰 No tenés suficiente oro. Necesitás ${item.price}g, tenés ${gold}g.` };
+  const reputation = player.reputation || 0;
+  const finalPrice = getDiscountedPrice(item.price, reputation);
+  const discount = getRepDiscount(reputation);
+
+  if (gold < finalPrice) {
+    return { text: `💰 No tenés suficiente oro. Necesitás ${finalPrice}g, tenés ${gold}g.` };
   }
 
-  // Realizar la compra
-  const newGold = gold - item.price;
+  // Realizar la compra con precio con descuento
+  const newGold = gold - finalPrice;
   const newInventory = [...player.inventory, item.name];
   db.updatePlayer(player.id, { gold: newGold, inventory: newInventory });
 
   // T115: Trackear oro gastado para logro secreto Mecenas
-  db.addGoldSpent(player.id, item.price);
+  db.addGoldSpent(player.id, finalPrice);
 
   // Evaluar logros de compra
   const freshBuyer = db.getPlayer(player.id);
   const buyAchs = ach.checkAchievements(freshBuyer, { boughtSomething: true });
   const buyAchLines = ach.formatNewAchievements(buyAchs);
 
+  const discountMsg = discount > 0 ? ` (descuento ${Math.round(discount * 100)}% por reputación)` : '';
   return {
-    text: `🏪 Aldric sonríe. "Excelente elección."\n✅ Compraste: ${item.name} por ${item.price}g.\n💰 Oro restante: ${newGold}g.${buyAchLines}`,
+    text: `🏪 Aldric sonríe. "Excelente elección."\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${buyAchLines}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
