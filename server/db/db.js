@@ -776,14 +776,15 @@ function closeExpiredAuctions() {
  */
 function trackRoomVisit(playerId, roomId) {
   const p = getPlayer(playerId);
-  if (!p) return [];
+  if (!p) return { visited: [], isNew: false };
   let visited = [];
   try { visited = JSON.parse(p.rooms_visited || '[]'); } catch (_) {}
-  if (!visited.includes(roomId)) {
+  const isNew = !visited.includes(roomId);
+  if (isNew) {
     visited.push(roomId);
     updatePlayer(playerId, { rooms_visited: JSON.stringify(visited) });
   }
-  return visited;
+  return { visited, isNew };
 }
 
 /**

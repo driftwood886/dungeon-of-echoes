@@ -457,12 +457,15 @@ function cmdMove(player, direction) {
   db.updatePlayer(player.id, { current_room_id: targetId });
 
   // T115: Registrar sala visitada para logro secreto Cartógrafo
-  db.trackRoomVisit(player.id, targetId);
+  const visitResult = db.trackRoomVisit(player.id, targetId);
   const freshForCartog = db.getPlayer(player.id);
   if (freshForCartog) {
     const cartogAchs = ach.checkAchievements(freshForCartog, {});
     // Los nuevos logros se notificarán en la respuesta si los hay
   }
+
+  // T165: Mensaje de primera visita permanente
+  const firstVisitEver = visitResult.isNew;
 
   // T141: Desafío diario de salas visitadas
   const roomsVisited = (() => { try { return JSON.parse(freshForCartog && freshForCartog.rooms_visited || '[]'); } catch (_) { return []; } })();
@@ -538,8 +541,11 @@ function cmdMove(player, direction) {
     }
   }
 
+  // T165: Badge de primera visita permanente
+  const firstVisitMsg = firstVisitEver ? `\n\n🌟 ¡Primera vez que explorás esta sala! (${visitResult.visited.length} salas descubiertas en total)` : '';
+
   return {
-    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}`,
+    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
