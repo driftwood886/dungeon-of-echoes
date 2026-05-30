@@ -15,7 +15,7 @@ const { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions } = req
 const { checkRespawns }      = require('./game/combat');
 const quests                 = require('./game/quests');
 const worldEvents            = require('./game/worldEvents');
-const { registerHandlers, playerSockets } = require('./socket/handlers');
+const { registerHandlers, playerSockets, previousRoomMap } = require('./socket/handlers');
 
 const PORT = process.env.PORT || 3000;
 const SERVER_START = Date.now(); // T119: uptime del servidor

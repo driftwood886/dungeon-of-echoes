@@ -205,6 +205,7 @@ function execute(playerId, input, context) {
     case 'compare':      result = cmdCompare(player, action.args); break;
     case 'reputation':   result = cmdReputation(player); break;
     case 'recall':       result = cmdRecall(player); break;
+    case 'back':         result = cmdBack(player, context); break;
     case 'trade':        result = cmdTrade(player, action.args); break;
     case 'lore':         result = cmdLore(action.args.join(' ')); break;
     case 'peek':         result = cmdPeek(player, action.args); break;
@@ -2326,6 +2327,48 @@ function cmdRecall(player) {
     text: `🔮 Invocás el antiguo hechizo de retorno...\nUn destello de luz te envuelve. Aparecés en ${roomName}.\n⚡ Costo: ${HP_COST} HP. HP actual: ${newHp}/${player.max_hp}.`,
     event: `${player.username} desaparece en un destello de luz.`,
     eventRoomId: player.current_room_id,
+  };
+}
+
+/**
+ * T154: cmdBack — Volver a la sala anterior.
+ * Usa previousRoomId del contexto (seteado en handlers.js al detectar movimiento).
+ */
+function cmdBack(player, context) {
+  player = db.getPlayer(player.id);
+  const prevRoomId = context && context.previousRoomId;
+
+  if (!prevRoomId) {
+    return { text: '🔙 No hay sala anterior registrada. Mové a alguna habitación primero.' };
+  }
+
+  const targetRoom = db.getRoom(prevRoomId);
+  if (!targetRoom) {
+    return { text: '🔙 La sala anterior ya no existe (¿el dungeon cambió?).' };
+  }
+
+  // Verificar que la sala anterior sea adyacente a la actual
+  const currentRoom = db.getRoom(player.current_room_id);
+  const exits = currentRoom ? (typeof currentRoom.exits === 'string' ? JSON.parse(currentRoom.exits) : currentRoom.exits) : {};
+  const isAdjacent = Object.values(exits).some(exit => {
+    const targetId = typeof exit === 'object' ? exit.room_id : exit;
+    return targetId === prevRoomId;
+  });
+
+  if (!isAdjacent) {
+    return { text: `🔙 La sala anterior (${targetRoom.name}) no es adyacente a tu posición actual. No podés retroceder directamente.` };
+  }
+
+  const fromRoomId = player.current_room_id;
+  db.updatePlayer(player.id, { current_room_id: prevRoomId });
+
+  const lookResult = cmdLook(db.getPlayer(player.id));
+  return {
+    text: `🔙 Retrocedés hacia ${targetRoom.name}.\n\n${lookResult.text}`,
+    event: `${player.username} da marcha atrás.`,
+    eventRoomId: fromRoomId,
+    fromRoomId,
+    fromRoomEvent: `${player.username} vuelve sobre sus pasos.`,
   };
 }
 

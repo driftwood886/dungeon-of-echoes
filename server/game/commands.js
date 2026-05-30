@@ -171,7 +171,9 @@ const COMMAND_ALIASES = {
   // reputation (T125)
   reputation: 'reputation', reputacion: 'reputation', reputación: 'reputation', fama: 'reputation', renombre: 'reputation',
   // recall / volver (T131)
-  recall: 'recall', volver: 'recall', retornar: 'recall', teletransportar: 'recall', tp: 'recall',
+  recall: 'recall', retornar: 'recall', teletransportar: 'recall', tp: 'recall',
+  // back / atrás (T154)
+  back: 'back', atrás: 'back', atras: 'back', anterior: 'back', regresar: 'back',
   // trade / intercambio (T129)
   trade: 'trade', intercambiar: 'trade', intercambio: 'trade', trueque: 'trade', cambiar: 'trade',
   // lore / enciclopedia de ítems (T137)
@@ -322,6 +324,7 @@ Comandos disponibles:
   compare <jugador>     — Comparar tus stats con otro aventurero en la misma sala (clase, nivel, HP, ATK, kills, etc.)
   reputation / fama     — Ver tu reputación detallada con barra de progreso (gana pts por kills, quests y logros)
   recall / volver       — Teletransportarse a la entrada del dungeon (sala 1). Costo: 5 HP. Cooldown: 10 min.
+  back / atrás          — Volver a la sala anterior (sin costo ni cooldown, solo adyacente).
   trade <jug> <ítem>   — Proponer intercambio seguro de ítems (el otro acepta/rechaza con trade accept/decline).
   peek <dir> / espiar  — Espiar en una dirección sin moverse: ver nombre de sala, monstruos e ítems del suelo.
   runas / runes        — Ver tu colección de runas (obtenés runas al matar; 3 iguales se fusionan en un bonus permanente).
@@ -386,7 +389,8 @@ const COMMAND_HELP = {
     enemies:   'enemies [N] / enemigos [N] / top [N]\\n  Ver los N monstruos más poderosos del dungeon (ordenados por HP máximo).\\n  Muestra: nombre, estado (vivo/respawn), sala donde habitan y estadísticas.\\n  N es opcional, por defecto 10. Máximo 20.',
     compare:   'compare <jugador> / comparar <jugador> / vs <jugador>\\\\n  Comparar tus stats con los de otro aventurero que esté en la misma sala.\\\\n  Tabla visual con: clase, título, nivel, XP, HP con barra, maná, ATK, DEF, kills, muertes, oro y arma equipada.',
     reputation: 'reputation / reputacion / fama / renombre\\\\n  Ver tu nivel de reputación actual con barra de progreso.\\\\n  Niveles: Desconocido (0) → Conocido (10) → Respetado (25) → Famoso (50) → Legendario (100).\\\\n  Ganás puntos por: matar monstruos (+1), completar quests (+5), desbloquear logros (+3).\\\\n  Tu reputación se muestra en \\\"status\\\" y en \\\"who\\\".',
-    recall:    'recall / volver / retornar\\\\n  Teletransportarse a la entrada del dungeon (sala 1).\\\\n  Costo: 5 HP. Cooldown: 10 minutos.\\\\n  Útil para escapar de zonas peligrosas o volver rápido al mercader.',
+    recall:    'recall / volver / retornar\\\\\\\\n  Teletransportarse a la entrada del dungeon (sala 1).\\\\\\\\n  Costo: 5 HP. Cooldown: 10 minutos.\\\\\\\\n  Útil para escapar de zonas peligrosas o volver rápido al mercader.',
+    back:      'back / atrás / anterior / regresar\\\\n  Volver a la sala anterior sin costo ni cooldown.\\\\n  Solo funciona si la sala anterior es adyacente a tu posición actual.\\\\n  Útil para exploración de ida y vuelta.',
     trade:     'trade <jugador> <ítem> / intercambiar <jugador> <ítem>\\\\n  Proponer un intercambio seguro de ítems con otro jugador en la misma sala.\\\\n  El jugador destino puede responder con:\\\\n    trade accept — aceptar el trueque (se intercambian los ítems)\\\\n    trade cancel/decline — rechazar la propuesta\\\\n  La propuesta expira en 30 segundos.\\\\n  Diferencia con give: trade requiere que ambos estén de acuerdo.',
   lore:      'lore <item> / enciclopedia <item>',
   peek:      'peek <dirección> / espiar <dirección> / asomarse <dirección>\\\\\\\\n  Espiar en una dirección sin moverse.\\\\\\\\n  Muestra el nombre de la sala adyacente, si hay monstruos (sin detalles de HP) y si hay ítems en el suelo.\\\\\\\\n  No funciona si la salida está bloqueada con llave.\\\\\\\\n  Útil para scouting antes de entrar a una sala peligrosa.',

@@ -20,6 +20,9 @@ const engine = require('../game/engine');
 // Mapa global: playerId → socket (para enviar mensajes directos)
 const playerSockets = new Map();
 
+// T154: Mapa global: playerId → sala previa (para comando back)
+const previousRoomMap = new Map();
+
 /**
  * @param {import('socket.io').Server} io
  */
@@ -187,6 +190,7 @@ function registerHandlers(io) {
         broadcastToRoom: (roomId, excludePlayerId, message) => {
           io.to(`room_${roomId}`).emit('event', { type: 'action', message });
         },
+        previousRoomId: previousRoomMap.get(currentPlayerId) || null,
       };
       const result = engine.execute(currentPlayerId, command, context);
 
@@ -246,6 +250,9 @@ function registerHandlers(io) {
       // Si el jugador cambió de habitación, actualizar rooms de Socket.io
       const player = db.getPlayer(currentPlayerId);
       if (player && player.current_room_id !== currentRoomId) {
+        // T154: guardar sala previa para comando back
+        previousRoomMap.set(currentPlayerId, currentRoomId);
+
         socket.leave(`room_${currentRoomId}`);
         currentRoomId = player.current_room_id;
         socket.join(`room_${currentRoomId}`);
@@ -318,4 +325,4 @@ function registerHandlers(io) {
 
 }
 
-module.exports = { registerHandlers, playerSockets };
+module.exports = { registerHandlers, playerSockets, previousRoomMap };
