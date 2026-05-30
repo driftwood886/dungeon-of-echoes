@@ -368,6 +368,11 @@ function createPlayer(username) {
   return getPlayer(id);
 }
 
+/** T202: Obtener todos los jugadores para calcular promedios del servidor. */
+function getAllPlayers() {
+  return all(`SELECT hp, max_hp, attack, defense, level, kills, gold, reputation, xp FROM players`, []);
+}
+
 function updatePlayer(id, fields) {
   const updates = Object.keys(fields)
     .map(k => `${k} = ?`)
@@ -1443,7 +1448,7 @@ function getWorldGoalsDisplay() {
 module.exports = {
   init, persist,
   // players
-  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, addJournalEntry, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers,
+  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, addJournalEntry, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers, getAllPlayers,
   // reputación (T125)
   addReputation, getReputationLevel, getLeaderboardByReputation, getLeaderboardByCrafts,
   // rooms

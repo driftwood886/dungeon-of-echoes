@@ -5728,10 +5728,72 @@ module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAucti
  */
 function cmdCompare(player, args) {
   if (!args || !args.length) {
-    return { text: 'Uso: compare <nombre_jugador>  — comparar tus stats con otro aventurero en la sala.' };
+    return { text: 'Uso: compare <nombre_jugador>  — comparar tus stats con otro aventurero en la sala.\n     compare server/global  — comparar con el promedio global del servidor.' };
   }
 
   const targetName = args.join(' ').trim().toLowerCase();
+
+  // T202: compare server / compare global — comparar con el promedio del servidor
+  if (targetName === 'server' || targetName === 'global' || targetName === 'servidor' || targetName === 'promedio') {
+    const allPlayers = db.getAllPlayers();
+    if (!allPlayers || allPlayers.length < 1) {
+      return { text: 'No hay suficientes aventureros registrados para calcular promedios.' };
+    }
+
+    const avg = (field) => {
+      const vals = allPlayers.map(p => Number(p[field] || 0)).filter(v => !isNaN(v));
+      return vals.length ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 10) / 10 : 0;
+    };
+
+    const avgHp     = avg('hp');
+    const avgMaxHp  = avg('max_hp');
+    const avgAtk    = avg('attack');
+    const avgDef    = avg('defense');
+    const avgLevel  = avg('level');
+    const avgKills  = avg('kills');
+    const avgGold   = avg('gold');
+    const avgRep    = avg('reputation');
+
+    function delta(mine, avgVal) {
+      const diff = mine - avgVal;
+      const pct  = avgVal > 0 ? Math.round(Math.abs(diff / avgVal) * 100) : 0;
+      if (diff > 0) return `▲ +${diff} (${pct}% sobre promedio)`;
+      if (diff < 0) return `▼ ${diff} (${pct}% bajo promedio)`;
+      return `= igual al promedio`;
+    }
+
+    const W = 54;
+    const fresh = db.getPlayer(player.id);
+
+    const lines = [];
+    lines.push(`╔${'═'.repeat(W)}╗`);
+    lines.push(`║${'  📊 VOS VS. EL PROMEDIO DEL SERVIDOR'.padEnd(W)}║`);
+    lines.push(`║${'  (' + allPlayers.length + ' aventureros registrados)'.padEnd(W - 2)}║`);
+    lines.push(`╠${'═'.repeat(W)}╣`);
+
+    function row(label, mine, avgVal) {
+      const l   = label.padEnd(12);
+      const m   = String(mine).padEnd(8);
+      const a   = String(avgVal).padEnd(8);
+      const d   = delta(Number(mine), Number(avgVal));
+      return `║  ${l} ${m} vs ${a}  ${d}`.slice(0, W + 2).padEnd(W + 2) + `║`;
+    }
+
+    lines.push(`║  ${'STAT'.padEnd(12)} ${'TUY0'.padEnd(8)} ${'PROM'.padEnd(8)}  DIFERENCIA`.padEnd(W + 2) + `║`);
+    lines.push(`╠${'─'.repeat(W)}╣`);
+    lines.push(row('HP',      fresh.hp || 0,     avgHp));
+    lines.push(row('HP máx',  fresh.max_hp || 30, avgMaxHp));
+    lines.push(row('ATK',     fresh.attack || 5,  avgAtk));
+    lines.push(row('DEF',     fresh.defense || 3, avgDef));
+    lines.push(`╠${'─'.repeat(W)}╣`);
+    lines.push(row('Nivel',   fresh.level || 1,   avgLevel));
+    lines.push(row('Kills',   fresh.kills || 0,   avgKills));
+    lines.push(row('Oro',     fresh.gold || 0,    avgGold));
+    lines.push(row('Rep',     fresh.reputation || 0, avgRep));
+    lines.push(`╚${'═'.repeat(W)}╝`);
+
+    return { text: lines.join('\n') };
+  }
   const playersInRoom = db.getPlayersInRoom(player.current_room_id);
   const target = playersInRoom.find(p =>
     p.id !== player.id && p.username.toLowerCase().includes(targetName)
