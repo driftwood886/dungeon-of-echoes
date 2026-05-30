@@ -133,6 +133,14 @@ function execute(playerId, input, context) {
 
   const action = parse(input);
 
+  // ── T164: Guardar en historial de sesión ────────────────────────────────────
+  if (action.command !== 'history') {
+    const hist = sessionCommandHistory.get(playerId) || [];
+    hist.unshift(input.slice(0, 32)); // guardar al frente, máx 32 chars
+    if (hist.length > 20) hist.pop();
+    sessionCommandHistory.set(playerId, hist);
+  }
+
   // ── Lógica de tutorial (T091) ──────────────────────────────────────────────
   const tutorialStep = player.tutorial_step;
   if (tutorialStep && tutorialStep > 0 && player.current_room_id === tutorial.TUTORIAL_ROOM_ID) {
@@ -242,6 +250,8 @@ function execute(playerId, input, context) {
     case 'score_time':   result = cmdScoreTime(); break;
     case 'stance':       result = cmdStance(player, action.args); break;
     case 'path':         result = cmdPath(player, action.args); break;
+    case 'nick':         result = cmdNick(player, action.args); break;
+    case 'history':      result = cmdHistory(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -625,6 +635,7 @@ function cmdStatus(player) {
 
   const text = [
     `\n=== ${player.username.toUpperCase()} ===`,
+    player.nickname ? `Apodo:    "${player.nickname}"` : null,
     `Título:   ${getTitle(kills).full}`,
     player.player_class && player.player_class !== 'sin_clase'
       ? `Clase:    ${(classes.getPlayerClass(player) || {}).emoji || ''} ${(classes.getPlayerClass(player) || {}).name || player.player_class}`
@@ -1507,7 +1518,8 @@ function cmdWho() {
       const streak = killStreakMap.get(p.id) || 0;
       const streakTag = streak >= 5 ? ` 🔥${streak}` : '';
       const stanceIcon = STANCES[p.stance || 'equilibrado'] ? STANCES[p.stance || 'equilibrado'].icon : '';
-      return `  ${(p.username + guildTag).padEnd(22)} ${titleIcon}${repIcon} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}${afkTag}${streakTag} ${stanceIcon} │  ${p.room_name || 'Desconocido'}`;
+      const displayName = p.nickname ? `${p.username} "${p.nickname}"` : p.username;
+      return `  ${(displayName + guildTag).padEnd(22)} ${titleIcon}${repIcon} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}${afkTag}${streakTag} ${stanceIcon} │  ${p.room_name || 'Desconocido'}`;
     }),
     ``,
     `(jugadores activos en los últimos 5 minutos)`,
@@ -6479,4 +6491,62 @@ function cmdPath(player, args) {
   return { text: lines.join('\n') };
 }
 
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES };
+// ── T163: Apodos ──────────────────────────────────────────────────────────────
+// Historial de comandos de sesión en memoria
+// cmdHistory necesita acceso a esto; se rellena en execute()
+const sessionCommandHistory = new Map(); // playerId → Array<string> (últimos 20)
+
+/**
+ * T163 — nick/apodo: setear o ver el apodo del personaje.
+ * Sin args muestra el apodo actual; con args lo actualiza.
+ */
+function cmdNick(player, args) {
+  player = db.getPlayer(player.id);
+
+  if (!args || args.length === 0) {
+    if (!player.nickname) {
+      return { text: `No tenés apodo asignado. Usá "nick <apodo>" para elegir uno (máx 20 chars, sin espacios).\nTu nombre sigue siendo: ${player.username}` };
+    }
+    return { text: `Tu apodo actual es: "${player.nickname}"\nUsá "nick quitar" para eliminarlo, o "nick <nuevo>" para cambiarlo.` };
+  }
+
+  const input = args.join('').trim();
+
+  if (input === 'quitar' || input === 'borrar' || input === 'clear') {
+    db.updatePlayer(player.id, { nickname: null });
+    return { text: `Apodo eliminado. Tu nombre de aventurero vuelve a ser "${player.username}".` };
+  }
+
+  // Validar: máx 20 chars, sin espacios, alfanumérico + guiones/underscores
+  if (input.length > 20) {
+    return { text: 'El apodo no puede superar los 20 caracteres.' };
+  }
+  if (!/^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9_\-]+$/.test(input)) {
+    return { text: 'El apodo solo puede tener letras, números, guiones y underscores (sin espacios).' };
+  }
+
+  db.updatePlayer(player.id, { nickname: input });
+  return {
+    text: `✅ Apodo actualizado a "${input}". Aparecerá en "who", "status" y cuando otros jugadores te vean.\nTu username sigue siendo "${player.username}" para whisper/tell/give/etc.`,
+  };
+}
+
+/**
+ * T164 — history/historial: ver los últimos comandos ejecutados en la sesión.
+ */
+function cmdHistory(player) {
+  const hist = sessionCommandHistory.get(player.id) || [];
+  if (hist.length === 0) {
+    return { text: 'No hay comandos en el historial de esta sesión todavía.' };
+  }
+  const lines = [
+    `╔══════════════════════════════════╗`,
+    `║  📜  HISTORIAL DE COMANDOS       ║`,
+    `╠══════════════════════════════════╣`,
+    ...hist.map((cmd, i) => `║  ${String(hist.length - i).padStart(2)}. ${cmd.padEnd(28)} ║`),
+    `╚══════════════════════════════════╝`,
+  ];
+  return { text: lines.join('\n') };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory };

@@ -337,6 +337,9 @@ function registerHandlers(io) {
       engine.killStreakMap.delete(currentPlayerId);
       engine.sessionExploredRooms.delete(currentPlayerId);
 
+      // T164: Limpiar historial de comandos de sesión
+      engine.sessionCommandHistory.delete(currentPlayerId);
+
       // T155: Mostrar resumen de sesión al desconectar
       const sessData = sessionDataMap.get(currentPlayerId);
       if (sessData) {

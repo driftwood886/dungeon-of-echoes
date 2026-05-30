@@ -155,6 +155,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN active_scrolls TEXT NOT NULL DEFAULT '{}'`,   // T153: pergaminos mágicos activos
     `ALTER TABLE players ADD COLUMN stance TEXT NOT NULL DEFAULT 'equilibrado'`,  // T161: postura de combate
     `ALTER TABLE players ADD COLUMN playtime_minutes INTEGER NOT NULL DEFAULT 0`, // T157: tiempo de juego total
+    `ALTER TABLE players ADD COLUMN nickname TEXT`,                                // T163: apodo del personaje
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }

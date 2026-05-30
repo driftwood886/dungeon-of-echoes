@@ -209,6 +209,10 @@ const COMMAND_ALIASES = {
   stance: 'stance', postura: 'stance', combate_postura: 'stance',
   // path / ruta (T162)
   path: 'path', ruta: 'path', navegacion: 'path', navegar: 'path', 'como-llegar': 'path',
+  // nick / apodo (T163)
+  nick: 'nick', apodo: 'nick', alias: 'nick', sobrenombre: 'nick',
+  // history / historial (T164)
+  history: 'history', historial: 'history', cmds: 'history', comandos: 'history',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
