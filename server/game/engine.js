@@ -301,6 +301,8 @@ function execute(playerId, input, context) {
     case 'friend':       result = cmdFriend(player, action.args); break;
     case 'vault':        result = cmdVault(player, action.args); break;         // T200
     case 'epitaph':      result = cmdEpitaph(player, action.args); break;       // T201
+    case 'follow':       result = cmdFollow(player, action.args, context); break; // T204
+    case 'unfollow':     result = cmdUnfollow(player, context); break;           // T204
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -9236,5 +9238,80 @@ function cmdVault(player, args) {
   }
 
   return { text: 'Subcomandos: vault (listar) · vault store <ítem> · vault take <ítem>' };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// T204: Sistema de follow — seguir a otro jugador
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * follow <jugador> — seguir a otro jugador en la misma sala.
+ * Cuando el jugador objetivo se mueva, el seguidor se mueve automáticamente.
+ * `unfollow` para dejar de seguir.
+ */
+function cmdFollow(player, args, context) {
+  const followMap = context && context.followMap;
+  if (!followMap) return { text: '❌ Sistema de follow no disponible (solo por Socket.io).' };
+
+  if (!args || args.length === 0) {
+    // Sin args: mostrar a quién seguís
+    const targetId = followMap.get(player.id);
+    if (!targetId) return { text: '🚶 No estás siguiendo a nadie. Usá: follow <jugador>' };
+    const target = db.getPlayer(targetId);
+    return { text: `🚶 Estás siguiendo a ${target ? target.username : '(desconectado)'}.` };
+  }
+
+  const targetName = args.join(' ').trim();
+  const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  // Buscar jugador en la misma sala
+  const playersInRoom = db.getPlayersInRoom(player.current_room_id);
+  const target = playersInRoom.find(p =>
+    norm(p.username) === norm(targetName) || norm(p.username).includes(norm(targetName))
+  );
+
+  if (!target) return { text: `❌ No hay ningún aventurero llamado "${targetName}" en esta sala.` };
+  if (target.id === player.id) return { text: '🤔 No podés seguirte a vos mismo.' };
+
+  // No seguir si el objetivo ya te está siguiendo (ciclo)
+  if (followMap.get(target.id) === player.id) {
+    return { text: `❌ ${target.username} ya te está siguiendo a vos. No se pueden crear ciclos de seguimiento.` };
+  }
+
+  followMap.set(player.id, target.id);
+
+  // Notificar al objetivo
+  const targetSocket = context.playerSockets && context.playerSockets.get(target.id);
+  if (targetSocket) {
+    targetSocket.emit('event', {
+      type: 'info',
+      text: `👣 ${player.username} empieza a seguirte. Cuando te muevas, te seguirá automáticamente.`,
+    });
+  }
+
+  return { text: `🚶 Ahora seguís a ${target.username}. Usá "unfollow" para dejar de seguirle.` };
+}
+
+function cmdUnfollow(player, context) {
+  const followMap = context && context.followMap;
+  if (!followMap) return { text: '❌ Sistema de follow no disponible.' };
+
+  const targetId = followMap.get(player.id);
+  if (!targetId) return { text: '🚶 No estás siguiendo a nadie.' };
+
+  const target = db.getPlayer(targetId);
+  followMap.delete(player.id);
+
+  if (target && context.playerSockets) {
+    const targetSocket = context.playerSockets.get(target.id);
+    if (targetSocket) {
+      targetSocket.emit('event', {
+        type: 'info',
+        text: `👣 ${player.username} dejó de seguirte.`,
+      });
+    }
+  }
+
+  return { text: `🛑 Dejaste de seguir a ${target ? target.username : 'ese jugador'}.` };
 }
 

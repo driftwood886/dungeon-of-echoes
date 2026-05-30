@@ -12,7 +12,7 @@ const path    = require('path');
 const db                     = require('./db/db');
 const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom } = require('./db/seed');
 const { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions } = require('./game/engine');
-const { checkRespawns }      = require('./game/combat');
+const { checkRespawns, wanderMonsters } = require('./game/combat');
 const quests                 = require('./game/quests');
 const worldEvents            = require('./game/worldEvents');
 const weather                = require('./game/weather');
@@ -520,6 +520,39 @@ async function main() {
       console.error('[bulletin] Error expirando posts:', e.message);
     }
   }, 60 * 60 * 1000);
+
+  // 15. T203: Monstruos errantes — el Goblin Merodeador y la Rata Gigante se mueven cada 90 segundos
+  setInterval(() => {
+    try {
+      wanderMonsters((monsterId, monsterName, fromRoomId, toRoomId) => {
+        const { playerSockets } = require('./socket/handlers');
+        // Notificar a jugadores en la sala de origen
+        const fromPlayers = db.getPlayersInRoom(fromRoomId);
+        for (const p of fromPlayers) {
+          const sock = playerSockets.get(p.id);
+          if (sock) {
+            sock.emit('event', {
+              type: 'info',
+              text: `👣 El ${monsterName} abandona la sala y desaparece entre las sombras...`,
+            });
+          }
+        }
+        // Notificar a jugadores en la sala destino
+        const toPlayers = db.getPlayersInRoom(toRoomId);
+        for (const p of toPlayers) {
+          const sock = playerSockets.get(p.id);
+          if (sock) {
+            sock.emit('event', {
+              type: 'warning',
+              text: `⚠️  ¡Un ${monsterName} aparece en la sala desde la oscuridad!`,
+            });
+          }
+        }
+      });
+    } catch (e) {
+      console.error('[wander] Error en loop de monstruos errantes:', e.message);
+    }
+  }, 90_000);
 }
 
 main().catch(err => {

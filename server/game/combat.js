@@ -827,11 +827,71 @@ function checkRespawns() {
   }
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// T203: Monstruos errantes — algunos monstruos se mueven periódicamente
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * IDs de monstruos que deambulan por el dungeon.
+ * Goblin Merodeador (1) y Rata Gigante (3) son criaturas inquietas.
+ * Se mueven a una sala adyacente aleatoria cuando están vivos y no hay jugadores
+ * en su sala actual (para no interrumpir combates activos).
+ */
+const WANDERING_MONSTER_IDS = new Set([1, 3]);
+
+/**
+ * Mueve los monstruos errantes a una sala adyacente aleatoria.
+ * Callback opcional recibe (monsterId, monsterName, fromRoomId, toRoomId)
+ * para que el servidor pueda notificar a los jugadores en ambas salas.
+ * @param {Function} [onMove] — callback(monsterId, monsterName, fromRoomId, toRoomId)
+ */
+function wanderMonsters(onMove) {
+  for (const mId of WANDERING_MONSTER_IDS) {
+    try {
+      const monster = db.getMonster(mId);
+      // Solo si está vivo (room_id no nulo)
+      if (!monster || monster.room_id === null || monster.room_id === undefined) continue;
+
+      const currentRoom = db.getRoom(monster.room_id);
+      if (!currentRoom) continue;
+
+      // No mover si hay jugadores en la sala (podría interrumpir combate)
+      const playersInRoom = db.getPlayersInRoom(monster.room_id);
+      if (playersInRoom && playersInRoom.length > 0) continue;
+
+      // Obtener salas adyacentes válidas (no sala tutorial, no sala de práctica, no casa de subastas)
+      const EXCLUDED_ROOMS = new Set([16, 17, 18, 21, 22]); // tutorial, subastas, fuente, práctica, cripta
+      const exits = currentRoom.exits || {};
+      const adjacentRoomIds = Object.values(exits)
+        .map(v => typeof v === 'object' ? v.room_id : v)
+        .filter(id => id && !EXCLUDED_ROOMS.has(id));
+
+      if (adjacentRoomIds.length === 0) continue;
+
+      // Elegir sala aleatoria
+      const targetRoomId = adjacentRoomIds[Math.floor(Math.random() * adjacentRoomIds.length)];
+      if (targetRoomId === monster.room_id) continue;
+
+      const fromRoomId = monster.room_id;
+      db.updateMonster(mId, { room_id: targetRoomId });
+      console.log(`[wander] ${monster.name} se mueve de sala ${fromRoomId} → sala ${targetRoomId}`);
+
+      if (onMove) {
+        onMove(mId, monster.name, fromRoomId, targetRoomId);
+      }
+    } catch (e) {
+      console.error(`[wander] Error moviendo monstruo ${mId}:`, e.message);
+    }
+  }
+}
+
 module.exports = {
   attackRound,
   tryFlee,
   findMonsterInRoom,
   checkRespawns,
+  wanderMonsters,
+  WANDERING_MONSTER_IDS,
   BOSS_MONSTERS,
   MONSTER_SPECIALS,
 };

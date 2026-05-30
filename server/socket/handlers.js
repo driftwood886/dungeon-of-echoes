@@ -29,6 +29,9 @@ const previousRoomMap = new Map();
 // { startTime, kills, xpStart, goldStart, commands }
 const sessionDataMap = new Map();
 
+// T204: Mapa global: followerId → targetPlayerId (seguir a otro jugador)
+const followMap = new Map();
+
 /**
  * @param {import('socket.io').Server} io
  */
@@ -232,6 +235,7 @@ function registerHandlers(io) {
         sessionData: sessionDataMap.get(currentPlayerId) || null,
         sessionDataMap,   // T198: score sesión necesita ver todos los jugadores activos
         playerSockets,
+        followMap,        // T204: sistema de follow
       };
       const result = engine.execute(currentPlayerId, command, context);
 
@@ -301,6 +305,7 @@ function registerHandlers(io) {
         // T154: guardar sala previa para comando back
         previousRoomMap.set(currentPlayerId, currentRoomId);
 
+        const oldRoomId = currentRoomId;
         socket.leave(`room_${currentRoomId}`);
         currentRoomId = player.current_room_id;
         socket.join(`room_${currentRoomId}`);
@@ -310,6 +315,34 @@ function registerHandlers(io) {
           type: 'player_join',
           message: `${player.username} entra a la sala.`,
         });
+
+        // T204: Mover seguidores — buscar jugadores que siguen a este jugador
+        for (const [followerId, targetId] of followMap.entries()) {
+          if (targetId !== currentPlayerId) continue;
+          const followerPlayer = db.getPlayer(followerId);
+          if (!followerPlayer || followerPlayer.current_room_id !== oldRoomId) continue;
+          // Mover al seguidor a la nueva sala
+          db.updatePlayer(followerId, { current_room_id: currentRoomId });
+          previousRoomMap.set(followerId, oldRoomId);
+          const followerSocket = playerSockets.get(followerId);
+          if (followerSocket) {
+            followerSocket.leave(`room_${oldRoomId}`);
+            followerSocket.join(`room_${currentRoomId}`);
+            // Notificar al seguidor
+            followerSocket.emit('event', {
+              type: 'info',
+              text: `👣 Seguís a ${player.username} hacia la siguiente sala...`,
+            });
+            // Enviarle el look automáticamente
+            const lookResult = engine.execute(followerId, 'look', { broadcastToRoom: () => {}, playerSockets, followMap });
+            followerSocket.emit('event', { type: 'action', message: lookResult.text });
+            // Anunciar llegada del seguidor
+            followerSocket.to(`room_${currentRoomId}`).emit('event', {
+              type: 'player_join',
+              message: `${followerPlayer.username} entra a la sala siguiendo a ${player.username}.`,
+            });
+          }
+        }
       }
 
       ack && ack({ result: result.text });
@@ -357,6 +390,9 @@ function registerHandlers(io) {
 
       // Limpiar del mapa de sockets directos
       playerSockets.delete(currentPlayerId);
+
+      // T204: Limpiar follow al desconectar (tanto si era seguidor como seguido)
+      followMap.delete(currentPlayerId);
 
       // T146: Limpiar flag AFK al desconectar
       engine.clearAfk(currentPlayerId);
@@ -420,4 +456,4 @@ function registerHandlers(io) {
 
 }
 
-module.exports = { registerHandlers, playerSockets, previousRoomMap, sessionDataMap };
+module.exports = { registerHandlers, playerSockets, previousRoomMap, sessionDataMap, followMap };

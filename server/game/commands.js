@@ -245,6 +245,10 @@ const COMMAND_ALIASES = {
   vault: 'vault', boveda: 'vault', bóveda: 'vault', cofre: 'vault', deposito: 'vault', depósito: 'vault',
   // epitaph / epitafio personal (T201)
   epitaph: 'epitaph', epitafio: 'epitaph', lapida: 'epitaph', lápida: 'epitaph', tumba: 'epitaph',
+  // follow / seguir (T204)
+  follow: 'follow', seguir: 'follow', acompañar: 'follow', escolta: 'follow',
+  // unfollow / dejar de seguir (T204)
+  unfollow: 'unfollow', 'dejar-seguir': 'unfollow', 'stop-follow': 'unfollow', soltar: 'unfollow',
   // pray / rezar — altares mágicos (T184)
   pray: 'pray', rezar: 'pray', orar: 'pray', ofrenda: 'pray', altar: 'pray',
   // preview / previsualizar ítem (T185)
