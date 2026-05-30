@@ -109,6 +109,11 @@ const ITEM_CATALOG = {
   'cuero endurecido':    { type: 'armor', effect: 'defense_bonus', amount: 2,  description: 'Armadura de cuero tratado con resina. Flexible y ligera. +2 de defensa.' },
   'túnica encantada':    { type: 'armor', effect: 'defense_bonus', amount: 4,  description: 'Una túnica de tela mágica que repele golpes. +4 de defensa. Ideal para magos.' },
   'armadura de placas':  { type: 'armor', effect: 'defense_bonus', amount: 5,  description: 'Placas de acero que cubren el cuerpo. La protección más alta del dungeon. +5 de defensa.' },
+
+  // ── Pergaminos mágicos (T153) ──────────────────────────────────────────────
+  'pergamino de furia':    { type: 'scroll', effect: 'fury',    atk_bonus: 3, def_bonus: 0, duration: 60,  description: 'Un pergamino que irradia energía roja. Al leerlo, sentís una furia ardiente. (+3 ATK por 60s)' },
+  'pergamino de escudo':   { type: 'scroll', effect: 'shield',  atk_bonus: 0, def_bonus: 3, duration: 60,  description: 'Runas protectoras grabadas en papel dorado. Una barrera mágica te envuelve. (+3 DEF por 60s)' },
+  'pergamino de velocidad': { type: 'scroll', effect: 'speed',  atk_bonus: 2, def_bonus: 1, duration: 45,  description: 'El texto vibra con energía cinética. Tus movimientos se vuelven más ágiles. (+2 ATK +1 DEF por 45s)' },
   'veste de sombra':     { type: 'armor', effect: 'defense_bonus', amount: 3,  description: 'Una veste tejida con esencia de sombra. Casi invisible en la oscuridad. +3 de defensa.' },
   'capa de araña':       { type: 'armor', effect: 'defense_bonus', amount: 2,  description: 'Una capa tejida con hilo de seda de araña. Ligera y sorprendentemente resistente. +2 de defensa.' },
   'peto de huesos':      { type: 'armor', effect: 'defense_bonus', amount: 4,  description: 'Un peto forjado con huesos del dungeon. Macabro pero efectivo. +4 de defensa.' },
@@ -195,6 +200,11 @@ const ITEM_RARITY = {
   // ── Armaduras (T152) ─────────────────────────────────────────────────────
   'armadura de placas':   'épico',
   'túnica encantada':     'épico',
+
+  // ── Pergaminos mágicos (T153) ──────────────────────────────────────────────
+  'pergamino de furia':     'raro',
+  'pergamino de escudo':    'raro',
+  'pergamino de velocidad': 'épico',
   'peto de huesos':       'raro',
   'veste de sombra':      'raro',
   'cota de malla':        'raro',

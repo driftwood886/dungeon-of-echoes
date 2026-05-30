@@ -350,7 +350,7 @@ const COMMAND_HELP = {
   pick:      'pick <ítem> / tomar <ítem> / recoger <ítem>\n  Recoger un ítem del suelo y guardarlo en tu inventario.',
   loot:      'loot / saquear\n  Recoger TODOS los ítems del suelo de la sala de un solo golpe.',
   drop:      'drop <ítem> / tirar <ítem>\n  Tirar un ítem de tu inventario al suelo de la sala actual.',
-  use:       'use <ítem> / usar <ítem>\n  Usar un ítem del inventario. Pociones: consumen y restauran HP. Armas: se equipan.',
+  use:       'use <ítem> / usar <ítem>\\n  Usar un ítem del inventario. Pociones: consumen y restauran HP. Armas: se equipan.\\n  Pergaminos mágicos: se usan de un solo uso y otorgan buffs temporales en combate.\\n  Tipos: \"pergamino de furia\" (+3 ATK/60s), \"pergamino de escudo\" (+3 DEF/60s), \"pergamino de velocidad\" (+2 ATK +1 DEF/45s).',
   equip:     'equip <arma> / equipar <arma>\\n  Equipar un arma del inventario explícitamente. Aumenta tu stat de ataque.',
   unequip:   'unequip / desequipar / enfundar\\n  Guardar el arma equipada y volver a pelear con los puños (ataque base: 5).',
   wear:      'wear <armadura> / ponerse <armadura> / vestir <armadura>\\n  Equipar una armadura del inventario. Aumenta tu stat de defensa (base 2).\\n  Las armaduras se obtienen del loot de monstruos, en la tienda del mercader (sala 4), o como recompensa de quests.\\n  Ejemplos: cuero endurecido (+2 DEF), cota de malla (+3 DEF), armadura de placas (+5 DEF).',

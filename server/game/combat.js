@@ -167,7 +167,25 @@ function attackRound(player, monster) {
 
   // T120: bonus de +1 ATK si el jugador tiene mascota
   const petBonus = player.pet ? 1 : 0;
-  const effectiveAtk = player.attack + petBonus;
+  // T153: bonus de pergaminos mágicos activos
+  const scrolls = JSON.parse(player.active_scrolls || '{}');
+  const now153 = Date.now();
+  let scrollAtkBonus = 0;
+  let scrollDefBonus = 0;
+  const expiredScrollKeys = [];
+  for (const [effect, data] of Object.entries(scrolls)) {
+    if (data.expires_at > now153) {
+      scrollAtkBonus += data.atk_bonus || 0;
+      scrollDefBonus += data.def_bonus || 0;
+    } else {
+      expiredScrollKeys.push(effect);
+    }
+  }
+  if (expiredScrollKeys.length > 0) {
+    for (const k of expiredScrollKeys) delete scrolls[k];
+    db.updatePlayer(player.id, { active_scrolls: JSON.stringify(scrolls) });
+  }
+  const effectiveAtk = player.attack + petBonus + scrollAtkBonus;
   const playerDmg = calcDamage(effectiveAtk);
   // T107: bonus crítico de clase (Pícaro tiene +15% sobre base del 10%)
   const clsData = classes.getPlayerClass(player);
@@ -360,7 +378,7 @@ function attackRound(player, monster) {
     const freshForBlindCheck = db.getPlayer(player.id);
     const blindFx = freshForBlindCheck.status_effects ? (typeof freshForBlindCheck.status_effects === 'string' ? JSON.parse(freshForBlindCheck.status_effects) : freshForBlindCheck.status_effects) : {};
     const blindDef = blindFx.blinded ? (blindFx.blinded.amount || 0) : 0;
-    const rawDmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus - Math.floor((player.defense || 0) - blindDef));
+    const rawDmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus - Math.floor((player.defense || 0) - blindDef + scrollDefBonus));
     // T104: Escudo mágico activo absorbe 5 de daño
     const freshForShield = freshForBlindCheck; // reusar la lectura
     const shieldActive = freshForShield.shield_active || 0;

@@ -152,6 +152,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN daily_challenge TEXT NOT NULL DEFAULT '{}'`,  // T141: desafío diario personal
     `ALTER TABLE players ADD COLUMN macros TEXT NOT NULL DEFAULT '{}'`,           // T142: macros personales
     `ALTER TABLE players ADD COLUMN equipped_armor TEXT`,                         // T152: sistema de armaduras
+    `ALTER TABLE players ADD COLUMN active_scrolls TEXT NOT NULL DEFAULT '{}'`,   // T153: pergaminos mágicos activos
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }

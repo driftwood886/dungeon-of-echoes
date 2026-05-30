@@ -562,6 +562,20 @@ function cmdStatus(player) {
     statusLines.push(`🌑 CEGADO — ${statusFx.blinded.turns} turno(s) restante(s) (-${statusFx.blinded.amount} DEF efectiva).`);
   }
 
+  // T153: Buffs de pergaminos activos
+  const scrollsFx = JSON.parse(player.active_scrolls || '{}');
+  const now = Date.now();
+  for (const [effect, data] of Object.entries(scrollsFx)) {
+    if (data.expires_at > now) {
+      const secsLeft = Math.ceil((data.expires_at - now) / 1000);
+      const parts = [];
+      if (data.atk_bonus > 0) parts.push(`+${data.atk_bonus} ATK`);
+      if (data.def_bonus > 0) parts.push(`+${data.def_bonus} DEF`);
+      const effectNames = { fury: '📜 FURIA', shield: '📜 ESCUDO MÁGICO', speed: '📜 VELOCIDAD' };
+      statusLines.push(`${effectNames[effect] || '📜 BUFF'} — ${parts.join(', ')} por ${secsLeft}s más.`);
+    }
+  }
+
   const text = [
     `\n=== ${player.username.toUpperCase()} ===`,
     `Título:   ${getTitle(kills).full}`,
@@ -1109,11 +1123,28 @@ function cmdUse(player, itemQuery) {
 
   } else if (def.type === 'weapon') {
     // Equipar el arma: aumenta el ataque base del jugador
-    // Primero, si ya tenía un arma equipada la "desequipa" (stat reset es simplístico en MVP)
     const newAttack = 5 + def.amount; // base 5 + bonus del arma
     db.updatePlayer(player.id, { attack: newAttack, equipped_weapon: found });
 
     resultText = `Equipás ${found}. Tu ataque sube a ${newAttack}.`;
+
+  } else if (def.type === 'scroll') {
+    // T153: Pergaminos mágicos de un solo uso
+    const scrolls = JSON.parse(player.active_scrolls || '{}');
+    const now = Date.now();
+    const expiresAt = now + def.duration * 1000;
+
+    // Registrar el buff activo (sobrescribe si ya hay uno del mismo tipo)
+    scrolls[def.effect] = { atk_bonus: def.atk_bonus, def_bonus: def.def_bonus, expires_at: expiresAt };
+
+    // Consumir el pergamino
+    const newInvS = removeFirst(player.inventory, found);
+    db.updatePlayer(player.id, { inventory: newInvS, active_scrolls: JSON.stringify(scrolls) });
+
+    const parts = [];
+    if (def.atk_bonus > 0) parts.push(`+${def.atk_bonus} ATK`);
+    if (def.def_bonus > 0) parts.push(`+${def.def_bonus} DEF`);
+    resultText = `📜 Leés el ${found}. ${def.description.split('(')[0].trim()} (${parts.join(', ')} por ${def.duration}s)`;
 
   } else {
     resultText = `Examinás ${found}: ${def.description}`;
@@ -3616,8 +3647,12 @@ const FORAGE_TABLE = [
   { item: 'hueso pulido',         prob: 0.07, type: 'item' },
   { item: 'cristal fragmentado',  prob: 0.05, type: 'item' },
   { item: 'veneno concentrado',   prob: 0.04, type: 'item' },
+  // T153: Pergaminos mágicos (raros)
+  { item: 'pergamino de furia',     prob: 0.02, type: 'item' },
+  { item: 'pergamino de escudo',    prob: 0.02, type: 'item' },
+  { item: 'pergamino de velocidad', prob: 0.01, type: 'item' },
   // Nada (probabilidad de fracaso)
-  // El resto de probabilidad (~0.09) = no encontrás nada
+  // El resto de probabilidad (~0.04) = no encontrás nada
 ];
 
 const FORAGE_COOLDOWN_MS = 3 * 60 * 1000; // 3 minutos por sala
@@ -4937,6 +4972,11 @@ module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAucti
  */
 function cmdChangelog() {
   const CHANGELOG = [
+    { version: '0.25', date: '2026-05-30', changes: [
+      '✨ NUEVO: sistema de armaduras — wear/unwear, 7 tipos, loot de monstruos y tienda',
+      '✨ NUEVO: pergaminos mágicos — 3 tipos de buff temporal de combate (furia/escudo/velocidad)',
+      '✨ NUEVO: pergaminos en forage, loot de Lich/Campeón/Sombra del Vacío',
+    ]},
     { version: '0.24', date: '2026-05-30', changes: [
       '✨ NUEVO: comando enemies/top [N] — monstruos más poderosos del dungeon con estado y tiempo de respawn',
       '⚡ MEJORA: enemies muestra 📍 si el monstruo está vivo y 🔮 con tiempo restante si está en respawn',

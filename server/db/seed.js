@@ -519,7 +519,7 @@ function migrateAuctionRoom() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot };
 
 /**
  * T152: Agregar armaduras al loot de algunos monstruos.
@@ -734,5 +734,32 @@ function migrateTrainingRoom() {
       respawn_room_id: 21,
     });
     console.log('[seed] migrateTrainingRoom: Maniquí Veloz #3 (id 25) creado.');
+  }
+}
+
+/**
+ * T153: Agregar pergaminos mágicos al loot de monstruos de élite.
+ * Idempotente: solo actualiza si el loot actual no contiene ya el pergamino.
+ */
+function migrateScrollLoot() {
+  // Lich Anciano (id 13) → pergamino de furia
+  const lich = db.getMonster(13);
+  if (lich && !lich.loot.includes('pergamino de furia')) {
+    db.updateMonster(13, { loot: [...lich.loot, 'pergamino de furia'] });
+    console.log('[seed] migrateScrollLoot: pergamino de furia agregado a Lich Anciano (id 13).');
+  }
+
+  // Campeón Espectral (id 12) → pergamino de velocidad
+  const champion = db.getMonster(12);
+  if (champion && !champion.loot.includes('pergamino de velocidad')) {
+    db.updateMonster(12, { loot: [...champion.loot, 'pergamino de velocidad'] });
+    console.log('[seed] migrateScrollLoot: pergamino de velocidad agregado a Campeón Espectral (id 12).');
+  }
+
+  // Sombra del Vacío (id 22) → pergamino de escudo
+  const shadow = db.getMonster(22);
+  if (shadow && !shadow.loot.includes('pergamino de escudo')) {
+    db.updateMonster(22, { loot: [...shadow.loot, 'pergamino de escudo'] });
+    console.log('[seed] migrateScrollLoot: pergamino de escudo agregado a Sombra del Vacío (id 22).');
   }
 }
