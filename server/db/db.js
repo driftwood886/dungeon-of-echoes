@@ -150,6 +150,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN last_recall TEXT`,                            // T131: comando recall
     `ALTER TABLE players ADD COLUMN runes TEXT NOT NULL DEFAULT '{}'`,             // T140: runas coleccionables
     `ALTER TABLE players ADD COLUMN daily_challenge TEXT NOT NULL DEFAULT '{}'`,  // T141: desafío diario personal
+    `ALTER TABLE players ADD COLUMN macros TEXT NOT NULL DEFAULT '{}'`,           // T142: macros personales
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }

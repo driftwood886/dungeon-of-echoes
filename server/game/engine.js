@@ -193,6 +193,7 @@ function execute(playerId, input, context) {
     case 'peek':         result = cmdPeek(player, action.args); break;
     case 'runas':        result = cmdRunas(player); break;
     case 'challenge':    result = cmdChallenge(player); break;
+    case 'macro':        result = cmdMacro(player, action.args, context); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -5150,6 +5151,77 @@ function cmdChallenge(player) {
     '',
   ];
   return { text: lines.join('\n') };
+}
+
+/**
+ * T142: macro — Guardar y ejecutar macros personales (hasta 5, secuencias con ;)
+ */
+function cmdMacro(player, args, context) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: 'Error al leer tu perfil.' };
+
+  let macros = {};
+  try { macros = JSON.parse(fresh.macros || '{}'); } catch (_) { macros = {}; }
+
+  const sub = (args[0] || '').toLowerCase();
+
+  // macro list
+  if (!sub || sub === 'list' || sub === 'lista' || sub === 'listar') {
+    const keys = Object.keys(macros);
+    if (keys.length === 0) return { text: '📋 No tenés macros guardadas. Usá: macro set <nombre> <comando>' };
+    const lines = ['', '╔' + '═'.repeat(44) + '╗', '║       📋 TUS MACROS                         ║', '╟' + '─'.repeat(44) + '╢'];
+    for (const k of keys) {
+      const v = macros[k];
+      lines.push(`  !${k.padEnd(12)} → ${v.length > 28 ? v.slice(0, 28) + '…' : v}`);
+    }
+    lines.push('╚' + '═'.repeat(44) + '╝', '');
+    return { text: lines.join('\n') };
+  }
+
+  // macro set <nombre> <comando(s)>
+  if (sub === 'set' || sub === 'guardar' || sub === 'add' || sub === 'nuevo') {
+    const name = (args[1] || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (!name) return { text: '⚠️ Usá: macro set <nombre> <comando>' };
+    const cmd = args.slice(2).join(' ').trim();
+    if (!cmd) return { text: '⚠️ Usá: macro set <nombre> <comando>' };
+    if (Object.keys(macros).length >= 5 && !macros[name]) {
+      return { text: '⚠️ Límite de 5 macros alcanzado. Borrá una con: macro del <nombre>' };
+    }
+    macros[name] = cmd;
+    db.updatePlayer(player.id, { macros: JSON.stringify(macros) });
+    return { text: `✅ Macro "!${name}" guardada → ${cmd}` };
+  }
+
+  // macro del <nombre>
+  if (sub === 'del' || sub === 'delete' || sub === 'borrar' || sub === 'eliminar') {
+    const name = (args[1] || '').toLowerCase();
+    if (!macros[name]) return { text: `⚠️ No encontré la macro "!${name}".` };
+    delete macros[name];
+    db.updatePlayer(player.id, { macros: JSON.stringify(macros) });
+    return { text: `🗑️ Macro "!${name}" eliminada.` };
+  }
+
+  // macro <nombre> — ejecutar
+  const macroName = sub.replace(/^!/, '');
+  if (macros[macroName]) {
+    const commands = macros[macroName].split(';').map(c => c.trim()).filter(Boolean);
+    const texts = [];
+    let latestPlayer = fresh;
+    for (const cmd of commands) {
+      try {
+        const subAction = parse(cmd);
+        const subResult = execute(latestPlayer, subAction, context);
+        texts.push(`» ${cmd}\n${subResult.text}`);
+        // Refrescar jugador para el próximo comando
+        latestPlayer = db.getPlayer(fresh.id) || latestPlayer;
+      } catch (e) {
+        texts.push(`» ${cmd}\n⚠️ Error al ejecutar: ${e.message}`);
+      }
+    }
+    return { text: texts.join('\n\n') };
+  }
+
+  return { text: `⚠️ No encontré la macro "!${sub}". Usá: macro list para ver tus macros.` };
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge };

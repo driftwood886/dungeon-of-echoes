@@ -176,6 +176,8 @@ const COMMAND_ALIASES = {
   runas: 'runas', runes: 'runas', runacoleccion: 'runas', 'colección-runas': 'runas',
   // challenge / desafío diario (T141)
   challenge: 'challenge', desafio: 'challenge', desafío: 'challenge', 'desafio-diario': 'challenge', daily: 'challenge', mision_diaria: 'challenge', reto: 'challenge',
+  // macro (T142)
+  macro: 'macro', macros: 'macro', '!': 'macro',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -201,6 +203,11 @@ function parse(input) {
   const parts = trimmed.split(/\s+/);
   const first = parts[0].toLowerCase();
   const rest  = parts.slice(1);
+
+  // T142: atajos !<nombre> → macro <nombre>
+  if (first.startsWith('!') && first.length > 1) {
+    return { command: 'macro', args: [first.slice(1), ...rest], raw: trimmed };
+  }
 
   // Shortcut de dirección: el jugador escribe solo "norte" → move norte
   if (DIRECTION_SHORTCUTS.includes(first) && rest.length === 0) {
@@ -298,6 +305,9 @@ Comandos disponibles:
   peek <dir> / espiar  — Espiar en una dirección sin moverse: ver nombre de sala, monstruos e ítems del suelo.
   runas / runes        — Ver tu colección de runas (obtenés runas al matar; 3 iguales se fusionan en un bonus permanente).
   challenge / desafío  — Ver tu desafío diario personal y el progreso hacia él.
+  macro list           — Ver tus macros guardadas (hasta 5).
+  macro set <n> <cmd> — Guardar macro (puede incluir secuencia con ;).
+  macro del <nombre>  — Eliminar una macro. !<nombre> ejecuta la macro.
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
