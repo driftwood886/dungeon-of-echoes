@@ -11,6 +11,7 @@
 
 const db      = require('../db/db');
 const ambient = require('./ambient');
+const items   = require('./items');
 
 // Nombres de dirección en español
 const DIR_NAMES = {
@@ -150,7 +151,13 @@ function describeRoom(roomId, excludePlayerId = null) {
   }
 
   if (room.items.length > 0) {
-    lines.push(`\nObjetos en el suelo: ${room.items.join(', ')}`);
+    const itemList = room.items.map(item => {
+      const emoji = items.getRarityEmoji(item);
+      const rarity = items.getItemRarity(item);
+      const rarityTag = rarity !== 'común' ? ` [${rarity}]` : '';
+      return `${emoji} ${item}${rarityTag}`;
+    }).join(', ');
+    lines.push(`\nObjetos en el suelo: ${itemList}`);
   }
 
   // Otros jugadores presentes (T024)

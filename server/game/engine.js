@@ -814,8 +814,13 @@ function cmdPick(player, itemQuery) {
   const newInventory = [...player.inventory, found];
   db.updatePlayer(player.id, { inventory: newInventory });
 
+  // Mostrar rareza en el mensaje de pick (T136)
+  const rarity = items.getItemRarity(found);
+  const rarityEmoji = items.getRarityEmoji(found);
+  const rarityLabel = rarity !== 'común' ? ` ✨ [${rarity.toUpperCase()}]` : '';
+
   return {
-    text: `Recogés ${found} y lo guardás en tu mochila.`,
+    text: `${rarityEmoji} Recogés ${found} y lo guardás en tu mochila.${rarityLabel}`,
     event: `${player.username} recoge algo del suelo.`,
     eventRoomId: room.id,
   };
@@ -1276,7 +1281,12 @@ function cmdLoot(player) {
   db.updatePlayer(player.id, { inventory: newInventory });
   db.updateRoomItems(room.id, []);
 
-  const lista = floorItems.map(i => `  • ${i}`).join('\n');
+  const lista = floorItems.map(i => {
+    const emoji = items.getRarityEmoji(i);
+    const rarity = items.getItemRarity(i);
+    const rarityTag = rarity !== 'común' ? ` [${rarity}]` : '';
+    return `  ${emoji} ${i}${rarityTag}`;
+  }).join('\n');
 
   return {
     text: `Recogés todo del suelo (${floorItems.length} ítem${floorItems.length !== 1 ? 's' : ''}):\n${lista}`,
