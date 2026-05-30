@@ -138,6 +138,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN last_mana_regen TEXT`,                // T104: timestamp última recarga
     `ALTER TABLE players ADD COLUMN shield_active INTEGER NOT NULL DEFAULT 0`, // T104: escudo activo
     `ALTER TABLE players ADD COLUMN player_class TEXT NOT NULL DEFAULT 'sin_clase'`, // T107: clase de personaje
+    `ALTER TABLE players ADD COLUMN bestiary TEXT NOT NULL DEFAULT '{}'`, // T108: bestiario personal
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -258,6 +259,24 @@ function updatePlayer(id, fields) {
 
 function touchPlayer(id) {
   run(`UPDATE players SET last_seen = datetime('now') WHERE id = ?`, [id]);
+}
+
+/**
+ * T108: Registrar un kill en el bestiario personal del jugador.
+ * @param {string} playerId
+ * @param {string} monsterName
+ */
+function addBestiaryKill(playerId, monsterName) {
+  const player = get('SELECT bestiary FROM players WHERE id = ?', [playerId]);
+  if (!player) return;
+  const bestiary = player.bestiary ? JSON.parse(player.bestiary) : {};
+  const key = monsterName.toLowerCase();
+  if (!bestiary[key]) {
+    bestiary[key] = { name: monsterName, kills: 0, first_kill: new Date().toISOString(), last_kill: null };
+  }
+  bestiary[key].kills += 1;
+  bestiary[key].last_kill = new Date().toISOString();
+  run('UPDATE players SET bestiary = ? WHERE id = ?', [JSON.stringify(bestiary), playerId]);
 }
 
 function getPlayersInRoom(roomId) {
@@ -621,7 +640,7 @@ function closeExpiredAuctions() {
 module.exports = {
   init, persist,
   // players
-  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, getPlayersInRoom, getActivePlayers, getLeaderboard, getPartyMembers,
+  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, getPlayersInRoom, getActivePlayers, getLeaderboard, getPartyMembers,
   // rooms
   getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, checkTrapRespawns,
   // monsters

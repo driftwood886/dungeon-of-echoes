@@ -133,6 +133,8 @@ const COMMAND_ALIASES = {
   spells: 'spells', hechizos: 'spells', magia: 'spells', conjuros: 'spells', grimorios: 'spells',
   // clase / class (T107)
   clase: 'clase', class: 'clase', profesion: 'clase', profesión: 'clase', vocacion: 'clase', vocación: 'clase', oficio: 'clase',
+  // bestiary (T108)
+  bestiary: 'bestiary', bestiario: 'bestiary', monstruos: 'bestiary', cazados: 'bestiary', bitacora: 'bestiary', bitácora: 'bestiary',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -235,6 +237,7 @@ Comandos disponibles:
   cast <hechizo>        — Lanzar un hechizo (bola de fuego, escudo, curación). Requiere maná
   hechizos / spells     — Ver tus hechizos disponibles y el maná actual
   clase                 — Ver o elegir tu clase de personaje (guerrero/mago/pícaro)
+  bestiario             — Ver tu registro de monstruos cazados con estadísticas
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();

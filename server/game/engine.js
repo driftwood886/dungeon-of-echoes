@@ -163,6 +163,7 @@ function execute(playerId, input) {
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
     case 'clase':        result = cmdClase(player, action.args); break;
+    case 'bestiary':     result = cmdBestiary(player); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -506,6 +507,11 @@ function cmdAttack(player, targetName) {
     eventText = `${player.username} fue derrotado por el ${monster.name}.`;
   } else {
     eventText = `${player.username} combate contra el ${monster.name}.`;
+  }
+
+  // ── Actualizar bestiario personal (T108) ─────────────────────────────────
+  if (monsterDead) {
+    db.addBestiaryKill(player.id, monster.name);
   }
 
   // ── Evaluar logros tras el combate ──────────────────────────────────────
@@ -3327,3 +3333,37 @@ function cmdClase(player, args) {
 // Sobreescribir module.exports para incluir T104
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder };
 
+/**
+ * T108: cmdBestiary — Muestra el bestiario personal del jugador.
+ */
+function cmdBestiary(player) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: 'Error al leer tu bestiario.' };
+  const bestiary = fresh.bestiary ? JSON.parse(fresh.bestiary) : {};
+  const entries = Object.values(bestiary);
+  if (entries.length === 0) {
+    return { text: '📖 Tu bestiario está vacío. ¡Salí a explorar y mata algunos monstruos!' };
+  }
+  // Ordenar por kills descendente
+  entries.sort((a, b) => b.kills - a.kills);
+  const lines = [
+    ``,
+    `╔════════════════════════════════════════╗`,
+    `║         📖 BESTIARIO PERSONAL          ║`,
+    `╠════════════════════════════════════════╣`,
+  ];
+  for (const entry of entries) {
+    const bar = buildBar(Math.min(entry.kills, 50), 50, 10);
+    const firstDate = entry.first_kill ? entry.first_kill.slice(0, 10) : '?';
+    const skull = entry.kills >= 20 ? '💀' : entry.kills >= 10 ? '☠' : entry.kills >= 5 ? '⚔' : '·';
+    lines.push(`║ ${skull} ${entry.name.padEnd(20).slice(0, 20)} × ${String(entry.kills).padStart(3)} kills ║`);
+    lines.push(`║   ${bar}  (desde ${firstDate}) ║`);
+    lines.push(`╟────────────────────────────────────────╢`);
+  }
+  // Reemplazar la última separación por el cierre
+  lines[lines.length - 1] = `╚════════════════════════════════════════╝`;
+  lines.push(`  Total: ${entries.length} tipo(s) de monstruo cazado(s).`);
+  return { text: lines.join('\n') };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary };
