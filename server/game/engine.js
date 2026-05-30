@@ -467,7 +467,23 @@ function cmdInventory(player) {
     const rarityLabel = rarity !== 'común' ? ` (${rarity})` : '';
     return `  ${i + 1}. ${emoji} ${item}${rarityLabel}`;
   });
-  return { text: `Inventario:\n${itemLines.join('\n')}` };
+
+  // Resumen al final
+  const total = player.inventory.length;
+  const rareCount = player.inventory.filter(i => {
+    const r = items.getItemRarity(i);
+    return r !== 'común';
+  }).length;
+  const summary = rareCount > 0
+    ? `─ ${total} ítem${total !== 1 ? 's' : ''} (${rareCount} no común${rareCount !== 1 ? 'es' : ''})`
+    : `─ ${total} ítem${total !== 1 ? 's' : ''}`;
+  const equippedLine = player.equipped_weapon
+    ? `⚔️  Equipada: ${player.equipped_weapon}`
+    : '';
+
+  const parts = [`Inventario:\n${itemLines.join('\n')}`, summary];
+  if (equippedLine) parts.push(equippedLine);
+  return { text: parts.join('\n') };
 }
 
 /**
