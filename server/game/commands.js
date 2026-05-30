@@ -215,6 +215,8 @@ const COMMAND_ALIASES = {
   nick: 'nick', apodo: 'nick', alias: 'nick', sobrenombre: 'nick',
   // history / historial (T164)
   history: 'history', historial: 'history', cmds: 'history', comandos: 'history',
+  // find / buscar (T167)
+  find: 'find', encontrar: 'find', localizar: 'find', donde: 'find', 'dónde': 'find',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -355,6 +357,7 @@ Comandos disponibles:
   read / leer         — Leer las inscripciones que dejaron otros en esta sala.
   greet <jugador>     — Saludar a otro jugador en la sala. Saludo mutuo en 30s = +1 rep para ambos.
   search [monstruo]  — Registrar el cadáver de un monstruo recién muerto (últimos 2 min). 30% chance de loot extra.
+  find <ítem/monstruo> — Buscar dónde encontrar algo: salas donde aparece, qué monstruos lo dropean, si hay en el suelo.
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -421,6 +424,7 @@ const COMMAND_HELP = {
   sessions:  'sessions / historial_sesiones / mis-sesiones\\\\\\\\n  Ver el historial de tus últimas 5 sesiones guardadas.\\\\\\\\n  Las sesiones se guardan al desconectar.\\\\\\\\n  También muestra tu tiempo de juego total acumulado.\\\\\\\\n  Nota: Las sesiones muy cortas (0 min) igual se registran.',
   stance:    'stance [postura] / postura [postura]\\\\n  Ver o cambiar tu postura de combate.\\\\n  Posturas: agresivo (+2ATK/-1DEF/5% miss extra), defensivo (-1ATK/+2DEF), equilibrado.\\\\n  La postura persiste entre sesiones.',
   path:      'path <destino> / ruta <destino>\\\\n  Calcular la ruta más corta hasta una sala.\\\\n  Destino puede ser un ID numérico (ej: path 15) o parte del nombre (ej: path catedral).\\\\n  Muestra los pasos como comandos move con nombre de sala de destino.\\\\n  Sin cooldown. Útil para navegar el dungeon eficientemente.',
+  find:      'find <ítem o monstruo> / encontrar <ítem o monstruo>\\\\n  Buscar información sobre dónde conseguir algo en el dungeon.\\\\n  Si es un monstruo: muestra en qué sala se encuentra (o en respawn).\\\\n  Si es un ítem: muestra qué monstruos lo dropean y si hay alguno en el suelo.\\\\n  Soporta búsqueda parcial y sin tildes. Útil para nuevos jugadores buscando equipo.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };

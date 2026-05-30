@@ -254,6 +254,7 @@ function execute(playerId, input, context) {
     case 'path':         result = cmdPath(player, action.args); break;
     case 'nick':         result = cmdNick(player, action.args); break;
     case 'history':      result = cmdHistory(player); break;
+    case 'find':         result = cmdFind(player, action.args); break;
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
@@ -6599,6 +6600,116 @@ function cmdWeather() {
     `║  Cambia en: ${remainingStr.padEnd(29)} ║`,
     `╚══════════════════════════════════════════╝`,
   ];
+
+  return { text: lines.join('\n') };
+}
+
+// ─── T167: cmdFind ────────────────────────────────────────────────────────────
+// Busca dónde encontrar un ítem o monstruo en el dungeon.
+function cmdFind(player, args) {
+  if (!args || args.length === 0) {
+    return { text: 'Uso: find <ítem o monstruo>\nEj: find espada de obsidiana  |  find goblin' };
+  }
+
+  const rawQuery = args.join(' ').trim();
+  const query = rawQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const W = 50;
+  const border = '═'.repeat(W);
+  const lines = [];
+
+  const header = `🔍 BUSCANDO: "${rawQuery}"`;
+  const headerLine = `║  ${header.substring(0, W - 4).padEnd(W - 4)}  ║`;
+  lines.push(`╔${border}╗`, headerLine, `╠${border}╣`);
+
+  const allMonsters = db.getAllMonsters();
+  const allRooms = db.getAllRooms();
+
+  // Normalize helper
+  const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // ── Buscar como monstruo ───────────────────────────────────────────────────
+  const matchMonsters = allMonsters.filter(m => norm(m.name).includes(query));
+  if (matchMonsters.length > 0) {
+    lines.push(`║  🐉 MONSTRUOS                                    ║`);
+    lines.push(`╠${border}╣`);
+    for (const m of matchMonsters) {
+      // room_id puede estar almacenado como string 'null' (bug histórico) — normalizar
+      const roomId = (m.room_id === null || m.room_id === 'null' || m.room_id === undefined) ? null : Number(m.room_id);
+      const respId = (m.respawn_room_id === null || m.respawn_room_id === 'null' || m.respawn_room_id === undefined) ? null : Number(m.respawn_room_id);
+      const alive = roomId !== null;
+      const statusIcon = alive ? '⚔' : '💀';
+      let locationInfo;
+      if (alive) {
+        const room = allRooms.find(r => r.id === roomId);
+        locationInfo = room ? `Sala ${roomId}: ${room.name.substring(0, 22)}` : `Sala ${roomId}`;
+      } else {
+        if (respId !== null) {
+          const respRoom = allRooms.find(r => r.id === respId);
+          locationInfo = respRoom ? `Reaparece sala ${respId}: ${respRoom.name.substring(0, 14)}` : `Reaparece sala ${respId}`;
+        } else {
+          locationInfo = 'Zona de entrenamiento';
+        }
+      }
+      const nameLine = `${statusIcon} ${m.name}`;
+      lines.push(`║  ${nameLine.substring(0, W - 4).padEnd(W - 4)}  ║`);
+      lines.push(`║    📍 ${locationInfo.substring(0, W - 7).padEnd(W - 7)}  ║`);
+      lines.push(`║    HP: ${m.max_hp} | ATK: ${m.attack}`.padEnd(W + 1) + '║');
+    }
+    lines.push(`╠${border}╣`);
+  }
+
+  // ── Buscar como ítem en el suelo de las salas ──────────────────────────────
+  const roomsWithItem = allRooms.filter(r =>
+    Array.isArray(r.items) && r.items.some(i => norm(i).includes(query))
+  );
+
+  // ── Buscar como loot de monstruos ──────────────────────────────────────────
+  const monstersWithLoot = allMonsters.filter(m =>
+    Array.isArray(m.loot) && m.loot.some(i => norm(i).includes(query))
+  );
+
+  const foundAnything = matchMonsters.length > 0 || roomsWithItem.length > 0 || monstersWithLoot.length > 0;
+
+  if (roomsWithItem.length > 0) {
+    lines.push(`║  💎 EN EL SUELO ACTUALMENTE                      ║`);
+    lines.push(`╠${border}╣`);
+    for (const room of roomsWithItem) {
+      const roomLine = `Sala ${room.id}: ${room.name}`;
+      lines.push(`║  📦 ${roomLine.substring(0, W - 6).padEnd(W - 6)}  ║`);
+    }
+    lines.push(`╠${border}╣`);
+  }
+
+  if (monstersWithLoot.length > 0) {
+    lines.push(`║  ☠ LOOT DE MONSTRUOS                             ║`);
+    lines.push(`╠${border}╣`);
+    for (const m of monstersWithLoot) {
+      const lootItems = m.loot.filter(i => norm(i).includes(query));
+      const roomId = (m.room_id === null || m.room_id === 'null' || m.room_id === undefined) ? null : Number(m.room_id);
+      const respId = (m.respawn_room_id === null || m.respawn_room_id === 'null' || m.respawn_room_id === undefined) ? null : Number(m.respawn_room_id);
+      const locationId = roomId !== null ? roomId : respId;
+      const room = locationId !== null ? allRooms.find(r => r.id === locationId) : null;
+      const roomName = room ? room.name.substring(0, 16) : '?';
+      const locStr = locationId !== null && locationId !== undefined ? `Sala ${locationId}: ${roomName}` : 'sin sala';
+      const mLine = `${m.name} (${locStr})`;
+      lines.push(`║  ⚔ ${mLine.substring(0, W - 5).padEnd(W - 5)}  ║`);
+      for (const item of lootItems) {
+        lines.push(`║    → ${item.substring(0, W - 7).padEnd(W - 7)}  ║`);
+      }
+    }
+    lines.push(`╠${border}╣`);
+  }
+
+  if (!foundAnything) {
+    lines.push(`║  ❌ No se encontró "${rawQuery.substring(0, W - 23)}".`.padEnd(W + 1) + '║');
+    lines.push(`║  (Probá con nombre parcial, sin tildes).`.padEnd(W + 1) + '║');
+    lines.push(`╠${border}╣`);
+  }
+
+  // Reemplazar último ╠═╣ con ╚═╝
+  const last = lines.lastIndexOf(`╠${border}╣`);
+  if (last !== -1) lines[last] = `╚${border}╝`;
+  else lines.push(`╚${border}╝`);
 
   return { text: lines.join('\n') };
 }

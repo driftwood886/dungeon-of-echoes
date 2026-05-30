@@ -459,6 +459,11 @@ function getMonstersInRoom(roomId) {
     .map(m => ({ ...m, loot: JSON.parse(m.loot) }));
 }
 
+function getAllMonsters() {
+  return all('SELECT * FROM monsters')
+    .map(m => ({ ...m, loot: JSON.parse(m.loot) }));
+}
+
 function upsertMonster(monster) {
   run(
     `INSERT OR REPLACE INTO monsters
@@ -1172,7 +1177,7 @@ module.exports = {
   // rooms
   getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, checkTrapRespawns,
   // monsters
-  getMonster, getMonstersInRoom, upsertMonster, updateMonster,
+  getMonster, getMonstersInRoom, getAllMonsters, upsertMonster, updateMonster,
   // events
   logEvent, getRecentEvents,
   // offline messages (tell)
