@@ -497,6 +497,33 @@ function sendCommand(rawCmd) {
     return;
   }
 
+  // T172: Comando togglemap / minimap — alias para el comando map del servidor
+  // "minimap" a solas ejecuta "map", "minimap on/off" togglea visibilidad del sidebar del mapa
+  const mapToggleMatch = cmd.match(/^(?:togglemap|minimap)\s*(on|off|activar|desactivar)?$/i);
+  if (mapToggleMatch) {
+    const arg = (mapToggleMatch[1] || '').toLowerCase();
+    // minimap sin arg → ejecutar map en el servidor
+    if (!arg) {
+      state.socket.emit('command', { command: 'map' }, (res) => {
+        if (res.error) addMsg(res.error, 'error');
+        else addMsg(res.result, 'response');
+        refreshState();
+      });
+      return;
+    }
+    // minimap on/off → ocultar/mostrar el sidebar completo si lo hay
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) { addMsg('No hay sidebar para mostrar/ocultar.', 'system'); return; }
+    if (arg === 'off' || arg === 'desactivar') {
+      sidebar.style.display = 'none';
+      addMsg('🗺 Sidebar ocultado. Escribí "minimap on" para verlo de nuevo.', 'system');
+    } else {
+      sidebar.style.display = '';
+      addMsg('🗺 Sidebar activado.', 'system');
+    }
+    return;
+  }
+
   // Comando especial: help
   if (cmd === 'help' || cmd === 'ayuda') {
     addMsg(
