@@ -239,6 +239,10 @@ const COMMAND_ALIASES = {
   guide: 'guide', guia: 'guide', guía: 'guide', manual: 'guide', inicio: 'guide', empezar: 'guide',
   // friend / amigos (T173)
   friend: 'friend', amigo: 'friend', amigos: 'friend', friends: 'friend',
+  // pray / rezar — altares mágicos (T184)
+  pray: 'pray', rezar: 'pray', orar: 'pray', ofrenda: 'pray', altar: 'pray',
+  // preview / previsualizar ítem (T185)
+  preview: 'preview', probar: 'preview', comparar_item: 'preview', previsualizar: 'preview', 'equip?': 'preview',
 };
 
 // Dirección → comando move (shortcut: escribir "norte" ejecuta move north)
@@ -399,6 +403,8 @@ Comandos disponibles:
   wanted [jugador]    — Carteles de SE BUSCA: bounties activas en el dungeon, agrupadas por objetivo.
   rank <stat>         — Tu posición global en una estadística (kills, gold, xp, level, rep, deaths, time).
   hardcore [on/off/new] — Modo Hardcore: si morís, tu personaje cae para siempre (ghost mode). Solo antes del primer kill. "hardcore new" crea un sucesor tras caer.
+  pray [ítem]          — Rezar ante un altar (sala 5 o 10): ofrecer un ítem para obtener una bendición temporal.
+  preview <arma/arm>   — Previsualizar cómo cambiarían tus stats si equiparas un arma o armadura del inventario.
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
@@ -466,6 +472,8 @@ const COMMAND_HELP = {
   stance:    'stance [postura] / postura [postura]\\\\n  Ver o cambiar tu postura de combate.\\\\n  Posturas: agresivo (+2ATK/-1DEF/5% miss extra), defensivo (-1ATK/+2DEF), equilibrado.\\\\n  La postura persiste entre sesiones.',
   path:      'path <destino> / ruta <destino>\\\\n  Calcular la ruta más corta hasta una sala.\\\\n  Destino puede ser un ID numérico (ej: path 15) o parte del nombre (ej: path catedral).\\\\n  Muestra los pasos como comandos move con nombre de sala de destino.\\\\n  Sin cooldown. Útil para navegar el dungeon eficientemente.',
   find:      'find <ítem o monstruo> / encontrar <ítem o monstruo>\\\\n  Buscar información sobre dónde conseguir algo en el dungeon.\\\\n  Si es un monstruo: muestra en qué sala se encuentra (o en respawn).\\\\n  Si es un ítem: muestra qué monstruos lo dropean y si hay alguno en el suelo.\\\\n  Soporta búsqueda parcial y sin tildes. Útil para nuevos jugadores buscando equipo.',
+  pray:      'pray [ítem] / rezar [ítem] / orar [ítem]\\\\n  Rezar ante un altar mágico para obtener bendiciones temporales.\\\\n  Altares: Capilla Olvidada (sala 5) y Santuario Profano (sala 10).\\\\n  Ofrecés un ítem del inventario y el altar te devuelve un buff temporal.\\\\n  Cooldown: 5 minutos entre ofrendas. Sin argumento muestra los ítems aceptados.',
+  preview:   'preview <arma o armadura> / probar <ítem>\\\\n  Previsualizar cómo cambiarían tus stats si equiparas un ítem.\\\\n  Funciona con armas y armaduras del inventario.\\\\n  No modifica tu equipo — es solo informativo.\\\\n  Útil para decidir si vale la pena cambiar de equipo antes de una pelea.',
   };
 
   module.exports = { parse, HELP_TEXT, COMMAND_HELP };

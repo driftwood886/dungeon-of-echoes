@@ -232,6 +232,8 @@ function execute(playerId, input, context) {
     case 'auctions':     result = cmdAuctions(); break;
     case 'market':       result = cmdMarket(player, action.args, context); break;
     case 'gesture':      result = cmdGesture(player, action.args[0]); break;
+    case 'pray':         result = cmdPray(player, action.args); break;
+    case 'preview':      result = cmdPreview(player, action.args); break;
     case 'drink':        result = cmdDrink(player); break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
@@ -2470,8 +2472,18 @@ function cmdRest(player, context) {
   const hpBar = buildBar(newHp, player.max_hp, 20);
   const coldSuffix = weatherPenalty > 0 ? ` ❄️ (El viento helado reduce la recuperación)` : '';
 
+  // T186: Recolección pasiva al descansar en ciertas salas
+  let forageRestText = '';
+  const forageRoomData = FORAGE_REST_ROOMS[player.current_room_id];
+  if (forageRoomData && Math.random() < forageRoomData.chance) {
+    const refreshedPlayer = db.getPlayer(player.id);
+    const updatedInv = [...(refreshedPlayer.inventory || []), forageRoomData.item];
+    db.updatePlayer(player.id, { inventory: updatedInv });
+    forageRestText = `\n${forageRoomData.msg}`;
+  }
+
   return {
-    text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP.${coldSuffix}${partyBonusText} ${hpBar} ${newHp}/${player.max_hp} HP`,
+    text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP.${coldSuffix}${partyBonusText} ${hpBar} ${newHp}/${player.max_hp} HP${forageRestText}`,
   };
 }
 
@@ -7755,3 +7767,234 @@ function cmdGesture(player, gestureType) {
     roomEvent: `✨ ${name} ${text}`,
   };
 }
+
+// ─── T184: Sistema de altares mágicos ────────────────────────────────────────
+// pray/rezar — ofrecer ítems a los altares para obtener buffs temporales.
+// Altar 1: Capilla Olvidada (sala 5) — altar de piedra negra
+// Altar 2: Santuario Profano (sala 10) — estatua con diez brazos
+
+const ALTAR_ROOMS = new Set([5, 10]);
+
+// Cooldown por jugador para evitar spam: 5 minutos
+const altarCooldowns = new Map();
+
+// Buffs del altar (en memoria, como los pergaminos)
+// Se guardan en active_scrolls para reutilizar la misma infraestructura
+const ALTAR_OFFERINGS = {
+  // Ofrenda: ítems comunes → bendición menor (+2 ATK por 3 min)
+  'monedas de cobre':  { type: 'minor', atk: 2, def: 0, duration: 180, label: 'Bendición Menor', msg: 'Las monedas de cobre tintinean en el altar. Una luz tenue te bendice brevemente.' },
+  'monedas de plata':  { type: 'minor', atk: 2, def: 1, duration: 180, label: 'Bendición Menor de Plata', msg: 'Las monedas de plata brillan y el altar pulsa con energía tenue.' },
+  'monedas de oro':    { type: 'major', atk: 3, def: 2, duration: 300, label: 'Bendición Mayor de Oro', msg: '¡El altar resplandece con luz dorada! Tu cuerpo se llena de un calor poderoso.' },
+  'poción de salud':   { type: 'minor', atk: 0, def: 0, duration: 0, hp: 20, label: 'Gracia Curativa', msg: 'La poción se evapora en el altar. El espíritu del dungeon te devuelve la energía.' },
+  'poción menor':      { type: 'minor', atk: 0, def: 0, duration: 0, hp: 12, label: 'Gracia Curativa Leve', msg: 'La poción desaparece. Sentís un suave calor en el pecho. (+12 HP)' },
+  'libro viejo':       { type: 'arcane', atk: 1, def: 0, mana: 10, duration: 240, label: 'Toque Arcano', msg: 'Las páginas del libro se queman con llamas azules. El altar absorbe su conocimiento.' },
+  'amuleto oscuro':    { type: 'dark', atk: 4, def: -1, duration: 300, label: 'Maldición Invertida', msg: '¡El amuleto explota en polvo negro! El altar absorbe la maldición y te la refleja como poder oscuro.' },
+  'cristal mágico':    { type: 'arcane', atk: 3, def: 1, mana: 15, duration: 360, label: 'Resonancia Cristalina', msg: '¡El cristal resuena con el altar! Una onda mágica te recorre de pies a cabeza.' },
+  'corona rota':       { type: 'royal', atk: 2, def: 3, duration: 300, label: 'Majestad Caída', msg: 'La corona rota se funde en la piedra del altar. Su antiguo poder de mando te rodea como una armadura invisible.' },
+  'antídoto':          { type: 'purify', atk: 0, def: 2, duration: 180, label: 'Purificación', msg: 'El antídoto purifica el altar. Una brisa limpia te envuelve, fortaleciendo tus defensas.' },
+  'hierba curativa':   { type: 'purify', atk: 0, def: 1, hp: 8, duration: 180, label: 'Bendición Herbal', msg: 'Las hierbas se reducen a ceniza fragante. El altar te bendice con salud y resistencia.' },
+};
+
+function cmdPray(player, args) {
+  player = db.getPlayer(player.id);
+
+  const roomId = player.current_room_id;
+  if (!ALTAR_ROOMS.has(roomId)) {
+    const altarHint = roomId === 5 ? '' : '';
+    return { text: '🙏 No hay ningún altar aquí para rezar.\n  Los altares se encuentran en la Capilla Olvidada (sala 5) y el Santuario Profano (sala 10).' };
+  }
+
+  // Verificar cooldown
+  const lastPray = altarCooldowns.get(player.id) || 0;
+  const COOLDOWN_MS = 5 * 60 * 1000;
+  const elapsed = Date.now() - lastPray;
+  if (elapsed < COOLDOWN_MS) {
+    const remainingSec = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+    const remMin = Math.floor(remainingSec / 60);
+    const remSec = remainingSec % 60;
+    return { text: `🙏 El altar aún necesita recuperarse de tu última ofrenda. Espera ${remMin}m ${remSec}s.` };
+  }
+
+  // Identificar el ítem ofrecido
+  const offering = args.join(' ').trim().toLowerCase();
+
+  if (!offering) {
+    const altarName = roomId === 5 ? 'Altar de la Capilla' : 'Estatua del Santuario';
+    const lines = [
+      `┌────────────────────────────────────────────┐`,
+      `│ 🙏 ${altarName.padEnd(42)} │`,
+      `├────────────────────────────────────────────┤`,
+      `│ Podés ofrecer ítems al altar para obtener  │`,
+      `│ bendiciones temporales.                    │`,
+      `│                                            │`,
+      `│ Uso: pray <ítem>  /  rezar <ítem>          │`,
+      `│ Ejemplo: pray monedas de oro               │`,
+      `│                                            │`,
+      `│ Ítems aceptados:                           │`,
+      `│  • monedas (cobre/plata/oro) → ATK buff    │`,
+      `│  • pociones → HP extra                     │`,
+      `│  • cristal mágico / libro viejo → mana     │`,
+      `│  • amuleto oscuro → poder oscuro           │`,
+      `│  • corona rota, hierba curativa, antídoto  │`,
+      `│                                            │`,
+      `│ Cooldown: 5 minutos entre ofrendas.        │`,
+      `└────────────────────────────────────────────┘`,
+    ];
+    return { text: lines.join('\n') };
+  }
+
+  // Buscar el ítem en el inventario
+  const found = items.findItem(player.inventory, offering);
+  if (!found) {
+    return { text: `🙏 No tenés ningún "${offering}" en el inventario para ofrecer.` };
+  }
+
+  // Verificar si el ítem tiene efecto en el altar
+  const foundLower = found.toLowerCase();
+  const effect = ALTAR_OFFERINGS[foundLower];
+  if (!effect) {
+    return { text: `🙏 Ponés ${found} en el altar... pero nada ocurre. Parece que el altar no acepta este tipo de ofrenda.\n  (El ítem no se consume.)` };
+  }
+
+  // Consumir el ítem del inventario
+  const newInv = [...player.inventory];
+  const idx = newInv.findIndex(i => i.toLowerCase() === foundLower);
+  if (idx !== -1) newInv.splice(idx, 1);
+
+  const updates = { inventory: newInv };
+  const resultLines = [effect.msg];
+
+  // Aplicar efecto HP inmediato
+  if (effect.hp && effect.hp > 0) {
+    const newHp = Math.min(player.max_hp, player.hp + effect.hp);
+    updates.hp = newHp;
+    resultLines.push(`❤️  HP: ${player.hp} → ${newHp}/${player.max_hp}`);
+  }
+
+  // Aplicar buff de mana inmediato
+  if (effect.mana && effect.mana > 0) {
+    const maxMana = player.max_mana || 20;
+    const newMana = Math.min(maxMana, (player.mana || 0) + effect.mana);
+    updates.mana = newMana;
+    resultLines.push(`💧 Maná: +${effect.mana} → ${newMana}/${maxMana}`);
+  }
+
+  // Aplicar buff temporal de ATK/DEF (guardado en active_scrolls)
+  if (effect.duration > 0 && (effect.atk || effect.def)) {
+    const scrolls = JSON.parse(player.active_scrolls || '{}');
+    const now = Date.now();
+    scrolls['altar_blessing'] = {
+      atk_bonus: effect.atk || 0,
+      def_bonus: effect.def || 0,
+      expires_at: now + effect.duration * 1000,
+      label: effect.label,
+    };
+    updates.active_scrolls = JSON.stringify(scrolls);
+    const parts = [];
+    if (effect.atk > 0) parts.push(`+${effect.atk} ATK`);
+    if (effect.atk < 0) parts.push(`${effect.atk} ATK`);
+    if (effect.def > 0) parts.push(`+${effect.def} DEF`);
+    if (effect.def < 0) parts.push(`${effect.def} DEF`);
+    resultLines.push(`⚡ ${effect.label}: ${parts.join(', ')} por ${effect.duration}s`);
+  }
+
+  db.updatePlayer(player.id, updates);
+  altarCooldowns.set(player.id, Date.now());
+
+  const altarName = roomId === 5 ? 'Capilla Olvidada' : 'Santuario Profano';
+  return {
+    text: `🙏 Ofrecés ${found} al altar de la ${altarName}.\n\n${resultLines.join('\n')}`,
+    event: `${player.username} reza ante el altar.`,
+    eventRoomId: roomId,
+  };
+}
+
+// ─── T185: preview/probar <arma/armadura> — previsualizar stats sin equipar ──
+function cmdPreview(player, args) {
+  player = db.getPlayer(player.id);
+  const query = args.join(' ').trim();
+
+  if (!query) {
+    return { text: '🔍 Uso: preview <arma o armadura>\n  Ejemplo: preview espada de obsidiana\n  Muestra cómo cambiarían tus stats si equiparas ese ítem.' };
+  }
+
+  const found = items.findItem(player.inventory, query);
+  if (!found) {
+    return { text: `🔍 No tenés ningún "${query}" en el inventario.` };
+  }
+
+  const def = items.getItemDef(found);
+  if (!def || (def.type !== 'weapon' && def.type !== 'armor')) {
+    return { text: `🔍 ${found} no es un arma ni armadura que puedas equipar.\n  Tipo: ${def ? def.type : 'desconocido'}` };
+  }
+
+  const W = 46;
+  const pad = (s, w) => { const str = String(s); return str + ' '.repeat(Math.max(0, w - str.length)); };
+  const center = (s) => { const sp = Math.max(0, W - s.length); const l = Math.floor(sp/2); const r = sp - l; return ' '.repeat(l) + s + ' '.repeat(r); };
+
+  const lines = [];
+  lines.push(`┌${'─'.repeat(W)}┐`);
+  lines.push(`│ ${center('🔍 PREVISUALIZACIÓN: ' + found.toUpperCase())} │`);
+  lines.push(`├${'─'.repeat(W)}┤`);
+
+  if (def.type === 'weapon') {
+    const currentAtk = player.attack;
+    const newAtk = 5 + def.amount;
+    const change = newAtk - currentAtk;
+    const changeStr = change >= 0 ? `+${change}` : `${change}`;
+    const currentWeapon = player.equipped_weapon || '(puños)';
+    lines.push(`│ ${pad('Arma actual:', 20)} ${pad(currentWeapon, W - 22)} │`);
+    lines.push(`│ ${pad('Nueva arma:', 20)} ${pad(found, W - 22)} │`);
+    lines.push(`├${'─'.repeat(W)}┤`);
+    lines.push(`│ ${pad('ATK actual:', 20)} ${pad(String(currentAtk), W - 22)} │`);
+    lines.push(`│ ${pad('ATK nuevo:', 20)} ${pad(`${newAtk} (${changeStr})`, W - 22)} │`);
+    lines.push(`├${'─'.repeat(W)}┤`);
+    lines.push(`│ ${def.description.length > W - 2 ? def.description.slice(0, W - 5) + '...' : pad(def.description, W - 2)} │`);
+    lines.push(`├${'─'.repeat(W)}┤`);
+    if (change > 0) {
+      lines.push(`│ ${pad('✅ Mejora de ' + change + ' puntos de ataque.', W)} │`);
+    } else if (change < 0) {
+      lines.push(`│ ${pad('⚠️  Bajaría ' + Math.abs(change) + ' puntos de ataque.', W)} │`);
+    } else {
+      lines.push(`│ ${pad('➖ Sin cambio en el ataque.', W)} │`);
+    }
+    lines.push(`│ ${pad('Para equipar: equip ' + found, W)} │`);
+  } else if (def.type === 'armor') {
+    const currentDef = player.defense;
+    const newDef = 2 + def.amount;
+    const change = newDef - currentDef;
+    const changeStr = change >= 0 ? `+${change}` : `${change}`;
+    const currentArmor = player.equipped_armor || '(sin armadura)';
+    lines.push(`│ ${pad('Armadura actual:', 20)} ${pad(currentArmor, W - 22)} │`);
+    lines.push(`│ ${pad('Nueva armadura:', 20)} ${pad(found, W - 22)} │`);
+    lines.push(`├${'─'.repeat(W)}┤`);
+    lines.push(`│ ${pad('DEF actual:', 20)} ${pad(String(currentDef), W - 22)} │`);
+    lines.push(`│ ${pad('DEF nueva:', 20)} ${pad(`${newDef} (${changeStr})`, W - 22)} │`);
+    lines.push(`├${'─'.repeat(W)}┤`);
+    lines.push(`│ ${def.description.length > W - 2 ? def.description.slice(0, W - 5) + '...' : pad(def.description, W - 2)} │`);
+    lines.push(`├${'─'.repeat(W)}┤`);
+    if (change > 0) {
+      lines.push(`│ ${pad('✅ Mejora de ' + change + ' puntos de defensa.', W)} │`);
+    } else if (change < 0) {
+      lines.push(`│ ${pad('⚠️  Bajaría ' + Math.abs(change) + ' puntos de defensa.', W)} │`);
+    } else {
+      lines.push(`│ ${pad('➖ Sin cambio en la defensa.', W)} │`);
+    }
+    lines.push(`│ ${pad('Para ponerte: wear ' + found, W)} │`);
+  }
+
+  lines.push(`└${'─'.repeat(W)}┘`);
+
+  return { text: lines.join('\n') };
+}
+
+// ─── T186: Recolección pasiva de hierbas al descansar ────────────────────────
+// En el Túnel de los Hongos (sala 6), al descansar exitosamente,
+// 40% de chance de encontrar una hierba curativa adicional.
+// (bonus por contexto ambiental, sin cooldown extra)
+
+const FORAGE_REST_ROOMS = {
+  6:  { item: 'hierba curativa', chance: 0.40, msg: '🌿 Mientras descansás, notás unas hierbas curativas creciendo entre los hongos. Las recogés.' },
+  11: { item: 'hongo azul', chance: 0.30, msg: '🔵 El aire frío de la galería conserva unos hongos azules en perfectas condiciones. Los guardás.' },
+  14: { item: 'fragmento de roca volcánica', chance: 0.25, msg: '🪨 El calor de la forja ha cristalizado unos fragmentos minerales. Te los llevás.' },
+};

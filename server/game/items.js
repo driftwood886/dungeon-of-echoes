@@ -90,6 +90,8 @@ const ITEM_CATALOG = {
   'esencia de eco':      { type: 'misc', description: 'La esencia destilada de un Eco Viviente. Guarda la memoria de aventureros caídos.' },
   'fragmento de vacío':  { type: 'misc', description: 'Un fragmento del Abismo Eterno. Absorbe la luz a su alrededor. Los sabios lo llaman "la nada solidificada".' },
   'esencia del abismo':  { type: 'misc', description: 'La esencia pura de la Sombra del Vacío. Vibra con una energía oscura y antigua. Ingrediente de recetas de alquimia avanzada.' },
+  // T186: Ítems de recolección pasiva al descansar
+  'fragmento de roca volcánica': { type: 'misc', description: 'Un fragmento de roca volcánica cristalizada por el calor extremo de la forja. Material artesanal de alta densidad térmica.' },
 
   // ── Armas artesanales avanzadas — Dungeon Extendido (T132) ──────────────────
   'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 8, description: 'Una lanza fantasmal que resuena con voces de los caídos. +8 de ataque.' },
