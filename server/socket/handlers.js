@@ -32,6 +32,20 @@ const sessionDataMap = new Map();
 // T204: Mapa global: followerId → targetPlayerId (seguir a otro jugador)
 const followMap = new Map();
 
+// T215: Buffer circular de mensajes de chat recientes (máx 50 entradas)
+// Cada entrada: { ts, type, username, message }
+const recentChatLog = [];
+const RECENT_CHAT_MAX = 50;
+function pushRecentChat(type, username, message) {
+  const now = new Date();
+  const hh = String(now.getUTCHours()).padStart(2, '0');
+  const mm = String(now.getUTCMinutes()).padStart(2, '0');
+  recentChatLog.push({ ts: `${hh}:${mm}`, type, username, message });
+  if (recentChatLog.length > RECENT_CHAT_MAX) recentChatLog.shift();
+}
+global.recentChatLog = recentChatLog;
+global.pushRecentChat = pushRecentChat;
+
 /**
  * @param {import('socket.io').Server} io
  */
@@ -275,6 +289,7 @@ function registerHandlers(io) {
       if (result.guildBroadcast && result.guildBroadcastMsg) {
         const guildName = result.guildBroadcast;
         const members = db.getGuildMembers(guildName);
+        pushRecentChat('gc', `[${guildName}]`, result.guildBroadcastMsg);
         for (const member of members) {
           // Excluir al propio emisor si corresponde (para gc)
           if (result.guildBroadcastExcludeSelf && member.id === result.guildBroadcastExcludeSelf) continue;
@@ -363,6 +378,7 @@ function registerHandlers(io) {
         name_color: player.name_color || null,
         message: msg,
       });
+      pushRecentChat('say', player.username, msg);
       ack && ack({ ok: true });
     });
 
@@ -381,6 +397,7 @@ function registerHandlers(io) {
         name_color: player.name_color || null,
         message: msg,
       });
+      pushRecentChat('shout', player.username, msg);
       ack && ack({ ok: true });
     });
 

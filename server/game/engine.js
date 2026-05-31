@@ -183,7 +183,7 @@ function execute(playerId, input, context) {
 
   // ── T175: Ghost mode (Hardcore fallen) ────────────────────────────────────
   // Si el jugador cayó en modo Hardcore, solo puede usar comandos pasivos
-  const GHOST_ALLOWED = new Set(['look', 'status', 'who', 'score', 'profile', 'bestiary', 'journal', 'news', 'dungeon', 'history', 'help', 'changelog', 'server', 'time', 'enemies', 'compare', 'reputation', 'path', 'guide', 'find', 'runas', 'map', 'hardcore', 'read', 'lore', 'weather', 'world', 'challenge', 'rank', 'inventory', 'memorial']);
+  const GHOST_ALLOWED = new Set(['look', 'status', 'who', 'score', 'profile', 'bestiary', 'journal', 'news', 'dungeon', 'history', 'help', 'changelog', 'server', 'time', 'enemies', 'compare', 'reputation', 'path', 'guide', 'find', 'runas', 'map', 'hardcore', 'read', 'lore', 'weather', 'world', 'challenge', 'rank', 'inventory', 'memorial', 'recent']);
   if (player.fallen === 1 && !GHOST_ALLOWED.has(action.command)) {
     return { text: `✝ Tu personaje cayó en modo Hardcore. Solo podés usar comandos pasivos.\n  (look, status, who, score, map, etc.)\n  Escribí "hardcore" para ver tu estado.` };
   }
@@ -240,6 +240,7 @@ function execute(playerId, input, context) {
     case 'memorial':     result = cmdMemorial(); break;                              // T178
     case 'world':        result = cmdWorld(); break;
     case 'weather':      result = cmdWeather(); break;
+    case 'recent':       result = cmdRecent(action.args); break;
     case 'craft':        result = cmdCraft(player, action.args); break;
     case 'recipes':      result = cmdRecipes(); break;
     case 'news':         result = cmdNews(); break;
@@ -286,7 +287,7 @@ function execute(playerId, input, context) {
     case 'runas':        result = cmdRunas(player); break;
     case 'challenge':    result = cmdChallenge(player); break;
     case 'macro':        result = cmdMacro(player, action.args, context); break;
-    case 'afk':          result = cmdAfk(player); break;
+    case 'afk':          result = cmdAfk(player, action.args); break;
     case 'write':        result = cmdWrite(player, action.args); break;
     case 'read':         result = cmdReadWall(player); break;
     case 'greet':        result = cmdGreet(player, action.args, context); break;
@@ -2420,11 +2421,20 @@ function cmdWhisper(player, args) {
   const senderMsg = `[susurro → ${target.username}]: "${message}"`;
   const targetMsg = `[susurro de ${player.username}]: "${message}"`;
 
+  // T216: Si el destinatario está AFK, notificar al emisor
+  let afkNote = '';
+  if (isAfk(target.id)) {
+    const afkMsg = getAfkMessage(target.id);
+    afkNote = afkMsg
+      ? `\n💤 [AFK] ${target.username}: "${afkMsg}"`
+      : `\n💤 ${target.username} está en modo ausente (AFK).`;
+  }
+
   // Registrar que player es el último que le escribió a target
   lastWhisperSender.set(target.id, { id: player.id, username: player.username });
 
   return {
-    text: senderMsg,
+    text: senderMsg + afkNote,
     // Sin event de broadcast: es privado, no va a la sala
     targetPlayerId:   target.id,
     targetPlayerMsg:  targetMsg,
@@ -3175,6 +3185,9 @@ function cmdEmote(player, action) {
 
   const emoteText = `✨ ${player.username} ${trimmed}`;
 
+  // T215: Registrar en chat reciente
+  if (global.pushRecentChat) global.pushRecentChat('emote', player.username, trimmed);
+
   return {
     text: emoteText,                          // el jugador también lo ve
     event: emoteText,                         // broadcast a la sala
@@ -3612,7 +3625,7 @@ function cmdInspect(player, targetName) {
   ].filter(Boolean).join('\n');
 
   return {
-    text: lines,
+    text: lines + (isAfk(target.id) ? `\n💤 ${target.username} está en modo ausente${getAfkMessage(target.id) ? `: "${getAfkMessage(target.id)}"` : ''}` : ''),
     event: `🔍 ${player.username} te observa detenidamente.`, // enviado al target si está conectado
     eventTarget: target.id,
     // También notificar al target directamente por socket usando el sistema existente
@@ -3836,6 +3849,40 @@ function cmdGuildChat(player, args) {
   };
 }
 
+
+/**
+ * T215: recent [N] — Historial de chat reciente (say/shout/emote/gc)
+ */
+function cmdRecent(args) {
+  const log = global.recentChatLog || [];
+  const n = Math.min(Math.max(parseInt(args[0], 10) || 10, 1), 20);
+  const entries = log.slice(-n);
+
+  if (entries.length === 0) {
+    return { text: '💬 No hay mensajes de chat recientes todavía.' };
+  }
+
+  const W = 54;
+  const border = '─'.repeat(W - 2);
+  const lines = [`┌${border}┐`, `│${'  💬 CHAT RECIENTE'.padEnd(W - 2)}│`, `├${border}┤`];
+
+  for (const e of entries) {
+    const typeIcon = { say: '💬', shout: '📢', emote: '✨', gc: '🏰' }[e.type] || '💬';
+    const prefix = `[${e.ts}] ${typeIcon} ${e.username}`;
+    const content = `${prefix}: ${e.message}`;
+    // Wrap a W-4 chars
+    const maxLen = W - 4;
+    let rem = content;
+    while (rem.length > maxLen) {
+      lines.push(`│  ${rem.slice(0, maxLen).padEnd(maxLen)}  │`);
+      rem = rem.slice(maxLen);
+    }
+    lines.push(`│  ${rem.padEnd(maxLen)}  │`);
+  }
+
+  lines.push(`└${border}┘`);
+  return { text: lines.join('\n') };
+}
 
 /**
  * world — Ver el evento global actual del dungeon
@@ -6548,21 +6595,44 @@ function cmdMacro(player, args, context) {
  * Comando afk — togglea el modo ausente.
  * Cooldown de 10s entre toggles para evitar spam.
  */
-function cmdAfk(player) {
+
+// T216: Map playerId → mensaje AFK personalizado
+const afkMessages = new Map();
+function cmdAfk(player, args) {
   const now = Date.now();
   const lastToggle = afkCooldowns.get(player.id) || 0;
   if (now - lastToggle < 10_000) {
     const wait = Math.ceil((10_000 - (now - lastToggle)) / 1000);
     return { text: `⚠️ Esperá ${wait}s antes de cambiar el estado AFK de nuevo.` };
   }
+
+  // T216: afk clear — borrar mensaje pero mantener AFK activo
+  const sub = (args && args[0] || '').toLowerCase();
+  if (sub === 'clear' || sub === 'borrar' || sub === 'limpiar') {
+    afkMessages.delete(player.id);
+    return { text: `🗑️ Mensaje de ausencia eliminado. Seguís en modo AFK.` };
+  }
+
+  // T216: afk <mensaje> — guardar mensaje personalizado y activar AFK
+  const customMsg = args && args.length > 0 ? args.join(' ').trim().slice(0, 60) : null;
+
   afkCooldowns.set(player.id, now);
 
-  if (afkPlayers.has(player.id)) {
+  if (afkPlayers.has(player.id) && !customMsg) {
+    // Toggle OFF
     afkPlayers.delete(player.id);
+    afkMessages.delete(player.id);
     return { text: `✅ Ya no estás en modo ausente (AFK). ¡Bienvenido de vuelta, ${player.username}!` };
   } else {
+    // Toggle ON (o actualizar mensaje)
     afkPlayers.add(player.id);
-    return { text: `💤 Modo ausente activado (AFK). Todos tus comandos quedarán bloqueados hasta que escribás "afk" de nuevo.` };
+    if (customMsg) {
+      afkMessages.set(player.id, customMsg);
+      return { text: `💤 Modo ausente activado con mensaje: "${customMsg}"` };
+    } else {
+      afkMessages.delete(player.id);
+      return { text: `💤 Modo ausente activado (AFK). Todos tus comandos quedarán bloqueados hasta que escribás "afk" de nuevo.` };
+    }
   }
 }
 
@@ -6583,6 +6653,13 @@ function clearAfk(playerId) {
  */
 function isAfk(playerId) {
   return afkPlayers.has(playerId);
+}
+
+/**
+ * T216: Obtener el mensaje AFK de un jugador (o null si no tiene).
+ */
+function getAfkMessage(playerId) {
+  return afkMessages.get(playerId) || null;
 }
 
 // ── T147: Mensajes en las paredes / Graffiti ──────────────────────────────────
@@ -6652,6 +6729,15 @@ function cmdGreet(player, args, context) {
     return { text: `👋 No encontré a "${args[0]}" en esta sala.` };
   }
 
+  // T216: Si el objetivo está AFK, notificar al saludador
+  let afkNote = '';
+  if (isAfk(target.id)) {
+    const afkMsg = getAfkMessage(target.id);
+    afkNote = afkMsg
+      ? `\n💤 [AFK] ${target.username}: "${afkMsg}"`
+      : `\n💤 ${target.username} está en modo ausente (AFK).`;
+  }
+
   const now = Date.now();
   // Verificar si el target saludó al jugador recientemente
   const targetGreeted = recentGreetings.get(target.id);
@@ -6677,7 +6763,7 @@ function cmdGreet(player, args, context) {
     };
   } else {
     return {
-      text: `👋 Saludaste a ${target.username}.`,
+      text: `👋 Saludaste a ${target.username}.${afkNote}`,
       event: `👋 ${player.username} le da la bienvenida a ${target.username}.`,
       eventRoomId: player.current_room_id,
       targetPlayerId: target.id,

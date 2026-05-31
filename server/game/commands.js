@@ -124,6 +124,7 @@ const COMMAND_ALIASES = {
   decline: 'decline', rechazar: 'decline', rechazo: 'decline', negar: 'decline',
   // world / evento global
   world: 'world', evento: 'world', mundo: 'world', dungeon_event: 'world', 'evento-dungeon': 'world',
+  recent: 'recent', recientes: 'recent', 'chat-log': 'recent', ultimos: 'recent', últimos: 'recent', 'chat-reciente': 'recent',
   // T166: clima
   weather: 'weather', clima: 'weather', tiempo: 'weather', atmosfera: 'weather', atmósfera: 'weather',
   // craft / craftear
