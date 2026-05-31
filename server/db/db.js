@@ -1290,6 +1290,29 @@ function getPlayerSessions(playerId, limit = 5) {
   );
 }
 
+// T208: Estadísticas semanales de un jugador (últimos 7 días)
+function getWeeklyStats(playerId) {
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const rows = all(
+    `SELECT duration_min, kills, xp_gained, gold_gained, commands
+     FROM sessions
+     WHERE player_id = ? AND start_time >= ?
+     ORDER BY id ASC`,
+    [playerId, cutoff]
+  );
+  if (!rows || rows.length === 0) return null;
+  return {
+    sessions: rows.length,
+    totalMin: rows.reduce((a, r) => a + (r.duration_min || 0), 0),
+    totalKills: rows.reduce((a, r) => a + (r.kills || 0), 0),
+    totalXP: rows.reduce((a, r) => a + (r.xp_gained || 0), 0),
+    totalGold: rows.reduce((a, r) => a + (r.gold_gained || 0), 0),
+    totalCmds: rows.reduce((a, r) => a + (r.commands || 0), 0),
+    bestKills: Math.max(...rows.map(r => r.kills || 0)),
+    bestMin: Math.max(...rows.map(r => r.duration_min || 0)),
+  };
+}
+
 // T158: Ranking por tiempo de juego total
 function getLeaderboardByPlaytime(limit = 10) {
   return all(
@@ -1577,7 +1600,7 @@ module.exports = {
   // T149: monstruos muertos recientes
   getRecentlyDeadMonsters,
   // T156-T158: sesiones e historial de tiempo
-  saveSession, getPlayerSessions, getLeaderboardByPlaytime,
+  saveSession, getPlayerSessions, getLeaderboardByPlaytime, getWeeklyStats,
   getFallenHardcorePlayers,
   // T181: mercado de jugadores
   createMarketListing, getActiveMarketListings, getMarketListing, buyMarketItem, cancelMarketListing, expireOldMarketListings, getPlayerMarketListings,

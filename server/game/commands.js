@@ -227,6 +227,7 @@ const COMMAND_ALIASES = {
   session: 'session', sesion: 'session', sesión: 'session', 'mi-sesion': 'session', stats_sesion: 'session',
   // sessions / historial de sesiones (T156)
   sessions: 'sessions', historial_sesiones: 'sessions', 'mis-sesiones': 'sessions', historial_juego: 'sessions',
+  weekly: 'weekly', semana: 'weekly', semanal: 'weekly', resumen_semanal: 'weekly', estadisticas_semana: 'weekly',  // T208
   // score_time / ranking por tiempo (T158)
   score_time: 'score_time',
   // stance / postura de combate (T161)

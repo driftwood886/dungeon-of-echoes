@@ -292,6 +292,7 @@ function execute(playerId, input, context) {
     case 'dungeon':      result = cmdDungeonStatus(); break;
     case 'session':      result = cmdSession(player, context); break;
     case 'sessions':     result = cmdSessions(player); break;
+    case 'weekly':       result = cmdWeekly(player); break;         // T208
     case 'score_time':   result = cmdScoreTime(); break;
     case 'stance':       result = cmdStance(player, action.args); break;
     case 'path':         result = cmdPath(player, action.args); break;
@@ -5739,6 +5740,11 @@ module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAucti
  */
 function cmdChangelog() {
   const CHANGELOG = [
+    { version: '0.30', date: '2026-05-31', changes: [
+      '✨ NUEVO: comando weekly/semana — resumen de actividad de los últimos 7 días',
+      '📅 Muestra sesiones jugadas, tiempo total, kills, XP y oro acumulados esta semana',
+      '🏆 Incluye mejor sesión por kills y sesión más larga de la semana',
+    ]},
     { version: '0.29', date: '2026-05-30', changes: [
       '✨ NUEVO: metas globales del servidor (comando worldgoals/metas)',
       '🌍 Contadores acumulativos de kills, crafteos, oro y duelos de todos los aventureros',
@@ -9599,5 +9605,56 @@ function cmdUnfollow(player, context) {
   }
 
   return { text: `🛑 Dejaste de seguir a ${target ? target.username : 'ese jugador'}.` };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// T208: cmdWeekly — Resumen de actividad de los últimos 7 días
+// ══════════════════════════════════════════════════════════════════════════════
+function cmdWeekly(player) {
+  const stats = db.getWeeklyStats(player.id);
+  const W = 44;
+  const lines = [];
+  lines.push(`╔${'═'.repeat(W)}╗`);
+  lines.push(`║${'  📅 RESUMEN SEMANAL (últimos 7 días)'.padEnd(W)}║`);
+  lines.push(`╠${'═'.repeat(W)}╣`);
+
+  if (!stats) {
+    lines.push(`║${'  Sin sesiones registradas esta semana.'.padEnd(W)}║`);
+    lines.push(`║${'  Volvé a conectarte para que se guarden'.padEnd(W)}║`);
+    lines.push(`║${'  tus próximas sesiones.'.padEnd(W)}║`);
+    lines.push(`╚${'═'.repeat(W)}╝`);
+    return { text: lines.join('\n') };
+  }
+
+  const toHM = (min) => {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  const row = (label, value) => {
+    const l = `  ${label}`;
+    const v = String(value);
+    return `║${l.padEnd(W - v.length - 1)}${v} ║`;
+  };
+
+  lines.push(row('⚡ Sesiones jugadas:', stats.sessions));
+  lines.push(row('⏱  Tiempo total:', toHM(stats.totalMin)));
+  lines.push(row('⚔️  Kills totales:', stats.totalKills));
+  lines.push(row('✨ XP ganada:', '+' + stats.totalXP));
+  lines.push(row('🪙 Oro acumulado:', '+' + stats.totalGold));
+  lines.push(row('🎮 Comandos ejecutados:', stats.totalCmds));
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  lines.push(row('🏆 Mejor sesión (kills):', stats.bestKills));
+  lines.push(row('⌛ Sesión más larga:', toHM(stats.bestMin)));
+  lines.push(`╚${'═'.repeat(W)}╝`);
+
+  // Pequeño dato motivacional
+  const avg = stats.sessions > 0 ? Math.round(stats.totalKills / stats.sessions) : 0;
+  if (avg > 0) {
+    lines.push(`  Promedio: ${avg} kill${avg !== 1 ? 's' : ''} por sesión esta semana.`);
+  }
+
+  return { text: lines.join('\n') };
 }
 
