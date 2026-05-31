@@ -412,6 +412,12 @@ function handleTutorialCommand(player, action, step) {
     const dir = (action.args[0] || '').toLowerCase();
     const isSouth = ['south', 'sur', 's'].includes(dir);
     if (isSouth) {
+      // Fix DIS-P03: solo permitir salir si el jugador ya atacó al goblin (step >= 3)
+      // o si el jugador elige explícitamente saltarse el tutorial (se puede saltar con 'skip tutorial')
+      if (step < 3) {
+        const hint = tutorial.getStepMessage(step);
+        return { text: `¡Todavía no terminaste el entrenamiento!\nAntes de salir, atacá al Goblin de Práctica escribiendo: attack goblin\n\n${hint}` };
+      }
       // Completar tutorial: +10 XP, mover a sala 1, tutorial_step = 0
       return completeTutorial(player);
     }
@@ -422,6 +428,11 @@ function handleTutorialCommand(player, action, step) {
   // Si el jugador hace help, status, inventory — dejar fluir normalmente
   if (['help', 'status', 'inventory', 'clear'].includes(cmd)) {
     return null;
+  }
+
+  // Comando 'skip' para saltarse el tutorial explícitamente
+  if (cmd === 'skip' || (cmd === 'tutorial' && action.args[0] === 'skip') || action.raw === 'skip tutorial' || action.raw === 'saltar tutorial') {
+    return completeTutorial(player);
   }
 
   // Para cualquier otro comando, recordar el estado del tutorial
@@ -474,6 +485,17 @@ function cmdMove(player, direction) {
   if (!direction) {
     return { text: 'Indicá una dirección. Ej: "move norte" o simplemente "norte".' };
   }
+
+  // Fix DIS-P05: limpiar debuffs por turno (blinded) al moverse fuera de combate
+  try {
+    const fx = player.status_effects || {};
+    if (fx.blinded) {
+      const newFx = { ...fx };
+      delete newFx.blinded;
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(newFx) });
+      player.status_effects = newFx;
+    }
+  } catch (_) {}
 
   const room = db.getRoom(player.current_room_id);
   if (!room) {
@@ -6663,36 +6685,37 @@ function cmdStudy(player, args) {
 // boss vivo/muerto, quest activa, trampas armadas, loot disponible.
 function cmdDungeonStatus() {
   try {
-    const rawDb = db.raw();
-
     // Obtener todas las salas
     const rooms = db.getAllRooms();
 
-    // Monstruos vivos (room_id != null)
-    const monstersAlive = rawDb.exec('SELECT id, name, room_id, hp, max_hp FROM monsters WHERE room_id IS NOT NULL')[0];
-    const monsterRows = monstersAlive ? monstersAlive.values : [];
+    // Monstruos vivos (room_id != null) usando db.getAllMonsters() en lugar de rawDb.exec()
+    const allMonsters = db.getAllMonsters();
+    const monstersAliveList = allMonsters.filter(m => m.room_id !== null && m.room_id !== undefined);
+    const monsterRows = monstersAliveList.map(m => [m.id, m.name, m.room_id, m.hp, m.max_hp]);
 
     // Cuántos ítems en total en el suelo
     let totalItemsOnFloor = 0;
     let roomsWithItems = 0;
     let trapsArmed = 0;
     for (const room of rooms) {
+      // room.items y room.trap ya están parseados por getAllRooms()
       try {
-        const items = JSON.parse(room.items || '[]');
+        const items = Array.isArray(room.items) ? room.items : JSON.parse(room.items || '[]');
         if (items.length > 0) { totalItemsOnFloor += items.length; roomsWithItems++; }
       } catch (_) {}
       try {
-        const trap = JSON.parse(room.trap || 'null');
+        // Fix DIS-P06: room.trap ya es objeto (parseado por getAllRooms), no string
+        const trap = room.trap;
         if (trap && trap.active) trapsArmed++;
       } catch (_) {}
     }
 
-    // Boss vivo?
-    const bossR = rawDb.exec("SELECT id, hp, max_hp, room_id FROM monsters WHERE id = 10")[0];
-    const bossRow = bossR ? bossR.values[0] : null;
-    const bossAlive = bossRow && bossRow[3] !== null;
-    const bossHp = bossRow ? bossRow[1] : 0;
-    const bossMaxHp = bossRow ? bossRow[2] : 0;
+    // Boss vivo? (Lich Anciano = monster id 13)
+    // Fix DIS-P04: usar db.getMonster() para evitar raw() y verificar correctamente el estado
+    const bossMonster = db.getMonster(13);
+    const bossAlive = bossMonster && bossMonster.room_id !== null && bossMonster.room_id !== undefined && (bossMonster.hp || 0) > 0;
+    const bossHp = bossMonster ? (bossMonster.hp || 0) : 0;
+    const bossMaxHp = bossMonster ? (bossMonster.max_hp || 0) : 0;
 
     // Quest activa (módulo quests)
     let questInfo = 'Ninguna activa';
@@ -6733,7 +6756,8 @@ function cmdDungeonStatus() {
     // Quest
     lines.push(`║${'  📜 Quest: '.padEnd(4)}${questInfo.slice(0, W - 9).padEnd(W - 4)}║`.slice(0, W + 2));
     lines.push(`║${'  🌍 Evento: ' + eventInfo.slice(0, 38).padEnd(40)}║`);
-    lines.push(`║${'  ⚠️  Trampas armadas: ' + trapsArmed + ' de ' + (trapsArmed + (trapsArmed === 0 ? 4 : 0)) + ' posibles'}${' '.repeat(Math.max(0, W - 22))}║`.slice(0, W + 2));
+    const totalTraps = rooms.filter(r => r.trap).length;
+    lines.push(`║${'  ⚠️  Trampas armadas: ' + trapsArmed + ' de ' + totalTraps + ' posibles'}${' '.repeat(Math.max(0, W - 22))}║`.slice(0, W + 2));
     lines.push(`║${'  💎 Ítems en el suelo: ' + totalItemsOnFloor + ' (en ' + roomsWithItems + ' salas)'}${' '.repeat(Math.max(0, W - 25))}║`.slice(0, W + 2));
     lines.push(`╠${'═'.repeat(W)}╣`);
 

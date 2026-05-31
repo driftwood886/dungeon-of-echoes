@@ -528,6 +528,17 @@ function getAllMonsters() {
     .map(m => ({ ...m, loot: JSON.parse(m.loot) }));
 }
 
+/**
+ * Fix DIS-P02: devuelve monstruos muertos cuyo respawn_at ya pasó.
+ * Reemplaza el uso de raw().exec() en combat.js que fallaba silenciosamente.
+ */
+function getMonstersForRespawn(now) {
+  return all(
+    `SELECT * FROM monsters WHERE room_id IS NULL AND respawn_at IS NOT NULL AND respawn_at <= ?`,
+    [now]
+  ).map(m => ({ ...m, loot: JSON.parse(m.loot || '[]') }));
+}
+
 function upsertMonster(monster) {
   run(
     `INSERT OR REPLACE INTO monsters
@@ -551,7 +562,8 @@ function upsertMonster(monster) {
 function updateMonster(id, fields) {
   const updates = Object.keys(fields).map(k => `${k} = ?`).join(', ');
   const values = Object.values(fields).map(v =>
-    typeof v === 'object' ? JSON.stringify(v) : v
+    // Fix DIS-P02: null tiene typeof 'object', debería guardarse como NULL real (no "null" string)
+    v === null ? null : typeof v === 'object' ? JSON.stringify(v) : v
   );
   run(`UPDATE monsters SET ${updates} WHERE id = ?`, [...values, id]);
 }
@@ -1031,9 +1043,20 @@ function getDailyChallenge(player) {
   const today = new Date().toISOString().slice(0, 10);
   if (ch.date !== today) {
     // Generar nuevo desafío para hoy (determinístico basado en player.id + fecha)
-    const seed = (player.id * 31 + parseInt(today.replace(/-/g, ''), 10)) % DAILY_CHALLENGE_TYPES.length;
+    // Fix DIS-P01: player.id es UUID string → calcular hash numérico para el seed
+    const idStr = String(player.id);
+    let idHash = 0;
+    for (let i = 0; i < idStr.length; i++) { idHash = (idHash * 31 + idStr.charCodeAt(i)) >>> 0; }
+    const dateNum = parseInt(today.replace(/-/g, ''), 10);
+    const seed = (idHash + dateNum) % DAILY_CHALLENGE_TYPES.length;
     const template = DAILY_CHALLENGE_TYPES[seed];
-    ch = { date: today, type: template.type, target: template.target, goal: template.goal, desc: template.desc, progress: 0, done: false };
+    if (!template) {
+      // Fallback seguro si por alguna razón el template es undefined
+      const fallback = DAILY_CHALLENGE_TYPES[0];
+      ch = { date: today, type: fallback.type, target: fallback.target, goal: fallback.goal, desc: fallback.desc, progress: 0, done: false };
+    } else {
+      ch = { date: today, type: template.type, target: template.target, goal: template.goal, desc: template.desc, progress: 0, done: false };
+    }
     updatePlayer(player.id, { daily_challenge: JSON.stringify(ch) });
   }
   return ch;
@@ -1494,7 +1517,7 @@ module.exports = {
   // rooms
   getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, checkTrapRespawns,
   // monsters
-  getMonster, getMonstersInRoom, getAllMonsters, upsertMonster, updateMonster,
+  getMonster, getMonstersInRoom, getAllMonsters, getMonstersForRespawn, upsertMonster, updateMonster,
   // events
   logEvent, getRecentEvents,
   // offline messages (tell)

@@ -802,18 +802,15 @@ function dropLoot(monster, roomId) {
  */
 function checkRespawns() {
   const now = new Date().toISOString();
-  // Buscar todos los monstruos muertos con respawn pendiente
-  const rawDb = db.raw();
-  if (!rawDb) return;
-
-  const results = rawDb.exec(
-    `SELECT * FROM monsters WHERE room_id IS NULL AND respawn_at IS NOT NULL AND respawn_at <= ?`,
-    [now]
-  );
-  if (!results.length) return;
-
-  const { columns, values } = results[0];
-  const monsters = values.map(row => Object.fromEntries(columns.map((c, i) => [c, row[i]])));
+  // Fix DIS-P02: usar db.getMonstersForRespawn() en lugar de raw().exec()
+  let monsters;
+  try {
+    monsters = db.getMonstersForRespawn(now);
+  } catch (e) {
+    console.error('[combat] checkRespawns error al consultar:', e.message);
+    return;
+  }
+  if (!monsters || !monsters.length) return;
 
   for (const m of monsters) {
     if (!m.respawn_room_id) continue;
