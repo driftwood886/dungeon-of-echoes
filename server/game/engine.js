@@ -2012,20 +2012,51 @@ function cmdLoot(player) {
     return { text: 'No hay nada en el suelo para recoger.' };
   }
 
-  // Transferir todos los ítems del suelo al inventario
-  const newInventory = [...player.inventory, ...floorItems];
+  // DIS-016: Convertir monedas automáticamente al saquear (no agregar al inventario)
+  const GOLD_ITEMS_LOOT = {
+    'monedas de oro': 10,
+    'monedas': 5,
+    'oro': 15,
+    'bolsa de monedas': 25,
+    'cofre de oro': 50,
+    'monedas de cobre': 1,
+    'monedas de plata': 5,
+  };
+
+  let goldCollected = 0;
+  const nonGoldItems = [];
+  for (const item of floorItems) {
+    const gKey = Object.keys(GOLD_ITEMS_LOOT).find(k =>
+      item.toLowerCase().includes(k) || k.includes(item.toLowerCase())
+    );
+    if (gKey) {
+      goldCollected += GOLD_ITEMS_LOOT[gKey];
+    } else {
+      nonGoldItems.push(item);
+    }
+  }
+
+  // Agregar solo ítems no-oro al inventario
+  const newInventory = [...player.inventory, ...nonGoldItems];
   db.updatePlayer(player.id, { inventory: newInventory });
+  if (goldCollected > 0) {
+    const freshP = db.getPlayer(player.id);
+    db.updatePlayer(player.id, { gold: (freshP.gold || 0) + goldCollected });
+  }
   db.updateRoomItems(room.id, []);
 
-  const lista = floorItems.map(i => {
+  const lista = nonGoldItems.map(i => {
     const emoji = items.getRarityEmoji(i);
     const rarity = items.getItemRarity(i);
     const rarityTag = rarity !== 'común' ? ` [${rarity}]` : '';
     return `  ${emoji} ${i}${rarityTag}`;
   }).join('\n');
 
+  const totalItems = nonGoldItems.length + (goldCollected > 0 ? 1 : 0);
+  const goldLine = goldCollected > 0 ? `\n  💰 +${goldCollected} monedas de oro` : '';
+
   return {
-    text: `Recogés todo del suelo (${floorItems.length} ítem${floorItems.length !== 1 ? 's' : ''}):\n${lista}`,
+    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}`,
     event: `${player.username} saquea el suelo de la sala.`,
     eventRoomId: room.id,
   };
