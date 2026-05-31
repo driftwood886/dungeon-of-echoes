@@ -295,6 +295,7 @@ function execute(playerId, input, context) {
     case 'weekly':       result = cmdWeekly(player); break;         // T208
     case 'tips':         result = cmdTips(action.args); break;       // T209
     case 'goals':        result = cmdGoals(player); break;           // T210
+    case 'battlecry':    result = cmdBattlecry(player, action.args); break; // T211
     case 'score_time':   result = cmdScoreTime(); break;
     case 'stance':       result = cmdStance(player, action.args); break;
     case 'path':         result = cmdPath(player, action.args); break;
@@ -952,6 +953,10 @@ function cmdAttack(player, targetName) {
     return _cmdTrainingFight(player, monster);
   }
 
+  // ── T211: Grito de batalla ─────────────────────────────────────────────────
+  const freshForCry = db.getPlayer(player.id);
+  const battlecryText = freshForCry && freshForCry.battlecry ? freshForCry.battlecry : null;
+
   // ── T192: Sistema de combos ────────────────────────────────────────────────
   // Calcular nivel de combo ANTES del ataque, para aplicar bonus al daño
   const prevCombo = comboMap.get(player.id);
@@ -1256,9 +1261,18 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // ── T211: Prefijar el grito de batalla (solo en primer turno del combate) ──
+  const battlecryPrefix = battlecryText && !prevCombo
+    ? `⚔️ "${battlecryText}" — grita ${player.username}.\n`
+    : '';
+  // El grito también se emite como evento de sala para que otros jugadores lo escuchen
+  const battlecryEvent = battlecryText && !prevCombo
+    ? `⚔️ ${player.username} grita: "${battlecryText}"`
+    : null;
+
   return {
-    text: lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg + worldGoalMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : ''),
-    event: eventText,
+    text: battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg + worldGoalMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : ''),
+    event: battlecryEvent || eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || (worldGoalMsg ? worldGoalMsg.replace(/\n/, '') : null) || (recordMsgs.length ? recordMsgs[0] : null) || null,
     sessionKill: !!monsterDead,  // T155: tracking de kills de sesión
@@ -9448,6 +9462,39 @@ function cmdEpitaph(player, args) {
 
   db.updatePlayer(player.id, { epitaph: text });
   return { text: `🪦 Epitafio guardado: "${text}"\nAparecerá en el memorial si morís en modo Hardcore.` };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// T211: cmdBattlecry — Grito de batalla personal al atacar
+// ══════════════════════════════════════════════════════════════════════════════
+function cmdBattlecry(player, args) {
+  if (!args || args.length === 0) {
+    const fresh = db.getPlayer(player.id);
+    const current = fresh.battlecry;
+    const lines = [];
+    lines.push(`══ ⚔️ Tu Grito de Batalla ══`);
+    if (current) {
+      lines.push(`Actual: "${current}"`);
+      lines.push(`Usá: battlecry clear  — para borrarlo.`);
+    } else {
+      lines.push(`(Sin grito configurado)`);
+    }
+    lines.push(`Usá: battlecry <texto> — para establecer tu grito (máx 60 chars).`);
+    lines.push(`Se muestra a todos en la sala al inicio de cada combate.`);
+    return { text: lines.join('\n') };
+  }
+
+  const subCmd = args[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (subCmd === 'clear' || subCmd === 'borrar' || subCmd === 'quitar') {
+    db.updatePlayer(player.id, { battlecry: null });
+    return { text: `⚔️ Grito de batalla eliminado. Ahora atacarás en silencio.` };
+  }
+
+  const text = args.join(' ').trim().slice(0, 60);
+  if (text.length < 2) return { text: 'El grito debe tener al menos 2 caracteres.' };
+
+  db.updatePlayer(player.id, { battlecry: text });
+  return { text: `⚔️ Grito de batalla configurado: "${text}"\n¡La sala entera lo escuchará cuando ataques!` };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

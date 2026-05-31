@@ -244,6 +244,8 @@ const COMMAND_ALIASES = {
   guide: 'guide', guia: 'guide', guía: 'guide', manual: 'guide', inicio: 'guide', empezar: 'guide',
   tips: 'tips', tip: 'tips', consejo: 'tips', consejos: 'tips', trucos: 'tips', ayudame: 'tips',  // T209
   goals: 'goals', objetivos: 'goals', metas: 'goals', misiones_personales: 'goals', proximos: 'goals', 'qué-hacer': 'goals',  // T210
+  // battlecry / grito de batalla (T211)
+  battlecry: 'battlecry', 'grito-de-batalla': 'battlecry', grito: 'battlecry', 'grito-guerra': 'battlecry', gritoguerra: 'battlecry',
   // friend / amigos (T173)
   friend: 'friend', amigo: 'friend', amigos: 'friend', friends: 'friend',
   // vault / bóveda personal (T200)
