@@ -519,11 +519,28 @@ function migrateAuctionRoom() {
   }
 }
 
-// Fix: migrateTrainingRoomAccess estaba en exports pero nunca definida — función stub para compatibilidad
+/**
+ * DIS-P11: Conectar sala 21 (Sala de Práctica) desde sala 1 (Entrada de la Cripta)
+ * via dirección 'down'/'bajar' para que sea accesible sin pasar por el tutorial.
+ * También actualizar sala 21 para tener salida de regreso a sala 1 (up/subir).
+ * Idempotente: solo modifica si la salida no existe aún.
+ */
 function migrateTrainingRoomAccess() {
-  // La sala de práctica (21) se conecta directamente desde sala 1 o 2 para ser accesible sin el tutorial.
-  // Verificar si sala 1 ya tiene acceso a sala 21 (si no, conectar via 'training' o dejar como está).
-  // Por ahora no modificar exits para no romper el mapa existente.
+  // Conectar sala 1 → sala 21 via 'down'
+  const room1 = db.getRoom(1);
+  if (room1 && !room1.exits.down) {
+    const exits1 = { ...room1.exits, down: 21 };
+    db.upsertRoom({ ...room1, exits: exits1 });
+    console.log('[seed] migrateTrainingRoomAccess: Sala 1 actualizada con salida down → 21.');
+  }
+
+  // Conectar sala 21 → sala 1 via 'up' (además del north → 16 existente)
+  const room21 = db.getRoom(21);
+  if (room21 && !room21.exits.up) {
+    const exits21 = { ...room21.exits, up: 1 };
+    db.upsertRoom({ ...room21, exits: exits21 });
+    console.log('[seed] migrateTrainingRoomAccess: Sala 21 actualizada con salida up → 1.');
+  }
 }
 
 module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess };
