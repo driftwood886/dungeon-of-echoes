@@ -5034,6 +5034,15 @@ const SPELL_CATALOG = {
     aliases: ['curar', 'heal', 'sanación', 'sanacion', 'regenerar', 'vida'],
     icon: '✨',
   },
+  'rayo': {
+    cost: 12,
+    type: 'damage',
+    amount: 15,
+    description: 'Invoca un rayo de tormenta. 15 de daño y 25% de probabilidad de aturdir al objetivo.',
+    aliases: ['lightning', 'thunder', 'trueno', 'relámpago', 'relampago', 'rayo_de_tormenta'],
+    icon: '⚡',
+    stun_chance: 0.25,  // T214: 25% de chance de aturdir
+  },
 };
 
 /**
@@ -5156,6 +5165,17 @@ function cmdCast(player, args) {
     lines.push(`🪄 Lanzás ${spell.icon} **${spellName}** sobre ${target.name}!`);
     const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago)` : '';
     lines.push(`   ${target.name} recibe ${finalDmg} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
+
+    // T214: stun_chance — hechizos que pueden aturdir al monstruo (ej: rayo)
+    if (spell.stun_chance && newHp > 0 && Math.random() < spell.stun_chance) {
+      // Aplicar aturdimiento guardando en status_effects del monstruo
+      try {
+        const mStatus = JSON.parse(target.status_effects || '{}');
+        mStatus.stunned = 1;  // dura 1 turno
+        db.updateMonster(target.id, { status_effects: JSON.stringify(mStatus) });
+        lines.push(`   ⚡ ¡${target.name} quedó aturdido por el rayo! (pierde su próximo turno de ataque)`);
+      } catch (e) { /* silenciar errores de parseo */ }
+    }
 
     if (newHp <= 0) {
       // Monstruo muerto

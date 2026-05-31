@@ -517,13 +517,30 @@ function attackRound(player, monster) {
 
   // ── T114: Verificar si el monstruo está aturdido (shield_bash stun) ────────
   const monsterFxForStun = monster.status_effects ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects) : {};
-  if (monsterFxForStun.stunned && monsterFxForStun.stunned.turns > 0) {
-    monsterFxForStun.stunned.turns -= 1;
-    if (monsterFxForStun.stunned.turns <= 0) {
-      delete monsterFxForStun.stunned;
-      lines.push(`😵 El ${monster.name} se recupera del aturdimiento.`);
+  // T214: el stun puede ser {turns: N} (T114/shield_bash) o N numérico (T214/rayo)
+  const stunnedVal = monsterFxForStun.stunned;
+  if (stunnedVal) {
+    if (typeof stunnedVal === 'object' && stunnedVal.turns > 0) {
+      // Formato T114 — objeto con turnos
+      monsterFxForStun.stunned.turns -= 1;
+      if (monsterFxForStun.stunned.turns <= 0) {
+        delete monsterFxForStun.stunned;
+        lines.push(`😵 El ${monster.name} se recupera del aturdimiento.`);
+      } else {
+        lines.push(`😵 El ${monster.name} está aturdido y no puede atacar este turno.`);
+      }
+    } else if (typeof stunnedVal === 'number' && stunnedVal > 0) {
+      // Formato T214 — número de turnos restantes
+      const remaining = stunnedVal - 1;
+      if (remaining <= 0) {
+        delete monsterFxForStun.stunned;
+        lines.push(`😵 El ${monster.name} se recupera del aturdimiento eléctrico.`);
+      } else {
+        monsterFxForStun.stunned = remaining;
+        lines.push(`⚡ El ${monster.name} sigue aturdido por el rayo y no puede atacar.`);
+      }
     } else {
-      lines.push(`😵 El ${monster.name} está aturdido y no puede atacar este turno.`);
+      delete monsterFxForStun.stunned;
     }
     monster.status_effects = monsterFxForStun;
     db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterFxForStun) });
