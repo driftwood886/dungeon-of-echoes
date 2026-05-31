@@ -85,6 +85,9 @@ const sessionExploredRooms = new Map();
 // Se resetea al cambiar de objetivo, al morir, o al morir el monstruo.
 const comboMap = new Map();
 const COMBO_MAX = 5;
+
+// T212: estado del campeón de la hora en memoria
+const hourlyChampionMap = new Map(); // key 'champion' → {id, username}
 const COMBO_MSGS = {
   2: '⚡ ¡COMBO x2!',
   3: '🔥 ¡COMBO x3!',
@@ -296,6 +299,7 @@ function execute(playerId, input, context) {
     case 'tips':         result = cmdTips(action.args); break;       // T209
     case 'goals':        result = cmdGoals(player); break;           // T210
     case 'battlecry':    result = cmdBattlecry(player, action.args); break; // T211
+    case 'champion':     result = cmdChampion(); break;                      // T212
     case 'score_time':   result = cmdScoreTime(); break;
     case 'stance':       result = cmdStance(player, action.args); break;
     case 'path':         result = cmdPath(player, action.args); break;
@@ -1012,6 +1016,26 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // ── T212: Campeón de la hora ─────────────────────────────────────────────
+  let championMsg = '';
+  if (monsterDead) {
+    const newHourlyKills = db.incrementHourlyKills(player.id);
+    // Revisar si este jugador es el nuevo campeón (top de la hora)
+    const currentChamp = db.getHourlyChampion();
+    if (currentChamp && currentChamp.id === player.id && newHourlyKills >= 3) {
+      // Es campeón si tiene más que cualquier otro (con al menos 3 kills)
+      const prevChamp = hourlyChampionMap.get('champion');
+      const justCrowned = !prevChamp || prevChamp.id !== player.id;
+      if (justCrowned) {
+        hourlyChampionMap.set('champion', { id: player.id, username: player.username });
+        championMsg = `\n👑 ¡${player.username} es proclamado CAMPEÓN DE LA HORA con ${newHourlyKills} kills!`;
+        Object.assign(combatResult, {
+          globalEvent: `👑 ${player.username} es el nuevo CAMPEÓN DE LA HORA (${newHourlyKills} kills).`,
+        });
+      }
+    }
+  }
+
   // ── Récords del servidor (T195) ───────────────────────────────────────────
   let recordMsgs = [];
   if (monsterDead) {
@@ -1271,7 +1295,7 @@ function cmdAttack(player, targetName) {
     : null;
 
   return {
-    text: battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg + worldGoalMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : ''),
+    text: battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : ''),
     event: battlecryEvent || eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || (worldGoalMsg ? worldGoalMsg.replace(/\n/, '') : null) || (recordMsgs.length ? recordMsgs[0] : null) || null,
@@ -3827,6 +3851,32 @@ function cmdWorld() {
   return {
     text: `🌍 EVENTO ACTIVO: ${ev.name}\n${ev.description}\n⏱ Tiempo restante: ${minLeft}m ${secLeft}s`,
   };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// T212: cmdChampion — Ver el campeón de la hora actual
+// ══════════════════════════════════════════════════════════════════════════════
+function cmdChampion() {
+  const W = 48;
+  const champ = db.getHourlyChampion();
+  const lines = [];
+  lines.push(`╔${'═'.repeat(W)}╗`);
+  lines.push(`║${'  👑  CAMPEÓN DE LA HORA'.padEnd(W)}║`);
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  if (!champ || champ.hourly_kills < 3) {
+    lines.push(`║  (Nadie ha reclamado el título aún)`.padEnd(W + 2) + `║`);
+    lines.push(`║  Necesitás al menos 3 kills esta hora.`.padEnd(W + 2) + `║`);
+  } else {
+    const now = new Date();
+    const minLeft = 59 - now.getUTCMinutes();
+    lines.push(`║  ⚔️  ${champ.username}`.padEnd(W + 2) + `║`);
+    lines.push(`║  Kills esta hora: ${champ.hourly_kills}`.padEnd(W + 2) + `║`);
+    lines.push(`║  Nivel: ${champ.level || 1}`.padEnd(W + 2) + `║`);
+    lines.push(`╠${'═'.repeat(W)}╣`);
+    lines.push(`║  El título se renueva en ${minLeft} min.`.padEnd(W + 2) + `║`);
+  }
+  lines.push(`╚${'═'.repeat(W)}╝`);
+  return { text: lines.join('\n') };
 }
 
 

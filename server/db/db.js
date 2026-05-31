@@ -166,6 +166,8 @@ async function init() {
     `ALTER TABLE players ADD COLUMN vault TEXT NOT NULL DEFAULT '[]'`,                // T200: bóveda personal
     `ALTER TABLE players ADD COLUMN epitaph TEXT`,                                    // T201: epitafio personal
     `ALTER TABLE players ADD COLUMN battlecry TEXT`,                                  // T211: grito de batalla personal
+    `ALTER TABLE players ADD COLUMN hourly_kills INTEGER NOT NULL DEFAULT 0`,         // T212: kills en la hora actual
+    `ALTER TABLE players ADD COLUMN hourly_kills_reset TEXT`,                         // T212: timestamp del último reset horario
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -1560,6 +1562,46 @@ function getWorldGoalsDisplay() {
 }
 
 
+// ─── T212: Sistema de campeón de la hora ─────────────────────────────────────
+
+/**
+ * Incrementa hourly_kills del jugador. Si la hora cambió desde el último reset,
+ * resetea el contador primero. Retorna el nuevo conteo.
+ */
+function incrementHourlyKills(playerId) {
+  const player = db.prepare('SELECT hourly_kills, hourly_kills_reset FROM players WHERE id = ?').get(playerId);
+  if (!player) return 0;
+
+  const now = new Date();
+  const thisHour = `${now.getUTCFullYear()}-${now.getUTCMonth()}-${now.getUTCDate()}-${now.getUTCHours()}`;
+  const lastReset = player.hourly_kills_reset;
+
+  let newCount;
+  if (lastReset !== thisHour) {
+    // Nueva hora: resetear
+    newCount = 1;
+    db.prepare('UPDATE players SET hourly_kills = 1, hourly_kills_reset = ? WHERE id = ?').run(thisHour, playerId);
+  } else {
+    newCount = (player.hourly_kills || 0) + 1;
+    db.prepare('UPDATE players SET hourly_kills = ? WHERE id = ?').run(newCount, playerId);
+  }
+  return newCount;
+}
+
+/**
+ * Retorna el jugador con más hourly_kills en la hora actual (o null si nadie tiene >0).
+ */
+function getHourlyChampion() {
+  const now = new Date();
+  const thisHour = `${now.getUTCFullYear()}-${now.getUTCMonth()}-${now.getUTCDate()}-${now.getUTCHours()}`;
+  const row = db.prepare(
+    `SELECT id, username, hourly_kills, level FROM players
+     WHERE hourly_kills_reset = ? AND hourly_kills > 0
+     ORDER BY hourly_kills DESC LIMIT 1`
+  ).get(thisHour);
+  return row || null;
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -1611,4 +1653,6 @@ module.exports = {
   incrementWorldGoal, getWorldGoalsDisplay, WORLD_GOAL_MILESTONES, WORLD_GOAL_LABELS,
   // T195: récords del servidor
   trySetServerRecord, getAllServerRecords, SERVER_RECORDS_DEFS,
+  // T212: campeón de la hora
+  incrementHourlyKills, getHourlyChampion,
 };

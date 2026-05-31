@@ -246,6 +246,8 @@ const COMMAND_ALIASES = {
   goals: 'goals', objetivos: 'goals', metas: 'goals', misiones_personales: 'goals', proximos: 'goals', 'qué-hacer': 'goals',  // T210
   // battlecry / grito de batalla (T211)
   battlecry: 'battlecry', 'grito-de-batalla': 'battlecry', grito: 'battlecry', 'grito-guerra': 'battlecry', gritoguerra: 'battlecry',
+  // champion / campeón de la hora (T212)
+  champion: 'champion', campeon: 'champion', campeón: 'champion', 'campeon-de-la-hora': 'champion', 'rey-de-la-hora': 'champion',
   // friend / amigos (T173)
   friend: 'friend', amigo: 'friend', amigos: 'friend', friends: 'friend',
   // vault / bóveda personal (T200)
