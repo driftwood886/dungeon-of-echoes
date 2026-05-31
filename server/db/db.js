@@ -168,6 +168,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN battlecry TEXT`,                                  // T211: grito de batalla personal
     `ALTER TABLE players ADD COLUMN hourly_kills INTEGER NOT NULL DEFAULT 0`,         // T212: kills en la hora actual
     `ALTER TABLE players ADD COLUMN hourly_kills_reset TEXT`,                         // T212: timestamp del último reset horario
+    `ALTER TABLE players ADD COLUMN room_notes TEXT NOT NULL DEFAULT '{}'`,           // T218: notas de exploración por sala
   ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }

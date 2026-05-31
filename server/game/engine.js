@@ -302,6 +302,7 @@ function execute(playerId, input, context) {
     case 'battlecry':    result = cmdBattlecry(player, action.args); break; // T211
     case 'champion':     result = cmdChampion(); break;                      // T212
     case 'gamble':       result = cmdGamble(player, action.args); break;     // T217
+    case 'roomnote':     result = cmdRoomNote(player, action.args); break;   // T218
     case 'score_time':   result = cmdScoreTime(); break;
     case 'stance':       result = cmdStance(player, action.args); break;
     case 'path':         result = cmdPath(player, action.args); break;
@@ -10255,4 +10256,118 @@ function cmdGamble(player, args) {
     text: boxText,
     event: broadcastMsg,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T218: Notas de exploración por sala — roomnote/mnota [add <texto>|list|del <n>]
+// ─────────────────────────────────────────────────────────────────────────────
+function cmdRoomNote(player, args) {
+  const MAX_NOTES_PER_ROOM = 3;
+  const MAX_ROOMS_WITH_NOTES = 10;
+  const MAX_TEXT_LEN = 120;
+
+  const fresh = db.getPlayer(player.id);
+  const roomId = String(fresh.current_room_id);
+
+  // Parsear room_notes desde BD
+  let roomNotes = {};
+  try {
+    roomNotes = JSON.parse(fresh.room_notes || '{}');
+  } catch (_) { roomNotes = {}; }
+
+  const sub = (args && args[0] || 'list').toLowerCase();
+
+  // ── LIST (sin args o "list") ──────────────────────────────────────────────
+  if (sub === 'list' || sub === 'listar' || sub === 'ver') {
+    const notes = roomNotes[roomId] || [];
+    if (notes.length === 0) {
+      const room = db.getRoom(fresh.current_room_id);
+      return { text: `📋 No tenés notas en ${room ? room.name : 'esta sala'}.\n  Usá: mnota add <texto>  para agregar una.` };
+    }
+    const room = db.getRoom(fresh.current_room_id);
+    const W = 54;
+    const lines = [
+      `╔${'═'.repeat(W)}╗`,
+      `║${'  📋 NOTAS — ' + (room ? room.name : 'Sala ' + roomId).slice(0, W - 12) + ''.padEnd(2)}`.padEnd(W + 1) + '║',
+      `╠${'═'.repeat(W)}╣`,
+    ];
+    notes.forEach((n, i) => {
+      const ts = n.created_at ? n.created_at.slice(11, 16) : '';
+      const prefix = `  ${i + 1}. `;
+      const maxLen = W - prefix.length;
+      const text = n.text.length > maxLen ? n.text.slice(0, maxLen - 1) + '…' : n.text;
+      lines.push(`║${(prefix + text).padEnd(W)}║`);
+      if (ts) lines.push(`║${'     [' + ts + ']'.padEnd(W - 5)}║`);
+    });
+    lines.push(`╠${'═'.repeat(W)}╣`);
+    lines.push(`║${'  mnota add <texto>  ·  mnota del <n>'.padEnd(W)}║`);
+    lines.push(`╚${'═'.repeat(W)}╝`);
+    return { text: lines.join('\n') };
+  }
+
+  // ── ADD ───────────────────────────────────────────────────────────────────
+  if (sub === 'add' || sub === 'agregar' || sub === 'nueva' || sub === 'anotar') {
+    const text = args.slice(1).join(' ').trim();
+    if (!text) {
+      return { text: '❌ Usá: mnota add <texto de la nota>' };
+    }
+    if (text.length > MAX_TEXT_LEN) {
+      return { text: `❌ La nota no puede superar ${MAX_TEXT_LEN} caracteres.` };
+    }
+
+    // Verificar límite de salas con notas
+    const roomsWithNotes = Object.keys(roomNotes).filter(k => roomNotes[k] && roomNotes[k].length > 0);
+    if (!roomNotes[roomId] && roomsWithNotes.length >= MAX_ROOMS_WITH_NOTES) {
+      return { text: `❌ Ya tenés notas en ${MAX_ROOMS_WITH_NOTES} salas distintas. Borrá notas viejas primero.` };
+    }
+
+    if (!roomNotes[roomId]) roomNotes[roomId] = [];
+
+    if (roomNotes[roomId].length >= MAX_NOTES_PER_ROOM) {
+      return { text: `❌ Ya tenés ${MAX_NOTES_PER_ROOM} notas en esta sala. Borrá una primero con: mnota del <n>` };
+    }
+
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    roomNotes[roomId].push({ text, created_at: now });
+    db.updatePlayer(player.id, { room_notes: JSON.stringify(roomNotes) });
+
+    const room = db.getRoom(fresh.current_room_id);
+    return { text: `📋 Nota agregada en ${room ? room.name : 'esta sala'} (${roomNotes[roomId].length}/${MAX_NOTES_PER_ROOM}):\n  "${text}"` };
+  }
+
+  // ── DEL ───────────────────────────────────────────────────────────────────
+  if (sub === 'del' || sub === 'borrar' || sub === 'eliminar' || sub === 'delete') {
+    const idx = parseInt(args[1], 10);
+    const notes = roomNotes[roomId] || [];
+    if (!idx || isNaN(idx) || idx < 1 || idx > notes.length) {
+      return { text: `❌ Usá: mnota del <número>  (del 1 al ${notes.length || 1})` };
+    }
+    const removed = notes.splice(idx - 1, 1)[0];
+    if (notes.length === 0) delete roomNotes[roomId];
+    db.updatePlayer(player.id, { room_notes: JSON.stringify(roomNotes) });
+    return { text: `📋 Nota #${idx} eliminada:\n  "${removed.text}"` };
+  }
+
+  // ── ROOMS (listar todas las salas con notas) ─────────────────────────────
+  if (sub === 'all' || sub === 'todas' || sub === 'mapa' || sub === 'salas') {
+    const entries = Object.entries(roomNotes).filter(([, notes]) => notes && notes.length > 0);
+    if (entries.length === 0) {
+      return { text: '📋 No tenés notas en ninguna sala todavía.' };
+    }
+    const W = 54;
+    const lines = [
+      `╔${'═'.repeat(W)}╗`,
+      `║${'  📋 SALAS CON NOTAS'.padEnd(W)}║`,
+      `╠${'═'.repeat(W)}╣`,
+    ];
+    entries.forEach(([rid, notes]) => {
+      const room = db.getRoom(parseInt(rid, 10));
+      const name = room ? room.name : `Sala ${rid}`;
+      lines.push(`║${('  Sala ' + rid + ' — ' + name + ' (' + notes.length + ' nota' + (notes.length > 1 ? 's' : '') + ')').padEnd(W)}║`);
+    });
+    lines.push(`╚${'═'.repeat(W)}╝`);
+    return { text: lines.join('\n') };
+  }
+
+  return { text: '📋 Uso:\n  mnota [list]           — Ver notas de la sala actual\n  mnota add <texto>      — Agregar nota\n  mnota del <número>     — Borrar nota\n  mnota salas            — Ver todas las salas con notas' };
 }

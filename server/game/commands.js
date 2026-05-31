@@ -251,6 +251,8 @@ const COMMAND_ALIASES = {
   champion: 'champion', campeon: 'champion', campeón: 'champion', 'campeon-de-la-hora': 'champion', 'rey-de-la-hora': 'champion',
   // gamble / apostar en casa de subastas (T217)
   gamble: 'gamble', casino: 'gamble', tirar_dados: 'gamble', jugar_oro: 'gamble', apostar_casino: 'gamble',
+  // roomnote / notas de exploración por sala (T218)
+  roomnote: 'roomnote', mnota: 'roomnote', 'nota-sala': 'roomnote', 'notas-sala': 'roomnote', roomnotes: 'roomnote',
   // friend / amigos (T173)
   friend: 'friend', amigo: 'friend', amigos: 'friend', friends: 'friend',
   // vault / bóveda personal (T200)
