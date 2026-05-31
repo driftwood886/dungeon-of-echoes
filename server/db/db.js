@@ -1247,6 +1247,44 @@ function getLeaderboardByPlaytime(limit = 10) {
 }
 
 // T178: Obtener todos los jugadores caídos en modo Hardcore, ordenados por nivel desc
+// ─── DIS-007: Cleanup de jugadores de test ───────────────────────────────────
+
+/**
+ * Devuelve jugadores que parecen de test:
+ * - username empieza con test_, testfind, killtest_, bot_, llm_ o similares
+ * - O no han tenido actividad en los últimos N días
+ */
+function getTestPlayers({ olderThanDays = 7, includeTestNames = true } = {}) {
+  const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
+  const rows = all(
+    `SELECT id, username, level, kills, last_seen, current_room_id
+     FROM players
+     ORDER BY last_seen ASC`
+  );
+  return rows.filter(p => {
+    const name = (p.username || '').toLowerCase();
+    const isTest = includeTestNames && (
+      name.startsWith('test') ||
+      name.startsWith('bot_') ||
+      name.startsWith('llm_') ||
+      name.startsWith('kill') ||
+      name === 'testplayer' ||
+      /^test\d/.test(name) ||
+      /^player\d{3,}$/.test(name)
+    );
+    const isStale = p.last_seen < cutoff;
+    return isTest || isStale;
+  });
+}
+
+/**
+ * Elimina un jugador por ID junto con sus eventos.
+ */
+function deletePlayer(playerId) {
+  run(`DELETE FROM events WHERE player_id = ?`, [playerId]);
+  run(`DELETE FROM players WHERE id = ?`, [playerId]);
+}
+
 function getFallenHardcorePlayers() {
   return all(
     `SELECT username, level, kills, fallen_at, hardcore_generation
@@ -1449,6 +1487,8 @@ module.exports = {
   init, persist,
   // players
   getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, addJournalEntry, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers, getAllPlayers,
+  // DIS-007: cleanup de test players
+  getTestPlayers, deletePlayer,
   // reputación (T125)
   addReputation, getReputationLevel, getLeaderboardByReputation, getLeaderboardByCrafts,
   // rooms

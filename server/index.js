@@ -324,6 +324,59 @@ async function main() {
     });
   });
 
+  /**
+   * GET  /api/admin/cleanup?dry=true  — Listar jugadores candidatos a borrado (DIS-007)
+   * POST /api/admin/cleanup           — Eliminar jugadores de test / inactivos
+   *
+   * Body JSON opcional para POST:
+   *   { "olderThanDays": 7, "includeTestNames": true, "ids": ["id1","id2"] }
+   *   - ids: lista explícita (borra solo esos); si se omite, borra todos los candidatos
+   *
+   * Protegido por ADMIN_TOKEN env var.
+   */
+  function _adminAuth(req, res) {
+    const adminToken = process.env.ADMIN_TOKEN;
+    if (!adminToken) return true;
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    if (token !== adminToken) {
+      res.status(401).json({ error: 'Unauthorized. Provide: Authorization: Bearer <ADMIN_TOKEN>' });
+      return false;
+    }
+    return true;
+  }
+
+  app.get('/api/admin/cleanup', (req, res) => {
+    if (!_adminAuth(req, res)) return;
+    const olderThanDays = parseInt(req.query.olderThanDays || '7', 10);
+    const includeTestNames = req.query.includeTestNames !== 'false';
+    const candidates = db.getTestPlayers({ olderThanDays, includeTestNames });
+    res.json({
+      count: candidates.length,
+      note: 'GET lista candidatos. POST /api/admin/cleanup para eliminarlos.',
+      players: candidates,
+    });
+  });
+
+  app.post('/api/admin/cleanup', (req, res) => {
+    if (!_adminAuth(req, res)) return;
+    const { olderThanDays = 7, includeTestNames = true, ids } = req.body || {};
+    let toDelete;
+    if (Array.isArray(ids) && ids.length > 0) {
+      toDelete = ids.map(id => ({ id }));
+    } else {
+      toDelete = db.getTestPlayers({ olderThanDays, includeTestNames });
+    }
+    const deleted = [];
+    for (const p of toDelete) {
+      db.deletePlayer(p.id);
+      deleted.push(p.id || p);
+    }
+    db.persist();
+    console.log(`[admin] cleanup: ${deleted.length} jugadores eliminados.`);
+    res.json({ deleted: deleted.length, ids: deleted });
+  });
+
   // 5. Crear servidor HTTP
   /**
    * POST /api/action  — Endpoint LLM-friendly (T034)

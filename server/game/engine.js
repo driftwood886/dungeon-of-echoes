@@ -2392,6 +2392,12 @@ function cmdMap(player) {
     timeDecor = '🌙 Noche     ✦  ·  ✦  ·  ✦  ·  ✦  ·  ✦  ·  ✦';
   }
 
+  // DIS-007: Calcular salas con monstruos vivos
+  const allMonsters = db.getAllMonsters();
+  const roomsWithMonsters = new Set(
+    allMonsters.filter(m => m.room_id != null && m.hp > 0).map(m => m.room_id)
+  );
+
   // Abreviaciones para los nombres de sala (max 9 chars para el grid)
   const NAMES = {
     1:  'Entrada',
@@ -2415,7 +2421,8 @@ function cmdMap(player) {
   function cell(id) {
     const label = NAMES[id] || `Sala ${id}`;
     const marker = id === here ? '★' : ' ';
-    return `[${marker}${String(id).padStart(2,' ')} ${label.substring(0,9).padEnd(9,' ')}]`;
+    const swordFlag = roomsWithMonsters.has(id) ? '⚔' : ' ';
+    return `[${marker}${String(id).padStart(2,' ')} ${label.substring(0,9).padEnd(9,' ')}${swordFlag}]`;
   }
 
   const c = (id) => cell(id);
@@ -2448,6 +2455,7 @@ function cmdMap(player) {
     `                                       └───zona expandida`,
     '',
     `★ = tu ubicación actual (sala ${here}: ${NAMES[here] || '?'})`,
+    `⚔ = sala con monstruos vivos`,
     `(Cripta: sala 15 → bajar)`,
   ];
 
