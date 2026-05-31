@@ -294,6 +294,7 @@ function execute(playerId, input, context) {
     case 'sessions':     result = cmdSessions(player); break;
     case 'weekly':       result = cmdWeekly(player); break;         // T208
     case 'tips':         result = cmdTips(action.args); break;       // T209
+    case 'goals':        result = cmdGoals(player); break;           // T210
     case 'score_time':   result = cmdScoreTime(); break;
     case 'stance':       result = cmdStance(player, action.args); break;
     case 'path':         result = cmdPath(player, action.args); break;
@@ -5748,6 +5749,8 @@ function cmdChangelog() {
       '✨ NUEVO: comando tips [tema] — consejos estratégicos organizados por tema',
       '💡 6 categorías: combate, crafteo, clases, economía, exploración, social',
       '📖 Cada tip es accionable y cubre mecánicas avanzadas que el help normal no menciona',
+      '✨ NUEVO: comando goals/objetivos — tus próximos objetivos personalizados',
+      '🎯 Analiza tu progreso actual y sugiere metas concretas: logros próximos, niveles, reputación',
     ]},
     { version: '0.29', date: '2026-05-30', changes: [
       '✨ NUEVO: metas globales del servidor (comando worldgoals/metas)',
@@ -9794,6 +9797,139 @@ function cmdTips(args) {
   if (lines[lines.length - 1] === `║${''.padEnd(W)}║`) lines.pop();
   lines.push(`╚${'═'.repeat(W)}╝`);
   lines.push(`  Otros temas: ${TOPICS.filter(t => t !== topic).join(', ')}`);
+
+  return { text: lines.join('\n') };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// T210: cmdGoals — Objetivos personales calculados on-the-fly
+// Muestra qué cosas el jugador está cerca de lograr.
+// ══════════════════════════════════════════════════════════════════════════════
+function cmdGoals(player) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: '❌ Error al cargar tu personaje.' };
+
+  const level  = fresh.level || 1;
+  const xp     = fresh.xp   || 0;
+  const kills  = fresh.kills || 0;
+  const gold   = fresh.gold  || 0;
+  const rep    = fresh.reputation || 0;
+  const mana   = fresh.mana  || 0;
+  const maxMana = fresh.max_mana || 20;
+  const hp     = fresh.hp;
+  const maxHp  = fresh.max_hp;
+  const achievements = JSON.parse(fresh.achievements || '[]');
+  const bestiary = JSON.parse(fresh.bestiary || '{}');
+  const craftsCount = fresh.crafts_count || 0;
+  const deaths  = fresh.deaths || 0;
+  const goldSpent = fresh.gold_spent || 0;
+  const duelWins = fresh.duel_wins || 0;
+  const playtime = fresh.playtime_minutes || 0;
+  const roomsVisited = fresh.rooms_visited || 0;
+
+  const goals = [];
+  const done  = [];
+
+  // ─── Progresión de nivel ───────────────────────────────────────────────────
+  const xpForNext = 50 - (xp % 50);
+  if (xpForNext <= 50) {
+    goals.push(`⬆️  Subir al nivel ${level + 1}: faltan ${xpForNext} XP (tenés ${xp % 50}/50)`);
+  }
+
+  // ─── Habilidades por nivel ─────────────────────────────────────────────────
+  if (level < 3) {
+    goals.push(`⚡ Desbloquear habilidad SMASH: llegá al nivel 3 (nivel actual: ${level})`);
+  } else if (level < 6) {
+    goals.push(`🛡️  Desbloquear SHIELD_BASH: llegá al nivel 6 (nivel actual: ${level})`);
+  } else if (level < 10) {
+    goals.push(`📣 Desbloquear RALLY (buff de grupo): llegá al nivel 10 (nivel actual: ${level})`);
+  }
+
+  // ─── Reputación ───────────────────────────────────────────────────────────
+  const REP_TIERS = [
+    { threshold: 10,  label: 'Conocido',    discount: 'sin descuento todavía' },
+    { threshold: 30,  label: 'Respetado',   discount: '-5% en tienda' },
+    { threshold: 75,  label: 'Famoso',      discount: '-10% en tienda' },
+    { threshold: 150, label: 'Legendario',  discount: '-15% en tienda' },
+  ];
+  const nextRep = REP_TIERS.find(t => rep < t.threshold);
+  if (nextRep) {
+    goals.push(`⭐ Ser ${nextRep.label} (${nextRep.discount}): faltan ${nextRep.threshold - rep} puntos de reputación (tenés ${rep})`);
+  }
+
+  // ─── Logros secretos ──────────────────────────────────────────────────────
+  if (deaths < 3 && !achievements.includes('Temerario')) {
+    goals.push(`🎖️  Logro secreto "Temerario": morir ${3 - deaths} veces más`);
+  }
+  if (goldSpent < 200 && !achievements.includes('Mecenas')) {
+    goals.push(`💰 Logro secreto "Mecenas": gastar ${200 - goldSpent}g más en la tienda`);
+  }
+  if (craftsCount < 5 && !achievements.includes('Artesano')) {
+    goals.push(`⚗️  Logro secreto "Artesano": craftear ${5 - craftsCount} ítems más`);
+  }
+  if (roomsVisited < 19 && !achievements.includes('Cartógrafo')) {
+    goals.push(`🗺️  Logro secreto "Cartógrafo": visitar ${19 - roomsVisited} salas más (has visitado ${roomsVisited}/19+)`);
+  }
+
+  // ─── Kills para logros ────────────────────────────────────────────────────
+  if (kills < 10 && !achievements.includes('Asesino en Serie')) {
+    goals.push(`⚔️  Logro "Asesino en Serie": necesitás ${10 - kills} kills más`);
+  } else if (kills < 50 && !achievements.includes('Masacre Total')) {
+    goals.push(`⚔️  Logro "Masacre Total": necesitás ${50 - kills} kills más (tenés ${kills})`);
+  }
+
+  // ─── Veterano ─────────────────────────────────────────────────────────────
+  if (playtime < 60) {
+    goals.push(`🏰 Logro secreto "Veterano del Dungeon": jugá ${60 - playtime} minutos más (acumulaste ${playtime}min)`);
+  }
+
+  // ─── Boss ─────────────────────────────────────────────────────────────────
+  if (!achievements.includes('Cazador de Lich')) {
+    goals.push(`💀 Logro "Cazador de Lich": matá al Lich Anciano en sala 15 (Catedral Maldita)`);
+  }
+
+  // ─── Duelos ───────────────────────────────────────────────────────────────
+  if (duelWins === 0) {
+    goals.push(`🥊 Ganar tu primer duelo PvP: retá a alguien con "duel <jugador>"`);
+  }
+
+  // ─── Crafteo ──────────────────────────────────────────────────────────────
+  if (craftsCount === 0) {
+    goals.push(`🔧 Probar el crafteo por primera vez: usá "recetas" y luego "craft"`);
+  }
+
+  const W = 54;
+  const lines = [];
+  lines.push(`╔${'═'.repeat(W)}╗`);
+  lines.push(`║${'  🎯 TUS PRÓXIMOS OBJETIVOS'.padEnd(W)}║`);
+  lines.push(`╠${'═'.repeat(W)}╣`);
+
+  if (goals.length === 0) {
+    lines.push(`║${'  ¡Sos una leyenda del dungeon! No hay metas'.padEnd(W)}║`);
+    lines.push(`║${'  pendientes obvias — crea las tuyas propias.'.padEnd(W)}║`);
+  } else {
+    // Mostrar máximo 6 objetivos para no abrumar
+    const toShow = goals.slice(0, 6);
+    toShow.forEach(g => {
+      // Partir líneas largas en dos si superan W-4
+      if (g.length > W - 4) {
+        // Cortar en el espacio más cercano al W/2
+        const half = Math.floor((W - 4) * 0.6);
+        const cut = g.lastIndexOf(' ', half);
+        const a = cut > 0 ? g.slice(0, cut) : g.slice(0, W - 4);
+        const b = cut > 0 ? g.slice(cut + 1) : g.slice(W - 4);
+        lines.push(`║  ${a.padEnd(W - 3)}║`);
+        if (b) lines.push(`║     ${b.padEnd(W - 5)}║`);
+      } else {
+        lines.push(`║  ${g.padEnd(W - 3)}║`);
+      }
+    });
+    if (goals.length > 6) {
+      lines.push(`╠${'═'.repeat(W)}╣`);
+      lines.push(`║${'  ... y ' + (goals.length - 6) + ' objetivos más por descubrir.'.padEnd(W)}║`);
+    }
+  }
+  lines.push(`╚${'═'.repeat(W)}╝`);
 
   return { text: lines.join('\n') };
 }
