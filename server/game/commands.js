@@ -242,6 +242,7 @@ const COMMAND_ALIASES = {
   find: 'find', encontrar: 'find', localizar: 'find', donde: 'find', 'dónde': 'find',
   // guide / guía (T170)
   guide: 'guide', guia: 'guide', guía: 'guide', manual: 'guide', inicio: 'guide', empezar: 'guide',
+  tips: 'tips', tip: 'tips', consejo: 'tips', consejos: 'tips', trucos: 'tips', ayudame: 'tips',  // T209
   // friend / amigos (T173)
   friend: 'friend', amigo: 'friend', amigos: 'friend', friends: 'friend',
   // vault / bóveda personal (T200)

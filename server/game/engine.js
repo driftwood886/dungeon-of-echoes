@@ -293,6 +293,7 @@ function execute(playerId, input, context) {
     case 'session':      result = cmdSession(player, context); break;
     case 'sessions':     result = cmdSessions(player); break;
     case 'weekly':       result = cmdWeekly(player); break;         // T208
+    case 'tips':         result = cmdTips(action.args); break;       // T209
     case 'score_time':   result = cmdScoreTime(); break;
     case 'stance':       result = cmdStance(player, action.args); break;
     case 'path':         result = cmdPath(player, action.args); break;
@@ -5744,6 +5745,9 @@ function cmdChangelog() {
       '✨ NUEVO: comando weekly/semana — resumen de actividad de los últimos 7 días',
       '📅 Muestra sesiones jugadas, tiempo total, kills, XP y oro acumulados esta semana',
       '🏆 Incluye mejor sesión por kills y sesión más larga de la semana',
+      '✨ NUEVO: comando tips [tema] — consejos estratégicos organizados por tema',
+      '💡 6 categorías: combate, crafteo, clases, economía, exploración, social',
+      '📖 Cada tip es accionable y cubre mecánicas avanzadas que el help normal no menciona',
     ]},
     { version: '0.29', date: '2026-05-30', changes: [
       '✨ NUEVO: metas globales del servidor (comando worldgoals/metas)',
@@ -9658,3 +9662,138 @@ function cmdWeekly(player) {
   return { text: lines.join('\n') };
 }
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+// T209: cmdTips — Consejos estratégicos por tema
+// ══════════════════════════════════════════════════════════════════════════════
+function cmdTips(args) {
+  const TIPS = {
+    combate: [
+      '⚔️  Elegí tu postura (stance) según la situación: agresivo para matar rápido, defensivo para survivir.',
+      '💥 Los combos de ataque dan hasta +4 dmg extra al 5x — no cambies de objetivo si tenés un combo alto.',
+      '🔮 Usá hechizos: bola-de-fuego hace 10 dmg fijos, útil contra monstruos con mucha defensa.',
+      '⚡ Con nivel 3+ tenés smash (×1.8 daño). Con nivel 6+ tenés shield_bash (stun). ¡Úsalos!',
+      '🐾 Tu mascota puede atacar automáticamente — la araña y serpiente también envenenan monstruos.',
+      '🛡️  Si tu arma tiene runa de hielo (enchant hielo), el monstruo puede perder un turno.',
+      '💉 Llevar siempre 2+ pociones de vida. El boss hace hasta 12 dmg por turno.',
+      '🏃 Huir (flee) te mueve a otra sala automáticamente — úsalo para curar y volver.',
+    ],
+    crafteo: [
+      '⚗️  Usá "lore <ítem>" para ver qué recetas de crafteo usan ese ítem como ingrediente.',
+      '🗡️  Receta estrella: núcleo de forja + espada oxidada = espada de obsidiana (mejor arma básica).',
+      '💉 Receta útil: hierba curativa + poción de salud = poción de vida (cura más HP).',
+      '❄️  Receta rara: fragmento de hielo + cristal helado = lanza espectral (arma de élite).',
+      '🔪 Veneno concentrado + cuchillo = cuchillo envenenado (35% de envenenar en cada golpe).',
+      '🍄 El Túnel de los Hongos (sala 6) es buen lugar para "forage" y conseguir hierbas.',
+      '⛏️  Usá "survey" antes de "forage" en una sala — aumenta 20% las chances de encontrar materiales.',
+      '🏆 Craftear 5 ítems desbloquea el logro secreto "Artesano".',
+    ],
+    clases: [
+      '⚔️  Guerrero: el más resistente (35 HP, 6 ATK). Ideal para matar al boss y tankear.',
+      '🔮 Mago: maná alto y hechizos ×1.5. Regen de maná doble. Mejor daño mágico del juego.',
+      '🗡️  Pícaro: 25% de crítico y 20% de esquiva. Excelente para grinding rápido y duelos PvP.',
+      '🔄 Podés cambiar de clase libremente hasta 5 kills totales. Después es permanente.',
+      '📊 El Pícaro + postura agresiva + combo máximo puede hacer hasta 18+ daño en un golpe.',
+      '🧙 El Mago + hechizo escudo (+5 DEF) + postura defensiva = tanque mágico sorprendente.',
+      '💀 El boss Lich Anciano drena maná — el Guerrero no se ve afectado tanto como el Mago.',
+    ],
+    economia: [
+      '🪙 Oro = kills + loot + quests. El boss Lich Anciano da 50 monedas extra al morir.',
+      '💰 Reputación Respetado+ da descuento en la tienda: -5%/-10%/-15% según nivel.',
+      '🛒 Sell en la tienda (mercader Aldric, sala 4) da solo 40% del precio. Mejor guardar ítems buenos.',
+      '⚖️  "market post <ítem> <precio>" para vender al precio que vos querés en el mercado de jugadores.',
+      '🏦 Guardá oro en la bóveda (vault) en sala 1 antes de arriesgarte en el boss — así no lo perdés en duelos.',
+      '💸 "pay <jugador> <monto>" para transferir oro. Útil para coordinación de guild.',
+      '🎁 Los monstruos de élite (Lich, Campeón Espectral) sueltan ítems épicos — mejor que comprarlos.',
+    ],
+    exploracion: [
+      '🗺️  Usá "path <sala>" para calcular la ruta más corta a cualquier sala del dungeon.',
+      '👁️  "peek <dirección>" mira una sala sin entrar — ideal para evitar trampas y monstruos.',
+      '🌟 Cada sala nueva que visitás en una sesión da +2 XP de bonus.',
+      '⚠️  Cuatro salas tienen trampas activas: desactivarlas con el ítem correcto las desactiva para todos.',
+      '🏔️  El dungeon tiene 22 salas (más sala de práctica). El minimapa muestra ⚔ donde hay monstruos vivos.',
+      '🔐 La sala 7 (Mazmorra) requiere la llave oxidada que está en sala 8.',
+      '⛪ La sala 1 tiene regen sagrada de +1 HP cada 10s si tu HP no está al máximo.',
+      '🌊 La sala 18 (Fuente Eterna) restaura HP completo con "beber" — cooldown global de 10 min.',
+    ],
+    social: [
+      '👥 Formá un grupo (party) para compartir XP cuando matan en la misma sala (75% del atacante).',
+      '🏰 Los guilds tienen misiones colectivas — completarlas da +50 XP y +30 oro a todos los miembros.',
+      '💬 "say" para hablar en la sala, "shout" para hablar globalmente, "whisper" para mensajes privados.',
+      '🏆 Los duelos PvP ganan/pierden 10% del oro del perdedor. Las bounties se cobran automáticamente.',
+      '👋 Saludar mutuamente con "greet" en 30 segundos da +1 reputación a ambos jugadores.',
+      '📋 "bulletin post <mensaje>" para anunciar cosas al servidor entero (expires 6h).',
+    ],
+  };
+
+  const TOPICS = Object.keys(TIPS);
+  const W = 52;
+
+  if (!args || args.length === 0) {
+    // Menú de temas
+    const lines = [];
+    lines.push(`╔${'═'.repeat(W)}╗`);
+    lines.push(`║${'  💡 TIPS ESTRATÉGICOS — Elegí un tema'.padEnd(W)}║`);
+    lines.push(`╠${'═'.repeat(W)}╣`);
+    TOPICS.forEach((t, i) => {
+      const labels = {
+        combate: '⚔️  Combate y habilidades',
+        crafteo: '⚗️  Crafteo y alquimia',
+        clases: '🎭  Clases de personaje',
+        economia: '🪙  Economía y comercio',
+        exploracion: '🗺️  Exploración del dungeon',
+        social: '👥  Multijugador y social',
+      };
+      const label = labels[t] || t;
+      lines.push(`║  ${String(i + 1).padStart(1)}. ${label.padEnd(W - 5)}║`);
+    });
+    lines.push(`╠${'═'.repeat(W)}╣`);
+    lines.push(`║${'  Usá: tips <tema>  (ej: tips combate)'.padEnd(W)}║`);
+    lines.push(`╚${'═'.repeat(W)}╝`);
+    return { text: lines.join('\n') };
+  }
+
+  const query = args.join(' ').toLowerCase()
+    .replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i')
+    .replace(/ó/g, 'o').replace(/ú/g, 'u').replace(/ó/g, 'o');
+
+  // Buscar tema por nombre o número
+  let topic = null;
+  const idx = parseInt(query, 10);
+  if (!isNaN(idx) && idx >= 1 && idx <= TOPICS.length) {
+    topic = TOPICS[idx - 1];
+  } else {
+    topic = TOPICS.find(t => t.startsWith(query) || query.startsWith(t.slice(0, 4)));
+  }
+
+  if (!topic) {
+    return { text: `❓ Tema no encontrado. Usá: tips [${TOPICS.join('|')}]` };
+  }
+
+  const tipList = TIPS[topic];
+  const lines = [];
+  lines.push(`╔${'═'.repeat(W)}╗`);
+  lines.push(`║${'  💡 TIPS: ' + topic.toUpperCase() + '  '.padEnd(W - ('  💡 TIPS: '.length + topic.length))}║`);
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  tipList.forEach(tip => {
+    // Partir líneas largas
+    const words = tip.split(' ');
+    let line = '';
+    words.forEach(w => {
+      if ((line + ' ' + w).trim().length > W - 4) {
+        if (line) lines.push(`║  ${line.padEnd(W - 3)}║`);
+        line = w;
+      } else {
+        line = (line + ' ' + w).trim();
+      }
+    });
+    if (line) lines.push(`║  ${line.padEnd(W - 3)}║`);
+    lines.push(`║${''.padEnd(W)}║`);
+  });
+  // Quitar última línea vacía si sobra
+  if (lines[lines.length - 1] === `║${''.padEnd(W)}║`) lines.pop();
+  lines.push(`╚${'═'.repeat(W)}╝`);
+  lines.push(`  Otros temas: ${TOPICS.filter(t => t !== topic).join(', ')}`);
+
+  return { text: lines.join('\n') };
+}
