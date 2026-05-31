@@ -249,6 +249,8 @@ const COMMAND_ALIASES = {
   battlecry: 'battlecry', 'grito-de-batalla': 'battlecry', grito: 'battlecry', 'grito-guerra': 'battlecry', gritoguerra: 'battlecry',
   // champion / campeón de la hora (T212)
   champion: 'champion', campeon: 'champion', campeón: 'champion', 'campeon-de-la-hora': 'champion', 'rey-de-la-hora': 'champion',
+  // gamble / apostar en casa de subastas (T217)
+  gamble: 'gamble', casino: 'gamble', tirar_dados: 'gamble', jugar_oro: 'gamble', apostar_casino: 'gamble',
   // friend / amigos (T173)
   friend: 'friend', amigo: 'friend', amigos: 'friend', friends: 'friend',
   // vault / bóveda personal (T200)
@@ -448,10 +450,7 @@ Comandos disponibles:
   wanted [jugador]    — Carteles de SE BUSCA: bounties activas en el dungeon, agrupadas por objetivo.
   rank <stat>         — Tu posición global en una estadística (kills, gold, xp, level, rep, deaths, time).
   hardcore [on/off/new] — Modo Hardcore: si morís, tu personaje cae para siempre (ghost mode). Solo antes del primer kill. "hardcore new" crea un sucesor tras caer.
-  pray [ítem]          — Rezar ante un altar (sala 5 o 10): ofrecer un ítem para obtener una bendición temporal.
-  preview <arma/arm>   — Previsualizar cómo cambiarían tus stats si equiparas un arma o armadura del inventario.
-
-Atajos de dirección: n, s, e, o (oeste), w (west)
+  pray [ítem]          — Rezar ante un altar (sala 5 o 10): ofrecer un ítem para obtener una bendición temporal.\n  preview <arma/arm>   — Previsualizar cómo cambiarían tus stats si equiparas un arma o armadura del inventario.\n  gamble <monto>       — Mini-juego de apuestas con dados en la Casa de Subastas (sala 17). Apostás oro vs la casa. Cooldown 2 min.\n\nAtajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
 
 /**

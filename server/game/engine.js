@@ -301,6 +301,7 @@ function execute(playerId, input, context) {
     case 'goals':        result = cmdGoals(player); break;           // T210
     case 'battlecry':    result = cmdBattlecry(player, action.args); break; // T211
     case 'champion':     result = cmdChampion(); break;                      // T212
+    case 'gamble':       result = cmdGamble(player, action.args); break;     // T217
     case 'score_time':   result = cmdScoreTime(); break;
     case 'stance':       result = cmdStance(player, action.args); break;
     case 'path':         result = cmdPath(player, action.args); break;
@@ -10146,4 +10147,112 @@ function cmdGoals(player) {
   lines.push(`╚${'═'.repeat(W)}╝`);
 
   return { text: lines.join('\n') };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T217: Mini-juego de apuestas — gamble/apostar <cantidad>
+// Solo disponible en sala 17 (Casa de Subastas)
+// ─────────────────────────────────────────────────────────────────────────────
+const gamblingCooldowns = new Map(); // playerId → timestamp del último juego
+
+function cmdGamble(player, args) {
+  const GAMBLING_ROOM   = 17;
+  const COOLDOWN_MS     = 2 * 60 * 1000; // 2 minutos
+  const MIN_BET         = 5;
+  const MAX_BET         = 100;
+  const WIN_MULTIPLIER  = 1.8;
+  const BIG_WIN_NOTIFY  = 80; // si gana más de esto → crónica
+
+  if (player.current_room_id !== GAMBLING_ROOM) {
+    return { text: '🎲 Las apuestas solo se hacen en la Casa de Subastas (sala 17).\n   Movete al este desde la Cámara del Tesoro (sala 4).' };
+  }
+
+  // Verificar cooldown
+  const now      = Date.now();
+  const lastPlay = gamblingCooldowns.get(player.id) || 0;
+  const remaining = Math.ceil((lastPlay + COOLDOWN_MS - now) / 1000);
+  if (remaining > 0) {
+    return { text: `⏳ Todavía necesitás esperar ${remaining}s antes de volver a apostar.` };
+  }
+
+  // Parsear monto
+  const raw    = (args || []).join(' ').trim();
+  const amount = parseInt(raw, 10);
+  if (!amount || isNaN(amount) || amount < MIN_BET) {
+    return { text: `🎲 Uso: apostar <cantidad>  (mínimo ${MIN_BET}g, máximo ${MAX_BET}g)` };
+  }
+  if (amount > MAX_BET) {
+    return { text: `🎲 La Casa no acepta apuestas mayores a ${MAX_BET}g por ronda.` };
+  }
+
+  const fresh = db.getPlayer(player.id);
+  if (!fresh || fresh.gold < amount) {
+    return { text: `❌ No tenés suficiente oro. Tenés ${fresh ? fresh.gold : 0}g.` };
+  }
+
+  // Tirar los dados: 2d6 cada uno
+  function roll2d6() {
+    return Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1;
+  }
+
+  const playerRoll = roll2d6();
+  const houseRoll  = roll2d6();
+
+  // Actualizar cooldown
+  gamblingCooldowns.set(player.id, now);
+
+  let outcome, goldDelta, resultText;
+
+  if (playerRoll > houseRoll) {
+    // Victoria
+    goldDelta  = Math.floor(amount * WIN_MULTIPLIER) - amount; // ganancia neta
+    const totalGain = Math.floor(amount * WIN_MULTIPLIER);
+    db.updatePlayer(player.id, { gold: fresh.gold - amount + totalGain });
+    outcome    = 'victoria';
+    resultText = `🎉 ¡GANÁS! Recibís ${totalGain}g (apostaste ${amount}g, ganás ${goldDelta}g de beneficio).`;
+  } else if (playerRoll < houseRoll) {
+    // Derrota
+    goldDelta = -amount;
+    db.updatePlayer(player.id, { gold: fresh.gold - amount });
+    outcome   = 'derrota';
+    resultText = `😞 PERDÉS. La Casa se lleva tus ${amount}g.`;
+  } else {
+    // Empate — devuelve la apuesta
+    goldDelta = 0;
+    outcome   = 'empate';
+    resultText = `🤝 EMPATE. La apuesta de ${amount}g es devuelta.`;
+  }
+
+  const newGold    = fresh.gold + goldDelta;
+  const diceReport = `  Vos: 🎲${playerRoll}  |  Casa: 🎲${houseRoll}`;
+
+  const W    = 50;
+  const lines = [
+    `╔${'═'.repeat(W)}╗`,
+    `║${'  🎰 CASA DE APUESTAS — DUNGEON OF ECHOES'.padEnd(W)}║`,
+    `╠${'═'.repeat(W)}╣`,
+    `║${('  Jugador: ' + player.username + ' · Apuesta: ' + amount + 'g').padEnd(W)}║`,
+    `║${diceReport.padEnd(W)}║`,
+    `╠${'═'.repeat(W)}╣`,
+    `║${('  ' + resultText).padEnd(W)}║`,
+    `║${('  Oro actual: 💰 ' + newGold + 'g').padEnd(W)}║`,
+    `╚${'═'.repeat(W)}╝`,
+  ];
+
+  const boxText     = lines.join('\n');
+  const broadcastMsg = outcome === 'victoria'
+    ? `🎰 ${player.username} apuesta ${amount}g y ¡GANA ${Math.floor(amount * WIN_MULTIPLIER)}g! 🎉 (🎲${playerRoll} vs 🎲${houseRoll})`
+    : outcome === 'derrota'
+    ? `🎰 ${player.username} apuesta ${amount}g y pierde. (🎲${playerRoll} vs 🎲${houseRoll})`
+    : `🎰 ${player.username} apuesta ${amount}g — empate. (🎲${playerRoll} vs 🎲${houseRoll})`;
+
+  // Registrar gran ganancia en crónica global
+  if (outcome === 'victoria' && goldDelta >= BIG_WIN_NOTIFY) {
+    db.logGlobalEvent('gambling_win', `🎰 ${player.username} ganó ${goldDelta}g apostando en la Casa de Subastas. ¡Fortuna bendita!`);
+  }
+
+  return {
+    text: boxText,
+    event: broadcastMsg,
+  };
 }
