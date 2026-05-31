@@ -261,12 +261,39 @@ function formatQuest(player) {
     ].join('\n');
   }
 
+  // Fix DIS-011: indicar dónde encontrar el objetivo (para quests tipo kill)
+  let locationHint = '';
+  if (quest.type === 'kill' && quest.target) {
+    try {
+      const db = require('../db/db');
+      const allMonsters = db.getAllMonsters();
+      const allRooms = db.getAllRooms ? db.getAllRooms() : [];
+      // Buscar monstruo con ese nombre (puede estar vivo o en respawn_room)
+      const matchMonsters = allMonsters.filter(m => {
+        const normalize = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return normalize(m.name).includes(normalize(quest.target));
+      });
+      if (matchMonsters.length > 0) {
+        const roomIds = [...new Set(matchMonsters.map(m => m.respawn_room_id || m.room_id).filter(Boolean))];
+        const roomNames = roomIds.map(rid => {
+          const r = allRooms.find(rm => rm.id === rid);
+          return r ? `sala ${rid} (${r.name})` : `sala ${rid}`;
+        });
+        if (roomNames.length > 0) {
+          locationHint = `\n📍 Dónde encontrarlos: ${roomNames.join(', ')}`;
+        }
+      }
+    } catch (_) {
+      // Si falla no romper el quest display
+    }
+  }
+
   return [
     `══ 📜 QUEST ACTIVA: ${quest.title} ══`,
     quest.description,
     `Progreso: ${bar} ${progress}/${goal} (faltan ${remaining})`,
     `Recompensa: ${rewardStr}`,
-  ].join('\n');
+  ].join('\n') + locationHint;
 }
 
 module.exports = {
