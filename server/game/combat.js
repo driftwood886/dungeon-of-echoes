@@ -782,9 +782,16 @@ function dropLoot(monster, roomId) {
     }
   }
 
-  // Tiempo de respawn: boss = 30 min, normal = 5 min
-  const respawnMinutes = bossDef ? bossDef.respawnMinutes : 5;
-  const respawnAt = new Date(Date.now() + respawnMinutes * 60 * 1000).toISOString();
+  // Tiempo de respawn: boss = 30 min, goblin de práctica = 30s, normal = 5 min
+  // Fix DIS-004: el goblin de práctica (id=20) respawnea rápido para no bloquear el tutorial
+  const PRACTICE_GOBLIN_ID = 20;
+  let respawnAt;
+  if (monster.id === PRACTICE_GOBLIN_ID) {
+    respawnAt = new Date(Date.now() + 30 * 1000).toISOString(); // 30 segundos
+  } else {
+    const respawnMinutes = bossDef ? bossDef.respawnMinutes : 5;
+    respawnAt = new Date(Date.now() + respawnMinutes * 60 * 1000).toISOString();
+  }
   db.updateMonster(monster.id, {
     hp: 0,
     room_id: null,        // ya no está en ninguna sala
