@@ -1734,6 +1734,20 @@ function cmdLore(query) {
     }
   }
 
+  // Fix DIS-008: mostrar pistas de crafteo si el ítem es ingrediente de alguna receta
+  const { RECIPES } = require('./crafting');
+  const craftHints = RECIPES
+    .filter(r => r.ingredients.some(ing => ing.toLowerCase() === itemKey.toLowerCase()))
+    .map(r => {
+      const otherIng = r.ingredients.find(ing => ing.toLowerCase() !== itemKey.toLowerCase());
+      return `  + ${otherIng} → ${r.result}`;
+    });
+  if (craftHints.length > 0) {
+    lines.push('─'.repeat(40));
+    lines.push('🧪 Recetas de crafteo:');
+    craftHints.forEach(h => lines.push(h));
+  }
+
   return { text: lines.join('\n') };
 }
 

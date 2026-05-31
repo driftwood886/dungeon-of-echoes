@@ -53,6 +53,12 @@ const RECIPES = [
     message: 'El hielo antiguo y el cristal mágico se fusionan en una reacción de luz fría. Aparece una lanza de luz negra helada.',
   },
   {
+    // Fix DIS-008: alternativa con ítems que dropean los monstruos de la Galería de Hielo
+    ingredients: ['fragmento de hielo', 'cristal helado'],
+    result: 'lanza espectral',
+    message: 'El fragmento de hielo y el cristal helado se fusionan en un fulgurante estallido de frío eterno. Una lanza de hielo puro y magia emerge de la reacción.',
+  },
+  {
     ingredients: ['garra de esqueleto', 'cuerda'],
     result: 'látigo de garras',
     message: 'Atás las garras de esqueleto con la cuerda para crear un látigo improvisado pero mortal.',
@@ -189,4 +195,4 @@ function listRecipes() {
   return '📖 **Recetas conocidas:**\n' + lines.join('\n');
 }
 
-module.exports = { craft, findRecipe, listRecipes, CRAFTED_ITEMS };
+module.exports = { craft, findRecipe, listRecipes, CRAFTED_ITEMS, RECIPES };
