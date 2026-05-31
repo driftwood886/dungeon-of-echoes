@@ -1230,8 +1230,31 @@ function cmdAttack(player, targetName) {
     killStreakMap.set(player.id, 0);
   }
 
+  // ── DIS-P08: Hint de habilidades disponibles en combate activo ──────────────
+  let skillHint = '';
+  if (!monsterDead && !playerDead) {
+    const freshForSkills = db.getPlayer(player.id);
+    if (freshForSkills) {
+      const unlockedSkills = skills.getUnlockedSkills(freshForSkills.level || 1);
+      if (unlockedSkills.length > 0) {
+        const cooldowns = freshForSkills.skill_cooldowns
+          ? (typeof freshForSkills.skill_cooldowns === 'string' ? JSON.parse(freshForSkills.skill_cooldowns) : freshForSkills.skill_cooldowns)
+          : {};
+        const now = Date.now();
+        const available = unlockedSkills.filter(sk => {
+          const cd = cooldowns[sk.id];
+          return !cd || now > new Date(cd).getTime();
+        });
+        if (available.length > 0) {
+          const skillNames = available.map(sk => `\`${sk.aliases[0]}\` (${sk.name})`).join(', ');
+          skillHint = `\n💡 Habilidades disponibles: ${skillNames} (o seguí con \`attack\`)`;
+        }
+      }
+    }
+  }
+
   return {
-    text: lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg + worldGoalMsg + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : ''),
+    text: lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg + worldGoalMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : ''),
     event: eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || (worldGoalMsg ? worldGoalMsg.replace(/\n/, '') : null) || (recordMsgs.length ? recordMsgs[0] : null) || null,

@@ -292,6 +292,36 @@ async function init() {
   // T157: Columna playtime_minutes en players
   try { db.run(`ALTER TABLE players ADD COLUMN playtime_minutes INTEGER NOT NULL DEFAULT 0`); } catch (_) {}
 
+  // Fix DIS-P02: Migración automática — corregir monstruos con room_id = "null" (string, bug histórico)
+  // Estos monstruos quedaron con room_id = '"null"' en lugar de NULL real por un bug en updateMonster.
+  // Los resucitamos en su respawn_room_id si ya pasó el respawn_at (o directamente si no tiene respawn_at).
+  try {
+    const now = new Date().toISOString();
+    const allMonsters = db.exec('SELECT * FROM monsters');
+    if (allMonsters.length > 0) {
+      const { columns, values } = allMonsters[0];
+      const toFix = values.filter(row => {
+        const roomId = row[columns.indexOf('room_id')];
+        return roomId === 'null' || roomId === null;
+      });
+      for (const row of toFix) {
+        const mId = row[columns.indexOf('id')];
+        const maxHp = row[columns.indexOf('max_hp')];
+        const respawnRoomId = row[columns.indexOf('respawn_room_id')];
+        const respawnAt = row[columns.indexOf('respawn_at')];
+        if (!respawnRoomId) continue; // Sin sala de respawn, no hay nada que hacer
+        // Resucitar si el respawn_at ya pasó o es null
+        if (!respawnAt || respawnAt <= now) {
+          db.run('UPDATE monsters SET hp = ?, room_id = ?, respawn_at = NULL WHERE id = ?',
+            [maxHp, respawnRoomId, mId]);
+          console.log(`[db] Fix DIS-P02: Resucitado monstruo id=${mId} en sala ${respawnRoomId}`);
+        }
+      }
+    }
+  } catch (fixErr) {
+    console.error('[db] Fix DIS-P02 error:', fixErr.message);
+  }
+
   // Guardar al apagar
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });
@@ -426,7 +456,9 @@ function addJournalEntry(playerId, type, message) {
 }
 
 function getPlayersInRoom(roomId) {
-  return all('SELECT * FROM players WHERE current_room_id = ?', [roomId])
+  // Fix DIS-P07: solo mostrar jugadores activos en los últimos 15 minutos para evitar fantasmas
+  const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  return all('SELECT * FROM players WHERE current_room_id = ? AND last_seen > ?', [roomId, cutoff])
     .map(p => ({ ...p, inventory: JSON.parse(p.inventory), status_effects: p.status_effects ? JSON.parse(p.status_effects) : {} }));
 }
 

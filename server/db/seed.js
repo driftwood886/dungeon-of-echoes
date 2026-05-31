@@ -519,6 +519,13 @@ function migrateAuctionRoom() {
   }
 }
 
+// Fix: migrateTrainingRoomAccess estaba en exports pero nunca definida — función stub para compatibilidad
+function migrateTrainingRoomAccess() {
+  // La sala de práctica (21) se conecta directamente desde sala 1 o 2 para ser accesible sin el tutorial.
+  // Verificar si sala 1 ya tiene acceso a sala 21 (si no, conectar via 'training' o dejar como está).
+  // Por ahora no modificar exits para no romper el mapa existente.
+}
+
 module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess };
 
 /**
