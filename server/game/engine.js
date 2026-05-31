@@ -3324,10 +3324,12 @@ function cmdBuy(player, itemQuery) {
     return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).' };
   }
 
-  const query = itemQuery.trim().toLowerCase();
-  const item = SHOP_CATALOG.find(i =>
-    i.name.toLowerCase().includes(query) || query.includes(i.name.toLowerCase())
-  );
+  const query = itemQuery.trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // DIS-005: normalizar tildes
+  const item = SHOP_CATALOG.find(i => {
+    const itemNorm = i.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return itemNorm.includes(query) || query.includes(itemNorm);
+  });
 
   if (!item) {
     return { text: `El mercader sacude la cabeza. "No vendo eso." Escribí "tienda" para ver el catálogo.` };

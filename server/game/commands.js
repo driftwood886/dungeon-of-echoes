@@ -337,6 +337,13 @@ function parse(input) {
     return { command: 'gesture', args: [GESTURE_MAP[first] || first, ...rest], raw: trimmed };
   }
 
+  // Para 'useSkill', siempre incluir el comando original (alias del skill) como primer arg
+  if (canonical === 'useSkill') {
+    // DIS-009 fix: args[0] debe ser el nombre de la habilidad (el comando escrito), no el objetivo.
+    // Ej: 'smash guardia' → args: ['smash', 'guardia'] para que resolveSkillAlias('smash') funcione.
+    return { command: 'useSkill', args: [first, ...rest], raw: trimmed };
+  }
+
   return {
     command: canonical,
     args: rest,

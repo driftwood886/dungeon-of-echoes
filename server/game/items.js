@@ -75,7 +75,7 @@ const ITEM_CATALOG = {
   'lingote de hierro':   { type: 'misc', description: 'Un lingote de hierro puro, salido directo de la forja. Pesado y caliente aún.' },
   'perla negra':         { type: 'misc', description: 'Una perla de un negro absoluto del lago subterráneo. Tiene un valor incalculable.' },
   'red de pesca':        { type: 'misc', description: 'Una red de pesca resistente. Podría servir para algo más que pescar.' },
-  'escudo de gladiador': { type: 'misc', description: 'El escudo de un gladiador del coliseo de huesos. Lleva el nombre "MAXIMUS" grabado.' },
+  'escudo de gladiador': { type: 'armor', defense: 3, description: 'El escudo de un gladiador del coliseo de huesos. Lleva el nombre "MAXIMUS" grabado. Otorga +3 DEF.' },
   'tomo sellado':        { type: 'misc', description: 'Un tomo sellado con cera negra. Las runas del sello pulsan suavemente. No se puede abrir... aún.' },
   'cristal helado':      { type: 'misc', description: 'Un cristal extraído del cuerpo de un Elemental de Hielo. Conserva el frío de siglos.' },
   'núcleo de forja':     { type: 'misc', description: 'El núcleo energético de un Golem de Forja. Aún irradia calor y magia residual.' },
