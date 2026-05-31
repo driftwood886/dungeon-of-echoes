@@ -10,7 +10,7 @@ const http    = require('http');
 const path    = require('path');
 
 const db                     = require('./db/db');
-const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess } = require('./db/seed');
+const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot } = require('./db/seed');
 const { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions } = require('./game/engine');
 const { checkRespawns, wanderMonsters } = require('./game/combat');
 const quests                 = require('./game/quests');
@@ -33,6 +33,7 @@ async function main() {
   migrateScrollLoot(); // T153
   migrateCryptRoom(); // T179
   migrateTrainingRoomAccess(); // DIS-P11: sala 21 accesible desde sala 1 via down/bajar
+  migrateCraftingLoot(); // DIS-P10: garra de esqueleto en Esqueleto Guerrero + diente en Murciélago
 
   // 2. Crear app Express
   const app = express();
@@ -391,6 +392,9 @@ async function main() {
 
     const result = execute(player_id, command);
 
+    // DIS-001: Guard — si result es undefined (race condition o error silencioso), usar texto genérico
+    const resultText = (result && result.text) ? result.text : '(acción ejecutada)';
+
     // Construir estado post-acción igual que /api/state
     const player  = db.getPlayer(player_id);
     if (!player) return res.status(404).json({ error: 'Jugador no encontrado.' });
@@ -404,7 +408,7 @@ async function main() {
                        .map(e => e.result);
 
     res.json({
-      result: result.text,
+      result: resultText,
       state: {
         room: {
           id: room.id,

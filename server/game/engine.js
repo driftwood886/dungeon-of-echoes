@@ -1347,14 +1347,18 @@ function cmdPick(player, itemQuery) {
   player = db.getPlayer(player.id);
 
   // Ítems de oro: se convierten en monedas reales en lugar de ir al inventario
+  // DIS-016: Conversión inmediata de monedas a gold real (cobre=1g, plata=5g, oro=10g por unidad)
   const GOLD_ITEMS = {
     'monedas de oro': 10,
+    'monedas de plata': 5,
+    'monedas de cobre': 1,
     'monedas': 5,
     'oro': 15,
     'bolsa de monedas': 25,
     'cofre de oro': 50,
   };
-  const goldKey = Object.keys(GOLD_ITEMS).find(k => found.toLowerCase().includes(k) || k.includes(found.toLowerCase()));
+  const foundLower = found.toLowerCase();
+  const goldKey = Object.keys(GOLD_ITEMS).find(k => foundLower.includes(k) || k.includes(foundLower));
   if (goldKey) {
     const amount = GOLD_ITEMS[goldKey];
     const newGold = (player.gold || 0) + amount;
@@ -1747,6 +1751,46 @@ function cmdLore(query) {
     lines.push('🧪 Recetas de crafteo:');
     craftHints.forEach(h => lines.push(h));
   }
+
+  // DIS-P10: mostrar de dónde se puede obtener el ítem (loot de monstruos, tienda, forage)
+  try {
+    const allMonsters = db.getAllMonsters();
+    const droppers = allMonsters.filter(m => {
+      const loot = Array.isArray(m.loot) ? m.loot : (m.loot ? JSON.parse(m.loot) : []);
+      return loot.some(l => l.toLowerCase() === itemKey.toLowerCase());
+    });
+    // También revisar resultado de recetas
+    const craftResult = RECIPES.find(r => r.result.toLowerCase() === itemKey.toLowerCase());
+    // Tienda: catálogo del mercader Aldric
+    const SHOP_CATALOG = [
+      'poción de salud', 'poción mayor', 'antídoto', 'cuchillo oxidado', 'espada oxidada',
+      'hierba curativa', 'poción de maná', 'cuero endurecido', 'cota de malla', 'veste de sombra',
+    ];
+    const inShop = SHOP_CATALOG.some(s => s === itemKey);
+
+    const sources = [];
+    if (droppers.length > 0) {
+      const roomsById = {};
+      const rooms = db.getAllRooms ? db.getAllRooms() : [];
+      rooms.forEach(r => { roomsById[r.id] = r.name; });
+      const dropperNames = droppers.map(m => {
+        const roomName = m.respawn_room_id ? (roomsById[m.respawn_room_id] || `Sala ${m.respawn_room_id}`) : '?';
+        return `${m.name} (${roomName})`;
+      }).slice(0, 4);
+      sources.push(`  ⚔ Loot de: ${dropperNames.join(', ')}`);
+    }
+    if (craftResult) {
+      sources.push(`  ⚗️ Crafteable: ${craftResult.ingredients.join(' + ')}`);
+    }
+    if (inShop) {
+      sources.push(`  🛒 Disponible en la tienda del Mercader Aldric (Sala 4)`);
+    }
+    if (sources.length > 0) {
+      lines.push('─'.repeat(40));
+      lines.push('📍 Cómo obtenerlo:');
+      sources.forEach(s => lines.push(s));
+    }
+  } catch (_) {}
 
   return { text: lines.join('\n') };
 }

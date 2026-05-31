@@ -543,7 +543,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot };
 
 /**
  * T152: Agregar armaduras al loot de algunos monstruos.
@@ -817,5 +817,26 @@ function migrateCryptRoom() {
       db.upsertRoom({ ...room15, exits: exits15 });
       console.log('[seed] migrateCryptRoom: Sala 15 actualizada con salida down → 22.');
     }
+  }
+}
+
+/**
+ * DIS-P10: Agregar materiales de crafteo a los loot de monstruos apropiados.
+ * - Esqueleto Guerrero (id 2) → garra de esqueleto (para receta: garra + cuerda = látigo de garras)
+ * - Murciélago Vampiro (id 4) → diente afilado (para receta: diente + hilo de seda = collar de garras)
+ * - Eco Viviente (id 21) → polvo de eco como alias alternativo junto a esencia de eco
+ */
+function migrateCraftingLoot() {
+  // Esqueleto Guerrero (id 2) → garra de esqueleto
+  const skeleton = db.getMonster(2);
+  if (skeleton && !skeleton.loot.includes('garra de esqueleto')) {
+    db.upsertMonster({ ...skeleton, loot: [...skeleton.loot, 'garra de esqueleto'] });
+    console.log('[seed] migrateCraftingLoot: garra de esqueleto agregada a Esqueleto Guerrero (id 2).');
+  }
+  // Murciélago Vampiro (id 4) → diente afilado (si no lo tiene ya)
+  const bat = db.getMonster(4);
+  if (bat && !bat.loot.includes('diente afilado')) {
+    db.upsertMonster({ ...bat, loot: [...bat.loot, 'diente afilado'] });
+    console.log('[seed] migrateCraftingLoot: diente afilado agregado a Murciélago Vampiro (id 4).');
   }
 }
