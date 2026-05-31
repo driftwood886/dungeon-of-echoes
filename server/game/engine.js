@@ -6047,7 +6047,7 @@ function cmdEnemies(args) {
   // Obtener todos los monstruos junto con el nombre de su sala.
   // Si room_id es NULL (monstruo en respawn), usar respawn_room_id para mostrar dónde reaparecerá.
   const rows = rawDb.exec(`
-    SELECT m.id, m.name, m.hp, m.max_hp, m.attack, m.room_id, m.respawn_at,
+    SELECT m.id, m.name, m.hp, m.max_hp, m.attack, m.room_id, m.respawn_at, m.respawn_room_id,
       CASE WHEN m.room_id IS NOT NULL THEN r.name ELSE rr.name END as room_name
     FROM monsters m
     LEFT JOIN rooms r ON m.room_id = r.id
@@ -6069,7 +6069,7 @@ function cmdEnemies(args) {
   ];
 
   for (const row of rows[0].values) {
-    const [id, name, hp, maxHp, attack, room_id, respawnAt, roomName] = row;
+    const [id, name, hp, maxHp, attack, room_id, respawnAt, respawn_room_id, roomName] = row;
     let status;
     if (room_id) {
       status = `⚔ VIVO (${hp}/${maxHp} HP)`;
@@ -6080,7 +6080,7 @@ function cmdEnemies(args) {
     } else {
       status = `💤 Respawn`;
     }
-    const location = roomName ? roomName : `Sala ${room_id || '?'}`;
+    const location = roomName ? roomName : (respawn_room_id ? `Sala ${respawn_room_id}` : 'Ubicación desconocida');
     const prefix = room_id ? '📍' : '🔮';
     const attackStr = `ATK ${attack}`;
 
@@ -7224,13 +7224,24 @@ function cmdPath(player, args) {
   }
 
   // Construir grafo: roomId → lista de { dir, toId }
+  // DIS-P13: Excluir salidas bloqueadas si el jugador no tiene la llave
+  const playerInventory = player.inventory || [];
   const graph = {};
   for (const room of allRooms) {
     graph[room.id] = [];
     const exits = room.exits || {};
     for (const [dir, dest] of Object.entries(exits)) {
-      const destId = typeof dest === 'object' ? dest.room_id : dest;
-      if (destId) graph[room.id].push({ dir, toId: destId });
+      if (typeof dest === 'object' && dest.key) {
+        // Salida bloqueada por llave — solo incluir si el jugador la tiene
+        const hasKey = playerInventory.some(
+          item => item.toLowerCase() === dest.key.toLowerCase()
+        );
+        if (!hasKey) continue; // Sin llave: excluir esta arista del grafo
+        if (dest.room_id) graph[room.id].push({ dir, toId: dest.room_id });
+      } else {
+        const destId = typeof dest === 'object' ? dest.room_id : dest;
+        if (destId) graph[room.id].push({ dir, toId: destId });
+      }
     }
   }
 

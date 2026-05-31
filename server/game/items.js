@@ -130,11 +130,13 @@ const ITEM_CATALOG = {
  * @returns {object|null} { type, effect, amount, description } o null
  */
 function getItemDef(name) {
-  const key = name.toLowerCase().trim();
+  const nfd = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const key = nfd(name);
   // Coincidencia exacta
-  if (ITEM_CATALOG[key]) return { name: key, ...ITEM_CATALOG[key] };
+  const exactKey = Object.keys(ITEM_CATALOG).find(k => nfd(k) === key);
+  if (exactKey) return { name: exactKey, ...ITEM_CATALOG[exactKey] };
   // Coincidencia parcial
-  const found = Object.keys(ITEM_CATALOG).find(k => k.includes(key) || key.includes(k));
+  const found = Object.keys(ITEM_CATALOG).find(k => nfd(k).includes(key) || key.includes(nfd(k)));
   if (found) return { name: found, ...ITEM_CATALOG[found] };
   return null;
 }
@@ -146,8 +148,9 @@ function getItemDef(name) {
  * @returns {string|null} el nombre exacto del ítem si se encuentra
  */
 function findItem(itemList, query) {
-  const q = query.toLowerCase().trim();
-  return itemList.find(item => item.toLowerCase().includes(q)) || null;
+  const normalize = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const q = normalize(query);
+  return itemList.find(item => normalize(item).includes(q)) || null;
 }
 
 /**
