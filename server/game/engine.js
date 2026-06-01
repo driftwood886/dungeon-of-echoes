@@ -294,7 +294,7 @@ function execute(playerId, input, context) {
     case 'greet':        result = cmdGreet(player, action.args, context); break;
     case 'search':       result = cmdSearch(player, action.args); break;
     case 'study':        result = cmdStudy(player, action.args); break;
-    case 'dungeon':      result = cmdDungeonStatus(); break;
+    case 'dungeon':      result = cmdDungeonStatus(player); break;
     case 'session':      result = cmdSession(player, context); break;
     case 'sessions':     result = cmdSessions(player); break;
     case 'weekly':       result = cmdWeekly(player); break;         // T208
@@ -601,8 +601,16 @@ function cmdMove(player, direction) {
       db.updatePlayer(player.id, { hp: newHp });
       trapText = `\n\n${trap.description}\n💥 Perdés ${trap.damage} HP. (${newHp}/${player.max_hp} HP)`;
       if (newHp === 0) {
+        // BUG-006 fix: usar handlePlayerDeath para registrar deaths correctamente
+        const trapDeathLines = [];
+        combat.handlePlayerDeath(player.id, trapDeathLines, `trampa en sala ${targetId}`);
+        // Restaurar HP completo si no está en hardcore (handlePlayerDeath ya maneja el respawn)
+        const afterDeath = db.getPlayer(player.id);
+        if (afterDeath && afterDeath.fallen !== 1 && afterDeath.current_room_id !== 1) {
+          db.updatePlayer(player.id, { hp: afterDeath.max_hp || 30, current_room_id: 1 });
+        }
         trapText += '\n☠️  Has muerto a causa de la trampa. Renacés en la Entrada.';
-        db.updatePlayer(player.id, { hp: player.max_hp, current_room_id: 1 });
+        if (trapDeathLines.length > 0) trapText += '\n' + trapDeathLines.join('\n');
       }
       trapText += '\n💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla.';
     }
@@ -1523,17 +1531,19 @@ function cmdUse(player, itemQuery) {
 
   if (def.type === 'potion' && def.effect === 'heal') {
     const oldHp = player.hp;
-    if (player.hp >= player.max_hp) {
-      return { text: `Ya estás al máximo de HP (${player.hp}/${player.max_hp}). Guardás la ${found}.` };
+    // BUG-005 fix: asegurar que max_hp sea válido (post-levelup puede llegar como null/0)
+    const maxHp = player.max_hp || 30;
+    if (player.hp >= maxHp) {
+      return { text: `Ya estás al máximo de HP (${player.hp}/${maxHp}). Guardás la ${found}.` };
     }
-    const newHp = Math.min(player.max_hp, player.hp + def.amount);
+    const newHp = Math.min(maxHp, player.hp + def.amount);
     db.updatePlayer(player.id, { hp: newHp });
 
     // Consumir el ítem
     const newInv = removeFirst(player.inventory, found);
     db.updatePlayer(player.id, { inventory: newInv });
 
-    resultText = `Bebés la ${found}. Recuperás ${newHp - oldHp} HP. (${newHp}/${player.max_hp} HP)`;
+    resultText = `Bebés la ${found}. Recuperás ${newHp - oldHp} HP. (${newHp}/${maxHp} HP)`;
 
   } else if (def.type === 'mana_potion' && def.effect === 'restore_mana') {
     // T104: Pociones de maná
@@ -5148,9 +5158,11 @@ function regenMana(player) {
  * @returns {{ key: string, spell: object }|null}
  */
 function findSpell(query) {
-  const q = query.toLowerCase().trim();
+  // BUG-007 fix: normalizar tildes/acentos con NFD (misma familia que DIS-P15)
+  const normalize = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const q = normalize(query);
   for (const [key, spell] of Object.entries(SPELL_CATALOG)) {
-    if (key === q || spell.aliases.includes(q) || key.startsWith(q)) {
+    if (normalize(key) === q || spell.aliases.some(a => normalize(a) === q) || normalize(key).startsWith(q)) {
       return { key, spell };
     }
   }
@@ -7033,7 +7045,7 @@ function cmdStudy(player, args) {
 // ─── T151: Comando dungeon/estado del dungeon ─────────────────────────────────
 // Muestra un resumen narrativo del estado actual del dungeon: zonas peligrosas,
 // boss vivo/muerto, quest activa, trampas armadas, loot disponible.
-function cmdDungeonStatus() {
+function cmdDungeonStatus(player) {
   try {
     // Obtener todas las salas
     const rooms = db.getAllRooms();
@@ -7067,12 +7079,25 @@ function cmdDungeonStatus() {
     const bossHp = bossMonster ? (bossMonster.hp || 0) : 0;
     const bossMaxHp = bossMonster ? (bossMonster.max_hp || 0) : 0;
 
-    // Quest activa (módulo quests)
+    // Quest activa (módulo quests) — BUG-008 fix: usar getActiveQuest (no getCurrentQuest) y mostrar progreso del jugador
     let questInfo = 'Ninguna activa';
     try {
-      const { getCurrentQuest } = require('./quests.js');
-      const q = getCurrentQuest();
-      if (q) questInfo = `${q.name} — ${q.description}`;
+      const { getActiveQuest, getPlayerProgress } = require('./quests.js');
+      const q = getActiveQuest();
+      if (q) {
+        const def = q.questDef || q;
+        questInfo = `${def.name || def.id} — ${def.description || ''}`;
+        // Mostrar progreso del jugador si hay player disponible
+        if (player) {
+          const freshP = db.getPlayer(player.id);
+          const pp = freshP ? getPlayerProgress(freshP) : null;
+          if (pp && !pp.completed) {
+            questInfo += ` (${pp.progress}/${pp.goal})`;
+          } else if (pp && pp.completed) {
+            questInfo += ` ✅ completada`;
+          }
+        }
+      }
     } catch (_) {}
 
     // Evento global activo

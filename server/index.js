@@ -16,7 +16,7 @@ const { checkRespawns, wanderMonsters } = require('./game/combat');
 const quests                 = require('./game/quests');
 const worldEvents            = require('./game/worldEvents');
 const weather                = require('./game/weather');
-const { registerHandlers, playerSockets, previousRoomMap } = require('./socket/handlers');
+const { registerHandlers, playerSockets, previousRoomMap, monsterTrackMap } = require('./socket/handlers');
 
 const PORT = process.env.PORT || 3000;
 const SERVER_START = Date.now(); // T119: uptime del servidor
@@ -459,16 +459,32 @@ async function main() {
   // 8. Respawn loop: checar cada 60 segundos
   // T220: callback al respawnear el boss para broadcast global
   setInterval(() => {
-    checkRespawns((bossId, bossName, roomId) => {
-      const roomData = db.getRoom(roomId);
-      const roomName = roomData ? roomData.name : `sala ${roomId}`;
-      io.emit('shout', {
-        username: '💀 DUNGEON',
-        message: `⚡ ¡${bossName} HA RESUCITADO en ${roomName}! Los aventureros más valientes ya pueden enfrentarse a él nuevamente.`,
-      });
-      db.logGlobalEvent('boss', `⚡ ${bossName} resucitó en ${roomName}.`);
-      console.log(`[respawn] Boss ${bossName} resucitó en sala ${roomId}`);
-    });
+    checkRespawns(
+      // onBossRespawn
+      (bossId, bossName, roomId) => {
+        const roomData = db.getRoom(roomId);
+        const roomName = roomData ? roomData.name : `sala ${roomId}`;
+        io.emit('shout', {
+          username: '💀 DUNGEON',
+          message: `⚡ ¡${bossName} HA RESUCITADO en ${roomName}! Los aventureros más valientes ya pueden enfrentarse a él nuevamente.`,
+        });
+        db.logGlobalEvent('boss', `⚡ ${bossName} resucitó en ${roomName}.`);
+        console.log(`[respawn] Boss ${bossName} resucitó en sala ${roomId}`);
+      },
+      // T223: onAnyRespawn — notificar a jugadores que trackean este monstruo
+      (monsterId, baseName, roomId, isElite) => {
+        const trackers = monsterTrackMap.get(baseName);
+        if (!trackers || trackers.size === 0) return;
+        const roomData = db.getRoom(roomId);
+        const roomName = roomData ? roomData.name : `sala ${roomId}`;
+        const eliteNote = isElite ? ' ⭐ (¡versión ÉLITE!)' : '';
+        const msg = `🎯 [TRACK] ${baseName}${eliteNote} ha reaparecido en ${roomName}.`;
+        for (const playerId of trackers) {
+          const sock = playerSockets.get(playerId);
+          if (sock) sock.emit('event', { text: msg });
+        }
+      }
+    );
   }, 60_000);
 
   // 9. Trap respawn loop: reactivar trampas desactivadas cada 60 segundos

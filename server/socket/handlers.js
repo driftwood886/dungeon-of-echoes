@@ -32,6 +32,10 @@ const sessionDataMap = new Map();
 // T204: Mapa global: followerId → targetPlayerId (seguir a otro jugador)
 const followMap = new Map();
 
+// T223: Map de tracking de monstruos — baseName → Set<playerId>
+// Cuando un monstruo respawnea, se notifica a los jugadores que lo tienen trackeado.
+const monsterTrackMap = new Map();
+
 // T215: Buffer circular de mensajes de chat recientes (máx 50 entradas)
 // Cada entrada: { ts, type, username, message }
 const recentChatLog = [];
@@ -266,6 +270,7 @@ function registerHandlers(io) {
         sessionDataMap,   // T198: score sesión necesita ver todos los jugadores activos
         playerSockets,
         followMap,        // T204: sistema de follow
+        monsterTrackMap,  // T223: tracking de monstruos
       };
       const result = engine.execute(currentPlayerId, command, context);
 
@@ -427,6 +432,12 @@ function registerHandlers(io) {
       // T204: Limpiar follow al desconectar (tanto si era seguidor como seguido)
       followMap.delete(currentPlayerId);
 
+      // T223: Limpiar tracking de monstruos al desconectar
+      for (const [monName, trackers] of monsterTrackMap.entries()) {
+        trackers.delete(currentPlayerId);
+        if (trackers.size === 0) monsterTrackMap.delete(monName);
+      }
+
       // T146: Limpiar flag AFK al desconectar
       engine.clearAfk(currentPlayerId);
 
@@ -489,4 +500,4 @@ function registerHandlers(io) {
 
 }
 
-module.exports = { registerHandlers, playerSockets, previousRoomMap, sessionDataMap, followMap };
+module.exports = { registerHandlers, playerSockets, previousRoomMap, sessionDataMap, followMap, monsterTrackMap };

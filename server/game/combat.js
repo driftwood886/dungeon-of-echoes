@@ -864,7 +864,7 @@ function dropLoot(monster, roomId) {
 // T221: IDs de monstruos que NO pueden ser élite (maniquís y boss)
 const NO_ELITE_IDS = new Set([13, 20, 21, 22]); // Lich, goblin práctica, maniquís
 
-function checkRespawns(onBossRespawn) {
+function checkRespawns(onBossRespawn, onAnyRespawn) {
   const now = new Date().toISOString();
   // Fix DIS-P02: usar db.getMonstersForRespawn() en lugar de raw().exec()
   let monsters;
@@ -912,6 +912,10 @@ function checkRespawns(onBossRespawn) {
     // T220: Notificar respawn del boss
     if (BOSS_MONSTERS[m.id] && typeof onBossRespawn === 'function') {
       try { onBossRespawn(m.id, m.name, m.respawn_room_id); } catch (_) {}
+    }
+    // T223: Notificar respawn de cualquier monstruo (para tracking)
+    if (typeof onAnyRespawn === 'function') {
+      try { onAnyRespawn(m.id, baseNameForElite, m.respawn_room_id, isElite); } catch (_) {}
     }
   }
 }
@@ -980,6 +984,7 @@ module.exports = {
   findMonsterInRoom,
   checkRespawns,
   wanderMonsters,
+  handlePlayerDeath,
   WANDERING_MONSTER_IDS,
   BOSS_MONSTERS,
   MONSTER_SPECIALS,
