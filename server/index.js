@@ -457,7 +457,19 @@ async function main() {
   });
 
   // 8. Respawn loop: checar cada 60 segundos
-  setInterval(checkRespawns, 60_000);
+  // T220: callback al respawnear el boss para broadcast global
+  setInterval(() => {
+    checkRespawns((bossId, bossName, roomId) => {
+      const roomData = db.getRoom(roomId);
+      const roomName = roomData ? roomData.name : `sala ${roomId}`;
+      io.emit('shout', {
+        username: '💀 DUNGEON',
+        message: `⚡ ¡${bossName} HA RESUCITADO en ${roomName}! Los aventureros más valientes ya pueden enfrentarse a él nuevamente.`,
+      });
+      db.logGlobalEvent('boss', `⚡ ${bossName} resucitó en ${roomName}.`);
+      console.log(`[respawn] Boss ${bossName} resucitó en sala ${roomId}`);
+    });
+  }, 60_000);
 
   // 9. Trap respawn loop: reactivar trampas desactivadas cada 60 segundos
   setInterval(() => db.checkTrapRespawns(), 60_000);

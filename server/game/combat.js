@@ -824,7 +824,7 @@ function dropLoot(monster, roomId) {
  * Revisa si hay monstruos que deben respawnear y los resucita.
  * Se llama periódicamente desde el servidor.
  */
-function checkRespawns() {
+function checkRespawns(onBossRespawn) {
   const now = new Date().toISOString();
   // Fix DIS-P02: usar db.getMonstersForRespawn() en lugar de raw().exec()
   let monsters;
@@ -845,6 +845,10 @@ function checkRespawns() {
       status_effects: '{}', // T110: limpiar efectos de veneno al respawnear
     });
     console.log(`[combat] Respawn: ${m.name} en sala ${m.respawn_room_id}`);
+    // T220: Notificar respawn del boss
+    if (BOSS_MONSTERS[m.id] && typeof onBossRespawn === 'function') {
+      try { onBossRespawn(m.id, m.name, m.respawn_room_id); } catch (_) {}
+    }
   }
 }
 

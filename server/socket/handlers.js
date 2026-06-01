@@ -192,7 +192,23 @@ function registerHandlers(io) {
         challengeReminder = `\n\n📅 Desafío del día: ${dailyCh.desc} (${dailyCh.progress || 0}/${dailyCh.goal}). Completalo para +30 XP, +20🪙 y +5 Rep.`;
       }
       const finalWelcomeText = (classReminder ? welcomeText + classReminder : welcomeText) + challengeReminder;
-      ack && ack({ player_id: player.id, username: player.username, welcome: finalWelcomeText });
+
+       // T219: Racha de login diario
+       let streakText = '';
+       try {
+         const streakResult = db.processLoginStreak(player.id);
+         if (streakResult && streakResult.isNew) {
+           const STREAK_EMOJIS = ['', '🌟', '🌟🌟', '🔥🌟', '🔥🌟🌟', '🔥🔥', '🏆🔥', '👑🏆'];
+           const emoji = STREAK_EMOJIS[Math.min(streakResult.streak, 7)] || '🌟';
+           if (streakResult.streak === 1) {
+             streakText = `\n\n${emoji} ¡Bienvenido/a! Recibís +${streakResult.reward.gold}g y +${streakResult.reward.xp} XP por conectarte hoy.`;
+           } else {
+             streakText = `\n\n${emoji} ¡Racha de ${streakResult.streak} días consecutivos! Bonus de hoy: +${streakResult.reward.gold}g y +${streakResult.reward.xp} XP. ¡Seguí así!`;
+           }
+         }
+       } catch (_) {}
+
+       ack && ack({ player_id: player.id, username: player.username, welcome: finalWelcomeText + streakText });
 
       // T173: Notificar a amigos de este jugador que se conectó
       setImmediate(() => {

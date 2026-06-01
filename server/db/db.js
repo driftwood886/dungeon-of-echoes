@@ -169,7 +169,9 @@ async function init() {
     `ALTER TABLE players ADD COLUMN hourly_kills INTEGER NOT NULL DEFAULT 0`,         // T212: kills en la hora actual
     `ALTER TABLE players ADD COLUMN hourly_kills_reset TEXT`,                         // T212: timestamp del último reset horario
     `ALTER TABLE players ADD COLUMN room_notes TEXT NOT NULL DEFAULT '{}'`,           // T218: notas de exploración por sala
-  ];
+     `ALTER TABLE players ADD COLUMN login_streak INTEGER NOT NULL DEFAULT 0`,         // T219: racha de login diario
+     `ALTER TABLE players ADD COLUMN last_login_date TEXT`,                             // T219: fecha del último login (YYYY-MM-DD)
+    ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
   }
@@ -1605,6 +1607,60 @@ function getHourlyChampion() {
 
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
+// ─── T219: Racha de login diario ──────────────────────────────────────────────
+
+/**
+ * Procesa la racha de login diario del jugador.
+ * Si el último login fue ayer, incrementa la racha (máx 7).
+ * Si fue hace más de 1 día, resetea la racha a 1.
+ * Si fue hoy, no hace nada (ya fue procesado).
+ * @param {string} playerId
+ * @returns {{ streak: number, isNew: boolean, reward: { gold: number, xp: number } | null }}
+ */
+function processLoginStreak(playerId) {
+  const player = getPlayer(playerId);
+  if (!player) return { streak: 0, isNew: false, reward: null };
+
+  const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC
+  const lastLoginDate = player.last_login_date || null;
+
+  // Ya fue procesado hoy — no duplicar recompensa
+  if (lastLoginDate === todayStr) {
+    return { streak: player.login_streak || 0, isNew: false, reward: null };
+  }
+
+  let newStreak = 1;
+  if (lastLoginDate) {
+    const yesterday = new Date();
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    if (lastLoginDate === yesterdayStr) {
+      // Día consecutivo — incrementar racha
+      newStreak = Math.min((player.login_streak || 0) + 1, 7);
+    }
+    // else: más de 1 día de ausencia — racha vuelve a 1
+  }
+
+  // Calcular recompensa según racha (5g y 3 XP por día de racha)
+  const goldReward = newStreak * 5;
+  const xpReward   = newStreak * 3;
+
+  // Aplicar recompensa
+  updatePlayer(playerId, {
+    login_streak: newStreak,
+    last_login_date: todayStr,
+    gold: (player.gold || 0) + goldReward,
+    xp:   (player.xp   || 0) + xpReward,
+  });
+
+  return {
+    streak: newStreak,
+    isNew: true,
+    reward: { gold: goldReward, xp: xpReward },
+  };
+}
+
+
 module.exports = {
   init, persist,
   // players
@@ -1656,4 +1712,6 @@ module.exports = {
   trySetServerRecord, getAllServerRecords, SERVER_RECORDS_DEFS,
   // T212: campeón de la hora
   incrementHourlyKills, getHourlyChampion,
-};
+   // T219: racha de login diario
+   processLoginStreak,
+  };
