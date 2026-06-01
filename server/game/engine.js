@@ -472,6 +472,8 @@ function completeTutorial(player) {
     xp,
     level,
   });
+  // BUG-019: limpiar el suelo de la sala 16 para no acumular loot entre sesiones
+  try { db.updateRoomItems(16, []); } catch (e) { /* silencioso */ }
   return {
     text: tutorial.COMPLETE_MSG,
     event: `${player.username} emerge de la Antesala. ¡Un aventurero nuevo llega al dungeon!`,
@@ -5825,8 +5827,10 @@ function cmdUseSkill(player, args, context) {
     if (alive.length === 0) {
       return { text: '⚡ No hay monstruos aquí para golpear.' };
     }
-    // Atacar el primer monstruo de la sala
-    const target = alive[0];
+    // Buscar monstruo por nombre si se especificó, si no usar el primero
+    const targetName = args.slice(1).join(' ').trim();
+    let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
+    if (!target) target = alive[0];
     const baseDmg = freshPlayer.attack || 5;
     const rawDmg = Math.max(1, Math.floor(baseDmg * skill.dmg_multiplier));
     const variation = Math.floor(rawDmg * 0.2);
@@ -5903,7 +5907,10 @@ function cmdUseSkill(player, args, context) {
     if (alive.length === 0) {
       return { text: '⚡ No hay monstruos aquí para golpear con el escudo.' };
     }
-    const target = alive[0];
+    // Buscar monstruo por nombre si se especificó, si no usar el primero
+    const targetName = args.slice(1).join(' ').trim();
+    let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
+    if (!target) target = alive[0];
     const baseDmg = freshPlayer.attack || 5;
     const variation = Math.floor(baseDmg * 0.2);
     const rawDmg = baseDmg + Math.floor(Math.random() * (variation * 2 + 1)) - variation;

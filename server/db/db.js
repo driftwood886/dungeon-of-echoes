@@ -787,6 +787,16 @@ function setGuildQuest(guildName, questJson) {
  * @param {string} message — Descripción del evento para mostrar a los jugadores
  */
 function logGlobalEvent(type, message) {
+  // BUG-020: deduplicar eventos de nivel — si el mismo mensaje se registró en los últimos 10s, no repetir
+  if (type === 'level') {
+    try {
+      const existing = all(
+        "SELECT id FROM global_events WHERE type = ? AND message = ? AND created_at >= datetime('now', '-10 seconds') LIMIT 1",
+        [type, message]
+      );
+      if (existing && existing.length > 0) return;
+    } catch (e) { /* silencioso si la query falla */ }
+  }
   run('INSERT INTO global_events (type, message) VALUES (?, ?)', [type, message]);
 }
 
