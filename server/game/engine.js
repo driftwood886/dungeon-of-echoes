@@ -1172,13 +1172,11 @@ function cmdAttack(player, targetName) {
         db.addJournalEntry(player.id, 'achievement', `🏅 Logro desbloqueado: "${a.name}".`);
       }
     }
-    // Subida de nivel a múltiplos de 5
+    // Subida de nivel a múltiplos de 5 — loggear solo si REALMENTE subió de nivel en este kill
     const newLevel = freshForAch.level || 1;
-    if (monsterDead && newLevel >= 5 && newLevel % 5 === 0) {
-      const prevLevel = newLevel - 1;
-      if (prevLevel < newLevel && prevLevel % 5 !== 0 || (freshForAch.xp || 0) % 50 < 10) {
-        db.logGlobalEvent('level', `⬆️ ${player.username} alcanzó el nivel ${newLevel}. ¡Un aventurero formidable!`);
-      }
+    const prevLevelForGlobal = player.level || 1;
+    if (monsterDead && newLevel >= 5 && newLevel % 5 === 0 && newLevel > prevLevelForGlobal) {
+      db.logGlobalEvent('level', `⬆️ ${player.username} alcanzó el nivel ${newLevel}. ¡Un aventurero formidable!`);
     }
     // T113: Registrar en diario toda subida de nivel
     if (monsterDead) {
