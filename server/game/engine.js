@@ -286,6 +286,7 @@ function execute(playerId, input, context) {
     case 'peek':         result = cmdPeek(player, action.args); break;
     case 'runas':        result = cmdRunas(player); break;
     case 'challenge':    result = cmdChallenge(player); break;
+    case 'contract':     result = cmdContract(player); break;
     case 'macro':        result = cmdMacro(player, action.args, context); break;
     case 'afk':          result = cmdAfk(player, action.args); break;
     case 'write':        result = cmdWrite(player, action.args); break;
@@ -1064,6 +1065,17 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // ── Contrato de Caza Semanal (T222) ──────────────────────────────────────
+  let contractMsg = '';
+  if (monsterDead) {
+    const wcr = db.updateWeeklyContractProgress(player.id, monster.name);
+    if (wcr && wcr.reward) {
+      contractMsg = `\n📜 ¡CONTRATO DE CAZA COMPLETADO! +${wcr.reward.xp} XP · +${wcr.reward.gold}g · Recibís: ${wcr.reward.item}`;
+    } else if (wcr && wcr.contract && !wcr.contract.done) {
+      contractMsg = `\n📜 Contrato semanal: ${wcr.contract.target} (${wcr.contract.progress}/${wcr.contract.goal})`;
+    }
+  }
+
   // ── Evaluar logros tras el combate ──────────────────────────────────────
   let achLines = '';
   const freshForAch = db.getPlayer(player.id);
@@ -1298,7 +1310,7 @@ function cmdAttack(player, targetName) {
     : null;
 
   return {
-    text: battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : ''),
+    text: battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : ''),
     event: battlecryEvent || eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || (worldGoalMsg ? worldGoalMsg.replace(/\n/, '') : null) || (recordMsgs.length ? recordMsgs[0] : null) || null,
@@ -6522,6 +6534,45 @@ function cmdChallenge(player) {
 }
 
 /**
+ * T222: contract/contrato — Ver el contrato de caza semanal del jugador.
+ */
+function cmdContract(player) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: 'Error al leer tu perfil.' };
+  const ct = db.getWeeklyContract(fresh);
+  const progress = ct.progress || 0;
+  const barLen = 24;
+  const pct = Math.floor((progress / ct.goal) * barLen);
+  const bar = '█'.repeat(pct) + '░'.repeat(barLen - pct);
+  const status = ct.done ? '✅ ¡COMPLETADO!' : `${progress}/${ct.goal}`;
+  // Días restantes de la semana
+  const msInWeek = 7 * 24 * 60 * 60 * 1000;
+  const weekStart = Math.floor(Date.now() / msInWeek) * msInWeek;
+  const daysLeft = Math.ceil((weekStart + msInWeek - Date.now()) / (24 * 60 * 60 * 1000));
+  const lines = [
+    '',
+    '╔' + '═'.repeat(50) + '╗',
+    '║         📜 CONTRATO DE CAZA SEMANAL              ║',
+    '╟' + '─'.repeat(50) + '╢',
+    `  Objetivo: ${ct.target}`,
+    `  ${ct.desc}`,
+    `  Dificultad: ${ct.difficulty}`,
+    '╟' + '─'.repeat(50) + '╢',
+    `  Progreso: [${bar}] ${status}`,
+    '╟' + '─'.repeat(50) + '╢',
+    `  Recompensa: +${ct.reward_xp} XP · +${ct.reward_gold}g · ${ct.reward_item}`,
+    ct.done
+      ? '  🌟 ¡Recompensa ya cobrada! Nuevo contrato la próxima semana.'
+      : `  ⏳ ${daysLeft} día${daysLeft !== 1 ? 's' : ''} restante${daysLeft !== 1 ? 's' : ''} esta semana.`,
+    '╚' + '═'.repeat(50) + '╝',
+    '',
+  ];
+  return { text: lines.join('\n') };
+}
+
+
+
+/**
  * T142: macro — Guardar y ejecutar macros personales (hasta 5, secuencias con ;)
  */
 function cmdMacro(player, args, context) {
@@ -10371,3 +10422,6 @@ function cmdRoomNote(player, args) {
 
   return { text: '📋 Uso:\n  mnota [list]           — Ver notas de la sala actual\n  mnota add <texto>      — Agregar nota\n  mnota del <número>     — Borrar nota\n  mnota salas            — Ver todas las salas con notas' };
 }
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, cmdContract, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals, checkAndSetRecords };
+

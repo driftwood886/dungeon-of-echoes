@@ -171,6 +171,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN room_notes TEXT NOT NULL DEFAULT '{}'`,           // T218: notas de exploración por sala
      `ALTER TABLE players ADD COLUMN login_streak INTEGER NOT NULL DEFAULT 0`,         // T219: racha de login diario
      `ALTER TABLE players ADD COLUMN last_login_date TEXT`,                             // T219: fecha del último login (YYYY-MM-DD)
+    `ALTER TABLE players ADD COLUMN weekly_contract TEXT NOT NULL DEFAULT '{}'`,       // T222: contrato de caza semanal
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -1127,7 +1128,90 @@ function updateDailyChallengeProgress(playerId, type, target, amount = 1) {
   return { challenge: ch, reward };
 }
 
-// ─── T144: Bounties (recompensas PvP) ────────────────────────────────────────
+// ─── T222: Contrato de Caza Semanal ──────────────────────────────────────────
+
+const WEEKLY_CONTRACT_TARGETS = [
+  { target: 'Guardia Espectral',     goal: 3,  reward_xp: 60, reward_gold: 40, reward_item: 'espada de obsidiana',   difficulty: '⚔⚔⚔',  desc: 'Eliminar 3 Guardias Espectrales de la Prisión Olvidada.' },
+  { target: 'Gólem de Piedra',       goal: 2,  reward_xp: 70, reward_gold: 45, reward_item: 'piedra de poder',        difficulty: '⚔⚔⚔',  desc: 'Destruir 2 Gólems de Piedra del Santuario Profano.' },
+  { target: 'Araña Tejedora',        goal: 5,  reward_xp: 50, reward_gold: 35, reward_item: 'hilo de seda',           difficulty: '⚔⚔',    desc: 'Limpiar el nido — matar 5 Arañas Tejedoras.' },
+  { target: 'Espectro del Corredor', goal: 4,  reward_xp: 55, reward_gold: 38, reward_item: 'esencia etérea',         difficulty: '⚔⚔',    desc: 'Purgar 4 Espectros del Corredor del Ala Norte.' },
+  { target: 'Murciélago Vampiro',    goal: 6,  reward_xp: 45, reward_gold: 30, reward_item: 'diente afilado',         difficulty: '⚔',     desc: 'Exterminar 6 Murciélagos Vampiro de la Capilla.' },
+  { target: 'Esqueleto Guerrero',    goal: 4,  reward_xp: 55, reward_gold: 35, reward_item: 'escudo roto',            difficulty: '⚔⚔',    desc: 'Reducir a polvo 4 Esqueletos Guerreros del Tesoro.' },
+  { target: 'Campeón Espectral',     goal: 2,  reward_xp: 75, reward_gold: 50, reward_item: 'cota de malla',          difficulty: '⚔⚔⚔⚔', desc: 'Derrotar 2 Campeones Espectrales (zona norte).' },
+  { target: 'Sombra del Vacío',      goal: 2,  reward_xp: 80, reward_gold: 55, reward_item: 'veste de sombra',        difficulty: '⚔⚔⚔⚔', desc: 'Erradicar 2 Sombras del Vacío del Abismo Eterno.' },
+];
+
+/**
+ * Obtiene o genera el contrato semanal de un jugador.
+ * La semana se calcula como el número de semana ISO del año.
+ */
+function getWeeklyContract(player) {
+  let ct = {};
+  try { ct = JSON.parse(player.weekly_contract || '{}'); } catch (_) { ct = {}; }
+  // Número de semana: días desde epoch / 7
+  const weekNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+  if (ct.week !== weekNumber) {
+    // Nueva semana: generar contrato (determinístico por jugador y semana)
+    const idStr = String(player.id);
+    let idHash = 0;
+    for (let i = 0; i < idStr.length; i++) { idHash = (idHash * 31 + idStr.charCodeAt(i)) >>> 0; }
+    const idx = (idHash + weekNumber) % WEEKLY_CONTRACT_TARGETS.length;
+    const template = WEEKLY_CONTRACT_TARGETS[idx];
+    ct = {
+      week: weekNumber,
+      target: template.target,
+      goal: template.goal,
+      progress: 0,
+      done: false,
+      reward_xp: template.reward_xp,
+      reward_gold: template.reward_gold,
+      reward_item: template.reward_item,
+      difficulty: template.difficulty,
+      desc: template.desc,
+    };
+    updatePlayer(player.id, { weekly_contract: JSON.stringify(ct) });
+  }
+  return ct;
+}
+
+/**
+ * Actualiza el progreso del contrato semanal al matar un monstruo.
+ * Retorna { contract, reward } si se completó, o { contract, reward: null } si no.
+ */
+function updateWeeklyContractProgress(playerId, killedMonsterName) {
+  const player = getPlayer(playerId);
+  if (!player) return null;
+  const ct = getWeeklyContract(player);
+  if (ct.done) return null;
+  // Comparar por nombre base (sin prefijo élite)
+  const baseName = killedMonsterName.startsWith('⭐ ') ? killedMonsterName.slice(2) : killedMonsterName;
+  if (baseName !== ct.target) return null;
+  ct.progress = (ct.progress || 0) + 1;
+  let reward = null;
+  if (ct.progress >= ct.goal) {
+    ct.done = true;
+    reward = { xp: ct.reward_xp, gold: ct.reward_gold, item: ct.reward_item };
+    const freshP = getPlayer(playerId);
+    updatePlayer(playerId, {
+      xp: (freshP.xp || 0) + ct.reward_xp,
+      gold: (freshP.gold || 0) + ct.reward_gold,
+      weekly_contract: JSON.stringify(ct),
+    });
+    // Agregar ítem al inventario
+    try {
+      const inv = JSON.parse(freshP.inventory || '[]');
+      inv.push(ct.reward_item);
+      updatePlayer(playerId, { inventory: JSON.stringify(inv) });
+    } catch (_) {}
+    // Registrar en crónica
+    logGlobalEvent('contract', `📜 ${freshP.username} completó su Contrato de Caza: ${ct.desc} (+${ct.reward_xp} XP · +${ct.reward_gold}g · ${ct.reward_item})`);
+  } else {
+    updatePlayer(playerId, { weekly_contract: JSON.stringify(ct) });
+  }
+  return { contract: ct, reward };
+}
+
+
 
 /**
  * Crea una nueva bounty sobre un jugador objetivo.
@@ -1693,6 +1777,7 @@ module.exports = {
   tryAddRune, getPlayerRunes, RUNE_TYPES, RUNE_EMOJIS, RUNE_BONUSES,
   // T141: desafío diario personal
   getDailyChallenge, updateDailyChallengeProgress,
+  getWeeklyContract, updateWeeklyContractProgress,
   // T144: bounties
   addBounty, getBountiesOnPlayer, getAllActiveBounties, claimBounty, expireOldBounties,
   // T147: mensajes en las paredes (graffiti)

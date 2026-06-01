@@ -88,6 +88,21 @@ const BOSS_MONSTERS = {
 
 // T145: Habilidades especiales de monstruos
 // tipo: 'mana_drain' | 'web' | 'amplify' | 'blind'
+
+// T221: Stats base de monstruos para restaurar después de ser élite
+// (id → { name, max_hp, attack })
+const MONSTER_BASE_STATS = {
+  1:  { name: 'Goblin Merodeador',     max_hp: 15, attack: 3  },
+  2:  { name: 'Esqueleto Guerrero',    max_hp: 20, attack: 5  },
+  3:  { name: 'Rata Gigante',          max_hp: 10, attack: 2  },
+  4:  { name: 'Espectro del Corredor', max_hp: 18, attack: 6  },
+  5:  { name: 'Gólem de Piedra',       max_hp: 35, attack: 8  },
+  6:  { name: 'Murciélago Vampiro',    max_hp: 12, attack: 3  },
+  7:  { name: 'Araña Tejedora',        max_hp: 8,  attack: 4  },
+  8:  { name: 'Guardia Espectral',     max_hp: 25, attack: 7  },
+  // Monstruos expandidos (se restauran por nombre si no están aquí)
+};
+
 const MONSTER_SPECIALS = {
   'Lich Anciano': {
     chance: 0.20,
@@ -480,12 +495,26 @@ function attackRound(player, monster) {
     }
 
     // Actualizar kills y XP del jugador
+    // T221: Bonus élite — +75% XP y loot extra si el monstruo es élite
+    const isEliteMonster = monster.name.startsWith('⭐ ');
+    if (isEliteMonster) {
+      lines.push(`🌟 ¡Era un monstruo ÉLITE! Recompensa mejorada.`);
+      // Agregar loot extra: siempre monedas de oro + posible ítem de la tabla
+      loot.push('monedas de oro');
+      if (Math.random() < 0.5) loot.push('monedas de oro');
+      if (loot.length > 0) {
+        // Actualizar el mensaje de loot si ya lo pusimos
+        const lootIdx = lines.findLastIndex(l => l.includes('suelta:') || l.includes('no deja nada'));
+        if (lootIdx >= 0) lines[lootIdx] = `💰 El ${monster.name} suelta: ${loot.join(', ')}.`;
+      }
+    }
+    const eliteXpMult = isEliteMonster ? 1.75 : 1.0;
     const xpBase = Math.max(5, Math.floor(monster.max_hp * 2));
     // Bonus de XP si hay evento invasión o clima de calma arcana (T166)
     const activeEv = worldEvents.getCurrentEvent();
     const invasionMult = (activeEv && activeEv.id === 'invasion') ? 1.5 : 1.0;
     const weatherXpMult = weather.getXpMultiplier(); // 1.1 si calma arcana, 1.0 si no
-    const xpGain = Math.floor(xpBase * invasionMult * weatherXpMult);
+    const xpGain = Math.floor(xpBase * invasionMult * weatherXpMult * eliteXpMult);
     const freshPlayer = db.getPlayer(player.id);
     const newKills = (freshPlayer.kills || 0) + 1;
     const newXp    = (freshPlayer.xp    || 0) + xpGain;
@@ -813,6 +842,14 @@ function dropLoot(monster, roomId) {
     hp: 0,
     room_id: null,        // ya no está en ninguna sala
     respawn_at: respawnAt,
+    // T221: Si era élite, restaurar stats base al morir (para que respawnee con stats normales)
+    ...(monster.name.startsWith('⭐ ') && MONSTER_BASE_STATS[monster.id] ? {
+      name: MONSTER_BASE_STATS[monster.id].name,
+      max_hp: MONSTER_BASE_STATS[monster.id].max_hp,
+      attack: MONSTER_BASE_STATS[monster.id].attack,
+    } : monster.name.startsWith('⭐ ') ? {
+      name: monster.name.slice(2), // quitar el prefijo ⭐ si no hay stats en el mapa
+    } : {}),
   });
 
   const globalEvent = bossDef ? bossDef.deathAnnouncement : null;
@@ -824,6 +861,9 @@ function dropLoot(monster, roomId) {
  * Revisa si hay monstruos que deben respawnear y los resucita.
  * Se llama periódicamente desde el servidor.
  */
+// T221: IDs de monstruos que NO pueden ser élite (maniquís y boss)
+const NO_ELITE_IDS = new Set([13, 20, 21, 22]); // Lich, goblin práctica, maniquís
+
 function checkRespawns(onBossRespawn) {
   const now = new Date().toISOString();
   // Fix DIS-P02: usar db.getMonstersForRespawn() en lugar de raw().exec()
@@ -838,13 +878,37 @@ function checkRespawns(onBossRespawn) {
 
   for (const m of monsters) {
     if (!m.respawn_room_id) continue;
+
+    // T221: 15% de chance de spawnar como versión élite
+    let newName = m.name;
+    let newMaxHp = m.max_hp;
+    let newAttack = m.attack;
+    let isElite = false;
+    // Limpiar nombre si ya era élite antes
+    const baseNameForElite = m.name.startsWith('⭐ ') ? m.name.slice(2) : m.name;
+    if (!NO_ELITE_IDS.has(m.id) && !BOSS_MONSTERS[m.id] && Math.random() < 0.15) {
+      isElite = true;
+      newName = `⭐ ${baseNameForElite}`;
+      newMaxHp = Math.ceil(m.max_hp * 1.5);
+      newAttack = m.attack + 2;
+    } else {
+      newName = baseNameForElite; // Asegurarse de resetear si era élite antes
+    }
+
     db.updateMonster(m.id, {
-      hp: m.max_hp,
+      hp: newMaxHp,
+      max_hp: newMaxHp,
+      attack: newAttack,
+      name: newName,
       room_id: m.respawn_room_id,
       respawn_at: null,
       status_effects: '{}', // T110: limpiar efectos de veneno al respawnear
     });
-    console.log(`[combat] Respawn: ${m.name} en sala ${m.respawn_room_id}`);
+    if (isElite) {
+      console.log(`[combat] Respawn ÉLITE: ${newName} en sala ${m.respawn_room_id} (HP:${newMaxHp} ATK:${newAttack})`);
+    } else {
+      console.log(`[combat] Respawn: ${newName} en sala ${m.respawn_room_id}`);
+    }
     // T220: Notificar respawn del boss
     if (BOSS_MONSTERS[m.id] && typeof onBossRespawn === 'function') {
       try { onBossRespawn(m.id, m.name, m.respawn_room_id); } catch (_) {}

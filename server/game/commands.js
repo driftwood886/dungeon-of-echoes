@@ -209,6 +209,8 @@ const COMMAND_ALIASES = {
   runas: 'runas', runes: 'runas', runacoleccion: 'runas', 'colección-runas': 'runas',
   // challenge / desafío diario (T141)
   challenge: 'challenge', desafio: 'challenge', desafío: 'challenge', 'desafio-diario': 'challenge', daily: 'challenge', mision_diaria: 'challenge', reto: 'challenge',
+  // contract / contrato semanal (T222)
+  contract: 'contract', contrato: 'contract', 'contrato-caza': 'contract', 'caza-semanal': 'contract', weekly: 'contract', semanal: 'contract',
   // macro (T142)
   macro: 'macro', macros: 'macro', '!': 'macro',
   afk: 'afk', ausente: 'afk', ocupado: 'afk', away: 'afk',
@@ -440,6 +442,7 @@ Comandos disponibles:
   sessions / historial — Ver el historial de tus últimas 5 sesiones y el tiempo de juego total acumulado.
   score tiempo         — Ranking por tiempo de juego total (los aventureros más veteranos).
   challenge / desafío  — Ver tu desafío diario personal y el progreso hacia él.
+  contract / contrato  — Ver tu contrato de caza semanal (objetivo, progreso, recompensa).
   macro list           — Ver tus macros guardadas (hasta 5).
   macro set <n> <cmd> — Guardar macro (puede incluir secuencia con ;).
   macro del <nombre>  — Eliminar una macro. !<nombre> ejecuta la macro.
