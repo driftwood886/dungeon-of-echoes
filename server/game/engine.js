@@ -839,7 +839,27 @@ function cmdStatus(player) {
       }
       return `Ataque:   ${player.attack}`;
     })(),
-    `Defensa:  ${player.defense}`,
+    (() => {
+      // BUG-016: mostrar DEF efectiva con buffs activos (igual que BUG-011 para ATK)
+      const scrollsDef = JSON.parse(player.active_scrolls || '{}');
+      const nowDef = Date.now();
+      const STANCE_DEF = { agresivo: -1, defensivo: +2, equilibrado: 0 };
+      let defBuffTotal = 0;
+      for (const data of Object.values(scrollsDef)) {
+        if (data.expires_at > nowDef) defBuffTotal += (data.def_bonus || 0);
+      }
+      const stanceDefMod = STANCE_DEF[player.stance || 'equilibrado'] || 0;
+      const totalDefBonus = defBuffTotal + stanceDefMod;
+      const effectiveDef = (player.defense || 0) + totalDefBonus;
+      if (totalDefBonus !== 0) {
+        const defParts = [];
+        if (defBuffTotal > 0) defParts.push(`+${defBuffTotal} 📜buff`);
+        if (stanceDefMod > 0) defParts.push(`+${stanceDefMod} postura`);
+        else if (stanceDefMod < 0) defParts.push(`${stanceDefMod} postura`);
+        return `Defensa:  ${player.defense} (${defParts.join(', ')} = ${effectiveDef} efectiva)`;
+      }
+      return `Defensa:  ${player.defense}`;
+    })(),
     `Oro:      💰 ${gold}g`,
     weaponLine,
     player.equipped_armor
@@ -5780,6 +5800,13 @@ function cmdUseSkill(player, args, context) {
       // BUG-010: registrar progreso de quest al matar con skill
       const freshForSmashQuest = db.getPlayer(freshPlayer.id);
       const qSmashResult = quests.recordProgress(freshForSmashQuest, 'kill', { monsterName: target.name });
+      // BUG-017: registrar progreso de desafío diario al matar con smash
+      const crSmash = db.updateDailyChallengeProgress(freshPlayer.id, 'kill', target.name);
+      if (crSmash && crSmash.reward) {
+        text += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+      } else if (crSmash && crSmash.challenge && !crSmash.challenge.done) {
+        text += `\n📅 Desafío: ${crSmash.challenge.progress}/${crSmash.challenge.goal}`;
+      }
       if (qSmashResult) {
         db.updatePlayer(freshPlayer.id, { quest_progress: qSmashResult.questProgress });
         if (qSmashResult.justCompleted && qSmashResult.reward) {
@@ -5849,6 +5876,13 @@ function cmdUseSkill(player, args, context) {
       // BUG-010: registrar progreso de quest al matar con shield_bash
       const freshForBashQuest = db.getPlayer(freshPlayer.id);
       const qBashResult = quests.recordProgress(freshForBashQuest, 'kill', { monsterName: target.name });
+      // BUG-017: registrar progreso de desafío diario al matar con shield_bash
+      const crBash = db.updateDailyChallengeProgress(freshPlayer.id, 'kill', target.name);
+      if (crBash && crBash.reward) {
+        text += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+      } else if (crBash && crBash.challenge && !crBash.challenge.done) {
+        text += `\n📅 Desafío: ${crBash.challenge.progress}/${crBash.challenge.goal}`;
+      }
       if (qBashResult) {
         db.updatePlayer(freshPlayer.id, { quest_progress: qBashResult.questProgress });
         if (qBashResult.justCompleted && qBashResult.reward) {
