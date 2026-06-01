@@ -5400,16 +5400,25 @@ function cmdClase(player, args) {
     return { text: `⚠️ Ya tenés ${kills} kills — tu clase ${clsData.emoji} ${clsData.name} quedó confirmada.\nNo se puede cambiar de clase después del período de prueba (5 kills).` };
   }
 
-  // Aplicar la clase
+  // Aplicar la clase — BUG-009 fix: preservar stats acumulados por level-ups.
+  // Se toma Math.max(stat_clase, stat_actual) para que elegir clase nunca
+  // reduzca HP/ATK/DEF/maná que el jugador ya ganó subiendo de nivel.
   const clsStats = classes.getClassStats(className);
+  const freshForClass = db.getPlayer(player.id);
+  const newMaxHp   = Math.max(clsStats.max_hp,   freshForClass.max_hp   || 30);
+  const newAttack  = Math.max(clsStats.attack,    freshForClass.attack   || 5);
+  const newDefense = Math.max(clsStats.defense,   freshForClass.defense  || 3);
+  const newMaxMana = Math.max(clsStats.max_mana,  freshForClass.max_mana || 20);
+  const newHp      = Math.min(freshForClass.hp || newMaxHp, newMaxHp);
+  const newMana    = Math.min(freshForClass.mana || newMaxMana, newMaxMana);
   db.updatePlayer(player.id, {
     player_class: className,
-    hp: clsStats.hp,
-    max_hp: clsStats.max_hp,
-    attack: clsStats.attack,
-    defense: clsStats.defense,
-    mana: clsStats.mana,
-    max_mana: clsStats.max_mana,
+    hp:       newHp,
+    max_hp:   newMaxHp,
+    attack:   newAttack,
+    defense:  newDefense,
+    mana:     newMana,
+    max_mana: newMaxMana,
   });
 
   const lines = [
@@ -5417,9 +5426,9 @@ function cmdClase(player, args) {
     `   ${clsStats.description}`,
     ``,
     `📊 Tus nuevos stats:`,
-    `   HP:     ${clsStats.hp}/${clsStats.max_hp}`,
-    `   ATK:    ${clsStats.attack}   DEF: ${clsStats.defense}`,
-    `   Maná:   ${clsStats.mana}/${clsStats.max_mana}`,
+    `   HP:     ${newHp}/${newMaxHp}`,
+    `   ATK:    ${newAttack}   DEF: ${newDefense}`,
+    `   Maná:   ${newMana}/${newMaxMana}`,
     ``,
     `🌟 Ventajas de clase:`,
     ...clsStats.perks.map(p => `   ▸ ${p}`),
