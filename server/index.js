@@ -417,6 +417,8 @@ async function main() {
           exits: Object.keys(room.exits),
           monsters: monsters.map(m => ({ name: m.name, hp: m.hp, max_hp: m.max_hp })),
           items: room.items,
+          trap: room.trap ? { active: room.trap.active, type: room.trap.type } : null,
+          room_effect: ROOM_EFFECTS[room.id] ? { label: ROOM_EFFECTS[room.id].label, type: ROOM_EFFECTS[room.id].type } : null,
         },
         player: {
           id: player.id,
@@ -431,10 +433,23 @@ async function main() {
           kills: player.kills || 0,
           equipped_weapon: player.equipped_weapon || null,
           equipped_armor: player.equipped_armor || null,
+          pending_messages: db.countPendingMessages(player.id),
+          status_effects: player.status_effects || {},
+          gold: player.gold || 0,
+          achievements: JSON.parse(player.achievements || '[]'),
+          mana: player.mana != null ? player.mana : 20,
+          max_mana: player.max_mana || 20,
+          shield_active: player.shield_active || 0,
+          player_class: player.player_class || 'sin_clase',
           playtime_minutes: player.playtime_minutes || 0,
         },
         other_players: others,
         recent_events: events,
+        party: player.party_id
+          ? db.getPartyMembers(player.party_id)
+              .filter(m => m.id !== player.id)
+              .map(m => ({ username: m.username, hp: m.hp, max_hp: m.max_hp, level: m.level || 1 }))
+          : null,
       },
     });
   });

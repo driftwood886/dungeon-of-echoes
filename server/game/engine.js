@@ -498,12 +498,39 @@ function cmdMove(player, direction) {
     return { text: 'Indicá una dirección. Ej: "move norte" o simplemente "norte".' };
   }
 
-  // Fix DIS-P05: limpiar debuffs por turno (blinded) al moverse fuera de combate
+  // Fix DIS-P05 + BUG-012: decrementar/limpiar debuffs por turno al moverse fuera de combate
   try {
     const fx = player.status_effects || {};
-    if (fx.blinded) {
-      const newFx = { ...fx };
+    const newFx = { ...fx };
+    let fxChanged = false;
+
+    // Ceguera: limpiar al salir de combate
+    if (newFx.blinded) {
       delete newFx.blinded;
+      fxChanged = true;
+    }
+
+    // Veneno: decrementar turno por movimiento (fuera de combate)
+    if (newFx.poisoned) {
+      newFx.poisoned = { ...newFx.poisoned };
+      newFx.poisoned.turns = (newFx.poisoned.turns || 1) - 1;
+      if (newFx.poisoned.turns <= 0) {
+        delete newFx.poisoned;
+      }
+      fxChanged = true;
+    }
+
+    // Enredado: decrementar también
+    if (newFx.webbed) {
+      newFx.webbed = { ...newFx.webbed };
+      newFx.webbed.turns = (newFx.webbed.turns || 1) - 1;
+      if (newFx.webbed.turns <= 0) {
+        delete newFx.webbed;
+      }
+      fxChanged = true;
+    }
+
+    if (fxChanged) {
       db.updatePlayer(player.id, { status_effects: JSON.stringify(newFx) });
       player.status_effects = newFx;
     }
