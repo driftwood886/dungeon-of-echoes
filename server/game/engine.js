@@ -1653,10 +1653,12 @@ function cmdDrop(player, itemQuery) {
     updates.equipped_weapon = null;
     updates.attack = 5;
   }
-  // T152: Si era la armadura equipada, desequipar (volver a defensa base)
+  // T152: Si era la armadura equipada, desequipar (volver a defensa sin armadura)
   if (player.equipped_armor && player.equipped_armor === found) {
     updates.equipped_armor = null;
-    updates.defense = 2;
+    const armorDef = items.getItemDef(found);
+    const armorAmt = armorDef ? (armorDef.amount || 0) : 0;
+    updates.defense = (player.defense || 2) - armorAmt;
   }
 
   db.updatePlayer(player.id, updates);
@@ -2249,8 +2251,11 @@ function cmdWear(player, itemQuery) {
   }
 
   const oldDefense = player.defense || 2;
-  const newDefense = 2 + def.amount; // base 2 + bonus de la armadura
   const oldArmor = player.equipped_armor;
+  // Calcular defensa desnuda (sin ninguna armadura), para preservar bonuses de clase y level-ups
+  const oldArmorAmount = oldArmor ? (items.getItemDef(oldArmor)?.amount || 0) : 0;
+  const nakedDefense = oldDefense - oldArmorAmount;
+  const newDefense = nakedDefense + def.amount; // defensa desnuda + bonus nueva armadura
   db.updatePlayer(player.id, { defense: newDefense, equipped_armor: found });
 
   const change = newDefense - oldDefense;
@@ -2275,10 +2280,13 @@ function cmdUnwear(player) {
   }
 
   const armorName = player.equipped_armor;
-  db.updatePlayer(player.id, { defense: 2, equipped_armor: null });
+  const armorDef = items.getItemDef(armorName);
+  const armorAmount = armorDef ? (armorDef.amount || 0) : 0;
+  const nakedDefense = (player.defense || 2) - armorAmount;
+  db.updatePlayer(player.id, { defense: nakedDefense, equipped_armor: null });
 
   return {
-    text: `Te quitás ${armorName}. Volvés a la defensa base (defensa: 2).`,
+    text: `Te quitás ${armorName}. Defensa vuelve a ${nakedDefense}.`,
     event: `${player.username} se quita ${armorName}.`,
     eventRoomId: player.current_room_id,
   };
@@ -2359,7 +2367,9 @@ function cmdGive(player, args) {
   // T152: Si era la armadura equipada, desequipar
   if (player.equipped_armor && player.equipped_armor === found) {
     giverUpdates.equipped_armor = null;
-    giverUpdates.defense = 2;
+    const armorDef = items.getItemDef(found);
+    const armorAmt = armorDef ? (armorDef.amount || 0) : 0;
+    giverUpdates.defense = (player.defense || 2) - armorAmt;
   }
 
   db.updatePlayer(player.id,  giverUpdates);
@@ -2367,7 +2377,7 @@ function cmdGive(player, args) {
 
   let extraMsg = '';
   if (giverUpdates.equipped_weapon === null) extraMsg += ' (perdiste tu arma equipada, ataque vuelve a 5)';
-  if (giverUpdates.equipped_armor === null)  extraMsg += ' (perdiste tu armadura, defensa vuelve a 2)';
+  if (giverUpdates.equipped_armor === null)  extraMsg += ` (perdiste tu armadura, defensa vuelve a ${giverUpdates.defense})`;
 
   return {
     text: `Le das ${found} a ${target.username}.${extraMsg}`,
@@ -3139,12 +3149,24 @@ function cmdTrade(player, args) {
       initiatorUpdates.equipped_weapon = null;
       initiatorUpdates.attack = 5;
     }
+    if (freshInitiator.equipped_armor === trade.item) {
+      const armorDef = items.getItemDef(trade.item);
+      const armorAmt = armorDef ? (armorDef.amount || 0) : 0;
+      initiatorUpdates.equipped_armor = null;
+      initiatorUpdates.defense = (freshInitiator.defense || 2) - armorAmt;
+    }
     db.updatePlayer(freshInitiator.id, initiatorUpdates);
 
     const playerUpdates = { inventory: newPlayerInv };
     if (freshPlayer.equipped_weapon === playerItemActual) {
       playerUpdates.equipped_weapon = null;
       playerUpdates.attack = 5;
+    }
+    if (freshPlayer.equipped_armor === playerItemActual) {
+      const armorDef = items.getItemDef(playerItemActual);
+      const armorAmt = armorDef ? (armorDef.amount || 0) : 0;
+      playerUpdates.equipped_armor = null;
+      playerUpdates.defense = (freshPlayer.defense || 2) - armorAmt;
     }
     db.updatePlayer(freshPlayer.id, playerUpdates);
 
