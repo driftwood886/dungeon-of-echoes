@@ -397,7 +397,7 @@ function migrateTraps() {
       room_id: 9,
       trap: {
         type: 'cold',
-        damage: 10,
+        damage: 6,  // DIS-D02: reducido de 10 a 6 HP (la ruta natural de exploración pasa por aquí frecuentemente)
         item_needed: 'corona rota',
         active: true,
         description: '⚠️  El trono irradia un frío sobrenatural. Un aliento helado te congela parcialmente.',
@@ -543,7 +543,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom };
 
 /**
  * T152: Agregar armaduras al loot de algunos monstruos.
@@ -838,5 +838,40 @@ function migrateCraftingLoot() {
   if (bat && !bat.loot.includes('diente afilado')) {
     db.upsertMonster({ ...bat, loot: [...bat.loot, 'diente afilado'] });
     console.log('[seed] migrateCraftingLoot: diente afilado agregado a Murciélago Vampiro (id 4).');
+  }
+}
+
+/**
+ * DIS-D08: Mover al Esqueleto Guerrero fuera de la Cámara del Tesoro (sala 4, la del mercader Aldric).
+ * El respawn_room_id se cambia a sala 3 (Sala de los Ecos), que es adyacente.
+ * Si el monstruo está actualmente en sala 4, se mueve inmediatamente a sala 3.
+ * DIS-D02: Reducir daño de trampa de la Sala del Trono (sala 9) de 10 a 6 HP.
+ */
+function migrateMerchantRoom() {
+  const skeleton = db.getMonster(2);
+  if (skeleton) {
+    let changed = false;
+    const updates = {};
+    if (skeleton.respawn_room_id === 4) {
+      updates.respawn_room_id = 3;
+      changed = true;
+    }
+    if (skeleton.room_id === 4) {
+      updates.room_id = 3;
+      changed = true;
+    }
+    if (changed) {
+      db.upsertMonster({ ...skeleton, ...updates });
+      console.log('[seed] migrateMerchantRoom: Esqueleto Guerrero movido de sala 4 → sala 3 (mercader ahora tiene sala para él solo).');
+    }
+  }
+  // DIS-D02: Reducir daño de la trampa del Trono a 6 HP si aún es 10
+  const throneRoom = db.getRoom(9);
+  if (throneRoom && throneRoom.trap && throneRoom.trap.damage === 10) {
+    const updatedTrap = { ...throneRoom.trap, damage: 6 };
+    const exits = throneRoom.exits || {};
+    const items = throneRoom.items || [];
+    db.upsertRoom({ ...throneRoom, exits, items, trap: JSON.stringify(updatedTrap) });
+    console.log('[seed] migrateMerchantRoom: Trampa Sala del Trono reducida de 10 → 6 HP (DIS-D02).');
   }
 }

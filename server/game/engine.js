@@ -369,8 +369,10 @@ function execute(playerId, input, context) {
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
-        result = detail
-          ? { text: detail }
+        // DIS-D03: Normalizar saltos de línea literales (\n escapeados) a reales
+        const detailText = detail ? detail.replace(/\\n/g, '\n') : null;
+        result = detailText
+          ? { text: detailText }
           : { text: `No hay ayuda detallada para "${cmdKey}". Escribí "help" para ver todos los comandos.` };
       } else {
         result = { text: HELP_TEXT };
@@ -626,7 +628,7 @@ function cmdMove(player, direction) {
       player = db.getPlayer(player.id);
       const newHp = Math.max(0, player.hp - trap.damage);
       db.updatePlayer(player.id, { hp: newHp });
-      trapText = `\n\n${trap.description}\n💥 Perdés ${trap.damage} HP. (${newHp}/${player.max_hp} HP)`;
+      trapText = `\n\n⚠️  ¡TRAMPA! ${trap.description}\n💥 Perdés ${trap.damage} HP. (${newHp}/${player.max_hp} HP)`;
       if (newHp === 0) {
         // BUG-006 fix: usar handlePlayerDeath para registrar deaths correctamente
         const trapDeathLines = [];
@@ -742,7 +744,7 @@ function cmdInventory(player) {
   const summary = rareCount > 0
     ? `─ ${total} ítem${total !== 1 ? 's' : ''} (${rareCount} no común${rareCount !== 1 ? 'es' : ''})`
     : `─ ${total} ítem${total !== 1 ? 's' : ''}`;
-  const equippedLine = player.equipped_weapon
+  const equippedLine = player.equipped_weapon && player.equipped_weapon !== 'null'
     ? `⚔️  Equipada: ${player.equipped_weapon}`
     : '';
 
@@ -774,7 +776,7 @@ function cmdStatus(player) {
   const repNextText = repLevel.nextThreshold
     ? ` (+${repLevel.nextThreshold - repLevel.points} pts para siguiente)`
     : ' (máx)';
-  const weaponLine = player.equipped_weapon
+  const weaponLine = player.equipped_weapon && player.equipped_weapon !== 'null'
     ? `Arma:     ${player.equipped_weapon}`
     : `Arma:     (desarmado — ataque base)`;
 
@@ -1384,8 +1386,30 @@ function cmdAttack(player, targetName) {
     ? `⚔️ ${player.username} grita: "${battlecryText}"`
     : null;
 
+  // ── DIS-D01: Tutorial paso 3 — si el goblin murió en el tutorial, completarlo ──
+  let tutorialCompletionResult = null;
+  if (monsterDead) {
+    const freshForTutorial = db.getPlayer(player.id);
+    if (freshForTutorial && freshForTutorial.tutorial_step >= 3 && freshForTutorial.current_room_id === tutorial.TUTORIAL_ROOM_ID) {
+      // El jugador mató al goblin en el tutorial — completar el tutorial automáticamente
+      tutorialCompletionResult = completeTutorial(freshForTutorial);
+    }
+  }
+
+  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '');
+
+  if (tutorialCompletionResult) {
+    return {
+      text: baseText + '\n\n' + tutorialCompletionResult.text,
+      event: tutorialCompletionResult.event,
+      eventRoomId: tutorialCompletionResult.eventRoomId,
+      globalEvent: null,
+      sessionKill: true,
+    };
+  }
+
   return {
-    text: battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : ''),
+    text: baseText,
     event: battlecryEvent || eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || (worldGoalMsg ? worldGoalMsg.replace(/\n/, '') : null) || (recordMsgs.length ? recordMsgs[0] : null) || null,
@@ -2716,45 +2740,57 @@ function cmdMap(player) {
     22: 'Cripta',
   };
 
-  function cell(id) {
+  function _oldCell(id) {
+    // Replaced by DIS-D05 rewrite below — keeping this as dead code guard
     const label = NAMES[id] || `Sala ${id}`;
     const marker = id === here ? '★' : ' ';
     const swordFlag = roomsWithMonsters.has(id) ? '⚔' : ' ';
     return `[${marker}${String(id).padStart(2,' ')} ${label.substring(0,9).padEnd(9,' ')}${swordFlag}]`;
   }
+  void _oldCell; // suppress unused warning
+
+  // DIS-D05: Mapa rediseñado con mejor alineación y leyenda numérica más clara
+  // Cada celda es [NN:Nombre] de ancho fijo, sin emojis que rompan alineación
+  function cell(id) {
+    const label = (NAMES[id] || `Sala${id}`).substring(0, 9).padEnd(9, ' ');
+    const marker = id === here ? '★' : ' ';
+    const sword  = roomsWithMonsters.has(id) ? '⚔' : ' ';
+    return `[${marker}${String(id).padStart(2, ' ')}:${label}${sword}]`;
+  }
 
   const c = (id) => cell(id);
+  const gap = '       '; // 7 spaces para espaciar columnas
 
-  // Layout visual del dungeon expandido:
   //
-  //                                              [8-Prisión]
-  //                                                   │
-  // [7-Pozo]───[3-Ecos]───[4-Tesoro]     [12-Forja]───[14-Coliseo]───[15-Catedral]
-  //    │                      │               │              │
-  // [10-Santuario]──[9-Trono]──[6-Túnel]──[2-Corredor]  [13-Caverna]
-  //    │                          │              │
-  // [11-Galería]              [5-Capilla]─[1-Entrada]
-
-  // Fila superior (3 salas): 8, luego 12-14-15 a la derecha
-  // Fila media: 7-3-4 | | 10-9-6-2 | 12(conector)
-  // Fila baja: 11 | 5-1
+  // Layout del dungeon (conexiones reales):
+  //
+  //                   [ 8:Prisión ]
+  //                       |
+  // [ 7:Pozo ]---[ 3:Ecos ]---[ 4:Tesoro ]
+  //     |                         |
+  // [10:Santuario]---[ 9:Trono]---[ 4 ] arriba
+  //     |                |
+  // [11:Galería]    [ 6:Túnel ]---[ 2:Corredor ]---[12:Forja ]---[14:Coliseo]---[15:Catedral]
+  //                    |               |                              |
+  //                [ 5:Capilla ]---[ 1:Entrada ]               [13:Caverna]
+  //
+  //  [18:Fuente]---[10 norte]
+  //  [22:Cripta]---[15 abajo]
 
   const lines = [
-    'MAPA DEL DUNGEON (16 salas + zonas especiales)',
+    'MAPA DEL DUNGEON',
     timeDecor,
     '',
-    // Fila top: Prisión (arriba de 4) y Forja/Coliseo/Catedral (zona nueva)
-    `         ${c(8)}                   ${c(12)}───${c(14)}───${c(15)}`,
-    `              │                        │         │       │↓`,
-    // Fila principal izquierda + santuario/conexión + zonas nuevas
-    `${c(7)}───${c(3)}───${c(4)}   ${c(10)}───${c(9)}───${c(6)}───${c(2)}   ${c(13)}  ${c(22)}`,
-    `  │              │                    │         │`,
-    `${c(11)}          ${c(5)}───${c(1)}               │`,
-    `                                       └───zona expandida`,
-    '',
-    `★ = tu ubicación actual (sala ${here}: ${NAMES[here] || '?'})`,
-    `⚔ = sala con monstruos vivos`,
-    `(Cripta: sala 15 → bajar)`,
+    `                 ${c(8)}`,
+    `                      |`,
+    `${c(7)}---${c(3)}---${c(4)}`,
+    `  |                        |`,
+    `${c(10)}---${c(9)}---${c(6)}---${c(2)}---${c(12)}---${c(14)}---${c(15)}`,
+    `  |              |          |                    |`,
+    `${c(11)}    ${c(5)}---${c(1)}              ${c(13)}${gap}${c(22)}`,
+    ``,
+    `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
+    `⚔ = monstruo activo   (Fuente: sala 10→norte  Cripta: sala 15→bajar)`,
   ];
 
   return { text: lines.join('\n') };
@@ -5296,8 +5332,23 @@ function cmdCast(player, args) {
   const maxMana = player.max_mana || 20;
 
   // Resolver nombre del hechizo (puede ser varias palabras, ej: "bola de fuego")
-  const spellQuery = args.join(' ').toLowerCase().trim();
-  const found = findSpell(spellQuery);
+  // Intentar encontrar el hechizo probando prefijos de args (de más largo a más corto)
+  let found = null;
+  let targetArgIndex = args.length; // índice desde donde empieza el objetivo
+  for (let i = args.length; i >= 1; i--) {
+    const attempt = args.slice(0, i).join(' ').toLowerCase().trim();
+    const f = findSpell(attempt);
+    if (f) {
+      found = f;
+      targetArgIndex = i;
+      break;
+    }
+  }
+  if (!found) {
+    // Fallback: intentar con todos los args
+    const spellQuery = args.join(' ').toLowerCase().trim();
+    found = findSpell(spellQuery);
+  }
 
   if (!found) {
     return {
@@ -5329,7 +5380,12 @@ function cmdCast(player, args) {
 
     // Si hay argumento de objetivo, buscar monstruo específico
     let target = monsters[0]; // por defecto el primero
-    if (args.length > 1) {
+    if (args.length > targetArgIndex) {
+      const targetQuery = args.slice(targetArgIndex).join(' ').toLowerCase();
+      const matched = monsters.find(m => m.name.toLowerCase().includes(targetQuery));
+      if (matched) target = matched;
+    } else if (args.length > 1) {
+      // Fallback para compatibilidad
       const targetQuery = args.slice(1).join(' ').toLowerCase();
       const matched = monsters.find(m => m.name.toLowerCase().includes(targetQuery));
       if (matched) target = matched;
@@ -5595,8 +5651,11 @@ function cmdBestiary(player) {
     `║         📖 BESTIARIO PERSONAL          ║`,
     `╠════════════════════════════════════════╣`,
   ];
+  const maxKills = Math.max(...entries.map(e => e.kills), 1);
+  // Escalar la barra relativa al máximo de kills del jugador (mínimo 5 para mostrar al menos algo con 1 kill)
+  const barMax = Math.max(maxKills, 5);
   for (const entry of entries) {
-    const bar = buildBar(Math.min(entry.kills, 50), 50, 10);
+    const bar = buildBar(Math.min(entry.kills, barMax), barMax, 10);
     const firstDate = entry.first_kill ? entry.first_kill.slice(0, 10) : '?';
     const skull = entry.kills >= 20 ? '💀' : entry.kills >= 10 ? '☠' : entry.kills >= 5 ? '⚔' : '·';
     lines.push(`║ ${skull} ${entry.name.padEnd(20).slice(0, 20)} × ${String(entry.kills).padStart(3)} kills ║`);
