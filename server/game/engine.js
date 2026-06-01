@@ -1621,8 +1621,10 @@ function cmdUse(player, itemQuery) {
     resultText = `✅ Bebés el ${found}. El veneno se neutraliza de inmediato. Te sentís mejor.`;
 
   } else if (def.type === 'weapon') {
-    // Equipar el arma: aumenta el ataque base del jugador
-    const newAttack = 5 + def.amount; // base 5 + bonus del arma
+    // Equipar el arma: calcular ataque base real (sin el bonus del arma previa)
+    const prevWeaponBonus = player.equipped_weapon ? (items.getItemDef(player.equipped_weapon)?.amount || 0) : 0;
+    const baseAttack = player.attack - prevWeaponBonus;
+    const newAttack = baseAttack + def.amount;
     db.updatePlayer(player.id, { attack: newAttack, equipped_weapon: found });
 
     resultText = `Equipás ${found}. Tu ataque sube a ${newAttack}.`;
@@ -1678,7 +1680,9 @@ function cmdDrop(player, itemQuery) {
   // Si era el arma equipada, desequipar (volver a ataque base)
   if (player.equipped_weapon && player.equipped_weapon === found) {
     updates.equipped_weapon = null;
-    updates.attack = 5;
+    const droppedWeaponDef = items.getItemDef(found);
+    const droppedWeaponBonus = droppedWeaponDef?.amount || 0;
+    updates.attack = player.attack - droppedWeaponBonus;
   }
   // T152: Si era la armadura equipada, desequipar (volver a defensa sin armadura)
   if (player.equipped_armor && player.equipped_armor === found) {
@@ -1697,7 +1701,7 @@ function cmdDrop(player, itemQuery) {
   }
 
   let extraMsg = '';
-  if (updates.equipped_weapon === null) extraMsg += ' Ya no tenés ningún arma equipada (ataque: 5).';
+  if (updates.equipped_weapon === null) extraMsg += ` Ya no tenés ningún arma equipada (ataque: ${updates.attack || player.attack}).`;
   if (updates.equipped_armor === null)  extraMsg += ' Ya no tenés armadura (defensa: 2).';
 
   return {
@@ -1934,7 +1938,10 @@ function cmdEquip(player, itemQuery) {
   }
 
   const oldAttack = player.attack;
-  const newAttack = 5 + def.amount; // base 5 + bonus del arma
+  // Calcular ataque base real (sin el bonus del arma previa si había una)
+  const prevWeaponBonusEquip = player.equipped_weapon ? (items.getItemDef(player.equipped_weapon)?.amount || 0) : 0;
+  const baseAttackEquip = player.attack - prevWeaponBonusEquip;
+  const newAttack = baseAttackEquip + def.amount;
   db.updatePlayer(player.id, { attack: newAttack, equipped_weapon: found });
 
   const change = newAttack - oldAttack;
@@ -2248,10 +2255,13 @@ function cmdUnequip(player) {
   }
 
   const weaponName = player.equipped_weapon;
-  db.updatePlayer(player.id, { attack: 5, equipped_weapon: null });
+  const weaponDef = items.getItemDef(weaponName);
+  const weaponBonus = weaponDef?.amount || 0;
+  const baseAttack = player.attack - weaponBonus;
+  db.updatePlayer(player.id, { attack: baseAttack, equipped_weapon: null });
 
   return {
-    text: `Enfundás ${weaponName}. Volvés a pelear con los puños (ataque: 5).`,
+    text: `Enfundás ${weaponName}. Volvés a pelear con los puños (ataque: ${baseAttack}).`,
     event: `${player.username} enfunda ${weaponName}.`,
     eventRoomId: player.current_room_id,
   };
@@ -2389,7 +2399,9 @@ function cmdGive(player, args) {
   // Si el donante estaba usando el ítem como arma equipada, desequiparla
   if (player.equipped_weapon && player.equipped_weapon === found) {
     giverUpdates.equipped_weapon = null;
-    giverUpdates.attack = 5;
+    const givenWeaponDef = items.getItemDef(found);
+    const givenWeaponBonus = givenWeaponDef?.amount || 0;
+    giverUpdates.attack = player.attack - givenWeaponBonus;
   }
   // T152: Si era la armadura equipada, desequipar
   if (player.equipped_armor && player.equipped_armor === found) {
@@ -2403,7 +2415,7 @@ function cmdGive(player, args) {
   db.updatePlayer(target.id,  { inventory: newTargetInv });
 
   let extraMsg = '';
-  if (giverUpdates.equipped_weapon === null) extraMsg += ' (perdiste tu arma equipada, ataque vuelve a 5)';
+  if (giverUpdates.equipped_weapon === null) extraMsg += ` (perdiste tu arma equipada, ataque vuelve a ${giverUpdates.attack})`;
   if (giverUpdates.equipped_armor === null)  extraMsg += ` (perdiste tu armadura, defensa vuelve a ${giverUpdates.defense})`;
 
   return {
@@ -3173,8 +3185,10 @@ function cmdTrade(player, args) {
     // Actualizar BD
     const initiatorUpdates = { inventory: newInitiatorInv };
     if (freshInitiator.equipped_weapon === trade.item) {
+      const tradeInitWeaponDef = items.getItemDef(trade.item);
+      const tradeInitWeaponBonus = tradeInitWeaponDef?.amount || 0;
       initiatorUpdates.equipped_weapon = null;
-      initiatorUpdates.attack = 5;
+      initiatorUpdates.attack = freshInitiator.attack - tradeInitWeaponBonus;
     }
     if (freshInitiator.equipped_armor === trade.item) {
       const armorDef = items.getItemDef(trade.item);
@@ -3186,8 +3200,10 @@ function cmdTrade(player, args) {
 
     const playerUpdates = { inventory: newPlayerInv };
     if (freshPlayer.equipped_weapon === playerItemActual) {
+      const tradePlayerWeaponDef = items.getItemDef(playerItemActual);
+      const tradePlayerWeaponBonus = tradePlayerWeaponDef?.amount || 0;
       playerUpdates.equipped_weapon = null;
-      playerUpdates.attack = 5;
+      playerUpdates.attack = freshPlayer.attack - tradePlayerWeaponBonus;
     }
     if (freshPlayer.equipped_armor === playerItemActual) {
       const armorDef = items.getItemDef(playerItemActual);
@@ -3631,7 +3647,10 @@ function cmdSell(player, itemQuery) {
 
   // Si era el arma equipada, desequipar
   if (player.equipped_weapon === found) {
-    db.updatePlayer(player.id, { attack: 5, equipped_weapon: null });
+    const soldWeaponDef = items.getItemDef(found);
+    const soldWeaponBonus = soldWeaponDef?.amount || 0;
+    const baseAttackAfterSell = player.attack - soldWeaponBonus;
+    db.updatePlayer(player.id, { attack: baseAttackAfterSell, equipped_weapon: null });
   }
 
   return {
@@ -8953,7 +8972,10 @@ function cmdPreview(player, args) {
 
   if (def.type === 'weapon') {
     const currentAtk = player.attack;
-    const newAtk = 5 + def.amount;
+    // Calcular el ATK nuevo correctamente: base (sin arma actual) + bonus nueva arma
+    const prevWeaponBonusPreview = player.equipped_weapon ? (items.getItemDef(player.equipped_weapon)?.amount || 0) : 0;
+    const baseAtkPreview = currentAtk - prevWeaponBonusPreview;
+    const newAtk = baseAtkPreview + def.amount;
     const change = newAtk - currentAtk;
     const changeStr = change >= 0 ? `+${change}` : `${change}`;
     const currentWeapon = player.equipped_weapon || '(puños)';
