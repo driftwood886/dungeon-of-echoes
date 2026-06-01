@@ -789,7 +789,29 @@ function cmdStatus(player) {
     `Nivel:    ${level}  (${xp} XP total | kills: ${kills} | muertes: ${deaths})`,
     `XP sig.:  ${xpBar} ${xp % 50}/50`,
     `HP:       ${hpBar} ${player.hp}/${player.max_hp}`,
-    `Ataque:   ${player.attack}${player.pet ? ` (+1 🐾 mascota = ${player.attack + 1} efectivo)` : ''}`,
+    (() => {
+      // BUG-011: mostrar ATK efectivo con todos los buffs activos
+      const scrollsStatus = JSON.parse(player.active_scrolls || '{}');
+      const nowStatus = Date.now();
+      const STANCE_ATK = { agresivo: +2, defensivo: -1, equilibrado: 0 };
+      let atkBuffTotal = 0;
+      for (const data of Object.values(scrollsStatus)) {
+        if (data.expires_at > nowStatus) atkBuffTotal += (data.atk_bonus || 0);
+      }
+      const stanceAtkMod = STANCE_ATK[player.stance || 'equilibrado'] || 0;
+      const petAtk = player.pet ? 1 : 0;
+      const totalBonus = atkBuffTotal + stanceAtkMod + petAtk;
+      const effectiveAtk = player.attack + totalBonus;
+      if (totalBonus !== 0) {
+        const bonusParts = [];
+        if (petAtk) bonusParts.push(`+1 🐾`);
+        if (atkBuffTotal > 0) bonusParts.push(`+${atkBuffTotal} 📜buff`);
+        if (stanceAtkMod > 0) bonusParts.push(`+${stanceAtkMod} postura`);
+        else if (stanceAtkMod < 0) bonusParts.push(`${stanceAtkMod} postura`);
+        return `Ataque:   ${player.attack} (${bonusParts.join(', ')} = ${effectiveAtk} efectivo)`;
+      }
+      return `Ataque:   ${player.attack}`;
+    })(),
     `Defensa:  ${player.defense}`,
     `Oro:      💰 ${gold}g`,
     weaponLine,
@@ -5274,6 +5296,26 @@ function cmdCast(player, args) {
       });
       lines.push(`   +${xpGain} XP (Total: ${newXp} XP, Nivel ${newLevel}).`);
       broadcastEvent = `🔥 ¡${player.username} incineró a ${target.name} con ${spellName}!`;
+      // BUG-010: registrar progreso de quest al matar con hechizo
+      const freshForCastQuest = db.getPlayer(player.id);
+      const qCastResult = quests.recordProgress(freshForCastQuest, 'kill', { monsterName: target.name });
+      if (qCastResult) {
+        db.updatePlayer(player.id, { quest_progress: qCastResult.questProgress });
+        if (qCastResult.justCompleted && qCastResult.reward) {
+          const r = qCastResult.reward;
+          const freshQ2 = db.getPlayer(player.id);
+          db.updatePlayer(player.id, { gold: (freshQ2.gold || 0) + r.gold, xp: (freshQ2.xp || 0) + r.xp });
+          lines.push(`   🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`);
+          db.addReputation(player.id, 5);
+          db.logGlobalEvent('quest', `📜 ${player.username} completó la misión con ${spellName}.`);
+          db.addJournalEntry(player.id, 'quest', `📜 Quest completada con ${spellName}: +${r.gold}g, +${r.xp} XP.`);
+        } else if (qCastResult.newProgress) {
+          const info = quests.getPlayerProgress(db.getPlayer(player.id));
+          if (info && !info.completed) {
+            lines.push(`   📜 Quest: ${qCastResult.newProgress}/${info.goal} — ¡Seguí así!`);
+          }
+        }
+      }
     } else {
       db.updateMonster(target.id, { hp: newHp });
     }
@@ -5669,6 +5711,26 @@ function cmdUseSkill(player, args, context) {
       text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       if (levelUp) db.addJournalEntry(freshPlayer.id, 'level', `⬆️ Subiste al nivel ${newLevel} tras el Golpetazo.`);
+      // BUG-010: registrar progreso de quest al matar con skill
+      const freshForSmashQuest = db.getPlayer(freshPlayer.id);
+      const qSmashResult = quests.recordProgress(freshForSmashQuest, 'kill', { monsterName: target.name });
+      if (qSmashResult) {
+        db.updatePlayer(freshPlayer.id, { quest_progress: qSmashResult.questProgress });
+        if (qSmashResult.justCompleted && qSmashResult.reward) {
+          const r = qSmashResult.reward;
+          const freshQ2 = db.getPlayer(freshPlayer.id);
+          db.updatePlayer(freshPlayer.id, { gold: (freshQ2.gold || 0) + r.gold, xp: (freshQ2.xp || 0) + r.xp });
+          text += `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
+          db.addReputation(freshPlayer.id, 5);
+          db.logGlobalEvent('quest', `📜 ${freshPlayer.username} completó la misión con Golpetazo.`);
+          db.addJournalEntry(freshPlayer.id, 'quest', `📜 Quest completada con Golpetazo: +${r.gold}g, +${r.xp} XP.`);
+        } else if (qSmashResult.newProgress) {
+          const info = quests.getPlayerProgress(db.getPlayer(freshPlayer.id));
+          if (info && !info.completed) {
+            text += `\n📜 Quest: ${qSmashResult.newProgress}/${info.goal} — ¡Seguí así!`;
+          }
+        }
+      }
     } else {
       text += `\n  El ${target.name} tiene ${newHp}/${target.max_hp} HP.`;
       text += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
@@ -5718,6 +5780,26 @@ function cmdUseSkill(player, args, context) {
       db.updatePlayer(freshPlayer.id, { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 });
       text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
+      // BUG-010: registrar progreso de quest al matar con shield_bash
+      const freshForBashQuest = db.getPlayer(freshPlayer.id);
+      const qBashResult = quests.recordProgress(freshForBashQuest, 'kill', { monsterName: target.name });
+      if (qBashResult) {
+        db.updatePlayer(freshPlayer.id, { quest_progress: qBashResult.questProgress });
+        if (qBashResult.justCompleted && qBashResult.reward) {
+          const r = qBashResult.reward;
+          const freshQ2 = db.getPlayer(freshPlayer.id);
+          db.updatePlayer(freshPlayer.id, { gold: (freshQ2.gold || 0) + r.gold, xp: (freshQ2.xp || 0) + r.xp });
+          text += `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
+          db.addReputation(freshPlayer.id, 5);
+          db.logGlobalEvent('quest', `📜 ${freshPlayer.username} completó la misión con Golpe de Escudo.`);
+          db.addJournalEntry(freshPlayer.id, 'quest', `📜 Quest completada con Golpe de Escudo: +${r.gold}g, +${r.xp} XP.`);
+        } else if (qBashResult.newProgress) {
+          const info = quests.getPlayerProgress(db.getPlayer(freshPlayer.id));
+          if (info && !info.completed) {
+            text += `\n📜 Quest: ${qBashResult.newProgress}/${info.goal} — ¡Seguí así!`;
+          }
+        }
+      }
     } else {
       text += `\n  El ${target.name} está aturdido (no ataca el próximo turno). HP: ${newHp}/${target.max_hp}.`;
       text += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
