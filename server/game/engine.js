@@ -890,7 +890,7 @@ function cmdStatus(player) {
     })(),
     `Oro:      💰 ${gold}g`,
     weaponLine,
-    player.equipped_armor
+    player.equipped_armor && player.equipped_armor !== 'null'
       ? `Armadura: 🛡 ${player.equipped_armor}`
       : `Armadura: (sin armadura — defensa base)`,
     (() => {
@@ -5785,7 +5785,7 @@ function cmdProfile(player) {
     `║${line('Hermandad', fresh.guild ? `[${fresh.guild}]` : '(independiente)')}║`,
     `║${line('Mascota  ', fresh.pet || '(sin compañero)')}║`,
     `║${line('Arma     ', fresh.equipped_weapon || '(desarmado)')}║`,
-    `║${line('Armadura ', fresh.equipped_armor || '(sin armadura)')}║`,
+    `║${line('Armadura ', (fresh.equipped_armor && fresh.equipped_armor !== 'null') ? fresh.equipped_armor : '(sin armadura)')}║`,
     `╟${'─'.repeat(W)}╢`,
     `║${line('Logros   ', `${achCount} desbloqueados`)}║`,
     `║  ${achIcons.slice(0, W - 2)}║`,

@@ -415,7 +415,7 @@ function updatePlayer(id, fields) {
     .map(k => `${k} = ?`)
     .join(', ');
   const values = Object.values(fields).map(v =>
-    typeof v === 'object' ? JSON.stringify(v) : v
+    (v !== null && typeof v === 'object') ? JSON.stringify(v) : v
   );
   run(`UPDATE players SET ${updates} WHERE id = ?`, [...values, id]);
 }

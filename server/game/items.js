@@ -35,6 +35,8 @@ const ITEM_CATALOG = {
   // ── Armas (dungeon base) ──────────────────────────────────────────────────
   'espada oxidada':      { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'Una espada vieja con filo irregular. +3 de ataque.' },
   'cuchillo oxidado':    { type: 'weapon', effect: 'attack_bonus', amount: 1,  description: 'Un cuchillo pequeño y oxidado. +1 de ataque.' },
+  'espada de hierro':    { type: 'weapon', effect: 'attack_bonus', amount: 6,  description: 'Una espada de hierro forjado, sólida y confiable. +6 de ataque.' },
+  'daga envenenada':     { type: 'weapon', effect: 'attack_bonus', amount: 4,  on_hit: { type: 'poison', chance: 0.35 }, description: 'Una daga con el filo impregnado de veneno. +4 de ataque. 35% de envenenar al golpear.' },
   'espada larga':        { type: 'weapon', effect: 'attack_bonus', amount: 5,  description: 'Una espada bien balanceada. +5 de ataque.' },
   'cristal mágico':      { type: 'weapon', effect: 'attack_bonus', amount: 7,  description: 'Un cristal que amplifica la fuerza. +7 de ataque.' },
   'piedra de poder':     { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'Vibra levemente en tu mano. +4 de ataque.' },
@@ -59,6 +61,7 @@ const ITEM_CATALOG = {
   'monedas de oro':      { type: 'misc', description: 'Monedas de oro resplandecientes. Son pocas, pero valen mucho.' },
   'pelaje áspero':       { type: 'misc', description: 'El pelaje de una rata gigante. Áspero al tacto.' },
   'escudo roto':         { type: 'misc', description: 'Un escudo con el centro partido. Inútil para defenderse.' },
+  'escudo de madera':    { type: 'armor', defense: 2, description: 'Un escudo de madera reforzada. No es glamoroso, pero te protege. +2 de defensa.' },
   'esencia etérea':      { type: 'misc', description: 'Una esencia brumosa dentro de un frasco. Resuena con el más allá.' },
   'mochila de cuero':    { type: 'misc', description: 'Una mochila resistente de cuero curtido. Útil para cargar cosas.' },
   'vela encendida':      { type: 'misc', description: 'Una vela que arde con una llama temblorosa. Apenas ilumina.' },
