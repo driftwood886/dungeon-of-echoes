@@ -1183,9 +1183,9 @@ function cmdAttack(player, targetName) {
 
   // ── Evaluar logros tras el combate ──────────────────────────────────────
   let achLines = '';
+  const bossKill = monsterDead && !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]);
   const freshForAch = db.getPlayer(player.id);
   if (freshForAch) {
-    const bossKill = monsterDead && !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]);
     const poisonSurvived = !!(combatResult && combatResult.poisonSurvived);
     const newAchs = ach.checkAchievements(freshForAch, { bossKill, poisonSurvived });
     achLines = ach.formatNewAchievements(newAchs);
