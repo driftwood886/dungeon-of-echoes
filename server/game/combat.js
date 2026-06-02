@@ -698,9 +698,12 @@ function attackRound(player, monster) {
   }
 
   // ── Huida del monstruo (< 25% HP) ────────────────────────────────────────
+  // DIS-D20: los bosses con < 10% HP no pueden huir (demasiado débiles para correr)
+  const isBoss = !!(BOSS_MONSTERS && BOSS_MONSTERS[monster.id]);
   if (!monsterDead && !playerDead && monster.hp > 0) {
     const hpPct = monster.hp / monster.max_hp;
-    if (hpPct < 0.25 && Math.random() < 0.30) {
+    const tooWeakToFlee = isBoss && hpPct < 0.10;
+    if (hpPct < 0.25 && !tooWeakToFlee && Math.random() < 0.30) {
       // El monstruo intenta escapar a una sala adyacente
       const room = db.getRoom(player.current_room_id);
       if (room) {

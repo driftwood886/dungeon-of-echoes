@@ -677,7 +677,7 @@ function cmdMove(player, direction) {
   const CINEMATIC_EVENTS = {
     15: '⛪ A medida que cruzás el umbral de la Catedral de la Oscuridad, el eco de tus pasos revela la inmensidad del lugar. Las vidrieras rotas dejan entrar rayos de luz violácea. Sentís el peso de siglos de oscuridad posarse sobre tus hombros.',
     22: '🪦 La Cripta de los Valientes te recibe en silencio. Las placas en las paredes murmuran nombres olvidados. Una voz que no existe te susurra: "¿Serás digno de ser recordado aquí, o morirás en el anonimato?"',
-    14: '⚒️ El calor del Taller de la Forja te golpea al entrar. Las yunques abandonadas todavía tienen forma de espadas a medio crear. El fuego del hogar nunca se apagó — lleva ardiendo siglos, alimentado por algo que no es madera.',
+    14: '🦴 El Coliseo de Huesos te recibe con el silencio de mil batallas perdidas. Gradas de huesos apilados se elevan hacia la oscuridad. Podés sentir el peso de todos los gladiadores que murieron aquí — sus espíritus aún esperan un digno rival que los vengue.',
     11: '❄️ La Galería de Hielo detiene tu respiración. Las paredes de cristal azul reflejan tu imagen distorsionada en docenas de ángulos. En uno de los reflejos, tu imagen te devuelve la mirada... medio segundo antes que vos.',
     20: '🕳️ Al asomarte al Abismo Eterno, el vacío te mira de vuelta. No hay fondo visible. Solo oscuridad infinita, y el certero presentimiento de que algo muy antiguo — y muy hambriento — acaba de notar tu presencia.',
   };
@@ -2370,6 +2370,12 @@ function cmdWear(player, itemQuery) {
 
   const oldDefense = player.defense || 2;
   const oldArmor = player.equipped_armor;
+
+  // DIS-D18: verificar si ya está puesta esa misma armadura
+  if (oldArmor && oldArmor === found) {
+    return { text: `Ya tenés ${found} puest${found.endsWith('a') ? 'a' : 'o'}. No hay nada que cambiar.` };
+  }
+
   // Calcular defensa desnuda (sin ninguna armadura), para preservar bonuses de clase y level-ups
   const oldArmorAmount = oldArmor ? (items.getItemDef(oldArmor)?.amount || 0) : 0;
   const nakedDefense = oldDefense - oldArmorAmount;
@@ -10454,6 +10460,29 @@ function cmdGoals(player) {
   const goals = [];
   const done  = [];
 
+  // ─── DIS-D16/DIS-D17: Metas de end-game (tienen prioridad — van al inicio) ──
+  // Para jugadores que ya mataron al boss: mostrar primero las metas de end-game
+  if (achievements.includes('boss_killer')) {
+    // Bestiario completo — "Conquistador del Dungeon"
+    const bestiaryKeys = Object.keys(bestiary).filter(k => k !== 'Goblin de Práctica');
+    const TOTAL_MONSTER_TYPES = 14; // tipos únicos en el dungeon (sin el goblin práctica)
+    if (bestiaryKeys.length < TOTAL_MONSTER_TYPES) {
+      goals.push(`📖 Conquistador del Dungeon: enfrentá ${TOTAL_MONSTER_TYPES - bestiaryKeys.length} tipos de monstruo más (bestiario: ${bestiaryKeys.length}/${TOTAL_MONSTER_TYPES})`);
+    } else {
+      done.push(`📖 ¡Bestiario completo! Sos un verdadero Conquistador del Dungeon.`);
+    }
+    // Nivel 20 como techo real
+    if (level < 20) {
+      goals.push(`👑 Alcanzar el nivel 20 (nivel máximo legendario): ${level}/20 — faltan ${50 * (20 - level) - (xp % 50)} XP`);
+    } else {
+      done.push(`👑 ¡Nivel 20 alcanzado! Sos una leyenda viviente del dungeon.`);
+    }
+    // Logro 50 kills post-boss
+    if (kills < 50 && !achievements.includes('cien_kills')) {
+      goals.push(`⚔️  Logro "Masacre Total": matá 50 enemigos en total (tenés ${kills}/50)`);
+    }
+  }
+
   // ─── Progresión de nivel ───────────────────────────────────────────────────
   const xpForNext = 50 - (xp % 50);
   if (xpForNext <= 50) {
@@ -10511,29 +10540,6 @@ function cmdGoals(player) {
   // ─── Crafteo ──────────────────────────────────────────────────────────────
   if (craftsCount === 0) {
     goals.push(`🔧 Probar el crafteo por primera vez: usá "recetas" y luego "craft"`);
-  }
-
-  // ─── DIS-D16: Metas de end-game ───────────────────────────────────────────
-  // Para jugadores que ya mataron al boss y tienen mucho nivel
-  if (achievements.includes('boss_killer')) {
-    // Bestiario completo — "Conquistador del Dungeon"
-    const bestiaryKeys = Object.keys(bestiary).filter(k => k !== 'Goblin de Práctica');
-    const TOTAL_MONSTER_TYPES = 14; // tipos únicos en el dungeon (sin el goblin práctica)
-    if (bestiaryKeys.length < TOTAL_MONSTER_TYPES) {
-      goals.push(`📖 Conquistador del Dungeon: enfrentá ${TOTAL_MONSTER_TYPES - bestiaryKeys.length} tipos de monstruo más (bestiario: ${bestiaryKeys.length}/${TOTAL_MONSTER_TYPES})`);
-    } else {
-      done.push(`📖 ¡Bestiario completo! Sos un verdadero Conquistador del Dungeon.`);
-    }
-    // Nivel 20 como techo real
-    if (level < 20) {
-      goals.push(`👑 Alcanzar el nivel 20 (nivel máximo legendario): ${level}/20 — faltan ${50 * (20 - level) - (xp % 50)} XP`);
-    } else {
-      done.push(`👑 ¡Nivel 20 alcanzado! Sos una leyenda viviente del dungeon.`);
-    }
-    // Logro 50 kills post-boss
-    if (kills < 50 && !achievements.includes('cien_kills')) {
-      goals.push(`⚔️  Logro "Masacre Total": matá 50 enemigos en total (tenés ${kills}/50)`);
-    }
   }
 
   const W = 54;
