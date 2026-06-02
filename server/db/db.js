@@ -1119,7 +1119,9 @@ function updateDailyChallengeProgress(playerId, type, target, amount = 1) {
   const today = new Date().toISOString().slice(0, 10);
   if (ch.date !== today) return null;
   if (ch.type !== type) return null;
-  if (type === 'kill' && target && ch.target && ch.target.toLowerCase() !== target.toLowerCase()) return null;
+  // Strip ⭐ elite prefix from monster name before comparing (T221 elites should count)
+  const targetBaseName = (target && target.startsWith('⭐ ')) ? target.slice(2) : target;
+  if (type === 'kill' && targetBaseName && ch.target && ch.target.toLowerCase() !== targetBaseName.toLowerCase()) return null;
   ch.progress = (ch.progress || 0) + amount;
   let reward = null;
   if (ch.progress >= ch.goal) {
