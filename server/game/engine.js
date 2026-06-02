@@ -1692,7 +1692,7 @@ function cmdUse(player, itemQuery) {
   } else if (def.type === 'antidote' && def.effect === 'cure_poison') {
     const statusFx = player.status_effects || {};
     if (!statusFx.poisoned) {
-      return { text: `Usás ${found} pero no estás envenenado. Guardás el antídoto... espera, ya lo consumiste.` };
+      return { text: `Usás ${found} pero no estás envenenado. El ítem no fue consumido.` };
     }
     delete statusFx.poisoned;
     // Consumir el ítem
