@@ -329,6 +329,15 @@ async function init() {
     console.error('[db] Fix DIS-P02 error:', fixErr.message);
   }
 
+  // BUG-030: Restaurar HP de monstruos vivos con HP < max_hp al reiniciar el servidor
+  // Esto evita que monstruos que sobrevivieron con HP bajo entre sesiones queden permanentemente dañados
+  try {
+    db.run(`UPDATE monsters SET hp = max_hp WHERE room_id IS NOT NULL AND hp < max_hp AND hp > 0`);
+    console.log('[db] BUG-030: HP de monstruos vivos restaurado a max_hp al reiniciar');
+  } catch (hpRestoreErr) {
+    console.error('[db] BUG-030 HP restore error:', hpRestoreErr.message);
+  }
+
   // Guardar al apagar
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });

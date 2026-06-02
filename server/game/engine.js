@@ -1422,7 +1422,19 @@ function cmdAttack(player, targetName) {
     }
   }
 
-  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '');
+  const bossVictoryBlock = bossKill
+    ? '\n\n' + [
+      '╔══════════════════════════════════════════════════╗',
+      '║  ☠️  ¡¡BOSS DERROTADO!!                          ║',
+      `║  Has vencido al ${monster.name.substring(0, 30).padEnd(30)}  ║`,
+      '║  El dungeon tiembla ante tu hazaña.              ║',
+      '║  🏆 El loot especial quedó en el suelo.          ║',
+      '║  Usá "loot" para recogerlo todo de una vez.      ║',
+      '╚══════════════════════════════════════════════════╝',
+    ].join('\n')
+    : '';
+
+  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock;
 
   if (tutorialCompletionResult) {
     return {
@@ -7272,9 +7284,11 @@ function cmdStudy(player, args) {
     return { text: `📖 No hay ningún "${targetName}" en esta sala para estudiar.\nUsá look para ver qué hay aquí.` };
   }
 
-  const lore = MONSTER_LORE[monster.name];
+  // BUG-031: limpiar prefijo ⭐ de monstruos élite antes de buscar en el lore
+  const baseName = monster.name.startsWith('⭐ ') ? monster.name.slice(2) : monster.name;
+  const lore = MONSTER_LORE[baseName] || MONSTER_LORE[monster.name];
   const { MONSTER_SPECIALS } = combat;
-  const special = MONSTER_SPECIALS[monster.name];
+  const special = MONSTER_SPECIALS[baseName] || MONSTER_SPECIALS[monster.name];
 
   const lines = [];
   const W = 48;
@@ -7736,6 +7750,20 @@ function cmdPath(player, args) {
     `╠═══════════════════════════════════════════════╣`,
   ];
 
+  // DIS-D14: Advertir sobre trampas activas en el camino
+  const trappedRooms = [];
+  found.forEach((step) => {
+    const room = allRooms.find(r => r.id === step.toId);
+    if (room && room.trap) {
+      try {
+        const trapData = typeof room.trap === 'string' ? JSON.parse(room.trap) : room.trap;
+        if (trapData && trapData.active) {
+          trappedRooms.push(room.name.substring(0, 22));
+        }
+      } catch (_) {}
+    }
+  });
+
   found.forEach((step, i) => {
     const room = allRooms.find(r => r.id === step.toId);
     const roomName = room ? room.name.substring(0, 22) : `Sala ${step.toId}`;
@@ -7760,6 +7788,12 @@ function cmdPath(player, args) {
     }
   }
   lines.push(`╚═══════════════════════════════════════════════╝`);
+
+  // DIS-D14: Agregar advertencia de trampas al final si las hay
+  if (trappedRooms.length > 0) {
+    lines.push(`⚠️  ADVERTENCIA: la ruta pasa por ${trappedRooms.length} sala${trappedRooms.length > 1 ? 's' : ''} con trampa activa:`);
+    trappedRooms.forEach(name => lines.push(`   • ${name} — usá "disarm" para desactivarla antes de salir`));
+  }
 
   return { text: lines.join('\n') };
 }
@@ -10453,19 +10487,19 @@ function cmdGoals(player) {
   // (Los logros secretos sin desbloquear deben sorprender al jugador al conseguirlos.)
 
   // ─── Kills para logros ────────────────────────────────────────────────────
-  if (kills < 10 && !achievements.includes('Asesino en Serie')) {
+  if (kills < 10 && !achievements.includes('diez_kills')) {
     goals.push(`⚔️  Logro "Asesino en Serie": necesitás ${10 - kills} kills más`);
-  } else if (kills < 50 && !achievements.includes('Masacre Total')) {
+  } else if (kills < 50 && !achievements.includes('cien_kills')) {
     goals.push(`⚔️  Logro "Masacre Total": necesitás ${50 - kills} kills más (tenés ${kills})`);
   }
 
   // ─── Veterano ─────────────────────────────────────────────────────────────
-  if (playtime < 60) {
+  if (playtime < 60 && !achievements.includes('veterano_dungeon')) {
     goals.push(`🏰 Logro secreto "Veterano del Dungeon": jugá ${60 - playtime} minutos más (acumulaste ${playtime}min)`);
   }
 
   // ─── Boss ─────────────────────────────────────────────────────────────────
-  if (!achievements.includes('Cazador de Lich')) {
+  if (!achievements.includes('boss_killer')) {
     goals.push(`💀 Logro "Cazador de Lich": matá al Lich Anciano en sala 15 (Catedral Maldita)`);
   }
 
@@ -10477,6 +10511,29 @@ function cmdGoals(player) {
   // ─── Crafteo ──────────────────────────────────────────────────────────────
   if (craftsCount === 0) {
     goals.push(`🔧 Probar el crafteo por primera vez: usá "recetas" y luego "craft"`);
+  }
+
+  // ─── DIS-D16: Metas de end-game ───────────────────────────────────────────
+  // Para jugadores que ya mataron al boss y tienen mucho nivel
+  if (achievements.includes('boss_killer')) {
+    // Bestiario completo — "Conquistador del Dungeon"
+    const bestiaryKeys = Object.keys(bestiary).filter(k => k !== 'Goblin de Práctica');
+    const TOTAL_MONSTER_TYPES = 14; // tipos únicos en el dungeon (sin el goblin práctica)
+    if (bestiaryKeys.length < TOTAL_MONSTER_TYPES) {
+      goals.push(`📖 Conquistador del Dungeon: enfrentá ${TOTAL_MONSTER_TYPES - bestiaryKeys.length} tipos de monstruo más (bestiario: ${bestiaryKeys.length}/${TOTAL_MONSTER_TYPES})`);
+    } else {
+      done.push(`📖 ¡Bestiario completo! Sos un verdadero Conquistador del Dungeon.`);
+    }
+    // Nivel 20 como techo real
+    if (level < 20) {
+      goals.push(`👑 Alcanzar el nivel 20 (nivel máximo legendario): ${level}/20 — faltan ${50 * (20 - level) - (xp % 50)} XP`);
+    } else {
+      done.push(`👑 ¡Nivel 20 alcanzado! Sos una leyenda viviente del dungeon.`);
+    }
+    // Logro 50 kills post-boss
+    if (kills < 50 && !achievements.includes('cien_kills')) {
+      goals.push(`⚔️  Logro "Masacre Total": matá 50 enemigos en total (tenés ${kills}/50)`);
+    }
   }
 
   const W = 54;
