@@ -2739,6 +2739,10 @@ function cmdMap(player) {
     13: 'Caverna',
     14: 'Coliseo',
     15: 'Catedral',
+    16: 'Antesala',
+    17: 'Subastas',
+    18: 'Fuente',
+    21: 'Práctica',
     22: 'Cripta',
   };
 
@@ -2766,7 +2770,10 @@ function cmdMap(player) {
   //
   // Layout del dungeon (conexiones reales):
   //
-  //                   [ 8:Prisión ]
+  //               [18:Fuente]
+  //                   |
+  //                   | (norte de 10)
+  //                 [ 8:Prisión ]
   //                       |
   // [ 7:Pozo ]---[ 3:Ecos ]---[ 4:Tesoro ]
   //     |                         |
@@ -2776,13 +2783,15 @@ function cmdMap(player) {
   //                    |               |                              |
   //                [ 5:Capilla ]---[ 1:Entrada ]               [13:Caverna]
   //
-  //  [18:Fuente]---[10 norte]
   //  [22:Cripta]---[15 abajo]
+  //
 
   const lines = [
     'MAPA DEL DUNGEON',
     timeDecor,
     '',
+    `                       ${c(18)}`,
+    `                            |`,
     `                 ${c(8)}`,
     `                      |`,
     `${c(7)}---${c(3)}---${c(4)}`,
@@ -2792,7 +2801,7 @@ function cmdMap(player) {
     `${c(11)}    ${c(5)}---${c(1)}              ${c(13)}${gap}${c(22)}`,
     ``,
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
-    `⚔ = monstruo activo   (Fuente: sala 10→norte  Cripta: sala 15→bajar)`,
+    `⚔ = monstruo activo`,
   ];
 
   return { text: lines.join('\n') };
@@ -5469,6 +5478,10 @@ function cmdCast(player, args) {
   } else if (spell.type === 'heal') {
     // Hechizo de curación
     const maxHp = player.max_hp;
+    // BUG-021: guard antes de consumir maná
+    if (player.hp >= maxHp) {
+      return { text: `🪄 Ya tenés el HP al máximo. Maná no consumido.` };
+    }
     const newHp = Math.min(maxHp, player.hp + spell.amount);
     const healed = newHp - player.hp;
 
@@ -5477,10 +5490,6 @@ function cmdCast(player, args) {
     lines.push(`🪄 Canalizás ${spell.icon} energía curativa...`);
     lines.push(`   Recuperás ${healed} HP. (${player.hp} → ${newHp}/${maxHp})`);
     lines.push(`   💧 Maná restante: ${newMana}/${maxMana}`);
-
-    if (healed === 0) {
-      lines[0] = `🪄 Canalizás ${spell.icon} energía curativa... pero ya tenés el HP al máximo.`;
-    }
 
   } else if (spell.type === 'shield') {
     // Escudo mágico
