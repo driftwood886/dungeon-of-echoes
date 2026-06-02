@@ -125,10 +125,10 @@ const CRAFTED_ITEMS = {
 // ─── Función de crafteo ────────────────────────────────────────────────────────
 
 /**
- * Normaliza un nombre de ítem (minúsculas, trim).
+ * Normaliza un nombre de ítem (minúsculas, trim, sin tildes NFD).
  */
 function normalize(name) {
-  return name.toLowerCase().trim();
+  return name.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 /**
