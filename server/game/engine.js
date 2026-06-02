@@ -366,6 +366,13 @@ function execute(playerId, input, context) {
           study: 'study', estudiar: 'study', analizar: 'study', investigar: 'study',
           wear: 'wear', ponerse: 'wear', vestir: 'wear',
           unwear: 'unwear', quitarse: 'unwear', desvestir: 'unwear',
+          // BUG-028: aliases para habilidades, magia y bóveda
+          skills: 'skills', habilidades: 'skills', habilidad: 'skills', poderes: 'skills',
+          smash: 'smash', golpetazo: 'smash',
+          shield_bash: 'shield_bash', escudo_bash: 'shield_bash',
+          cast: 'cast', lanzar: 'cast', hechizar: 'cast',
+          vault: 'vault', boveda: 'vault', bóveda: 'vault', cofre: 'vault',
+          enchant: 'enchant', encantar: 'enchant', encantamiento: 'enchant',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
@@ -804,8 +811,25 @@ function cmdStatus(player) {
       const parts = [];
       if (data.atk_bonus > 0) parts.push(`+${data.atk_bonus} ATK`);
       if (data.def_bonus > 0) parts.push(`+${data.def_bonus} DEF`);
-      const effectNames = { fury: '📜 FURIA', shield: '📜 ESCUDO MÁGICO', speed: '📜 VELOCIDAD' };
-      statusLines.push(`${effectNames[effect] || '📜 BUFF'} — ${parts.join(', ')} por ${secsLeft}s más.`);
+      // BUG-027: agregar propiedades especiales de encantamientos de runa
+      if (data.crit_bonus > 0) parts.push(`+${Math.round(data.crit_bonus * 100)}% crit`);
+      if (data.slow_chance > 0) parts.push(`${Math.round(data.slow_chance * 100)}% ralentizar`);
+      if (data.hp_on_kill > 0) parts.push(`+${data.hp_on_kill} HP por kill`);
+      // BUG-027: nombres descriptivos para encantamientos de runa según tipo
+      const enchantTypeNames = {
+        fuego: '🔥 Encantamiento de Fuego', hielo: '❄️ Encantamiento de Hielo',
+        sombra: '🌑 Encantamiento de Sombra', luz: '✨ Encantamiento de Luz',
+        caos: '🌀 Encantamiento del Caos'
+      };
+      let effectLabel;
+      if (effect === 'weapon_enchant') {
+        effectLabel = enchantTypeNames[data.type] || '✨ Encantamiento';
+      } else {
+        const effectNames = { fury: '📜 FURIA', shield: '📜 ESCUDO MÁGICO', speed: '📜 VELOCIDAD' };
+        effectLabel = effectNames[effect] || '📜 BUFF';
+      }
+      const partsStr = parts.length > 0 ? ` — ${parts.join(', ')}` : '';
+      statusLines.push(`${effectLabel}${partsStr} por ${secsLeft}s más.`);
     }
   }
 
