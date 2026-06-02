@@ -2795,18 +2795,15 @@ function cmdMap(player) {
   //
   // Layout del dungeon (conexiones reales):
   //
-  //               [18:Fuente]
-  //                   |
-  //                   | (norte de 10)
-  //                 [ 8:Prisión ]
-  //                       |
+  // [18:Fuente]
+  //     |  (norte de sala 10)
+  //     |        [8:Prisión]  (norte de sala 4)
+  //     |             |
   // [ 7:Pozo ]---[ 3:Ecos ]---[ 4:Tesoro ]
-  //     |                         |
-  // [10:Santuario]---[ 9:Trono]---[ 4 ] arriba
-  //     |                |
-  // [11:Galería]    [ 6:Túnel ]---[ 2:Corredor ]---[12:Forja ]---[14:Coliseo]---[15:Catedral]
-  //                    |               |                              |
-  //                [ 5:Capilla ]---[ 1:Entrada ]               [13:Caverna]
+  //     |
+  // [10:Santuario]---[ 9:Trono]---[ 6:Túnel ]---[ 2:Corredor ]---[12:Forja ]---[14:Coliseo]---[15:Catedral]
+  //     |                |              |                              |
+  // [11:Galería]    [ 5:Capilla ]---[ 1:Entrada ]               [13:Caverna]         [22:Cripta]
   //
   //  [22:Cripta]---[15 abajo]
   //
@@ -2815,12 +2812,11 @@ function cmdMap(player) {
     'MAPA DEL DUNGEON',
     timeDecor,
     '',
-    `                       ${c(18)}`,
-    `                            |`,
-    `                 ${c(8)}`,
-    `                      |`,
+    `${c(18)}`,
+    `  |         ${c(8)}`,
+    `  |         |`,
     `${c(7)}---${c(3)}---${c(4)}`,
-    `  |                        |`,
+    `  |`,
     `${c(10)}---${c(9)}---${c(6)}---${c(2)}---${c(12)}---${c(14)}---${c(15)}`,
     `  |              |          |                    |`,
     `${c(11)}    ${c(5)}---${c(1)}              ${c(13)}${gap}${c(22)}`,
@@ -5464,8 +5460,8 @@ function cmdCast(player, args) {
       const loot = JSON.parse(target.loot || '[]');
       if (loot.length > 0) {
         const room = db.getRoom(player.current_room_id);
-        const roomItems = room.items || [];
-        db.updateRoom(player.current_room_id, { items: [...roomItems, ...loot] });
+        const roomItems = room ? (room.items || []) : [];
+        db.updateRoomItems(player.current_room_id, [...roomItems, ...loot]);
         lines.push(`   💀 ${target.name} cae fulminado! Soltó: ${loot.join(', ')}.`);
       } else {
         lines.push(`   💀 ${target.name} cae fulminado!`);
