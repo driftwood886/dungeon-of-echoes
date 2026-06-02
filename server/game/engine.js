@@ -3718,6 +3718,14 @@ function cmdSell(player, itemQuery) {
     db.updatePlayer(player.id, { attack: baseAttackAfterSell, equipped_weapon: null });
   }
 
+  // Si era la armadura equipada, desequipar
+  if (player.equipped_armor === found) {
+    const soldArmorDef = items.getItemDef(found);
+    const soldArmorBonus = soldArmorDef?.amount || 0;
+    const baseDefenseAfterSell = player.defense - soldArmorBonus;
+    db.updatePlayer(player.id, { defense: baseDefenseAfterSell, equipped_armor: null });
+  }
+
   return {
     text: `🏪 Aldric examina el objeto.\n"Te doy ${sellPrice}g por eso."\n💰 Vendiste: ${found} por ${sellPrice}g. Total: ${newGold}g.`,
     event: `${player.username} vende algo al mercader.`,
