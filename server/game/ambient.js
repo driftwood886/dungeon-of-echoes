@@ -24,10 +24,10 @@ function getTimePeriod() {
 
 const ROOM_TAGS = {
   cold:    ['glaciar', 'helad', 'hielo', 'frío', 'fría', 'frio', 'nieve', 'tundra'],
+  dark:    ['maldita', 'maldito', 'catedral', 'sombra', 'oscur', 'tinieblas', 'penumbra', 'negro', 'profundidades'],
   sacred:  ['santuario', 'sagra', 'altar', 'templo', 'bless', 'divino', 'divina'],
   fire:    ['forja', 'lava', 'fuego', 'brasas', 'horno', 'volcánic'],
   water:   ['lago', 'agua', 'sumerg', 'piscina', 'corriente', 'río', 'charco'],
-  dark:    ['sombra', 'oscur', 'tinieblas', 'penumbra', 'negro', 'profundidades'],
   throne:  ['trono', 'cámara', 'palacio', 'salón del', 'sala del trono'],
   cave:    ['caverna', 'gruta', 'cueva', 'túnel', 'pasaje', 'corredor'],
 };

@@ -33,8 +33,8 @@ const ambient  = require('./ambient'); // T121: período del día
 const ROOM_EFFECTS = {
   // Sala 9 — Sala del Trono: frío sobrenatural (ya tiene trampa, además debuffa ATK)
   9:  { type: 'debuff', stat: 'attack', amount: -1, label: '🥶 Frío sobrenatural', msg: 'El frío sobrenatural te entumece los músculos. (-1 ATK mientras estés aquí)' },
-  // Sala 12 — Forja del Glaciar: hielo extremo daña al entrar
-  12: { type: 'damage', amount: 2, label: '❄️ Congelación', msg: '❄️ El frío glacial de la forja te quema la piel. (-2 HP)' },
+  // Sala 12 — Taller de la Forja: calor brutal al entrar
+  12: { type: 'damage', amount: 2, label: '🔥 Calor Abrasador', msg: '🔥 El calor extremo de la forja te abrasa la piel al entrar. (-2 HP)' },
   // Sala 1 — Entrada del Santuario: aura sagrada regenera HP
   1:  { type: 'heal', amount: 3, label: '✨ Aura Sagrada', msg: '✨ El aura sagrada de la entrada te reconforta. (+3 HP)' },
   // Sala 15 — Catedral Maldita: maldición drena HP
@@ -1845,14 +1845,15 @@ function cmdLore(query) {
     };
   }
 
-  const query_clean = query.trim().toLowerCase();
+  const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const query_clean = normalize(query.trim());
 
   // Buscar en el catálogo completo
   const CATALOG = items.ITEM_CATALOG;
-  // Coincidencia exacta primero, luego parcial
-  let itemKey = Object.keys(CATALOG).find(k => k === query_clean);
+  // Coincidencia exacta primero, luego parcial (normalizando claves también)
+  let itemKey = Object.keys(CATALOG).find(k => normalize(k) === query_clean);
   if (!itemKey) {
-    itemKey = Object.keys(CATALOG).find(k => k.includes(query_clean) || query_clean.includes(k));
+    itemKey = Object.keys(CATALOG).find(k => normalize(k).includes(query_clean) || query_clean.includes(normalize(k)));
   }
 
   if (!itemKey) {
@@ -10426,19 +10427,10 @@ function cmdGoals(player) {
     goals.push(`⭐ Ser ${nextRep.label} (${nextRep.discount}): faltan ${nextRep.threshold - rep} puntos de reputación (tenés ${rep})`);
   }
 
-  // ─── Logros secretos ──────────────────────────────────────────────────────
-  if (deaths < 3 && !achievements.includes('Temerario')) {
-    goals.push(`🎖️  Logro secreto "Temerario": morir ${3 - deaths} veces más`);
-  }
-  if (goldSpent < 200 && !achievements.includes('Mecenas')) {
-    goals.push(`💰 Logro secreto "Mecenas": gastar ${200 - goldSpent}g más en la tienda`);
-  }
-  if (craftsCount < 5 && !achievements.includes('Artesano')) {
-    goals.push(`⚗️  Logro secreto "Artesano": craftear ${5 - craftsCount} ítems más`);
-  }
-  if (roomsVisited < 19 && !achievements.includes('Cartógrafo')) {
-    goals.push(`🗺️  Logro secreto "Cartógrafo": visitar ${19 - roomsVisited} salas más (has visitado ${roomsVisited}/19+)`);
-  }
+  // ─── Logros secretos ─────────────────────────────────────────────────────
+  // Solo mostrar logros secretos YA desbloqueados (como recordatorio de completados),
+  // NUNCA revelar requisitos de logros secretos aún no obtenidos.
+  // (Los logros secretos sin desbloquear deben sorprender al jugador al conseguirlos.)
 
   // ─── Kills para logros ────────────────────────────────────────────────────
   if (kills < 10 && !achievements.includes('Asesino en Serie')) {

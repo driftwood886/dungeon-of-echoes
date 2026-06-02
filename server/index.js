@@ -391,7 +391,13 @@ async function main() {
       return res.status(400).json({ error: 'Se requiere player_id y command.' });
     }
 
-    const result = execute(player_id, command);
+    let result;
+    try {
+      result = execute(player_id, command);
+    } catch (err) {
+      console.error('[/api/action] Error ejecutando comando:', err.message);
+      result = { text: '(error interno al ejecutar el comando — intentá de nuevo)' };
+    }
 
     // DIS-001: Guard — si result es undefined (race condition o error silencioso), usar texto genérico
     const resultText = (result && result.text) ? result.text : '(acción ejecutada)';
