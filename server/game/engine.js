@@ -1816,11 +1816,12 @@ function cmdExamine(player, query) {
     return { text: parts.join('\n') };
   }
 
-  const qLow = query.trim().toLowerCase();
+  const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const qLow = normalize(query.trim());
 
   // ¿Es un monstruo en la habitación?
   const monsters = db.getMonstersInRoom(player.current_room_id);
-  const monster = monsters.find(m => m.name.toLowerCase().includes(qLow));
+  const monster = monsters.find(m => normalize(m.name).includes(qLow));
   if (monster) {
     const bar = buildBar(monster.hp, monster.max_hp, 20);
     const specialDef = combat.MONSTER_SPECIALS[monster.name];
@@ -6521,7 +6522,7 @@ function cmdCompare(player, args) {
     const avgRep    = avg('reputation');
 
     function delta(mine, avgVal) {
-      const diff = mine - avgVal;
+      const diff = Math.round((mine - avgVal) * 10) / 10;
       const pct  = avgVal > 0 ? Math.round(Math.abs(diff / avgVal) * 100) : 0;
       if (diff > 0) return `▲ +${diff} (${pct}% sobre promedio)`;
       if (diff < 0) return `▼ ${diff} (${pct}% bajo promedio)`;
