@@ -956,7 +956,7 @@ function wanderMonsters(onMove) {
       if (playersInRoom && playersInRoom.length > 0) continue;
 
       // Obtener salas adyacentes válidas (no sala tutorial, no sala de práctica, no casa de subastas)
-      const EXCLUDED_ROOMS = new Set([16, 17, 18, 21, 22]); // tutorial, subastas, fuente, práctica, cripta
+      const EXCLUDED_ROOMS = new Set([15, 16, 17, 18, 21, 22]); // catedral boss, tutorial, subastas, fuente, práctica, cripta
       const exits = currentRoom.exits || {};
       const adjacentRoomIds = Object.values(exits)
         .map(v => typeof v === 'object' ? v.room_id : v)
@@ -988,6 +988,7 @@ module.exports = {
   checkRespawns,
   wanderMonsters,
   handlePlayerDeath,
+  dropLoot,
   WANDERING_MONSTER_IDS,
   BOSS_MONSTERS,
   MONSTER_SPECIALS,

@@ -1957,6 +1957,13 @@ function cmdLore(query) {
   }
 
   // DIS-P10: mostrar de dónde se puede obtener el ítem (loot de monstruos, tienda, forage)
+  // DIS-D23: fuentes de ítems de desactivación de trampas
+  const TRAP_ITEM_SOURCES = {
+    'hongo azul':  '🍄 Se encuentra en el suelo del Túnel de los Hongos (sala 6) — forage con alta prob.',
+    'corona rota': '👑 Se encuentra en el suelo de la Sala del Trono (sala 9), también como forage en esa sala.',
+    'cuerda':      '🛒 Disponible en la tienda del Mercader Aldric (Sala 4). También aparece como forage.',
+    'red de pesca':'🐟 Se puede encontrar con forage en la Caverna Sumergida (sala 13).',
+  };
   try {
     const allMonsters = db.getAllMonsters();
     const droppers = allMonsters.filter(m => {
@@ -1969,10 +1976,17 @@ function cmdLore(query) {
     const SHOP_CATALOG = [
       'poción de salud', 'poción mayor', 'antídoto', 'cuchillo oxidado', 'espada oxidada',
       'hierba curativa', 'poción de maná', 'cuero endurecido', 'cota de malla', 'veste de sombra',
+      'espada de hierro', 'daga envenenada', 'escudo de madera', 'antorcha', 'cuerda', 'llave oxidada',
+      'túnica encantada',
     ];
     const inShop = SHOP_CATALOG.some(s => s === itemKey);
 
     const sources = [];
+    // DIS-D23: si el ítem es de desactivación de trampa, mostrar fuente específica
+    const trapSource = TRAP_ITEM_SOURCES[itemKey];
+    if (trapSource) {
+      sources.push(`  ⚠️ Ítem desactivador de trampa: ${trapSource}`);
+    }
     if (droppers.length > 0) {
       const roomsById = {};
       const rooms = db.getAllRooms ? db.getAllRooms() : [];
@@ -3599,6 +3613,7 @@ const SHOP_CATALOG = [
   { name: 'escudo de madera',        price: 25, description: 'Defensa +2. No es glamoroso, pero funciona.' },
   { name: 'antorcha',                price: 5,  description: 'Ilumina pasillos oscuros. Dura varias horas.' },
   { name: 'cuerda',                  price: 10, description: 'Desactiva trampas de pinchos. 15m de largo.' },
+  { name: 'espada oxidada',          price: 15, description: 'Una espada vieja pero funcional. +3 ataque. Ingrediente para craftear espada de obsidiana.' },
   { name: 'llave oxidada',           price: 50, description: 'Abre cierta puerta al norte del Pozo. El mercader no explica más.' },
   // T152: Armaduras
   { name: 'cuero endurecido',        price: 30, description: 'Armadura ligera. +2 defensa.' },
@@ -4666,6 +4681,14 @@ const FORAGE_TABLE = [
 const FORAGE_COOLDOWN_MS = 3 * 60 * 1000; // 3 minutos por sala
 const SURVEY_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutos por sala (T205)
 
+// DIS-D23: ítems especiales con alta probabilidad en salas con trampa
+// (facilita obtener el ítem de desactivación)
+const ROOM_FORAGE_BONUS = {
+  6:  { item: 'hongo azul',   prob: 0.45 },  // Túnel de los Hongos — desactiva trampa esporas
+  9:  { item: 'corona rota',  prob: 0.45 },  // Sala del Trono — desactiva trampa fría
+  13: { item: 'red de pesca', prob: 0.45 },  // Caverna Sumergida — desactiva trampa inundación
+};
+
 /**
  * forage / buscar — Explorar la sala en busca de ítems ocultos.
  * Cooldown de 3 min por sala. No funciona si hay monstruos vivos.
@@ -4707,6 +4730,27 @@ function cmdForage(player) {
   let roll = Math.random();
   // Si está sondeada y el roll cae en zona baja (probable "nada"), subir 20%
   if (surveyed) roll = Math.min(roll + 0.20, 0.99);
+
+  // DIS-D23: salas con trampa tienen bonus de forage del ítem desactivador
+  const roomBonus = ROOM_FORAGE_BONUS[player.current_room_id];
+  if (roomBonus && roll < roomBonus.prob) {
+    // Alta prob de encontrar el ítem de trampa en la sala correspondiente
+    const bonusItem = roomBonus.item;
+    const inv2 = [...player.inventory, bonusItem];
+    db.updatePlayer(player.id, { inventory: JSON.stringify(inv2) });
+    const bonusCr = db.updateDailyChallengeProgress(player.id, 'forage', null);
+    let bonusChalMsg = '';
+    if (bonusCr && bonusCr.reward) bonusChalMsg = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+    const freshBonus = db.getPlayer(player.id);
+    const qBonusResult = quests.recordProgress(freshBonus, 'pick', { itemName: bonusItem });
+    if (qBonusResult) db.updatePlayer(player.id, { quest_progress: qBonusResult.questProgress });
+    const intro2 = [`Buscás con cuidado entre las grietas de ${room.name}...`, `Revisás los rincones de ${room.name}...`];
+    return {
+      text: `${intro2[Math.floor(Math.random() * intro2.length)]}\n🌿 ¡Encontrás: ${bonusItem}! (Ítem para desactivar la trampa de esta sala.) Se agrega a tu inventario.${bonusChalMsg}`,
+      event: null,
+    };
+  }
+
   let found = null;
 
   for (const entry of FORAGE_TABLE) {
@@ -5475,9 +5519,21 @@ function cmdCast(player, args) {
     }
 
     if (newHp <= 0) {
-      // Monstruo muerto
-      db.killMonster(target.id);
-      const loot = JSON.parse(target.loot || '[]');
+      // Monstruo muerto — BUG-041: db.killMonster no existe, usar updateMonster con respawn
+      const PRACTICE_GOBLIN_ID = 20;
+      const isBossSpell = combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id];
+      const respawnMinutesSpell = isBossSpell ? (combat.BOSS_MONSTERS[target.id].respawnMinutes || 30) : 5;
+      const respawnAtSpell = target.id === PRACTICE_GOBLIN_ID
+        ? new Date(Date.now() + 30 * 1000).toISOString()
+        : new Date(Date.now() + respawnMinutesSpell * 60 * 1000).toISOString();
+      db.updateMonster(target.id, {
+        hp: 0,
+        room_id: null,
+        respawn_at: respawnAtSpell,
+        status_effects: '{}',
+      });
+      // target.loot ya viene parseado como Array por getMonstersInRoom (BUG-041)
+      const loot = Array.isArray(target.loot) ? target.loot : JSON.parse(target.loot || '[]');
       if (loot.length > 0) {
         const room = db.getRoom(player.current_room_id);
         const roomItems = room ? (room.items || []) : [];
@@ -5882,11 +5938,12 @@ function cmdUseSkill(player, args, context) {
   if (skillId === 'smash') {
     const monsters = db.getMonstersInRoom(freshPlayer.current_room_id);
     const alive = monsters.filter(m => m.hp > 0);
+    const targetName = args.slice(1).join(' ').trim();
     if (alive.length === 0) {
+      if (targetName) return { text: `⚡ No hay ningún "${targetName}" aquí para golpear.` };
       return { text: '⚡ No hay monstruos aquí para golpear.' };
     }
     // Buscar monstruo por nombre si se especificó, si no usar el primero
-    const targetName = args.slice(1).join(' ').trim();
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
     const baseDmg = freshPlayer.attack || 5;
@@ -5904,10 +5961,12 @@ function cmdUseSkill(player, args, context) {
     let text = `⚡ ¡GOLPETAZO! Golpeás al ${target.name} con toda tu fuerza causando ${finalDmg} de daño (×1.8)!`;
     if (dead) {
       text += `\n💀 El ${target.name} sucumbe ante tu brutal ataque.`;
-      // Respawn y loot como en ataque normal
-      if (target.respawn_room_id) {
-        const respawnAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-        db.updateMonster(target.id, { hp: 0, room_id: null, respawn_at: respawnAt });
+      // Loot via dropLoot (igual que cmdAttack) — incluye loot bonus de boss
+      const { droppedLoot: smashLoot, globalEvent: smashGlobalEvent } = combat.dropLoot(target, freshPlayer.current_room_id);
+      if (smashLoot && smashLoot.length > 0) text += `\n💰 El ${target.name} suelta: ${smashLoot.join(', ')}.`;
+      if (smashGlobalEvent) {
+        db.logGlobalEvent('boss', smashGlobalEvent);
+        if (io) io.emit('shout', { username: 'El Dungeon', message: smashGlobalEvent });
       }
       // XP básico
       const xpGain = Math.max(5, Math.floor(target.max_hp * 2));
@@ -5918,6 +5977,22 @@ function cmdUseSkill(player, args, context) {
       text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       if (levelUp) db.addJournalEntry(freshPlayer.id, 'level', `⬆️ Subiste al nivel ${newLevel} tras el Golpetazo.`);
+      // Logros — incluyendo boss_killer
+      const smashBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+      const freshForSmashAch = db.getPlayer(freshPlayer.id);
+      if (freshForSmashAch) {
+        const newSmashAchs = ach.checkAchievements(freshForSmashAch, { bossKill: smashBossKill });
+        const smashAchLines = ach.formatNewAchievements(newSmashAchs);
+        if (smashAchLines) text += '\n' + smashAchLines;
+        if (smashBossKill) {
+          db.logGlobalEvent('boss', `⚔️ ${freshPlayer.username} derrotó al ${target.name} con Golpetazo.`);
+          db.addJournalEntry(freshPlayer.id, 'boss', `☠️ Derrotaste al ${target.name} con Golpetazo.`);
+          text += `\n\n╔════════════════════════════════════╗\n║  ☠  ¡${target.name.toUpperCase()} DERROTADO!  ☠  ║\n╚════════════════════════════════════╝\n¡Usá 'loot' para recoger los tesoros!`;
+        }
+        if (newSmashAchs && newSmashAchs.length > 0) {
+          db.logGlobalEvent('achievement', `🏅 ${freshPlayer.username} desbloqueó el logro "${newSmashAchs[0].name}".`);
+        }
+      }
       // BUG-010: registrar progreso de quest al matar con skill
       const freshForSmashQuest = db.getPlayer(freshPlayer.id);
       const qSmashResult = quests.recordProgress(freshForSmashQuest, 'kill', { monsterName: target.name });
@@ -5962,11 +6037,12 @@ function cmdUseSkill(player, args, context) {
   if (skillId === 'shield_bash') {
     const monsters = db.getMonstersInRoom(freshPlayer.current_room_id);
     const alive = monsters.filter(m => m.hp > 0);
+    const targetName = args.slice(1).join(' ').trim();
     if (alive.length === 0) {
+      if (targetName) return { text: `⚡ No hay ningún "${targetName}" aquí para golpear con el escudo.` };
       return { text: '⚡ No hay monstruos aquí para golpear con el escudo.' };
     }
     // Buscar monstruo por nombre si se especificó, si no usar el primero
-    const targetName = args.slice(1).join(' ').trim();
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
     const baseDmg = freshPlayer.attack || 5;
@@ -5986,9 +6062,12 @@ function cmdUseSkill(player, args, context) {
     let text = `🛡️ ¡GOLPE DE ESCUDO! Golpeás al ${target.name} con tu escudo (${finalDmg} dmg) aturdiéndolo!`;
     if (dead) {
       text += `\n💀 El impacto fue tan brutal que el ${target.name} cae fulminado.`;
-      if (target.respawn_room_id) {
-        const respawnAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-        db.updateMonster(target.id, { hp: 0, room_id: null, respawn_at: respawnAt });
+      // Loot via dropLoot (igual que cmdAttack) — incluye loot bonus de boss
+      const { droppedLoot: bashLoot, globalEvent: bashGlobalEvent } = combat.dropLoot(target, freshPlayer.current_room_id);
+      if (bashLoot && bashLoot.length > 0) text += `\n💰 El ${target.name} suelta: ${bashLoot.join(', ')}.`;
+      if (bashGlobalEvent) {
+        db.logGlobalEvent('boss', bashGlobalEvent);
+        if (io) io.emit('shout', { username: 'El Dungeon', message: bashGlobalEvent });
       }
       const xpGain = Math.max(5, Math.floor(target.max_hp * 2));
       const newXp = (freshPlayer.xp || 0) + xpGain;
@@ -5997,6 +6076,22 @@ function cmdUseSkill(player, args, context) {
       db.updatePlayer(freshPlayer.id, { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 });
       text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
+      // Logros — incluyendo boss_killer
+      const bashBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+      const freshForBashAch = db.getPlayer(freshPlayer.id);
+      if (freshForBashAch) {
+        const newBashAchs = ach.checkAchievements(freshForBashAch, { bossKill: bashBossKill });
+        const bashAchLines = ach.formatNewAchievements(newBashAchs);
+        if (bashAchLines) text += '\n' + bashAchLines;
+        if (bashBossKill) {
+          db.logGlobalEvent('boss', `⚔️ ${freshPlayer.username} derrotó al ${target.name} con Golpe de Escudo.`);
+          db.addJournalEntry(freshPlayer.id, 'boss', `☠️ Derrotaste al ${target.name} con Golpe de Escudo.`);
+          text += `\n\n╔════════════════════════════════════╗\n║  ☠  ¡${target.name.toUpperCase()} DERROTADO!  ☠  ║\n╚════════════════════════════════════╝\n¡Usá 'loot' para recoger los tesoros!`;
+        }
+        if (newBashAchs && newBashAchs.length > 0) {
+          db.logGlobalEvent('achievement', `🏅 ${freshPlayer.username} desbloqueó el logro "${newBashAchs[0].name}".`);
+        }
+      }
       // BUG-010: registrar progreso de quest al matar con shield_bash
       const freshForBashQuest = db.getPlayer(freshPlayer.id);
       const qBashResult = quests.recordProgress(freshForBashQuest, 'kill', { monsterName: target.name });
@@ -7409,7 +7504,7 @@ function cmdDungeonStatus(player) {
       const q = getActiveQuest();
       if (q) {
         const def = q.questDef || q;
-        questInfo = `${def.name || def.id} — ${def.description || ''}`;
+        questInfo = `${def.title || def.name || def.id} — ${def.description || ''}`;
         // Mostrar progreso del jugador si hay player disponible
         if (player) {
           const freshP = db.getPlayer(player.id);
@@ -7807,6 +7902,60 @@ function cmdPath(player, args) {
   if (trappedRooms.length > 0) {
     lines.push(`⚠️  ADVERTENCIA: la ruta pasa por ${trappedRooms.length} sala${trappedRooms.length > 1 ? 's' : ''} con trampa activa:`);
     trappedRooms.forEach(name => lines.push(`   • ${name} — usá "disarm" para desactivarla antes de salir`));
+
+    // DIS-D24: buscar ruta alternativa con menos trampas (Dijkstra con peso 5 por trampa)
+    const trapRoomIds = new Set(found
+      .filter(step => {
+        const r = allRooms.find(x => x.id === step.toId);
+        if (!r || !r.trap) return false;
+        try {
+          const t = typeof r.trap === 'string' ? JSON.parse(r.trap) : r.trap;
+          return t && t.active;
+        } catch (_) { return false; }
+      })
+      .map(s => s.toId));
+
+    // Dijkstra ponderado: trampa activa = costo 5, sala normal = costo 1
+    const dist = {}; const prev = {}; const prevDir = {};
+    for (const r of allRooms) { dist[r.id] = Infinity; }
+    dist[startId] = 0;
+    const pq = [{ id: startId, cost: 0 }];
+    while (pq.length > 0) {
+      pq.sort((a, b) => a.cost - b.cost);
+      const { id, cost } = pq.shift();
+      if (cost > dist[id]) continue;
+      for (const edge of (graph[id] || [])) {
+        const r = allRooms.find(x => x.id === edge.toId);
+        let trapCost = 1;
+        if (r && r.trap) {
+          try {
+            const t = typeof r.trap === 'string' ? JSON.parse(r.trap) : r.trap;
+            if (t && t.active) trapCost = 5;
+          } catch (_) {}
+        }
+        const newCost = cost + trapCost;
+        if (newCost < dist[edge.toId]) {
+          dist[edge.toId] = newCost;
+          prev[edge.toId] = id;
+          prevDir[edge.toId] = edge.dir;
+          pq.push({ id: edge.toId, cost: newCost });
+        }
+      }
+    }
+    // Reconstruir ruta ponderada
+    if (dist[targetRoom.id] < Infinity) {
+      const altPath = [];
+      let cur = targetRoom.id;
+      while (cur !== startId) {
+        altPath.unshift({ dir: prevDir[cur], toId: cur });
+        cur = prev[cur];
+        if (!cur) break;
+      }
+      const altTraps = altPath.filter(step => trapRoomIds.has(step.toId)).length;
+      if (altTraps < trappedRooms.length && altPath.length > 0) {
+        lines.push(`💡 Ruta alternativa con menos trampas (${altTraps} trampa${altTraps !== 1 ? 's' : ''}):   ${altPath.map(s => `move ${DIR_NAMES[s.dir] || s.dir}`).join('; ')}`);
+      }
+    }
   }
 
   return { text: lines.join('\n') };
