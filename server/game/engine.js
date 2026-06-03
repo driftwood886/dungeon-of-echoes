@@ -592,8 +592,9 @@ function cmdMove(player, direction) {
   const firstVisitEver = visitResult.isNew;
 
   // T141: Desafío diario de salas visitadas
-  const roomsVisited = (() => { try { return JSON.parse(freshForCartog && freshForCartog.rooms_visited || '[]'); } catch (_) { return []; } })();
-  const roomsCr = db.updateDailyChallengeProgress(player.id, 'rooms', null, roomsVisited.includes(targetId) ? 0 : 1);
+  // Fix BUG-039: usar visitResult.isNew en lugar de roomsVisited.includes(targetId)
+  // porque trackRoomVisit ya agregó la sala antes de este check → includes() siempre era true → amount siempre 0
+  const roomsCr = db.updateDailyChallengeProgress(player.id, 'rooms', null, visitResult.isNew ? 1 : 0);
   // (Solo suma si es una sala nueva en esta sesión; el progreso se acumula naturalmente)
 
   // ── T160: XP por exploración de sesión ───────────────────────────────────
