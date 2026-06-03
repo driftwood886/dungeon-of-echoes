@@ -7277,6 +7277,12 @@ const MONSTER_LORE = {
   'Eco Viviente':         { tipo: 'aberración', debil: ['silencio', 'magia'], resiste: ['físico'], nota: 'Puede amplificar sus golpes ×1.8. Liquídalo rápido para evitar que use su habilidad.' },
   'Sombra del Vacío':     { tipo: 'sombra', debil: ['luz', 'magia'], resiste: ['físico', 'frío', 'veneno'], nota: 'Puede cegarme (-DEF). El Pícaro con su esquiva natural (20%) aguanta mejor.' },
   'Goblin de Práctica':   { tipo: 'humanoide', debil: ['todo'], resiste: [], nota: 'Goblin de entrenamiento. No sueltan loot real ni cuentan como kills.' },
+  // DIS-D22: lore para monstruos del dungeon expandido
+  'Elemental de Hielo':   { tipo: 'elemental', debil: ['fuego', 'físico'], resiste: ['frío', 'agua', 'veneno'], nota: 'Muy resistente al frío. Bola de fuego es aquí tu mejor aliado. Puede huir cuando está debilitado.' },
+  'Golem de Forja':       { tipo: 'constructo', debil: ['agua', 'frío'], resiste: ['fuego', 'físico', 'veneno'], nota: 'Creado en las llamas eternas de la forja. Resiste el fuego y los golpes físicos. Usa magia de agua o frío.' },
+  'Campeón Espectral':    { tipo: 'no-muerto', debil: ['luz', 'sagrado'], resiste: ['físico', 'veneno', 'frío'], nota: 'El guerrero más poderoso del coliseo. Alto HP y defensa. Shield_bash para aturdirlo antes de atacar.' },
+  'Krakeling Abismal':    { tipo: 'bestia', debil: ['fuego', 'electricidad'], resiste: ['agua', 'frío', 'físico'], nota: 'Criatura de las profundidades. Resistente a ataques físicos. El rayo (cast rayo) es especialmente efectivo.' },
+  'Maniquí de Paja':      { tipo: 'objeto', debil: ['fuego'], resiste: [], nota: 'Objetivo de práctica. No da XP real ni loot. Ideal para testear habilidades y medir DPS.' },
 };
 
 function cmdStudy(player, args) {
