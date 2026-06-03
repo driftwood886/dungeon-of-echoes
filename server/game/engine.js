@@ -8155,7 +8155,17 @@ function cmdFind(player, args) {
     Array.isArray(m.loot) && m.loot.some(i => norm(i).includes(query))
   );
 
-  const foundAnything = matchMonsters.length > 0 || roomsWithItem.length > 0 || monstersWithLoot.length > 0;
+  // ── Buscar en la tienda de Aldric (SHOP_CATALOG) ───────────────────────────
+  const shopMatches = SHOP_CATALOG.filter(i => norm(i.name).includes(query));
+
+  // ── Buscar en tabla de forage y forage bonus de salas ─────────────────────
+  const forageMatches = FORAGE_TABLE.filter(e => e.type === 'item' && norm(e.item).includes(query));
+  const forageRoomMatches = Object.entries(ROOM_FORAGE_BONUS)
+    .filter(([, v]) => norm(v.item).includes(query))
+    .map(([roomId, v]) => ({ roomId: Number(roomId), item: v.item }));
+
+  const foundAnything = matchMonsters.length > 0 || roomsWithItem.length > 0 || monstersWithLoot.length > 0
+    || shopMatches.length > 0 || forageMatches.length > 0 || forageRoomMatches.length > 0;
 
   if (roomsWithItem.length > 0) {
     lines.push(`║  💎 EN EL SUELO ACTUALMENTE                      ║`);
@@ -8183,6 +8193,34 @@ function cmdFind(player, args) {
       for (const item of lootItems) {
         lines.push(`║    → ${item.substring(0, W - 7).padEnd(W - 7)}  ║`);
       }
+    }
+    lines.push(`╠${border}╣`);
+  }
+
+  // ── Tienda de Aldric ───────────────────────────────────────────────────────
+  if (shopMatches.length > 0) {
+    lines.push(`║  🏪 EN LA TIENDA DE ALDRIC (Sala 4)              ║`);
+    lines.push(`╠${border}╣`);
+    for (const si of shopMatches) {
+      const priceLine = `${si.name} — ${si.price}g`;
+      lines.push(`║  💰 ${priceLine.substring(0, W - 5).padEnd(W - 5)}  ║`);
+      lines.push(`║    ${si.description.substring(0, W - 4).padEnd(W - 4)}  ║`);
+    }
+    lines.push(`╠${border}╣`);
+  }
+
+  // ── Forage ─────────────────────────────────────────────────────────────────
+  if (forageMatches.length > 0 || forageRoomMatches.length > 0) {
+    lines.push(`║  🌿 OBTENIBLE POR FORAGE/BUSCAR                  ║`);
+    lines.push(`╠${border}╣`);
+    if (forageMatches.length > 0) {
+      const forageNames = forageMatches.map(e => e.item).join(', ');
+      lines.push(`║    Explorando salas (cmd forage): ${forageNames.substring(0, W - 37).padEnd(W - 37)}  ║`);
+    }
+    for (const fr of forageRoomMatches) {
+      const frRoom = allRooms.find(r => r.id === fr.roomId);
+      const frLine = `Sala ${fr.roomId}: ${frRoom ? frRoom.name : '?'} (alta prob)`;
+      lines.push(`║    📍 ${frLine.substring(0, W - 7).padEnd(W - 7)}  ║`);
     }
     lines.push(`╠${border}╣`);
   }
