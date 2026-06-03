@@ -442,9 +442,12 @@ function addBestiaryKill(playerId, monsterName) {
   const player = one('SELECT bestiary FROM players WHERE id = ?', [playerId]);
   if (!player) return;
   const bestiary = player.bestiary ? JSON.parse(player.bestiary) : {};
-  const key = monsterName.toLowerCase();
+  // Normalizar nombre: eliminar prefijo de élite "⭐ " para que monstruos élite y normales
+  // se registren como el mismo tipo en el bestiario (BUG-040)
+  const baseName = monsterName.replace(/^⭐\s*/, '');
+  const key = baseName.toLowerCase();
   if (!bestiary[key]) {
-    bestiary[key] = { name: monsterName, kills: 0, first_kill: new Date().toISOString(), last_kill: null };
+    bestiary[key] = { name: baseName, kills: 0, first_kill: new Date().toISOString(), last_kill: null };
   }
   bestiary[key].kills += 1;
   bestiary[key].last_kill = new Date().toISOString();
