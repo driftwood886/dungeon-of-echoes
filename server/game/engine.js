@@ -5240,7 +5240,7 @@ function resolveExpiredAuctions(broadcastFn) {
       const seller = db.getPlayer(auction.seller_id);
 
       if (winner) {
-        const winnerInv = JSON.parse(winner.inventory || '[]');
+        const winnerInv = Array.isArray(winner.inventory) ? winner.inventory : JSON.parse(winner.inventory || '[]');
         winnerInv.push(auction.item_name);
         db.updatePlayer(winner.id, { inventory: JSON.stringify(winnerInv) });
       }
@@ -5256,7 +5256,7 @@ function resolveExpiredAuctions(broadcastFn) {
       // Sin pujas: devolver ítem al vendedor
       const seller = db.getPlayer(auction.seller_id);
       if (seller) {
-        const sellerInv = JSON.parse(seller.inventory || '[]');
+        const sellerInv = Array.isArray(seller.inventory) ? seller.inventory : JSON.parse(seller.inventory || '[]');
         sellerInv.push(auction.item_name);
         db.updatePlayer(seller.id, { inventory: JSON.stringify(sellerInv) });
       }
@@ -10478,10 +10478,7 @@ function cmdGoals(player) {
     } else {
       done.push(`👑 ¡Nivel 20 alcanzado! Sos una leyenda viviente del dungeon.`);
     }
-    // Logro 50 kills post-boss
-    if (kills < 50 && !achievements.includes('cien_kills')) {
-      goals.push(`⚔️  Logro "Masacre Total": matá 50 enemigos en total (tenés ${kills}/50)`);
-    }
+    // (Logro Masacre Total se maneja abajo en el bloque general, sin duplicar)
   }
 
   // ─── Progresión de nivel ───────────────────────────────────────────────────
@@ -10502,7 +10499,7 @@ function cmdGoals(player) {
   // ─── Reputación ───────────────────────────────────────────────────────────
   const REP_TIERS = [
     { threshold: 10,  label: 'Conocido',    discount: 'sin descuento todavía' },
-    { threshold: 30,  label: 'Respetado',   discount: '-5% en tienda' },
+    { threshold: 25,  label: 'Respetado',   discount: '-5% en tienda' },
     { threshold: 75,  label: 'Famoso',      discount: '-10% en tienda' },
     { threshold: 150, label: 'Legendario',  discount: '-15% en tienda' },
   ];
