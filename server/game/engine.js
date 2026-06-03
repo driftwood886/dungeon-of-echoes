@@ -5557,6 +5557,13 @@ function cmdCast(player, args) {
       // BUG-010: registrar progreso de quest al matar con hechizo
       const freshForCastQuest = db.getPlayer(player.id);
       const qCastResult = quests.recordProgress(freshForCastQuest, 'kill', { monsterName: target.name });
+      // BUG-043: registrar progreso de contrato semanal al matar con hechizo
+      const wcrCast = db.updateWeeklyContractProgress(player.id, target.name);
+      if (wcrCast && wcrCast.reward) {
+        lines.push(`   📜 ¡CONTRATO DE CAZA COMPLETADO! +${wcrCast.reward.xp} XP · +${wcrCast.reward.gold}g · Recibís: ${wcrCast.reward.item}`);
+      } else if (wcrCast && wcrCast.contract && !wcrCast.contract.done) {
+        lines.push(`   📜 Contrato semanal: ${wcrCast.contract.target} (${wcrCast.contract.progress}/${wcrCast.contract.goal})`);
+      }
       if (qCastResult) {
         db.updatePlayer(player.id, { quest_progress: qCastResult.questProgress });
         if (qCastResult.justCompleted && qCastResult.reward) {
@@ -5998,6 +6005,13 @@ function cmdUseSkill(player, args, context) {
       const qSmashResult = quests.recordProgress(freshForSmashQuest, 'kill', { monsterName: target.name });
       // BUG-017: registrar progreso de desafío diario al matar con smash
       const crSmash = db.updateDailyChallengeProgress(freshPlayer.id, 'kill', target.name);
+      // BUG-043: registrar progreso de contrato semanal al matar con smash
+      const wcrSmash = db.updateWeeklyContractProgress(freshPlayer.id, target.name);
+      if (wcrSmash && wcrSmash.reward) {
+        text += `\n📜 ¡CONTRATO DE CAZA COMPLETADO! +${wcrSmash.reward.xp} XP · +${wcrSmash.reward.gold}g · Recibís: ${wcrSmash.reward.item}`;
+      } else if (wcrSmash && wcrSmash.contract && !wcrSmash.contract.done) {
+        text += `\n📜 Contrato semanal: ${wcrSmash.contract.target} (${wcrSmash.contract.progress}/${wcrSmash.contract.goal})`;
+      }
       if (crSmash && crSmash.reward) {
         text += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
       } else if (crSmash && crSmash.challenge && !crSmash.challenge.done) {
@@ -6097,6 +6111,13 @@ function cmdUseSkill(player, args, context) {
       const qBashResult = quests.recordProgress(freshForBashQuest, 'kill', { monsterName: target.name });
       // BUG-017: registrar progreso de desafío diario al matar con shield_bash
       const crBash = db.updateDailyChallengeProgress(freshPlayer.id, 'kill', target.name);
+      // BUG-043: registrar progreso de contrato semanal al matar con shield_bash
+      const wcrBash = db.updateWeeklyContractProgress(freshPlayer.id, target.name);
+      if (wcrBash && wcrBash.reward) {
+        text += `\n📜 ¡CONTRATO DE CAZA COMPLETADO! +${wcrBash.reward.xp} XP · +${wcrBash.reward.gold}g · Recibís: ${wcrBash.reward.item}`;
+      } else if (wcrBash && wcrBash.contract && !wcrBash.contract.done) {
+        text += `\n📜 Contrato semanal: ${wcrBash.contract.target} (${wcrBash.contract.progress}/${wcrBash.contract.goal})`;
+      }
       if (crBash && crBash.reward) {
         text += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
       } else if (crBash && crBash.challenge && !crBash.challenge.done) {
