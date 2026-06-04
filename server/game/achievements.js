@@ -30,6 +30,7 @@ const ACHIEVEMENTS = [
     icon: '⚔️',
     name: 'Asesino en Serie',
     desc: 'Derrotar 10 enemigos',
+    flavor: 'Diez. Es el número en el que el dungeon empieza a tomarte en serio.',
     check: (p, _ctx) => (p.kills || 0) >= 10,
   },
   {
@@ -37,6 +38,7 @@ const ACHIEVEMENTS = [
     icon: '💀',
     name: 'Masacre Total',
     desc: 'Derrotar 100 enemigos',
+    flavor: 'Cien. El dungeon guarda la cuenta aunque vos prefieras no hacerlo.',
     check: (p, _ctx) => (p.kills || 0) >= 100,
   },
   {
@@ -44,6 +46,7 @@ const ACHIEVEMENTS = [
     icon: '🌟',
     name: 'Aventurero Veterano',
     desc: 'Alcanzar el nivel 5',
+    flavor: 'Ya no sos un recién llegado. Eso tiene un precio que todavía no conocés.',
     check: (p, _ctx) => (p.level || 1) >= 5,
   },
   {
@@ -67,6 +70,7 @@ const ACHIEVEMENTS = [
     icon: '💰',
     name: 'Cofre Lleno',
     desc: 'Acumular 100 monedas de oro',
+    flavor: 'El tesoro existe. Lo que nadie contó es el costo de cargarlo.',
     check: (p, _ctx) => (p.gold || 0) >= 100,
   },
   {
@@ -74,6 +78,7 @@ const ACHIEVEMENTS = [
     icon: '🧪',
     name: 'Sangre Contaminada',
     desc: 'Sobrevivir al veneno en combate (esperar a que se disipe)',
+    flavor: 'El veneno es paciente. Esta vez lo fuiste más vos.',
     check: (_p, ctx) => !!(ctx && ctx.poisonSurvived),
   },
   {
@@ -81,6 +86,7 @@ const ACHIEVEMENTS = [
     icon: '🪦',
     name: 'Tres Vidas',
     desc: 'Morir 3 veces (¡y seguir luchando!)',
+    flavor: 'Moriste tres veces y seguís aquí. El dungeon no sabe qué hacer con vos.',
     check: (p, _ctx) => (p.deaths || 0) >= 3,
   },
   {
@@ -128,6 +134,7 @@ const ACHIEVEMENTS = [
     icon: '🗺️',
     name: 'Cartógrafo',
     desc: 'Visitar todas las salas del dungeon',
+    flavor: 'Conocés cada pasillo, cada trampa, cada rincón. El dungeon no tiene más secretos para vos. O eso creés.',
     secret: true,
     // salas 1-18 = 18 salas (sala 17 = Casa de Subastas, sala 18 = Fuente Eterna)
     check: (p, _ctx) => {
