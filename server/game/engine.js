@@ -3619,6 +3619,8 @@ const SHOP_CATALOG = [
   { name: 'cuero endurecido',        price: 30, description: 'Armadura ligera. +2 defensa.' },
   { name: 'cota de malla',           price: 60, description: 'Armadura de hierro. +3 defensa.' },
   { name: 'túnica encantada',        price: 80, description: 'Armadura mágica. +4 defensa. Ideal para magos.' },
+  // DIS-D27: poción de maná para Magos
+  { name: 'poción de maná',          price: 20, description: 'Restaura 15 maná al instante. Indispensable para Magos.' },
 ];
 
 // Precios de venta al mercader (jugador → mercader) — 40% del valor
@@ -5362,6 +5364,16 @@ const SPELL_CATALOG = {
     icon: '⚡',
     stun_chance: 0.25,  // T214: 25% de chance de aturdir
   },
+  // DIS-D29: hechizo de escarcha para que las debilidades al frío sean explotables
+  'escarcha': {
+    cost: 7,
+    type: 'damage',
+    amount: 10,
+    description: 'Lanza una ráfaga de hielo. 10 de daño y 20% de probabilidad de ralentizar al objetivo (pierde su turno).',
+    aliases: ['frost', 'hielo', 'ice', 'frío', 'frio', 'ráfaga de hielo', 'rafaga de hielo'],
+    icon: '❄️',
+    slow_chance: 0.20,  // 20% de chance de ralentizar (skip turno del monstruo)
+  },
 };
 
 /**
@@ -5518,6 +5530,16 @@ function cmdCast(player, args) {
       } catch (e) { /* silenciar errores de parseo */ }
     }
 
+    // DIS-D29: slow_chance — escarcha puede ralentizar al monstruo
+    if (spell.slow_chance && newHp > 0 && Math.random() < spell.slow_chance) {
+      try {
+        const mStatus2 = JSON.parse(target.status_effects || '{}');
+        mStatus2.stunned = 1;  // ralentizar = skip 1 turno (mismo mecanismo que stun)
+        db.updateMonster(target.id, { status_effects: JSON.stringify(mStatus2) });
+        lines.push(`   ❄️ ¡${target.name} quedó ralentizado por el hielo! (pierde su próximo turno de ataque)`);
+      } catch (e) { /* silenciar errores de parseo */ }
+    }
+
     if (newHp <= 0) {
       // Monstruo muerto — BUG-041: db.killMonster no existe, usar updateMonster con respawn
       const PRACTICE_GOBLIN_ID = 20;
@@ -5554,6 +5576,36 @@ function cmdCast(player, args) {
       });
       lines.push(`   +${xpGain} XP (Total: ${newXp} XP, Nivel ${newLevel}).`);
       broadcastEvent = `🔥 ¡${player.username} incineró a ${target.name} con ${spellName}!`;
+      // Bestiario
+      db.addBestiaryKill(player.id, target.name);
+      if (newLevel > (player.level || 1)) {
+        db.addJournalEntry(player.id, 'level', `⬆️ Subiste al nivel ${newLevel} usando ${spellName}.`);
+      }
+      // BUG-044: evaluar logros al matar con hechizo (incluyendo boss_killer)
+      const castBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+      const freshForCastAch = db.getPlayer(player.id);
+      if (freshForCastAch) {
+        const newCastAchs = ach.checkAchievements(freshForCastAch, { bossKill: castBossKill });
+        const castAchLines = ach.formatNewAchievements(newCastAchs);
+        if (castAchLines) lines.push(castAchLines);
+        if (castBossKill) {
+          const bossGlobalEvent = `☠️ ¡${player.username} destruyó al ${target.name} con ${spellName}!`;
+          db.logGlobalEvent('boss', bossGlobalEvent);
+          db.addJournalEntry(player.id, 'boss', `☠️ Derrotaste al ${target.name} con ${spellName}.`);
+          if (io) io.emit('shout', { username: 'El Dungeon', message: bossGlobalEvent });
+          lines.push(`\n╔════════════════════════════════════╗\n║  ☠️  ¡${target.name.toUpperCase()} DERROTADO!  ☠️  ║\n╚════════════════════════════════════╝\n¡Usá 'loot' para recoger los tesoros!`);
+        }
+        if (newCastAchs && newCastAchs.length > 0) {
+          db.logGlobalEvent('achievement', `🏅 ${player.username} desbloqueó el logro "${newCastAchs[0].name}".`);
+        }
+      }
+      // BUG-017: registrar progreso de desafío diario al matar con hechizo
+      const crCast = db.updateDailyChallengeProgress(player.id, 'kill', target.name);
+      if (crCast && crCast.reward) {
+        lines.push(`   🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`);
+      } else if (crCast && crCast.challenge && !crCast.challenge.done) {
+        lines.push(`   📅 Desafío diario: ${crCast.challenge.desc} (${crCast.challenge.progress}/${crCast.challenge.goal})`);
+      }
       // BUG-010: registrar progreso de quest al matar con hechizo
       const freshForCastQuest = db.getPlayer(player.id);
       const qCastResult = quests.recordProgress(freshForCastQuest, 'kill', { monsterName: target.name });

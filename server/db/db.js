@@ -1649,9 +1649,14 @@ function incrementWorldGoal(category, amount) {
   const milestones = WORLD_GOAL_MILESTONES[category];
   for (const m of milestones) {
     if (current < m && newValue >= m) {
-      // Hito alcanzado
-      run(`UPDATE world_goals SET reached_at = datetime('now'), milestone = ? WHERE category = ? AND reached_at IS NULL ORDER BY id DESC LIMIT 1`,
-        [m, category]);
+      // Hito alcanzado — SQLite no soporta ORDER BY en UPDATE, usar subquery
+      run(
+        `UPDATE world_goals SET reached_at = datetime('now'), milestone = ?
+         WHERE rowid = (
+           SELECT rowid FROM world_goals WHERE category = ? AND reached_at IS NULL ORDER BY id DESC LIMIT 1
+         )`,
+        [m, category]
+      );
       return m;
     }
   }

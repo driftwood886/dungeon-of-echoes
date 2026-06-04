@@ -716,6 +716,7 @@ function attackRound(player, monster) {
           const escapeRoom = destinations[Math.floor(Math.random() * destinations.length)];
           db.updateMonster(monster.id, { room_id: escapeRoom });
           lines.push(`🏃 ¡El ${monster.name} huye despavorido hacia otra sala! (HP: ${monster.hp}/${monster.max_hp})`);
+          lines.push(`   💨 Escapó sin dejar botín. Si lo seguís, podés terminar el trabajo.`);
         }
       }
     }
