@@ -5501,7 +5501,8 @@ function regenMana(player) {
  */
 function findSpell(query) {
   // BUG-007 fix: normalizar tildes/acentos con NFD (misma familia que DIS-P15)
-  const normalize = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // BUG-048 fix: normalizar guiones a espacios ("bola-de-fuego" → "bola de fuego")
+  const normalize = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/-/g, ' ');
   const q = normalize(query);
   for (const [key, spell] of Object.entries(SPELL_CATALOG)) {
     if (normalize(key) === q || spell.aliases.some(a => normalize(a) === q) || normalize(key).startsWith(q)) {
