@@ -20,8 +20,14 @@ const STEPS = {
   1: `═══════════════════════════════════════
 🎓 TUTORIAL — Paso 1 de 3: MIRAR
 ═══════════════════════════════════════
-Bienvenido/a al Dungeon of Echoes.
-Explorás un laberinto subterráneo lleno de monstruos, tesoros y otros aventureros.
+Las puertas del dungeon se abrieron solas hace tres días.
+Dicen que hay una fortuna adentro. También dicen que nadie
+regresó. Un cartel en la entrada dice: SE BUSCA — quien
+traiga prueba de la muerte del Lich Anciano. Recompensa:
+suficiente para no volver a trabajar.
+
+Explorás un laberinto subterráneo lleno de monstruos,
+tesoros y otros aventureros.
 
 👁️  Primero: observá tu entorno.
 Escribí:  look   (o «mirar»)

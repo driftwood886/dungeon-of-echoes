@@ -45,16 +45,17 @@ const ITEM_CATALOG = {
   'hacha rústica':       { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'Un hacha de mano, tosca pero funcional. +4 de ataque.' },
 
   // ── Armas (dungeon expandido) ─────────────────────────────────────────────
-  'espada de obsidiana': { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una espada forjada de obsidiana pura que absorbe la luz. +12 de ataque. El arma más poderosa del dungeon.' },
-  'lanza espectral':     { type: 'weapon', effect: 'attack_bonus', amount: 9,  description: 'Una lanza hecha de luz negra condensada. Atraviesa armaduras físicas. +9 de ataque.' },
-  'alabarda de huesos':  { type: 'weapon', effect: 'attack_bonus', amount: 6,  description: 'La alabarda de un guardia espectral. Ligera a pesar de estar hecha de hueso. +6 de ataque.' },
+  // STORY-014: Lore narrativo agregado a ítems clave del dungeon
+  'espada de obsidiana': { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una espada de obsidiana pura que absorbe la luz —la luz literalmente desaparece al acercarse a la hoja. El molde para esta espada existe en la Forja de la sala 12, pero nunca fue terminado por manos humanas. Alguien —o algo— la completó a su manera. +12 de ataque. El arma más poderosa del dungeon.' },
+  'lanza espectral':     { type: 'weapon', effect: 'attack_bonus', amount: 9,  description: 'Una lanza hecha de luz negra condensada, fría al tacto como el mármol pero sin peso. Se dice que pertenecía a un espectro que murió por segunda vez —algo que casi no ocurre. No tiene filo visible, pero penetra cualquier material. +9 de ataque.' },
+  'alabarda de huesos':  { type: 'weapon', effect: 'attack_bonus', amount: 6,  description: 'La alabarda de un guardia espectral, forjada mientras el portador aún estaba vivo. Ligera a pesar de estar hecha de hueso comprimido. Los bordes están marcados con el símbolo del Reino de Valdrath —el mismo de los escudos de la Sala del Trono. +6 de ataque.' },
   'martillo de forja':   { type: 'weapon', effect: 'attack_bonus', amount: 7,  description: 'Un martillo colosal de las forjas. Aplastante y pesado. +7 de ataque.' },
 
   // ── Misc / coleccionables (dungeon base) ─────────────────────────────────
   'antorcha':            { type: 'misc', description: 'Una antorcha encendida. Ilumina los pasillos oscuros.' },
   'libro viejo':         { type: 'misc', description: 'Un grimorio con páginas incomprensibles.' },
   'cuerda':              { type: 'misc', description: 'Una cuerda resistente de unos 10 metros.' },
-  'llave oxidada':       { type: 'misc', description: 'Una llave pequeña y oxidada. ¿Qué abrirá?' },
+  'llave oxidada':       { type: 'misc', description: 'Una llave de hierro con el símbolo de dos llaves cruzadas grabado en el mango —el mismo símbolo que viste en otros lugares del dungeon. Abre la reja norte del Pozo Sin Fondo (sala 7), aunque nadie que haya cruzado ha vuelto a mencionar qué encontró al otro lado.' },
   'amuleto oscuro':      { type: 'misc', description: 'Un amuleto con una gema negra. Irradia una energía extraña.' },
   'monedas de cobre':    { type: 'misc', description: 'Unas pocas monedas de cobre gastadas.' },
   'monedas de plata':    { type: 'misc', description: 'Monedas de plata con inscripciones antiguas.' },
@@ -80,6 +81,8 @@ const ITEM_CATALOG = {
   'red de pesca':        { type: 'misc', description: 'Una red de pesca resistente. Podría servir para algo más que pescar.' },
   'escudo de gladiador': { type: 'armor', defense: 3, description: 'El escudo de un gladiador del coliseo de huesos. Lleva el nombre "MAXIMUS" grabado. Otorga +3 DEF.' },
   'tomo sellado':        { type: 'misc', description: 'Un tomo sellado con cera negra. Las runas del sello pulsan suavemente. No se puede abrir... aún.' },
+  'carta sellada':       { type: 'misc', description: 'Un sobre sellado con cera negra marcado con dos llaves cruzadas — el sello del reino de Valdrath. En el reverso, en letra pequeña: "Para quien llegue después. Perdoname." Sin firma. Puede que sea mejor no abrirla.' },
+  'páginas congeladas':  { type: 'misc', description: 'Fragmentos de un diario conservados por el hielo. La escritura es difusa pero legible: "Sé quién es. Eso lo hace peor." La última entrada es del mismo año en que el Reino de Valdrath dejó de aparecer en los mapas.' },
   'cristal helado':      { type: 'misc', description: 'Un cristal extraído del cuerpo de un Elemental de Hielo. Conserva el frío de siglos.' },
   'núcleo de forja':     { type: 'misc', description: 'El núcleo energético de un Golem de Forja. Aún irradia calor y magia residual.' },
   'tinta de kraken':     { type: 'misc', description: 'Un frasco de tinta negra del Krakeling Abismal. Muy densa y de olor nauseabundo.' },
@@ -197,6 +200,8 @@ const ITEM_RARITY = {
   'esencia de sombra':        'raro',
   'perla negra':              'raro',
   'tomo sellado':             'raro',
+  'carta sellada':            'raro',
+  'páginas congeladas':       'raro',
   'collar de garras':         'raro',
   'amuleto del eco':          'raro',
   'llave maestra':            'raro',

@@ -57,6 +57,12 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
   } else {
     // Muerte normal
     db.updatePlayer(playerId, { hp: 5, current_room_id: 1, deaths, status_effects: '{}' });
+    // STORY-019: entrada de diario con color emocional para primera muerte
+    if (deaths === 1) {
+      db.addJournalEntry(playerId, 'death', `💀 Moriste. No fue heroico. Fue un pasillo oscuro y algo que no viste.`);
+    } else {
+      db.addJournalEntry(playerId, 'death', `💀 Caíste de nuevo. ${deaths} veces y el dungeon sigue en pie.`);
+    }
     return {};
   }
 }

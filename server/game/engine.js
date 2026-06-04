@@ -674,13 +674,16 @@ function cmdMove(player, direction) {
     }
   }
 
-  // T207: Eventos cinemáticos de primera visita para salas especiales
+  // T207/STORY-018: Eventos cinemáticos de primera visita para salas especiales
   const CINEMATIC_EVENTS = {
-    15: '⛪ A medida que cruzás el umbral de la Catedral de la Oscuridad, el eco de tus pasos revela la inmensidad del lugar. Las vidrieras rotas dejan entrar rayos de luz violácea. Sentís el peso de siglos de oscuridad posarse sobre tus hombros.',
-    22: '🪦 La Cripta de los Valientes te recibe en silencio. Las placas en las paredes murmuran nombres olvidados. Una voz que no existe te susurra: "¿Serás digno de ser recordado aquí, o morirás en el anonimato?"',
-    14: '🦴 El Coliseo de Huesos te recibe con el silencio de mil batallas perdidas. Gradas de huesos apilados se elevan hacia la oscuridad. Podés sentir el peso de todos los gladiadores que murieron aquí — sus espíritus aún esperan un digno rival que los vengue.',
+    3:  '🗿 Al entrar a la Sala de los Ecos, escuchás tu propio nombre. Claramente. Nadie más está aquí. La sala te devuelve exactamente lo que dijiste —excepto eso. Nunca dijiste tu nombre en voz alta.',
+    9:  '👑 Al cruzar el umbral de la Sala del Trono, la temperatura cae varios grados. El trono de huesos al fondo te mira sin ojos. Tenés la certeza, irracional pero absoluta, de que ese trono no siempre estuvo vacío. Y de que quien lo usaba sabe que estás aquí.',
     11: '❄️ La Galería de Hielo detiene tu respiración. Las paredes de cristal azul reflejan tu imagen distorsionada en docenas de ángulos. En uno de los reflejos, tu imagen te devuelve la mirada... medio segundo antes que vos.',
+    12: '🔥 Antes de ver la forja, la sentís. No es solo calor — es algo más persistente, más profundo. Como la respiración de algo que no debería seguir vivo. El fuego en el centro no proyecta sombras normales. Las sombras se mueven solas.',
+    14: '🦴 El Coliseo de Huesos te recibe con el silencio de mil batallas perdidas. Gradas de huesos apilados se elevan hacia la oscuridad. Podés sentir el peso de todos los gladiadores que murieron aquí — sus espíritus aún esperan un digno rival que los vengue.',
+    15: '⛪ A medida que cruzás el umbral de la Catedral de la Oscuridad, el eco de tus pasos revela la inmensidad del lugar. Las vidrieras rotas dejan entrar rayos de luz violácea. Sentís el peso de siglos de oscuridad posarse sobre tus hombros.',
     20: '🕳️ Al asomarte al Abismo Eterno, el vacío te mira de vuelta. No hay fondo visible. Solo oscuridad infinita, y el certero presentimiento de que algo muy antiguo — y muy hambriento — acaba de notar tu presencia.',
+    22: '🪦 La Cripta de los Valientes te recibe en silencio. Las placas en las paredes murmuran nombres olvidados. Una voz que no existe te susurra: "¿Serás digno de ser recordado aquí, o morirás en el anonimato?"',
   };
 
   const cinematicEvent = (firstVisitEver && CINEMATIC_EVENTS[targetId])
@@ -1209,9 +1212,10 @@ function cmdAttack(player, targetName) {
 
     // ── Registrar eventos globales (T093) ───────────────────────────────────
     if (bossKill) {
-      db.logGlobalEvent('boss', `⚔️ ${player.username} derrotó al ${monster.name} y lo mandó al abismo.`);
-      // T113: Diario del aventurero
-      db.addJournalEntry(player.id, 'boss', `☠️ Derrotaste al ${monster.name}.`);
+      // STORY-016: texto de crónica evocador para el boss
+      db.logGlobalEvent('boss', `Las antorchas de la Catedral se apagaron cuando ${player.username} emergió con sangre de lich en la espada. Por un momento, el dungeon estuvo en silencio.`);
+      // T113: Diario del aventurero — STORY-019: entrada con color emocional
+      db.addJournalEntry(player.id, 'boss', `☠️ Cuando el Lich cayó, el silencio fue casi insoportable. Luego recordaste que tenés que salir de aquí.`);
     }
     // Logros nuevos → registrar el primero en la crónica
     if (newAchs && newAchs.length > 0) {
@@ -1231,7 +1235,11 @@ function cmdAttack(player, targetName) {
     if (monsterDead) {
       const prevLevelForJournal = player.level || 1;
       if (newLevel > prevLevelForJournal) {
-        db.addJournalEntry(player.id, 'level', `⬆️ Subiste al nivel ${newLevel}.`);
+        // STORY-019: primer nivel con mensaje evocador
+        const levelMsg = newLevel === 2
+          ? `⬆️ Subiste al nivel ${newLevel}. Sentís que el dungeon te está cambiando. No estás seguro de que sea para bien.`
+          : `⬆️ Subiste al nivel ${newLevel}.`;
+        db.addJournalEntry(player.id, 'level', levelMsg);
       }
     }
   }
@@ -1861,6 +1869,55 @@ function cmdExamine(player, query) {
       };
     }
     return { text: `Examinás ${itemName}: es un objeto corriente.` };
+  }
+
+  // STORY-008: examine aldric
+  if (qLow.includes('aldric') || qLow === 'mercader' || qLow === 'tendero') {
+    const room = db.getRoom(player.current_room_id);
+    if (player.current_room_id === 4) {
+      return { text: 'Aldric es un hombre de mediana edad con manos de comerciante y ojos de alguien que ha visto demasiado. Lleva un delantal con el símbolo de dos llaves cruzadas —el mismo que está en las paredes de la prisión del nivel inferior.\n\nNunca explica por qué está aquí. Cuando le preguntás, cambia el tema con una eficiencia que sugiere mucha práctica.\n\n"Si vas a comprar, comprá. Si no, las ruinas del fondo son más acogedoras de lo que parecen."' };
+    } else {
+      return { text: 'El mercader Aldric está en la Cámara del Tesoro (sala 4).' };
+    }
+  }
+
+  // STORY-003/004/005/010/011/012: objetos examinables de lore en salas específicas
+  const room2 = db.getRoom(player.current_room_id);
+  const loreObjects = {
+    'pared':           { rooms: [2],  text: 'Las inscripciones son en su mayoría ilegibles, dañadas por siglos de humedad. Pero en la mitad del corredor, casi a la altura de los ojos, una sola línea ha sido protegida por una capa de cera endurecida. Con esfuerzo, podés descifrarla:\n\n  "KAELTHAS — EL QUE NO QUISO MORIR GOBERNÓ DESDE LAS SOMBRAS"\n\nEl nombre está grabado dos veces: una en las runas antiguas del reino, otra —más reciente— en letra cursiva perfecta.' },
+    'inscripciones':   { rooms: [2],  text: 'Las inscripciones son en su mayoría ilegibles, dañadas por siglos de humedad. Pero en la mitad del corredor, casi a la altura de los ojos, una sola línea ha sido protegida por una capa de cera endurecida. Con esfuerzo, podés descifrarla:\n\n  "KAELTHAS — EL QUE NO QUISO MORIR GOBERNÓ DESDE LAS SOMBRAS"\n\nEl nombre está grabado dos veces: una en las runas antiguas del reino, otra —más reciente— en letra cursiva perfecta.' },
+    // STORY-013: Goblin contextualizado en sala 2
+    'goblin':          { rooms: [2],  text: 'El goblin no tiene interés en las inscripciones —de hecho, ha rayado algunas con un cuchillo sin entender lo que borra. Ha estado viviendo aquí el tiempo suficiente para acumular basura en un rincón: huesos de rata, piedras brillantes, un trozo de tela. Vino de fuera, siguiendo el olor al tesoro. Se quedó por las mismas razones que todos.' },
+    'altar':           { rooms: [5],  text: 'El altar de piedra negra tiene marcas de uso continuo a lo largo de siglos, pero lo que llama tu atención está en la base: hay cera derretida fresca. Reciente. Las llamas de las velas se apagaron hace siglos —¿quién estuvo aquí, y cuándo? El resto del dungeon no tiene respuestas. Pero alguien las tiene.' },
+    'trono':           { rooms: [9],  text: 'El trono está hecho de huesos ensamblados con precisión quirúrgica —no como un acto de brutalidad, sino como una declaración. Entre los brazos del trono, grabado en el hueso, hay un nombre en cursiva perfecta: KAELTHAS. Notás que el trono no tiene polvo. Lo demás en la sala lleva siglos sin ser tocado. Alguien se sienta aquí regularmente.' },
+    'escudos':         { rooms: [9],  text: 'Los escudos de los reinos extintos están todos ligeramente opacos de polvo... excepto uno. El más oscuro, sin emblema, brilla como si acabara de ser pulido. No tiene insignia. Solo una fecha grabada en el borde inferior: el año en que cayó el Reino de Valdrath.' },
+    'cuerda':          { rooms: [7],  text: 'La cuerda está atada en lo alto a un gancho de hierro de manufactura antigua. Intentás tirar de ella para saber qué hay abajo. El frío que sube desde las profundidades te hace soltar de inmediato —no es temperatura, es algo más. Un rechazo activo, deliberado. Mirás más de cerca los nudos: la cuerda tiene marcas de haber sido cortada desde abajo. Alguien —o algo— no quería que nadie bajara.' },
+    'forja':           { rooms: [12], text: 'El fuego de la forja lleva ardiendo más tiempo del que nadie recuerda, sin carbón ni madera visible. Sobre el yunque hay un molde para una espada que nunca se terminó —los bordes muestran marcas de garras, no de herramientas. Algo o alguien intentó completar la obra sin los conocimientos necesarios.\n\nLo más inquietante: el fuego es perfecto, uniforme, constante. Como una respiración.' },
+    'runas':           { rooms: [10], text: 'Las runas con sangre seca forman un patrón que tardás un momento en ver completo: es un círculo, y en su centro hay un nombre escrito en un idioma que nadie habla hace doscientos años. No sabés cómo, pero lo podés leer: K-A-E-L-T-H-A-S. El patrón de las runas forma un nombre. No querés saber cómo lo sabés.' },
+    'estatua':         { rooms: [10], text: 'La estatua con diez brazos no corresponde a ningún dios que conozcas. Cada brazo sostiene algo distinto: un escudo, una espada, un libro, una llave, una copa, una antorcha... Los últimos tres brazos están vacíos. La placa en la base está en blanco, raspada hasta la piedra. Alguien borró el nombre deliberadamente.' },
+    'carta':           { rooms: [8],  text: 'Un sobre sellado con cera negra, marcado con el símbolo de dos llaves cruzadas. La cera está intacta. Podés abrirla, pero algo en vos duda: hay cosas que no se pueden ignorar una vez que se saben.' },
+    'carta sellada':   { rooms: [8],  text: 'Un sobre sellado con cera negra, marcado con el símbolo de dos llaves cruzadas. La cera está intacta. El papel es viejo pero el sellado es perfecto —alguien tomó cuidado de que esto durara. En el reverso, en letra pequeña: "Para quien llegue después. Perdoname." Sin firma.' },
+    // STORY-007: Diario de aventurero anterior en sala 11 (Galería de Hielo)
+    'cadaver':         { rooms: [11], text: 'Uno de los cadáveres congelados lleva encima lo que queda de un diario. Las páginas están tan heladas que al tocarlas crean ruido de cristal roto.' },
+    'cadáver':         { rooms: [11], text: 'Uno de los cadáveres congelados lleva encima lo que queda de un diario. Las páginas están tan heladas que al tocarlas crean ruido de cristal roto.' },
+    'cadaveres':       { rooms: [11], text: 'Los cadáveres están perfectamente conservados por el frío. Todos miran hacia el norte —hacia la Catedral. Como si hubieran decidido no seguir y aun así no pudieran dejar de mirar.' },
+    'cadáveres':       { rooms: [11], text: 'Los cadáveres están perfectamente conservados por el frío. Todos miran hacia el norte —hacia la Catedral. Como si hubieran decidido no seguir y aun así no pudieran dejar de mirar.' },
+    'paginas':         { rooms: [11], text: 'Las páginas del diario están medio fusionadas por el hielo, pero alcanzás a leer tres fragmentos:\n\n  "...llegamos cuatro. Somos dos. El frío no mata — algo lo usa."\n\n  "...vi su sombra en la Catedral. Desde aquí. Eso no es posible."\n\n  "...Kaelthas no murió. Eligió esto. Lo entendí cuando me miró. Me conocía."' },
+    'páginas':         { rooms: [11], text: 'Las páginas del diario están medio fusionadas por el hielo, pero alcanzás a leer tres fragmentos:\n\n  "...llegamos cuatro. Somos dos. El frío no mata — algo lo usa."\n\n  "...vi su sombra en la Catedral. Desde aquí. Eso no es posible."\n\n  "...Kaelthas no murió. Eligió esto. Lo entendí cuando me miró. Me conocía."' },
+    'diario':          { rooms: [11], text: 'Las páginas del diario están medio fusionadas por el hielo, pero alcanzás a leer tres fragmentos:\n\n  "...llegamos cuatro. Somos dos. El frío no mata — algo lo usa."\n\n  "...vi su sombra en la Catedral. Desde aquí. Eso no es posible."\n\n  "...Kaelthas no murió. Eligió esto. Lo entendí cuando me miró. Me conocía."' },
+    'diario helado':   { rooms: [11], text: 'Las páginas del diario están medio fusionadas por el hielo, pero alcanzás a leer tres fragmentos:\n\n  "...llegamos cuatro. Somos dos. El frío no mata — algo lo usa."\n\n  "...vi su sombra en la Catedral. Desde aquí. Eso no es posible."\n\n  "...Kaelthas no murió. Eligió esto. Lo entendí cuando me miró. Me conocía."' },
+  };
+
+  // Normalizar query para buscar en lore objects
+  const qNorm = normalize(query.trim());
+  for (const [key, val] of Object.entries(loreObjects)) {
+    if (normalize(key).includes(qNorm) || qNorm.includes(normalize(key))) {
+      if (!val.rooms || val.rooms.includes(player.current_room_id)) {
+        return { text: val.text };
+      } else {
+        return { text: `No ves ningún "${query}" aquí.` };
+      }
+    }
   }
 
   return { text: `No ves ningún "${query}" aquí para examinar.` };
@@ -3735,8 +3792,25 @@ function cmdBuy(player, itemQuery) {
   const buyAchLines = ach.formatNewAchievements(buyAchs);
 
   const discountMsg = discount > 0 ? ` (descuento ${Math.round(discount * 100)}% por reputación)` : '';
+
+  // STORY-008: Personalidad de Aldric — líneas de flavor al comprar
+  const buyFlavors = [
+    'Aldric no levanta la vista de sus cuentas mientras envuelve el ítem.',
+    'Aldric asiente sin decir nada. Ha visto demasiados aventureros para sorprenderse.',
+    '"Buena elección," dice Aldric. El tono sugiere que lo dice siempre.',
+    'Aldric guarda el oro con la misma velocidad con que desaparece en su interior.',
+    'Aldric examina el ítem antes de entregarlo. Breve. Profesional. Impenetrable.',
+  ];
+  const flavor = buyFlavors[Math.floor(Math.random() * buyFlavors.length)];
+
+  // Línea especial con reputación Legendario
+  const repLevel = db.getReputationLevel(freshBuyer.reputation || 0);
+  const legendaryLine = repLevel === 'Legendario'
+    ? '\n"He oído tu nombre antes," dice Aldric en voz baja. "Hasta Kaelthas supo que vendría alguien así. No sé si eso es bueno."'
+    : '';
+
   return {
-    text: `🏪 Aldric sonríe. "Excelente elección."\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${buyAchLines}`,
+    text: `🏪 ${flavor}${legendaryLine}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${buyAchLines}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
@@ -3784,8 +3858,16 @@ function cmdSell(player, itemQuery) {
     db.updatePlayer(player.id, { defense: baseDefenseAfterSell, equipped_armor: null });
   }
 
+  // STORY-008: línea especial al vender ítems épicos/legendarios
+  const soldRarity = items.ITEM_RARITY ? items.ITEM_RARITY[found] : null;
+  const rareFlavorMap = {
+    'épico':      'Aldric examina el ítem con ojos que han visto demasiado. "No pregunto cómo lo conseguiste." Pausa. "Mejor para los dos."',
+    'legendario': 'Aldric sostiene el ítem un momento más de lo necesario. Cuando levanta la vista, algo en su expresión cambió. "Este... este tiene historia. ¿Estás seguro de que querés venderlo?"',
+  };
+  const rareFlavorLine = (soldRarity && rareFlavorMap[soldRarity]) ? `\n${rareFlavorMap[soldRarity]}` : '';
+
   return {
-    text: `🏪 Aldric examina el objeto.\n"Te doy ${sellPrice}g por eso."\n💰 Vendiste: ${found} por ${sellPrice}g. Total: ${newGold}g.`,
+    text: `🏪 Aldric examina el objeto.${rareFlavorLine}\n"Te doy ${sellPrice}g por eso."\n💰 Vendiste: ${found} por ${sellPrice}g. Total: ${newGold}g.`,
     event: `${player.username} vende algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
@@ -5835,6 +5917,43 @@ function cmdBestiary(player) {
     const skull = entry.kills >= 20 ? '💀' : entry.kills >= 10 ? '☠' : entry.kills >= 5 ? '⚔' : '·';
     lines.push(`║ ${skull} ${entry.name.padEnd(20).slice(0, 20)} × ${String(entry.kills).padStart(3)} kills ║`);
     lines.push(`║   ${bar}  (desde ${firstDate}) ║`);
+    // STORY-002: nombre canónico del Lich revelado al haberlo matado
+    if (entry.name === 'Lich Anciano') {
+      lines.push(`║   🔮 Nombre verdadero: Kaelthas Valdrath    ║`);
+      if (entry.kills >= 2) {
+        lines.push(`║   "La segunda vez fue diferente. Casi       ║`);
+        lines.push(`║    parecía estar esperándote."              ║`);
+      }
+    }
+    // STORY-009: Textos de familiaridad al llegar a 5+ kills del mismo monstruo
+    const BESTIARY_FAMILIARITY = {
+      'Araña Tejedora':     'Ya perdiste la cuenta. Empezaste a notar que siempre tejen en espiral, nunca en ángulo recto.',
+      'Guardia Espectral':  'La tercera vez que la mataste, la alabarda cayó al suelo y no desapareció. Te preguntás si alguna vez fue un hombre.',
+      'Goblin Merodeador':  'Hay uno que escapó tres veces. No estás seguro de que sea el mismo, pero sospechás que sí.',
+      'Esqueleto Guerrero': 'Ya no te molesta el ruido de los huesos al romperse. Eso te parece más perturbador que cualquier cosa que hayas encontrado aquí.',
+      'Murciélago Vampiro': 'Aprendiste a reconocer el silbido particular de sus alas antes de que lleguen. Eso te salvó la vida al menos una vez.',
+      'Rata Gigante':       'Son predecibles. Eso las hace aburridas. El dungeon te está cambiando.',
+      'Espectro del Corredor': 'Los espectros no gritan al morir. Eso es lo que más te inquieta de ellos.',
+      'Gólem de Piedra':    'El golem tarda en morir pero nunca huye. Hay algo casi admirable en eso.',
+      'Elemental de Hielo': 'Las primeras veces el frío te quemaba. Ahora apenas lo notás. No estás seguro de si eso es adaptación o pérdida.',
+    };
+    if (entry.kills >= 5 && BESTIARY_FAMILIARITY[entry.name]) {
+      const famText = BESTIARY_FAMILIARITY[entry.name];
+      // Dividir en líneas de 36 chars para el marco
+      const wrapped = [];
+      let rem = '💭 ' + famText;
+      while (rem.length > 36) {
+        let cut = 36;
+        while (cut > 0 && rem[cut] !== ' ') cut--;
+        if (cut === 0) cut = 36;
+        wrapped.push(rem.slice(0, cut));
+        rem = rem.slice(cut).trimStart();
+      }
+      if (rem.length > 0) wrapped.push(rem);
+      for (const line of wrapped) {
+        lines.push(`║   ${line.padEnd(37).slice(0, 37)}║`);
+      }
+    }
     lines.push(`╟────────────────────────────────────────╢`);
   }
   // Reemplazar la última separación por el cierre

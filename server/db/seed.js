@@ -543,7 +543,57 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore };
+
+/**
+ * STORY-003/004/005/007/012/017 — Migración de lore narrativo:
+ * Actualiza descripciones de salas para incluir pistas sutiles del trasfondo.
+ * También agrega ítems examinables (carta sellada en sala 8, páginas congeladas en sala 11).
+ * Agrega mensajes "de fábrica" en las paredes de salas clave (STORY-017).
+ */
+function migrateNarrativeLore() {
+  // STORY-003: Sala 2 — inscripción legible en el corredor
+  const room2 = db.getRoom(2);
+  if (room2 && !room2.description.includes('cera endurecida')) {
+    db.upsertRoom({ ...room2, description: 'Un pasillo largo y estrecho. Las paredes de piedra sudan humedad. Inscripciones ilegibles cubren cada centímetro —excepto una línea en el centro del corredor, protegida por cera endurecida. (Podés usar examine pared para leerla.)' });
+    console.log('[seed] migrateNarrativeLore: Sala 2 actualizada con pista narrativa.');
+  }
+  // STORY-004: Sala 5 — cera fresca en el altar
+  const room5 = db.getRoom(5);
+  if (room5 && !room5.description.includes('cera derretida')) {
+    db.upsertRoom({ ...room5, description: 'Un altar de piedra negra domina la sala. Velas apagadas desde hace siglos —pero en la base del altar hay cera derretida fresca. Alguien estuvo aquí recientemente. (Usá examine altar para más detalles.)' });
+    console.log('[seed] migrateNarrativeLore: Sala 5 actualizada con cera fresca en altar.');
+  }
+  // STORY-005: Sala 9 — trono sin polvo
+  const room9 = db.getRoom(9);
+  if (room9 && !room9.description.includes('sin polvo')) {
+    db.upsertRoom({ ...room9, description: 'Un trono de huesos ocupa el centro de la sala. Las paredes están decoradas con escudos de armas de reinos extintos —todos cubiertos de polvo, excepto uno que brilla como si fuera nuevo. El trono tampoco tiene polvo. Alguien lo usa. (Podés usar examine trono o examine escudos.)' });
+    console.log('[seed] migrateNarrativeLore: Sala 9 actualizada con trono sin polvo.');
+  }
+  // STORY-012: Sala 8 — carta sellada (añadir ítem si no existe)
+  const room8 = db.getRoom(8);
+  if (room8 && !(room8.items || []).includes('carta sellada')) {
+    const newItems = [...(room8.items || []), 'carta sellada'];
+    db.upsertRoom({ ...room8, items: newItems });
+    console.log('[seed] migrateNarrativeLore: carta sellada agregada a sala 8 (Prisión Subterránea).');
+  }
+  // STORY-007: Sala 11 — páginas congeladas (añadir ítem si no existe)
+  const room11 = db.getRoom(11);
+  if (room11 && !(room11.items || []).includes('páginas congeladas')) {
+    const newItems11 = [...(room11.items || []), 'páginas congeladas'];
+    db.upsertRoom({ ...room11, items: newItems11 });
+    console.log('[seed] migrateNarrativeLore: páginas congeladas agregadas a sala 11 (Galería de Hielo).');
+  }
+  // STORY-017: Mensajes de fábrica en las paredes de salas clave
+  // (solo agregar si no existen ya — verificar por contenido)
+  const wallMessages = db.getWallMessages ? db.getWallMessages(7) : null;
+  if (wallMessages !== null && wallMessages.length === 0) {
+    db.addWallMessage && db.addWallMessage(7,  'Anónimo', 'No tires de la cuerda. — Alguien que no quiso firmar');
+    db.addWallMessage && db.addWallMessage(11, 'Anónimo', 'Vi su sombra en la Catedral antes de llegar a la Catedral. Eso no es posible.');
+    db.addWallMessage && db.addWallMessage(14, 'Anónimo', 'Los esqueletos en las gradas aplauden cuando morís. No lo ves, pero lo sentís.');
+    console.log('[seed] migrateNarrativeLore: mensajes de fábrica agregados a salas 7/11/14.');
+  }
+}
 
 /**
  * T152: Agregar armaduras al loot de algunos monstruos.

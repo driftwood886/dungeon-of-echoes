@@ -22,6 +22,7 @@ const ACHIEVEMENTS = [
     icon: '🗡️',
     name: 'Primer Kill',
     desc: 'Derrotar al primer enemigo del dungeon',
+    flavor: 'El primer monstruo siempre cuesta más de lo que esperabas.',
     check: (p, _ctx) => (p.kills || 0) >= 1,
   },
   {
@@ -50,6 +51,7 @@ const ACHIEVEMENTS = [
     icon: '🏆',
     name: 'Héroe Legendario',
     desc: 'Alcanzar el nivel 10',
+    flavor: 'En algún lugar del dungeon, alguien grabó tu nombre en una pared. No fuiste vos.',
     check: (p, _ctx) => (p.level || 1) >= 10,
   },
   {
@@ -57,6 +59,7 @@ const ACHIEVEMENTS = [
     icon: '👑',
     name: 'Cazador de Lich',
     desc: 'Derrotar al Lich Anciano en la Catedral de la Oscuridad',
+    flavor: 'Las antorchas del dungeon parpadearon cuando saliste de la Catedral. Como si algo enorme hubiese exhalado.',
     check: (_p, ctx) => !!(ctx && ctx.bossKill),
   },
   {
@@ -245,7 +248,10 @@ function formatAchievementIcons(player) {
 function formatNewAchievements(newOnes) {
   if (!newOnes || newOnes.length === 0) return '';
   return newOnes
-    .map(a => `\n🏅 ¡LOGRO DESBLOQUEADO! ${a.icon} "${a.name}" — ${a.desc}`)
+    .map(a => {
+      const base = `\n🏅 ¡LOGRO DESBLOQUEADO! ${a.icon} "${a.name}" — ${a.desc}`;
+      return a.flavor ? `${base}\n   ✨ ${a.flavor}` : base;
+    })
     .join('');
 }
 
