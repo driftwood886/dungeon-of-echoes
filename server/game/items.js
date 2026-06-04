@@ -20,9 +20,10 @@
 
 const ITEM_CATALOG = {
   // ── Pociones ────────────────────────────────────────────────────────────────
-  'poción de salud':     { type: 'potion', effect: 'heal', amount: 15, description: 'Una pequeña poción rojiza que restaura 15 HP.' },
-  'poción de vida':      { type: 'potion', effect: 'heal', amount: 25, description: 'Una poción grande que restaura 25 HP.' },
-  'poción menor':        { type: 'potion', effect: 'heal', amount: 8,  description: 'Una poción débil. Restaura 8 HP.' },
+  'poción de salud':          { type: 'potion', effect: 'heal', amount: 15, description: 'Una pequeña poción rojiza que restaura 15 HP.' },
+  'poción mayor de salud':    { type: 'potion', effect: 'heal', amount: 50, description: 'Una gran poción carmesí que restaura 50 HP. Para las situaciones desesperadas.' },
+  'poción de vida':           { type: 'potion', effect: 'heal', amount: 25, description: 'Una poción grande que restaura 25 HP.' },
+  'poción menor':             { type: 'potion', effect: 'heal', amount: 8,  description: 'Una poción débil. Restaura 8 HP.' },
   'poción de poder':     { type: 'potion', effect: 'heal', amount: 20, description: 'Una poción oscura que restaura 20 HP y deja un zumbido en los huesos.' },
   'poción de maná':      { type: 'mana_potion', effect: 'restore_mana', amount: 15, description: 'Un frasco azul brillante. Restaura 15 puntos de maná instantáneamente.' },
   'poción de maná mayor': { type: 'mana_potion', effect: 'restore_mana', amount: 20, description: 'Un frasco azul intenso. Restaura 20 puntos de maná.' },
@@ -192,6 +193,7 @@ const ITEM_RARITY = {
   'látigo de garras':         'raro',
   'poción de poder':          'raro',
   'poción de maná mayor':     'raro',
+  'poción mayor de salud':    'raro',
   'poción de vida':           'raro',
   'cristal resonante':        'raro',
   'fragmento de vacío':       'raro',

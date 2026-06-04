@@ -3662,7 +3662,7 @@ function cmdParty(player, args) {
 const MERCHANT_ROOM_ID = 4;
 
 const SHOP_CATALOG = [
-  { name: 'poción de salud',         price: 15, description: 'Recupera 20 HP. Esencial para aventureros.' },
+  { name: 'poción de salud',         price: 15, description: 'Recupera 15 HP. Esencial para aventureros.' },
   { name: 'poción mayor de salud',   price: 35, description: 'Recupera 50 HP. Para las situaciones desesperadas.' },
   { name: 'antídoto',                price: 20, description: 'Cura el veneno al instante.' },
   { name: 'espada de hierro',        price: 30, description: 'Arma sólida. Daño base +6.' },
