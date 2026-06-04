@@ -543,7 +543,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats };
 
 /**
  * STORY-003/004/005/007/012/017 — Migración de lore narrativo:
@@ -607,11 +607,12 @@ function migrateArmorLoot() {
     console.log('[seed] migrateArmorLoot: peto de huesos agregado a Guardia Espectral (id 6).');
   }
 
-  // Campeón Espectral (id 13) → armadura de placas
-  const champ = db.getMonster(13);
+  // Campeón Espectral (id 12) → armadura de placas
+  // BUG-046 fix: el id correcto del Campeón Espectral es 12, no 13 (13 es el Lich Anciano)
+  const champ = db.getMonster(12);
   if (champ && !champ.loot.includes('armadura de placas')) {
     db.upsertMonster({ ...champ, loot: [...champ.loot, 'armadura de placas'] });
-    console.log('[seed] migrateArmorLoot: armadura de placas agregada a Campeón Espectral (id 13).');
+    console.log('[seed] migrateArmorLoot: armadura de placas agregada a Campeón Espectral (id 12).');
   }
 
   // Sombra del Vacío (id 22) → veste de sombra
@@ -923,5 +924,27 @@ function migrateMerchantRoom() {
     const items = throneRoom.items || [];
     db.upsertRoom({ ...throneRoom, exits, items, trap: JSON.stringify(updatedTrap) });
     console.log('[seed] migrateMerchantRoom: Trampa Sala del Trono reducida de 10 → 6 HP (DIS-D02).');
+  }
+}
+
+/**
+ * BUG-046: El Lich Anciano (id 13) tiene max_hp=1 en la BD debido a que migrateArmorLoot
+ * usaba id=13 creyendo ser el Campeón Espectral (id real=12). Esto causaba que upsertMonster
+ * sobreescribiera al Lich con los campos del Campeón (incluido max_hp=40), y luego la lógica
+ * de respawn/élite podía degradar max_hp. Corrección: restaurar al Lich a sus stats correctas
+ * (hp=60, max_hp=60, attack=12) si max_hp < 30 (indicador inequívoco del bug).
+ */
+function migrateBossStats() {
+  const lich = db.getMonster(13);
+  if (lich && lich.max_hp < 30) {
+    db.updateMonster(13, {
+      name: 'Lich Anciano',
+      hp: 60,
+      max_hp: 60,
+      attack: 12,
+      room_id: 15,
+      respawn_at: null,
+    });
+    console.log('[seed] migrateBossStats: Lich Anciano (id 13) restaurado a stats correctos (HP:60, ATK:12). Bug BUG-046 corregido.');
   }
 }
