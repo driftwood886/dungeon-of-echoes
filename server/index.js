@@ -10,7 +10,7 @@ const http    = require('http');
 const path    = require('path');
 
 const db                     = require('./db/db');
-const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats } = require('./db/seed');
+const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot } = require('./db/seed');
 const { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions } = require('./game/engine');
 const { checkRespawns, wanderMonsters } = require('./game/combat');
 const quests                 = require('./game/quests');
@@ -37,6 +37,7 @@ async function main() {
   migrateMerchantRoom(); // DIS-D08: mover Esqueleto Guerrero fuera de sala del mercader (sala 4 → sala 3)
   migrateNarrativeLore(); // STORY-003/004/005/007/012/017: lore narrativo y pistas del Lich
   migrateBossStats(); // BUG-046: restaurar stats del Lich Anciano si max_hp < 30
+  migrateIceFragmentLoot(); // DIS-D34: fragmento de hielo en loot del Elemental de Hielo
 
   // 2. Crear app Express
   const app = express();

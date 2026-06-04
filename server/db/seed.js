@@ -305,7 +305,7 @@ function migrateExpandedDungeon() {
       description: 'Una masa de hielo vivo que se desplaza lentamente pero golpea con una fuerza que congela los huesos.',
       hp: 22, max_hp: 22, attack: 6,
       room_id: 11,
-      loot: ['cristal helado', 'poción de salud'],
+      loot: ['fragmento de hielo', 'cristal helado', 'poción de salud'],
       respawn_room_id: 11,
     },
     {
@@ -543,7 +543,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot };
 
 /**
  * STORY-003/004/005/007/012/017 — Migración de lore narrativo:
@@ -948,3 +948,18 @@ function migrateBossStats() {
     console.log('[seed] migrateBossStats: Lich Anciano (id 13) restaurado a stats correctos (HP:60, ATK:12). Bug BUG-046 corregido.');
   }
 }
+
+/**
+ * DIS-D34: Agregar fragmento de hielo al loot del Elemental de Hielo (id 9).
+ * El fragmento de hielo es ingrediente de la receta de la lanza espectral (endgame)
+ * pero no tenía fuente obtenible. Ahora dropea del Elemental de Hielo y también
+ * puede encontrarse con forage en la Galería de Hielo (sala 11).
+ */
+function migrateIceFragmentLoot() {
+  const elemental = db.getMonster(9);
+  if (elemental && !elemental.loot.includes('fragmento de hielo')) {
+    db.upsertMonster({ ...elemental, loot: ['fragmento de hielo', ...elemental.loot] });
+    console.log('[seed] migrateIceFragmentLoot: fragmento de hielo agregado al loot del Elemental de Hielo (id 9).');
+  }
+}
+

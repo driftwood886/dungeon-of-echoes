@@ -858,6 +858,16 @@ function cmdStatus(player) {
     `XP sig.:  ${xpBar} ${xp % 50}/50`,
     `HP:       ${hpBar} ${player.hp}/${player.max_hp}`,
     (() => {
+      // BUG-049: mostrar maná en status para Mago u otros jugadores con max_mana > 20
+      const maxMana = player.max_mana || 0;
+      if (maxMana > 20 || (player.player_class === 'mago')) {
+        const mana = player.mana || 0;
+        const manaBar = buildBar(mana, maxMana || 1, 20);
+        return `Maná:     ${manaBar} ${mana}/${maxMana}`;
+      }
+      return null;
+    })(),
+    (() => {
       // BUG-011: mostrar ATK efectivo con todos los buffs activos
       const scrollsStatus = JSON.parse(player.active_scrolls || '{}');
       const nowStatus = Date.now();
@@ -2867,6 +2877,8 @@ function cmdMap(player) {
     16: 'Antesala',
     17: 'Subastas',
     18: 'Fuente',
+    19: 'Cám.Eco',
+    20: 'Abismo',
     21: 'Práctica',
     22: 'Cripta',
   };
@@ -2918,8 +2930,12 @@ function cmdMap(player) {
     `${c(7)}---${c(3)}---${c(4)}`,
     `  |`,
     `${c(10)}---${c(9)}---${c(6)}---${c(2)}---${c(12)}---${c(14)}---${c(15)}`,
-    `  |              |          |                    |`,
+    `  |              |          |                    |         |`,
     `${c(11)}    ${c(5)}---${c(1)}              ${c(13)}${gap}${c(22)}`,
+    `               ↓ (bajar)                        ↓ (sur)`,
+    `             ${c(21)}                        ${c(19)}`,
+    `                                                 |`,
+    `                                              ${c(20)}`,
     ``,
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
     `⚔ = monstruo activo`,
@@ -4777,9 +4793,10 @@ const SURVEY_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutos por sala (T205)
 // DIS-D23: ítems especiales con alta probabilidad en salas con trampa
 // (facilita obtener el ítem de desactivación)
 const ROOM_FORAGE_BONUS = {
-  6:  { item: 'hongo azul',   prob: 0.45 },  // Túnel de los Hongos — desactiva trampa esporas
-  9:  { item: 'corona rota',  prob: 0.45 },  // Sala del Trono — desactiva trampa fría
-  13: { item: 'red de pesca', prob: 0.45 },  // Caverna Sumergida — desactiva trampa inundación
+  6:  { item: 'hongo azul',       prob: 0.45 },  // Túnel de los Hongos — desactiva trampa esporas
+  9:  { item: 'corona rota',      prob: 0.45 },  // Sala del Trono — desactiva trampa fría
+  11: { item: 'fragmento de hielo', prob: 0.35 }, // DIS-D34: Galería de Hielo — ingrediente lanza espectral
+  13: { item: 'red de pesca',     prob: 0.45 },  // Caverna Sumergida — desactiva trampa inundación
 };
 
 /**

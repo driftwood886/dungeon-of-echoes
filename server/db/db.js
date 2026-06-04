@@ -333,7 +333,12 @@ async function init() {
   // Esto evita que monstruos que sobrevivieron con HP bajo entre sesiones queden permanentemente dañados
   try {
     db.run(`UPDATE monsters SET hp = max_hp WHERE room_id IS NOT NULL AND hp < max_hp AND hp > 0`);
-    console.log('[db] BUG-030: HP de monstruos vivos restaurado a max_hp al reiniciar');
+    // BUG-050: también mover monstruos con hp=0 pero room_id activo al respawn
+    // Estos son zombies que "murieron" sin que se registrara el respawn correctamente
+    const now050 = new Date().toISOString();
+    const respawnDelay050 = new Date(Date.now() + 60000).toISOString(); // 1 minuto
+    db.run(`UPDATE monsters SET hp = max_hp, room_id = NULL, respawn_at = ? WHERE room_id IS NOT NULL AND hp <= 0 AND id NOT IN (23, 24, 25)`, [respawnDelay050]);
+    console.log('[db] BUG-030/050: HP de monstruos vivos restaurado a max_hp al reiniciar');
   } catch (hpRestoreErr) {
     console.error('[db] BUG-030 HP restore error:', hpRestoreErr.message);
   }
@@ -1110,7 +1115,34 @@ function getDailyChallenge(player) {
     for (let i = 0; i < idStr.length; i++) { idHash = (idHash * 31 + idStr.charCodeAt(i)) >>> 0; }
     const dateNum = parseInt(today.replace(/-/g, ''), 10);
     const seed = (idHash + dateNum) % DAILY_CHALLENGE_TYPES.length;
-    const template = DAILY_CHALLENGE_TYPES[seed];
+    let template = DAILY_CHALLENGE_TYPES[seed];
+
+    // DIS-D33: Evitar solapamiento con la quest activa (mismo tipo+target)
+    try {
+      const quests = require('../game/quests.js');
+      const activeQuest = quests.getActiveQuest();
+      if (activeQuest) {
+        const qDef = activeQuest.questDef || activeQuest;
+        const qType = qDef.type || '';
+        const qTarget = qDef.target || '';
+        // Si el template seleccionado solapa con la quest activa, buscar uno alternativo
+        const sameType = template && template.type === qType;
+        const sameTarget = template && qTarget && template.target &&
+          template.target.toLowerCase() === qTarget.toLowerCase();
+        if (sameType && (template.type !== 'kill' || sameTarget)) {
+          // Buscar el siguiente template que no solape
+          for (let offset = 1; offset < DAILY_CHALLENGE_TYPES.length; offset++) {
+            const alt = DAILY_CHALLENGE_TYPES[(seed + offset) % DAILY_CHALLENGE_TYPES.length];
+            const altSameType = alt.type === qType;
+            const altSameTarget = qTarget && alt.target && alt.target.toLowerCase() === qTarget.toLowerCase();
+            if (!(altSameType && (alt.type !== 'kill' || altSameTarget))) {
+              template = alt;
+              break;
+            }
+          }
+        }
+      }
+    } catch (_) { /* quests module no disponible — ignorar */ }
     if (!template) {
       // Fallback seguro si por alguna razón el template es undefined
       const fallback = DAILY_CHALLENGE_TYPES[0];
