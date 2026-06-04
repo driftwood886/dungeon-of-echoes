@@ -162,6 +162,22 @@ const ACHIEVEMENTS = [
     secret: true,
     check: (p, _ctx) => p.is_hardcore === 1 && p.fallen !== 1 && (p.level || 1) >= 10,
   },
+  // DIS-D32: Logro Conquistador del Dungeon — completar el bestiario
+  {
+    id: 'conquistador_dungeon',
+    icon: '📖👑',
+    name: 'Conquistador del Dungeon',
+    desc: 'Registrar los 14 tipos de monstruo del dungeon en el bestiario',
+    flavor: 'Cada criatura de estas mazmorras conoce tu nombre. Algunas con terror. Otras ya no pueden recordar nada.',
+    secret: false,
+    check: (p, _ctx) => {
+      try {
+        const bestiary = JSON.parse(p.bestiary || '{}');
+        const types = Object.keys(bestiary).length;
+        return types >= 14;
+      } catch (_) { return false; }
+    },
+  },
 ];
 
 // ─── checkAchievements ─────────────────────────────────────────────────────────

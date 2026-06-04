@@ -583,9 +583,18 @@ function cmdMove(player, direction) {
   // T115: Registrar sala visitada para logro secreto Cartógrafo
   const visitResult = db.trackRoomVisit(player.id, targetId);
   const freshForCartog = db.getPlayer(player.id);
+  let cartogAchLines = '';
   if (freshForCartog) {
     const cartogAchs = ach.checkAchievements(freshForCartog, {});
-    // Los nuevos logros se notificarán en la respuesta si los hay
+    // DIS-D30 fix: incluir logros nuevos (Cartógrafo, etc.) en la respuesta del move
+    if (cartogAchs && cartogAchs.length > 0) {
+      cartogAchLines = ach.formatNewAchievements(cartogAchs);
+      // Registrar en crónica y diario
+      for (const a of cartogAchs) {
+        db.logGlobalEvent('achievement', `🏅 ${player.username} desbloqueó el logro \"${a.name}\".`);
+        db.addJournalEntry(player.id, 'achievement', `🏅 Logro desbloqueado: \"${a.name}\".`);
+      }
+    }
   }
 
   // T165: Mensaje de primera visita permanente
@@ -726,7 +735,7 @@ function cmdMove(player, direction) {
   }
 
   return {
-    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${extremeWeatherMsg}`,
+    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${extremeWeatherMsg}${cartogAchLines}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -5959,7 +5968,13 @@ function cmdBestiary(player) {
   }
   // Reemplazar la última separación por el cierre
   lines[lines.length - 1] = `╚════════════════════════════════════════╝`;
-  lines.push(`  Total: ${entries.length} tipo(s) de monstruo cazado(s).`);
+  const TOTAL_TYPES = 14;
+  const entryCount = entries.filter(e => e.name !== 'Goblin de Práctica').length;
+  if (entryCount >= TOTAL_TYPES) {
+    lines.push(`  📖👑 ¡BESTIARIO COMPLETO! ${entryCount}/${TOTAL_TYPES} tipos cazados — Sos un Conquistador del Dungeon.`);
+  } else {
+    lines.push(`  Total: ${entries.length} tipo(s) de monstruo cazado(s). (${entryCount}/${TOTAL_TYPES} para logro Conquistador)`);
+  }
   return { text: lines.join('\n') };
 }
 
@@ -7653,6 +7668,29 @@ function cmdStudy(player, args) {
   return { text: lines.join('\n') };
 }
 
+// ─── DIS-D31: Helper compartido para evaluar estado del boss ─────────────────
+// Usado por cmdCalendar y cmdDungeonStatus para mantener consistencia.
+function getBossStatus() {
+  const bossMonster = db.getMonster(13); // Lich Anciano
+  if (!bossMonster) return { alive: false, inRespawn: false, respawnAt: null, hp: 0, maxHp: 0 };
+  const now = Date.now();
+  // El boss está "en respawn" si room_id es null
+  // Está "disponible pero no respawneado aún" si respawn_at < now pero room_id sigue null
+  // (checkRespawns corre cada 60s, puede haber una ventana de inconsistencia)
+  const isAlive = bossMonster.room_id !== null && bossMonster.room_id !== undefined && (bossMonster.hp || 0) > 0;
+  const respawnAt = bossMonster.respawn_at ? new Date(bossMonster.respawn_at).getTime() : null;
+  const respawnReady = !isAlive && respawnAt && respawnAt <= now;
+  const inRespawn = !isAlive && respawnAt && respawnAt > now;
+  return {
+    alive: isAlive,
+    inRespawn,
+    respawnReady, // respawn_at ya pasó pero checkRespawns aún no lo reposicionó
+    respawnAt,
+    hp: bossMonster.hp || 0,
+    maxHp: bossMonster.max_hp || 0,
+  };
+}
+
 // ─── T151: Comando dungeon/estado del dungeon ─────────────────────────────────
 // Muestra un resumen narrativo del estado actual del dungeon: zonas peligrosas,
 // boss vivo/muerto, quest activa, trampas armadas, loot disponible.
@@ -7684,11 +7722,11 @@ function cmdDungeonStatus(player) {
     }
 
     // Boss vivo? (Lich Anciano = monster id 13)
-    // Fix DIS-P04: usar db.getMonster() para evitar raw() y verificar correctamente el estado
-    const bossMonster = db.getMonster(13);
-    const bossAlive = bossMonster && bossMonster.room_id !== null && bossMonster.room_id !== undefined && (bossMonster.hp || 0) > 0;
-    const bossHp = bossMonster ? (bossMonster.hp || 0) : 0;
-    const bossMaxHp = bossMonster ? (bossMonster.max_hp || 0) : 0;
+    // DIS-D31 fix: usar getBossStatus() compartido con cmdCalendar para consistencia
+    const bossStatus = getBossStatus();
+    const bossAlive = bossStatus.alive;
+    const bossHp = bossStatus.hp;
+    const bossMaxHp = bossStatus.maxHp;
 
     // Quest activa (módulo quests) — BUG-008 fix: usar getActiveQuest (no getCurrentQuest) y mostrar progreso del jugador
     let questInfo = 'Ninguna activa';
@@ -7735,7 +7773,9 @@ function cmdDungeonStatus(player) {
     // Boss
     const bossLine = bossAlive
       ? `  ☠ Boss: VIVO — ${bossHp}/${bossMaxHp} HP (¡PELIGRO!)`
-      : `  ☠ Boss: En respawn (el dungeon respira...)`
+      : bossStatus.respawnReady
+        ? `  ☠ Boss: ¡Reapareciendo pronto! (checkRespawns en proceso...)`
+        : `  ☠ Boss: En respawn (el dungeon respira...)`
     ;
     lines.push(`║${bossLine.padEnd(W)}║`);
 
@@ -9620,19 +9660,19 @@ function cmdCalendar(player) {
   lines.push(`╠${'═'.repeat(W)}╣`);
 
   // ── Boss: Lich Anciano (monstruo ID 13) ──────────────────────────────────
+  // DIS-D31 fix: usar getBossStatus() para consistencia con cmdDungeonStatus
   lines.push(`║ ${'👑 BOSS'.padEnd(W - 2)} ║`);
-  const allMonsters = db.getAllMonsters();
-  const lich = allMonsters.find(m => m.id === 13);
-  if (lich) {
-    if (lich.room_id !== null) {
-      const lichHpPct = Math.round((lich.hp / lich.max_hp) * 100);
-      lines.push(`║  ${'Lich Anciano'.padEnd(20)} ${'⚔ VIVO'.padEnd(14)} HP: ${lichHpPct}%`.padEnd(W + 1) + '║');
-    } else if (lich.respawn_at) {
-      const respawnMs = new Date(lich.respawn_at).getTime() - now;
-      lines.push(`║  ${'Lich Anciano'.padEnd(20)} ${'💤 en respawn'.padEnd(14)} en: ${fmt(respawnMs)}`.padEnd(W + 1) + '║');
-    } else {
-      lines.push(`║  ${'Lich Anciano'.padEnd(20)} ${'❓ estado desconocido'.padEnd(30)}`.padEnd(W + 1) + '║');
-    }
+  const bossCalendarStatus = getBossStatus();
+  if (bossCalendarStatus.alive) {
+    const lichHpPct = Math.round((bossCalendarStatus.hp / bossCalendarStatus.maxHp) * 100);
+    lines.push(`║  ${'Lich Anciano'.padEnd(20)} ${'⚔ VIVO'.padEnd(14)} HP: ${lichHpPct}%`.padEnd(W + 1) + '║');
+  } else if (bossCalendarStatus.respawnReady) {
+    lines.push(`║  ${'Lich Anciano'.padEnd(20)} ${'⚡ ¡ya disponible!'.padEnd(30)}`.padEnd(W + 1) + '║');
+  } else if (bossCalendarStatus.inRespawn) {
+    const respawnMs = bossCalendarStatus.respawnAt - now;
+    lines.push(`║  ${'Lich Anciano'.padEnd(20)} ${'💤 en respawn'.padEnd(14)} en: ${fmt(respawnMs)}`.padEnd(W + 1) + '║');
+  } else {
+    lines.push(`║  ${'Lich Anciano'.padEnd(20)} ${'❓ estado desconocido'.padEnd(30)}`.padEnd(W + 1) + '║');
   }
 
   // ── Clima ────────────────────────────────────────────────────────────────
@@ -10857,7 +10897,7 @@ function cmdGoals(player) {
     if (bestiaryKeys.length < TOTAL_MONSTER_TYPES) {
       goals.push(`📖 Conquistador del Dungeon: enfrentá ${TOTAL_MONSTER_TYPES - bestiaryKeys.length} tipos de monstruo más (bestiario: ${bestiaryKeys.length}/${TOTAL_MONSTER_TYPES})`);
     } else {
-      done.push(`📖 ¡Bestiario completo! Sos un verdadero Conquistador del Dungeon.`);
+      done.push(`📖👑 ¡Bestiario completo! Sos un verdadero Conquistador del Dungeon. (${bestiaryKeys.length}/${TOTAL_MONSTER_TYPES} tipos)`);
     }
     // Nivel 20 como techo real
     if (level < 20) {
