@@ -23,10 +23,12 @@ function getTimePeriod() {
 // ─── Categorías de sala ──────────────────────────────────────────────────────
 
 const ROOM_TAGS = {
+  // DIS-D36: fire evaluado antes que cold — el Taller de la Forja contiene "helada" en su
+  // descripción (referencia a la sala adyacente), lo que causaba falso positivo de cold.
+  fire:    ['forja', 'lava', 'fuego', 'brasas', 'horno', 'volcánic'],
   cold:    ['glaciar', 'helad', 'hielo', 'frío', 'fría', 'frio', 'nieve', 'tundra'],
   dark:    ['maldita', 'maldito', 'catedral', 'sombra', 'oscur', 'tinieblas', 'penumbra', 'negro', 'profundidades'],
   sacred:  ['santuario', 'sagra', 'altar', 'templo', 'bless', 'divino', 'divina'],
-  fire:    ['forja', 'lava', 'fuego', 'brasas', 'horno', 'volcánic'],
   water:   ['lago', 'agua', 'sumerg', 'piscina', 'corriente', 'río', 'charco'],
   throne:  ['trono', 'cámara', 'palacio', 'salón del', 'sala del trono'],
   cave:    ['caverna', 'gruta', 'cueva', 'túnel', 'pasaje', 'corredor'],

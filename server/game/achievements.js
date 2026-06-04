@@ -173,7 +173,9 @@ const ACHIEVEMENTS = [
     check: (p, _ctx) => {
       try {
         const bestiary = JSON.parse(p.bestiary || '{}');
-        const types = Object.keys(bestiary).length;
+        // BUG-051: filtrar el Goblin de Práctica (monstruo de tutorial, no cuenta para el logro)
+        // igual que en cmdBestiary y cmdGoals
+        const types = Object.keys(bestiary).filter(k => k !== 'Goblin de Práctica').length;
         return types >= 14;
       } catch (_) { return false; }
     },
