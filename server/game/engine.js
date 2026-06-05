@@ -102,6 +102,13 @@ const FOUNTAIN_ROOM_ID = 18;
 const FOUNTAIN_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutos
 let fountainCooldownUntil = 0; // timestamp en ms (0 = disponible)
 
+// ── Cuenco Sagrado de la Capilla (DIS-D48) ────────────────────────────────────
+// Sala 5 — Capilla Olvidada. Cooldown personal: 5 minutos por jugador.
+// Recupera 40% del HP máximo. Accesible desde las primeras zonas.
+const CHAPEL_ROOM_ID = 5;
+const CHAPEL_BOWL_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos
+const chapelBowlCooldowns = new Map(); // playerId → timestamp
+
 // ── Sistema de títulos/rangos (T099) ─────────────────────────────────────────
 // Título calculado on-the-fly a partir de los kills del jugador.
 const TITLES = [
@@ -265,6 +272,7 @@ function execute(playerId, input, context) {
     case 'card':         result = cmdCard(player); break;                     // T197
     case 'trivia_pub':   result = cmdTriviaPub(player, action.args, context); break; // T196
     case 'drink':        result = cmdDrink(player); break;
+    case 'bowl':         result = cmdChapelBowl(player); break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
     case 'clase':        result = cmdClase(player, action.args); break;
@@ -3147,11 +3155,13 @@ function cmdRest(player, context) {
   if (!partyRestMap.has(roomId)) partyRestMap.set(roomId, new Map());
   partyRestMap.get(roomId).set(player.id, Date.now());
 
-  // Recuperar HP (3 a 5 HP)
-  const baseHeal = Math.floor(Math.random() * 3) + 3; // 3, 4 o 5
-  // T166: Viento helado penaliza el descanso (-1 HP, mín 1)
+  // DIS-D48: Recuperar HP basado en % del max_hp (10-15%), mínimo 5
+  // Antes era un fijo 3-5 HP que se volvía irrelevante a niveles altos.
+  const baseHealPct = 0.10 + Math.random() * 0.05; // 10% a 15%
+  const baseHeal = Math.max(5, Math.floor(player.max_hp * baseHealPct));
+  // T166: Viento helado penaliza el descanso (-2 HP, mín 3)
   const weatherPenalty = weather.getRestPenalty();
-  let heal = Math.max(1, baseHeal - weatherPenalty);
+  let heal = Math.max(3, baseHeal - weatherPenalty * 2);
 
   // T183: Verificar party rest
   let partyBonusText = '';
@@ -5205,6 +5215,55 @@ function cmdDrink(player) {
     text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! +${restored} HP.\n${hpBar} ${player.max_hp}/${player.max_hp} HP\n\n⏳ La fuente empieza a atenuarse... necesitará 10 minutos para recargarse.`,
     event: `${player.username} bebe de la Fuente Eterna. Un resplandor plateado llena la sala.`,
     eventRoomId: FOUNTAIN_ROOM_ID,
+  };
+}
+
+// ─── DIS-D48: Cuenco Sagrado de la Capilla ───────────────────────────────────
+
+/**
+ * ofrenda / cuenco / bowl — Beber del Cuenco Sagrado en la Capilla Olvidada (sala 5).
+ *
+ * Recupera 40% del HP máximo. Cooldown PERSONAL de 5 minutos.
+ * Es la alternativa de mid-dungeon a la Fuente Eterna (sala 18).
+ */
+function cmdChapelBowl(player) {
+  player = db.getPlayer(player.id);
+
+  if (player.current_room_id !== CHAPEL_ROOM_ID) {
+    return { text: '🙏 No hay ningún cuenco aquí.\n   El Cuenco Sagrado se encuentra en la Capilla Olvidada (sala 5).' };
+  }
+
+  if (player.hp >= player.max_hp) {
+    return { text: '🙏 Ya estás al máximo de HP. El cuenco brilla en silencio, pero no lo necesitás ahora.' };
+  }
+
+  // Verificar cooldown personal
+  const now = Date.now();
+  const lastUsed = chapelBowlCooldowns.get(player.id) || 0;
+  if (now - lastUsed < CHAPEL_BOWL_COOLDOWN_MS) {
+    const remaining = Math.ceil((CHAPEL_BOWL_COOLDOWN_MS - (now - lastUsed)) / 1000);
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    const timeStr = mins > 0
+      ? `${mins} minuto${mins !== 1 ? 's' : ''} y ${secs}s`
+      : `${secs} segundo${secs !== 1 ? 's' : ''}`;
+    return { text: `🙏 El cuenco está vacío. El agua sagrada necesita tiempo para purificarse.\n   Disponible en: ${timeStr}.` };
+  }
+
+  // Usar el cuenco — recupera 40% del max_hp
+  const healAmount = Math.floor(player.max_hp * 0.40);
+  const newHp = Math.min(player.max_hp, player.hp + healAmount);
+  const restored = newHp - player.hp;
+
+  db.updatePlayer(player.id, { hp: newHp });
+  chapelBowlCooldowns.set(player.id, now);
+
+  const hpBar = buildBar(newHp, player.max_hp, 20);
+
+  return {
+    text: `🙏 Te acercás al cuenco de piedra negra y tomás el agua fría con ambas manos.\nEl líquido sabe a tierra y a algo más antiguo. Una calidez lenta sube por tu pecho.\n+${restored} HP restaurado.\n${hpBar} ${newHp}/${player.max_hp} HP\n\n⏳ El cuenco tardará 5 minutos en llenarse de nuevo.`,
+    event: `${player.username} bebe del Cuenco Sagrado. El agua brilla un instante y desaparece.`,
+    eventRoomId: CHAPEL_ROOM_ID,
   };
 }
 
@@ -9871,6 +9930,17 @@ function cmdCalendar(player) {
     lines.push(`║  ${'Estado: En recarga'.padEnd(28)} disponible en: ${fmt(remMs)}`.padEnd(W + 1) + '║');
   } else {
     lines.push(`║  ${'Estado: ✅ Disponible — HP completo para quien beba'}`.padEnd(W + 1) + '║');
+  }
+
+  // ── Cuenco Sagrado de la Capilla (DIS-D48) ───────────────────────────────
+  lines.push(`╠${'═'.repeat(W)}╣`);
+  lines.push(`║ ${'🙏 CUENCO SAGRADO (sala 5 — Capilla)'.padEnd(W - 2)} ║`);
+  const bowlLastUsed = chapelBowlCooldowns.get(player.id) || 0;
+  const bowlRemMs = CHAPEL_BOWL_COOLDOWN_MS - (now - bowlLastUsed);
+  if (bowlRemMs > 0) {
+    lines.push(`║  ${'Estado: En recarga (solo tuyo)'.padEnd(28)} disponible en: ${fmt(bowlRemMs)}`.padEnd(W + 1) + '║');
+  } else {
+    lines.push(`║  ${'Estado: ✅ Disponible — recupera 40% HP (cooldown personal)'}`.padEnd(W + 1) + '║');
   }
 
   // ── Buffs activos del jugador ────────────────────────────────────────────

@@ -209,6 +209,11 @@ function describeRoom(roomId, excludePlayerId = null) {
     lines.push(`\n🏪 Aldric el Mercader está aquí, sentado detrás de un improvisado mostrador de cajas.\n   "Bienvenido. Escribí 'tienda' para ver mis artículos."`);
   }
 
+  // DIS-D48: Cuenco Sagrado en sala 5 (Capilla Olvidada)
+  if (roomId === 5) {
+    lines.push(`\n🙏 En el centro de la sala hay un cuenco de piedra negra lleno de agua fría.\n   ("cuenco" para beber — recupera 40% HP, cooldown personal 5 min)`);
+  }
+
   // Mensajes en las paredes (T147)
   const wallMsgs = db.getWallMessages(roomId);
   if (wallMsgs.length > 0) {
