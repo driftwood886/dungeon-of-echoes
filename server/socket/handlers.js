@@ -162,6 +162,7 @@ function registerHandlers(io) {
         '💡 Tip: las habilidades activas se desbloquean al subir de nivel: smash (Lv3), bash (Lv6), rally (Lv10).',
         '💡 Tip: "craft <ítem1> con <ítem2>" combina ítems. Escribí "recetas" para ver las combinaciones.',
         '💡 Tip: el mercader Aldric (sala 4) compra y vende ítems. Usá "tienda" para ver su catálogo.',
+        '💡 Tip: algunos NPCs tienen quests especiales. Intentá "hablar aldric" cuando tengas nivel 5+.',
         '💡 Tip: en "status" podés ver tu clase, título, oro y estado de veneno.',
         '💡 Tip: "world" muestra si hay un evento global activo (invasión, luna de sangre, niebla).',
         '💡 Tip: "rest" recupera HP si no hay monstruos en la sala. "meditar" da más HP si tenés mascota.',

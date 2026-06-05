@@ -224,6 +224,7 @@ function execute(playerId, input, context) {
     case 'shop':      result = cmdShop(player); break;
     case 'buy':       result = cmdBuy(player, action.args.join(' ')); break;
     case 'sell':      result = cmdSell(player, action.args.join(' ')); break;
+    case 'talk':      result = cmdTalk(player, action.args.join(' ')); break;
     case 'achievements': result = cmdAchievements(player); break;
     case 'inspect':      result = cmdInspect(player, action.args.join(' ')); break;
     case 'quest':        result = cmdQuest(player); break;
@@ -3743,6 +3744,81 @@ function getDiscountedPrice(basePrice, reputation) {
   return Math.max(1, Math.floor(basePrice * (1 - discount)));
 }
 
+// ─── T242: Quest narrativa con Aldric ────────────────────────────────────────
+//
+// Estados de aldric_quest en el jugador:
+//   'none'    — no ha interactuado todavía
+//   'active'  — quest en progreso (buscar carta sellada en sala 8)
+//   'done'    — quest completada
+//
+function cmdTalk(player, target) {
+  player = db.getPlayer(player.id);
+  const tLow = (target || '').trim().toLowerCase();
+
+  // Solo Aldric por ahora. Acepta: 'aldric', 'mercader', 'tendero', o vacío si está en sala 4
+  const inRoom4 = player.current_room_id === MERCHANT_ROOM_ID;
+  const isAldric = tLow.includes('aldric') || tLow === 'mercader' || tLow === 'tendero' || (tLow === '' && inRoom4);
+
+  if (!isAldric) {
+    return { text: '🗣️ No hay nadie con ese nombre con quien hablar. (Pista: "hablar aldric" en la Cámara del Tesoro.)' };
+  }
+
+  if (!inRoom4) {
+    return { text: '🏪 Aldric no está aquí. Está en la Cámara del Tesoro (sala 4).' };
+  }
+
+  const questState = player.aldric_quest || 'none';
+  const level = player.level || 1;
+
+  // Contar visitas a sala 4
+  let visited = [];
+  try { visited = JSON.parse(player.rooms_visited || '[]'); } catch (_) {}
+  const room4VisitCount = visited.filter(id => id === 4).length;
+  // rooms_visited es un set (sin duplicados), así que si sala 4 está en el array
+  // simplemente ha visitado la sala al menos una vez. Para contar múltiples visitas
+  // necesitamos una heurística: si está en sala 4 AHORA, ya la visitó.
+  // El trigger es nivel 5+ O haber ido a la tienda antes (heurística: gold_spent > 0)
+  const triggerable = level >= 5 || (player.gold_spent || 0) > 0;
+
+  if (questState === 'done') {
+    return { text: 'Aldric te mira con algo que podría ser respeto, o reconocimiento, o las dos cosas.\n\n"Ya no te veo igual que antes," dice, y vuelve a sus cuentas.\n\nEl símbolo de las dos llaves cruzadas sigue en su delantal. Ahora sabés qué significa.' };
+  }
+
+  if (questState === 'active') {
+    // Verificar si tiene la carta sellada
+    const inv = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+    const hasCarta = inv.some(i => i.toLowerCase().includes('carta sellada'));
+
+    if (hasCarta) {
+      // Completar la quest
+      // Recompensa: 50 XP + 25g + texto de Aldric cambia para siempre
+      const freshP = db.getPlayer(player.id);
+      db.updatePlayer(player.id, {
+        xp: (freshP.xp || 0) + 50,
+        gold: (freshP.gold || 0) + 25,
+        aldric_quest: 'done',
+        inventory: JSON.stringify(inv.filter(i => !i.toLowerCase().includes('carta sellada')))
+      });
+      db.addJournalEntry(player.id, 'quest', '📜 Le entregué la carta sellada a Aldric. Reconoció el sello de las dos llaves. Algo en su mirada cambió.');
+      db.logGlobalEvent('quest', `📜 ${player.username} descubrió el secreto de Aldric el Mercader.`);
+      return { text: 'Aldric toma la carta con manos que no tiemblan, pero que deberían.\n\nEl sello de las dos llaves cruzadas. Lo mira durante un momento demasiado largo.\n\n"Fue el guardián del sello del reino," dice al fin, en voz tan baja que casi no lo escuchás. "No el rey. El guardián. Los que guardaban las llaves eran los que realmente mantenían el reino unido. Cuando Kaelthas murió, nadie más sabía qué puertas abrían."\n\nNo dice nada más. Dobla la carta sin abrirla y la guarda debajo del mostrador.\n\n"Tomá esto. Y no hablés de esto con nadie que no sepa ya."\n\n🎉 Quest completada: El Sello de las Dos Llaves. (+50 XP · +25g)\n📜 El texto de Aldric ha cambiado.' };
+    } else {
+      return { text: 'Aldric asiente levemente cuando te ve.\n\n"¿La encontraste ya?"\n\nSu expresión no cambia, pero algo en sus ojos dice que sí le importa.\n\n"Sala 8. La prisión del nivel inferior. Buscá la carta con el sello de las dos llaves cruzadas. Traémela."\n\nVuelve a sus cuentas. La conversación terminó.' };
+    }
+  }
+
+  // questState === 'none'
+  if (!triggerable) {
+    // Todavía no se desbloqueó — Aldric habla normalmente
+    return { text: 'Aldric levanta la vista de su libro de cuentas.\n\n"¿Querés comprar algo?" dice. No es una pregunta.\n\nSu mirada vuelve a los números. El delantal con el símbolo de las dos llaves cruzadas se mueve cuando se inclina sobre el mostrador.' };
+  }
+
+  // Trigger: desbloquear la quest
+  db.updatePlayer(player.id, { aldric_quest: 'active' });
+  db.addJournalEntry(player.id, 'quest', '📜 Aldric me habló del sello. Quiere que le traiga una carta de sala 8.');
+  return { text: 'Aldric te mira durante más tiempo del necesario cuando te acercás.\n\n"Pasaste ya por los niveles inferiores," dice. No lo pregunta.\n\nGuarda el libro de cuentas debajo del mostrador. Cuando vuelve a mirarte, tiene una expresión diferente: menos mercader, más algo que no sabés nombrar.\n\n"Hay algo en la prisión del nivel inferior. Sala 8." Baja la voz. "Una carta con el sello de las dos llaves cruzadas. Si la encontrás, traémela. Sin abrirla."\n\n"¿Por qué?" preguntás.\n\n"Porque era del reino. Y yo era del reino."\n\nVuelve a sacar el libro de cuentas. La conversación terminó, aunque él todavía no se fue.\n\n📜 Nueva quest: El Sello de las Dos Llaves — Encontrá la carta sellada en sala 8 y traésela a Aldric.' };
+}
+
 function cmdShop(player) {
   player = db.getPlayer(player.id);
 
@@ -4837,11 +4913,26 @@ function cmdForage(player) {
     return { text: `No podés buscar con calma mientras hay monstruos aquí: ${names}.` };
   }
 
+  // T242: Quest narrativa con Aldric — carta sellada en sala 8 si quest activa
+  if (player.current_room_id === 8 && (player.aldric_quest || 'none') === 'active') {
+    const invCheck = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+    if (!invCheck.some(i => i.toLowerCase().includes('carta sellada'))) {
+      // Dar la carta, con cooldown normal
+      let fData = {};
+      try { fData = JSON.parse(player.forage_data || '{}'); } catch (_) {}
+      fData[String(player.current_room_id)] = Date.now();
+      const newInv = [...invCheck, 'carta sellada'];
+      db.updatePlayer(player.id, { inventory: JSON.stringify(newInv), forage_data: JSON.stringify(fData) });
+      return { text: 'Buscás entre las grietas de la celda más antigua de la Prisión...\n\n📜 Encontrás, debajo de una piedra suelta: un sobre sellado con cera negra. El símbolo de las dos llaves cruzadas. La cera está intacta.\n\n"Para quien llegue después. Perdoname."\n\nLa carta sellada se agrega a tu inventario. Aldric te la pidió. Sin abrirla.' };
+    }
+  }
+
   // Verificar cooldown por sala
   let forageData = {};
   try {
     forageData = JSON.parse(player.forage_data || '{}');
   } catch (_) { forageData = {}; }
+
 
   const roomKey = String(player.current_room_id);
   const lastForage = forageData[roomKey] ? Number(forageData[roomKey]) : 0;

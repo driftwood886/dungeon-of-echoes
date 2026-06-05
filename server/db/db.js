@@ -172,6 +172,7 @@ async function init() {
      `ALTER TABLE players ADD COLUMN login_streak INTEGER NOT NULL DEFAULT 0`,         // T219: racha de login diario
      `ALTER TABLE players ADD COLUMN last_login_date TEXT`,                             // T219: fecha del último login (YYYY-MM-DD)
     `ALTER TABLE players ADD COLUMN weekly_contract TEXT NOT NULL DEFAULT '{}'`,       // T222: contrato de caza semanal
+    `ALTER TABLE players ADD COLUMN aldric_quest TEXT NOT NULL DEFAULT 'none'`,        // T242: quest narrativa con Aldric
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
