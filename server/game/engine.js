@@ -1249,7 +1249,11 @@ function cmdAttack(player, targetName) {
     const newLevel = freshForAch.level || 1;
     const prevLevelForGlobal = player.level || 1;
     if (monsterDead && newLevel >= 5 && newLevel % 5 === 0 && newLevel > prevLevelForGlobal) {
-      db.logGlobalEvent('level', `⬆️ ${player.username} alcanzó el nivel ${newLevel}. ¡Un aventurero formidable!`);
+      // T236: texto evocador para nivel importante
+      const levelMsg = newLevel >= 10
+        ? `${player.username} ya no es un aventurero. Es algo más. (nivel ${newLevel})`
+        : `⬆️ ${player.username} alcanzó el nivel ${newLevel}. ¡Un aventurero formidable!`;
+      db.logGlobalEvent('level', levelMsg);
     }
     // T113: Registrar en diario toda subida de nivel
     if (monsterDead) {
@@ -1285,7 +1289,8 @@ function cmdAttack(player, targetName) {
         questLines += `\n${repQuest.level.icon} ¡Tu reputación aumenta a **${repQuest.level.name}**! (${repQuest.newPoints} pts)`;
       }
       // Registrar en crónica global (T093)
-      db.logGlobalEvent('quest', `📜 ${player.username} completó la misión y ganó ${r.gold}g + ${r.xp} XP.`);
+      // T236: texto evocador para quest completada
+      db.logGlobalEvent('quest', `📜 ${player.username} completó el contrato de caza. El dungeon lo recuerda.`);
       // T113: Diario
       db.addJournalEntry(player.id, 'quest', `📜 Quest completada: +${r.gold}g, +${r.xp} XP.`);
       } else {
@@ -4449,7 +4454,8 @@ function cmdAcceptDuel(player) {
     }
 
     // Registrar en crónica global (T093)
-    db.logGlobalEvent('duel', `⚔️ ${winner.username} venció a ${loser.username} en duelo y ganó ${goldTransfer}g.`);
+    // T236: texto evocador para duelo
+    db.logGlobalEvent('duel', `⚔️ ${winner.username} y ${loser.username} midieron fuerzas en el dungeon. Solo uno caminó después.`);
 
     // T194: Metas globales — incrementar duelos
     const duelGoalHit = db.incrementWorldGoal('duels', 1);
@@ -4949,7 +4955,8 @@ function cmdForage(player) {
       const freshQ2 = db.getPlayer(player.id);
       db.updatePlayer(player.id, { gold: (freshQ2.gold || 0) + r.gold, xp: (freshQ2.xp || 0) + r.xp });
       questLine = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP.`;
-      db.logGlobalEvent('quest', `📜 ${player.username} completó la misión y ganó ${r.gold}g + ${r.xp} XP.`);
+      // T236: texto evocador para quest completada (segunda ocurrencia)
+      db.logGlobalEvent('quest', `📜 ${player.username} completó el contrato de caza. El dungeon lo recuerda.`);
     }
   }
 
