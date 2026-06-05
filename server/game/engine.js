@@ -5717,7 +5717,7 @@ function cmdCast(player, args) {
           const bossGlobalEvent = `☠️ ¡${player.username} destruyó al ${target.name} con ${spellName}!`;
           db.logGlobalEvent('boss', bossGlobalEvent);
           db.addJournalEntry(player.id, 'boss', `☠️ Derrotaste al ${target.name} con ${spellName}.`);
-          if (io) io.emit('shout', { username: 'El Dungeon', message: bossGlobalEvent });
+          if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: bossGlobalEvent });
           lines.push(`\n╔════════════════════════════════════╗\n║  ☠️  ¡${target.name.toUpperCase()} DERROTADO!  ☠️  ║\n╚════════════════════════════════════╝\n¡Usá 'loot' para recoger los tesoros!`);
         }
         if (newCastAchs && newCastAchs.length > 0) {
@@ -6193,7 +6193,7 @@ function cmdUseSkill(player, args, context) {
       if (smashLoot && smashLoot.length > 0) text += `\n💰 El ${target.name} suelta: ${smashLoot.join(', ')}.`;
       if (smashGlobalEvent) {
         db.logGlobalEvent('boss', smashGlobalEvent);
-        if (io) io.emit('shout', { username: 'El Dungeon', message: smashGlobalEvent });
+        if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: smashGlobalEvent });
       }
       // XP básico
       const xpGain = Math.max(5, Math.floor(target.max_hp * 2));
@@ -6301,7 +6301,7 @@ function cmdUseSkill(player, args, context) {
       if (bashLoot && bashLoot.length > 0) text += `\n💰 El ${target.name} suelta: ${bashLoot.join(', ')}.`;
       if (bashGlobalEvent) {
         db.logGlobalEvent('boss', bashGlobalEvent);
-        if (io) io.emit('shout', { username: 'El Dungeon', message: bashGlobalEvent });
+        if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: bashGlobalEvent });
       }
       const xpGain = Math.max(5, Math.floor(target.max_hp * 2));
       const newXp = (freshPlayer.xp || 0) + xpGain;
