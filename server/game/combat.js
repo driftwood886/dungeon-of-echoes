@@ -923,6 +923,12 @@ function checkRespawns(onBossRespawn, onAnyRespawn) {
     if (BOSS_MONSTERS[m.id] && typeof onBossRespawn === 'function') {
       try { onBossRespawn(m.id, m.name, m.respawn_room_id); } catch (_) {}
     }
+    // DIS-D37: Al respawnear el boss, limpiar el loot acumulado en el suelo de su sala.
+    // La Catedral de la Oscuridad (sala 15) acumula ítems de kills anteriores si nadie los recoge.
+    // Narrativamente: "La oscuridad engulle los restos antes de que el Lich regrese."
+    if (BOSS_MONSTERS[m.id]) {
+      try { db.updateRoomItems(m.respawn_room_id, []); } catch (_) {}
+    }
     // T223: Notificar respawn de cualquier monstruo (para tracking)
     if (typeof onAnyRespawn === 'function') {
       try { onAnyRespawn(m.id, baseNameForElite, m.respawn_room_id, isElite); } catch (_) {}

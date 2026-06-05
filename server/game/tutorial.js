@@ -58,6 +58,11 @@ o escribí:  sur   para salir al dungeon real.
 const COMPLETE_MSG = `🎉 ¡TUTORIAL COMPLETADO!
 Ganás +10 XP de bonus por completar el entrenamiento.
 Ahora estás en la Entrada de la Cripta. ¡Buena suerte, aventurero/a!
+
+⚔️  PRÓXIMO PASO: Elegí tu vocación con el comando:
+  clase
+  (Guerrero, Pícaro o Mago — cada uno cambia tu forma de combatir)
+
 Escribí «look» para ver dónde estás, «help» para ver todos los comandos.`;
 
 /**

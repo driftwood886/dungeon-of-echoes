@@ -185,6 +185,20 @@ function describeRoom(roomId, excludePlayerId = null) {
 
   lines.push(`\nSalidas: ${exitsText(room)}`);
 
+  // DIS-D38: si alguna salida da a una sala con trampa activa, mostrar aviso preventivo
+  const trapHints = [];
+  for (const [dir, exitVal] of Object.entries(room.exits || {})) {
+    const adjId = typeof exitVal === 'object' && exitVal !== null ? exitVal.room_id : exitVal;
+    if (!adjId) continue;
+    const adjRoom = db.getRoom(adjId);
+    if (adjRoom && adjRoom.trap && adjRoom.trap.active) {
+      trapHints.push(`${DIR_NAMES[dir] || dir}: marcas de mecanismo sospechosas en el umbral`);
+    }
+  }
+  if (trapHints.length > 0) {
+    lines.push(`\n🔍 Observás: ${trapHints.join('; ')}.`);
+  }
+
   // Indicador de trampa activa
   if (room.trap && room.trap.active) {
     lines.push(`\n⚠️  Esta sala tiene una trampa activa. Escribí "desactivar trampa" con el ítem correcto.`);
