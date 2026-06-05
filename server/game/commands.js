@@ -428,7 +428,7 @@ Comandos disponibles:
   recipes / recetas     — Ver el libro de recetas de crafteo conocidas
   news / crónica        — Ver el historial de eventos globales del dungeon
   forage / buscar       — Explorar la sala en busca de ítems ocultos (cooldown 3 min, sin monstruos)
-  talk <NPC>            — Hablar con un NPC (ej: hablar aldric). Algunos NPCs tienen quests especiales.
+  talk <NPC>            — Hablar con un NPC (ej: hablar aldric, hablar anciano). Algunos NPCs tienen quests o pistas de navegación.
   pet [adopt <tipo>]    — Adoptar una mascota (rata, murciélago, araña, etc.) o ver tu compañero
   dados <NdM>           — Tirar dados (ej: dados 2d6, dice 1d20). Resultado visible para toda la sala
   party [<jugador>]     — Gestionar tu grupo: invitar/unirse, ver miembros, party leave para salir

@@ -72,7 +72,7 @@ const ROOMS = [
   {
     id: 7,
     name: 'Pozo Sin Fondo',
-    description: 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario.',
+    description: 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario. (💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)',
     exits: { east: 3, north: 10 },
     items: ['cuerda', 'gancho de hierro'],
   },
@@ -220,7 +220,7 @@ function migrateDoors() {
       ...exits,
       north: { room_id: exits.north, key: 'llave oxidada' },
     };
-    const newDesc = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario.';
+    const newDesc = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario. (💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)';
     db.upsertRoom({ ...room7, exits: newExits, description: newDesc });
     console.log('[seed] migrateDoors: Sala 7 actualizada — norte hacia sala 10 requiere llave oxidada 🔒');
   }
@@ -543,7 +543,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario };
 
 /**
  * STORY-003/004/005/007/012/017 — Migración de lore narrativo:
@@ -990,4 +990,23 @@ function migrateIceFragmentLoot() {
     console.log('[seed] migrateIceFragmentLoot: fragmento de hielo agregado al loot del Elemental de Hielo (id 9).');
   }
 }
+
+/**
+ * DIS-D42: Agregar pista de ruta alternativa en la descripción de la sala 7 (Pozo Sin Fondo).
+ * Los jugadores que llegan al Pozo y ven la puerta bloqueada ahora tienen una pista
+ * sobre la ruta alternativa Capilla → Hongos → Trono → Santuario.
+ */
+function migratePistaSantuario() {
+  const room7 = db.getRoom(7);
+  if (!room7) return;
+  const pista = '(💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)';
+  if (!room7.description.includes(pista)) {
+    const newDesc = room7.description.replace(
+      /\s*\(💡[^)]+\)\s*$/, ''  // eliminar pista vieja si existiera
+    ).trimEnd() + ' ' + pista;
+    db.upsertRoom({ ...room7, description: newDesc });
+    console.log('[seed] migratePistaSantuario: pista de ruta alternativa agregada en Sala 7 (Pozo Sin Fondo). DIS-D42 ✓');
+  }
+}
+
 

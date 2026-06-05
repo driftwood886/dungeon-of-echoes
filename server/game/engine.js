@@ -3768,12 +3768,37 @@ function cmdTalk(player, target) {
   player = db.getPlayer(player.id);
   const tLow = (target || '').trim().toLowerCase();
 
+  // Guardián anciano en sala 1 (Entrada de la Cripta) — DIS-D42: pista de ruta alternativa
+  const inRoom1 = player.current_room_id === 1 || player.current_room_id === 16; // sala 1 = Entrada, sala 16 = Antesala (tutorial)
+  const isGuardian = tLow.includes('anciano') || tLow.includes('guardián') || tLow.includes('guardian') ||
+                     tLow.includes('guardia') || tLow === 'viejo' || tLow === 'npc' ||
+                     (tLow === '' && inRoom1);
+
+  if (isGuardian) {
+    if (!inRoom1) {
+      return { text: '🧓 El guardián anciano solo está en la Entrada de la Cripta o la Antesala.' };
+    }
+    const level = player.level || 1;
+    const roomsVisited = (() => { try { return JSON.parse(player.rooms_visited || '[]'); } catch (_) { return []; } })();
+    const hasVisitedPozo = roomsVisited.includes(7);
+
+    if (hasVisitedPozo) {
+      return { text: 'El anciano te mira con ojos que han visto demasiado.\n\n"Ya encontraste el Pozo, ¿verdad? La puerta al norte del Pozo tiene cerradura —necesitás una llave oxidada. La guardaban en la Prisión, sala 8, al norte de la Cámara del Tesoro."\n\nTose y continúa: "Pero si no querés buscarla, hay otro camino. Hacia el este está la Capilla Olvidada. Desde ahí, al norte, el Túnel de los Hongos. Luego al norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario. Sin llave."\n\nSonríe brevemente. "Nadie sabe por qué ese camino quedó abierto. Yo tengo mis sospechas."' };
+    }
+
+    if (level >= 3) {
+      return { text: 'El anciano asiente al verte.\n\n"Buscás llegar al Santuario Profano, ¿no?" No espera respuesta. "Hay dos rutas. La directa pasa por el Pozo Sin Fondo —al oeste desde la Sala de los Ecos— pero la puerta al norte tiene cerradura. Necesitás una llave oxidada."\n\nSeñala hacia el este. "La otra ruta es más larga pero abierta: Capilla → Hongos → Trono → Santuario. Sin llave. Muchos lo ignoran y se quedan dando vueltas buscando oro para la tienda."\n\nVuelve a apoyarse en la pared, como si esa conversación lo hubiera cansado.' };
+    }
+
+    return { text: 'El guardián anciano levanta la vista hacia vos.\n\n"Nuevo en el dungeon. Bien." Pausa. "Escuchá: el dungeon tiene dos zonas principales. Al norte y al este desde aquí. Al norte hay más combate directo; al este hay cosas más... sutiles."\n\nSe rasca la barba. "Cuando llegués al Pozo Sin Fondo —lo vas a saber cuando lo veas— hay una puerta bloqueada al norte. Si no tenés la llave, no la fuerces. Hay otro camino por el este, pasando por la Capilla. Acordate de eso."\n\nVuelve a mirar la pared, como si la conversación hubiera terminado.' };
+  }
+
   // Solo Aldric por ahora. Acepta: 'aldric', 'mercader', 'tendero', o vacío si está en sala 4
   const inRoom4 = player.current_room_id === MERCHANT_ROOM_ID;
   const isAldric = tLow.includes('aldric') || tLow === 'mercader' || tLow === 'tendero' || (tLow === '' && inRoom4);
 
   if (!isAldric) {
-    return { text: '🗣️ No hay nadie con ese nombre con quien hablar. (Pista: "hablar aldric" en la Cámara del Tesoro.)' };
+    return { text: '🗣️ No hay nadie con ese nombre con quien hablar. (Pista: "hablar aldric" en la Cámara del Tesoro o "hablar anciano" en la Entrada.)' };
   }
 
   if (!inRoom4) {
