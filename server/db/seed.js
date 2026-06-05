@@ -593,6 +593,34 @@ function migrateNarrativeLore() {
     db.addWallMessage && db.addWallMessage(14, 'Anónimo', 'Los esqueletos en las gradas aplauden cuando morís. No lo ves, pero lo sentís.');
     console.log('[seed] migrateNarrativeLore: mensajes de fábrica agregados a salas 7/11/14.');
   }
+  // T239: Inscripciones del lore en salas 5 y 9 (idempotente — verificar por contenido)
+  if (db.getWallMessages && db.addWallMessage) {
+    const msgs5 = db.getWallMessages(5);
+    const hasSala5Lore = msgs5.some(m => m.message && m.message.includes('merece lo que viene'));
+    if (!hasSala5Lore) {
+      db.addWallMessage(5, 'Grabado en la piedra', 'Quienquiera que encienda estas velas merece lo que viene.');
+      console.log('[seed] T239: inscripción de lore agregada en sala 5 (Capilla Olvidada).');
+    }
+    const msgs9 = db.getWallMessages(9);
+    const hasSala9Lore = msgs9.some(m => m.message && m.message.includes('El trono espera'));
+    if (!hasSala9Lore) {
+      db.addWallMessage(9, 'Grabado en la piedra', 'El trono espera. El trono siempre esperó.');
+      console.log('[seed] T239: inscripción de lore agregada en sala 9 (Sala del Trono).');
+    }
+    const msgs14 = db.getWallMessages(14);
+    const hasSala14Lore = msgs14.some(m => m.message && m.message.includes('hay algo peor'));
+    if (!hasSala14Lore) {
+      db.addWallMessage(14, 'Grabado en la piedra', 'Si llegaste hasta aquí, ya sabés que hay algo peor abajo.');
+      console.log('[seed] T239: inscripción de lore agregada en sala 14 (Coliseo de Huesos).');
+    }
+  }
+  // T241: Coherencia narrativa de la cadena religiosa (salas 5 → 10 → 15)
+  // Sala 10: agregar vocabulario que conecte con la piedra negra del altar y las marcas
+  const room10 = db.getRoom(10);
+  if (room10 && !room10.description.includes('misma piedra')) {
+    db.upsertRoom({ ...room10, description: 'El corazón del dungeon. Una estatua monstruosa con diez brazos preside la sala, tallada en la misma piedra negra del altar de la Capilla. El suelo está cubierto de runas trazadas con sangre seca —las mismas marcas que viste grabadas arriba, pero aquí son más grandes y más frescas. Aquí termina el dungeon... o comienza.' });
+    console.log('[seed] T241: Sala 10 actualizada con coherencia narrativa (misma piedra negra).');
+  }
 }
 
 /**
