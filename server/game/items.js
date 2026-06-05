@@ -31,7 +31,7 @@ const ITEM_CATALOG = {
   // ── Antídotos ────────────────────────────────────────────────────────────────
   'antídoto':            { type: 'antidote', effect: 'cure_poison', description: 'Un frasco con líquido verde pálido. Cura inmediatamente el envenenamiento.' },
   'antidoto':            { type: 'antidote', effect: 'cure_poison', description: 'Un frasco con líquido verde pálido. Cura inmediatamente el envenenamiento.' },
-  'hierba curativa':     { type: 'antidote', effect: 'cure_poison', description: 'Un manojo de hierba que los druidas usan para purificar venenos.' },
+  'hierba curativa':     { type: 'antidote', effect: 'cure_poison', description: 'Un manojo de hierba que los druidas usan para purificar venenos. Solo funciona si estás envenenado.' },
 
   // ── Armas (dungeon base) ──────────────────────────────────────────────────
   'espada oxidada':      { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'Una espada vieja con filo irregular. +3 de ataque.' },

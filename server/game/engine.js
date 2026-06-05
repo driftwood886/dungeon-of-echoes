@@ -3896,10 +3896,18 @@ function cmdBuy(player, itemQuery) {
 
   const query = itemQuery.trim().toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // DIS-005: normalizar tildes
-  const item = SHOP_CATALOG.find(i => {
-    const itemNorm = i.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    return itemNorm.includes(query) || query.includes(itemNorm);
-  });
+
+  // BUG-248: aceptar número de índice (ej: "comprar 1" → primer ítem del catálogo)
+  let item;
+  const numQuery = parseInt(query, 10);
+  if (!isNaN(numQuery) && numQuery >= 1 && numQuery <= SHOP_CATALOG.length) {
+    item = SHOP_CATALOG[numQuery - 1];
+  } else {
+    item = SHOP_CATALOG.find(i => {
+      const itemNorm = i.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return itemNorm.includes(query) || query.includes(itemNorm);
+    });
+  }
 
   if (!item) {
     return { text: `El mercader sacude la cabeza. "No vendo eso." Escribí "tienda" para ver el catálogo.` };

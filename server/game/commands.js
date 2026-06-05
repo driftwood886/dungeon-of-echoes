@@ -107,7 +107,7 @@ const COMMAND_ALIASES = {
   // inspect / inspeccionar jugador
   inspect: 'inspect', inspeccionar: 'inspect', observar: 'inspect', ver_jugador: 'inspect',
   // quest / misión
-  quest: 'quest', misión: 'quest', mision: 'quest', tarea: 'quest', objetivo: 'quest',
+  quest: 'quest', misión: 'quest', mision: 'quest', tarea: 'quest', objetivo: 'quest', quests: 'quest', misiones: 'quest',
   // guild / hermandad
   guild: 'guild', hermandad: 'guild', gremio: 'guild', clan: 'guild', faccion: 'guild', facción: 'guild',
   // guild quest — atajo directo
@@ -326,6 +326,20 @@ function parse(input) {
     return { command: 'move', args: [dir], raw: trimmed };
   }
 
+  // Buscar alias multi-palabra (ej: "recoger todo" → loot)
+  if (parts.length >= 2) {
+    const twoWord = `${first} ${parts[1].toLowerCase()}`;
+    const MULTI_WORD_ALIASES = {
+      'recoger todo': 'loot',
+      'tomar todo':   'loot',
+      'agarrar todo': 'loot',
+      'get all':      'loot',
+    };
+    if (MULTI_WORD_ALIASES[twoWord]) {
+      return { command: MULTI_WORD_ALIASES[twoWord], args: parts.slice(2), raw: trimmed };
+    }
+  }
+
   // Buscar alias
   const canonical = COMMAND_ALIASES[first];
   if (!canonical) {
@@ -472,7 +486,7 @@ const COMMAND_HELP = {
   attack:    'attack <monstruo> / atacar <monstruo>\n  Atacar a un monstruo de la sala. Un turno: vos atacás, el monstruo responde.\n  Repetí el comando para continuar hasta que uno de los dos muera.\n  En la Sala de Práctica (sala 21), atacar a un Maniquí resuelve el combate completo\n  y muestra estadísticas detalladas (DPS, crits, esquivas). Sin XP ni loot.',
   flee:      'flee [monstruo] / huir [monstruo]\n  Intentar huir del combate (50% de chance de éxito).\n  Si hay múltiples monstruos, usá "flee <monstruo>" para huir de uno específico. Sin argumento, huye del primero.\n  Si huís con éxito: se muestra el estado de salud del monstruo (% HP) y la sala a la que te escapaste.\n  Si fallás: el monstruo te golpea igualmente (daño normal menos defensa).',
   pick:      'pick <ítem> / tomar <ítem> / recoger <ítem>\n  Recoger un ítem del suelo y guardarlo en tu inventario.',
-  loot:      'loot / saquear\n  Recoger TODOS los ítems del suelo de la sala de un solo golpe.',
+  loot:      'loot / saquear / recoger todo\n  Recoger TODOS los ítems del suelo de la sala de un solo golpe.',
   drop:      'drop <ítem> / tirar <ítem>\n  Tirar un ítem de tu inventario al suelo de la sala actual.',
   use:       'use <ítem> / usar <ítem>\\n  Usar un ítem del inventario. Pociones: consumen y restauran HP. Armas: se equipan.\\n  Pergaminos mágicos: se usan de un solo uso y otorgan buffs temporales en combate.\\n  Tipos: \"pergamino de furia\" (+3 ATK/60s), \"pergamino de escudo\" (+3 DEF/60s), \"pergamino de velocidad\" (+2 ATK +1 DEF/45s).',
   equip:     'equip <arma> / equipar <arma>\\n  Equipar un arma del inventario explícitamente. Aumenta tu stat de ataque.',
