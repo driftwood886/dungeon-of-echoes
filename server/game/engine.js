@@ -1752,8 +1752,25 @@ function cmdPick(player, itemQuery) {
   const rarityEmoji = items.getRarityEmoji(found);
   const rarityLabel = rarity !== 'común' ? ` ✨ [${rarity.toUpperCase()}]` : '';
 
+  // DIS-D280: hint de crafteo — si el nuevo inventario completa una receta, sugerir (1 vez por receta)
+  const freshP2 = db.getPlayer(player.id);
+  const shownH2 = freshP2.status_effects || {};
+  const invNorm2 = newInventory.map(i => i.toLowerCase().trim());
+  let pickCraftHint = '';
+  for (const recipe of crafting.RECIPES) {
+    const [ingA, ingB] = recipe.ingredients;
+    if (invNorm2.includes(ingA.toLowerCase().trim()) && invNorm2.includes(ingB.toLowerCase().trim())) {
+      const hKey = `craft_hint_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
+      if (!shownH2[hKey]) {
+        pickCraftHint = `\n💡 ¡Tip de crafteo! Tenés "${ingA}" y "${ingB}" — combiná con:\n   craftear ${ingA} + ${ingB}`;
+        db.updatePlayer(freshP2.id, { status_effects: JSON.stringify({ ...shownH2, [hKey]: true }) });
+        break;
+      }
+    }
+  }
+
   return {
-    text: `${rarityEmoji} Recogés ${found} y lo guardás en tu mochila.${rarityLabel}`,
+    text: `${rarityEmoji} Recogés ${found} y lo guardás en tu mochila.${rarityLabel}${pickCraftHint}`,
     event: `${player.username} recoge algo del suelo.`,
     eventRoomId: room.id,
   };
@@ -2576,8 +2593,29 @@ function cmdLoot(player) {
   const totalItems = nonGoldItems.length + (goldCollected > 0 ? 1 : 0);
   const goldLine = goldCollected > 0 ? `\n  💰 +${goldCollected} monedas de oro` : '';
 
+  // DIS-D280: hint de crafteo — si el nuevo inventario completa una receta, sugerir crafting (1 vez por receta)
+  const { RECIPES } = crafting;
+  const invNormalized = newInventory.map(i => i.toLowerCase().trim());
+  const freshPlayer = db.getPlayer(player.id);
+  const shownHints = freshPlayer.status_effects || {};
+  let craftHintLine = '';
+  for (const recipe of RECIPES) {
+    const [ingA, ingB] = recipe.ingredients;
+    const hasA = invNormalized.includes(ingA.toLowerCase().trim());
+    const hasB = invNormalized.includes(ingB.toLowerCase().trim());
+    if (hasA && hasB) {
+      const hintKey = `craft_hint_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
+      if (!shownHints[hintKey]) {
+        craftHintLine = `\n\n💡 ¡Tip de crafteo! Tenés "${ingA}" y "${ingB}" — podés combinarlos:\n   → escribí: craftear ${ingA} + ${ingB}`;
+        // Marcar hint como mostrado
+        db.updatePlayer(freshPlayer.id, { status_effects: JSON.stringify({ ...shownHints, [hintKey]: true }) });
+        break; // solo un hint por loot
+      }
+    }
+  }
+
   return {
-    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}`,
+    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}`,
     event: `${player.username} saquea el suelo de la sala.`,
     eventRoomId: room.id,
   };
