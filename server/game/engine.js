@@ -1793,13 +1793,20 @@ function cmdUse(player, itemQuery) {
     resultText = `✅ Bebés el ${found}. El veneno se neutraliza de inmediato. Te sentís mejor.`;
 
   } else if (def.type === 'weapon') {
-    // Equipar el arma: calcular ataque base real (sin el bonus del arma previa)
+    // BUG-274: remover el arma nueva del inventario, devolver la anterior si había una
     const prevWeaponBonus = player.equipped_weapon ? (items.getItemDef(player.equipped_weapon)?.amount || 0) : 0;
     const baseAttack = player.attack - prevWeaponBonus;
     const newAttack = baseAttack + def.amount;
-    db.updatePlayer(player.id, { attack: newAttack, equipped_weapon: found });
 
-    resultText = `Equipás ${found}. Tu ataque sube a ${newAttack}.`;
+    const invUse = [...player.inventory];
+    const foundIdxUse = invUse.indexOf(found);
+    if (foundIdxUse !== -1) invUse.splice(foundIdxUse, 1);
+    if (player.equipped_weapon) invUse.push(player.equipped_weapon); // devolver arma anterior
+
+    db.updatePlayer(player.id, { attack: newAttack, equipped_weapon: found, inventory: invUse });
+
+    const swapMsgUse = player.equipped_weapon ? ` (reemplaza ${player.equipped_weapon} → vuelve a tu mochila)` : '';
+    resultText = `Equipás ${found}${swapMsgUse}. Tu ataque sube a ${newAttack}.`;
 
   } else if (def.type === 'scroll') {
     // T153: Pergaminos mágicos de un solo uso
@@ -1972,9 +1979,10 @@ function cmdExamine(player, query) {
     }
   }
 
-  // ¿Es un ítem en el inventario o en el suelo?
+  // ¿Es un ítem en el inventario, en el suelo, o equipado?
   const room = db.getRoom(player.current_room_id);
-  const allItems = [...(player.inventory || []), ...(room ? room.items : [])];
+  const equippedItems = [player.equipped_weapon, player.equipped_armor].filter(Boolean);
+  const allItems = [...(player.inventory || []), ...(room ? room.items : []), ...equippedItems];
   const itemName = items.findItem(allItems, query.trim());
   if (itemName) {
     const def = items.getItemDef(itemName);
