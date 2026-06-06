@@ -2199,7 +2199,11 @@ function cmdEquip(player, itemQuery) {
 
   const def = items.getItemDef(found);
   if (!def || def.type !== 'weapon') {
-    return { text: `${found} no es un arma que puedas equipar.` };
+    // BUG-266: si el ítem es una armadura, redirigir automáticamente a cmdWear
+    if (def && def.type === 'armor') {
+      return cmdWear(player, itemQuery);
+    }
+    return { text: `${found} no es un arma que puedas equipar.${def && def.type === 'armor' ? ' Usá "wear" para ponerte armaduras.' : ''}` };
   }
 
   const oldAttack = player.attack;
