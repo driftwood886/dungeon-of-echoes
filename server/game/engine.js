@@ -575,8 +575,13 @@ function cmdMove(player, direction) {
     const hasKey = inventory.some(item => item.toLowerCase() === key.toLowerCase());
     if (!hasKey) {
       const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
+      // DIS-D42: Si es la puerta del Pozo (sala 7 → norte), agregar pista de ruta alternativa
+      const isPozo = player.current_room_id === 7 && dungeon.normalizeDirection(direction) === 'north';
+      const altRouteHint = isPozo
+        ? `\n\n💡 Ruta alternativa (sin llave): Entrada → este → Capilla → norte → Túnel de Hongos → norte → Sala del Trono → este → Santuario.`
+        : '';
       return {
-        text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${key}" para abrirla.`,
+        text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${key}" para abrirla.${altRouteHint}`,
       };
     }
   }
@@ -648,15 +653,24 @@ function cmdMove(player, direction) {
   // T120: si el jugador tiene mascota, 15% de chance de avisar la trampa antes de activarse
   if (targetRoomFull && targetRoomFull.trap && targetRoomFull.trap.active) {
     const trap = targetRoomFull.trap;
+    // DIS-D43: cooldown personal de trampa — si el jugador la pisó hace menos de 5 min, la conoce y la esquiva
+    const statusEff = player.status_effects || {};
+    const trapCdKey = `trap_cd_${targetId}`;
+    const trapCdExpiry = statusEff[trapCdKey] ? new Date(statusEff[trapCdKey]).getTime() : 0;
+    const trapKnown = trapCdExpiry > Date.now();
+    if (trapKnown) {
+      trapText = `\n\n🧠 Recordás la trampa de esta sala y la esquivás con cuidado.`;
     // Aviso de mascota (T120): 15% de chance de prevenir el daño
-    if (player.pet && Math.random() < 0.15) {
+    } else if (player.pet && Math.random() < 0.15) {
       trapText = `\n\n🐾 ¡Tu ${player.pet} te advierte a tiempo! Evitás la trampa: ${trap.description.split('–')[0].trim()}.`;
     } else {
       // Refrescar jugador para HP actualizado
       player = db.getPlayer(player.id);
       const newHp = Math.max(0, player.hp - trap.damage);
-      db.updatePlayer(player.id, { hp: newHp });
-      trapText = `\n\n⚠️  ¡TRAMPA! ${trap.description}\n💥 Perdés ${trap.damage} HP. (${newHp}/${player.max_hp} HP)`;
+      // DIS-D43: registrar cooldown personal de trampa (5 min)
+      const updatedSE = { ...(player.status_effects || {}), [trapCdKey]: new Date(Date.now() + 5 * 60 * 1000).toISOString() };
+      db.updatePlayer(player.id, { hp: newHp, status_effects: JSON.stringify(updatedSE) });
+      trapText = `\n\n⚠️  ¡TRAMPA! ${trap.description}\n💥 Perdés ${trap.damage} HP. (${newHp}/${player.max_hp} HP)\n🧠 Ahora que la conocés, la esquivarás automáticamente los próximos 5 minutos.`;
       if (newHp === 0) {
         // BUG-006 fix: usar handlePlayerDeath para registrar deaths correctamente
         const trapDeathLines = [];
@@ -669,7 +683,7 @@ function cmdMove(player, direction) {
         trapText += '\n☠️  Has muerto a causa de la trampa. Renacés en la Entrada.';
         if (trapDeathLines.length > 0) trapText += '\n' + trapDeathLines.join('\n');
       }
-      trapText += '\n💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla.';
+      trapText += '\n💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
     }
   }
 
