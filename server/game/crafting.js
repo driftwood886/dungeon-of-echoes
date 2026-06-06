@@ -169,13 +169,13 @@ function craft(player, itemA, itemB) {
 
   const idxA = inv.findIndex(i => normalize(i) === na);
   if (idxA === -1) {
-    return { ok: false, text: `No tenés "${itemA}" en el inventario.` };
+    return { ok: false, text: `No tenés "${itemA}" en el inventario. Si lo usaste antes, ya no está disponible.` };
   }
   // Remover A para no contar el mismo ítem dos veces si A === B
   inv.splice(idxA, 1);
   const idxB = inv.findIndex(i => normalize(i) === nb);
   if (idxB === -1) {
-    return { ok: false, text: `No tenés "${itemB}" en el inventario.` };
+    return { ok: false, text: `No tenés "${itemB}" en el inventario. Si lo usaste antes, ya no está disponible.` };
   }
 
   return {
