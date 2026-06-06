@@ -557,11 +557,15 @@ function checkTrapRespawns() {
     if (!trap || trap.active) continue;
     if (!trap.respawn_at) continue;
     if (trap.respawn_at <= now) {
-      // Reactivar trampa
-      const reactivated = { ...trap, active: true, respawn_at: null };
+      // DIS-D279: al reactivarse, la trampa varía su daño base levemente (+/-1)
+      // Esto evita que los jugadores memoricen el daño exacto
+      const baseDmg = trap.base_damage || trap.damage;
+      const roll = Math.random();
+      const newDamage = Math.max(1, baseDmg + (roll < 0.33 ? 1 : roll < 0.66 ? 0 : -1));
+      const reactivated = { ...trap, active: true, respawn_at: null, base_damage: baseDmg, damage: newDamage };
       run('UPDATE rooms SET trap = ? WHERE id = ?', [JSON.stringify(reactivated), row.id]);
       count++;
-      console.log(`[traps] Trampa reactivada en sala ${row.id} (${trap.type})`);
+      console.log(`[traps] Trampa reactivada en sala ${row.id} (${trap.type}) — daño: ${newDamage}`);
     }
   }
   return count;
