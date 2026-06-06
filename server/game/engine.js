@@ -507,7 +507,13 @@ function cmdLook(player) {
   // Mostrar efecto de sala si existe
   const roomEffect = ROOM_EFFECTS[player.current_room_id];
   const effectLine = roomEffect ? `\n🌐 Efecto de sala: ${roomEffect.label}` : '';
-  return { text: text + effectLine };
+  // DIS-D45: mostrar postura activa si no es "equilibrado" (para que el jugador no lo olvide)
+  const stanceName = player.stance || 'equilibrado';
+  const stanceDef = STANCES[stanceName];
+  const stanceLine = (stanceName !== 'equilibrado' && stanceDef)
+    ? `\n[Postura activa: ${stanceDef.icon} ${stanceName} — ${stanceDef.desc}]`
+    : '';
+  return { text: text + effectLine + stanceLine };
 }
 
 /**
@@ -758,8 +764,14 @@ function cmdMove(player, direction) {
     }
   }
 
+  // DIS-D45: mostrar postura activa en el move si no es "equilibrado"
+  const moveStanceDef = STANCES[player.stance || 'equilibrado'];
+  const moveStanceLine = (player.stance && player.stance !== 'equilibrado' && moveStanceDef)
+    ? `\n[Postura activa: ${moveStanceDef.icon} ${player.stance} — ${moveStanceDef.desc}]`
+    : '';
+
   return {
-    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${extremeWeatherMsg}${cartogAchLines}`,
+    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${extremeWeatherMsg}${cartogAchLines}${moveStanceLine}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
