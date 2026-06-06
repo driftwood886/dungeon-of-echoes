@@ -2234,13 +2234,21 @@ function cmdEquip(player, itemQuery) {
   const prevWeaponBonusEquip = player.equipped_weapon ? (items.getItemDef(player.equipped_weapon)?.amount || 0) : 0;
   const baseAttackEquip = player.attack - prevWeaponBonusEquip;
   const newAttack = baseAttackEquip + def.amount;
-  db.updatePlayer(player.id, { attack: newAttack, equipped_weapon: found });
+
+  // BUG-269: remover el arma nueva del inventario, devolver la anterior si había una
+  const invEquip = [...player.inventory];
+  const foundIdxEquip = invEquip.indexOf(found);
+  if (foundIdxEquip !== -1) invEquip.splice(foundIdxEquip, 1);
+  if (player.equipped_weapon) invEquip.push(player.equipped_weapon); // devolver arma anterior
+
+  db.updatePlayer(player.id, { attack: newAttack, equipped_weapon: found, inventory: invEquip });
 
   const change = newAttack - oldAttack;
   const changeStr = change >= 0 ? `+${change}` : `${change}`;
+  const swapMsg = player.equipped_weapon ? ` (reemplaza ${player.equipped_weapon} → vuelve a tu mochila)` : '';
 
   return {
-    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack} (${changeStr}).\n${def.description}`,
+    text: `Empuñás ${found}${swapMsg}. Ataque: ${oldAttack} → ${newAttack} (${changeStr}).\n${def.description}`,
     event: `${player.username} empuña ${found}.`,
     eventRoomId: player.current_room_id,
   };
@@ -2550,10 +2558,14 @@ function cmdUnequip(player) {
   const weaponDef = items.getItemDef(weaponName);
   const weaponBonus = weaponDef?.amount || 0;
   const baseAttack = player.attack - weaponBonus;
-  db.updatePlayer(player.id, { attack: baseAttack, equipped_weapon: null });
+
+  // BUG-269: devolver el arma al inventario al desequipar
+  const invUnequip = [...player.inventory];
+  invUnequip.push(weaponName);
+  db.updatePlayer(player.id, { attack: baseAttack, equipped_weapon: null, inventory: invUnequip });
 
   return {
-    text: `Enfundás ${weaponName}. Volvés a pelear con los puños (ataque: ${baseAttack}).`,
+    text: `Enfundás ${weaponName} y lo guardás en tu mochila. Volvés a pelear con los puños (ataque: ${baseAttack}).`,
     event: `${player.username} enfunda ${weaponName}.`,
     eventRoomId: player.current_room_id,
   };
@@ -2591,11 +2603,18 @@ function cmdWear(player, itemQuery) {
   const oldArmorAmount = oldArmor ? (items.getItemDef(oldArmor)?.amount || 0) : 0;
   const nakedDefense = oldDefense - oldArmorAmount;
   const newDefense = nakedDefense + def.amount; // defensa desnuda + bonus nueva armadura
-  db.updatePlayer(player.id, { defense: newDefense, equipped_armor: found });
+
+  // BUG-269: remover el ítem nuevo del inventario, y devolver el anterior si había uno
+  const inv = [...player.inventory];
+  const foundIdx = inv.indexOf(found);
+  if (foundIdx !== -1) inv.splice(foundIdx, 1);
+  if (oldArmor) inv.push(oldArmor); // devolver la armadura anterior al inventario
+
+  db.updatePlayer(player.id, { defense: newDefense, equipped_armor: found, inventory: inv });
 
   const change = newDefense - oldDefense;
   const changeStr = change >= 0 ? `+${change}` : `${change}`;
-  const swapMsg = oldArmor ? ` (reemplaza ${oldArmor})` : '';
+  const swapMsg = oldArmor ? ` (reemplaza ${oldArmor} → vuelve a tu mochila)` : '';
 
   return {
     text: `Te ponés ${found}${swapMsg}. Defensa: ${oldDefense} → ${newDefense} (${changeStr}).\n${def.description}`,
@@ -2618,10 +2637,14 @@ function cmdUnwear(player) {
   const armorDef = items.getItemDef(armorName);
   const armorAmount = armorDef ? (armorDef.amount || 0) : 0;
   const nakedDefense = (player.defense || 2) - armorAmount;
-  db.updatePlayer(player.id, { defense: nakedDefense, equipped_armor: null });
+
+  // BUG-269: devolver la armadura al inventario al quitarse
+  const invUnwear = [...player.inventory];
+  invUnwear.push(armorName);
+  db.updatePlayer(player.id, { defense: nakedDefense, equipped_armor: null, inventory: invUnwear });
 
   return {
-    text: `Te quitás ${armorName}. Defensa vuelve a ${nakedDefense}.`,
+    text: `Te quitás ${armorName} y lo guardás en tu mochila. Defensa vuelve a ${nakedDefense}.`,
     event: `${player.username} se quita ${armorName}.`,
     eventRoomId: player.current_room_id,
   };

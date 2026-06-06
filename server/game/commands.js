@@ -159,7 +159,7 @@ const COMMAND_ALIASES = {
   facepalm: 'gesture', palma: 'gesture', vergüenza: 'gesture',
   flex: 'gesture', musculos: 'gesture', músculos: 'gesture', posar: 'gesture',
   // dice / dados (T100)
-  dice: 'dice', dado: 'dice', dados: 'dice', tirar: 'dice', roll: 'dice', rodar: 'dice',
+  dice: 'dice', dado: 'dice', dados: 'dice', tirar_dados: 'dice', roll: 'dice', rodar: 'dice',
   // drink / beber (T103)
   drink: 'drink', beber: 'drink', tomar: 'drink', hidratarse: 'drink', fuente: 'drink',
   // DIS-D48: Cuenco Sagrado en la Capilla (sala 5)
