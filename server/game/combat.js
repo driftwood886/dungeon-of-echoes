@@ -18,6 +18,7 @@ const worldEvents = require('./worldEvents');
 const weather     = require('./weather');
 const classes = require('./classes'); // T107: bonus de clase
 const items = require('./items');    // T110: efectos on_hit de armas crafteadas
+const xpSystem = require('./xp');   // DIS-D282: curva de XP cuadrática
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -377,7 +378,7 @@ function attackRound(player, monster) {
           const newKillsPet = (freshPPet.kills || 0) + 1;
           const newXpPet = (freshPPet.xp || 0) + xpGainPet;
           const oldLevelPet = freshPPet.level || 1;
-          const newLevelPet = Math.floor(newXpPet / 50) + 1;
+          const newLevelPet = xpSystem.levelFromXp(newXpPet);
           const updatesPet = { kills: newKillsPet, xp: newXpPet, level: newLevelPet };
           if (newLevelPet > oldLevelPet) {
             updatesPet.max_hp = (freshPPet.max_hp || 30) + 5;
@@ -431,7 +432,7 @@ function attackRound(player, monster) {
               const newKills2 = (freshPl2.kills || 0) + 1;
               const newXp2    = (freshPl2.xp    || 0) + xpGain2;
               const oldLevel2 = freshPl2.level || 1;
-              const newLevel2 = Math.floor(newXp2 / 50) + 1;
+              const newLevel2 = xpSystem.levelFromXp(newXp2);
               const updates2  = { kills: newKills2, xp: newXp2, level: newLevel2 };
               if (newLevel2 > oldLevel2) {
                 updates2.max_hp = (freshPl2.max_hp || 30) + 5;
@@ -478,7 +479,7 @@ function attackRound(player, monster) {
         const newKills3 = (freshPl3.kills || 0) + 1;
         const newXp3    = (freshPl3.xp    || 0) + xpGain3;
         const oldLevel3 = freshPl3.level || 1;
-        const newLevel3 = Math.floor(newXp3 / 50) + 1;
+        const newLevel3 = xpSystem.levelFromXp(newXp3);
         const updates3  = { kills: newKills3, xp: newXp3, level: newLevel3 };
         if (newLevel3 > oldLevel3) {
           updates3.max_hp = (freshPl3.max_hp || 30) + 5;
@@ -532,8 +533,8 @@ function attackRound(player, monster) {
     const newKills = (freshPlayer.kills || 0) + 1;
     const newXp    = (freshPlayer.xp    || 0) + xpGain;
     const oldLevel = freshPlayer.level || 1;
-    // Nivel sube cada 50 XP acumulados: nivel = floor(xp/50) + 1
-    const newLevel = Math.floor(newXp / 50) + 1;
+    // Nivel sube con curva cuadrática (DIS-D282): xpForLevel(L) = 10*(L-1)² + 40*(L-1)
+    const newLevel = xpSystem.levelFromXp(newXp);
     const updates  = { kills: newKills, xp: newXp, level: newLevel };
     if (newLevel > oldLevel) {
       // Subida de nivel: +5 max_hp, +1 ataque

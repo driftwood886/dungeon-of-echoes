@@ -26,6 +26,7 @@ const crafting = require('./crafting');
 const classes  = require('./classes'); // T107: sistema de clases
 const skills   = require('./skills');  // T114: habilidades activas por nivel
 const ambient  = require('./ambient'); // T121: período del día
+const xpSystem = require('./xp');      // DIS-D282: curva de XP cuadrática
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // Cada sala puede tener un efecto que se aplica al entrar.
@@ -504,7 +505,7 @@ function handleTutorialCommand(player, action, step) {
  */
 function completeTutorial(player) {
   const xp = (player.xp || 0) + 10;
-  const level = Math.floor(xp / 50) + 1;
+  const level = xpSystem.levelFromXp(xp);
   db.updatePlayer(player.id, {
     tutorial_step: 0,
     current_room_id: 1,
@@ -660,7 +661,7 @@ function cmdMove(player, direction) {
     exploredSet.add(targetId);
     const freshExp = db.getPlayer(player.id);
     const newXp = (freshExp.xp || 0) + 2;
-    const newLevel = Math.floor(newXp / 50) + 1;
+    const newLevel = xpSystem.levelFromXp(newXp);
     const levelUp = newLevel > (freshExp.level || 1);
     const upd = { xp: newXp, level: newLevel };
     if (levelUp) {
@@ -852,7 +853,7 @@ function cmdStatus(player) {
   const gold   = player.gold   || 0;
   const duelWins   = player.duel_wins   || 0;
   const duelLosses = player.duel_losses || 0;
-  const xpBar  = buildBar(xp % 50, 50, 10);
+  const xpBar  = buildBar(xpSystem.xpIntoLevel(xp, level), xpSystem.xpForNextLevel(level), 10);
   const repLevel = db.getReputationLevel(player.reputation || 0);
   const repNextText = repLevel.nextThreshold
     ? ` (+${repLevel.nextThreshold - repLevel.points} pts para siguiente)`
@@ -914,7 +915,7 @@ function cmdStatus(player) {
       ? `Clase:    ${(classes.getPlayerClass(player) || {}).emoji || ''} ${(classes.getPlayerClass(player) || {}).name || player.player_class}`
       : `Clase:    (sin clase — usá "clase" para elegir)`,
     `Nivel:    ${level}  (${xp} XP total | kills: ${kills} | muertes: ${deaths})`,
-    `XP sig.:  ${xpBar} ${xp % 50}/50`,
+    `XP sig.:  ${xpBar} ${xpSystem.xpIntoLevel(xp, level)}/${xpSystem.xpForNextLevel(level)}`,
     `HP:       ${hpBar} ${player.hp}/${player.max_hp}`,
     (() => {
       // BUG-049: mostrar maná en status para Mago u otros jugadores con max_mana > 20
@@ -11425,7 +11426,8 @@ function cmdGoals(player) {
     }
     // Nivel 20 como techo real
     if (level < 20) {
-      goals.push(`👑 Alcanzar el nivel 20 (nivel máximo legendario): ${level}/20 — faltan ${50 * (20 - level) - (xp % 50)} XP`);
+      const xpToMax = xpSystem.xpForLevel(20) - xp;
+      goals.push(`👑 Alcanzar el nivel 20 (nivel máximo legendario): ${level}/20 — faltan ${xpToMax} XP`);
     } else {
       done.push(`👑 ¡Nivel 20 alcanzado! Sos una leyenda viviente del dungeon.`);
     }
@@ -11433,9 +11435,9 @@ function cmdGoals(player) {
   }
 
   // ─── Progresión de nivel ───────────────────────────────────────────────────
-  const xpForNext = 50 - (xp % 50);
-  if (xpForNext <= 50) {
-    goals.push(`⬆️  Subir al nivel ${level + 1}: faltan ${xpForNext} XP (tenés ${xp % 50}/50)`);
+  const xpForNext = xpSystem.xpForNextLevel(level) - xpSystem.xpIntoLevel(xp, level);
+  if (level < xpSystem.MAX_LEVEL) {
+    goals.push(`⬆️  Subir al nivel ${level + 1}: faltan ${xpForNext} XP (tenés ${xpSystem.xpIntoLevel(xp, level)}/${xpSystem.xpForNextLevel(level)})`);
   }
 
   // ─── Habilidades por nivel ─────────────────────────────────────────────────
