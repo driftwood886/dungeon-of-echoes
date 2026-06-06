@@ -1800,10 +1800,32 @@ function cmdUse(player, itemQuery) {
  */
 function cmdDrop(player, itemQuery) {
   if (!itemQuery || !itemQuery.trim()) {
-    return { text: 'Indicá qué querés tirar. Ej: "drop espada".' };
+    return { text: 'Indicá qué querés tirar. Ej: "drop espada". Podés usar "drop junk" para tirar toda la basura de una vez.' };
   }
 
   player = db.getPlayer(player.id);
+
+  // DIS-D44: drop junk / basura / todo basura — tirar todos los ítems sin valor mecánico
+  const queryNorm = itemQuery.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (['junk', 'basura', 'todo basura', 'all junk', 'loot basura', 'tirar todo'].includes(queryNorm)) {
+    const junkInInv = player.inventory.filter(i => items.isJunkItem(i));
+    if (junkInInv.length === 0) {
+      return { text: '✅ No tenés ítems basura en el inventario. ¡Limpio!' };
+    }
+    const newInv = player.inventory.filter(i => !items.isJunkItem(i));
+    db.updatePlayer(player.id, { inventory: newInv });
+    // Agregar al suelo
+    const room = db.getRoom(player.current_room_id);
+    if (room) {
+      db.updateRoomItems(room.id, [...room.items, ...junkInInv]);
+    }
+    const lista = junkInInv.join(', ');
+    return {
+      text: `🗑️ Tirás toda la basura al suelo:\n  ${lista}\n\n(${junkInInv.length} ítem${junkInInv.length > 1 ? 's' : ''} eliminado${junkInInv.length > 1 ? 's' : ''} del inventario.)`,
+      event: `${player.username} tira un montón de basura al suelo.`,
+      eventRoomId: player.current_room_id,
+    };
+  }
 
   const found = items.findItem(player.inventory, itemQuery.trim());
   if (!found) {

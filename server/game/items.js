@@ -251,6 +251,32 @@ function getItemRarity(name) {
   return ITEM_RARITY[key] || 'común';
 }
 
+// DIS-D44: Lista de ítems considerados "basura" (sin uso mecánico, vendibles o descartables)
+// No incluye ítems de desactivar trampas (hongo azul, corona rota, cuerda, red de pesca),
+// ni ítems de quest/lore, ni monedas, ni pociones/pergaminos.
+const JUNK_ITEMS = new Set([
+  'pelaje áspero',
+  'cuchillo oxidado',
+  'escudo roto',
+  'hueso de rata',
+  'antorcha',
+  'vela encendida',
+  'libro viejo',
+  'gancho de hierro',
+  'cadenas rotas',
+  'monedas de cobre',
+  'monedas de plata',
+]);
+
+/**
+ * Determina si un ítem es basura descartable con `drop junk`.
+ * @param {string} name
+ * @returns {boolean}
+ */
+function isJunkItem(name) {
+  return JUNK_ITEMS.has((name || '').toLowerCase().trim());
+}
+
 /**
  * Devuelve el emoji de rareza de un ítem.
  * @param {string} name
@@ -263,11 +289,13 @@ function getRarityEmoji(name) {
 module.exports = {
   ITEM_CATALOG,
   ITEM_RARITY,
+  JUNK_ITEMS,
   RARITY_EMOJI,
   RARITY_COLOR,
   getItemDef,
   getItemRarity,
   getRarityEmoji,
+  isJunkItem,
   findItem,
   describeItem,
 };
