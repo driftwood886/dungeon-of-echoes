@@ -5303,13 +5303,21 @@ function cmdChapelBowl(player) {
   const newHp = Math.min(player.max_hp, player.hp + healAmount);
   const restored = newHp - player.hp;
 
+  // BUG-264: si el jugador recibiría menos del 50% del potencial del cuenco,
+  // no consumir el cooldown — el cuenco no "se vacía" por una herida mínima.
+  if (restored < Math.ceil(healAmount * 0.5)) {
+    return {
+      text: `🙏 Te inclinás sobre el cuenco, pero el agua apenas pulsa.\nEl cuenco te daría solo +${restored} HP (de los ${healAmount} que puede dar). No lo desperdicies con tan poca herida.\n💡 Volvé cuando estés más herido. El cooldown no se consumió.`,
+    };
+  }
+
   db.updatePlayer(player.id, { hp: newHp });
   chapelBowlCooldowns.set(player.id, now);
 
   const hpBar = buildBar(newHp, player.max_hp, 20);
 
   return {
-    text: `🙏 Te acercás al cuenco de piedra negra y tomás el agua fría con ambas manos.\nEl líquido sabe a tierra y a algo más antiguo. Una calidez lenta sube por tu pecho.\n+${restored} HP restaurado.\n${hpBar} ${newHp}/${player.max_hp} HP\n\n⏳ El cuenco tardará 5 minutos en llenarse de nuevo.`,
+    text: `🙏 Te acercás al cuenco de piedra negra y tomás el agua fría con ambas manos.\nEl líquido sabe a tierra y a algo más antiguo. Una calidez lenta sube por tu pecho.\n+${restored} HP restaurado (${healAmount} de potencial, ${player.max_hp - newHp > 0 ? `cap en ${player.max_hp} HP máx` : 'curación completa'}).\n${hpBar} ${newHp}/${player.max_hp} HP\n\n⏳ El cuenco tardará 5 minutos en llenarse de nuevo.`,
     event: `${player.username} bebe del Cuenco Sagrado. El agua brilla un instante y desaparece.`,
     eventRoomId: CHAPEL_ROOM_ID,
   };
