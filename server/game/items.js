@@ -61,6 +61,7 @@ const ITEM_CATALOG = {
   'monedas de cobre':    { type: 'misc', description: 'Unas pocas monedas de cobre gastadas.' },
   'monedas de plata':    { type: 'misc', description: 'Monedas de plata con inscripciones antiguas.' },
   'monedas de oro':      { type: 'misc', description: 'Monedas de oro resplandecientes. Son pocas, pero valen mucho.' },
+  'cofre de oro':        { type: 'misc', description: 'Un cofre repleto de monedas de oro del Lich. Un tesoro maldito que vale una fortuna.' },
   'pelaje áspero':       { type: 'misc', description: 'El pelaje de una rata gigante. Áspero al tacto.' },
   'escudo roto':         { type: 'misc', description: 'Un escudo con el centro partido. Inútil para defenderse.' },
   'escudo de madera':    { type: 'armor', defense: 2, description: 'Un escudo de madera reforzada. No es glamoroso, pero te protege. +2 de defensa.' },
@@ -110,7 +111,7 @@ const ITEM_CATALOG = {
   'cuchillo envenenado': { type: 'weapon', effect: 'attack_bonus', amount: 3,  on_hit: { type: 'poison', chance: 0.35, damage: 1, turns: 4 }, description: 'Un cuchillo impregnado de veneno de araña. +3 de ataque. 35% de chance de envenenar al objetivo por 4 turnos.' },
   'látigo de garras':    { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'Un látigo improvisado con garras de esqueleto. +4 de ataque.' },
   'red resistente':      { type: 'misc', description: 'Una red de araña y cuerda trenzadas. Casi imposible de romper.' },
-  'collar de garras':    { type: 'misc', description: 'Un collar artesanal de dientes y seda de araña. Emana poder primitivo.' },
+  'collar de garras':    { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Un collar artesanal de dientes de goblin y seda de araña. Emana poder primitivo. +2 de defensa.' },
   'grimorio del abismo': { type: 'weapon', effect: 'attack_bonus', amount: 10, on_hit: { type: 'shadow_bolt', chance: 0.20, bonus_damage: 8 }, description: 'Un grimorio sellado con poder abismal. +10 de ataque mágico. 20% de chance de lanzar un rayo de sombra (+8 daño extra).' },
 
   // ── Armaduras (T152) ─────────────────────────────────────────────────────

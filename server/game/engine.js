@@ -595,6 +595,27 @@ function cmdMove(player, direction) {
     return { text: 'Error: tu habitación actual no existe en la BD.' };
   }
 
+  // BUG-285: Si hay monstruos vivos en la sala actual, mover es huida — aplicar tryFlee
+  const monstersHere = db.getMonstersInRoom(player.current_room_id);
+  const aliveHere = monstersHere.filter(m => m.hp > 0);
+  if (aliveHere.length > 0) {
+    // Elegir el monstruo más amenazante (mayor HP) para la narrativa de huida
+    const monster = aliveHere.sort((a, b) => b.hp - a.hp)[0];
+    const fleeResult = combat.tryFlee(player, monster, room);
+    const nameList = aliveHere.map(m => m.name).join(', ');
+    const prefix = aliveHere.length > 1
+      ? `⚡ Hay ${aliveHere.length} monstruos activos (${nameList}). Intentás escabullirte...\n`
+      : '';
+    return {
+      text: `${prefix}${fleeResult.line}`,
+      event: fleeResult.fled
+        ? `${player.username} huye de la sala.`
+        : `${player.username} intenta escapar pero falla.`,
+      eventRoomId: player.current_room_id,
+      ...(fleeResult.globalEvent ? { globalEvent: fleeResult.globalEvent } : {}),
+    };
+  }
+
   const exit = dungeon.resolveExit(room, direction);
   if (exit === null) {
     const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
@@ -1452,7 +1473,7 @@ function cmdAttack(player, targetName) {
           const freshComp = db.getPlayer(comp.id);
           if (!freshComp) continue;
           const newXp    = (freshComp.xp    || 0) + sharedXp;
-          const newLevel = Math.floor(newXp / 50) + 1;
+          const newLevel = xpSystem.levelFromXp(newXp);
           const levelUp  = newLevel > (freshComp.level || 1);
           const upd = { xp: newXp, level: newLevel };
           if (levelUp) {
@@ -1481,7 +1502,7 @@ function cmdAttack(player, targetName) {
       const bonusXp = STREAK_HITO_BONUS;
       const freshStreak = db.getPlayer(player.id);
       const newXp = (freshStreak.xp || 0) + bonusXp;
-      const newLevel = Math.floor(newXp / 50) + 1;
+      const newLevel = xpSystem.levelFromXp(newXp);
       const levelUp = newLevel > (freshStreak.level || 1);
       const upd = { xp: newXp, level: newLevel };
       if (levelUp) {
@@ -6091,7 +6112,7 @@ function cmdCast(player, args) {
       const xpGain = Math.floor(5 + (target.max_hp || 10) / 2);
       const newKills = (player.kills || 0) + 1;
       const newXp = (player.xp || 0) + xpGain;
-      const newLevel = 1 + Math.floor(newXp / 50);
+      const newLevel = xpSystem.levelFromXp(newXp);
       db.updatePlayer(player.id, {
         kills: newKills,
         xp: newXp,
@@ -6609,7 +6630,7 @@ function cmdUseSkill(player, args, context) {
       // XP básico
       const xpGain = Math.max(5, Math.floor(target.max_hp * 2));
       const newXp = (freshPlayer.xp || 0) + xpGain;
-      const newLevel = 1 + Math.floor(newXp / 50);
+      const newLevel = xpSystem.levelFromXp(newXp);
       const levelUp = newLevel > (freshPlayer.level || 1);
       db.updatePlayer(freshPlayer.id, { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 });
       text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
@@ -6716,7 +6737,7 @@ function cmdUseSkill(player, args, context) {
       }
       const xpGain = Math.max(5, Math.floor(target.max_hp * 2));
       const newXp = (freshPlayer.xp || 0) + xpGain;
-      const newLevel = 1 + Math.floor(newXp / 50);
+      const newLevel = xpSystem.levelFromXp(newXp);
       const levelUp = newLevel > (freshPlayer.level || 1);
       db.updatePlayer(freshPlayer.id, { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 });
       text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
@@ -6876,7 +6897,7 @@ function cmdUseSkill(player, args, context) {
       }
       const xpGain = Math.max(5, Math.floor(target.max_hp * 2));
       const newXp = (freshPlayer.xp || 0) + xpGain;
-      const newLevel = 1 + Math.floor(newXp / 50);
+      const newLevel = xpSystem.levelFromXp(newXp);
       const levelUp = newLevel > (freshPlayer.level || 1);
       db.updatePlayer(freshPlayer.id, { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 });
       text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
@@ -10673,7 +10694,7 @@ function cmdTrivia(player, args) {
     const freshP = db.getPlayer(player.id);
     const newXp = (freshP.xp || 0) + 10;
     const newGold = (freshP.gold || 0) + 5;
-    const newLevel = Math.floor(newXp / 50) + 1;
+    const newLevel = xpSystem.levelFromXp(newXp);
     const levelUp = newLevel > (freshP.level || 1);
     const updates = { xp: newXp, gold: newGold };
     if (levelUp) {
@@ -10999,7 +11020,7 @@ function cmdTriviaPub(player, args, context) {
     const freshWinner = db.getPlayer(player.id);
     const newXp   = (freshWinner.xp || 0) + 15;
     const newGold = (freshWinner.gold || 0) + 8;
-    const newLevel = Math.floor(newXp / 50) + 1;
+    const newLevel = xpSystem.levelFromXp(newXp);
     const levelUp  = newLevel > (freshWinner.level || 1);
     const updates = { xp: newXp, gold: newGold };
     if (levelUp) {

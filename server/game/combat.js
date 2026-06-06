@@ -90,7 +90,7 @@ const BOSS_MONSTERS = {
   13: { // Lich Anciano
     respawnMinutes: 30,
     deathAnnouncement: '💀 ¡El LICH ANCIANO ha caído! Un aventurero ha triunfado en la Catedral de la Oscuridad. El dungeon tiembla...',
-    lootBonus: ['monedas de oro', 'monedas de oro', 'monedas de oro', 'monedas de oro', 'monedas de oro'], // 5x = 50g
+    lootBonus: ['cofre de oro'], // 1x = 50g (antes: 5x monedas de oro — BUG-283)
   },
 };
 
