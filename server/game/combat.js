@@ -385,7 +385,7 @@ function attackRound(player, monster) {
             updatesPet.attack = (freshPPet.attack || 5) + 1;
             lines.push(`✨ ¡Subiste al nivel ${newLevelPet}! +5 HP máx, +1 ataque.`);
           }
-          lines.push(`⭐ +${xpGainPet} XP (total: ${newXpPet} | kills: ${newKillsPet} | nivel: ${newLevelPet})`);
+          lines.push(`⭐ +${xpGainPet} XP (kills: ${newKillsPet} | nivel: ${newLevelPet})`);
           db.updatePlayer(player.id, updatesPet);
           return { lines, monsterDead, playerDead, loot, globalEvent: petGlobalEvent || null };
         }
@@ -439,7 +439,7 @@ function attackRound(player, monster) {
                 updates2.attack = (freshPl2.attack || 5) + 1;
                 lines.push(`✨ ¡Subiste al nivel ${newLevel2}! +5 HP máx, +1 ataque.`);
               }
-              lines.push(`⭐ +${xpGain2} XP (total: ${newXp2} | kills: ${newKills2} | nivel: ${newLevel2})`);
+              lines.push(`⭐ +${xpGain2} XP (kills: ${newKills2} | nivel: ${newLevel2})`);
               db.updatePlayer(player.id, updates2);
               return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
             }
@@ -486,7 +486,7 @@ function attackRound(player, monster) {
           updates3.attack = (freshPl3.attack || 5) + 1;
           lines.push(`✨ ¡Subiste al nivel ${newLevel3}! +5 HP máx, +1 ataque.`);
         }
-        lines.push(`⭐ +${xpGain3} XP (total: ${newXp3} | kills: ${newKills3} | nivel: ${newLevel3})`);
+        lines.push(`⭐ +${xpGain3} XP (kills: ${newKills3} | nivel: ${newLevel3})`);
         db.updatePlayer(player.id, updates3);
         return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
       }
@@ -542,7 +542,7 @@ function attackRound(player, monster) {
       updates.attack = (freshPlayer.attack || 5) + 1;
       lines.push(`✨ ¡Subiste al nivel ${newLevel}! +5 HP máx, +1 ataque.`);
     }
-    lines.push(`⭐ +${xpGain} XP (total: ${newXp} | kills: ${newKills} | nivel: ${newLevel})`);
+    lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})`);
     // T190: Encantamiento de luz — +3 HP al matar
     if (enchantActive && enchantData.type === 'luz') {
       const hpOnKill = enchantData.hp_on_kill || 3;
