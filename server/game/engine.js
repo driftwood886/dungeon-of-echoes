@@ -10183,7 +10183,10 @@ function cmdPreview(player, args) {
     lines.push(`│ ${pad('Para equipar: equip ' + found, W)} │`);
   } else if (def.type === 'armor') {
     const currentDef = player.defense;
-    const newDef = 2 + def.amount;
+    // DIS-D281: calcular correctamente — defensa desnuda (sin armadura actual) + bonus nueva armadura
+    const currentArmorAmount = player.equipped_armor ? (items.getItemDef(player.equipped_armor)?.amount || 0) : 0;
+    const nakedDef = (currentDef || 2) - currentArmorAmount;
+    const newDef = nakedDef + def.amount;
     const change = newDef - currentDef;
     const changeStr = change >= 0 ? `+${change}` : `${change}`;
     const currentArmor = player.equipped_armor || '(sin armadura)';
