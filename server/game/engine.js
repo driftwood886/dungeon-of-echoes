@@ -299,7 +299,30 @@ function execute(playerId, input, context) {
     case 'macro':        result = cmdMacro(player, action.args, context); break;
     case 'afk':          result = cmdAfk(player, action.args); break;
     case 'write':        result = cmdWrite(player, action.args); break;
-    case 'read':         result = cmdReadWall(player); break;
+    case 'read': {
+      // BUG-267: si hay args, intentar examinar el ítem del inventario primero
+      if (action.args && action.args.length > 0) {
+        const query = action.args.join(' ');
+        const fresh = db.getPlayer(player.id);
+        // ¿El ítem está en el inventario?
+        const invItem = fresh && fresh.inventory ? items.findItem(fresh.inventory, query) : null;
+        if (invItem) {
+          result = cmdExamine(player, query);
+        } else {
+          // No está en el inventario — intentar cmdExamine normal (puede ser lore de sala)
+          const examResult = cmdExamine(player, query);
+          // Si cmdExamine no encontró nada específico, devolver mensaje útil
+          if (examResult && examResult.text && (examResult.text.includes('No ves ningún') || examResult.text.includes('vacías'))) {
+            result = { text: `📜 No encontrás "${query}" para leer aquí.\n💡 Si es un ítem del inventario, usá "examine ${query}". Si querés leer las paredes: "read" (sin argumentos).` };
+          } else {
+            result = examResult;
+          }
+        }
+      } else {
+        result = cmdReadWall(player);
+      }
+      break;
+    }
     case 'greet':        result = cmdGreet(player, action.args, context); break;
     case 'search':       result = cmdSearch(player, action.args); break;
     case 'study':        result = cmdStudy(player, action.args); break;
