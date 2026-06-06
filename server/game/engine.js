@@ -208,7 +208,7 @@ function execute(playerId, input, context) {
     case 'drop':      result = cmdDrop(player, action.args.join(' ')); break;
     case 'examine':   result = cmdExamine(player, action.args.join(' ')); break;
     case 'equip':     result = cmdEquip(player, action.args.join(' ')); break;
-    case 'unequip':   result = cmdUnequip(player); break;
+    case 'unequip':   result = cmdUnequip(player, action.args.join(' ')); break;
     case 'wear':      result = cmdWear(player, action.args.join(' ')); break;
     case 'unwear':    result = cmdUnwear(player); break;
     case 'map':       result = cmdMap(player); break;
@@ -2554,9 +2554,20 @@ function cmdLoot(player) {
 
 /**
  * unequip — Guardar el arma equipada y volver a pelear con los puños.
+ * BUG-277: Si se pasa un argumento que coincide con la armadura equipada, redirigir a cmdUnwear.
  */
-function cmdUnequip(player) {
+function cmdUnequip(player, itemQuery) {
   player = db.getPlayer(player.id);
+
+  // BUG-277: si el argumento coincide con la armadura equipada, redirigir a cmdUnwear
+  if (itemQuery && itemQuery.trim() && player.equipped_armor) {
+    const armorNameLower = player.equipped_armor.toLowerCase();
+    const queryLower = itemQuery.trim().toLowerCase();
+    // coincidencia parcial: si el query está contenido en el nombre de la armadura o viceversa
+    if (armorNameLower.includes(queryLower) || queryLower.includes(armorNameLower)) {
+      return cmdUnwear(player);
+    }
+  }
 
   if (!player.equipped_weapon) {
     return { text: 'No tenés ningún arma equipada.' };
