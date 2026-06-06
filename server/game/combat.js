@@ -55,8 +55,9 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
     } catch (_) { /* si la sala 22 no existe aún, no falla el servidor */ }
     return { globalEvent: broadcastMsg };
   } else {
-    // Muerte normal
-    db.updatePlayer(playerId, { hp: 5, current_room_id: 1, deaths, status_effects: '{}' });
+    // Muerte normal — DIS-D41: respawn con 25% del max_hp (mín 5)
+    const respawnHp = Math.max(5, Math.floor((freshP.max_hp || 20) * 0.25));
+    db.updatePlayer(playerId, { hp: respawnHp, current_room_id: 1, deaths, status_effects: '{}' });
     // STORY-019: entrada de diario con color emocional para primera muerte
     if (deaths === 1) {
       db.addJournalEntry(playerId, 'death', `💀 Moriste. No fue heroico. Fue un pasillo oscuro y algo que no viste.`);
@@ -181,7 +182,7 @@ function attackRound(player, monster) {
 
     if (player.hp <= 0) {
       playerDead = true;
-      lines.push(`💀 ¡El veneno acabó contigo! Respawneás en la entrada del dungeon...`);
+      lines.push(`💀 ¡El veneno acabó contigo! Respawneás en la entrada del dungeon con 25% HP...`);
       db.addJournalEntry(player.id, 'death', `💀 Muerto por veneno luchando contra ${monster.name}.`);
       const hcResult = handlePlayerDeath(player.id, lines, 'veneno');
       return { lines, monsterDead, playerDead, loot, poisonSurvived, ...(hcResult.globalEvent ? { globalEvent: hcResult.globalEvent } : {}) };
@@ -227,7 +228,7 @@ function attackRound(player, monster) {
     db.updatePlayer(player.id, { hp: player.hp });
     if (player.hp <= 0) {
       playerDead = true;
-      lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon...`);
+      lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon con 25% HP...`);
       db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name} (atrapado en telarañas).`);
       const hcResultW = handlePlayerDeath(player.id, lines, 'telarañas');
       return { lines, monsterDead, playerDead, loot, poisonSurvived, ...(hcResultW.globalEvent ? { globalEvent: hcResultW.globalEvent } : {}) };
@@ -275,7 +276,7 @@ function attackRound(player, monster) {
     player.hp = Math.max(0, player.hp - rawMissReturn);
     db.updatePlayer(player.id, { hp: player.hp });
     if (player.hp <= 0) {
-      lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon...`);
+      lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon con 25% HP...`);
       db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name} (golpe tras postura agresiva fallida).`);
       const hcResultM = handlePlayerDeath(player.id, lines, 'postura agresiva');
       return { lines, monsterDead: false, playerDead: true, loot: [], poisonSurvived: false, ...(hcResultM.globalEvent ? { globalEvent: hcResultM.globalEvent } : {}) };
@@ -697,7 +698,7 @@ function attackRound(player, monster) {
 
   if (player.hp <= 0) {
     playerDead = true;
-    lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon...`);
+    lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon con 25% HP...`);
     db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name}.`);
     const hcResult2 = handlePlayerDeath(player.id, lines, `combate con ${monster.name}`);
     if (hcResult2.globalEvent) globalEventHardcore = hcResult2.globalEvent;
@@ -782,7 +783,7 @@ function tryFlee(player, monster, room) {
 
   if (player.hp <= 0) {
     db.addJournalEntry(player.id, 'death', `💀 Muerto intentando huir del ${monster.name}.`);
-    line += `\n💀 ¡Moriste! Respawneás en la entrada del dungeon...`;
+    line += `\n💀 ¡Moriste! Respawneás en la entrada del dungeon con 25% HP...`;
     const hcResultFlee = handlePlayerDeath(player.id, [], 'huida');
     return { fled: false, destRoomId: null, line, ...(hcResultFlee.globalEvent ? { globalEvent: hcResultFlee.globalEvent } : {}) };
   }
