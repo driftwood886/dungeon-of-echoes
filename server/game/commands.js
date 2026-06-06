@@ -336,12 +336,17 @@ function parse(input) {
   if (parts.length >= 2) {
     const twoWord = `${first} ${parts[1].toLowerCase()}`;
     const MULTI_WORD_ALIASES = {
-      'recoger todo': { cmd: 'loot',     skillId: null },
-      'tomar todo':   { cmd: 'loot',     skillId: null },
-      'agarrar todo': { cmd: 'loot',     skillId: null },
-      'get all':      { cmd: 'loot',     skillId: null },
-      'golpe sucio':  { cmd: 'useSkill', skillId: 'golpe_sucio' },  // BUG-271: pícaro
-      'dirty strike': { cmd: 'useSkill', skillId: 'golpe_sucio' },
+      'recoger todo':   { cmd: 'loot',     skillId: null },
+      'tomar todo':     { cmd: 'loot',     skillId: null },
+      'agarrar todo':   { cmd: 'loot',     skillId: null },
+      'get all':        { cmd: 'loot',     skillId: null },
+      'golpe sucio':    { cmd: 'useSkill', skillId: 'golpe_sucio' },  // BUG-271: pícaro
+      'dirty strike':   { cmd: 'useSkill', skillId: 'golpe_sucio' },
+      // BUG-286: "tienda vender X" / "tienda comprar X" → sell/buy
+      'tienda vender':  { cmd: 'sell',    skillId: null },
+      'tienda comprar': { cmd: 'buy',     skillId: null },
+      'shop sell':      { cmd: 'sell',    skillId: null },
+      'shop buy':       { cmd: 'buy',     skillId: null },
     };
     const mwMatch = MULTI_WORD_ALIASES[twoWord];
     if (mwMatch) {

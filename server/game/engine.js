@@ -595,6 +595,14 @@ function cmdMove(player, direction) {
     return { text: 'Error: tu habitación actual no existe en la BD.' };
   }
 
+  // BUG-287: Validar que la dirección existe ANTES de chequear monstruos.
+  // Si la dirección es inválida, mostrar error sin intentar huir.
+  const exitCheck = dungeon.resolveExit(room, direction);
+  if (exitCheck === null) {
+    const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
+    return { text: `No hay salida hacia el ${dirName}. Salidas disponibles: ${dungeon.exitsText(room)}.` };
+  }
+
   // BUG-285: Si hay monstruos vivos en la sala actual, mover es huida — aplicar tryFlee
   const monstersHere = db.getMonstersInRoom(player.current_room_id);
   const aliveHere = monstersHere.filter(m => m.hp > 0);
@@ -616,11 +624,7 @@ function cmdMove(player, direction) {
     };
   }
 
-  const exit = dungeon.resolveExit(room, direction);
-  if (exit === null) {
-    const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
-    return { text: `No hay salida hacia el ${dirName}. Salidas disponibles: ${dungeon.exitsText(room)}.` };
-  }
+  const exit = exitCheck; // ya validado arriba (BUG-287)
 
   const { targetId, key } = exit;
 
@@ -1676,8 +1680,8 @@ function cmdPick(player, itemQuery) {
     return { text: `No hay ningún "${itemQuery}" en el suelo.` };
   }
 
-  // Quitar el ítem del suelo
-  const newRoomItems = room.items.filter(i => i !== found);
+  // Quitar el ítem del suelo — BUG-288: usar removeFirst para no eliminar duplicados
+  const newRoomItems = removeFirst(room.items, found);
   db.updateRoomItems(room.id, newRoomItems);
 
   // Refrescar jugador
