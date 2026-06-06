@@ -1477,7 +1477,7 @@ function cmdAttack(player, targetName) {
   if (!monsterDead && !playerDead) {
     const freshForSkills = db.getPlayer(player.id);
     if (freshForSkills) {
-      const unlockedSkills = skills.getUnlockedSkills(freshForSkills.level || 1);
+      const unlockedSkills = skills.getUnlockedSkills(freshForSkills.level || 1, freshForSkills.player_class);
       if (unlockedSkills.length > 0) {
         const cooldowns = freshForSkills.skill_cooldowns
           ? (typeof freshForSkills.skill_cooldowns === 'string' ? JSON.parse(freshForSkills.skill_cooldowns) : freshForSkills.skill_cooldowns)
@@ -1586,7 +1586,7 @@ function cmdFlee(player, targetQuery) {
       // Huir del primero pero informar que hay varios
       monster = monsters[0];
       const { fled, line, destRoomId } = combat.tryFlee(player, monster, room);
-      const multiMsg = `⚡ Hay ${monsters.length} monstruos (${nameList}). Usá "flee <monstruo>" para huir de uno específico.\n${line}`;
+      const multiMsg = `⚡ Hay ${monsters.length} monstruos (${nameList}). Usá "huir <monstruo>" para huir de uno específico.\n${line}`;
       return {
         text: multiMsg,
         event: fled ? `${player.username} huye de la sala.` : `${player.username} intenta huir pero falla.`,
@@ -6414,7 +6414,7 @@ function cmdSkills(player) {
   if (!fresh) return { text: 'Error al leer tus habilidades.' };
 
   const level = fresh.level || 1;
-  const unlocked = skills.getUnlockedSkills(level);
+  const unlocked = skills.getUnlockedSkills(level, fresh.player_class);
   const cooldowns = skills.getCooldowns(fresh);
   const now = Date.now();
 
@@ -6422,8 +6422,17 @@ function cmdSkills(player) {
 
   // Habilidades desbloqueadas
   if (unlocked.length === 0) {
-    lines.push('  Aún no desbloqueaste ninguna habilidad.');
-    lines.push('  (Nivel 3: Golpetazo · Nivel 6: Golpe de Escudo · Nivel 10: Arenga)');
+    const cls = fresh.player_class;
+    if (cls === 'picaro') {
+      lines.push('  Aún no desbloqueaste ninguna habilidad.');
+      lines.push('  (Nivel 1: Robar · Nivel 3: Golpe Sucio)');
+    } else if (cls === 'mago') {
+      lines.push('  Usá "hechizos" para ver tus hechizos disponibles.');
+      lines.push('  (Nivel 3: Golpetazo · Nivel 6: Golpe de Escudo · Nivel 10: Arenga)');
+    } else {
+      lines.push('  Aún no desbloqueaste ninguna habilidad.');
+      lines.push('  (Nivel 3: Golpetazo · Nivel 6: Golpe de Escudo · Nivel 10: Arenga)');
+    }
   } else {
     for (const sk of unlocked) {
       const exp = cooldowns[sk.id];
@@ -6435,8 +6444,12 @@ function cmdSkills(player) {
     }
   }
 
-  // Habilidades aún bloqueadas
-  const locked = skills.ALL_SKILLS.filter(sk => level < sk.required_level);
+  // Habilidades aún bloqueadas (filtrar por clase)
+  const locked = skills.ALL_SKILLS.filter(sk => {
+    if (level >= sk.required_level) return false;
+    if (sk.required_class && sk.required_class !== fresh.player_class) return false;
+    return true;
+  });
   if (locked.length > 0) {
     lines.push('─'.repeat(40));
     lines.push('🔒 Bloqueadas:');
@@ -6734,6 +6747,144 @@ function cmdUseSkill(player, args, context) {
     }, buffDuration);
 
     return { text };
+  }
+
+  // ── Golpe Sucio (golpe_sucio) — Pícaro Lv3 ───────────────────────────────
+  if (skillId === 'golpe_sucio') {
+    const monsters = db.getMonstersInRoom(freshPlayer.current_room_id);
+    const alive = monsters.filter(m => m.hp > 0);
+    const targetName = args.slice(1).join(' ').trim();
+    if (alive.length === 0) {
+      if (targetName) return { text: `🗡️ No hay ningún "${targetName}" aquí.` };
+      return { text: '🗡️ No hay monstruos aquí para atacar con Golpe Sucio.' };
+    }
+    let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
+    if (!target) target = alive[0];
+
+    const baseDmg = freshPlayer.attack || 5;
+    const rawDmg = Math.max(1, Math.floor(baseDmg * skill.dmg_multiplier));
+    const variation = Math.floor(rawDmg * 0.15);
+    const dmg = rawDmg + Math.floor(Math.random() * (variation * 2 + 1)) - variation;
+    const finalDmg = Math.max(1, dmg - Math.floor(target.defense || 0));
+    const newHp = Math.max(0, target.hp - finalDmg);
+
+    // Aplicar veneno al monstruo
+    const monsterFx = target.status_effects ? JSON.parse(target.status_effects || '{}') : {};
+    monsterFx.poisoned = { damage: skill.poison_damage, turns: skill.poison_turns };
+    db.updateMonster(target.id, { hp: newHp, status_effects: JSON.stringify(monsterFx) });
+
+    const newCooldowns = skills.applyCooldown(freshPlayer, 'golpe_sucio');
+    db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldowns });
+
+    const dead = newHp <= 0;
+    let text = `🗡️ ¡GOLPE SUCIO! Atacás al ${target.name} por ${finalDmg} dmg y lo envenenás (${skill.poison_damage} dmg × ${skill.poison_turns} turnos)!`;
+    if (dead) {
+      text += `\n💀 El veneno ya no importa — el ${target.name} cae al instante.`;
+      const { droppedLoot: gsLoot, globalEvent: gsGlobalEvent } = combat.dropLoot(target, freshPlayer.current_room_id);
+      if (gsLoot && gsLoot.length > 0) text += `\n💰 El ${target.name} suelta: ${gsLoot.join(', ')}.`;
+      if (gsGlobalEvent) {
+        db.logGlobalEvent('boss', gsGlobalEvent);
+        if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: gsGlobalEvent });
+      }
+      const xpGain = Math.max(5, Math.floor(target.max_hp * 2));
+      const newXp = (freshPlayer.xp || 0) + xpGain;
+      const newLevel = 1 + Math.floor(newXp / 50);
+      const levelUp = newLevel > (freshPlayer.level || 1);
+      db.updatePlayer(freshPlayer.id, { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 });
+      text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
+      db.addBestiaryKill(freshPlayer.id, target.name);
+      const gsBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+      const freshForGsAch = db.getPlayer(freshPlayer.id);
+      if (freshForGsAch) {
+        const newGsAchs = ach.checkAchievements(freshForGsAch, { bossKill: gsBossKill });
+        const gsAchLines = ach.formatNewAchievements(newGsAchs);
+        if (gsAchLines) text += '\n' + gsAchLines;
+        if (gsBossKill) {
+          db.logGlobalEvent('boss', `⚔️ ${freshPlayer.username} derrotó al ${target.name} con Golpe Sucio.`);
+          db.addJournalEntry(freshPlayer.id, 'boss', `☠️ Derrotaste al ${target.name} con Golpe Sucio.`);
+          text += `\n\n╔════════════════════════════════════╗\n║  ☠  ¡${target.name.toUpperCase()} DERROTADO!  ☠  ║\n╚════════════════════════════════════╝\n¡Usá 'loot' para recoger los tesoros!`;
+        }
+      }
+      // Registrar quest/challenge/contract al matar con golpe_sucio
+      const freshForGsQuest = db.getPlayer(freshPlayer.id);
+      const qGsResult = quests.recordProgress(freshForGsQuest, 'kill', { monsterName: target.name });
+      const crGs = db.updateDailyChallengeProgress(freshPlayer.id, 'kill', target.name);
+      const wcrGs = db.updateWeeklyContractProgress(freshPlayer.id, target.name);
+      if (wcrGs && wcrGs.reward) text += `\n📜 ¡CONTRATO COMPLETADO! +${wcrGs.reward.xp} XP · +${wcrGs.reward.gold}g`;
+      if (crGs && crGs.reward) text += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙`;
+      if (qGsResult) {
+        db.updatePlayer(freshPlayer.id, { quest_progress: qGsResult.questProgress });
+        if (qGsResult.justCompleted && qGsResult.reward) {
+          const r = qGsResult.reward;
+          const freshQ2 = db.getPlayer(freshPlayer.id);
+          db.updatePlayer(freshPlayer.id, { gold: (freshQ2.gold || 0) + r.gold, xp: (freshQ2.xp || 0) + r.xp });
+          text += `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP.`;
+        }
+      }
+    } else {
+      text += `\n  El ${target.name} tiene ${newHp}/${target.max_hp} HP y está envenenado.`;
+      text += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+    }
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `🗡️ ${freshPlayer.username} usa Golpe Sucio sobre el ${target.name}! (-${finalDmg} HP + veneno)`);
+    }
+    return { text };
+  }
+
+  // ── Robar (robar) — Pícaro Lv1 ───────────────────────────────────────────
+  if (skillId === 'robar') {
+    const monsters = db.getMonstersInRoom(freshPlayer.current_room_id);
+    const alive = monsters.filter(m => m.hp > 0);
+    const targetName = args.slice(1).join(' ').trim();
+    if (alive.length === 0) {
+      return { text: '🃏 No hay monstruos aquí a quienes robar.' };
+    }
+    let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
+    if (!target) target = alive[0];
+
+    // Probabilidad: 50% base + 15% por cada nivel de ventaja (nivel jugador - nivel monstruo estimado)
+    // Nivel de monstruo estimado = max_hp / 8 aproximado
+    const monsterEstLevel = Math.max(1, Math.round((target.max_hp || 8) / 8));
+    const levelAdvantage = Math.max(0, (freshPlayer.level || 1) - monsterEstLevel);
+    const chance = Math.min(0.90, 0.50 + levelAdvantage * 0.15);
+    const success = Math.random() < chance;
+
+    const newCooldowns = skills.applyCooldown(freshPlayer, 'robar');
+    db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldowns });
+
+    if (success) {
+      const stolen = Math.floor(Math.random() * 11) + 5; // 5-15 monedas
+      const freshForGold = db.getPlayer(freshPlayer.id);
+      db.updatePlayer(freshPlayer.id, { gold: (freshForGold.gold || 0) + stolen });
+      const text = `🃏 ¡ROBO EXITOSO! Mientras el ${target.name} está distraído, le sacás ${stolen} monedas de los bolsillos.\n  Tu cartera: ${(freshForGold.gold || 0) + stolen}g\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+      if (context && context.broadcastToRoom) {
+        context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+          `🃏 ${freshPlayer.username} le roba monedas al ${target.name}!`);
+      }
+      return { text };
+    } else {
+      // Fallo: el monstruo ataca
+      const monsterAtk = target.attack || 3;
+      const playerDef = freshPlayer.defense || 0;
+      const dmgReceived = Math.max(1, monsterAtk - playerDef);
+      const newHp = Math.max(0, freshPlayer.hp - dmgReceived);
+      db.updatePlayer(freshPlayer.id, { hp: newHp });
+      const died = newHp <= 0;
+      let text = `🃏 ¡TE DESCUBRIERON! El ${target.name} nota tu mano en sus bolsillos y te golpea por ${dmgReceived} de daño.`;
+      if (died) {
+        text += `\n💀 ¡Has muerto! El intento de robo te costó la vida.`;
+        // Respawn con 25% HP
+        const respawnHp = Math.max(5, Math.floor((freshPlayer.max_hp || 30) * 0.25));
+        db.updatePlayer(freshPlayer.id, { hp: respawnHp, current_room_id: 1, deaths: (freshPlayer.deaths || 0) + 1 });
+        db.addJournalEntry(freshPlayer.id, 'death', `💀 Muerto por ${target.name} al intentar robar.`);
+        text += `\n  ¡Amanecés en la entrada con ${respawnHp} HP!`;
+      } else {
+        text += `\n  Tu HP: ${newHp}/${freshPlayer.max_hp}.`;
+      }
+      text += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+      return { text };
+    }
   }
 
   return { text: `Habilidad "${skillId}" no implementada aún.` };

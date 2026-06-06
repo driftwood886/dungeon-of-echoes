@@ -49,6 +49,32 @@ const SKILLS = {
     description: 'Arenga a tu grupo: +2 ATK a todos en la sala por 60s. Requiere grupo. Cooldown: 2 min.',
     combat_only: false,
   },
+  // ── Habilidades exclusivas del Pícaro (BUG-271) ──────────────────────────
+  robar: {
+    id: 'robar',
+    name: 'Robar',
+    aliases: ['robar', 'steal', 'hurtar', 'pickpocket', 'sustraer'],
+    required_level: 1,
+    required_class: 'picaro',
+    cooldown_seconds: 60,
+    type: 'steal',
+    description: 'Intenta robar monedas a un monstruo vivo. 50% de éxito (+15% por cada nivel de ventaja). Si falla, el monstruo ataca. Cooldown: 60s. Solo pícaro.',
+    combat_only: false,  // funciona con o sin combate activo
+  },
+  golpe_sucio: {
+    id: 'golpe_sucio',
+    name: 'Golpe Sucio',
+    aliases: ['golpe_sucio', 'dirty_strike', 'golpe sucio', 'suciedad', 'golpe_envenenado', 'puñalada_trasera', 'punalada_trasera', 'backstab'],
+    required_level: 3,
+    required_class: 'picaro',
+    cooldown_seconds: 50,
+    type: 'poison_attack',
+    dmg_multiplier: 1.5,
+    poison_damage: 3,
+    poison_turns: 3,
+    description: 'Ataque traicionero: ×1.5 daño + veneno al monstruo (3 dmg × 3 turnos). Cooldown: 50s. Solo pícaro.',
+    combat_only: true,
+  },
 };
 
 /**
@@ -70,12 +96,17 @@ function resolveSkillAlias(alias) {
 }
 
 /**
- * Devuelve las habilidades disponibles para el nivel dado.
+ * Devuelve las habilidades disponibles para el nivel y clase dados.
  * @param {number} level
+ * @param {string} [playerClass] — 'picaro', 'mago', 'guerrero', etc.
  * @returns {object[]}
  */
-function getUnlockedSkills(level) {
-  return ALL_SKILLS.filter(sk => level >= sk.required_level);
+function getUnlockedSkills(level, playerClass) {
+  return ALL_SKILLS.filter(sk => {
+    if (level < sk.required_level) return false;
+    if (sk.required_class && playerClass !== sk.required_class) return false;
+    return true;
+  });
 }
 
 /**
@@ -101,6 +132,16 @@ function canUseSkill(player, skillId) {
   const level = player.level || 1;
   if (level < skill.required_level) {
     return { ok: false, error: `Necesitás nivel ${skill.required_level} para usar ${skill.name}. (Sos nivel ${level})` };
+  }
+
+  // Verificar clase requerida (BUG-271)
+  if (skill.required_class) {
+    const playerClass = player.player_class || player.class || null;
+    if (playerClass !== skill.required_class) {
+      const classNames = { picaro: 'Pícaro', mago: 'Mago', guerrero: 'Guerrero' };
+      const requiredName = classNames[skill.required_class] || skill.required_class;
+      return { ok: false, error: `${skill.name} es una habilidad exclusiva del ${requiredName}.` };
+    }
   }
 
   const cooldowns = getCooldowns(player);

@@ -131,6 +131,7 @@ const COMMAND_ALIASES = {
   weather: 'weather', clima: 'weather', tiempo: 'weather', atmosfera: 'weather', atmósfera: 'weather',
   // craft / craftear
   craft: 'craft', craftear: 'craft', fabricar: 'craft', combinar: 'craft', alquimia: 'craft', crear: 'craft', forjar: 'craft',
+  crafting: 'recipes', // BUG-273: alias natural
   // recipes / recetas
   recipes: 'recipes', recetas: 'recipes', libro_recetas: 'recipes',
   // news / crónica / historial de eventos globales (T093)
@@ -185,6 +186,9 @@ const COMMAND_ALIASES = {
   // eslint-disable-next-line camelcase
   shield_bash: 'useSkill', escudo_bash: 'useSkill', bash: 'useSkill', escudazo: 'useSkill', golpe_escudo: 'useSkill',
   rally: 'useSkill', arenga: 'useSkill', motivar: 'useSkill', grito_batalla: 'useSkill',
+  // Habilidades de Pícaro (BUG-271)
+  robar: 'useSkill', steal: 'useSkill', hurtar: 'useSkill', pickpocket: 'useSkill', sustraer: 'useSkill',
+  golpe_sucio: 'useSkill', dirty_strike: 'useSkill', backstab: 'useSkill', punalada_trasera: 'useSkill',
   // note / apunte (T116)
   note: 'note', apunte: 'note', apuntes: 'note', notas: 'note', nota: 'note', memo: 'note', memos: 'note',
   // changelog / novedades (T117)
@@ -332,13 +336,20 @@ function parse(input) {
   if (parts.length >= 2) {
     const twoWord = `${first} ${parts[1].toLowerCase()}`;
     const MULTI_WORD_ALIASES = {
-      'recoger todo': 'loot',
-      'tomar todo':   'loot',
-      'agarrar todo': 'loot',
-      'get all':      'loot',
+      'recoger todo': { cmd: 'loot',     skillId: null },
+      'tomar todo':   { cmd: 'loot',     skillId: null },
+      'agarrar todo': { cmd: 'loot',     skillId: null },
+      'get all':      { cmd: 'loot',     skillId: null },
+      'golpe sucio':  { cmd: 'useSkill', skillId: 'golpe_sucio' },  // BUG-271: pícaro
+      'dirty strike': { cmd: 'useSkill', skillId: 'golpe_sucio' },
     };
-    if (MULTI_WORD_ALIASES[twoWord]) {
-      return { command: MULTI_WORD_ALIASES[twoWord], args: parts.slice(2), raw: trimmed };
+    const mwMatch = MULTI_WORD_ALIASES[twoWord];
+    if (mwMatch) {
+      // Para useSkill, args[0] debe ser el skillId canónico (como con alias de una palabra)
+      if (mwMatch.cmd === 'useSkill' && mwMatch.skillId) {
+        return { command: 'useSkill', args: [mwMatch.skillId, ...parts.slice(2)], raw: trimmed };
+      }
+      return { command: mwMatch.cmd, args: parts.slice(2), raw: trimmed };
     }
   }
 
