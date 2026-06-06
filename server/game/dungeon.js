@@ -214,6 +214,11 @@ function describeRoom(roomId, excludePlayerId = null) {
     lines.push(`\n🙏 En el centro de la sala hay un cuenco de piedra negra lleno de agua fría.\n   ("cuenco" para beber — recupera 40% HP, cooldown personal 5 min)`);
   }
 
+  // DIS-D42: Pista ruta alternativa en sala 7 (Pozo Sin Fondo)
+  if (roomId === 7) {
+    lines.push(`\n🔒 La puerta al norte está bloqueada (requiere llave oxidada).\n   💡 Sin llave: volvé a la Entrada → este → Capilla → norte → Túnel Hongos → norte → Trono → este → Santuario.`);
+  }
+
   // Mensajes en las paredes (T147)
   const wallMsgs = db.getWallMessages(roomId);
   if (wallMsgs.length > 0) {

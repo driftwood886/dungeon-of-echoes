@@ -543,7 +543,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance };
 
 /**
  * STORY-003/004/005/007/012/017 — Migración de lore narrativo:
@@ -1006,6 +1006,50 @@ function migratePistaSantuario() {
     ).trimEnd() + ' ' + pista;
     db.upsertRoom({ ...room7, description: newDesc });
     console.log('[seed] migratePistaSantuario: pista de ruta alternativa agregada en Sala 7 (Pozo Sin Fondo). DIS-D42 ✓');
+  }
+}
+
+/**
+ * DIS-D46: Rebalancear curva de dificultad en zonas avanzadas.
+ * Los monstruos de las salas 10-12 quedaron inflados por spawns élite acumulados.
+ * La curva correcta es: Guardia Espectral (25HP/7ATK) → Gólem de Piedra (35HP/8ATK) →
+ * Elemental de Hielo (~42HP/9ATK) → Golem de Forja (~48HP/10ATK).
+ * Esta migración fuerza los stats a los valores balanceados si están demasiado inflados.
+ */
+function migrateD46MonsterBalance() {
+  // ID 5: Gólem de Piedra (sala 10) — stat base: 35HP/8ATK. Élite legítimo: hasta ~53HP.
+  // Si está demasiado inflado (>60HP), restablecer a 35/8
+  const golem = db.getMonster(5);
+  if (golem && golem.max_hp > 60) {
+    const name = golem.name.startsWith('⭐ ') ? golem.name : 'Gólem de Piedra';
+    const baseHp = golem.name.startsWith('⭐ ') ? 53 : 35;
+    const baseAtk = golem.name.startsWith('⭐ ') ? 10 : 8;
+    db.updateMonster(5, { name, hp: baseHp, max_hp: baseHp, attack: baseAtk });
+    console.log(`[seed] migrateD46: Gólem de Piedra (id 5) rebalanceado → HP:${baseHp}, ATK:${baseAtk}. DIS-D46 ✓`);
+  }
+
+  // ID 9: Elemental de Hielo (sala 11) — stat base: 22HP/6ATK. Élite: ~33HP/8ATK.
+  // Si está inflado (>50HP), restablecer a nivel razonable
+  const elemental = db.getMonster(9);
+  if (elemental && elemental.max_hp > 50) {
+    const isElite = elemental.name.startsWith('⭐ ');
+    const name = isElite ? '⭐ Elemental de Hielo' : 'Elemental de Hielo';
+    const baseHp = isElite ? 33 : 40;  // Si era élite, reducir; si no, poner valor intermedio balanceado
+    const baseAtk = isElite ? 8 : 9;
+    db.updateMonster(9, { name, hp: baseHp, max_hp: baseHp, attack: baseAtk });
+    console.log(`[seed] migrateD46: Elemental de Hielo (id 9) rebalanceado → HP:${baseHp}, ATK:${baseAtk}. DIS-D46 ✓`);
+  }
+
+  // ID 10: Golem de Forja (sala 12) — stat base: 30HP/9ATK. Élite: ~45HP/11ATK.
+  // Si está inflado (>55HP), restablecer a nivel razonable
+  const forja = db.getMonster(10);
+  if (forja && forja.max_hp > 55) {
+    const isElite = forja.name.startsWith('⭐ ');
+    const name = isElite ? '⭐ Golem de Forja' : 'Golem de Forja';
+    const baseHp = isElite ? 45 : 42;
+    const baseAtk = isElite ? 11 : 10;
+    db.updateMonster(10, { name, hp: baseHp, max_hp: baseHp, attack: baseAtk });
+    console.log(`[seed] migrateD46: Golem de Forja (id 10) rebalanceado → HP:${baseHp}, ATK:${baseAtk}. DIS-D46 ✓`);
   }
 }
 

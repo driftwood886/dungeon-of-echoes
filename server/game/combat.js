@@ -107,7 +107,13 @@ const MONSTER_BASE_STATS = {
   6:  { name: 'Murciélago Vampiro',    max_hp: 12, attack: 3  },
   7:  { name: 'Araña Tejedora',        max_hp: 8,  attack: 4  },
   8:  { name: 'Guardia Espectral',     max_hp: 25, attack: 7  },
-  // Monstruos expandidos (se restauran por nombre si no están aquí)
+  // DIS-D46: Monstruos expandidos — stats balanceados para curva de dificultad progresiva
+  9:  { name: 'Elemental de Hielo',    max_hp: 40, attack: 9  },
+  10: { name: 'Golem de Forja',        max_hp: 42, attack: 10 },
+  11: { name: 'Krakeling Abismal',     max_hp: 25, attack: 7  },
+  12: { name: 'Campeón Espectral',     max_hp: 40, attack: 10 },
+  21: { name: 'Eco Viviente',          max_hp: 35, attack: 7  },
+  22: { name: 'Sombra del Vacío',      max_hp: 60, attack: 10 },
 };
 
 const MONSTER_SPECIALS = {
