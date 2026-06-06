@@ -55,6 +55,7 @@ o escribí:  sur   para salir al dungeon real.
 ═══════════════════════════════════════`,
 };
 
+// Mensaje al completar tutorial — para jugadores SIN clase aún
 const COMPLETE_MSG = `🎉 ¡TUTORIAL COMPLETADO!
 Ganás +10 XP de bonus por completar el entrenamiento.
 Ahora estás en la Entrada de la Cripta. ¡Buena suerte, aventurero/a!
@@ -64,6 +65,22 @@ Ahora estás en la Entrada de la Cripta. ¡Buena suerte, aventurero/a!
   (Guerrero, Pícaro o Mago — cada uno cambia tu forma de combatir)
 
 Escribí «look» para ver dónde estás, «help» para ver todos los comandos.`;
+
+// DIS-D278: Variante para jugadores que YA eligieron clase (al registrarse o durante el tutorial)
+const COMPLETE_MSG_WITH_CLASS = `🎉 ¡TUTORIAL COMPLETADO!
+Ganás +10 XP de bonus por completar el entrenamiento.
+Ahora estás en la Entrada de la Cripta. ¡Buena suerte, aventurero/a!
+
+Escribí «look» para ver dónde estás, «help» para ver todos los comandos.`;
+
+/**
+ * DIS-D278: Devuelve el mensaje de completar tutorial apropiado.
+ * Si el jugador ya eligió clase, omite el recordatorio de clase.
+ */
+function getCompleteMsg(player) {
+  const hasClass = player && player.player_class && player.player_class !== 'sin_clase';
+  return hasClass ? COMPLETE_MSG_WITH_CLASS : COMPLETE_MSG;
+}
 
 /**
  * Devuelve true si el jugador debe ir al tutorial.
@@ -88,6 +105,7 @@ module.exports = {
   TUTORIAL_ROOM_ID,
   STEPS,
   COMPLETE_MSG,
+  getCompleteMsg,
   shouldStartTutorial,
   getStepMessage,
 };

@@ -480,7 +480,8 @@ function handleTutorialCommand(player, action, step) {
   }
 
   // Si el jugador hace help, status, inventory — dejar fluir normalmente
-  if (['help', 'status', 'inventory', 'clear'].includes(cmd)) {
+  // DIS-D278: también permitir 'clase' durante el tutorial para que no se repita el prompt al final
+  if (['help', 'status', 'inventory', 'clear', 'clase'].includes(cmd)) {
     return null;
   }
 
@@ -502,6 +503,7 @@ function handleTutorialCommand(player, action, step) {
 
 /**
  * Completa el tutorial: otorga +10 XP, mueve al jugador a sala 1, marca tutorial_step = 0.
+ * DIS-D278: El mensaje de completar varía según si el jugador ya eligió clase o no.
  */
 function completeTutorial(player) {
   const xp = (player.xp || 0) + 10;
@@ -514,8 +516,10 @@ function completeTutorial(player) {
   });
   // BUG-019: limpiar el suelo de la sala 16 para no acumular loot entre sesiones
   try { db.updateRoomItems(16, []); } catch (e) { /* silencioso */ }
+  // DIS-D278: Leer estado fresco del jugador para saber si ya tiene clase asignada
+  const freshPlayer = db.getPlayer(player.id);
   return {
-    text: tutorial.COMPLETE_MSG,
+    text: tutorial.getCompleteMsg(freshPlayer),
     event: `${player.username} emerge de la Antesala. ¡Un aventurero nuevo llega al dungeon!`,
     eventRoomId: 1,
   };
