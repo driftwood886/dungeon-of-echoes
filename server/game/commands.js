@@ -255,6 +255,8 @@ const COMMAND_ALIASES = {
   guide: 'guide', guia: 'guide', guía: 'guide', manual: 'guide', inicio: 'guide', empezar: 'guide',
   tips: 'tips', tip: 'tips', consejo: 'tips', consejos: 'tips', trucos: 'tips', ayudame: 'tips',  // T209
   goals: 'goals', objetivos: 'goals', metas: 'goals', misiones_personales: 'goals', proximos: 'goals', 'qué-hacer': 'goals',  // T210
+  // legado / historial épico del héroe (DIS-D291)
+  legado: 'legado', leyenda: 'legado', historia: 'legado', ciclos: 'legado', 'mis-ciclos': 'legado', endgame: 'legado',
   // battlecry / grito de batalla (T211)
   battlecry: 'battlecry', 'grito-de-batalla': 'battlecry', grito: 'battlecry', 'grito-guerra': 'battlecry', gritoguerra: 'battlecry',
   // champion / campeón de la hora (T212)

@@ -333,6 +333,7 @@ function execute(playerId, input, context) {
     case 'weekly':       result = cmdWeekly(player); break;         // T208
     case 'tips':         result = cmdTips(action.args); break;       // T209
     case 'goals':        result = cmdGoals(player); break;           // T210
+    case 'legado':       result = cmdLegado(player); break;          // DIS-D291: legado post-boss
     case 'battlecry':    result = cmdBattlecry(player, action.args); break; // T211
     case 'champion':     result = cmdChampion(); break;                      // T212
     case 'gamble':       result = cmdGamble(player, action.args); break;     // T217
@@ -1350,6 +1351,19 @@ function cmdAttack(player, targetName) {
       db.logGlobalEvent('boss', `Las antorchas de la Catedral se apagaron cuando ${player.username} emergió con sangre de lich en la espada. Por un momento, el dungeon estuvo en silencio.`);
       // T113: Diario del aventurero — STORY-019: entrada con color emocional
       db.addJournalEntry(player.id, 'boss', `☠️ Cuando el Lich cayó, el silencio fue casi insoportable. Luego recordaste que tenés que salir de aquí.`);
+      // DIS-D291: Incrementar contador de ciclos del jugador
+      const freshForCycle = db.getPlayer(player.id);
+      if (freshForCycle) {
+        const prevLichKills = freshForCycle.lich_kills || 0;
+        const newLichKills = prevLichKills + 1;
+        const currentPlaytime = freshForCycle.playtime_minutes || 0;
+        const prevBest = freshForCycle.cycle_best_time;
+        const updateData = { lich_kills: newLichKills };
+        if (!prevBest || currentPlaytime < prevBest) {
+          updateData.cycle_best_time = currentPlaytime;
+        }
+        db.updatePlayer(player.id, updateData);
+      }
     }
     // Logros nuevos → registrar el primero en la crónica
     if (newAchs && newAchs.length > 0) {
@@ -1571,15 +1585,68 @@ function cmdAttack(player, targetName) {
   }
 
   const bossVictoryBlock = bossKill
-    ? '\n\n' + [
-      '╔══════════════════════════════════════════════════╗',
-      '║  ☠️  ¡¡BOSS DERROTADO!!                          ║',
-      `║  Has vencido al ${monster.name.substring(0, 30).padEnd(30)}  ║`,
-      '║  El dungeon tiembla ante tu hazaña.              ║',
-      '║  🏆 El loot especial quedó en el suelo.          ║',
-      '║  Usá "loot" para recogerlo todo de una vez.      ║',
-      '╚══════════════════════════════════════════════════╝',
-    ].join('\n')
+    ? (() => {
+      const freshVictory = db.getPlayer(player.id);
+      const lichKills = (freshVictory && freshVictory.lich_kills) || 1;
+      const cycleTime = (freshVictory && freshVictory.playtime_minutes) || 0;
+      const bestTime = freshVictory && freshVictory.cycle_best_time;
+      const isBestTime = bestTime === cycleTime;
+      const isFirstKill = lichKills === 1;
+
+      // Medalla de ciclo
+      let cycleMedal = '⚔️';
+      if (lichKills >= 10) cycleMedal = '🏆';
+      else if (lichKills >= 5) cycleMedal = '💎';
+      else if (lichKills >= 3) cycleMedal = '🥇';
+      else if (lichKills >= 2) cycleMedal = '🥈';
+
+      const lines = [
+        '╔══════════════════════════════════════════════════════╗',
+        `║  ☠️  ¡¡EL LICH ANCIANO HA CAÍDO!!                    ║`,
+        `║  ${monster.name.substring(0, 36).padEnd(36)}  ║`,
+        '╠══════════════════════════════════════════════════════╣',
+      ];
+
+      if (isFirstKill) {
+        lines.push('║  🌟 ¡Primera victoria épica!                         ║');
+        lines.push('║  El dungeon ha sido conquistado... por ahora.        ║');
+        lines.push('╠══════════════════════════════════════════════════════╣');
+        lines.push('║  🔄 El Lich regresará en 30 minutos. Mientras tanto: ║');
+        lines.push('║  → Explorar salas que no visitaste                   ║');
+        lines.push('║  → Completar el bestiario (comando \"bestiary\")       ║');
+        lines.push('║  → Crafting avanzado (\"recetas\")                    ║');
+        lines.push('║  → Desafío: matar al Lich con menos tiempo           ║');
+        lines.push('║  → Escribí \"legado\" para ver tus estadísticas       ║');
+      } else {
+        lines.push(`║  ${(cycleMedal + ' Ciclo #' + lichKills + ' completado!').padEnd(52)}║`);
+        if (bestTime !== undefined && bestTime !== null) {
+          const bestHrs = Math.floor(bestTime / 60);
+          const bestMins = bestTime % 60;
+          const bestStr = bestHrs > 0 ? `${bestHrs}h${bestMins}m` : `${bestMins}m`;
+          const timeLabel = isBestTime ? `⭐ ¡Nuevo record personal: ${bestStr}!` : `Mejor tiempo: ${bestStr}`;
+          lines.push(`║  ${timeLabel.substring(0, 52).padEnd(52)}║`);
+        }
+        lines.push('╠══════════════════════════════════════════════════════╣');
+        lines.push('║  🎯 Desafíos disponibles:                            ║');
+        if (lichKills < 3) {
+          lines.push('║  → Speed-run: intentá un ciclo más rápido           ║');
+          lines.push('║  → Sin pociones: completá un ciclo sin curarte      ║');
+        } else if (lichKills < 5) {
+          lines.push('║  → Modo Hardcore: activalo con \"hardcore\"           ║');
+          lines.push('║  → Cartógrafo: visitá TODAS las salas               ║');
+        } else {
+          lines.push('║  → Sos una leyenda. El dungeon te teme.             ║');
+          lines.push('║  → Buscá el logro secreto que aún no tenés.         ║');
+        }
+        lines.push('║  → Escribí \"legado\" para ver tu historia completa   ║');
+      }
+
+      lines.push('╠══════════════════════════════════════════════════════╣');
+      lines.push('║  🏆 El loot especial quedó en el suelo.              ║');
+      lines.push('║  Usá \"loot\" para recogerlo todo de una vez.         ║');
+      lines.push('╚══════════════════════════════════════════════════════╝');
+      return '\n\n' + lines.join('\n');
+    })()
     : '';
 
   const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock;
@@ -11586,6 +11653,9 @@ function cmdGoals(player) {
   // ─── Boss ─────────────────────────────────────────────────────────────────
   if (!achievements.includes('boss_killer')) {
     goals.push(`💀 Logro "Cazador de Lich": matá al Lich Anciano en sala 15 (Catedral Maldita)`);
+  } else {
+    // DIS-D291: Post-boss goals
+    goals.push(`📖 Escribe "legado" para ver tus desafíos de endgame disponibles`);
   }
 
   // ─── Duelos ───────────────────────────────────────────────────────────────
@@ -11634,10 +11704,113 @@ function cmdGoals(player) {
   return { text: lines.join('\n') };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// T217: Mini-juego de apuestas — gamble/apostar <cantidad>
+// ══════════════════════════════════════════════════════════════════════════════
+// DIS-D291: cmdLegado — Historial épico del héroe post-boss
+// Muestra ciclos completados, mejores tiempos, desafíos disponibles
+// ══════════════════════════════════════════════════════════════════════════════
+function cmdLegado(player) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: '❌ Error al cargar tu personaje.' };
+
+  const lichKills = fresh.lich_kills || 0;
+  const bestTime = fresh.cycle_best_time;
+  const playtime = fresh.playtime_minutes || 0;
+  const kills = fresh.kills || 0;
+  const deaths = fresh.deaths || 0;
+  const level = fresh.level || 1;
+  let achievements = [];
+  try { achievements = JSON.parse(fresh.achievements || '[]'); } catch (_) {}
+
+  const W = 56;
+  const lines = [];
+  lines.push(`╔${'═'.repeat(W)}╗`);
+
+  if (lichKills === 0) {
+    lines.push(`║${'  📖 LEGADO DE ' + (fresh.username || 'AVENTURERO').toUpperCase().substring(0, 30).padEnd(42)}║`);
+    lines.push(`╠${'═'.repeat(W)}╣`);
+    lines.push(`║${'  Aún no has derrotado al Lich Anciano.'.padEnd(W)}║`);
+    lines.push(`║${'  Tu legado comienza cuando la primera filacteria'.padEnd(W)}║`);
+    lines.push(`║${'  caiga hecha polvo en la Catedral Maldita.'.padEnd(W)}║`);
+    lines.push(`╠${'═'.repeat(W)}╣`);
+    lines.push(`║${'  🎯 Objetivo: ve al norte hasta sala 15'.padEnd(W)}║`);
+    lines.push(`║${'  y enfrenta al Lich Anciano.'.padEnd(W)}║`);
+  } else {
+    // Medalla de ciclo
+    let cycleMedal = '⚔️';
+    let cycleTitle = 'Cazador de Liches';
+    if (lichKills >= 10) { cycleMedal = '🏆'; cycleTitle = 'Exterminador Legendario'; }
+    else if (lichKills >= 5) { cycleMedal = '💎'; cycleTitle = 'Maestro del Dungeon'; }
+    else if (lichKills >= 3) { cycleMedal = '🥇'; cycleTitle = 'Conquistador Veterano'; }
+    else if (lichKills >= 2) { cycleMedal = '🥈'; cycleTitle = 'Cazador Experimentado'; }
+
+    lines.push(`║  ${(cycleMedal + ' LEGADO DE ' + (fresh.username || '').toUpperCase()).substring(0, W - 2).padEnd(W - 1)}║`);
+    lines.push(`║  ${cycleTitle.padEnd(W - 1)}║`);
+    lines.push(`╠${'═'.repeat(W)}╣`);
+    lines.push(`║${'  ☠️  Ciclos completados: ' + lichKills + (lichKills === 1 ? ' (¡tu primera victoria!)' : '')}`.padEnd(W + 1) + '║');
+
+    if (bestTime !== null && bestTime !== undefined) {
+      const bHrs = Math.floor(bestTime / 60);
+      const bMins = bestTime % 60;
+      const bestStr = bHrs > 0 ? `${bHrs}h ${bMins}min` : `${bMins} minutos`;
+      lines.push(`║  ⏱️  Mejor ciclo: ${bestStr.padEnd(W - 19)}║`);
+    }
+
+    lines.push(`║  📊 Stats: Nv.${level} | ${kills} kills | ${deaths} muertes | ${playtime}min jugados`.padEnd(W + 1) + '║');
+    lines.push(`╠${'═'.repeat(W)}╣`);
+
+    // Desafíos desbloqueados según ciclos
+    lines.push(`║${'  🎯 DESAFÍOS DEL ENDGAME:'.padEnd(W)}║`);
+
+    const hasCartographer = achievements.includes('cartografo');
+    const hasHardcore = fresh.is_hardcore === 1;
+    const hasFallen = fresh.fallen === 1;
+
+    // Ciclo 1+: speed-run
+    const speedStatus = lichKills >= 2 && bestTime !== null && bestTime <= 30 ? '✅' : '⬜';
+    lines.push(`║  ${speedStatus} Speed-run: matar al Lich en menos de 30min`.padEnd(W + 1) + '║');
+
+    // Ciclo 1+: cartógrafo
+    const cartStatus = hasCartographer ? '✅' : '⬜';
+    lines.push(`║  ${cartStatus} Cartógrafo: visitar TODAS las salas del dungeon`.padEnd(W + 1) + '║');
+
+    // Ciclo 2+: sin pociones
+    if (lichKills >= 2) {
+      lines.push(`║  ⬜ Sin pociones: derrotá al Lich sin usar pociones`.padEnd(W + 1) + '║');
+    }
+
+    // Ciclo 3+: hardcore
+    if (lichKills >= 3 && !hasHardcore) {
+      lines.push(`║  ⬜ Modo Hardcore: activalo con "hardcore" y volvé`.padEnd(W + 1) + '║');
+    } else if (hasHardcore && hasFallen) {
+      lines.push(`║  ⭐ Hardcore completado (caíste pero fue legendario)`.padEnd(W + 1) + '║');
+    } else if (hasHardcore) {
+      lines.push(`║  💀 Actualmente en Modo Hardcore — ¡sin muertes!`.padEnd(W + 1) + '║');
+    }
+
+    // Ciclo 5+: bestiario completo
+    if (lichKills >= 5) {
+      const hasConquistador = achievements.includes('conquistador_dungeon');
+      const conquStatus = hasConquistador ? '✅' : '⬜';
+      lines.push(`║  ${conquStatus} Conquistador: registrar los 14 tipos de monstruo`.padEnd(W + 1) + '║');
+    }
+
+    // Logros secretos sin desbloquear (sin revelar cuáles)
+    const allAchIds = require('./achievements').ACHIEVEMENTS.map(a => a.id);
+    const missing = allAchIds.filter(id => !achievements.includes(id)).length;
+    if (missing > 0) {
+      lines.push(`╠${'═'.repeat(W)}╣`);
+      lines.push(`║  🔒 ${missing} logro(s) sin desbloquear — seguí explorando`.padEnd(W + 1) + '║');
+    }
+  }
+
+  lines.push(`╚${'═'.repeat(W)}╝`);
+  return { text: lines.join('\n') };
+}
+
+
 // Solo disponible en sala 17 (Casa de Subastas)
 // ─────────────────────────────────────────────────────────────────────────────
+// T217: Mini-juego de apuestas — gamble/apostar <cantidad>
 const gamblingCooldowns = new Map(); // playerId → timestamp del último juego
 
 function cmdGamble(player, args) {

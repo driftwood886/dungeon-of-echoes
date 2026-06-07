@@ -173,6 +173,9 @@ async function init() {
      `ALTER TABLE players ADD COLUMN last_login_date TEXT`,                             // T219: fecha del último login (YYYY-MM-DD)
     `ALTER TABLE players ADD COLUMN weekly_contract TEXT NOT NULL DEFAULT '{}'`,       // T222: contrato de caza semanal
     `ALTER TABLE players ADD COLUMN aldric_quest TEXT NOT NULL DEFAULT 'none'`,        // T242: quest narrativa con Aldric
+    `ALTER TABLE players ADD COLUMN lich_kills INTEGER NOT NULL DEFAULT 0`,             // DIS-D291: ciclos post-endgame
+    `ALTER TABLE players ADD COLUMN cycle_best_time INTEGER`,                           // DIS-D291: mejor tiempo de ciclo (minutos de playtime al matar Lich)
+    `ALTER TABLE players ADD COLUMN endgame_challenges TEXT NOT NULL DEFAULT '{}'`,     // DIS-D291: desafíos post-boss completados
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
