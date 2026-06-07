@@ -872,7 +872,9 @@ function countKillsSince(afterIso) {
  * @returns {object} — la subasta creada
  */
 function createAuction(sellerId, sellerName, itemName, minPrice, durationMs = 5 * 60 * 1000) {
-  const endsAt = new Date(Date.now() + durationMs).toISOString();
+  // BUG-312: usar formato SQLite (YYYY-MM-DD HH:MM:SS) en lugar de ISO 8601 (con 'T' y 'Z')
+  // porque SQLite compara fechas como strings, y 'T' > ' ' haría que toda subasta parezca activa
+  const endsAt = new Date(Date.now() + durationMs).toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
   run(
     `INSERT INTO auctions (seller_id, seller_name, item_name, min_price, current_bid, ends_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
@@ -886,8 +888,9 @@ function createAuction(sellerId, sellerName, itemName, minPrice, durationMs = 5 
  * Obtener subastas activas (no cerradas y no expiradas).
  */
 function getActiveAuctions() {
+  // BUG-312: usar replace(ends_at,'T',' ') para normalizar tanto fechas ISO ('T') como SQLite (' ')
   return all(
-    `SELECT * FROM auctions WHERE closed = 0 AND ends_at > datetime('now') ORDER BY ends_at ASC`
+    `SELECT * FROM auctions WHERE closed = 0 AND replace(ends_at,'T',' ') > datetime('now') ORDER BY ends_at ASC`
   );
 }
 
@@ -906,8 +909,9 @@ function placeBid(auctionId, bidderId, bidderName, amount) {
   const auction = getAuction(auctionId);
   if (!auction) return { ok: false, error: 'Subasta no encontrada.' };
   if (auction.closed) return { ok: false, error: 'Esa subasta ya está cerrada.' };
-  const now = new Date().toISOString();
-  if (auction.ends_at <= now) return { ok: false, error: 'Esa subasta ya expiró.' };
+  const now = new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
+  const endsAtNorm = (auction.ends_at || '').replace('T', ' ').replace(/\.\d{3}Z$/, '');
+  if (endsAtNorm <= now) return { ok: false, error: 'Esa subasta ya expiró.' };
   if (auction.seller_id === bidderId) return { ok: false, error: 'No podés pujar en tu propia subasta.' };
 
   const minBid = auction.current_bid > 0 ? auction.current_bid + 1 : auction.min_price;
@@ -928,8 +932,9 @@ function placeBid(auctionId, bidderId, bidderName, amount) {
  * La lógica de inventario/gold se maneja en engine.js ya que requiere conocimiento de ítems.
  */
 function closeExpiredAuctions() {
+  // BUG-312: usar replace(ends_at,'T',' ') para normalizar tanto fechas ISO ('T') como SQLite (' ')
   const expired = all(
-    `SELECT * FROM auctions WHERE closed = 0 AND ends_at <= datetime('now')`
+    `SELECT * FROM auctions WHERE closed = 0 AND replace(ends_at,'T',' ') <= datetime('now')`
   );
   for (const a of expired) {
     run(`UPDATE auctions SET closed = 1 WHERE id = ?`, [a.id]);

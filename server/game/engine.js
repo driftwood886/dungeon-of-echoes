@@ -5796,11 +5796,18 @@ function formatTimeLeft(endsAt) {
 function cmdAuction(player, args) {
   player = db.getPlayer(player.id);
 
-  if (player.current_room_id !== AUCTION_ROOM_ID) {
-    return { text: '🔨 Solo podés subastar desde la Casa de Subastas (sala 17).\n  Movete al este desde la Cámara del Tesoro (sala 4).' };
+  // BUG-311: si no hay args o el primer arg es "listar/list/ver/subastas/remates", mostrar las subastas activas
+  // (funciona desde cualquier sala, igual que el comando 'remates')
+  if (!args || args.length === 0 ||
+      ['listar', 'list', 'ver', 'subastas', 'remates', 'ver subastas', 'listado', 'all', 'todas'].includes(args[0].toLowerCase())) {
+    return cmdAuctions();
   }
 
-  if (!args || args.length < 2) {
+  if (player.current_room_id !== AUCTION_ROOM_ID) {
+    return { text: '🔨 Solo podés subastar desde la Casa de Subastas (sala 17).\n  Movete al este desde la Cámara del Tesoro (sala 4).\n\n🔍 Para ver subastas activas usá: remates' };
+  }
+
+  if (args.length < 2) {
     return { text: 'Uso: subasta <ítem> <precio_mínimo>\nEjemplo: subasta espada 10\n\nPodés poner cualquier ítem de tu inventario a subasta.\nLa duración del remate es de 5 minutos.' };
   }
 
