@@ -1182,7 +1182,13 @@ function _cmdTrainingFight(player, monster) {
 
 function cmdAttack(player, targetName) {
   if (!targetName || !targetName.trim()) {
-    return { text: 'Indicá a quién querés atacar. Ej: "attack goblin".' };
+    // DIS-D303: Si hay exactamente 1 monstruo en la sala, auto-apuntar a él
+    const monstersInRoom = db.getMonstersInRoom(player.current_room_id);
+    if (monstersInRoom && monstersInRoom.length === 1) {
+      targetName = monstersInRoom[0].name;
+    } else {
+      return { text: 'Indicá a quién querés atacar. Ej: "attack goblin".' };
+    }
   }
 
   // Refrescar player desde BD para tener HP actualizado
@@ -6017,10 +6023,12 @@ function regenMana(player) {
   const now = Date.now();
   const lastRegen = player.last_mana_regen ? new Date(player.last_mana_regen).getTime() : 0;
   const minutesPassed = (now - lastRegen) / 60000;
-  // T107 + DIS-D293: Mago regenera 4x más rápido (4 maná/minuto en vez de 1)
-  // Antes era 2/minuto, demasiado lento para clase que depende del maná en combate
+  // T107 + DIS-D293 + DIS-D306: Mago regenera 6 maná/minuto (vs 1/min base)
+  // Historial: 1/min base → 2/min → 4/min → 6/min
+  // Con 35 de maná máx y hechizos de 8-12, a 4/min el mago se quedaba sin maná en mid-game.
+  // A 6/min recarga completo en ~6 min, viable en sesión de 10-15 min.
   const clsData = classes.getPlayerClass(player);
-  const regenRate = (clsData && clsData.name === 'Mago') ? 4 : 1;
+  const regenRate = (clsData && clsData.name === 'Mago') ? 6 : 1;
   const manaGained = Math.floor(minutesPassed * regenRate);
 
   if (manaGained <= 0) return player;

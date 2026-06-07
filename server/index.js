@@ -135,6 +135,7 @@ async function main() {
         max_mana: player.max_mana || 20,
         shield_active: player.shield_active || 0,
         player_class: player.player_class || 'sin_clase',
+        class_name: player.player_class || 'sin_clase',  // DIS-D305: alias para compatibilidad
         playtime_minutes: player.playtime_minutes || 0,
       },
       other_players: others,
@@ -454,6 +455,7 @@ async function main() {
           max_mana: player.max_mana || 20,
           shield_active: player.shield_active || 0,
           player_class: player.player_class || 'sin_clase',
+          class_name: player.player_class || 'sin_clase',  // DIS-D305: alias para compatibilidad
           playtime_minutes: player.playtime_minutes || 0,
         },
         other_players: others,
