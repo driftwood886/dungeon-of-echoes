@@ -6503,8 +6503,12 @@ function cmdBestiary(player) {
   lines[lines.length - 1] = `╚════════════════════════════════════════╝`;
   const TOTAL_TYPES = 14;
   const entryCount = entries.filter(e => e.name !== 'Goblin de Práctica').length;
-  if (entryCount >= TOTAL_TYPES) {
-    lines.push(`  📖👑 ¡BESTIARIO COMPLETO! ${entryCount}/${TOTAL_TYPES} tipos cazados — Sos un Conquistador del Dungeon.`);
+  // DIS-D294: verificar también si el logro ya fue desbloqueado (override si hay desincronización)
+  const achList = JSON.parse(fresh.achievements || '[]');
+  const hasConquistador = achList.includes('conquistador_dungeon');
+  if (entryCount >= TOTAL_TYPES || hasConquistador) {
+    const displayCount = Math.max(entryCount, TOTAL_TYPES);
+    lines.push(`  📖👑 ¡BESTIARIO COMPLETO! ${displayCount}/${TOTAL_TYPES} tipos cazados — Sos un Conquistador del Dungeon.`);
   } else {
     lines.push(`  Total: ${entries.length} tipo(s) de monstruo cazado(s). (${entryCount}/${TOTAL_TYPES} para logro Conquistador)`);
   }
