@@ -1750,6 +1750,35 @@ function cmdPick(player, itemQuery) {
     return { text: 'Error: tu habitación actual no existe.' };
   }
 
+  // DIS-D308: pick todo / pick all / pick everything — recoger todos los ítems del suelo
+  const queryNorm = itemQuery.trim().toLowerCase();
+  if (['todo', 'all', 'everything', 'todos', 'todas', 'recoger todo'].includes(queryNorm)) {
+    const floorItems = Array.isArray(room.items) ? [...room.items] : [];
+    if (floorItems.length === 0) {
+      return { text: 'No hay ítems en el suelo.' };
+    }
+    // Recoger todos — acumular resultados
+    const pickedLines = [];
+    const notPicked = [];
+    let current = db.getPlayer(player.id);
+    for (const item of floorItems) {
+      const inv = Array.isArray(current.inventory) ? current.inventory : [];
+      if (inv.length >= 20) {
+        notPicked.push(item);
+        pickedLines.push(`⚠️ Inventario lleno — quedó en el suelo: ${item}`);
+        continue;
+      }
+      const newInv = [...inv, item];
+      db.updatePlayer(current.id, { inventory: newInv });
+      pickedLines.push(`  ✅ ${item}`);
+      current = db.getPlayer(current.id);
+    }
+    // Dejar en el suelo solo los ítems no recogidos
+    db.updateRoomItems(room.id, notPicked);
+    const total = floorItems.length - notPicked.length;
+    return { text: `📦 Recogiste ${total} ítem(s) del suelo:\n${pickedLines.join('\n')}` };
+  }
+
   const found = items.findItem(room.items, itemQuery.trim());
   if (!found) {
     return { text: `No hay ningún "${itemQuery}" en el suelo.` };
