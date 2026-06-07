@@ -1178,8 +1178,20 @@ function cmdAttack(player, targetName) {
     const monstersInRoom = db.getMonstersInRoom(player.current_room_id);
     if (monstersInRoom && monstersInRoom.length === 1) {
       targetName = monstersInRoom[0].name;
+    } else if (monstersInRoom && monstersInRoom.length > 1) {
+      // DIS-D325: Mostrar lista numerada de enemigos cuando hay múltiples targets
+      const alive = monstersInRoom.filter(m => m.hp > 0);
+      if (alive.length === 1) {
+        targetName = alive[0].name;
+      } else if (alive.length === 0) {
+        return { text: '⚔️ No hay monstruos vivos aquí para atacar.' };
+      } else {
+        const list = alive.map((m, i) => `(${i + 1}) ${m.name} [${m.hp}/${m.max_hp} HP]`).join('  ');
+        const exampleName = alive[0].name.replace(/^[\s\p{Emoji_Presentation}\u2B50\u2764\u26A1\u2728\u{1F300}-\u{1FFFF}]+/u, '').trim().split(' ')[0].toLowerCase() || 'elemental';
+        return { text: `⚔️ Hay ${alive.length} enemigos en la sala:\n  ${list}\nIndicá a quién atacar: attack 1 / attack ${exampleName}` };
+      }
     } else {
-      return { text: 'Indicá a quién querés atacar. Ej: "attack goblin".' };
+      return { text: '⚔️ No hay monstruos aquí para atacar.' };
     }
   }
 
@@ -1194,6 +1206,15 @@ function cmdAttack(player, targetName) {
 
   const monster = combat.findMonsterInRoom(player.current_room_id, targetName.trim());
   if (!monster) {
+    // DIS-D325: Si el argumento es un número, intentar matching por posición
+    const numArg = parseInt(targetName.trim(), 10);
+    if (!isNaN(numArg)) {
+      const alive = db.getMonstersInRoom(player.current_room_id).filter(m => m.hp > 0);
+      if (numArg >= 1 && numArg <= alive.length) {
+        // Se encontró un monstruo por número, redirectear el flujo usando su nombre
+        return cmdAttack(player, alive[numArg - 1].name);
+      }
+    }
     return { text: `No hay ningún "${targetName}" aquí.` };
   }
 
