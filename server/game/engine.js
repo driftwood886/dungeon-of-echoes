@@ -6015,9 +6015,10 @@ function regenMana(player) {
   const now = Date.now();
   const lastRegen = player.last_mana_regen ? new Date(player.last_mana_regen).getTime() : 0;
   const minutesPassed = (now - lastRegen) / 60000;
-  // T107: Mago regenera 2x más rápido (2 maná/minuto en vez de 1)
+  // T107 + DIS-D293: Mago regenera 4x más rápido (4 maná/minuto en vez de 1)
+  // Antes era 2/minuto, demasiado lento para clase que depende del maná en combate
   const clsData = classes.getPlayerClass(player);
-  const regenRate = (clsData && clsData.name === 'Mago') ? 2 : 1;
+  const regenRate = (clsData && clsData.name === 'Mago') ? 4 : 1;
   const manaGained = Math.floor(minutesPassed * regenRate);
 
   if (manaGained <= 0) return player;

@@ -543,7 +543,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot };
 
 /**
  * STORY-003/004/005/007/012/017 — Migración de lore narrativo:
@@ -1053,4 +1053,24 @@ function migrateD46MonsterBalance() {
   }
 }
 
+/**
+ * DIS-D296: Agregar pociones de maná al loot de monstruos tempranos.
+ * El mago se queda sin maná en salas 1-3 y no puede comprar pociones (0g al inicio).
+ * Solución: Goblin Merodeador (id 1) y Murciélago Vampiro (id 6) dropean poción de maná.
+ * Idempotente: solo agrega si no está ya en el loot.
+ */
+function migrateManaLoot() {
+  // Goblin Merodeador (id 1) → poción de maná (loot temprano para magos)
+  const goblin = db.getMonster(1);
+  if (goblin && !goblin.loot.includes('poción de maná')) {
+    db.updateMonster(1, { loot: [...goblin.loot, 'poción de maná'] });
+    console.log('[seed] migrateManaLoot: poción de maná agregada al loot del Goblin Merodeador (id 1). DIS-D296 ✓');
+  }
 
+  // Murciélago Vampiro (id 6) → poción de maná (segunda sala disponible para el mago)
+  const bat = db.getMonster(6);
+  if (bat && !bat.loot.includes('poción de maná')) {
+    db.updateMonster(6, { loot: [...bat.loot, 'poción de maná'] });
+    console.log('[seed] migrateManaLoot: poción de maná agregada al loot del Murciélago Vampiro (id 6). DIS-D296 ✓');
+  }
+}
