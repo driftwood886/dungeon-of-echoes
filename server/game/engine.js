@@ -158,6 +158,10 @@ function execute(playerId, input, context) {
 
   db.touchPlayer(playerId);
 
+  // DIS-D326: Regeneración pasiva de HP (1 HP/minuto fuera de combate)
+  // Se aplica silenciosamente en cada comando — sin mensaje al jugador.
+  regenHp(db.getPlayer(playerId));
+
   const action = parse(input);
 
   // ── T164: Guardar en historial de sesión ────────────────────────────────────
@@ -6081,6 +6085,36 @@ function regenMana(player) {
   });
 
   return { ...player, mana: newMana, last_mana_regen: new Date().toISOString() };
+}
+
+/**
+ * DIS-D326: Regeneración pasiva de HP — 1 HP/minuto fuera de combate.
+ * Se llama junto con regenMana en los puntos de entrada de comandos.
+ * No actúa si el jugador ya está al máximo.
+ * @param {object} player — objeto jugador fresco de la DB
+ * @returns {object} jugador actualizado
+ */
+function regenHp(player) {
+  const currentHp = player.hp != null ? player.hp : 30;
+  const maxHp = player.max_hp || 30;
+
+  if (currentHp >= maxHp) return player;
+
+  const now = Date.now();
+  const lastRegen = player.last_hp_regen ? new Date(player.last_hp_regen).getTime() : 0;
+  const minutesPassed = (now - lastRegen) / 60000;
+
+  // 1 HP/minuto base (pasivo lento, para no trivializar la curación)
+  const hpGained = Math.floor(minutesPassed * 1);
+  if (hpGained <= 0) return player;
+
+  const newHp = Math.min(maxHp, currentHp + hpGained);
+  db.updatePlayer(player.id, {
+    hp: newHp,
+    last_hp_regen: new Date().toISOString(),
+  });
+
+  return { ...player, hp: newHp, last_hp_regen: new Date().toISOString() };
 }
 
 /**

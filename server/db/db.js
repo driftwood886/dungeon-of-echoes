@@ -176,6 +176,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN lich_kills INTEGER NOT NULL DEFAULT 0`,             // DIS-D291: ciclos post-endgame
     `ALTER TABLE players ADD COLUMN cycle_best_time INTEGER`,                           // DIS-D291: mejor tiempo de ciclo (minutos de playtime al matar Lich)
     `ALTER TABLE players ADD COLUMN endgame_challenges TEXT NOT NULL DEFAULT '{}'`,     // DIS-D291: desafíos post-boss completados
+    `ALTER TABLE players ADD COLUMN last_hp_regen TEXT`,                                // DIS-D326: timestamp última regen pasiva de HP
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
