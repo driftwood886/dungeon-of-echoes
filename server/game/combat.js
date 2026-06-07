@@ -940,9 +940,29 @@ function checkRespawns(onBossRespawn, onAnyRespawn) {
     // DIS-D37: Al respawnear el boss, limpiar el loot acumulado en el suelo de su sala.
     // La Catedral de la Oscuridad (sala 15) acumula ítems de kills anteriores si nadie los recoge.
     // Narrativamente: "La oscuridad engulle los restos antes de que el Lich regrese."
-    if (BOSS_MONSTERS[m.id]) {
-      try { db.updateRoomItems(m.respawn_room_id, []); } catch (_) {}
-    }
+    // BUG-321: Extender a todos los monstruos: al respawnear, quitar sus propios ítems del suelo
+    // para evitar acumulación duplicada si el jugador no recogió el loot anterior.
+    try {
+      if (BOSS_MONSTERS[m.id]) {
+        // Boss: limpiar TODO el suelo (puede haber drops de combate previo también)
+        db.updateRoomItems(m.respawn_room_id, []);
+      } else if (m.loot && m.loot.length > 0) {
+        // Monstruo normal: solo remover sus propios ítems de loot del suelo
+        const mLoot = Array.isArray(m.loot) ? m.loot : JSON.parse(m.loot || '[]');
+        const room = db.getRoom(m.respawn_room_id);
+        if (room && room.items && room.items.length > 0) {
+          // Quitar una copia de cada ítem del loot del monstruo del suelo de la sala
+          const floorItems = [...room.items];
+          for (const lootItem of mLoot) {
+            const idx = floorItems.indexOf(lootItem);
+            if (idx !== -1) floorItems.splice(idx, 1);
+          }
+          if (floorItems.length !== room.items.length) {
+            db.updateRoomItems(m.respawn_room_id, floorItems);
+          }
+        }
+      }
+    } catch (_) {}
     // T223: Notificar respawn de cualquier monstruo (para tracking)
     if (typeof onAnyRespawn === 'function') {
       try { onAnyRespawn(m.id, baseNameForElite, m.respawn_room_id, isElite); } catch (_) {}

@@ -6149,7 +6149,7 @@ function cmdCast(player, args) {
   // Verificar maná suficiente
   if (currentMana < spell.cost) {
     return {
-      text: `🪄 No tenés maná suficiente para ${spell.icon} ${spellName}.\n   Necesitás ${spell.cost} maná, tenés ${currentMana}/${maxMana}.\n   Esperá que se recargue (1 maná/minuto) o usá una poción de maná.`,
+      text: `🪄 No tenés maná suficiente para ${spell.icon} ${spellName}.\n   Necesitás ${spell.cost} maná, tenés ${currentMana}/${maxMana}.\n   Esperá que se recargue (${(() => { const c = classes.getPlayerClass(player); return (c && c.name === 'Mago') ? 6 : 1; })()}\u00a0maná/minuto) o usá una poción de maná.`,
     };
   }
 
@@ -6365,7 +6365,7 @@ function cmdSpells(player) {
     `🪄 SISTEMA DE MAGIA`,
     `━━━━━━━━━━━━━━━━━━━━`,
     `Maná: ${manaBar} ${currentMana}/${maxMana}${shieldActive}`,
-    `(Recarga: 1 maná/minuto. Pociones de maná restauran instantáneamente.)`,
+    `(Recarga: ${(() => { const c = classes.getPlayerClass(player); return (c && c.name === 'Mago') ? 6 : 1; })()} maná/minuto. Pociones de maná restauran instantáneamente.)`,
     ``,
     `Hechizos disponibles:`,
   ];
@@ -6468,7 +6468,7 @@ function cmdClase(player, args) {
   if (className === 'picaro') {
     lines.push(``, `💡 Como Pícaro tus golpes críticos son del 25% y esquivas el 20% de ataques.`);
   } else if (className === 'mago') {
-    lines.push(``, `💡 Como Mago tus hechizos hacen 1.5× de daño y la recarga de maná es 2× más rápida.`);
+    lines.push(``, `💡 Como Mago tus hechizos hacen 1.5× de daño y la recarga de maná es 6× más rápida.`);
   } else if (className === 'guerrero') {
     lines.push(``, `💡 Como Guerrero absorbés más daño y tenés mayor HP máximo.`);
   }
@@ -9372,7 +9372,7 @@ function cmdGuide(args) {
       '',
       '🔮 MAGO',
       '  HP: 22 | ATK: 4 | Maná: 35',
-      '  Hechizos ×1.5 de poder. Regen de maná 2× más rápido.',
+      '  Hechizos ×1.5 de poder. Regen de maná 6× más rápido.',
       '  Hechizos: cast bola-de-fuego / escudo / curación',
       '  Consejo: conservá maná para hechizos de alto impacto.',
       '',
