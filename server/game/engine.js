@@ -1949,22 +1949,25 @@ function cmdUse(player, itemQuery) {
 
   } else if (def.type === 'antidote' && def.effect === 'cure_poison') {
     const statusFx = player.status_effects || {};
-    const newInv2 = removeFirst(player.inventory, found);
     if (statusFx.poisoned) {
-      // Curar veneno (uso principal)
+      // Curar veneno (uso principal) — consumir la hierba
+      const newInv2 = removeFirst(player.inventory, found);
       delete statusFx.poisoned;
       db.updatePlayer(player.id, { inventory: newInv2, status_effects: JSON.stringify(statusFx) });
       resultText = `✅ Bebés la ${found}. El veneno se neutraliza de inmediato. Te sentís mejor.`;
     } else {
       // BUG-289: sin veneno, cura 12 HP en su lugar
+      // BUG-310: no consumir si HP ya está al máximo
       const HERB_HEAL = 12;
       const maxHp = player.max_hp || 100;
+      if (player.hp >= maxHp) {
+        return { text: `🌿 Ya estás al máximo de HP (${player.hp}/${maxHp}). Guardás la ${found}.` };
+      }
+      const newInv2 = removeFirst(player.inventory, found);
       const newHp = Math.min(player.hp + HERB_HEAL, maxHp);
       const healed = newHp - player.hp;
       db.updatePlayer(player.id, { inventory: newInv2, hp: newHp });
-      resultText = healed > 0
-        ? `🌿 Masticás la ${found}. Sus propiedades medicinales te curan ${healed} HP. (${newHp}/${maxHp} HP)`
-        : `🌿 Masticás la ${found} pero tu HP ya está al máximo. El ítem fue consumido.`;
+      resultText = `🌿 Masticás la ${found}. Sus propiedades medicinales te curan ${healed} HP. (${newHp}/${maxHp} HP)`;
     }
 
   } else if (def.type === 'weapon') {
