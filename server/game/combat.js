@@ -723,13 +723,19 @@ function attackRound(player, monster) {
       if (room) {
         const exits = room.exits || {};
         // Obtener IDs de salas destino (manejo de exits como objeto o {room_id, key})
-        const destinations = Object.values(exits)
-          .map(v => (typeof v === 'object' ? v.room_id : v))
-          .filter(id => id && id !== player.current_room_id);
+        const exitEntries = Object.entries(exits)
+          .map(([dir, v]) => ({ dir, room_id: typeof v === 'object' ? v.room_id : v }))
+          .filter(e => e.room_id && e.room_id !== player.current_room_id);
+        const destinations = exitEntries.map(e => e.room_id);
         if (destinations.length > 0) {
-          const escapeRoom = destinations[Math.floor(Math.random() * destinations.length)];
+          const escapeIdx = Math.floor(Math.random() * exitEntries.length);
+          const escapeEntry = exitEntries[escapeIdx];
+          const escapeRoom = escapeEntry.room_id;
+          // DIS-D295: indicar la dirección de huida para que el jugador pueda seguir al boss
+          const DIR_NAMES = { norte: 'al norte', sur: 'al sur', este: 'al este', oeste: 'al oeste', arriba: 'hacia arriba', abajo: 'hacia abajo', north: 'al norte', south: 'al sur', east: 'al este', west: 'al oeste', up: 'hacia arriba', down: 'hacia abajo' };
+          const dirHint = DIR_NAMES[escapeEntry.dir] || `hacia ${escapeEntry.dir}`;
           db.updateMonster(monster.id, { room_id: escapeRoom });
-          lines.push(`🏃 ¡El ${monster.name} huye despavorido hacia otra sala! (HP: ${monster.hp}/${monster.max_hp})`);
+          lines.push(`🏃 ¡El ${monster.name} huye despavorido ${dirHint}! (HP: ${monster.hp}/${monster.max_hp})`);
           lines.push(`   💨 Escapó sin dejar botín. Si lo seguís, podés terminar el trabajo.`);
         }
       }
