@@ -1918,8 +1918,19 @@ function cmdPick(player, itemQuery) {
     }
   }
 
+  // DIS-D327: hint de quest de Aldric cuando se recoge la carta sellada
+  let cartaHint = '';
+  if (found.toLowerCase().includes('carta sellada') && player.current_room_id === 8) {
+    const questState = player.aldric_quest || 'none';
+    if (questState === 'none') {
+      cartaHint = '\n\n📜 El sello de las dos llaves cruzadas... recordás haberlo visto en algún otro lugar del dungeon. (Pista: "hablar aldric" en sala 4)';
+    } else if (questState === 'active') {
+      cartaHint = '\n\n📜 ¡La carta de la quest de Aldric! Llevásela al mercader en sala 4 ("hablar aldric").';
+    }
+  }
+
   return {
-    text: `${rarityEmoji} Recogés ${found} y lo guardás en tu mochila.${rarityLabel}${pickCraftHint}`,
+    text: `${rarityEmoji} Recogés ${found} y lo guardás en tu mochila.${rarityLabel}${pickCraftHint}${cartaHint}`,
     event: `${player.username} recoge algo del suelo.`,
     eventRoomId: room.id,
   };
@@ -2236,7 +2247,7 @@ function cmdExamine(player, query) {
     'runas':           { rooms: [10], text: 'Las runas con sangre seca forman un patrón que tardás un momento en ver completo: es un círculo, y en su centro hay un nombre escrito en un idioma que nadie habla hace doscientos años. No sabés cómo, pero lo podés leer: K-A-E-L-T-H-A-S. El patrón de las runas forma un nombre. No querés saber cómo lo sabés.' },
     'estatua':         { rooms: [10], text: 'La estatua con diez brazos no corresponde a ningún dios que conozcas. Cada brazo sostiene algo distinto: un escudo, una espada, un libro, una llave, una copa, una antorcha... Los últimos tres brazos están vacíos. La placa en la base está en blanco, raspada hasta la piedra. Alguien borró el nombre deliberadamente.' },
     'carta':           { rooms: [8],  text: 'Un sobre sellado con cera negra, marcado con el símbolo de dos llaves cruzadas. La cera está intacta. Podés abrirla, pero algo en vos duda: hay cosas que no se pueden ignorar una vez que se saben.' },
-    'carta sellada':   { rooms: [8],  text: 'Un sobre sellado con cera negra, marcado con el símbolo de dos llaves cruzadas. La cera está intacta. El papel es viejo pero el sellado es perfecto —alguien tomó cuidado de que esto durara. En el reverso, en letra pequeña: "Para quien llegue después. Perdoname." Sin firma.' },
+    'carta sellada':   { rooms: [8],  text: 'Un sobre sellado con cera negra, marcado con el símbolo de dos llaves cruzadas. La cera está intacta. El papel es viejo pero el sellado es perfecto —alguien tomó cuidado de que esto durara. En el reverso, en letra pequeña: "Para quien llegue después. Perdoname." Sin firma.\n\n🔍 El símbolo de las dos llaves cruzadas... ¿no lo viste en el delantal del mercader de la sala 4? ("hablar aldric" en sala 4)' },
     // STORY-007: Diario de aventurero anterior en sala 11 (Galería de Hielo)
     'cadaver':         { rooms: [11], text: 'Uno de los cadáveres congelados lleva encima lo que queda de un diario. Las páginas están tan heladas que al tocarlas crean ruido de cristal roto.' },
     'cadáver':         { rooms: [11], text: 'Uno de los cadáveres congelados lleva encima lo que queda de un diario. Las páginas están tan heladas que al tocarlas crean ruido de cristal roto.' },
