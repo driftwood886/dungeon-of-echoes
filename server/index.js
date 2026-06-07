@@ -103,6 +103,25 @@ async function main() {
     const events   = db.getRecentEvents(player.current_room_id, 5)
                        .map(e => e.result);
 
+    // DIS-D329: map_summary — salas adyacentes con info de peligro para sidebar persistente
+    const mapSummary = [];
+    const exits = room.exits || {};
+    for (const [dir, target] of Object.entries(exits)) {
+      const adjRoomId = typeof target === 'object' ? target.room_id : target;
+      if (!adjRoomId) continue;
+      const adjRoom = db.getRoom(adjRoomId);
+      if (!adjRoom) continue;
+      const adjMonsters = db.getMonstersInRoom(adjRoomId).filter(m => m.hp > 0);
+      mapSummary.push({
+        direction: dir,
+        room_id: adjRoomId,
+        name: adjRoom.name,
+        monsters: adjMonsters.map(m => ({ name: m.name, hp: m.hp, max_hp: m.max_hp })),
+        danger: adjMonsters.length > 0 ? (adjMonsters.some(m => m.max_hp >= 50) ? 'alta' : 'media') : 'ninguno',
+        locked: typeof target === 'object' && target.requires_key ? true : false,
+      });
+    }
+
     res.json({
       room: {
         id: room.id,
@@ -140,6 +159,7 @@ async function main() {
       },
       other_players: others,
       recent_events: events,
+      map_summary: mapSummary,
       party: player.party_id
         ? db.getPartyMembers(player.party_id)
             .filter(m => m.id !== player.id)
