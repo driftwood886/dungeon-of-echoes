@@ -63,6 +63,12 @@ const RECIPES = [
     result: 'látigo de garras',
     message: 'Atás las garras de esqueleto con la cuerda para crear un látigo improvisado pero mortal.',
   },
+  {
+    // DIS-D292: escudo roto ahora tiene uso — los huesos del mismo esqueleto refuerzan el escudo
+    ingredients: ['escudo roto', 'garra de esqueleto'],
+    result: 'escudo de gladiador',
+    message: 'Usás la garra del esqueleto para reforzar los bordes del escudo roto. Los huesos se funden con el metal de forma extraña. El escudo queda más sólido que antes — alguien grabó "MAXIMUS" en él hace mucho tiempo.',
+  },
   // Misc / Coleccionables
   {
     ingredients: ['hilo de seda', 'cuerda'],
