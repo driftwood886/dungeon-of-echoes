@@ -6631,8 +6631,9 @@ function cmdSkills(player) {
       lines.push('  Aún no desbloqueaste ninguna habilidad.');
       lines.push('  (Nivel 1: Robar · Nivel 3: Golpe Sucio)');
     } else if (cls === 'mago') {
-      lines.push('  Usá "hechizos" para ver tus hechizos disponibles.');
-      lines.push('  (Nivel 3: Golpetazo · Nivel 6: Golpe de Escudo · Nivel 10: Arenga)');
+      lines.push('  Los Magos no usan habilidades físicas.');
+      lines.push('  Tu poder está en los hechizos: usá "hechizos" para verlos.');
+      lines.push('  (cast bola de fuego / cast rayo / cast curación / cast escudo)');
     } else {
       lines.push('  Aún no desbloqueaste ninguna habilidad.');
       lines.push('  (Nivel 3: Golpetazo · Nivel 6: Golpe de Escudo · Nivel 10: Arenga)');
@@ -6652,6 +6653,8 @@ function cmdSkills(player) {
   const locked = skills.ALL_SKILLS.filter(sk => {
     if (level >= sk.required_level) return false;
     if (sk.required_class && sk.required_class !== fresh.player_class) return false;
+    // DIS-D304: no mostrar skills físicas bloqueadas a Magos
+    if (sk.excluded_classes && sk.excluded_classes.includes(fresh.player_class)) return false;
     return true;
   });
   if (locked.length > 0) {

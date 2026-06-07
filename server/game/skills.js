@@ -24,6 +24,7 @@ const SKILLS = {
     dmg_multiplier: 1.8,
     description: 'Un golpe devastador que hace ×1.8 del daño normal. Cooldown: 45s.',
     combat_only: true,
+    excluded_classes: ['mago'],  // DIS-D304: Mago usa hechizos, no golpes físicos
   },
   shield_bash: {
     id: 'shield_bash',
@@ -36,6 +37,7 @@ const SKILLS = {
     stun_turns: 1,
     description: 'Golpea con el escudo: daño normal + aturde al monstruo 1 turno. Cooldown: 60s.',
     combat_only: true,
+    excluded_classes: ['mago'],  // DIS-D304
   },
   rally: {
     id: 'rally',
@@ -48,6 +50,7 @@ const SKILLS = {
     duration_seconds: 60,
     description: 'Arenga a tu grupo: +2 ATK a todos en la sala por 60s. Requiere grupo. Cooldown: 2 min.',
     combat_only: false,
+    excluded_classes: ['mago'],  // DIS-D304
   },
   // ── Habilidades exclusivas del Pícaro (BUG-271) ──────────────────────────
   robar: {
@@ -105,6 +108,8 @@ function getUnlockedSkills(level, playerClass) {
   return ALL_SKILLS.filter(sk => {
     if (level < sk.required_level) return false;
     if (sk.required_class && playerClass !== sk.required_class) return false;
+    // DIS-D304: excluir skills que no aplican a la clase
+    if (sk.excluded_classes && sk.excluded_classes.includes(playerClass)) return false;
     return true;
   });
 }
