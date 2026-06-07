@@ -36,12 +36,16 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
   if (freshP.is_hardcore === 1 && freshP.fallen !== 1) {
     // MUERTE HARDCORE — marcar como fallen
     const gen = freshP.hardcore_generation || 1;
+    // DIS-D324: preservar trap_cd_* incluso en muerte hardcore
+    const prevSeHc = freshP.status_effects ? (typeof freshP.status_effects === 'string' ? JSON.parse(freshP.status_effects) : freshP.status_effects) : {};
+    const trapMemoriesHc = Object.fromEntries(Object.entries(prevSeHc).filter(([k]) => k.startsWith('trap_cd_')));
+    const newSeHc = Object.keys(trapMemoriesHc).length > 0 ? JSON.stringify(trapMemoriesHc) : '{}';
     db.updatePlayer(playerId, {
       hp: 1, // HP fantasma
       fallen: 1,
       fallen_at: new Date().toISOString(),
       deaths,
-      status_effects: '{}',
+      status_effects: newSeHc,
     });
     const genRoman = toRomanLocal(gen);
     const broadcastMsg = `☠ ✝ EL AVENTURERO CAÍDO ✝ ☠\n  ${freshP.username} ${genRoman} ha caído para siempre en modo HARDCORE.\n  Descansa en paz, valiente. El dungeon recuerda tu sacrificio.`;
@@ -58,7 +62,11 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
   } else {
     // Muerte normal — DIS-D41: respawn con 25% del max_hp (mín 5)
     const respawnHp = Math.max(5, Math.floor((freshP.max_hp || 20) * 0.25));
-    db.updatePlayer(playerId, { hp: respawnHp, current_room_id: 1, deaths, status_effects: '{}' });
+    // DIS-D324: preservar trap_cd_* al morir — el jugador recuerda trampas entre muertes
+    const prevSe = freshP.status_effects ? (typeof freshP.status_effects === 'string' ? JSON.parse(freshP.status_effects) : freshP.status_effects) : {};
+    const trapMemories = Object.fromEntries(Object.entries(prevSe).filter(([k]) => k.startsWith('trap_cd_')));
+    const newSe = Object.keys(trapMemories).length > 0 ? JSON.stringify(trapMemories) : '{}';
+    db.updatePlayer(playerId, { hp: respawnHp, current_room_id: 1, deaths, status_effects: newSe });
     // STORY-019: entrada de diario con color emocional para primera muerte
     if (deaths === 1) {
       db.addJournalEntry(playerId, 'death', `💀 Moriste. No fue heroico. Fue un pasillo oscuro y algo que no viste.`);
