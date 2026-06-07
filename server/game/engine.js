@@ -714,37 +714,17 @@ function cmdMove(player, direction) {
   // T120: si el jugador tiene mascota, 15% de chance de avisar la trampa antes de activarse
   if (targetRoomFull && targetRoomFull.trap && targetRoomFull.trap.active) {
     const trap = targetRoomFull.trap;
-    // DIS-D43/DIS-D279: cooldown personal de trampa — el jugador recuerda la trampa brevemente (90s)
-    // DIS-D279: reducido de 5 min a 90s para que las trampas mantengan su amenaza con el tiempo
+    // DIS-D43/DIS-D279: cooldown personal de trampa — el jugador recuerda la trampa
+    // DIS-D307: aumentado a 30 minutos (antes 90s). A 90s el jugador re-activaba la trampa
+    //   al explorar repetidamente la misma sala. El aprendizaje debe durar toda la sesión.
     const statusEff = player.status_effects || {};
     const trapCdKey = `trap_cd_${targetId}`;
     const trapCdExpiry = statusEff[trapCdKey] ? new Date(statusEff[trapCdKey]).getTime() : 0;
     const trapKnown = trapCdExpiry > Date.now();
     if (trapKnown) {
-      // DIS-D279: el recuerdo es incierto — 80% de chance de esquivar, 20% de activarse igual
-      // (la trampa "cambia de posición" conceptualmente — no podés estar 100% seguro)
-      if (Math.random() < 0.80) {
-        trapText = `\n\n🧠 Recordás la trampa de esta sala. Con cuidado, la esquivás... esta vez.`;
-      } else {
-        // Se activa igual a pesar de recordarla
-        player = db.getPlayer(player.id);
-        const variantDmg = Math.max(1, trap.damage + (Math.random() < 0.5 ? 1 : -1)); // +/-1 variante
-        const newHp = Math.max(0, player.hp - variantDmg);
-        const updatedSE = { ...(player.status_effects || {}), [trapCdKey]: new Date(Date.now() + 90 * 1000).toISOString() };
-        db.updatePlayer(player.id, { hp: newHp, status_effects: JSON.stringify(updatedSE) });
-        trapText = `\n\n⚠️  ¡TRAMPA! ${trap.description}\n😲 Creías conocerla, pero la trampa volvió a sorprenderte.\n💥 Perdés ${variantDmg} HP. (${newHp}/${player.max_hp} HP)`;
-        if (newHp === 0) {
-          const trapDeathLines = [];
-          combat.handlePlayerDeath(player.id, trapDeathLines, `trampa en sala ${targetId}`);
-          const afterDeath = db.getPlayer(player.id);
-          if (afterDeath && afterDeath.fallen !== 1 && afterDeath.current_room_id !== 1) {
-            db.updatePlayer(player.id, { hp: afterDeath.max_hp || 30, current_room_id: 1 });
-          }
-          trapText += '\n☠️  Has muerto a causa de la trampa. Renacés en la Entrada.';
-          if (trapDeathLines.length > 0) trapText += '\n' + trapDeathLines.join('\n');
-        }
-        trapText += '\n💡 Tip: escribí \"desactivar trampa\" para neutralizarla permanentemente.';
-      }
+      // DIS-D307: si ya conoce la trampa, la esquiva siempre (era 80% antes).
+      // El jugador aprendió el mecanismo — no tiene sentido que siga haciéndole daño.
+      trapText = `\n\n🧠 Recordás la trampa de esta sala. Con cuidado, la esquivás sin problema.`;
     // Aviso de mascota (T120): 15% de chance de prevenir el daño
     } else if (player.pet && Math.random() < 0.15) {
       trapText = `\n\n🐾 ¡Tu ${player.pet} te advierte a tiempo! Evitás la trampa: ${trap.description.split('–')[0].trim()}.`;
@@ -754,10 +734,10 @@ function cmdMove(player, direction) {
       // DIS-D279: daño con leve varianza para que nunca sea exactamente predecible
       const variantDmg = Math.max(1, trap.damage + (Math.random() < 0.33 ? 1 : Math.random() < 0.5 ? -1 : 0));
       const newHp = Math.max(0, player.hp - variantDmg);
-      // DIS-D279: cooldown reducido a 90s (antes 5 min) — el recuerdo es más efímero
-      const updatedSE = { ...(player.status_effects || {}), [trapCdKey]: new Date(Date.now() + 90 * 1000).toISOString() };
+      // DIS-D307: cooldown aumentado a 30 minutos (era 90s). El aprendizaje dura toda la sesión.
+      const updatedSE = { ...(player.status_effects || {}), [trapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
       db.updatePlayer(player.id, { hp: newHp, status_effects: JSON.stringify(updatedSE) });
-      trapText = `\n\n⚠️  ¡TRAMPA! ${trap.description}\n💥 Perdés ${variantDmg} HP. (${newHp}/${player.max_hp} HP)\n🧠 Recordás el mecanismo, pero el recuerdo se desvanece rápido.`;
+      trapText = `\n\n⚠️  ¡TRAMPA! ${trap.description}\n💥 Perdés ${variantDmg} HP. (${newHp}/${player.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte.`;
       if (newHp === 0) {
         // BUG-006 fix: usar handlePlayerDeath para registrar deaths correctamente
         const trapDeathLines = [];
