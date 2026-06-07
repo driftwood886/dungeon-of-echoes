@@ -1815,6 +1815,12 @@ function cmdPick(player, itemQuery) {
         const fq2 = db.getPlayer(player.id);
         db.updatePlayer(player.id, { gold: (fq2.gold || 0) + r.gold, xp: (fq2.xp || 0) + r.xp });
         goldQuestLine = `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
+      } else if (!qrGold.justCompleted) {
+        // DIS-D328: mostrar progreso actualizado de quest de oro activa
+        const activeQ = quests.getActiveQuest();
+        if (activeQ && activeQ.questDef && activeQ.questDef.type === 'gold') {
+          goldQuestLine = `\n📜 Quest: ${activeQ.questDef.title} — ${qrGold.newProgress}/${activeQ.questDef.goal}g`;
+        }
       }
     }
     // Desafío diario: oro (T141)
