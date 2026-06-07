@@ -607,7 +607,8 @@ function cmdMove(player, direction) {
   // BUG-285: Si hay monstruos vivos en la sala actual, mover es huida — aplicar tryFlee
   const monstersHere = db.getMonstersInRoom(player.current_room_id);
   // BUG-302: Los maniquíes de entrenamiento (sala 21) no deben bloquear el movimiento
-  const aliveHere = monstersHere.filter(m => m.hp > 0 && !TRAINING_DUMMY_IDS.has(m.id));
+  // BUG-309: El Goblin de Práctica de la Antesala (id=20) tampoco debe bloquear
+  const aliveHere = monstersHere.filter(m => m.hp > 0 && !NON_BLOCKING_MONSTER_IDS.has(m.id));
   if (aliveHere.length > 0) {
     // Elegir el monstruo más amenazante (mayor HP) para la narrativa de huida
     const monster = aliveHere.sort((a, b) => b.hp - a.hp)[0];
@@ -1040,6 +1041,13 @@ function cmdStatus(player) {
 // T143: IDs de maniquíes de entrenamiento (sala 21)
 const TRAINING_ROOM_ID = 21;
 const TRAINING_DUMMY_IDS = new Set([23, 24, 25]);
+
+// BUG-309: IDs de monstruos de tutorial que no deben bloquear el movimiento
+// ID 20 = Goblin de Práctica en la Antesala (sala tutorial)
+const TUTORIAL_MONSTER_IDS = new Set([20]);
+
+// Todos los monstruos de entrenamiento/tutorial que no bloquean movimiento
+const NON_BLOCKING_MONSTER_IDS = new Set([...TRAINING_DUMMY_IDS, ...TUTORIAL_MONSTER_IDS]);
 
 /**
  * T143: _cmdTrainingFight — Combate completo contra un maniquí en la Sala de Práctica.
@@ -1670,7 +1678,8 @@ function cmdFlee(player, targetQuery) {
   player = db.getPlayer(player.id);
   const room = db.getRoom(player.current_room_id);
   // BUG-302: Excluir maniquíes de entrenamiento del comando huir
-  const monsters = db.getMonstersInRoom(player.current_room_id).filter(m => !TRAINING_DUMMY_IDS.has(m.id));
+  // BUG-309: Excluir también el Goblin de Práctica de la Antesala (id=20)
+  const monsters = db.getMonstersInRoom(player.current_room_id).filter(m => !NON_BLOCKING_MONSTER_IDS.has(m.id));
 
   if (monsters.length === 0) {
     return { text: 'No hay nada de lo que huir aquí.' };
