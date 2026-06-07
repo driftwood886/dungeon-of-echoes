@@ -606,7 +606,8 @@ function cmdMove(player, direction) {
 
   // BUG-285: Si hay monstruos vivos en la sala actual, mover es huida — aplicar tryFlee
   const monstersHere = db.getMonstersInRoom(player.current_room_id);
-  const aliveHere = monstersHere.filter(m => m.hp > 0);
+  // BUG-302: Los maniquíes de entrenamiento (sala 21) no deben bloquear el movimiento
+  const aliveHere = monstersHere.filter(m => m.hp > 0 && !TRAINING_DUMMY_IDS.has(m.id));
   if (aliveHere.length > 0) {
     // Elegir el monstruo más amenazante (mayor HP) para la narrativa de huida
     const monster = aliveHere.sort((a, b) => b.hp - a.hp)[0];
@@ -1682,7 +1683,8 @@ function cmdAttack(player, targetName) {
 function cmdFlee(player, targetQuery) {
   player = db.getPlayer(player.id);
   const room = db.getRoom(player.current_room_id);
-  const monsters = db.getMonstersInRoom(player.current_room_id);
+  // BUG-302: Excluir maniquíes de entrenamiento del comando huir
+  const monsters = db.getMonstersInRoom(player.current_room_id).filter(m => !TRAINING_DUMMY_IDS.has(m.id));
 
   if (monsters.length === 0) {
     return { text: 'No hay nada de lo que huir aquí.' };
