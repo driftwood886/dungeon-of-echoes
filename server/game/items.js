@@ -81,7 +81,7 @@ const ITEM_CATALOG = {
   'lingote de hierro':   { type: 'misc', description: 'Un lingote de hierro puro, salido directo de la forja. Pesado y caliente aún.' },
   'perla negra':         { type: 'misc', description: 'Una perla de un negro absoluto del lago subterráneo. Tiene un valor incalculable.' },
   'red de pesca':        { type: 'misc', description: 'Una red de pesca resistente. Podría servir para algo más que pescar.' },
-  'escudo de gladiador': { type: 'armor', defense: 3, description: 'El escudo de un gladiador del coliseo de huesos. Lleva el nombre "MAXIMUS" grabado. Otorga +3 DEF.' },
+  'escudo de gladiador': { type: 'armor', effect: 'defense_bonus', amount: 3, description: 'El escudo de un gladiador del coliseo de huesos. Lleva el nombre "MAXIMUS" grabado. Otorga +3 DEF.' },
   'tomo sellado':        { type: 'misc', description: 'Un tomo sellado con cera negra. Las runas del sello pulsan suavemente. No se puede abrir... aún.' },
   'carta sellada':       { type: 'misc', description: 'Un sobre sellado con cera negra marcado con dos llaves cruzadas — el sello del reino de Valdrath. En el reverso, en letra pequeña: "Para quien llegue después. Perdoname." Sin firma. Puede que sea mejor no abrirla.' },
   'páginas congeladas':  { type: 'misc', description: 'Fragmentos de un diario conservados por el hielo. La escritura es difusa pero legible: "Sé quién es. Eso lo hace peor." La última entrada es del mismo año en que el Reino de Valdrath dejó de aparecer en los mapas.' },
