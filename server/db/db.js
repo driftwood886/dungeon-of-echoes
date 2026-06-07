@@ -889,8 +889,11 @@ function createAuction(sellerId, sellerName, itemName, minPrice, durationMs = 5 
  */
 function getActiveAuctions() {
   // BUG-312: usar replace(ends_at,'T',' ') para normalizar tanto fechas ISO ('T') como SQLite (' ')
+  // BUG-314: pasar now como parámetro en lugar de usar datetime('now') de SQLite/WASM
+  const now = new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
   return all(
-    `SELECT * FROM auctions WHERE closed = 0 AND replace(ends_at,'T',' ') > datetime('now') ORDER BY ends_at ASC`
+    `SELECT * FROM auctions WHERE closed = 0 AND replace(ends_at,'T',' ') > ? ORDER BY ends_at ASC`,
+    [now]
   );
 }
 
@@ -933,8 +936,11 @@ function placeBid(auctionId, bidderId, bidderName, amount) {
  */
 function closeExpiredAuctions() {
   // BUG-312: usar replace(ends_at,'T',' ') para normalizar tanto fechas ISO ('T') como SQLite (' ')
+  // BUG-314: pasar now como parámetro para consistencia con getActiveAuctions
+  const now = new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
   const expired = all(
-    `SELECT * FROM auctions WHERE closed = 0 AND replace(ends_at,'T',' ') <= datetime('now')`
+    `SELECT * FROM auctions WHERE closed = 0 AND replace(ends_at,'T',' ') <= ?`,
+    [now]
   );
   for (const a of expired) {
     run(`UPDATE auctions SET closed = 1 WHERE id = ?`, [a.id]);

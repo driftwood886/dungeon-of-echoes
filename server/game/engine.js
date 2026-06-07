@@ -1880,7 +1880,7 @@ function cmdPick(player, itemQuery) {
     if (invNorm2.includes(ingA.toLowerCase().trim()) && invNorm2.includes(ingB.toLowerCase().trim())) {
       const hKey = `craft_hint_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
       if (!shownH2[hKey]) {
-        pickCraftHint = `\n💡 ¡Tip de crafteo! Tenés "${ingA}" y "${ingB}" — combiná con:\n   craftear ${ingA} + ${ingB}`;
+        pickCraftHint = `\n💡 ¡Tip de crafteo! Tenés "${ingA}" y "${ingB}" — combiná con:\n   craftear ${ingA} con ${ingB}`;
         db.updatePlayer(freshP2.id, { status_effects: JSON.stringify({ ...shownH2, [hKey]: true }) });
         break;
       }
@@ -1934,8 +1934,12 @@ function cmdUse(player, itemQuery) {
 
   } else if (def.type === 'mana_potion' && def.effect === 'restore_mana') {
     // T104: Pociones de maná
+    // BUG-313: verificar maná lleno ANTES de consumir
     const currentMana = player.mana != null ? player.mana : 20;
     const maxMana = player.max_mana || 20;
+    if (currentMana >= maxMana) {
+      return { text: `💧 Tu maná ya está al máximo (${currentMana}/${maxMana}). Guardás la ${found}.` };
+    }
     const newMana = Math.min(maxMana, currentMana + def.amount);
     const restored = newMana - currentMana;
 
@@ -1943,9 +1947,7 @@ function cmdUse(player, itemQuery) {
     const newInvM = removeFirst(player.inventory, found);
     db.updatePlayer(player.id, { inventory: newInvM, mana: newMana, last_mana_regen: new Date().toISOString() });
 
-    resultText = restored > 0
-      ? `💧 Bebés la ${found}. Recuperás ${restored} maná. (${newMana}/${maxMana} maná)`
-      : `💧 Bebés la ${found} pero tu maná ya está al máximo.`;
+    resultText = `💧 Bebés la ${found}. Recuperás ${restored} maná. (${newMana}/${maxMana} maná)`;
 
   } else if (def.type === 'antidote' && def.effect === 'cure_poison') {
     const statusFx = player.status_effects || {};
@@ -2736,7 +2738,7 @@ function cmdLoot(player) {
     if (hasA && hasB) {
       const hintKey = `craft_hint_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
       if (!shownHints[hintKey]) {
-        craftHintLine = `\n\n💡 ¡Tip de crafteo! Tenés "${ingA}" y "${ingB}" — podés combinarlos:\n   → escribí: craftear ${ingA} + ${ingB}`;
+        craftHintLine = `\n\n💡 ¡Tip de crafteo! Tenés "${ingA}" y "${ingB}" — podés combinarlos:\n   → escribí: craftear ${ingA} con ${ingB}`;
         // Marcar hint como mostrado
         db.updatePlayer(freshPlayer.id, { status_effects: JSON.stringify({ ...shownHints, [hintKey]: true }) });
         break; // solo un hint por loot
@@ -4322,7 +4324,14 @@ function cmdSell(player, itemQuery) {
     return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).' };
   }
 
-  const found = items.findItem(player.inventory, itemQuery.trim());
+  // BUG-313: si el query es un número, interpretar como índice del inventario (1-based)
+  let resolvedQuery = itemQuery.trim();
+  const indexNum = parseInt(resolvedQuery, 10);
+  if (!isNaN(indexNum) && String(indexNum) === resolvedQuery && indexNum >= 1 && indexNum <= player.inventory.length) {
+    resolvedQuery = player.inventory[indexNum - 1];
+  }
+
+  const found = items.findItem(player.inventory, resolvedQuery);
   if (!found) {
     return { text: `No tenés ningún "${itemQuery}" en el inventario.` };
   }
