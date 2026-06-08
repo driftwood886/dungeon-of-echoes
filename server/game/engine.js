@@ -8011,12 +8011,26 @@ function cmdRunas(player) {
 
   lines.push('╟' + '─'.repeat(44) + '╢');
   lines.push('║  Al juntar 3 del mismo tipo se FUSIONAN:        ║');
+  lines.push('║  (+1 ATK permanente al arma equipada)           ║');
   for (const type of RUNE_TYPES) {
     const b = RUNE_BONUSES[type];
     const emoji = RUNE_EMOJIS[type];
     lines.push(`║  ${emoji} ${(type + ':').padEnd(8)} ${b.label.padEnd(33)}║`);
   }
-  lines.push('║  (15% de chance de obtener una runa al matar)  ║');
+  lines.push('╟' + '─'.repeat(44) + '╢');
+  lines.push('║  📖 FUENTES DE RUNAS:                           ║');
+  lines.push('║  • Cualquier monstruo puede soltar 1 runa al   ║');
+  lines.push('║    morir (15% de chance por kill).              ║');
+  lines.push('║  • El tipo es ALEATORIO — no hay monstruo       ║');
+  lines.push('║    específico para cada runa.                   ║');
+  lines.push('║  • Hay 5 tipos en total: fuego, hielo, sombra,  ║');
+  lines.push('║    luz y caos.                                  ║');
+  lines.push('║  • La runa de caos tiene efecto aleatorio al    ║');
+  lines.push('║    encantarse (equivale a uno de los otros 4).  ║');
+  lines.push('╟' + '─'.repeat(44) + '╢');
+  lines.push('║  💡 USO: enchant <tipo>  — Encanta tu arma      ║');
+  lines.push('║  equipada con 1 runa del tipo indicado.         ║');
+  lines.push('║  Duración: 3 minutos. Ver efectos arriba.       ║');
   lines.push('╚' + '═'.repeat(44) + '╝');
 
   return { text: lines.join('\n') };
