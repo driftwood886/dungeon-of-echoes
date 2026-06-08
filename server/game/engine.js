@@ -5424,7 +5424,11 @@ function cmdForage(player) {
   if (roomBonus && roll < roomBonus.prob) {
     // Alta prob de encontrar el ítem de trampa en la sala correspondiente
     const bonusItem = roomBonus.item;
-    const inv2 = [...player.inventory, bonusItem];
+    // BUG-340: parsear inventory correctamente (puede ser string JSON o array)
+    const invForBonus = Array.isArray(player.inventory)
+      ? player.inventory
+      : JSON.parse(player.inventory || '[]');
+    const inv2 = [...invForBonus, bonusItem];
     db.updatePlayer(player.id, { inventory: JSON.stringify(inv2) });
     const bonusCr = db.updateDailyChallengeProgress(player.id, 'forage', null);
     let bonusChalMsg = '';
