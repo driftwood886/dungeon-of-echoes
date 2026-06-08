@@ -276,7 +276,23 @@ function execute(playerId, input, context) {
     case 'score_session': result = cmdScoreSession(player, context); break;  // T198
     case 'card':         result = cmdCard(player); break;                     // T197
     case 'trivia_pub':   result = cmdTriviaPub(player, action.args, context); break; // T196
-    case 'drink':        result = cmdDrink(player); break;
+    case 'drink': {
+      // BUG-332: si hay args (ej: "beber pocion de mana"), intentar como 'use' primero
+      if (action.args && action.args.length > 0) {
+        const freshP = db.getPlayer(player.id);
+        const query = action.args.join(' ');
+        const invItem = freshP && freshP.inventory ? items.findItem(freshP.inventory, query) : null;
+        if (invItem) {
+          result = cmdUse(player, action.args);
+        } else {
+          // No hay ítem con ese nombre — mostrar mensaje útil
+          result = { text: `🍶 No tenés ningún "${query}" en el inventario.\n💡 Para beber de la Fuente Eterna usá solo "beber" (sin argumentos). Para consumir una poción: "usar <pocion>".` };
+        }
+      } else {
+        result = cmdDrink(player);
+      }
+      break;
+    }
     case 'bowl':         result = cmdChapelBowl(player); break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
@@ -8238,7 +8254,14 @@ function cmdGreet(player, args, context) {
   const target = others.find(p => p.username.toLowerCase() === targetName);
 
   if (!target) {
-    return { text: `👋 No encontré a "${args[0]}" en esta sala.` };
+    // BUG-333: mensaje más útil — diferenciar "no existe ese jugador" de "comando confundido"
+    const onlinePlayers = db.getPlayersInRoom(player.current_room_id)
+      .filter(p => p.id !== player.id)
+      .map(p => p.username.toLowerCase());
+    const hint = onlinePlayers.length > 0
+      ? `\n💡 Jugadores en esta sala: ${onlinePlayers.join(', ')}. Usá "decir <mensaje>" para hablar libre.`
+      : '\n💡 No hay otros jugadores aquí. Usá "decir <mensaje>" para hablar libre.';
+    return { text: `👋 No encontré a "${args[0]}" en esta sala.${hint}` };
   }
 
   // T216: Si el objetivo está AFK, notificar al saludador
