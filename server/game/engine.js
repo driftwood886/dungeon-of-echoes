@@ -1296,6 +1296,19 @@ function cmdAttack(player, targetName) {
       const list = alive.map((m, i) => `(${i + 1}) ${m.name} [${m.hp}/${m.max_hp} HP]`).join('  ');
       return { text: `⚔️ No hay ningún enemigo ${numArg} aquí. Enemigos en sala:\n  ${list}` };
     }
+    // BUG-350: Detectar si el monstruo huyó a otra sala (está en BD pero en sala diferente)
+    // Esto ocurre en combates batch donde el monstruo huye en el primer comando y el segundo
+    // comando del mismo "batch" intenta atacarlo por nombre.
+    const allM = db.getAllMonsters();
+    const fled = allM.find(m => {
+      if (!m.room_id || m.hp <= 0) return false;
+      const normalName = m.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const normalTarget = targetName.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return normalName.includes(normalTarget) || normalTarget.includes(normalName);
+    });
+    if (fled) {
+      return { text: `💨 El ${fled.name} huyó de la sala. ¡Ya no está aquí!\n   Usá "perseguir" o movete en su dirección para seguirlo.` };
+    }
     return { text: `No hay ningún "${targetName}" aquí.` };
   }
 
