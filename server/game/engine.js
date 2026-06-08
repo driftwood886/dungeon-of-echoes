@@ -283,7 +283,7 @@ function execute(playerId, input, context) {
         const query = action.args.join(' ');
         const invItem = freshP && freshP.inventory ? items.findItem(freshP.inventory, query) : null;
         if (invItem) {
-          result = cmdUse(player, action.args);
+          result = cmdUse(player, query);  // BUG-338: pasar string, no array
         } else {
           // No hay ítem con ese nombre — mostrar mensaje útil
           result = { text: `🍶 No tenés ningún "${query}" en el inventario.\n💡 Para beber de la Fuente Eterna usá solo "beber" (sin argumentos). Para consumir una poción: "usar <pocion>".` };
