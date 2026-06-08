@@ -311,6 +311,7 @@ function execute(playerId, input, context) {
     case 'reputation':   result = cmdReputation(player); break;
     case 'recall':       result = cmdRecall(player); break;
     case 'back':         result = cmdBack(player, context); break;
+    case 'chase':        result = cmdChase(player, context); break;
     case 'trade':        result = cmdTrade(player, action.args); break;
     case 'lore':         result = cmdLore(action.args.join(' ')); break;
     case 'peek':         result = cmdPeek(player, action.args); break;
@@ -3789,8 +3790,68 @@ function cmdBack(player, context) {
 }
 
 /**
+ * DIS-D355: cmdChase — Perseguir un monstruo que acaba de huir.
+ * Lee el `last_flee` del active_scrolls (guardado por combat.js al huir un monstruo).
+ * Si aún es válido (< 3 min), mueve al jugador a la sala donde huyó el monstruo.
+ */
+function cmdChase(player, context) {
+  player = db.getPlayer(player.id);
+  if (!player) return { text: 'Error al leer tu perfil.' };
+
+  let scrolls;
+  try { scrolls = JSON.parse(player.active_scrolls || '{}'); } catch (_) { scrolls = {}; }
+
+  const fleeData = scrolls['last_flee'];
+  if (!fleeData || !fleeData.expires_at || fleeData.expires_at < Date.now()) {
+    return { text: '🏃 No hay ningún monstruo que haya huido recientemente para perseguir.\n   (Esta ventana de persecución dura 3 minutos después de que el monstruo escape.)' };
+  }
+
+  const targetRoomId = fleeData.room_id;
+  const targetRoom = db.getRoom(targetRoomId);
+  if (!targetRoom) {
+    return { text: '🏃 No podés encontrar al monstruo — la ruta de escape ya no existe.' };
+  }
+
+  // Verificar que la sala destino sea adyacente
+  const currentRoom = db.getRoom(player.current_room_id);
+  const exits = currentRoom ? (typeof currentRoom.exits === 'string' ? JSON.parse(currentRoom.exits) : currentRoom.exits) : {};
+  const isAdjacent = Object.values(exits).some(exit => {
+    const tId = typeof exit === 'object' ? exit.room_id : exit;
+    return tId === targetRoomId;
+  });
+
+  if (!isAdjacent) {
+    return { text: `🏃 El ${fleeData.monster_name} escapó demasiado lejos — ya no podés seguirlo desde aquí.` };
+  }
+
+  const fromRoomId = player.current_room_id;
+  db.updatePlayer(player.id, { current_room_id: targetRoomId });
+
+  // Limpiar el dato de huida
+  delete scrolls['last_flee'];
+  db.updatePlayer(player.id, { active_scrolls: JSON.stringify(scrolls) });
+
+  const updatedPlayer = db.getPlayer(player.id);
+  const lookResult = cmdLook(updatedPlayer);
+
+  // Ver si el monstruo sigue ahí
+  const monsters = db.getMonstersInRoom(targetRoomId);
+  const escapee = monsters.find(m => m.name === fleeData.monster_name && m.hp > 0);
+  const monsterMsg = escapee
+    ? `\n⚔️ ¡Encontrás al ${fleeData.monster_name} herido (${escapee.hp}/${escapee.max_hp} HP)! Atacá antes de que vuelva a escapar.`
+    : `\n💨 El ${fleeData.monster_name} ya no está aquí — logró escapar del todo.`;
+
+  return {
+    text: `🏃 Salís corriendo tras el ${fleeData.monster_name}...\n\n${lookResult.text}${monsterMsg}`,
+    event: `${player.username} sale corriendo en persecución.`,
+    eventRoomId: fromRoomId,
+    fromRoomId,
+    fromRoomEvent: `${player.username} sale corriendo en persecución.`,
+  };
+}
+
+/**
  * T129: cmdTrade — Sistema de intercambio seguro de ítems entre dos jugadores.
- *
  * Flujo:
  *  - trade <jugador> <ítem>  → propone el intercambio (el otro debe tener algo para dar)
  *  - trade accept            → el destinatario acepta (debe también ofrecer un ítem)

@@ -207,6 +207,8 @@ const COMMAND_ALIASES = {
   recall: 'recall', retornar: 'recall', teletransportar: 'recall', tp: 'recall',
   // back / atrás (T154)
   back: 'back', atrás: 'back', atras: 'back', anterior: 'back', regresar: 'back',
+  // perseguir / chase — DIS-D355: perseguir monstruo que huyó
+  perseguir: 'chase', chase: 'chase', seguir: 'chase', pursue: 'chase',
   // trade / intercambio (T129)
   trade: 'trade', intercambiar: 'trade', intercambio: 'trade', trueque: 'trade', cambiar: 'trade',
   // lore / enciclopedia de ítems (T137)

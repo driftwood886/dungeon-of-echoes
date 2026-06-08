@@ -748,7 +748,22 @@ function attackRound(player, monster) {
           const dirHint = DIR_NAMES[escapeEntry.dir] || `hacia ${escapeEntry.dir}`;
           db.updateMonster(monster.id, { room_id: escapeRoom });
           lines.push(`🏃 ¡El ${monster.name} huye despavorido ${dirHint}! (HP: ${monster.hp}/${monster.max_hp})`);
-          lines.push(`   💨 Escapó sin dejar botín. Si lo seguís, podés terminar el trabajo.`);
+          lines.push(`   💨 Escapó sin dejar botín. Usá "perseguir" o movete ${dirHint} para seguirlo.`);
+          lines.push(`   🔄 (Los monstruos que huyen pueden volver a su sala original al regenerarse)`);
+          // DIS-D355: guardar dirección de huida del monstruo para comando "perseguir"
+          try {
+            const scrollsRaw = db.getPlayer(player.id);
+            if (scrollsRaw) {
+              const scrolls = JSON.parse(scrollsRaw.active_scrolls || '{}');
+              scrolls['last_flee'] = {
+                dir: escapeEntry.dir,
+                monster_name: monster.name,
+                room_id: escapeRoom,
+                expires_at: Date.now() + 3 * 60 * 1000, // 3 minutos
+              };
+              db.updatePlayer(player.id, { active_scrolls: JSON.stringify(scrolls) });
+            }
+          } catch (_) {}
         }
       }
     }
