@@ -183,6 +183,7 @@ function seedIfEmpty() {
     migrateExpandedDungeon();
     migrateTraps();
     migrateAntidotes();
+    migrateSanctuaryEastHint();
     return;
   }
 
@@ -202,6 +203,7 @@ function seedIfEmpty() {
   migrateExpandedDungeon();
   migrateTraps();
   migrateAntidotes();
+  migrateSanctuaryEastHint();
 }
 
 /**
@@ -543,7 +545,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint };
 
 /**
  * STORY-003/004/005/007/012/017 — Migración de lore narrativo:
@@ -1079,5 +1081,27 @@ function migrateManaLoot() {
   if (bat && !bat.loot.includes('poción de maná')) {
     db.updateMonster(6, { loot: [...bat.loot, 'poción de maná'] });
     console.log('[seed] migrateManaLoot: poción de maná agregada al loot del Murciélago Vampiro (id 6). DIS-D296 ✓');
+  }
+}
+
+/**
+ * DIS-D352: Zona avanzada invisible.
+ * La Galería de Hielo y zonas siguientes (Forja, Caverna, Coliseo, Catedral) son invisibles
+ * porque el Santuario (sala 10) no menciona la salida al este en su descripción.
+ * Esta migración agrega la frase "Al este, el dungeon continúa hacia zonas más antiguas y peligrosas."
+ * al final de la descripción del Santuario Profano, para que el jugador sepa que hay más.
+ * Idempotente: solo actualiza si la frase no está ya presente.
+ */
+function migrateSanctuaryEastHint() {
+  const room10 = db.getRoom(10);
+  if (!room10) return;
+  const eastHint = 'Al este, el dungeon continúa hacia zonas más antiguas y peligrosas.';
+  if (!room10.description.includes(eastHint)) {
+    const newDesc = room10.description.replace(
+      /\s*Aquí termina el dungeon\.\.\. o comienza\./,
+      ' Aquí termina el dungeon... o comienza. ' + eastHint
+    );
+    db.upsertRoom({ ...room10, description: newDesc });
+    console.log('[seed] migrateSanctuaryEastHint: Santuario Profano (sala 10) actualizado — pista de zona avanzada al este. DIS-D352 ✓');
   }
 }

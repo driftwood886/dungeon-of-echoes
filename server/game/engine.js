@@ -860,8 +860,14 @@ function cmdMove(player, direction) {
     ? `\n[Postura activa: ${moveStanceDef.icon} ${player.stance} — ${moveStanceDef.desc}]`
     : '';
 
+  // DIS-D353: Aviso de zona avanzada cuando el jugador es nivel < 5 y entra a salas 11-15
+  const ADVANCED_ZONE_IDS = [11, 12, 13, 14, 15];
+  const levelWarnMsg = (ADVANCED_ZONE_IDS.includes(targetId) && (player.level || 1) < 5)
+    ? `\n\n⚠️ **Zona peligrosa** — Esta área es para aventureros nivel 5+. Sos nivel ${player.level || 1}. Los enemigos aquí pueden matarte en pocos turnos.`
+    : '';
+
   return {
-    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${extremeWeatherMsg}${cartogAchLines}${moveStanceLine}`,
+    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}${moveStanceLine}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
