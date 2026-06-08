@@ -1228,6 +1228,24 @@ function cmdAttack(player, targetName) {
     // (pero como no podemos devolver dos results, simplemente lo cancelamos silenciosamente)
   }
 
+  // BUG-348: Aplicar debuff de sala en combate (ROOM_EFFECTS de tipo 'debuff').
+  // El debuff es real (-1 ATK durante combate en esa sala), EXCEPTO si el jugador
+  // esquivó la trampa por memoria (trap_cd_<roomId> en status_effects).
+  const roomEffectForCombat = ROOM_EFFECTS[player.current_room_id];
+  if (roomEffectForCombat && roomEffectForCombat.type === 'debuff' && roomEffectForCombat.stat === 'attack') {
+    const seForCombat = typeof player.status_effects === 'string'
+      ? JSON.parse(player.status_effects || '{}')
+      : (player.status_effects || {});
+    const trapCdKeyForCombat = `trap_cd_${player.current_room_id}`;
+    const trapMemoryActive = seForCombat[trapCdKeyForCombat]
+      ? new Date(seForCombat[trapCdKeyForCombat]).getTime() > Date.now()
+      : false;
+    if (!trapMemoryActive) {
+      // Aplicar debuff: reducir attack temporalmente para este combate
+      player = { ...player, attack: Math.max(1, (player.attack || 5) + roomEffectForCombat.amount) };
+    }
+  }
+
   const monster = combat.findMonsterInRoom(player.current_room_id, targetName.trim());
   if (!monster) {
     // DIS-D325: Si el argumento es un número, intentar matching por posición
