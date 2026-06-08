@@ -557,13 +557,9 @@ function cmdLook(player) {
   // Mostrar efecto de sala si existe
   const roomEffect = ROOM_EFFECTS[player.current_room_id];
   const effectLine = roomEffect ? `\n🌐 Efecto de sala: ${roomEffect.label}` : '';
-  // DIS-D45: mostrar postura activa si no es "equilibrado" (para que el jugador no lo olvide)
-  const stanceName = player.stance || 'equilibrado';
-  const stanceDef = STANCES[stanceName];
-  const stanceLine = (stanceName !== 'equilibrado' && stanceDef)
-    ? `\n[Postura activa: ${stanceDef.icon} ${stanceName} — ${stanceDef.desc}]`
-    : '';
-  return { text: text + effectLine + stanceLine };
+  // DIS-D366: la postura solo se muestra al cambiar de sala (en move), no en cada look.
+  // Esto evita que contamine visualmente cada descripción de sala cuando el jugador mira repetidamente.
+  return { text: text + effectLine };
 }
 
 /**
@@ -2421,6 +2417,43 @@ function cmdExamine(player, query) {
       baseText += '\n\n🔍 El nombre Kaelthas aparece grabado también en las runas del Santuario y en el trono de la sala 9. Hay alguien en el dungeon que sabe más — quizás el anciano de la entrada puede orientarte.';
     }
     return { text: baseText };
+  }
+
+  // DIS-D360: "mecanismo", "umbral", "oeste", "norte", "sur", "este" → si hay trampa en sala adyacente, describir
+  const DIR_NAMES_ES = { north: 'norte', south: 'sur', east: 'este', west: 'oeste', up: 'arriba', down: 'abajo' };
+  const DIR_FROM_ES = { norte: 'north', sur: 'south', este: 'east', oeste: 'west', arriba: 'up', abajo: 'down' };
+  const mecWords = ['mecanismo', 'umbral', 'trampa'];
+  const dirWords = Object.keys(DIR_FROM_ES);
+  const isMecQuery = mecWords.some(w => qLow.includes(w));
+  const isDirQuery = dirWords.includes(qLow);
+  if (isMecQuery || isDirQuery) {
+    const room = db.getRoom(player.current_room_id);
+    const exits = room ? (room.exits || {}) : {};
+    const trappedDirs = [];
+    for (const [dir, exitVal] of Object.entries(exits)) {
+      const adjId = typeof exitVal === 'object' && exitVal !== null ? exitVal.room_id : exitVal;
+      if (!adjId) continue;
+      const adjRoom = db.getRoom(adjId);
+      if (adjRoom && adjRoom.trap && adjRoom.trap.active) {
+        trappedDirs.push({ dir, dirEs: DIR_NAMES_ES[dir] || dir, adjRoom });
+      }
+    }
+    if (trappedDirs.length > 0) {
+      // Si la query es una dirección específica, filtrar por esa dirección
+      if (isDirQuery) {
+        const engDir = DIR_FROM_ES[qLow];
+        const match = trappedDirs.find(t => t.dir === engDir);
+        if (match) {
+          const trap = match.adjRoom.trap;
+          return { text: `🔍 Examinás el umbral ${qLow}.\nHay marcas de mecanismo en el borde del umbral: ranuras para un gatillo de presión, cuerdas tensadas a la altura de las rodillas, y un pequeño pivote de metal que parece lista para activarse.\nLa trampa está cargada. Podés desactivarla si tenés el ítem adecuado una vez que estés en ${match.adjRoom.name}.\n\n💡 Tip: \"desactivar trampa\" en la sala ${match.adjRoom.name} con un ítem apropiado.` };
+        }
+      }
+      // Mecanismo genérico → mostrar todas las direcciones con trampa
+      const desc = trappedDirs.map(t => `  • Hacia el ${t.dirEs} (${t.adjRoom.name}): mecanismo de trampa visible en el umbral`).join('\n');
+      return { text: `🔍 Examinás los mecanismos sospechosos que viste mencionados.\n${desc}\n\nSon trampas de presión. Podés desactivarlas con el ítem correcto una vez que estés en la sala correspondiente.\n💡 \"desactivar trampa\" funciona en salas con trampa activa.` };
+    } else if (isMecQuery) {
+      return { text: 'Mirás con atención el umbral mencionado, pero la trampa ya no está activa — o quizás te equivocaste de sala.' };
+    }
   }
 
   for (const [key, val] of Object.entries(loreObjects)) {
@@ -6108,9 +6141,42 @@ function cmdAuction(player, args) {
 
   const itemName = args.slice(0, -1).join(' ').toLowerCase().trim();
   const inventory = player.inventory || [];
-  const itemIndex = inventory.findIndex(i => i.toLowerCase() === itemName);
+  let itemIndex = inventory.findIndex(i => i.toLowerCase() === itemName);
+
+  // DIS-D359: si no está en inventario, verificar si está equipado
+  let unequipMsg = '';
   if (itemIndex === -1) {
-    return { text: `No tenés "${itemName}" en el inventario.\nUsá "inventario" para ver tus ítems.` };
+    const isWeapon = player.equipped_weapon && player.equipped_weapon.toLowerCase() === itemName;
+    const isArmor  = player.equipped_armor  && player.equipped_armor.toLowerCase()  === itemName;
+    if (isWeapon) {
+      // Des-equipar arma
+      const updates = { equipped_weapon: null };
+      const defWeapon = items.getItemDef(player.equipped_weapon);
+      if (defWeapon) {
+        player.atk = Math.max(1, (player.atk || 5) - (defWeapon.amount || 0));
+        updates.atk = player.atk;
+      }
+      player.equipped_weapon = null;
+      db.updatePlayer(player.id, updates);
+      inventory.push(itemName);
+      itemIndex = inventory.length - 1;
+      unequipMsg = `\n⚠️ Se desequipó \"${itemName}\" automáticamente para subastarla.`;
+    } else if (isArmor) {
+      // Des-equipar armadura
+      const updates = { equipped_armor: null };
+      const defArmor = items.getItemDef(player.equipped_armor);
+      if (defArmor) {
+        player.def = Math.max(2, (player.def || 2) - (defArmor.amount || 0));
+        updates.def = player.def;
+      }
+      player.equipped_armor = null;
+      db.updatePlayer(player.id, updates);
+      inventory.push(itemName);
+      itemIndex = inventory.length - 1;
+      unequipMsg = `\n⚠️ Se quitó \"${itemName}\" automáticamente para subastarla.`;
+    } else {
+      return { text: `No tenés "${itemName}" en el inventario.\nUsá "inventario" para ver tus ítems.` };
+    }
   }
 
   // Verificar que no tenga otra subasta activa con el mismo ítem
@@ -6128,7 +6194,7 @@ function cmdAuction(player, args) {
   const auction = db.createAuction(player.id, player.username, itemName, minPrice);
 
   return {
-    text: `🔨 ¡Subasta iniciada!\n  Ítem: ${itemName}\n  Precio mínimo: ${minPrice}g\n  ID de subasta: #${auction.id}\n  Cierra en: 5 minutos\n\nOtros jugadores pueden pujar con: pujar ${auction.id} <monto>`,
+    text: `🔨 ¡Subasta iniciada!${unequipMsg}\n  Ítem: ${itemName}\n  Precio mínimo: ${minPrice}g\n  ID de subasta: #${auction.id}\n  Cierra en: 5 minutos\n\nOtros jugadores pueden pujar con: pujar ${auction.id} <monto>`,
     globalEvent: `📣 ¡SUBASTA! ${player.username} pone "${itemName}" a la venta. Precio mínimo: ${minPrice}g. (ID #${auction.id}) — Usá: pujar ${auction.id} <monto>`,
   };
 }
