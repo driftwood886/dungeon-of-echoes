@@ -390,9 +390,10 @@ function attackRound(player, monster) {
           const updatesPet = { kills: newKillsPet, xp: newXpPet, level: newLevelPet };
           if (newLevelPet > oldLevelPet) {
             updatesPet.max_hp = (freshPPet.max_hp || 30) + 5;
-            updatesPet.hp = Math.min(freshPPet.hp, updatesPet.max_hp);
+            const healPet = Math.ceil(updatesPet.max_hp * 0.20);
+            updatesPet.hp = Math.min(updatesPet.max_hp, (freshPPet.hp || 1) + healPet);
             updatesPet.attack = (freshPPet.attack || 5) + 1;
-            lines.push(`✨ ¡Subiste al nivel ${newLevelPet}! +5 HP máx, +1 ataque.`);
+            lines.push(`✨ ¡Subiste al nivel ${newLevelPet}! +5 HP máx, +1 ataque, +${healPet} HP restaurado.`);
           }
           lines.push(`⭐ +${xpGainPet} XP (kills: ${newKillsPet} | nivel: ${newLevelPet})`);
           db.updatePlayer(player.id, updatesPet);
@@ -444,9 +445,10 @@ function attackRound(player, monster) {
               const updates2  = { kills: newKills2, xp: newXp2, level: newLevel2 };
               if (newLevel2 > oldLevel2) {
                 updates2.max_hp = (freshPl2.max_hp || 30) + 5;
-                updates2.hp = Math.min(freshPl2.hp, updates2.max_hp);
+                const heal2 = Math.ceil(updates2.max_hp * 0.20);
+                updates2.hp = Math.min(updates2.max_hp, (freshPl2.hp || 1) + heal2);
                 updates2.attack = (freshPl2.attack || 5) + 1;
-                lines.push(`✨ ¡Subiste al nivel ${newLevel2}! +5 HP máx, +1 ataque.`);
+                lines.push(`✨ ¡Subiste al nivel ${newLevel2}! +5 HP máx, +1 ataque, +${heal2} HP restaurado.`);
               }
               lines.push(`⭐ +${xpGain2} XP (kills: ${newKills2} | nivel: ${newLevel2})`);
               db.updatePlayer(player.id, updates2);
@@ -491,9 +493,10 @@ function attackRound(player, monster) {
         const updates3  = { kills: newKills3, xp: newXp3, level: newLevel3 };
         if (newLevel3 > oldLevel3) {
           updates3.max_hp = (freshPl3.max_hp || 30) + 5;
-          updates3.hp = Math.min(freshPl3.hp, updates3.max_hp);
+          const heal3 = Math.ceil(updates3.max_hp * 0.20);
+          updates3.hp = Math.min(updates3.max_hp, (freshPl3.hp || 1) + heal3);
           updates3.attack = (freshPl3.attack || 5) + 1;
-          lines.push(`✨ ¡Subiste al nivel ${newLevel3}! +5 HP máx, +1 ataque.`);
+          lines.push(`✨ ¡Subiste al nivel ${newLevel3}! +5 HP máx, +1 ataque, +${heal3} HP restaurado.`);
         }
         lines.push(`⭐ +${xpGain3} XP (kills: ${newKills3} | nivel: ${newLevel3})`);
         db.updatePlayer(player.id, updates3);
@@ -545,11 +548,12 @@ function attackRound(player, monster) {
     const newLevel = xpSystem.levelFromXp(newXp);
     const updates  = { kills: newKills, xp: newXp, level: newLevel };
     if (newLevel > oldLevel) {
-      // Subida de nivel: +5 max_hp, +1 ataque
+      // Subida de nivel: +5 max_hp, +1 ataque, +20% del nuevo max_hp en HP restaurado (DIS-D342)
       updates.max_hp = (freshPlayer.max_hp || 30) + 5;
-      updates.hp     = Math.min(freshPlayer.hp, updates.max_hp);
+      const healOnLevelUp = Math.ceil(updates.max_hp * 0.20);
+      updates.hp     = Math.min(updates.max_hp, (freshPlayer.hp || 1) + healOnLevelUp);
       updates.attack = (freshPlayer.attack || 5) + 1;
-      lines.push(`✨ ¡Subiste al nivel ${newLevel}! +5 HP máx, +1 ataque.`);
+      lines.push(`✨ ¡Subiste al nivel ${newLevel}! +5 HP máx, +1 ataque, +${healOnLevelUp} HP restaurado.`);
     }
     lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})`);
     // T190: Encantamiento de luz — +3 HP al matar

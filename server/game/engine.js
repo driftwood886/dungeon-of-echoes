@@ -718,7 +718,8 @@ function cmdMove(player, direction) {
     const upd = { xp: newXp, level: newLevel };
     if (levelUp) {
       upd.max_hp = (freshExp.max_hp || 30) + 5;
-      upd.hp = Math.min(freshExp.hp, upd.max_hp);
+      const healExp = Math.ceil(upd.max_hp * 0.20);
+      upd.hp = Math.min(upd.max_hp, (freshExp.hp || 1) + healExp);
       upd.attack = (freshExp.attack || 5) + 1;
     }
     db.updatePlayer(player.id, upd);
@@ -1456,11 +1457,18 @@ function cmdAttack(player, targetName) {
       const questNewXp = (freshQ2.xp || 0) + r.xp;
       const questNewLevel = xpSystem.levelFromXp(questNewXp);
       const questLevelUp = questNewLevel > (freshQ2.level || 1);
-      db.updatePlayer(player.id, {
+      const questUpd = {
         gold: (freshQ2.gold || 0) + r.gold,
         xp: questNewXp,
         level: questNewLevel,
-      });
+      };
+      if (questLevelUp) {
+        questUpd.max_hp = (freshQ2.max_hp || 30) + 5;
+        const healQuest = Math.ceil(questUpd.max_hp * 0.20);
+        questUpd.hp = Math.min(questUpd.max_hp, (freshQ2.hp || 1) + healQuest);
+        questUpd.attack = (freshQ2.attack || 5) + 1;
+      }
+      db.updatePlayer(player.id, questUpd);
       questLines = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.${questLevelUp ? ` ✨ ¡SUBÍS AL NIVEL ${questNewLevel}!` : ''}`;
       // T125: reputación por quest completada (+5)
       const repQuest = db.addReputation(player.id, 5);
@@ -1547,7 +1555,8 @@ function cmdAttack(player, targetName) {
           const upd = { xp: newXp, level: newLevel };
           if (levelUp) {
             upd.max_hp = (freshComp.max_hp || 30) + 5;
-            upd.hp     = Math.min(freshComp.hp, upd.max_hp);
+            const healComp = Math.ceil(upd.max_hp * 0.20);
+            upd.hp     = Math.min(upd.max_hp, (freshComp.hp || 1) + healComp);
             upd.attack = (freshComp.attack || 5) + 1;
           }
           db.updatePlayer(comp.id, upd);
@@ -1576,7 +1585,8 @@ function cmdAttack(player, targetName) {
       const upd = { xp: newXp, level: newLevel };
       if (levelUp) {
         upd.max_hp = (freshStreak.max_hp || 30) + 5;
-        upd.hp = Math.min(freshStreak.hp, upd.max_hp);
+        const healStreak = Math.ceil(upd.max_hp * 0.20);
+        upd.hp = Math.min(upd.max_hp, (freshStreak.hp || 1) + healStreak);
         upd.attack = (freshStreak.attack || 5) + 1;
       }
       db.updatePlayer(player.id, upd);
@@ -6346,11 +6356,18 @@ function cmdCast(player, args) {
       const newKills = (player.kills || 0) + 1;
       const newXp = (player.xp || 0) + xpGain;
       const newLevel = xpSystem.levelFromXp(newXp);
-      db.updatePlayer(player.id, {
+      const castUpd = {
         kills: newKills,
         xp: newXp,
         level: newLevel,
-      });
+      };
+      if (newLevel > (player.level || 1)) {
+        castUpd.max_hp = (player.max_hp || 30) + 5;
+        const healCast = Math.ceil(castUpd.max_hp * 0.20);
+        castUpd.hp = Math.min(castUpd.max_hp, (player.hp || 1) + healCast);
+        castUpd.attack = (player.attack || 5) + 1;
+      }
+      db.updatePlayer(player.id, castUpd);
       lines.push(`   +${xpGain} XP (Total: ${newXp} XP, Nivel ${newLevel}).`);
       broadcastEvent = `🔥 ¡${player.username} incineró a ${target.name} con ${spellName}!`;
       // Bestiario
@@ -6875,7 +6892,14 @@ function cmdUseSkill(player, args, context) {
       const newXp = (freshPlayer.xp || 0) + xpGain;
       const newLevel = xpSystem.levelFromXp(newXp);
       const levelUp = newLevel > (freshPlayer.level || 1);
-      db.updatePlayer(freshPlayer.id, { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 });
+      const smashUpd = { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 };
+      if (levelUp) {
+        smashUpd.max_hp = (freshPlayer.max_hp || 30) + 5;
+        const healSmash = Math.ceil(smashUpd.max_hp * 0.20);
+        smashUpd.hp = Math.min(smashUpd.max_hp, (freshPlayer.hp || 1) + healSmash);
+        smashUpd.attack = (freshPlayer.attack || 5) + 1;
+      }
+      db.updatePlayer(freshPlayer.id, smashUpd);
       text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       if (levelUp) db.addJournalEntry(freshPlayer.id, 'level', `⬆️ Subiste al nivel ${newLevel} tras el Golpetazo.`);
@@ -6985,7 +7009,14 @@ function cmdUseSkill(player, args, context) {
       const newXp = (freshPlayer.xp || 0) + xpGain;
       const newLevel = xpSystem.levelFromXp(newXp);
       const levelUp = newLevel > (freshPlayer.level || 1);
-      db.updatePlayer(freshPlayer.id, { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 });
+      const skillUpd = { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 };
+      if (levelUp) {
+        skillUpd.max_hp = (freshPlayer.max_hp || 30) + 5;
+        const healSkill = Math.ceil(skillUpd.max_hp * 0.20);
+        skillUpd.hp = Math.min(skillUpd.max_hp, (freshPlayer.hp || 1) + healSkill);
+        skillUpd.attack = (freshPlayer.attack || 5) + 1;
+      }
+      db.updatePlayer(freshPlayer.id, skillUpd);
       text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       // Logros — incluyendo boss_killer
@@ -7148,7 +7179,14 @@ function cmdUseSkill(player, args, context) {
       const newXp = (freshPlayer.xp || 0) + xpGain;
       const newLevel = xpSystem.levelFromXp(newXp);
       const levelUp = newLevel > (freshPlayer.level || 1);
-      db.updatePlayer(freshPlayer.id, { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 });
+      const skillUpd = { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 };
+      if (levelUp) {
+        skillUpd.max_hp = (freshPlayer.max_hp || 30) + 5;
+        const healSkill = Math.ceil(skillUpd.max_hp * 0.20);
+        skillUpd.hp = Math.min(skillUpd.max_hp, (freshPlayer.hp || 1) + healSkill);
+        skillUpd.attack = (freshPlayer.attack || 5) + 1;
+      }
+      db.updatePlayer(freshPlayer.id, skillUpd);
       text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       const gsBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
@@ -10959,7 +10997,8 @@ function cmdTrivia(player, args) {
     if (levelUp) {
       updates.level = newLevel;
       updates.max_hp = (freshP.max_hp || 30) + 5;
-      updates.hp = Math.min(freshP.hp, updates.max_hp);
+      const healTrivia = Math.ceil(updates.max_hp * 0.20);
+      updates.hp = Math.min(updates.max_hp, (freshP.hp || 1) + healTrivia);
       updates.attack = (freshP.attack || 5) + 1;
     }
     db.updatePlayer(player.id, updates);
@@ -11285,7 +11324,8 @@ function cmdTriviaPub(player, args, context) {
     if (levelUp) {
       updates.level = newLevel;
       updates.max_hp = (freshWinner.max_hp || 30) + 5;
-      updates.hp = Math.min(freshWinner.hp, updates.max_hp);
+      const healPub = Math.ceil(updates.max_hp * 0.20);
+      updates.hp = Math.min(updates.max_hp, (freshWinner.hp || 1) + healPub);
       updates.attack = (freshWinner.attack || 5) + 1;
     }
     db.updatePlayer(player.id, updates);
