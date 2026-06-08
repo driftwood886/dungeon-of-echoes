@@ -732,6 +732,7 @@ function cmdMove(player, direction) {
 
   // ── Verificar trampa en la sala destino ─────────────────────────────────
   let trapText = '';
+  let trapWasAvoided = false; // BUG-339: trackear si la trampa fue esquivada para suprimir debuff de sala
   const targetRoomFull = db.getRoom(targetId);
   // T120: si el jugador tiene mascota, 15% de chance de avisar la trampa antes de activarse
   if (targetRoomFull && targetRoomFull.trap && targetRoomFull.trap.active) {
@@ -747,9 +748,11 @@ function cmdMove(player, direction) {
       // DIS-D307: si ya conoce la trampa, la esquiva siempre (era 80% antes).
       // El jugador aprendió el mecanismo — no tiene sentido que siga haciéndole daño.
       trapText = `\n\n🧠 Recordás la trampa de esta sala. Con cuidado, la esquivás sin problema.`;
+      trapWasAvoided = true; // BUG-339: trampa esquivada por memoria → no aplicar debuff de sala
     // Aviso de mascota (T120): 15% de chance de prevenir el daño
     } else if (player.pet && Math.random() < 0.15) {
       trapText = `\n\n🐾 ¡Tu ${player.pet} te advierte a tiempo! Evitás la trampa: ${trap.description.split('–')[0].trim()}.`;
+      trapWasAvoided = true; // BUG-339: trampa evitada por mascota → no aplicar debuff de sala
     } else {
       // Refrescar jugador para HP actualizado
       player = db.getPlayer(player.id);
@@ -790,8 +793,12 @@ function cmdMove(player, direction) {
       db.updatePlayer(player.id, { hp: newHp });
       effectText = `\n\n${roomEffect.msg} (${newHp}/${player.max_hp} HP)`;
     } else if (roomEffect.type === 'debuff') {
-      // Debuff temporal narrativo — en futuro se integraría con status_effects
-      effectText = `\n\n${roomEffect.msg}`;
+      // BUG-339: Si la trampa de esta sala fue esquivada por memoria o mascota,
+      // no mostrar el debuff narrativo (el jugador evitó el peligro conscientemente).
+      if (!trapWasAvoided) {
+        // Debuff temporal narrativo — en futuro se integraría con status_effects
+        effectText = `\n\n${roomEffect.msg}`;
+      }
     }
   }
 

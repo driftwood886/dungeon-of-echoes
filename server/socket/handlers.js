@@ -262,6 +262,20 @@ function registerHandlers(io) {
       lastCommand     = command;
       lastCommandTime = now;
 
+      // BUG-341: Si por algún motivo (reinicio del servidor, reconexión sin join, etc.)
+      // el jugador no tiene sessionData en el mapa, inicializarla on-the-fly para que
+      // el comando 'session' funcione correctamente.
+      if (!sessionDataMap.has(currentPlayerId)) {
+        const freshP = db.getPlayer(currentPlayerId);
+        sessionDataMap.set(currentPlayerId, {
+          startTime: Date.now(),
+          kills: 0,
+          xpStart: freshP ? (freshP.xp || 0) : 0,
+          goldStart: freshP ? (freshP.gold || 0) : 0,
+          commands: 0,
+        });
+      }
+
       const context = {
         broadcastToRoom: (roomId, excludePlayerId, message) => {
           io.to(`room_${roomId}`).emit('event', { type: 'action', message });
