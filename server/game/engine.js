@@ -6332,16 +6332,15 @@ function cmdCast(player, args) {
         respawn_at: respawnAtSpell,
         status_effects: '{}',
       });
-      // target.loot ya viene parseado como Array por getMonstersInRoom (BUG-041)
-      const loot = Array.isArray(target.loot) ? target.loot : JSON.parse(target.loot || '[]');
-      if (loot.length > 0) {
-        const room = db.getRoom(player.current_room_id);
-        const roomItems = room ? (room.items || []) : [];
-        db.updateRoomItems(player.current_room_id, [...roomItems, ...loot]);
-        lines.push(`   💀 ${target.name} cae fulminado! Soltó: ${loot.join(', ')}.`);
+      // BUG-336: Usar combat.dropLoot() igual que cmdAttack para evitar duplicación de ítems.
+      // dropLoot ya tiene el fix de BUG-334 (limpia copias previas antes de agregar el nuevo loot).
+      const { droppedLoot: castLoot } = combat.dropLoot(target, player.current_room_id);
+      if (castLoot.length > 0) {
+        lines.push(`   💀 ${target.name} cae fulminado! Soltó: ${castLoot.join(', ')}.`);
       } else {
         lines.push(`   💀 ${target.name} cae fulminado!`);
       }
+      const loot = castLoot;
       // XP y kills
       const xpGain = Math.floor(5 + (target.max_hp || 10) / 2);
       const newKills = (player.kills || 0) + 1;

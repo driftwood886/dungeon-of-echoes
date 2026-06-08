@@ -902,7 +902,7 @@ function migrateCryptRoom() {
 /**
  * DIS-P10: Agregar materiales de crafteo a los loot de monstruos apropiados.
  * - Esqueleto Guerrero (id 2) → garra de esqueleto (para receta: garra + cuerda = látigo de garras)
- * - Murciélago Vampiro (id 4) → diente afilado (para receta: diente + hilo de seda = collar de garras)
+ * - Murciélago Vampiro (id 6) → diente afilado (para receta: diente + hilo de seda = collar de garras)
  * - Eco Viviente (id 21) → polvo de eco como alias alternativo junto a esencia de eco
  */
 function migrateCraftingLoot() {
@@ -912,11 +912,18 @@ function migrateCraftingLoot() {
     db.upsertMonster({ ...skeleton, loot: [...skeleton.loot, 'garra de esqueleto'] });
     console.log('[seed] migrateCraftingLoot: garra de esqueleto agregada a Esqueleto Guerrero (id 2).');
   }
-  // Murciélago Vampiro (id 4) → diente afilado (si no lo tiene ya)
-  const bat = db.getMonster(4);
+  // Murciélago Vampiro (id 6, NO id 4 — el id 4 es el Espectro del Corredor) → diente afilado
+  // BUG-337: el id estaba equivocado, causando que el Espectro droppee diente afilado por error.
+  const bat = db.getMonster(6);
   if (bat && !bat.loot.includes('diente afilado')) {
     db.upsertMonster({ ...bat, loot: [...bat.loot, 'diente afilado'] });
-    console.log('[seed] migrateCraftingLoot: diente afilado agregado a Murciélago Vampiro (id 4).');
+    console.log('[seed] migrateCraftingLoot: diente afilado agregado a Murciélago Vampiro (id 6).');
+  }
+  // BUG-337: Reparar el Espectro del Corredor (id 4) quitando el diente afilado que recibió por error
+  const spectre = db.getMonster(4);
+  if (spectre && spectre.loot.includes('diente afilado')) {
+    db.upsertMonster({ ...spectre, loot: spectre.loot.filter(i => i !== 'diente afilado') });
+    console.log('[seed] migrateCraftingLoot (BUG-337): diente afilado removido del Espectro del Corredor (id 4).');
   }
 }
 
