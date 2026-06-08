@@ -2005,12 +2005,18 @@ function cmdPick(player, itemQuery) {
     }
   }
 
-  // DIS-D327: hint de quest de Aldric cuando se recoge la carta sellada
+  // DIS-D327/DIS-D351: hint de quest de Aldric cuando se recoge la carta sellada
+  // DIS-D351: variar hint según nivel del jugador (Aldric no activa la quest hasta nivel 5)
   let cartaHint = '';
   if (found.toLowerCase().includes('carta sellada') && player.current_room_id === 8) {
     const questState = player.aldric_quest || 'none';
+    const playerLevel = player.level || 1;
     if (questState === 'none') {
-      cartaHint = '\n\n📜 El sello de las dos llaves cruzadas... recordás haberlo visto en algún otro lugar del dungeon. (Pista: "hablar aldric" en sala 4)';
+      if (playerLevel < 5) {
+        cartaHint = `\n\n📜 El sello de las dos llaves cruzadas... recordás haberlo visto en otro lugar. Quizás valga la pena llevársela al mercader de sala 4 cuando seas más experimentado (nivel 5+).`;
+      } else {
+        cartaHint = '\n\n📜 El sello de las dos llaves cruzadas... recordás haberlo visto en algún otro lugar del dungeon. (Pista: "hablar aldric" en sala 4)';
+      }
     } else if (questState === 'active') {
       cartaHint = '\n\n📜 ¡La carta de la quest de Aldric! Llevásela al mercader en sala 4 ("hablar aldric").';
     }
@@ -2334,7 +2340,7 @@ function cmdExamine(player, query) {
     'runas':           { rooms: [10], text: 'Las runas con sangre seca forman un patrón que tardás un momento en ver completo: es un círculo, y en su centro hay un nombre escrito en un idioma que nadie habla hace doscientos años. No sabés cómo, pero lo podés leer: K-A-E-L-T-H-A-S. El patrón de las runas forma un nombre. No querés saber cómo lo sabés.' },
     'estatua':         { rooms: [10], text: 'La estatua con diez brazos no corresponde a ningún dios que conozcas. Cada brazo sostiene algo distinto: un escudo, una espada, un libro, una llave, una copa, una antorcha... Los últimos tres brazos están vacíos. La placa en la base está en blanco, raspada hasta la piedra. Alguien borró el nombre deliberadamente.' },
     'carta':           { rooms: [8],  text: 'Un sobre sellado con cera negra, marcado con el símbolo de dos llaves cruzadas. La cera está intacta. Podés abrirla, pero algo en vos duda: hay cosas que no se pueden ignorar una vez que se saben.' },
-    'carta sellada':   { rooms: [8],  text: 'Un sobre sellado con cera negra, marcado con el símbolo de dos llaves cruzadas. La cera está intacta. El papel es viejo pero el sellado es perfecto —alguien tomó cuidado de que esto durara. En el reverso, en letra pequeña: "Para quien llegue después. Perdoname." Sin firma.\n\n🔍 El símbolo de las dos llaves cruzadas... ¿no lo viste en el delantal del mercader de la sala 4? ("hablar aldric" en sala 4)' },
+    'carta sellada':   { rooms: [8],  text: 'Un sobre sellado con cera negra, marcado con el símbolo de dos llaves cruzadas. La cera está intacta. El papel es viejo pero el sellado es perfecto —alguien tomó cuidado de que esto durara. En el reverso, en letra pequeña: "Para quien llegue después. Perdoname." Sin firma.\n\n🔍 El símbolo de las dos llaves cruzadas... lo viste antes. En el delantal de alguien. De un mercader que eligió este dungeon por razones que nunca explicó.' },
     // STORY-007: Diario de aventurero anterior en sala 11 (Galería de Hielo)
     'cadaver':         { rooms: [11], text: 'Uno de los cadáveres congelados lleva encima lo que queda de un diario. Las páginas están tan heladas que al tocarlas crean ruido de cristal roto.' },
     'cadáver':         { rooms: [11], text: 'Uno de los cadáveres congelados lleva encima lo que queda de un diario. Las páginas están tan heladas que al tocarlas crean ruido de cristal roto.' },
@@ -4312,6 +4318,13 @@ function cmdTalk(player, target) {
   // questState === 'none'
   if (!triggerable) {
     // Todavía no se desbloqueó — Aldric habla normalmente
+    // DIS-D351: si el jugador tiene la carta sellada pero aún no es nivel 5,
+    // dar un hint contextual en lugar del diálogo neutro.
+    const invForHint = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+    const hasCartaForHint = invForHint.some(i => i.toLowerCase().includes('carta sellada'));
+    if (hasCartaForHint) {
+      return { text: 'Aldric levanta la vista de su libro de cuentas. Algo en su mirada cambia cuando te ve —un reconocimiento fugaz que apaga enseguida.\n\n"¿Querés comprar algo?" dice. No es una pregunta. Pero sus ojos van a tu mochila por un instante.\n\nNecesitás más experiencia para que confíe en vos. (Nivel 5 requerido para desbloquear la quest)' };
+    }
     return { text: 'Aldric levanta la vista de su libro de cuentas.\n\n"¿Querés comprar algo?" dice. No es una pregunta.\n\nSu mirada vuelve a los números. El delantal con el símbolo de las dos llaves cruzadas se mueve cuando se inclina sobre el mostrador.' };
   }
 
