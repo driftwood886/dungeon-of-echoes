@@ -855,7 +855,12 @@ function dropLoot(monster, roomId) {
     // Agregar ítems a la habitación
     const room = db.getRoom(roomId);
     if (room) {
-      const newItems = [...room.items, ...allLoot];
+      // BUG-334: Antes de agregar nuevo loot, eliminar TODAS las copias previas de esos
+      // mismos ítems del suelo. Evita acumulación cuando el jugador no recoge el loot
+      // entre cycles de kill/respawn del mismo monstruo.
+      const lootSet = new Set(allLoot);
+      const floorWithoutOldLoot = room.items.filter(i => !lootSet.has(i));
+      const newItems = [...floorWithoutOldLoot, ...allLoot];
       db.updateRoomItems(roomId, newItems);
     }
   }
@@ -955,16 +960,13 @@ function checkRespawns(onBossRespawn, onAnyRespawn) {
         // Boss: limpiar TODO el suelo (puede haber drops de combate previo también)
         db.updateRoomItems(m.respawn_room_id, []);
       } else if (m.loot && m.loot.length > 0) {
-        // Monstruo normal: solo remover sus propios ítems de loot del suelo
+        // Monstruo normal: remover TODAS las copias de sus ítems de loot del suelo
+        // BUG-334: usar filter (remover todas) en lugar de indexOf (remover solo una)
         const mLoot = Array.isArray(m.loot) ? m.loot : JSON.parse(m.loot || '[]');
         const room = db.getRoom(m.respawn_room_id);
         if (room && room.items && room.items.length > 0) {
-          // Quitar una copia de cada ítem del loot del monstruo del suelo de la sala
-          const floorItems = [...room.items];
-          for (const lootItem of mLoot) {
-            const idx = floorItems.indexOf(lootItem);
-            if (idx !== -1) floorItems.splice(idx, 1);
-          }
+          const mLootSet = new Set(mLoot);
+          const floorItems = room.items.filter(i => !mLootSet.has(i));
           if (floorItems.length !== room.items.length) {
             db.updateRoomItems(m.respawn_room_id, floorItems);
           }

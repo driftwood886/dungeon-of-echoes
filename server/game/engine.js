@@ -1226,10 +1226,21 @@ function cmdAttack(player, targetName) {
     const numArg = parseInt(targetName.trim(), 10);
     if (!isNaN(numArg)) {
       const alive = db.getMonstersInRoom(player.current_room_id).filter(m => m.hp > 0);
+      if (alive.length === 0) {
+        return { text: '⚔️ No hay monstruos vivos aquí para atacar.' };
+      }
+      // BUG-335: Si el índice quedó fuera de rango (ej: mataste al #1 y quedó solo el #2),
+      // pero hay exactamente 1 monstruo vivo, auto-apuntar a él.
+      if (alive.length === 1) {
+        return cmdAttack(player, alive[0].name);
+      }
       if (numArg >= 1 && numArg <= alive.length) {
         // Se encontró un monstruo por número, redirectear el flujo usando su nombre
         return cmdAttack(player, alive[numArg - 1].name);
       }
+      // Índice inválido con múltiples enemigos: mostrar lista
+      const list = alive.map((m, i) => `(${i + 1}) ${m.name} [${m.hp}/${m.max_hp} HP]`).join('  ');
+      return { text: `⚔️ No hay ningún enemigo ${numArg} aquí. Enemigos en sala:\n  ${list}` };
     }
     return { text: `No hay ningún "${targetName}" aquí.` };
   }
