@@ -3362,11 +3362,10 @@ function cmdMap(player) {
     timeDecor = '🌙 Noche     ✦  ·  ✦  ·  ✦  ·  ✦  ·  ✦  ·  ✦';
   }
 
-  // DIS-007: Calcular salas con monstruos vivos
-  const allMonsters = db.getAllMonsters();
-  const roomsWithMonsters = new Set(
-    allMonsters.filter(m => m.room_id != null && m.hp > 0).map(m => m.room_id)
-  );
+  // DIS-D357: Calcular salas con monstruos vivos — usar query SQL directa para evitar
+  // edge cases de null-checking en JS con sql.js/WASM (room_id=0, 'null' string, etc.)
+  const liveMonstersInRooms = db.getLivingMonstersWithRoom();
+  const roomsWithMonsters = new Set(liveMonstersInRooms.map(m => m.room_id));
 
   // Abreviaciones para los nombres de sala (max 9 chars para el grid)
   const NAMES = {

@@ -594,6 +594,16 @@ function getAllMonsters() {
 }
 
 /**
+ * DIS-D357: Devuelve solo monstruos vivos (hp > 0) que están en una sala (room_id IS NOT NULL).
+ * Usado por el mapa para mostrar ⚔ solo en salas con monstruos activos.
+ * Filtra en SQL para evitar edge cases de null-checking en JS con sql.js/WASM.
+ */
+function getLivingMonstersWithRoom() {
+  return all('SELECT * FROM monsters WHERE room_id IS NOT NULL AND hp > 0')
+    .map(m => ({ ...m, loot: JSON.parse(m.loot || '[]') }));
+}
+
+/**
  * Fix DIS-P02: devuelve monstruos muertos cuyo respawn_at ya pasó.
  * Reemplaza el uso de raw().exec() en combat.js que fallaba silenciosamente.
  */
@@ -1838,7 +1848,7 @@ module.exports = {
   // rooms
   getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, checkTrapRespawns,
   // monsters
-  getMonster, getMonstersInRoom, getAllMonsters, getMonstersForRespawn, upsertMonster, updateMonster,
+  getMonster, getMonstersInRoom, getAllMonsters, getLivingMonstersWithRoom, getMonstersForRespawn, upsertMonster, updateMonster,
   // events
   logEvent, getRecentEvents,
   // offline messages (tell)
