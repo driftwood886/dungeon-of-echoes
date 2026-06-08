@@ -1299,11 +1299,25 @@ function cmdAttack(player, targetName) {
     // BUG-350: Detectar si el monstruo huyó a otra sala (está en BD pero en sala diferente)
     // Esto ocurre en combates batch donde el monstruo huye en el primer comando y el segundo
     // comando del mismo "batch" intenta atacarlo por nombre.
+    // BUG-358 FIX: Solo buscar en salas ADYACENTES a la sala del jugador, no en todas las salas.
+    // El matching anterior era demasiado permisivo e incluía monstruos de salas lejanas
+    // con nombres parcialmente similares (ej: "Golem de Forja" al atacar "goblin", o
+    // "Goblin de Práctica" al atacar "goblin merodeador").
+    const currentRoomForFlee = db.getRoom(player.current_room_id);
+    const adjacentRoomIds = new Set();
+    if (currentRoomForFlee && currentRoomForFlee.exits) {
+      for (const v of Object.values(currentRoomForFlee.exits)) {
+        const rid = typeof v === 'object' ? v.room_id : v;
+        if (rid) adjacentRoomIds.add(rid);
+      }
+    }
     const allM = db.getAllMonsters();
+    const normalTarget = targetName.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const fled = allM.find(m => {
       if (!m.room_id || m.hp <= 0) return false;
+      // Solo considerar salas adyacentes (el monstruo huyó a una sala contigua)
+      if (!adjacentRoomIds.has(m.room_id)) return false;
       const normalName = m.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const normalTarget = targetName.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       return normalName.includes(normalTarget) || normalTarget.includes(normalName);
     });
     if (fled) {
