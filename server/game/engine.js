@@ -2387,6 +2387,28 @@ function cmdExamine(player, query) {
 
   // Normalizar query para buscar en lore objects
   const qNorm = normalize(query.trim());
+
+  // DIS-D356: Páginas congeladas con propósito mecánico — si la quest de Aldric está activa
+  // y el jugador lee las páginas del diario en sala 11, mostrar hint de conexión con Kaelthas
+  // y registrar que el jugador leyó el diario para desbloquear diálogo en el Guardián Anciano.
+  const PAGINAS_KEYS = ['paginas', 'páginas', 'diario', 'diario helado'];
+  const isPageQuery = PAGINAS_KEYS.some(k => normalize(k).includes(qNorm) || qNorm.includes(normalize(k)));
+  if (isPageQuery && player.current_room_id === 11) {
+    const questState = player.aldric_quest || 'none';
+    // Marcar que leyó el diario de la Galería (para desbloquear diálogo del Guardián Anciano)
+    const seFresh = (() => { try { return JSON.parse(player.status_effects || '{}'); } catch (_) { return {}; } })();
+    if (!seFresh.leyo_diario_galeria) {
+      db.updatePlayer(player.id, { status_effects: JSON.stringify({ ...seFresh, leyo_diario_galeria: true }) });
+    }
+    let baseText = 'Las páginas del diario están medio fusionadas por el hielo, pero alcanzás a leer tres fragmentos:\n\n  "...llegamos cuatro. Somos dos. El frío no mata — algo lo usa."\n\n  "...vi su sombra en la Catedral. Desde aquí. Eso no es posible."\n\n  "...Kaelthas no murió. Eligió esto. Lo entendí cuando me miró. Me conocía."';
+    if (questState === 'active') {
+      baseText += '\n\n📜 ¡Kaelthas! El mismo nombre de la quest de Aldric. El diario confirma que Kaelthas no murió, sino que "eligió" el dungeon. Aldric quería esa carta por algo más que nostalgia — esto es evidencia del pasado del reino. Llevá la carta sellada de sala 8 a Aldric en sala 4.';
+    } else if (questState === 'none') {
+      baseText += '\n\n🔍 El nombre Kaelthas aparece grabado también en las runas del Santuario y en el trono de la sala 9. Hay alguien en el dungeon que sabe más — quizás el anciano de la entrada puede orientarte.';
+    }
+    return { text: baseText };
+  }
+
   for (const [key, val] of Object.entries(loreObjects)) {
     if (normalize(key).includes(qNorm) || qNorm.includes(normalize(key))) {
       if (!val.rooms || val.rooms.includes(player.current_room_id)) {
@@ -2395,7 +2417,7 @@ function cmdExamine(player, query) {
         return { text: `No ves ningún "${query}" aquí.` };
       }
     }
-  }
+}
 
   return { text: `No ves ningún "${query}" aquí para examinar.` };
 }
@@ -4332,7 +4354,15 @@ function cmdTalk(player, target) {
     const hasVisitedPozo = roomsVisited.includes(7);
 
     if (hasVisitedPozo) {
-      return { text: 'El anciano te mira con ojos que han visto demasiado.\n\n"Ya encontraste el Pozo, ¿verdad? La puerta al norte del Pozo tiene cerradura —necesitás una llave oxidada. La guardaban en la Prisión, sala 8, al norte de la Cámara del Tesoro."\n\nTose y continúa: "Pero si no querés buscarla, hay otro camino. Hacia el este está la Capilla Olvidada. Desde ahí, al norte, el Túnel de los Hongos. Luego al norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario. Sin llave."\n\nSonríe brevemente. "Nadie sabe por qué ese camino quedó abierto. Yo tengo mis sospechas."' };
+      // DIS-D356: Si leyó el diario de la Galería de Hielo, agregar hint sobre Kaelthas
+      const seFreshG = (() => { try { return JSON.parse(player.status_effects || '{}'); } catch (_) { return {}; } })();
+      const leyoDiario = seFreshG.leyo_diario_galeria;
+      const qStateG = player.aldric_quest || 'none';
+      let guardianExtra = '';
+      if (leyoDiario && qStateG === 'none') {
+        guardianExtra = '\n\nEl anciano pausa al verte. "¿Leíste el diario de la Galería de Hielo?"\n\nNo espera respuesta. "Kaelthas no murió como los libros dicen. Eligió quedarse aquí —y el dungeon lo aceptó." Baja la voz. "Hay un mercader en sala 4. Aldric. Cuando tengas nivel 5, hablá con él. Creo que sabe más. Mucho más."\n\nVuelve a mirar la pared en silencio.';
+      }
+      return { text: 'El anciano te mira con ojos que han visto demasiado.\n\n"Ya encontraste el Pozo, ¿verdad? La puerta al norte del Pozo tiene cerradura —necesitás una llave oxidada. La guardaban en la Prisión, sala 8, al norte de la Cámara del Tesoro."\n\nTose y continúa: "Pero si no querés buscarla, hay otro camino. Hacia el este está la Capilla Olvidada. Desde ahí, al norte, el Túnel de los Hongos. Luego al norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario. Sin llave."\n\nSonríe brevemente. "Nadie sabe por qué ese camino quedó abierto. Yo tengo mis sospechas."' + guardianExtra };
     }
 
     if (level >= 3) {
