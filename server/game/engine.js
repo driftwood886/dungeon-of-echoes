@@ -873,32 +873,53 @@ function cmdMove(player, direction) {
  * inventory — Mostrar inventario del jugador.
  */
 function cmdInventory(player) {
-  if (!player.inventory || player.inventory.length === 0) {
+  // BUG-349: refrescar para tener equipped_armor/equipped_weapon actualizados
+  player = db.getPlayer(player.id) || player;
+
+  // Los ítems equipados no están en player.inventory (se remueven al equipar).
+  // Para que el jugador no piense que los perdió, los mostramos en la lista marcados.
+  const equippedWeapon = (player.equipped_weapon && player.equipped_weapon !== 'null') ? player.equipped_weapon : null;
+  const equippedArmor  = (player.equipped_armor  && player.equipped_armor  !== 'null') ? player.equipped_armor  : null;
+
+  const allItems = [...(player.inventory || [])];
+  // Añadir equipados al principio de la lista (con marcador)
+  const equippedItems = [];
+  if (equippedWeapon) equippedItems.push({ name: equippedWeapon, slot: 'arma' });
+  if (equippedArmor)  equippedItems.push({ name: equippedArmor,  slot: 'armadura' });
+
+  const hasAnything = allItems.length > 0 || equippedItems.length > 0;
+  if (!hasAnything) {
     return { text: 'Tu inventario está vacío.' };
   }
-  const itemLines = player.inventory.map((item, i) => {
+
+  const lines = [];
+  let idx = 1;
+  // Primero los equipados (con marcador visual)
+  for (const eq of equippedItems) {
+    const emoji = items.getRarityEmoji(eq.name);
+    const rarity = items.getItemRarity(eq.name);
+    const rarityLabel = rarity !== 'común' ? ` (${rarity})` : '';
+    lines.push(`  ${idx}. ${emoji} ${eq.name}${rarityLabel} [equipado — ${eq.slot}]`);
+    idx++;
+  }
+  // Luego el resto del inventario
+  for (const item of allItems) {
     const emoji = items.getRarityEmoji(item);
     const rarity = items.getItemRarity(item);
     const rarityLabel = rarity !== 'común' ? ` (${rarity})` : '';
-    return `  ${i + 1}. ${emoji} ${item}${rarityLabel}`;
-  });
+    lines.push(`  ${idx}. ${emoji} ${item}${rarityLabel}`);
+    idx++;
+  }
 
   // Resumen al final
-  const total = player.inventory.length;
-  const rareCount = player.inventory.filter(i => {
-    const r = items.getItemRarity(i);
-    return r !== 'común';
-  }).length;
+  const totalVisible = lines.length;
+  const rareCount = allItems.filter(i => items.getItemRarity(i) !== 'común').length
+    + equippedItems.filter(e => items.getItemRarity(e.name) !== 'común').length;
   const summary = rareCount > 0
-    ? `─ ${total} ítem${total !== 1 ? 's' : ''} (${rareCount} no común${rareCount !== 1 ? 'es' : ''})`
-    : `─ ${total} ítem${total !== 1 ? 's' : ''}`;
-  const equippedLine = player.equipped_weapon && player.equipped_weapon !== 'null'
-    ? `⚔️  Equipada: ${player.equipped_weapon}`
-    : '';
+    ? `─ ${totalVisible} ítem${totalVisible !== 1 ? 's' : ''} (${rareCount} no común${rareCount !== 1 ? 'es' : ''})`
+    : `─ ${totalVisible} ítem${totalVisible !== 1 ? 's' : ''}`;
 
-  const parts = [`Inventario:\n${itemLines.join('\n')}`, summary];
-  if (equippedLine) parts.push(equippedLine);
-  return { text: parts.join('\n') };
+  return { text: `Inventario:\n${lines.join('\n')}\n${summary}` };
 }
 
 /**
