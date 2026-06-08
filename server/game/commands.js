@@ -162,7 +162,7 @@ const COMMAND_ALIASES = {
   // dice / dados (T100)
   dice: 'dice', dado: 'dice', dados: 'dice', tirar_dados: 'dice', roll: 'dice', rodar: 'dice',
   // drink / beber (T103)
-  drink: 'drink', beber: 'drink', tomar: 'drink', hidratarse: 'drink', fuente: 'drink',
+  drink: 'drink', beber: 'drink', hidratarse: 'drink', fuente: 'drink',
   // DIS-D48: Cuenco Sagrado en la Capilla (sala 5)
   bowl: 'bowl', cuenco: 'bowl', 'cuenco sagrado': 'bowl', ofrenda: 'bowl', 'beber cuenco': 'bowl',
   // party / grupo (T102)

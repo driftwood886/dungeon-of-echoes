@@ -1426,11 +1426,15 @@ function cmdAttack(player, targetName) {
       if (qResult.justCompleted && qResult.reward) {
       const r = qResult.reward;
       const freshQ2 = db.getPlayer(player.id);
+      const questNewXp = (freshQ2.xp || 0) + r.xp;
+      const questNewLevel = xpSystem.levelFromXp(questNewXp);
+      const questLevelUp = questNewLevel > (freshQ2.level || 1);
       db.updatePlayer(player.id, {
         gold: (freshQ2.gold || 0) + r.gold,
-        xp: (freshQ2.xp || 0) + r.xp,
+        xp: questNewXp,
+        level: questNewLevel,
       });
-      questLines = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
+      questLines = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.${questLevelUp ? ` ✨ ¡SUBÍS AL NIVEL ${questNewLevel}!` : ''}`;
       // T125: reputación por quest completada (+5)
       const repQuest = db.addReputation(player.id, 5);
       if (repQuest.leveledUp) {
@@ -5467,8 +5471,11 @@ function cmdForage(player) {
     if (qResult.justCompleted && qResult.reward) {
       const r = qResult.reward;
       const freshQ2 = db.getPlayer(player.id);
-      db.updatePlayer(player.id, { gold: (freshQ2.gold || 0) + r.gold, xp: (freshQ2.xp || 0) + r.xp });
-      questLine = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP.`;
+      const questNewXp = (freshQ2.xp || 0) + r.xp;
+      const questNewLevel = xpSystem.levelFromXp(questNewXp);
+      const questLevelUp = questNewLevel > (freshQ2.level || 1);
+      db.updatePlayer(player.id, { gold: (freshQ2.gold || 0) + r.gold, xp: questNewXp, level: questNewLevel });
+      questLine = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP.${questLevelUp ? ` ✨ ¡SUBÍS AL NIVEL ${questNewLevel}!` : ''}`;
       // T236: texto evocador para quest completada (segunda ocurrencia)
       db.logGlobalEvent('quest', `📜 ${player.username} completó el contrato de caza. El dungeon lo recuerda.`);
     }
@@ -6365,8 +6372,11 @@ function cmdCast(player, args) {
         if (qCastResult.justCompleted && qCastResult.reward) {
           const r = qCastResult.reward;
           const freshQ2 = db.getPlayer(player.id);
-          db.updatePlayer(player.id, { gold: (freshQ2.gold || 0) + r.gold, xp: (freshQ2.xp || 0) + r.xp });
-          lines.push(`   🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`);
+          const questNewXp = (freshQ2.xp || 0) + r.xp;
+          const questNewLevel = xpSystem.levelFromXp(questNewXp);
+          const questLevelUp = questNewLevel > (freshQ2.level || 1);
+          db.updatePlayer(player.id, { gold: (freshQ2.gold || 0) + r.gold, xp: questNewXp, level: questNewLevel });
+          lines.push(`   🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.${questLevelUp ? ` ✨ ¡SUBÍS AL NIVEL ${questNewLevel}!` : ''}`);
           db.addReputation(player.id, 5);
           db.logGlobalEvent('quest', `📜 ${player.username} completó la misión con ${spellName}.`);
           db.addJournalEntry(player.id, 'quest', `📜 Quest completada con ${spellName}: +${r.gold}g, +${r.xp} XP.`);
@@ -6881,8 +6891,11 @@ function cmdUseSkill(player, args, context) {
         if (qSmashResult.justCompleted && qSmashResult.reward) {
           const r = qSmashResult.reward;
           const freshQ2 = db.getPlayer(freshPlayer.id);
-          db.updatePlayer(freshPlayer.id, { gold: (freshQ2.gold || 0) + r.gold, xp: (freshQ2.xp || 0) + r.xp });
-          text += `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
+          const questNewXp = (freshQ2.xp || 0) + r.xp;
+          const questNewLevel = xpSystem.levelFromXp(questNewXp);
+          const questLevelUp = questNewLevel > (freshQ2.level || 1);
+          db.updatePlayer(freshPlayer.id, { gold: (freshQ2.gold || 0) + r.gold, xp: questNewXp, level: questNewLevel });
+          text += `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.${questLevelUp ? ` ✨ ¡SUBÍS AL NIVEL ${questNewLevel}!` : ''}`;
           db.addReputation(freshPlayer.id, 5);
           db.logGlobalEvent('quest', `📜 ${freshPlayer.username} completó la misión con Golpetazo.`);
           db.addJournalEntry(freshPlayer.id, 'quest', `📜 Quest completada con Golpetazo: +${r.gold}g, +${r.xp} XP.`);
@@ -6987,8 +7000,11 @@ function cmdUseSkill(player, args, context) {
         if (qBashResult.justCompleted && qBashResult.reward) {
           const r = qBashResult.reward;
           const freshQ2 = db.getPlayer(freshPlayer.id);
-          db.updatePlayer(freshPlayer.id, { gold: (freshQ2.gold || 0) + r.gold, xp: (freshQ2.xp || 0) + r.xp });
-          text += `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
+          const questNewXp = (freshQ2.xp || 0) + r.xp;
+          const questNewLevel = xpSystem.levelFromXp(questNewXp);
+          const questLevelUp = questNewLevel > (freshQ2.level || 1);
+          db.updatePlayer(freshPlayer.id, { gold: (freshQ2.gold || 0) + r.gold, xp: questNewXp, level: questNewLevel });
+          text += `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.${questLevelUp ? ` ✨ ¡SUBÍS AL NIVEL ${questNewLevel}!` : ''}`;
           db.addReputation(freshPlayer.id, 5);
           db.logGlobalEvent('quest', `📜 ${freshPlayer.username} completó la misión con Golpe de Escudo.`);
           db.addJournalEntry(freshPlayer.id, 'quest', `📜 Quest completada con Golpe de Escudo: +${r.gold}g, +${r.xp} XP.`);
@@ -7133,8 +7149,11 @@ function cmdUseSkill(player, args, context) {
         if (qGsResult.justCompleted && qGsResult.reward) {
           const r = qGsResult.reward;
           const freshQ2 = db.getPlayer(freshPlayer.id);
-          db.updatePlayer(freshPlayer.id, { gold: (freshQ2.gold || 0) + r.gold, xp: (freshQ2.xp || 0) + r.xp });
-          text += `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP.`;
+          const questNewXp = (freshQ2.xp || 0) + r.xp;
+          const questNewLevel = xpSystem.levelFromXp(questNewXp);
+          const questLevelUp = questNewLevel > (freshQ2.level || 1);
+          db.updatePlayer(freshPlayer.id, { gold: (freshQ2.gold || 0) + r.gold, xp: questNewXp, level: questNewLevel });
+          text += `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP.${questLevelUp ? ` ✨ ¡SUBÍS AL NIVEL ${questNewLevel}!` : ''}`;
         }
       }
     } else {
