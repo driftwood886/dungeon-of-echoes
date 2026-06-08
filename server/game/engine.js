@@ -632,7 +632,7 @@ function cmdMove(player, direction) {
   if (aliveHere.length > 0) {
     // Elegir el monstruo más amenazante (mayor HP) para la narrativa de huida
     const monster = aliveHere.sort((a, b) => b.hp - a.hp)[0];
-    const fleeResult = combat.tryFlee(player, monster, room);
+    const fleeResult = combat.tryFlee(player, monster, room, direction); // BUG-345: pasar dirección elegida
     const nameList = aliveHere.map(m => m.name).join(', ');
     const prefix = aliveHere.length > 1
       ? `⚡ Hay ${aliveHere.length} monstruos activos (${nameList}). Intentás escabullirte...\n`
@@ -3010,6 +3010,13 @@ function cmdGive(player, args) {
   // Buscar al jugador destinatario
   const target = db.getPlayerByUsername(targetName);
   if (!target) {
+    // BUG-347: Si el nombre coincide con un NPC conocido, sugerir "hablar <npc>"
+    const npcNames = ['aldric', 'mercader', 'tendero', 'guardián', 'guardian', 'anciano'];
+    const targetLower = targetName.toLowerCase();
+    const isNPC = npcNames.some(n => targetLower.includes(n));
+    if (isNPC) {
+      return { text: `«${targetName}» es un NPC, no un jugador — no podés darle ítems directamente. Probá con "hablar ${targetName}" para interactuar.` };
+    }
     return { text: `No existe ningún jugador llamado "${targetName}".` };
   }
   if (target.id === player.id) {

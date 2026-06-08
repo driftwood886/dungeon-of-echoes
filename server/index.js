@@ -83,7 +83,28 @@ async function main() {
     if (!player_id || !command) {
       return res.status(400).json({ error: 'Se requiere player_id y command.' });
     }
-    const result = execute(player_id, command);
+    // BUG-346: Inicializar sessionDataMap on-the-fly para que 'session' funcione via HTTP
+    const { sessionDataMap } = require('./socket/handlers');
+    if (!sessionDataMap.has(player_id)) {
+      const freshP = db.getPlayer(player_id);
+      sessionDataMap.set(player_id, {
+        startTime: Date.now(),
+        kills: 0,
+        xpStart: freshP ? (freshP.xp || 0) : 0,
+        goldStart: freshP ? (freshP.gold || 0) : 0,
+        commands: 0,
+      });
+    }
+    const context = {
+      sessionData: sessionDataMap.get(player_id) || null,
+      sessionDataMap,
+    };
+    const sessData = sessionDataMap.get(player_id);
+    const result = execute(player_id, command, context);
+    if (sessData) {
+      sessData.commands++;
+      if (result.sessionKill) sessData.kills++;
+    }
     res.json({ result: result.text });
   });
 

@@ -762,9 +762,10 @@ function attackRound(player, monster) {
  * @param {object} player
  * @param {object} monster
  * @param {object|null} room — sala actual (para elegir sala de escape)
+ * @param {string|null} preferredDirection — dirección que el jugador intentó tomar (BUG-345)
  * @returns {{ fled: boolean, line: string, destRoomId: number|null }}
  */
-function tryFlee(player, monster, room) {
+function tryFlee(player, monster, room, preferredDirection = null) {
   // Porcentaje de HP del monstruo
   const monsterHpPct = Math.round((monster.hp / monster.max_hp) * 100);
   const monsterHpDesc = monsterHpPct <= 25
@@ -776,16 +777,29 @@ function tryFlee(player, monster, room) {
         : `casi intacto (${monsterHpPct}% HP)`;
 
   if (Math.random() < FLEE_CHANCE) {
-    // Mover al jugador a una sala adyacente aleatoria
+    // BUG-345: Usar la dirección elegida por el jugador si existe; si no, sala aleatoria
     let destRoomId = null;
     let destRoomName = null;
     if (room) {
       const exits = room.exits || {};
-      const exitRooms = Object.values(exits)
-        .map(v => (typeof v === 'object' ? v.room_id : v))
-        .filter(id => typeof id === 'number');
-      if (exitRooms.length > 0) {
-        destRoomId = exitRooms[Math.floor(Math.random() * exitRooms.length)];
+      // Intentar usar la dirección preferida del jugador primero
+      if (preferredDirection) {
+        const normalizedDir = preferredDirection.toLowerCase().trim();
+        const preferredExit = exits[normalizedDir];
+        if (preferredExit !== undefined && preferredExit !== null) {
+          destRoomId = typeof preferredExit === 'object' ? preferredExit.room_id : preferredExit;
+        }
+      }
+      // Si no hay dirección preferida o no existe en exits, elegir aleatoriamente
+      if (!destRoomId) {
+        const exitRooms = Object.values(exits)
+          .map(v => (typeof v === 'object' ? v.room_id : v))
+          .filter(id => typeof id === 'number');
+        if (exitRooms.length > 0) {
+          destRoomId = exitRooms[Math.floor(Math.random() * exitRooms.length)];
+        }
+      }
+      if (destRoomId) {
         const destRoom = db.getRoom(destRoomId);
         destRoomName = destRoom ? destRoom.name : null;
         db.updatePlayer(player.id, { current_room_id: destRoomId });
