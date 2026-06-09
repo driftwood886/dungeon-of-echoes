@@ -1122,7 +1122,9 @@ function cmdStatus(player) {
       const st = (typeof STANCES !== 'undefined' ? STANCES : {})[stanceName];
       return st ? `Postura:  ${st.icon} ${stanceName}` : null;
     })(),
-    `Duelos:   ⚔️ ${duelWins} ganados / ${duelLosses} perdidos`,
+    duelWins === 0 && duelLosses === 0
+      ? `Duelos:   ⚔️ 0 ganados / 0 perdidos  (💡 usá "duel <nombre>" para retar a alguien en tu sala)`
+      : `Duelos:   ⚔️ ${duelWins} ganados / ${duelLosses} perdidos`,
     `Reputación: ${repLevel.icon} ${repLevel.name} (${repLevel.points} pts)${repNextText}`,
     `Ubicación: ${roomName}`,
     player.guild ? `Hermandad: [${player.guild}]` : `Hermandad: (sin guild)`,
@@ -2814,6 +2816,7 @@ function cmdWho() {
     }),
     ``,
     `(jugadores activos en los últimos 5 minutos)`,
+    active.length > 1 ? `💡 Si están en la misma sala, podés desafiar a alguien con "duel <nombre>". ¡El ganador se lleva el 10% del oro del perdedor!` : ``,
   ];
 
   return { text: lines.join('\n') };
@@ -7158,7 +7161,9 @@ function cmdProfile(player) {
     `║${line('ATK  ', `${fresh.attack}${fresh.pet ? ` +1🐾=${fresh.attack+1}` : ''}  ·  DEF: ${fresh.defense}`)}║`,
     `╟${'─'.repeat(W)}╢`,
     `║${line('Kills ', `${kills}  ·  Muertes: ${deaths}  ·  K/D: ${kd}`)}║`,
-    `║${line('Duelos', `⚔️ ${duelWins} ganados / ${duelLosses} perdidos`)}║`,
+    duelWins === 0 && duelLosses === 0
+      ? `║${line('Duelos', `⚔️ 0/0  · usá "duel <nombre>" para retar a alguien en tu sala`)}║`
+      : `║${line('Duelos', `⚔️ ${duelWins} ganados / ${duelLosses} perdidos`)}║`,
     `║${line('Oro   ', `💰 ${gold}g`)}║`,
     `║${line('Reputa', `${repLevel.icon} ${repLevel.name} (${repLevel.points} pts)`)}║`,
     `╟${'─'.repeat(W)}╢`,
