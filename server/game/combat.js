@@ -110,6 +110,16 @@ const BOSS_MONSTERS = {
     deathAnnouncement: '💀 ¡El ECO VIVIENTE ha sido silenciado! La Cámara del Eco queda en silencio absoluto por primera vez en años...',
     lootBonus: [],
   },
+  10: { // Golem de Forja — BUG-409: faltaba aquí, podía huir con < 30% HP
+    respawnMinutes: 15,
+    deathAnnouncement: '💀 ¡El GOLEM DE FORJA ha sido destruido! La forja del Taller se apaga por primera vez en siglos. El calor retrocede...',
+    lootBonus: [],
+  },
+  12: { // Campeón Espectral — BUG-409: faltaba aquí, podía huir con < 30% HP
+    respawnMinutes: 15,
+    deathAnnouncement: '💀 ¡El CAMPEÓN ESPECTRAL ha caído! El Coliseo de Huesos guarda silencio por un momento. Luego el público esquelético reanuda sus murmullos...',
+    lootBonus: [],
+  },
 };
 
 // T145: Habilidades especiales de monstruos

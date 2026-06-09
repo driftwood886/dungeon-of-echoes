@@ -2463,7 +2463,10 @@ function cmdExamine(player, query) {
   // ¿Es un ítem en el inventario, en el suelo, o equipado?
   const room = db.getRoom(player.current_room_id);
   const equippedItems = [player.equipped_weapon, player.equipped_armor].filter(Boolean);
-  const allItems = [...(player.inventory || []), ...(room ? room.items : []), ...equippedItems];
+  // BUG-410: Si la query es una lore-priority word, excluir ítems del suelo para que el lore
+  // object de la sala tenga prioridad. Ej: "forja" con "núcleo de forja" en el suelo → lore wins.
+  const roomItemsForSearch = LORE_PRIORITY_WORDS.has(qLow) ? [] : (room ? room.items : []);
+  const allItems = [...(player.inventory || []), ...roomItemsForSearch, ...equippedItems];
   const itemName = items.findItem(allItems, query.trim());
   if (itemName) {
     const def = items.getItemDef(itemName);
