@@ -100,6 +100,16 @@ const BOSS_MONSTERS = {
     deathAnnouncement: '💀 ¡El LICH ANCIANO ha caído! Un aventurero ha triunfado en la Catedral de la Oscuridad. El dungeon tiembla...',
     lootBonus: ['cofre de oro'], // 1x = 50g (antes: 5x monedas de oro — BUG-283)
   },
+  22: { // Sombra del Vacío — BUG-404: faltaba aquí, por eso podía huir (DIS-D364 no lo cubría)
+    respawnMinutes: 30,
+    deathAnnouncement: '💀 ¡La SOMBRA DEL VACÍO ha sido disipada! La oscuridad del Abismo Eterno retrocede por un momento...',
+    lootBonus: [],
+  },
+  21: { // Eco Viviente — BUG-404: faltaba aquí, por eso podía huir (DIS-D364 no lo cubría)
+    respawnMinutes: 20,
+    deathAnnouncement: '💀 ¡El ECO VIVIENTE ha sido silenciado! La Cámara del Eco queda en silencio absoluto por primera vez en años...',
+    lootBonus: [],
+  },
 };
 
 // T145: Habilidades especiales de monstruos
