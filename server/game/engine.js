@@ -587,7 +587,24 @@ function cmdLook(player) {
     classReminderLine = `\n💡 Aún no elegiste clase (nivel ${player.level}). Escribí 'clase' para ver las opciones.`;
   }
 
-  return { text: text + effectLine + questHintLine + classReminderLine };
+  // DIS-D384: estado del Lich Anciano en la Catedral de la Oscuridad (sala 15)
+  let lichStatusLine = '';
+  if (player.current_room_id === 15) {
+    try {
+      const bossStatus = getBossStatus();
+      if (!bossStatus.alive && bossStatus.inRespawn) {
+        const secsLeft = Math.max(0, Math.ceil((bossStatus.respawnAt - Date.now()) / 1000));
+        const mins = Math.floor(secsLeft / 60);
+        const secs = secsLeft % 60;
+        const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+        lichStatusLine = `\n💀 La oscuridad de la catedral palpita... El Lich Anciano fue derrotado. Regresará en ${timeStr}.`;
+      } else if (!bossStatus.alive && bossStatus.respawnReady) {
+        lichStatusLine = `\n⚡ La oscuridad hierve — el Lich Anciano está a punto de reaparecer.`;
+      }
+    } catch (_) {}
+  }
+
+  return { text: text + effectLine + questHintLine + classReminderLine + lichStatusLine };
 }
 
 /**
