@@ -10,7 +10,7 @@ const http    = require('http');
 const path    = require('path');
 
 const db                     = require('./db/db');
-const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot } = require('./db/seed');
+const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateFountainConnections } = require('./db/seed');
 const { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions } = require('./game/engine');
 const { checkRespawns, wanderMonsters } = require('./game/combat');
 const quests                 = require('./game/quests');
@@ -41,6 +41,7 @@ async function main() {
   migratePistaSantuario(); // DIS-D42: pista de ruta alternativa en Pozo Sin Fondo
   migrateD46MonsterBalance(); // DIS-D46: rebalancear curva de dificultad en zonas avanzadas
   migrateManaLoot(); // DIS-D296: pociones de maná en loot de Goblin Merodeador y Murciélago Vampiro
+  migrateFountainConnections(); // DIS-D368: conectar Fuente Eterna (18) con Abismo Eterno (20) vía arriba/abajo
 
   // 2. Crear app Express
   const app = express();

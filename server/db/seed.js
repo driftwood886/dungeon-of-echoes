@@ -545,7 +545,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections };
 
 /**
  * STORY-003/004/005/007/012/017 — Migración de lore narrativo:
@@ -1081,6 +1081,41 @@ function migrateManaLoot() {
   if (bat && !bat.loot.includes('poción de maná')) {
     db.updateMonster(6, { loot: [...bat.loot, 'poción de maná'] });
     console.log('[seed] migrateManaLoot: poción de maná agregada al loot del Murciélago Vampiro (id 6). DIS-D296 ✓');
+  }
+}
+
+/**
+ * DIS-D368: La Fuente Eterna (sala 18) queda muy desconectada de las zonas profundas.
+ * Los jugadores heridos en el Abismo Eterno (sala 20) y la Catedral (sala 15) tienen que
+ * recorrer todo el dungeon para curar — lo cual es frustrante y narrativamente incoherente.
+ * Solución:
+ *   - Sala 20 (Abismo Eterno) → up → sala 18 (Fuente Eterna): pasadizo místico oculto.
+ *   - Sala 18 (Fuente Eterna) → down → sala 20: conexión recíproca.
+ * Narrativa: el Abismo contiene una fisura en la roca por la que gotea el agua plateada de la Fuente.
+ * Los más heridos siempre encontraron ese brillo como guía. La Fuente "llama" a quien más la necesita.
+ * Idempotente: no modifica si la conexión ya existe.
+ */
+function migrateFountainConnections() {
+  // Sala 20 (Abismo Eterno): agregar up → 18
+  const room20 = db.getRoom(20);
+  if (room20 && !room20.exits.up) {
+    const exits20 = { ...room20.exits, up: 18 };
+    // Actualizar descripción para mencionar la fisura curativa
+    const upHint = ' En lo alto de la pared norte, una fisura en la roca deja pasar un tenue brillo plateado — el agua de la Fuente Eterna gotea desde las alturas, marcando un camino para quienes más lo necesitan.';
+    const newDesc20 = room20.description + upHint;
+    db.upsertRoom({ ...room20, exits: exits20, description: newDesc20 });
+    console.log('[seed] migrateFountainConnections: Sala 20 (Abismo Eterno) → up → sala 18 (Fuente Eterna). DIS-D368 ✓');
+  }
+
+  // Sala 18 (Fuente Eterna): agregar down → 20
+  const room18 = db.getRoom(18);
+  if (room18 && !room18.exits.down) {
+    const exits18 = { ...room18.exits, down: 20 };
+    // Actualizar descripción para mencionar la fisura
+    const downHint = ' En el suelo, junto a la base de la fuente, una fisura brilla levemente: por allí se filtra el agua hacia las profundidades del dungeon.';
+    const newDesc18 = room18.description + downHint;
+    db.upsertRoom({ ...room18, exits: exits18, description: newDesc18 });
+    console.log('[seed] migrateFountainConnections: Sala 18 (Fuente Eterna) → down → sala 20 (Abismo Eterno). DIS-D368 ✓');
   }
 }
 
