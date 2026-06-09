@@ -2722,6 +2722,20 @@ function cmdEquip(player, itemQuery) {
     if (def && def.type === 'armor') {
       return cmdWear(player, itemQuery);
     }
+    // DIS-D380: si el jugador intenta equipar un "escudo roto" (misc), explicar que no es equipable así
+    // pero verificar si hay un escudo tipo armor en el inventario para sugerir ese
+    const queryNormalized = itemQuery.trim().toLowerCase();
+    if (queryNormalized.includes('escudo') || queryNormalized.includes('shield')) {
+      const shieldArmor = player.inventory.find(i => {
+        const d = items.getItemDef(i);
+        return d && d.type === 'armor' && i.toLowerCase().includes('escudo');
+      });
+      if (shieldArmor) {
+        return cmdWear(player, shieldArmor);
+      }
+      // Tienen solo escudo roto u otro escudo misc
+      return { text: `"${found}" no se puede equipar directamente.\n💡 Los escudos van en el slot de armadura con el comando \`wear\` o \`ponerse\`.\n   Si tenés un escudo crafteado (ej: escudo de madera), usá: wear escudo de madera` };
+    }
     return { text: `${found} no es un arma que puedas equipar.${def && def.type === 'armor' ? ' Usá "wear" para ponerte armaduras.' : ''}` };
   }
 
