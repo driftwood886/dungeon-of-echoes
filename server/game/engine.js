@@ -2211,6 +2211,21 @@ function cmdUse(player, itemQuery) {
     const swapMsgUse = player.equipped_weapon ? ` (reemplaza ${player.equipped_weapon} → vuelve a tu mochila)` : '';
     resultText = `Equipás ${found}${swapMsgUse}. Tu ataque sube a ${newAttack}.`;
 
+  } else if (def.type === 'atk_potion' && def.effect === 'power') {
+    // DIS-D382: poción de poder — buff temporal de ATK (similar a pergaminos)
+    const scrolls = JSON.parse(player.active_scrolls || '{}');
+    const nowPow = Date.now();
+    const expiresAtPow = nowPow + def.duration * 1000;
+
+    // Registrar el buff activo bajo la clave 'power' (sobrescribe si ya hay uno)
+    scrolls['power'] = { atk_bonus: def.atk_bonus, def_bonus: 0, expires_at: expiresAtPow };
+
+    // Consumir el ítem
+    const newInvPow = removeFirst(player.inventory, found);
+    db.updatePlayer(player.id, { inventory: newInvPow, active_scrolls: JSON.stringify(scrolls) });
+
+    resultText = `⚡ Bebés la ${found}. Una energía oscura recorre tus músculos. (+${def.atk_bonus} ATK por ${def.duration}s)`;
+
   } else if (def.type === 'scroll') {
     // T153: Pergaminos mágicos de un solo uso
     const scrolls = JSON.parse(player.active_scrolls || '{}');
