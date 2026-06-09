@@ -656,3 +656,48 @@ document.querySelectorAll('.qcmd').forEach(btn => {
 
 // Refrescar estado cada 10 segundos (para actualizar HP de monstruos que regeneran, etc.)
 setInterval(refreshState, 10_000);
+
+// T395: Acordeón mobile — colapsar secciones secundarias en ≤480px
+(function initMobileAccordion() {
+  if (window.innerWidth > 480) return;
+
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+
+  // Wrappear contenido de cada sección collapsible en un .sidebar-section-body
+  document.querySelectorAll('.sidebar-collapsible').forEach(section => {
+    const title = section.querySelector('.sidebar-title');
+    if (!title) return;
+
+    // Wrappear todo lo que NO es el título en un body div
+    const body = document.createElement('div');
+    body.className = 'sidebar-section-body';
+    Array.from(section.children).forEach(child => {
+      if (child !== title) body.appendChild(child);
+    });
+    section.appendChild(body);
+
+    // Colapsar por defecto (excepto trap/status/party que ya están ocultos por display:none)
+    section.classList.add('collapsed');
+
+    // Toggle al hacer tap/click en el título
+    title.addEventListener('click', () => {
+      section.classList.toggle('collapsed');
+    });
+  });
+
+  // Botón "▼ VER TODO / COLAPSAR" al final del sidebar
+  const expandBtn = document.createElement('button');
+  expandBtn.id = 'sidebar-expand-btn';
+  expandBtn.textContent = '▼ VER TODO';
+  let allExpanded = false;
+  expandBtn.addEventListener('click', () => {
+    allExpanded = !allExpanded;
+    document.querySelectorAll('.sidebar-collapsible').forEach(s => {
+      if (allExpanded) s.classList.remove('collapsed');
+      else s.classList.add('collapsed');
+    });
+    expandBtn.textContent = allExpanded ? '▲ COLAPSAR' : '▼ VER TODO';
+  });
+  sidebar.appendChild(expandBtn);
+}());

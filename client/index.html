@@ -112,7 +112,7 @@
         </div>
 
         <!-- T104: Panel de maná -->
-        <div class="sidebar-section" id="mana-section">
+        <div class="sidebar-section sidebar-collapsible" id="mana-section">
           <div class="sidebar-title" style="color:#7ec8e3">🪄 MANÁ</div>
           <div class="hp-bar-wrap" style="margin-bottom:4px">
             <div class="hp-bar-bg">
@@ -129,40 +129,40 @@
           <div id="sidebar-exits" class="sidebar-list">(desconocido)</div>
         </div>
 
-        <div class="sidebar-section" id="trap-section" style="display:none">
+        <div class="sidebar-section sidebar-collapsible" id="trap-section" style="display:none">
           <div class="sidebar-title" style="color:#ff6b6b">⚠️ TRAMPA ACTIVA</div>
           <div id="sidebar-trap" class="sidebar-list trap-warning">¡Esta sala tiene una trampa!</div>
           <button class="qcmd trap-disarm-btn" data-cmd="desactivar trampa" style="margin-top:4px;width:100%">desactivar trampa</button>
         </div>
 
-        <div class="sidebar-section" id="status-effects-section" style="display:none">
+        <div class="sidebar-section sidebar-collapsible" id="status-effects-section" style="display:none">
           <div class="sidebar-title" style="color:#a8ff78">☠ EFECTOS ACTIVOS</div>
           <div id="sidebar-status-effects" class="sidebar-list poison-warning">Sin efectos</div>
           <button class="qcmd" data-cmd="use antídoto" style="margin-top:4px;width:100%">usar antídoto</button>
         </div>
 
-        <div class="sidebar-section" id="party-section" style="display:none">
+        <div class="sidebar-section sidebar-collapsible" id="party-section" style="display:none">
           <div class="sidebar-title" style="color:#7ec8e3">⚔ GRUPO</div>
           <div id="sidebar-party" class="sidebar-list">(sin compañeros)</div>
           <button class="qcmd" data-cmd="party leave" style="margin-top:4px;width:100%">abandonar grupo</button>
         </div>
 
-        <div class="sidebar-section">
+        <div class="sidebar-section sidebar-collapsible">
           <div class="sidebar-title">◈ MONSTRUOS</div>
           <div id="sidebar-monsters" class="sidebar-list">(ninguno)</div>
         </div>
 
-        <div class="sidebar-section">
+        <div class="sidebar-section sidebar-collapsible">
           <div class="sidebar-title">◈ ÍTEMS EN SUELO</div>
           <div id="sidebar-room-items" class="sidebar-list">(nada)</div>
         </div>
 
-        <div class="sidebar-section">
+        <div class="sidebar-section sidebar-collapsible">
           <div class="sidebar-title">◈ INVENTARIO</div>
           <div id="sidebar-inventory" class="sidebar-list">(vacío)</div>
         </div>
 
-        <div class="sidebar-section">
+        <div class="sidebar-section sidebar-collapsible">
           <div class="sidebar-title">◈ COMANDOS RÁPIDOS</div>
           <div class="quick-cmds">
             <button class="qcmd" data-cmd="look">look</button>

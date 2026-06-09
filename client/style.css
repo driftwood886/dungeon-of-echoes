@@ -653,6 +653,47 @@ html, body {
     flex-direction: column;
   }
 
+  /* T395: Acordeón — secciones colapsables en mobile */
+  .sidebar-collapsible .sidebar-title {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sidebar-collapsible .sidebar-title::after {
+    content: '▼';
+    font-size: 0.7em;
+    opacity: 0.6;
+    transition: transform 0.2s;
+  }
+  .sidebar-collapsible.collapsed .sidebar-title::after {
+    transform: rotate(-90deg);
+  }
+  .sidebar-collapsible .sidebar-section-body {
+    overflow: hidden;
+    max-height: 500px;
+    transition: max-height 0.2s ease;
+  }
+  .sidebar-collapsible.collapsed .sidebar-section-body {
+    max-height: 0;
+  }
+
+  /* Botón "expandir todo" */
+  #sidebar-expand-btn {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.75em;
+    padding: 0.35rem;
+    cursor: pointer;
+    text-align: center;
+    margin-top: 0.2rem;
+  }
+  #sidebar-expand-btn:hover { border-color: var(--accent); color: var(--accent); }
+
   .sidebar-section {
     flex: none;
     width: 100%;
