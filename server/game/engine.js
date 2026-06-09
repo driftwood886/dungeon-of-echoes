@@ -721,15 +721,11 @@ function cmdMove(player, direction) {
   const roomsCr = db.updateDailyChallengeProgress(player.id, 'rooms', null, visitResult.isNew ? 1 : 0);
   // (Solo suma si es una sala nueva en esta sesión; el progreso se acumula naturalmente)
 
-  // ── T160: XP por exploración de sesión ───────────────────────────────────
-  // +2 XP la primera vez que se visita una sala en esta sesión
+  // ── T160/DIS-D372: XP por exploración permanente ──────────────────────────
+  // +2 XP la primera vez que se visita una sala (permanente, no por sesión)
+  // visitResult.isNew indica si es la primera vez en total (usa rooms_visited en BD)
   let explorationMsg = '';
-  if (!sessionExploredRooms.has(player.id)) {
-    sessionExploredRooms.set(player.id, new Set());
-  }
-  const exploredSet = sessionExploredRooms.get(player.id);
-  if (!exploredSet.has(targetId)) {
-    exploredSet.add(targetId);
+  if (firstVisitEver) {
     const freshExp = db.getPlayer(player.id);
     const newXp = (freshExp.xp || 0) + 2;
     const newLevel = xpSystem.levelFromXp(newXp);
@@ -742,7 +738,7 @@ function cmdMove(player, direction) {
       upd.attack = (freshExp.attack || 5) + 1;
     }
     db.updatePlayer(player.id, upd);
-    explorationMsg = `\n🗺️ ¡Sala descubierta esta sesión! +2 XP de explorador.${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!` : ''}`;
+    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +2 XP de explorador.${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!` : ''}`;
   }
 
   // Construir respuesta
