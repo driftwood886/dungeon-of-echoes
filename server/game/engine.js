@@ -581,7 +581,13 @@ function cmdLook(player) {
     }
   } catch (_) { /* no romper look si quests falla */ }
 
-  return { text: text + effectLine + questHintLine };
+  // DIS-D383: recordatorio de clase si nivel >= 3 y sin clase elegida
+  let classReminderLine = '';
+  if ((player.level || 1) >= 3 && (!player.player_class || player.player_class === 'sin_clase')) {
+    classReminderLine = `\n💡 Aún no elegiste clase (nivel ${player.level}). Escribí 'clase' para ver las opciones.`;
+  }
+
+  return { text: text + effectLine + questHintLine + classReminderLine };
 }
 
 /**
@@ -1017,6 +1023,11 @@ function cmdStatus(player) {
       const partsStr = parts.length > 0 ? ` — ${parts.join(', ')}` : '';
       statusLines.push(`${effectLabel}${partsStr} por ${secsLeft}s más.`);
     }
+  }
+
+  // DIS-D383: recordatorio de clase si nivel >= 3 y sin clase elegida
+  if ((player.level || 1) >= 3 && (!player.player_class || player.player_class === 'sin_clase')) {
+    statusLines.unshift(`💡 Aún no elegiste clase (nivel ${player.level}). Escribí 'clase' para ver las opciones.`);
   }
 
   const text = [
