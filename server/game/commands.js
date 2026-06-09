@@ -56,7 +56,7 @@ const COMMAND_ALIASES = {
   // who
   who: 'who', jugadores: 'who', online: 'who', quién: 'who', quien: 'who',
   // score / ranking
-  score: 'score', ranking: 'score', scores: 'score', tabla: 'score', marcador: 'score',
+  score: 'score', ranking: 'score', scores: 'score', tabla: 'score', marcador: 'score', leaderboard: 'score', 'top-jugadores': 'score',
   // T176: rank / mi posición en el ranking
   rank: 'rank', posicion: 'rank', posición: 'rank', miposicion: 'rank', 'mi-posicion': 'rank',
   // T175: hardcore mode
