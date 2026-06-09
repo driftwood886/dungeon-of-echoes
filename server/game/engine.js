@@ -1513,11 +1513,13 @@ function cmdAttack(player, targetName) {
 
   // ── Evaluar logros tras el combate ──────────────────────────────────────
   let achLines = '';
+  const LICH_MONSTER_ID = 13; // Lich Anciano — boss principal (Catedral)
   const bossKill = monsterDead && !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]);
+  const lichKill = monsterDead && monster.id === LICH_MONSTER_ID; // solo el Lich Anciano real
   const freshForAch = db.getPlayer(player.id);
   if (freshForAch) {
     const poisonSurvived = !!(combatResult && combatResult.poisonSurvived);
-    const newAchs = ach.checkAchievements(freshForAch, { bossKill, poisonSurvived });
+    const newAchs = ach.checkAchievements(freshForAch, { bossKill: lichKill, poisonSurvived });
     achLines = ach.formatNewAchievements(newAchs);
 
     // T125: reputación por kill (+1) y por logros nuevos (+3 c/u)
@@ -1537,7 +1539,7 @@ function cmdAttack(player, targetName) {
     }
 
     // ── Registrar eventos globales (T093) ───────────────────────────────────
-    if (bossKill) {
+    if (lichKill) {
       // STORY-016: texto de crónica evocador para el boss
       db.logGlobalEvent('boss', `Las antorchas de la Catedral se apagaron cuando ${player.username} emergió con sangre de lich en la espada. Por un momento, el dungeon estuvo en silencio.`);
       // T113: Diario del aventurero — STORY-019: entrada con color emocional
@@ -1788,7 +1790,7 @@ function cmdAttack(player, targetName) {
     }
   }
 
-  const bossVictoryBlock = bossKill
+  const bossVictoryBlock = lichKill
     ? (() => {
       const freshVictory = db.getPlayer(player.id);
       const lichKills = (freshVictory && freshVictory.lich_kills) || 1;
@@ -6869,9 +6871,10 @@ function cmdCast(player, args) {
       }
       // BUG-044: evaluar logros al matar con hechizo (incluyendo boss_killer)
       const castBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+      const castLichKill = target.id === 13; // solo el Lich Anciano real
       const freshForCastAch = db.getPlayer(player.id);
       if (freshForCastAch) {
-        const newCastAchs = ach.checkAchievements(freshForCastAch, { bossKill: castBossKill });
+        const newCastAchs = ach.checkAchievements(freshForCastAch, { bossKill: castLichKill });
         const castAchLines = ach.formatNewAchievements(newCastAchs);
         if (castAchLines) lines.push(castAchLines);
         if (castBossKill) {
@@ -7399,9 +7402,10 @@ function cmdUseSkill(player, args, context) {
       if (levelUp) db.addJournalEntry(freshPlayer.id, 'level', `⬆️ Subiste al nivel ${newLevel} tras el Golpetazo.`);
       // Logros — incluyendo boss_killer
       const smashBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+      const smashLichKill = target.id === 13; // solo el Lich Anciano real
       const freshForSmashAch = db.getPlayer(freshPlayer.id);
       if (freshForSmashAch) {
-        const newSmashAchs = ach.checkAchievements(freshForSmashAch, { bossKill: smashBossKill });
+        const newSmashAchs = ach.checkAchievements(freshForSmashAch, { bossKill: smashLichKill });
         const smashAchLines = ach.formatNewAchievements(newSmashAchs);
         if (smashAchLines) text += '\n' + smashAchLines;
         if (smashBossKill) {
@@ -7515,9 +7519,10 @@ function cmdUseSkill(player, args, context) {
       db.addBestiaryKill(freshPlayer.id, target.name);
       // Logros — incluyendo boss_killer
       const bashBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+      const bashLichKill = target.id === 13; // solo el Lich Anciano real
       const freshForBashAch = db.getPlayer(freshPlayer.id);
       if (freshForBashAch) {
-        const newBashAchs = ach.checkAchievements(freshForBashAch, { bossKill: bashBossKill });
+        const newBashAchs = ach.checkAchievements(freshForBashAch, { bossKill: bashLichKill });
         const bashAchLines = ach.formatNewAchievements(newBashAchs);
         if (bashAchLines) text += '\n' + bashAchLines;
         if (bashBossKill) {
@@ -7684,9 +7689,10 @@ function cmdUseSkill(player, args, context) {
       text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       const gsBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+      const gsLichKill = target.id === 13; // solo el Lich Anciano real
       const freshForGsAch = db.getPlayer(freshPlayer.id);
       if (freshForGsAch) {
-        const newGsAchs = ach.checkAchievements(freshForGsAch, { bossKill: gsBossKill });
+        const newGsAchs = ach.checkAchievements(freshForGsAch, { bossKill: gsLichKill });
         const gsAchLines = ach.formatNewAchievements(newGsAchs);
         if (gsAchLines) text += '\n' + gsAchLines;
         if (gsBossKill) {
