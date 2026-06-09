@@ -36,7 +36,7 @@ const COMMAND_ALIASES = {
   // pick
   pick: 'pick', tomar: 'pick', recoger: 'pick', agarrar: 'pick', get: 'pick',
   // use
-  use: 'use', usar: 'use', utilizar: 'use',
+  use: 'use', usar: 'use', utilizar: 'use', open: 'use',
   // heal (atajo: usar la primera poción del inventario)
   heal: 'heal', curar: 'heal', curarse: 'heal', recuperar: 'heal',
   // drop

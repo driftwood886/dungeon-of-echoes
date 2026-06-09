@@ -2172,7 +2172,28 @@ function cmdUse(player, itemQuery) {
     resultText = `📜 Leés el ${found}. ${def.description.split('(')[0].trim()} (${parts.join(', ')} por ${def.duration}s)`;
 
   } else {
-    resultText = `Examinás ${found}: ${def.description}`;
+    // DIS-D362: manejo especial de ítems sellados/abribles
+    const foundLow = found.toLowerCase();
+    if (foundLow.includes('carta sellada') || foundLow === 'carta') {
+      // Abrir la carta sellada — narrativa de lore, consumir el ítem
+      const newInvC = removeFirst(player.inventory, found);
+      db.updatePlayer(player.id, { inventory: newInvC });
+      resultText = `Con cuidado, rompés el sello de cera negra. El papel cruje levemente al desplegarse.\n\nLa letra es precisa, casi formal:\n\n  \"Si leés esto, llegaste más lejos de lo que esperaba cualquiera.\n  Kaelthas no puede morir — no de la manera que conocemos.\n  Encontró una forma de atar su esencia al dungeon mismo.\n  El único modo de terminar con esto es llegar al Trono del Vacío\n  y pronunciar su nombre completo en voz alta: no el que conocés.\n  El verdadero.\n\n  Lo grabé en la base del trono. Mirá abajo, no arriba.\n\n  Perdoname por no haberlo hecho yo mismo.\"\n\n  Sin firma. Solo el símbolo de dos llaves cruzadas.\n\n🔍 La carta sellada se deshace en polvo antiguo una vez que la leés.`;
+    } else if (foundLow.includes('tomo sellado') || foundLow.includes('tomo')) {
+      // DIS-D363: el tomo sellado tiene una condición real: necesitás el amuleto oscuro
+      const freshP = db.getPlayer(player.id);
+      const hasAmuleto = (freshP.inventory || []).some(i => i.toLowerCase().includes('amuleto oscuro'));
+      if (hasAmuleto) {
+        // Consumir el tomo y el amuleto — revelar el lore
+        const invT = removeFirst(removeFirst(freshP.inventory, found), 'amuleto oscuro');
+        db.updatePlayer(player.id, { inventory: invT });
+        resultText = `Acercás el amuleto oscuro al tomo. Las cadenas de cuero vibran, se tensionan... y se parten.\n\nAbrís el tomo. Las páginas están escritas en un idioma que no reconocés, pero las ilustraciones son inconfundibles: diagramas del dungeon, trazados de energía, y al final, una sola página en el idioma del reino.\n\n  \"El Trono del Vacío no es un lugar. Es un acuerdo.\n  Kaelthas no lo construyó — lo negoció.\n  A cambio de inmortalidad, ata su nombre al dungeon.\n  Mientras el dungeon exista, él existe.\n  Para destruirlo, tenés que destruir el nombre.\n  Su nombre verdadero está grabado en la base del trono,\n  con sangre de dragón. Pronunciarlo rompe el acuerdo.\n  Y lo libera.\"\n\n  La última página tiene una sola palabra subrayada dos veces: CUIDADO.\n\n🔍 El tomo se cierra por última vez y su magia se disipa.`;
+      } else {
+        resultText = `Intentás abrir el tomo sellado, pero las cadenas de cuero resisten. El sello pulsa con energía oscura cuando lo tocás.\n\n¿Habrá algo en el dungeon que pueda neutralizar esta energía? El amuleto que a veces dropean los Magos Liches podría resonar con esto...`;
+      }
+    } else {
+      resultText = `Examinás ${found}: ${def.description}`;
+    }
   }
 
   return {
@@ -2368,9 +2389,14 @@ function cmdExamine(player, query) {
     'cuerda':          { rooms: [7],  text: 'La cuerda está atada en lo alto a un gancho de hierro de manufactura antigua. Intentás tirar de ella para saber qué hay abajo. El frío que sube desde las profundidades te hace soltar de inmediato —no es temperatura, es algo más. Un rechazo activo, deliberado. Mirás más de cerca los nudos: la cuerda tiene marcas de haber sido cortada desde abajo. Alguien —o algo— no quería que nadie bajara.' },
     'forja':           { rooms: [12], text: 'El fuego de la forja lleva ardiendo más tiempo del que nadie recuerda, sin carbón ni madera visible. Sobre el yunque hay un molde para una espada que nunca se terminó —los bordes muestran marcas de garras, no de herramientas. Algo o alguien intentó completar la obra sin los conocimientos necesarios.\n\nLo más inquietante: el fuego es perfecto, uniforme, constante. Como una respiración.' },
     'runas':           { rooms: [10], text: 'Las runas con sangre seca forman un patrón que tardás un momento en ver completo: es un círculo, y en su centro hay un nombre escrito en un idioma que nadie habla hace doscientos años. No sabés cómo, pero lo podés leer: K-A-E-L-T-H-A-S. El patrón de las runas forma un nombre. No querés saber cómo lo sabés.' },
+    'runa':            { rooms: [10], text: 'Las runas con sangre seca forman un patrón que tardás un momento en ver completo: es un círculo, y en su centro hay un nombre escrito en un idioma que nadie habla hace doscientos años. No sabés cómo, pero lo podés leer: K-A-E-L-T-H-A-S. El patrón de las runas forma un nombre. No querés saber cómo lo sabés.' },
     'estatua':         { rooms: [10], text: 'La estatua con diez brazos no corresponde a ningún dios que conozcas. Cada brazo sostiene algo distinto: un escudo, una espada, un libro, una llave, una copa, una antorcha... Los últimos tres brazos están vacíos. La placa en la base está en blanco, raspada hasta la piedra. Alguien borró el nombre deliberadamente.' },
-    'carta':           { rooms: [8],  text: 'Un sobre sellado con cera negra, marcado con el símbolo de dos llaves cruzadas. La cera está intacta. Podés abrirla, pero algo en vos duda: hay cosas que no se pueden ignorar una vez que se saben.' },
-    'carta sellada':   { rooms: [8],  text: 'Un sobre sellado con cera negra, marcado con el símbolo de dos llaves cruzadas. La cera está intacta. El papel es viejo pero el sellado es perfecto —alguien tomó cuidado de que esto durara. En el reverso, en letra pequeña: "Para quien llegue después. Perdoname." Sin firma.\n\n🔍 El símbolo de las dos llaves cruzadas... lo viste antes. En el delantal de alguien. De un mercader que eligió este dungeon por razones que nunca explicó.' },
+    'brazos':          { rooms: [10], text: 'Siete de los diez brazos de la estatua sostienen objetos: un escudo, una espada, un libro, una llave, una copa, una antorcha y algo que no reconocés —una esfera de obsidiana perfecta. Los otros tres brazos están extendidos y vacíos, con las palmas hacia arriba, como esperando ofrendas. El polvo de siglos ha respetado los huecos.' },
+    'placa':           { rooms: [10], text: 'La placa de piedra en la base de la estatua fue raspada con deliberación, no por el tiempo. Podés ver las marcas de una herramienta afilada —alguien borró el nombre con cuidado. Aun así, quedan trazos. Con luz y paciencia, podés adivinar tres letras: K, A, E. El resto desapareció para siempre.' },
+    'suelo':           { rooms: [10], text: 'El suelo del Santuario es la parte más perturbadora de la sala. Las runas forman círculos concéntricos que convergen en el centro exacto —donde estás parado. El diámetro del círculo externo coincide perfectamente con las dimensiones de la sala. Alguien diseñó esto. No fue accidental.' },
+    'sangre':          { rooms: [10], text: 'La sangre seca de las runas lleva décadas aquí, pero no se ha oscurecido como debería. Tiene un color rojo profundo, casi fresco. Al acercarte, notás que emana un calor tenue —el mismo que reconocerías si alguna vez pusiste la mano sobre una brasa casi apagada. Algo mantiene esto activo.' },
+    'carta':           { rooms: [8],  text: 'Un sobre sellado con cera negra, marcado con el símbolo de dos llaves cruzadas. La cera está intacta. Podés abrirla, pero algo en vos duda: hay cosas que no se pueden ignorar una vez que se saben.\n\n💡 Tip: usá \"use carta sellada\" o \"open carta sellada\" para leer su contenido.' },
+    'carta sellada':   { rooms: [8],  text: 'Un sobre sellado con cera negra, marcado con el símbolo de dos llaves cruzadas. La cera está intacta. El papel es viejo pero el sellado es perfecto —alguien tomó cuidado de que esto durara. En el reverso, en letra pequeña: \"Para quien llegue después. Perdoname.\" Sin firma.\n\n🔍 El símbolo de las dos llaves cruzadas... lo viste antes. En el delantal de alguien. De un mercader que eligió este dungeon por razones que nunca explicó.' },
     // STORY-007: Diario de aventurero anterior en sala 11 (Galería de Hielo)
     'cadaver':         { rooms: [11], text: 'Uno de los cadáveres congelados lleva encima lo que queda de un diario. Las páginas están tan heladas que al tocarlas crean ruido de cristal roto.' },
     'cadáver':         { rooms: [11], text: 'Uno de los cadáveres congelados lleva encima lo que queda de un diario. Las páginas están tan heladas que al tocarlas crean ruido de cristal roto.' },
@@ -2919,12 +2945,18 @@ function cmdLoot(player) {
 
   let goldCollected = 0;
   const nonGoldItems = [];
+  const openedContainers = []; // DIS-D361: rastrear cofres abiertos para mensaje narrativo
   for (const item of floorItems) {
     const gKey = Object.keys(GOLD_ITEMS_LOOT).find(k =>
       item.toLowerCase().includes(k) || k.includes(item.toLowerCase())
     );
     if (gKey) {
-      goldCollected += GOLD_ITEMS_LOOT[gKey];
+      const amount = GOLD_ITEMS_LOOT[gKey];
+      goldCollected += amount;
+      // DIS-D361: si es un cofre (no simples monedas), guardarlo para mostrar mensaje narrativo
+      if (item.toLowerCase().includes('cofre')) {
+        openedContainers.push({ name: item, gold: amount });
+      }
     } else {
       nonGoldItems.push(item);
     }
@@ -2947,7 +2979,20 @@ function cmdLoot(player) {
   }).join('\n');
 
   const totalItems = nonGoldItems.length + (goldCollected > 0 ? 1 : 0);
-  const goldLine = goldCollected > 0 ? `\n  💰 +${goldCollected} monedas de oro` : '';
+  // DIS-D361: mostrar línea descriptiva para cofres abiertos, genérica para monedas simples
+  let goldLine = '';
+  if (goldCollected > 0) {
+    const containerLines = openedContainers.map(c =>
+      `  📦 Abrís el ${c.name} y encontrás ${c.gold} monedas de oro`
+    ).join('\n');
+    const plainGold = goldCollected - openedContainers.reduce((s, c) => s + c.gold, 0);
+    const coinLine = plainGold > 0 ? `\n  💰 +${plainGold} monedas de oro` : '';
+    const containerSection = containerLines ? `\n${containerLines}` : '';
+    goldLine = containerSection + coinLine;
+    if (!coinLine && containerLines) {
+      goldLine += `\n  💰 Total: +${goldCollected} monedas de oro`;
+    }
+  }
 
   // DIS-D280: hint de crafteo — si el nuevo inventario completa una receta, sugerir crafting (1 vez por receta)
   const { RECIPES } = crafting;
