@@ -752,13 +752,16 @@ function cmdMove(player, direction) {
   // T120: si el jugador tiene mascota, 15% de chance de avisar la trampa antes de activarse
   if (targetRoomFull && targetRoomFull.trap && targetRoomFull.trap.active) {
     const trap = targetRoomFull.trap;
+    // DIS-D370: conocimiento de trampas persistente entre sesiones.
+    // Primero verificar en known_traps (permanente), luego en status_effects (cooldown temporal legacy).
     // DIS-D43/DIS-D279: cooldown personal de trampa — el jugador recuerda la trampa
-    // DIS-D307: aumentado a 30 minutos (antes 90s). A 90s el jugador re-activaba la trampa
-    //   al explorar repetidamente la misma sala. El aprendizaje debe durar toda la sesión.
+    // DIS-D307: aumentado a 30 minutos (antes 90s).
+    const knownTraps = player.known_traps || {};
     const statusEff = player.status_effects || {};
     const trapCdKey = `trap_cd_${targetId}`;
     const trapCdExpiry = statusEff[trapCdKey] ? new Date(statusEff[trapCdKey]).getTime() : 0;
-    const trapKnown = trapCdExpiry > Date.now();
+    // Trampa conocida: persistente (known_traps) O cooldown activo (legacy)
+    const trapKnown = knownTraps[targetId] === true || trapCdExpiry > Date.now();
     if (trapKnown) {
       // DIS-D307: si ya conoce la trampa, la esquiva siempre (era 80% antes).
       // El jugador aprendió el mecanismo — no tiene sentido que siga haciéndole daño.
@@ -774,10 +777,12 @@ function cmdMove(player, direction) {
       // DIS-D279: daño con leve varianza para que nunca sea exactamente predecible
       const variantDmg = Math.max(1, trap.damage + (Math.random() < 0.33 ? 1 : Math.random() < 0.5 ? -1 : 0));
       const newHp = Math.max(0, player.hp - variantDmg);
-      // DIS-D307: cooldown aumentado a 30 minutos (era 90s). El aprendizaje dura toda la sesión.
+      // DIS-D370: guardar en known_traps (permanente) para que persista entre sesiones
+      const updatedKnownTraps = { ...(player.known_traps || {}), [targetId]: true };
+      // También mantener cooldown legacy por compatibilidad (30 min)
       const updatedSE = { ...(player.status_effects || {}), [trapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
-      db.updatePlayer(player.id, { hp: newHp, status_effects: JSON.stringify(updatedSE) });
-      trapText = `\n\n⚠️  ¡TRAMPA! ${trap.description}\n💥 Perdés ${variantDmg} HP. (${newHp}/${player.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte.`;
+      db.updatePlayer(player.id, { hp: newHp, status_effects: JSON.stringify(updatedSE), known_traps: JSON.stringify(updatedKnownTraps) });
+      trapText = `\n\n⚠️  ¡TRAMPA! ${trap.description}\n💥 Perdés ${variantDmg} HP. (${newHp}/${player.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).`;
       if (newHp === 0) {
         // BUG-006 fix: usar handlePlayerDeath para registrar deaths correctamente
         const trapDeathLines = [];

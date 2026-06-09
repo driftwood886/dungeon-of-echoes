@@ -177,6 +177,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN cycle_best_time INTEGER`,                           // DIS-D291: mejor tiempo de ciclo (minutos de playtime al matar Lich)
     `ALTER TABLE players ADD COLUMN endgame_challenges TEXT NOT NULL DEFAULT '{}'`,     // DIS-D291: desafíos post-boss completados
     `ALTER TABLE players ADD COLUMN last_hp_regen TEXT`,                                // DIS-D326: timestamp última regen pasiva de HP
+    `ALTER TABLE players ADD COLUMN known_traps TEXT NOT NULL DEFAULT '{}'`,             // DIS-D370: trampas aprendidas (persistente entre sesiones)
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -402,6 +403,7 @@ function getPlayer(id) {
   if (p) {
     p.inventory = JSON.parse(p.inventory);
     p.status_effects = p.status_effects ? JSON.parse(p.status_effects) : {};
+    p.known_traps = p.known_traps ? JSON.parse(p.known_traps) : {};
   }
   return p;
 }
@@ -411,6 +413,7 @@ function getPlayerByUsername(username) {
   if (p) {
     p.inventory = JSON.parse(p.inventory);
     p.status_effects = p.status_effects ? JSON.parse(p.status_effects) : {};
+    p.known_traps = p.known_traps ? JSON.parse(p.known_traps) : {};
   }
   return p;
 }
