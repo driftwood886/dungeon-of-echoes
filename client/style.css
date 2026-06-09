@@ -528,6 +528,17 @@ html, body {
     padding-bottom: 0.3rem;
   }
 
+  #header-room {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 40vw;
+  }
+
+  #header-title {
+    flex-shrink: 0;
+  }
+
   /* Layout principal apilado verticalmente */
   #game-main {
     flex-direction: column;
@@ -595,6 +606,17 @@ html, body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Botón enviar: tap target más grande */
+  #cmd-btn {
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9em;
   }
 
   /* Logo más pequeño en login */
@@ -615,6 +637,13 @@ html, body {
 /* Extra pequeño (< 480px, teléfonos angostos) */
 @media (max-width: 480px) {
   body { font-size: 12px; }
+
+  /* Logo ASCII más pequeño para evitar desbordamiento horizontal */
+  .logo {
+    font-size: 0.28em;
+    max-width: 100%;
+    overflow-x: auto;
+  }
 
   #messages-panel {
     height: 50vh;
@@ -637,6 +666,7 @@ html, body {
   .qcmd {
     font-size: 0.65em;
     padding: 0.25rem 0.1rem;
+    min-height: 44px;
   }
 }
 
