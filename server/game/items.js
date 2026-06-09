@@ -79,7 +79,7 @@ const ITEM_CATALOG = {
   // ── Misc / coleccionables (dungeon expandido) ─────────────────────────────
   'fragmento de hielo':  { type: 'misc', description: 'Un bloque pequeño de hielo antiguo que no se derrite. Irradia un frío sobrenatural.' },
   'lingote de hierro':   { type: 'misc', description: 'Un lingote de hierro puro, salido directo de la forja. Pesado y caliente aún.' },
-  'perla negra':         { type: 'misc', description: 'Una perla de un negro absoluto del lago subterráneo. Tiene un valor incalculable.' },
+  'perla negra':         { type: 'misc', description: 'Una perla de un negro absoluto del lago subterráneo. Tiene un valor incalculable. 🔧 Pista: combinala con el tomo sellado para craftear el grimorio del abismo (🟡 legendario).' },
   'red de pesca':        { type: 'misc', description: 'Una red de pesca resistente. Podría servir para algo más que pescar.' },
   'escudo de gladiador': { type: 'armor', effect: 'defense_bonus', amount: 3, description: 'El escudo de un gladiador del coliseo de huesos. Lleva el nombre "MAXIMUS" grabado. Otorga +3 DEF.' },
   'tomo sellado':        { type: 'misc', description: 'Un tomo sellado con cera negra. Las runas del sello pulsan suavemente. No se puede abrir... aún.' },
@@ -93,11 +93,11 @@ const ITEM_CATALOG = {
   'esencia de sombra':   { type: 'misc', description: 'La esencia condensada de las sombras del dungeon. Vibra en la oscuridad.' },
 
   // ── Ítems del Dungeon Extendido — Cámara del Eco y Abismo Eterno (T132) ────
-  'cristal resonante':   { type: 'misc', description: 'Un cristal que vibra con el eco de los muertos. Emite un suave hum que aumenta con la luna. Material artesanal valioso.' },
-  'polvo de eco':        { type: 'misc', description: 'Polvo que cayó de las paredes de la Cámara del Eco. Brilla con luz tenue al agitarlo.' },
-  'esencia de eco':      { type: 'misc', description: 'La esencia destilada de un Eco Viviente. Guarda la memoria de aventureros caídos.' },
-  'fragmento de vacío':  { type: 'misc', description: 'Un fragmento del Abismo Eterno. Absorbe la luz a su alrededor. Los sabios lo llaman "la nada solidificada".' },
-  'esencia del abismo':  { type: 'misc', description: 'La esencia pura de la Sombra del Vacío. Vibra con una energía oscura y antigua. Ingrediente de recetas de alquimia avanzada.' },
+  'cristal resonante':   { type: 'misc', description: 'Un cristal que vibra con el eco de los muertos. Emite un suave hum que aumenta con la luna. 🔧 Pista: combinalo con esencia de eco o polvo de eco para craftear armas espectrales.' },
+  'polvo de eco':        { type: 'misc', description: 'Polvo que cayó de las paredes de la Cámara del Eco. Brilla con luz tenue al agitarlo. 🔧 Pista: ingrediente artesanal — combinalo con cristal resonante.' },
+  'esencia de eco':      { type: 'misc', description: 'La esencia destilada de un Eco Viviente. Guarda la memoria de aventureros caídos. 🔧 Pista: ingrediente artesanal — combinalo con cristal resonante para forjar una lanza espectral del eco.' },
+  'fragmento de vacío':  { type: 'misc', description: 'Un fragmento del Abismo Eterno. Absorbe la luz a su alrededor. Los sabios lo llaman "la nada solidificada". 🔧 Pista: combinalo con esencia del abismo para craftear la daga del vacío (🟡 legendaria).' },
+  'esencia del abismo':  { type: 'misc', description: 'La esencia pura de la Sombra del Vacío. Vibra con una energía oscura y antigua. 🔧 Pista: combinalo con fragmento de vacío para craftear la daga del vacío (🟡 legendaria).' },
   // T186: Ítems de recolección pasiva al descansar
   'fragmento de roca volcánica': { type: 'misc', description: 'Un fragmento de roca volcánica cristalizada por el calor extremo de la forja. Material artesanal de alta densidad térmica.' },
 
