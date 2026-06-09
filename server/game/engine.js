@@ -6221,8 +6221,8 @@ function cmdAuction(player, args) {
       const updates = { equipped_weapon: null };
       const defWeapon = items.getItemDef(player.equipped_weapon);
       if (defWeapon) {
-        player.atk = Math.max(1, (player.atk || 5) - (defWeapon.amount || 0));
-        updates.atk = player.atk;
+        player.attack = Math.max(1, (player.attack || 5) - (defWeapon.amount || 0));
+        updates.attack = player.attack;
       }
       player.equipped_weapon = null;
       db.updatePlayer(player.id, updates);
@@ -6234,8 +6234,8 @@ function cmdAuction(player, args) {
       const updates = { equipped_armor: null };
       const defArmor = items.getItemDef(player.equipped_armor);
       if (defArmor) {
-        player.def = Math.max(2, (player.def || 2) - (defArmor.amount || 0));
-        updates.def = player.def;
+        player.defense = Math.max(2, (player.defense || 2) - (defArmor.amount || 0));
+        updates.defense = player.defense;
       }
       player.equipped_armor = null;
       db.updatePlayer(player.id, updates);
