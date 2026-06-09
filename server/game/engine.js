@@ -2388,7 +2388,23 @@ function cmdExamine(player, query) {
 
   // ¿Es un monstruo en la habitación?
   const monsters = db.getMonstersInRoom(player.current_room_id);
-  const monster = monsters.find(m => normalize(m.name).includes(qLow));
+  // DIS-D402: Palabras que son lore de sala y no deben matchear monstruos por substring.
+  // Ej: "forja" → no debe matchear "Golem de Forja", sino el lore de la sala 12.
+  const LORE_PRIORITY_WORDS = new Set(['forja', 'altar', 'trono', 'cuerda', 'carta',
+    'runa', 'runas', 'estatua', 'brazos', 'placa', 'suelo', 'sangre', 'celda',
+    'celdas', 'reja', 'rejas', 'vitrales', 'vitral', 'grieta', 'abismo',
+    'hongos', 'hongo', 'oscuridad', 'esporas', 'luz', 'obsidiana', 'espada',
+    'herramientas', 'sombras', 'lago', 'agua', 'burbujas', 'plataformas',
+    'gradas', 'esqueletos', 'arena', 'pozo']);
+  const monster = monsters.find(m => {
+    const mName = normalize(m.name);
+    // Si el query es exactamente el nombre del monstruo o el nombre empieza por el query, matchear
+    if (mName === qLow || mName.startsWith(qLow)) return true;
+    // Si el monstruo contiene el query (match parcial del nombre compuesto),
+    // verificar si la query coincide con una palabra de lore prioritaria.
+    if (mName.includes(qLow) && LORE_PRIORITY_WORDS.has(qLow)) return false;
+    return mName.includes(qLow);
+  });
   if (monster) {
     const bar = buildBar(monster.hp, monster.max_hp, 20);
     const specialDef = combat.MONSTER_SPECIALS[monster.name];
@@ -2504,6 +2520,20 @@ function cmdExamine(player, query) {
     'grieta':          { rooms: [20], text: 'La grieta en el suelo del Abismo no tiene fondo visible. Tirás una piedra: escuchás el impacto... pero tarda tres segundos, y el sonido sube distorsionado, como si el aire allá abajo tuviera una densidad diferente. Los bordes de la grieta están lisos, pulidos —no por erosión, sino por algo que frotó contra ellos repetidamente desde abajo.\n\nNo querés saber qué.' },
     'abismo':          { rooms: [20], text: 'La grieta en el suelo del Abismo no tiene fondo visible. Tirás una piedra: escuchás el impacto... pero tarda tres segundos, y el sonido sube distorsionado, como si el aire allá abajo tuviera una densidad diferente. Los bordes de la grieta están lisos, pulidos —no por erosión, sino por algo que frotó contra ellos repetidamente desde abajo.\n\nNo querés saber qué.' },
     'oscuridad':       { rooms: [20], text: 'La oscuridad del Abismo Eterno no es ausencia de luz — es una presencia. Tiene peso. Cuando apuntás tu antorcha hacia abajo, la llama se inclina hacia la grieta como si algo la atrajera. Te apartás instintivamente.' },
+    // DIS-D397: Taller de la Forja (sala 12) — elementos interactivos
+    'herramientas':    { rooms: [12], text: 'Las herramientas de la Forja son de dimensiones colosales —el martillo principal pesa lo que pesan dos hombres, el yunque podría usarse como lápida para un gigante. Pero lo perturbador no es el tamaño: es el estado. Las herramientas no tienen polvo. Están perfectamente mantenidas, con la pátina característica de uso reciente.\n\nAlguien las usa. Regularmente. Sin dejar rastro de presencia humana.' },
+    'sombras':         { rooms: [12], text: 'Las sombras del Taller se mueven con una lentitud que no corresponde a la luz. Cuando te quedás quieto y mirás un rincón fijo, las sombras avanzan levemente —no hacia vos, sino hacia las herramientas. Como si algo invisible estuviera trabajando en ellas.\n\nCuando te movés, las sombras vuelven a su posición normal. Podría ser ilusión óptica. Probablemente no lo es.' },
+    // DIS-D398: Caverna Sumergida (sala 13) — elementos interactivos
+    'lago':            { rooms: [13], text: 'El lago negro refleja la luz de tu antorcha, pero el reflejo está levemente desfasado —como si hubiera un retraso entre el movimiento y su imagen en el agua. Mirás hacia el fondo: no tiene. La oscuridad debajo de la superficie es absoluta y uniforme.\n\nCuando aguantás la respiración y te quedás inmóvil, escuchás algo. Una respiración. Del lago.' },
+    'agua':            { rooms: [13], text: 'El agua está perfectamente quieta a pesar de la ausencia de luz y el aire en movimiento. No hay corriente visible. Tocás la superficie con un dedo: es fría de un modo que no es temperatura sino ausencia de algo. La mano la retirás antes de pensarlo conscientemente.' },
+    'burbujas':        { rooms: [13], text: 'Las burbujas ascienden desde el fondo del lago a intervalos regulares —exactamente cada doce segundos, contás mentalmente. Demasiado regular para ser gas. Demasiado pausado para ser urgente. Es más parecido a una exhalación.\n\nAlgo abajo respira. Regularmente. Con mucha calma.' },
+    'plataformas':     { rooms: [13], text: 'Las plataformas de roca atraviesan el lago con una disposición que parece natural pero es demasiado conveniente. La separación entre ellas es exactamente la longitud de un paso humano. Alguien las diseñó —o las puso ahí— para que una persona pudiera cruzar.\n\nNo sabés si eso es tranquilizador o lo opuesto.' },
+    // DIS-D399: Coliseo de Huesos (sala 16) — elementos interactivos
+    'gradas':          { rooms: [16], text: 'Las gradas del Coliseo están llenas de esqueletos sentados en posición de espectadores: algunos se inclinan hacia adelante como si siguieran la acción, otros tienen la mandíbula abierta en un grito que nunca llegó. Todos miran al centro de la arena.\n\nLo más perturbador: los esqueletos de las primeras filas tienen sus manos huesudas apoyadas en las rodillas del esqueleto delantero, como harías vos en un estadio lleno.' },
+    'esqueletos':      { rooms: [16], text: 'Los esqueletos del Coliseo no son víctimas del dungeon —sus ropas, aunque podridas, corresponden a distintas épocas y regiones. Vinieron a ver. Vinieron voluntariamente, en algún momento de la historia de este lugar.\n\nUno de ellos, en la fila central, sostiene todavía un pergamino en la mano. Las letras son ilegibles, pero el formato es inconfundible: una apuesta.' },
+    'arena':           { rooms: [16], text: 'La arena del Coliseo está cubierta de una capa de arena fina y oscura. En el centro exacto hay una mancha circular, más oscura que el resto, de unos dos metros de diámetro. Sangre antigua, absorbida a lo largo de décadas o siglos.\n\nLos surcos en la arena muestran patrones de movimiento —círculos, esquivas, avances. Alguien entrenó aquí, solo, durante mucho tiempo. Los surcos son frescos.' },
+    // DIS-D400: Pozo Sin Fondo (sala 7) — elemento principal
+    'pozo':            { rooms: [7],  text: 'El pozo está en el centro exacto de la sala, con un brocal de piedra que tiene marcas de dedos —uñas, por la profundidad de los surcos. La cuerda que alguna vez colgó de la polea de arriba fue cortada. Desde abajo.\n\nEl frío que sube del pozo no es temperatura del aire: es un rechazo activo, una presión hacia afuera. Algo en el fondo no quiere compañía. O algo en el fondo prefiere que no sepás lo que hay.' },
   };
 
   // Normalizar query para buscar en lore objects
