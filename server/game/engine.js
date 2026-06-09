@@ -828,9 +828,26 @@ function cmdMove(player, direction) {
   if (roomEffect) {
     player = db.getPlayer(player.id);
     if (roomEffect.type === 'damage') {
-      const newHp = Math.max(1, player.hp - roomEffect.amount); // mínimo 1 HP (no mata)
-      db.updatePlayer(player.id, { hp: newHp });
-      effectText = `\n\n${roomEffect.msg} (${newHp}/${player.max_hp} HP)`;
+      // DIS-D403: Para sala 12 (Calor Abrasador), el daño solo se aplica la primera vez.
+      // En visitas posteriores, el jugador ya "sabe" protegerse y solo recibe un recordatorio.
+      const FIRST_TIME_DAMAGE_ROOMS = new Set([12]); // rooms donde el daño es solo primera vez
+      const knownRoomsData = (() => { try { return JSON.parse(player.known_traps || '[]'); } catch (_) { return []; } })();
+      const heatKey = `heat_room_${targetId}`;
+      const alreadyKnowsHeat = FIRST_TIME_DAMAGE_ROOMS.has(targetId) && Array.isArray(knownRoomsData) && knownRoomsData.includes(heatKey);
+      if (alreadyKnowsHeat) {
+        // Ya conoce el calor — solo mensaje informativo, sin daño
+        effectText = `\n\n🔥 Conocés el calor de la forja y te protegés mejor esta vez. (Sin daño)`;
+      } else {
+        const newHp = Math.max(1, player.hp - roomEffect.amount); // mínimo 1 HP (no mata)
+        db.updatePlayer(player.id, { hp: newHp });
+        effectText = `\n\n${roomEffect.msg} (${newHp}/${player.max_hp} HP)`;
+        // Si es una sala de daño primera-vez, registrar que ya la conoce
+        if (FIRST_TIME_DAMAGE_ROOMS.has(targetId)) {
+          const updatedKnown = Array.isArray(knownRoomsData) ? [...knownRoomsData, heatKey] : [heatKey];
+          db.updatePlayer(player.id, { known_traps: JSON.stringify(updatedKnown) });
+          effectText += `\n🧠 Ahora conocés el calor de la forja — no te tomará por sorpresa la próxima vez.`;
+        }
+      }
     } else if (roomEffect.type === 'heal') {
       const newHp = Math.min(player.max_hp, player.hp + roomEffect.amount);
       db.updatePlayer(player.id, { hp: newHp });
