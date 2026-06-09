@@ -4531,7 +4531,8 @@ function cmdTalk(player, target) {
   const tLow = (target || '').trim().toLowerCase();
 
   // Guardián anciano en sala 1 (Entrada de la Cripta) — DIS-D42: pista de ruta alternativa
-  const inRoom1 = player.current_room_id === 1 || player.current_room_id === 16; // sala 1 = Entrada, sala 16 = Antesala (tutorial)
+  // DIS-D378: variantes contextuales según estado del jugador
+  const inRoom1 = player.current_room_id === 1 || player.current_room_id === 16;
   const isGuardian = tLow.includes('anciano') || tLow.includes('guardián') || tLow.includes('guardian') ||
                      tLow.includes('guardia') || tLow === 'viejo' || tLow === 'npc' ||
                      (tLow === '' && inRoom1);
@@ -4543,24 +4544,55 @@ function cmdTalk(player, target) {
     const level = player.level || 1;
     const roomsVisited = (() => { try { return JSON.parse(player.rooms_visited || '[]'); } catch (_) { return []; } })();
     const hasVisitedPozo = roomsVisited.includes(7);
+    const playerAchs = (() => { try { return JSON.parse(player.achievements || '[]'); } catch (_) { return []; } })();
+    const hasCartografo = playerAchs.includes('cartografo');
+    const seFreshG = (() => { try { return JSON.parse(player.status_effects || '{}'); } catch (_) { return {}; } })();
+    const leyoDiario = seFreshG.leyo_diario_galeria;
+    const qStateG = player.aldric_quest || 'none';
 
-    if (hasVisitedPozo) {
-      // DIS-D356: Si leyó el diario de la Galería de Hielo, agregar hint sobre Kaelthas
-      const seFreshG = (() => { try { return JSON.parse(player.status_effects || '{}'); } catch (_) { return {}; } })();
-      const leyoDiario = seFreshG.leyo_diario_galeria;
-      const qStateG = player.aldric_quest || 'none';
-      let guardianExtra = '';
-      if (leyoDiario && qStateG === 'none') {
-        guardianExtra = '\n\nEl anciano pausa al verte. "¿Leíste el diario de la Galería de Hielo?"\n\nNo espera respuesta. "Kaelthas no murió como los libros dicen. Eligió quedarse aquí —y el dungeon lo aceptó." Baja la voz. "Hay un mercader en sala 4. Aldric. Cuando tengas nivel 5, hablá con él. Creo que sabe más. Mucho más."\n\nVuelve a mirar la pared en silencio.';
+    // VARIANTE 1: Logro Cartógrafo — exploró todo el dungeon
+    if (hasCartografo) {
+      let cartText = 'El anciano te mira de pies a cabeza. Algo en su expresión cambia —no es sorpresa, es reconocimiento.\n\n\"Cartógrafo,\" dice en voz baja. \"Llegaste a todas las salas. No muchos lo hacen.\" Pausa. \"La mayoría solo busca el tesoro o la salida. Vos buscabas entender.\"\n\nSe gira hacia la entrada del dungeon con gesto nostálgico. \"Hay cosas en esas paredes que yo ya no me atrevo a ver. Si llegaste hasta la Catedral de la Oscuridad y volviste... entonces sabés más del dungeon de lo que yo jamás supe.\"';
+      if (qStateG === 'done') {
+        cartText += '\n\n\"Y sabés quién fue Kaelthas.\" No es una pregunta. \"El dungeon fue su decisión. Su nombre sigue en cada piedra.\" Cierra los ojos brevemente. \"No hay nada más que yo pueda decirte que vos no hayas visto ya.\"';
+      } else if (leyoDiario) {
+        cartText += '\n\n\"Leíste el diario de la Galería de Hielo, ¿verdad?\" Asiente lentamente. \"Kaelthas. Ese nombre aparece en demasiados lugares para ser casualidad. Si todavía no hablaste con Aldric —el mercader en sala 4— creo que deberías. Él sabe cosas que yo solo intuyo.\"';
       }
-      return { text: 'El anciano te mira con ojos que han visto demasiado.\n\n"Ya encontraste el Pozo, ¿verdad? La puerta al norte del Pozo tiene cerradura —necesitás una llave oxidada. La guardaban en la Prisión, sala 8, al norte de la Cámara del Tesoro."\n\nTose y continúa: "Pero si no querés buscarla, hay otro camino. Hacia el este está la Capilla Olvidada. Desde ahí, al norte, el Túnel de los Hongos. Luego al norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario. Sin llave."\n\nSonríe brevemente. "Nadie sabe por qué ese camino quedó abierto. Yo tengo mis sospechas."' + guardianExtra };
+      return { text: cartText };
     }
 
+    // VARIANTE 2: Quest de Aldric completada — conoce la historia de Kaelthas
+    if (qStateG === 'done') {
+      return { text: 'El anciano levanta la vista. Algo en tu cara le dice que ya no sos el mismo que entró al dungeon por primera vez.\n\n\"Hablaste con Aldric,\" dice. No es una pregunta.\n\nAsiente despacio. \"Kaelthas Vorn. El guardián del sello. Sabía que tarde o temprano alguien lo iba a descubrir.\" Pausa. \"Yo lo sospechaba hace años, cuando noté que los monstruos nunca desaparecen del todo. No es magia al azar —hay una voluntad detrás.\"\n\n\"Cuidate en la Catedral,\" agrega en voz baja. \"Su presencia ahí es más... directa. El Lich Anciano no es el peligro final. Es solo la puerta.\"' };
+    }
+
+    // VARIANTE 3: Leyó el diario — hint directo sobre Kaelthas y Aldric
+    if (leyoDiario && qStateG === 'none') {
+      return { text: 'El anciano pausa al verte. Hay algo diferente en su mirada —te estudia con más atención de lo habitual.\n\n\"Leíste el diario helado,\" dice. No es una pregunta. \"En la Galería de Hielo. Las páginas medio fusionadas.\"\n\nBaja la voz. \"Kaelthas no murió como los libros dicen. Eligió quedarse aquí —y el dungeon lo aceptó.\" Se inclina levemente hacia vos. \"Hay un mercader en sala 4. Aldric. Cuando tengas nivel 5, hablá con él. Llevá cualquier objeto que hayas encontrado en el dungeon —especialmente si tiene un sello grabado. Creo que sabe más. Mucho más.\"\n\nVuelve a mirar la entrada en silencio. Como si temiera que el dungeon lo escuche.' };
+    }
+
+    // VARIANTE 4: Leyó el diario y tiene la quest en progreso — hint de avance
+    if (leyoDiario && qStateG === 'active') {
+      return { text: 'El anciano asiente al verte acercarte.\n\n\"Buscás a Kaelthas.\" Más afirmación que pregunta. \"Aldric te mandó.\"\n\nSeñala la entrada del dungeon. \"La Prisión está en el norte del dungeon —sala 8, al norte de la Cámara del Tesoro. Ahí guardaban las llaves y también los secretos que nadie quería que salieran.\" Pausa. \"Si encontrás una carta con el sello de las dos llaves cruzadas, llevásela a Aldric. Él sabe qué hacer.\"\n\nBaja la vista. \"Kaelthas fue el guardián del sello del reino. No un mago cualquiera. El dungeon no es una mazmorra abandonada —es su archivo.\"' };
+    }
+
+    // VARIANTE 5: Nivel alto (≥7) — veterano del dungeon
+    if (level >= 7) {
+      return { text: 'El anciano te mira con algo parecido al respeto.\n\n\"Nivel ' + level + '.\" Asiente con lentitud. \"Ya no necesitás mis advertencias sobre el Pozo o la llave.\"\n\nSe recuesta en la pared con expresión seria. \"Si llegaste hasta acá con ese nivel, ya pasaste por la Catedral de la Oscuridad o el Abismo Eterno.\" Pausa. \"¿Encontraste las páginas del diario helado en la Galería? Hay un nombre que aparece en demasiados lugares aquí adentro. Si no lo conectaste todavía, hablá con Aldric en sala 4.\"\n\nTe mira fijo. \"El dungeon tiene memoria. Y vos ya sos parte de ella.\"' };
+    }
+
+    // VARIANTE 6: Visitó el Pozo — navegación avanzada
+    if (hasVisitedPozo) {
+      return { text: 'El anciano te mira con ojos que han visto demasiado.\n\n\"Ya encontraste el Pozo, ¿verdad? La puerta al norte del Pozo tiene cerradura —necesitás una llave oxidada. La guardaban en la Prisión, sala 8, al norte de la Cámara del Tesoro.\"\n\nTose y continúa: \"Pero si no querés buscarla, hay otro camino. Hacia el este está la Capilla Olvidada. Desde ahí, al norte, el Túnel de los Hongos. Luego al norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario. Sin llave.\"\n\nSonríe brevemente. \"Nadie sabe por qué ese camino quedó abierto. Yo tengo mis sospechas.\"' };
+    }
+
+    // VARIANTE 7: Nivel medio (≥3)
     if (level >= 3) {
-      return { text: 'El anciano asiente al verte.\n\n"Buscás llegar al Santuario Profano, ¿no?" No espera respuesta. "Hay dos rutas. La directa pasa por el Pozo Sin Fondo —al oeste desde la Sala de los Ecos— pero la puerta al norte tiene cerradura. Necesitás una llave oxidada."\n\nSeñala hacia el este. "La otra ruta es más larga pero abierta: Capilla → Hongos → Trono → Santuario. Sin llave. Muchos lo ignoran y se quedan dando vueltas buscando oro para la tienda."\n\nVuelve a apoyarse en la pared, como si esa conversación lo hubiera cansado.' };
+      return { text: 'El anciano asiente al verte.\n\n\"Buscás llegar al Santuario Profano, ¿no?\" No espera respuesta. \"Hay dos rutas. La directa pasa por el Pozo Sin Fondo —al oeste desde la Sala de los Ecos— pero la puerta al norte tiene cerradura. Necesitás una llave oxidada.\"\n\nSeñala hacia el este. \"La otra ruta es más larga pero abierta: Capilla → Hongos → Trono → Santuario. Sin llave. Muchos lo ignoran y se quedan dando vueltas buscando oro para la tienda.\"\n\nVuelve a apoyarse en la pared, como si esa conversación lo hubiera cansado.' };
     }
 
-    return { text: 'El guardián anciano levanta la vista hacia vos.\n\n"Nuevo en el dungeon. Bien." Pausa. "Escuchá: el dungeon tiene dos zonas principales. Al norte y al este desde aquí. Al norte hay más combate directo; al este hay cosas más... sutiles."\n\nSe rasca la barba. "Cuando llegués al Pozo Sin Fondo —lo vas a saber cuando lo veas— hay una puerta bloqueada al norte. Si no tenés la llave, no la fuerces. Hay otro camino por el este, pasando por la Capilla. Acordate de eso."\n\nVuelve a mirar la pared, como si la conversación hubiera terminado.' };
+    // VARIANTE 8: Principiante
+    return { text: 'El guardián anciano levanta la vista hacia vos.\n\n\"Nuevo en el dungeon. Bien.\" Pausa. \"Escuchá: el dungeon tiene dos zonas principales. Al norte y al este desde aquí. Al norte hay más combate directo; al este hay cosas más... sutiles.\"\n\nSe rasca la barba. \"Cuando llegués al Pozo Sin Fondo —lo vas a saber cuando lo veas— hay una puerta bloqueada al norte. Si no tenés la llave, no la fuerces. Hay otro camino por el este, pasando por la Capilla. Acordate de eso.\"\n\nVuelve a mirar la pared, como si la conversación hubiera terminado.' };
   }
 
   // Solo Aldric por ahora. Acepta: 'aldric', 'mercader', 'tendero', o vacío si está en sala 4
