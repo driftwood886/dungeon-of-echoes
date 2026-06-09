@@ -1947,7 +1947,7 @@ function cmdPick(player, itemQuery) {
       const inv = Array.isArray(current.inventory) ? current.inventory : [];
       if (inv.length >= 20) {
         notPicked.push(item);
-        pickedLines.push(`⚠️ Inventario lleno — quedó en el suelo: ${item}`);
+        pickedLines.push(`⚠️ Inventario lleno (20/20) — quedó en el suelo: ${item}\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`.`);
         continue;
       }
       const newInv = [...inv, item];
@@ -2061,6 +2061,13 @@ function cmdPick(player, itemQuery) {
       eventRoomId: room.id,
     };
   }
+  // DIS-D385: Chequear capacidad de inventario antes de recoger
+  if ((player.inventory || []).length >= 20) {
+    return {
+      text: `🎒 Tu mochila está llena (20/20 ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.`,
+    };
+  }
+
   const newInventory = [...player.inventory, found];
   db.updatePlayer(player.id, { inventory: newInventory });
 
