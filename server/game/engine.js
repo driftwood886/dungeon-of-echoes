@@ -3638,8 +3638,12 @@ function cmdMap(player) {
   // [ 7:Pozo ]---[ 3:Ecos ]---[ 4:Tesoro ]
   //     |
   // [10:Santuario]---[ 9:Trono]---[ 6:Túnel ]---[ 2:Corredor ]---[12:Forja ]---[14:Coliseo]---[15:Catedral]
-  //     |                |              |                              |
+  //     |                |              |                              |         |
   // [11:Galería]    [ 5:Capilla ]---[ 1:Entrada ]               [13:Caverna]         [22:Cripta]
+  //                   |   ↓ (bajar)                                   ↓ (sur)
+  //               [16:Antesala]  [21:Práctica]               [19:Cám.Eco]
+  //                                                                    |
+  //                                                              [20:Abismo]
   //
   //  [22:Cripta]---[15 abajo]
   //
@@ -3656,8 +3660,8 @@ function cmdMap(player) {
     `${c(10)}---${c(9)}---${c(6)}---${c(2)}---${c(12)}---${c(14)}---${c(15)}`,
     `  |              |          |                    |         |`,
     `${c(11)}    ${c(5)}---${c(1)}              ${c(13)}${gap}${c(22)}`,
-    `               ↓ (bajar)                        ↓ (sur)`,
-    `             ${c(21)}                        ${c(19)}`,
+    `               |   ↓ (bajar)                    ↓ (sur)`,
+    `           ${c(16)}  ${c(21)}                    ${c(19)}`,
     `                                                 |`,
     `                                              ${c(20)}`,
     ``,
