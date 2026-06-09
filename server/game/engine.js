@@ -559,7 +559,29 @@ function cmdLook(player) {
   const effectLine = roomEffect ? `\n🌐 Efecto de sala: ${roomEffect.label}` : '';
   // DIS-D366: la postura solo se muestra al cambiar de sala (en move), no en cada look.
   // Esto evita que contamine visualmente cada descripción de sala cuando el jugador mira repetidamente.
-  return { text: text + effectLine };
+
+  // DIS-D367: indicador de quest objetivo — si hay monstruo objetivo de la quest activa en esta sala
+  let questHintLine = '';
+  try {
+    const activeQ = quests.getActiveQuest();
+    if (activeQ && activeQ.questDef && activeQ.questDef.type === 'kill' && activeQ.questDef.target) {
+      const playerQ = db.getPlayer(player.id);
+      const alreadyCompleted = activeQ.completedBy && activeQ.completedBy.has(player.id);
+      if (!alreadyCompleted) {
+        const monsters = db.getMonstersInRoom(player.current_room_id);
+        const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const questTarget = norm(activeQ.questDef.target);
+        const hasTarget = monsters.some(m => norm(m.name).includes(questTarget));
+        if (hasTarget) {
+          const progress = (() => { try { const p = JSON.parse(playerQ.quest_progress || '{}'); return p.progress || 0; } catch(_) { return 0; } })();
+          const goal = activeQ.questDef.goal;
+          questHintLine = `\n📜 Objetivo de quest aquí: ${activeQ.questDef.target} (${progress}/${goal} eliminados)`;
+        }
+      }
+    }
+  } catch (_) { /* no romper look si quests falla */ }
+
+  return { text: text + effectLine + questHintLine };
 }
 
 /**
