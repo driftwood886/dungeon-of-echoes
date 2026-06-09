@@ -6239,6 +6239,11 @@ function cmdAuction(player, args) {
   const priceArg = args[args.length - 1];
   const minPrice = parseInt(priceArg, 10);
   if (isNaN(minPrice) || minPrice < 1) {
+    // DIS-D379: si el último argumento no es un número, el jugador probablemente
+    // escribió el nombre del ítem sin precio — mostrar ayuda en lugar de error confuso
+    if (isNaN(minPrice)) {
+      return { text: `🔨 Falta el precio mínimo.\nUso: subastar <ítem> <precio_mínimo>\nEjemplo: subastar "${args.join(' ')}" 15\n\nEl precio debe ser un número mayor a 0.` };
+    }
     return { text: `Precio inválido: "${priceArg}". Debe ser un número mayor a 0.\nEjemplo: subasta "poción de salud" 15` };
   }
 
