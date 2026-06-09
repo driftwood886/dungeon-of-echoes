@@ -897,11 +897,8 @@ function cmdMove(player, direction) {
     }
   }
 
-  // DIS-D45: mostrar postura activa en el move si no es "equilibrado"
-  const moveStanceDef = STANCES[player.stance || 'equilibrado'];
-  const moveStanceLine = (player.stance && player.stance !== 'equilibrado' && moveStanceDef)
-    ? `\n[Postura activa: ${moveStanceDef.icon} ${player.stance} — ${moveStanceDef.desc}]`
-    : '';
+  // DIS-D396: la postura NO se muestra al moverse entre salas (DIS-D366 implementado, fix final)
+  // La postura solo se muestra al cambiarla explícitamente con el comando stance.
 
   // DIS-D353: Aviso de zona avanzada cuando el jugador es nivel < 5 y entra a salas 11-15
   const ADVANCED_ZONE_IDS = [11, 12, 13, 14, 15];
@@ -910,7 +907,7 @@ function cmdMove(player, direction) {
     : '';
 
   return {
-    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}${moveStanceLine}`,
+    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -1833,7 +1830,15 @@ function cmdAttack(player, targetName) {
 
       lines.push('╠══════════════════════════════════════════════════════╣');
       lines.push('║  🏆 El loot especial quedó en el suelo.              ║');
-      lines.push('║  Usá \"loot\" para recogerlo todo de una vez.         ║');
+      lines.push('║  Usá "loot" para recogerlo todo de una vez.         ║');
+      // DIS-D401: advertir si el inventario está casi lleno antes de que el jugador
+      // intente recoger el loot del boss y se frustre por no poder hacerlo.
+      const freshForInv = db.getPlayer(player.id);
+      const invCount = Array.isArray(freshForInv.inventory) ? freshForInv.inventory.length : 0;
+      if (invCount >= 18) {
+        lines.push(`║  ⚠️  Tu mochila tiene ${invCount}/20 ítems — hacé espacio      ║`);
+        lines.push('║  con "drop <ítem>" o "subastar <ítem> <precio>".    ║');
+      }
       lines.push('╚══════════════════════════════════════════════════════╝');
       return '\n\n' + lines.join('\n');
     })()
