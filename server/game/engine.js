@@ -738,7 +738,7 @@ function cmdMove(player, direction) {
       upd.attack = (freshExp.attack || 5) + 1;
     }
     db.updatePlayer(player.id, upd);
-    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +2 XP de explorador.${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!` : ''}`;
+    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +2 XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!` : ''}`;
   }
 
   // Construir respuesta
@@ -839,8 +839,8 @@ function cmdMove(player, direction) {
     ? `\n\n✨ ${CINEMATIC_EVENTS[targetId]}`
     : '';
 
-  // T165: Badge de primera visita permanente
-  const firstVisitMsg = firstVisitEver ? `\n\n🌟 ¡Primera vez que explorás esta sala! (${visitResult.visited.length} salas descubiertas en total)` : '';
+  // T165: Badge de primera visita permanente — fusionado en explorationMsg para evitar duplicar texto
+  const firstVisitMsg = '';
 
   // T206: Efectos de climas extremos al moverse
   let extremeWeatherMsg = '';
