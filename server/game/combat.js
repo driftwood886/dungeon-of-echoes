@@ -354,7 +354,14 @@ function attackRound(player, monster) {
   if (isCrit) {
     lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
   } else {
-    lines.push(`⚔  Atacás al ${monster.name} y le causás ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
+    // DIS-D426: mostrar indicador de postura activa en el mensaje de ataque
+    const stanceIndicators = {
+      agresivo:    '⚡[agresivo +2ATK/-1DEF] ',
+      defensivo:   '🛡[defensivo -1ATK/+2DEF] ',
+      equilibrado: '',
+    };
+    const stanceTag = stanceIndicators[stanceName] || '';
+    lines.push(`⚔  ${stanceTag}Atacás al ${monster.name} y le causás ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
   }
 
   // Actualizar monstruo en BD
