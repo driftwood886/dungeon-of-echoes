@@ -766,7 +766,14 @@ function attackRound(player, monster) {
           // DIS-D295: indicar la dirección de huida para que el jugador pueda seguir al boss
           const DIR_NAMES = { norte: 'al norte', sur: 'al sur', este: 'al este', oeste: 'al oeste', arriba: 'hacia arriba', abajo: 'hacia abajo', north: 'al norte', south: 'al sur', east: 'al este', west: 'al oeste', up: 'hacia arriba', down: 'hacia abajo' };
           const dirHint = DIR_NAMES[escapeEntry.dir] || `hacia ${escapeEntry.dir}`;
-          db.updateMonster(monster.id, { room_id: escapeRoom });
+          // BUG-412 FIX: guardar la sala desde donde huyó para evitar falsos positivos en el mensaje
+          // "fled to adjacent room" cuando el jugador ataca un nombre que coincide con un monstruo
+          // que nunca estuvo en esa sala.
+          const mFxFlee = monster.status_effects
+            ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects)
+            : {};
+          mFxFlee.fled_from = player.current_room_id;
+          db.updateMonster(monster.id, { room_id: escapeRoom, status_effects: JSON.stringify(mFxFlee) });
           lines.push(`🏃 ¡El ${monster.name} huye despavorido ${dirHint}! (HP: ${monster.hp}/${monster.max_hp})`);
           lines.push(`   💨 Escapó sin dejar botín. Usá "perseguir" o movete ${dirHint} para seguirlo.`);
           lines.push(`   🔄 (Los monstruos que huyen pueden volver a su sala original al regenerarse)`);

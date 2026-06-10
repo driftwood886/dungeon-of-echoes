@@ -1380,6 +1380,11 @@ function cmdAttack(player, targetName) {
       if (!m.room_id || m.hp <= 0) return false;
       // Solo considerar salas adyacentes (el monstruo huyó a una sala contigua)
       if (!adjacentRoomIds.has(m.room_id)) return false;
+      // BUG-412 FIX: verificar que el monstruo realmente huyó DESDE la sala actual del jugador.
+      // Sin esta verificación, un monstruo en sala adyacente con nombre similar generaba falsos positivos
+      // (ej: "Golem de Forja" en sala 9 aparecía como fugado cuando el jugador atacaba "golem" en sala 8).
+      const mStatusFx = m.status_effects ? (typeof m.status_effects === 'string' ? JSON.parse(m.status_effects) : m.status_effects) : {};
+      if (!mStatusFx.fled_from || mStatusFx.fled_from !== player.current_room_id) return false;
       const normalName = m.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       return normalName.includes(normalTarget) || normalTarget.includes(normalName);
     });
