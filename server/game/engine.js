@@ -2186,7 +2186,7 @@ function cmdUse(player, itemQuery) {
     // BUG-445: Pozo Sin Fondo (sala 7) — feedback narrativo al intentar interactuar con el pozo
     const queryLower = itemQuery.trim().toLowerCase();
     const pozoKeywords = ['pozo', 'cuerda', 'brocal', 'bajar', 'bajar al pozo', 'saltar', 'saltar al pozo'];
-    if (player.room === 7 && pozoKeywords.some(k => queryLower.includes(k))) {
+    if (player.current_room_id === 7 && pozoKeywords.some(k => queryLower.includes(k))) {
       const dmg = 1;
       const newHp = Math.max(1, player.hp - dmg);
       db.updatePlayer(player.id, { hp: newHp });
