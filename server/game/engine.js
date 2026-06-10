@@ -2456,7 +2456,9 @@ function cmdExamine(player, query) {
     // BUG-419: "huesos" es lore de sala 5 (Sala de los Ecos), no debe matchear "peto de huesos"
     'huesos',
     // DIS-D417/D420: nuevas palabras de lore que no deben matchear ítems del inventario
-    'cofres', 'estantes', 'velas', 'cera', 'trono']);
+    'cofres', 'estantes', 'velas', 'cera', 'trono',
+    // DIS-D446: Casa de Subastas (sala 17)
+    'estrado', 'candelabros', 'escriba']);
   const monster = monsters.find(m => {
     const mName = normalize(m.name);
     // Si el query es exactamente el nombre del monstruo o el nombre empieza por el query, matchear
@@ -2625,6 +2627,10 @@ function cmdExamine(player, query) {
     // DIS-D420: Capilla Olvidada (sala 5) — velas y cera
     'velas':           { rooms: [5],  text: 'Las velas de la Capilla están apagadas desde hace siglos —el pabilo negro y quebradizo, la cera endurecida y opaca. Pero hay algo que no encaja: algunas de las velas tienen marcas de haber ardido recientemente. La cera en esas tiene una textura distinta, más suave, con el brillo mate característico de la cera enfriada en las últimas horas.\n\nAlguien encendió velas aquí. Las dejó arder. Volvió antes de que se consumieran o las apagó. Y se fue sin dejar otra huella.\n\nLa inscripción en la pared dice: "Quienquiera que encienda estas velas merece lo que viene." No sabés si es advertencia o promesa.' },
     'cera':            { rooms: [5],  text: 'La cera derretida fresca en la base del altar no tiene explicación inocente. El altar lleva siglos sin ser usado —la piedra negra tiene depósitos minerales que solo se forman con décadas de inactividad. Y sin embargo, la cera es reciente.\n\nMirás más de cerca: hay dos charcos. Uno antiguo, opaco, de hace siglos. Uno encima, translúcido, de hace días. La misma persona que conoce este lugar lo suficiente para saber dónde están las velas lo conoce también lo suficiente para saber qué se invoca aquí.\n\n🔍 El altar tiene más que mostrar — probá también examine altar.' },
+    // DIS-D446: Casa de Subastas (sala 17) — lore objects examinables
+    'estrado':         { rooms: [17], text: 'El estrado de roble barnizado ocupa el centro de la sala, elevado tres escalones sobre el suelo. La madera tiene la pátina oscura que solo dan décadas de barniz aplicado encima del anterior, nunca retirado.\n\nEn la superficie del estrado hay marcas de gaveta —ranuras paralelas donde la madera cedió bajo golpes repetidos. Cientos de subastas. Cada marca es el remate de algo: una armadura, un grimorio, una vida de aventuras reducida a precio de salida.\n\nEn el borde frontal hay grabadas dos palabras en idioma élfico. El escriba podría traducirlas si le preguntaras, pero no va a mirar.' },
+    'candelabros':     { rooms: [17], text: 'Los dos candelabros de bronce que flanquean el estrado tienen el verde característico del verdín de bronce viejo —no suciedad, sino la oxidación natural de siglos. El metal debajo es anaranjado y brillante donde alguien lo limpió en algún punto, pero solo hasta la altura de los brazos extendidos.\n\nLas velas son blancas y nuevas. No encajan con el resto: el candelabro más antiguo que el dungeon, la vela reemplazada esta semana. Alguien viene regularmente a cambiarlas. Quien sea que mantiene esto encendido lo hace por razones que no tienen que ver con la iluminación.' },
+    'escriba':         { rooms: [17], text: 'El escriba élfico sentado en el rincón izquierdo nunca mira hacia arriba. No desde que entraste. No mientras te movés por la sala. No mientras hablás.\n\nSu pluma se mueve sin pausa: números en columnas, nombres en listas, fechas en márgenes. Cada transacción del día registrada en pergamino. El tintero en su mesa es el más grande que viste fuera de una biblioteca.\n\nNo tiene nombre visible. No hay placa, ni insignia, ni marca de gremio. Solo el trabajo. Si le hablás, asiente sin dejar de escribir. Si le preguntás algo, responde en dos palabras sin levantar la vista. Lleva aquí más tiempo del que nadie recuerda, y nadie recuerda quién lo contrató.' },
   };
 
   // Normalizar query para buscar en lore objects
