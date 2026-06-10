@@ -503,6 +503,12 @@ function handleTutorialCommand(player, action, step) {
       // Fix DIS-P03: solo permitir salir si el jugador ya atacó al goblin (step >= 3)
       // o si el jugador elige explícitamente saltarse el tutorial (se puede saltar con 'skip tutorial')
       if (step < 3) {
+        // BUG-447: Safety net — si el goblin no está en sala 16 (huyó antes del fix),
+        // auto-completar el tutorial para no dejar al jugador bloqueado indefinidamente.
+        const goblin = db.getMonster(20);
+        if (!goblin || goblin.room_id !== 16) {
+          return completeTutorial(player);
+        }
         const hint = tutorial.getStepMessage(step);
         return { text: `¡Todavía no terminaste el entrenamiento!\nAntes de salir, atacá al Goblin de Práctica escribiendo: attack goblin\n\n${hint}` };
       }
