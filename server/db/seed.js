@@ -448,13 +448,22 @@ function migrateAntidotes() {
       console.log('[seed] migrateAntidotes: antídoto agregado en Sala 7 (Pozo Sin Fondo)');
     }
   }
-  // Sala 5 (Capilla): también un antídoto (near murciélago vampiro)
+  // Sala 5 (Capilla): hierba curativa near murciélago vampiro
+  // BUG FIX: el check original buscaba 'antídoto' pero insertaba 'hierba curativa',
+  // causando que se acumulara una nueva hierba en cada reinicio del servidor.
   const room5 = db.getRoom(5);
   if (room5) {
     const items5 = room5.items || [];
-    if (!items5.includes('antídoto') && !items5.includes('antidoto')) {
-      db.updateRoomItems(5, [...items5, 'hierba curativa']);
+    // Limpiar exceso: mantener máximo 1 hierba curativa en la sala
+    const nonHierbas = items5.filter(i => i !== 'hierba curativa');
+    const hierbas = items5.filter(i => i === 'hierba curativa');
+    if (hierbas.length === 0) {
+      db.updateRoomItems(5, [...nonHierbas, 'hierba curativa']);
       console.log('[seed] migrateAntidotes: hierba curativa agregada en Sala 5 (Capilla Olvidada)');
+    } else if (hierbas.length > 1) {
+      // Fix acumulación: dejar solo 1
+      db.updateRoomItems(5, [...nonHierbas, 'hierba curativa']);
+      console.log(`[seed] migrateAntidotes: limpiados ${hierbas.length - 1} duplicados de hierba curativa en Sala 5`);
     }
   }
 }
@@ -545,7 +554,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial };
 
 /**
  * STORY-003/004/005/007/012/017 — Migración de lore narrativo:
@@ -1218,5 +1227,27 @@ function migrateForjaHeatWarning() {
     const newDesc = forjaRoom.description + ' ' + heatWarning;
     db.upsertRoom({ ...forjaRoom, description: newDesc });
     console.log('[seed] migrateForjaHeatWarning: Taller de la Forja (sala 12) — advertencia de daño por calor agregada. DIS-D424 ✓');
+  }
+}
+
+/**
+ * BUG-447: Restaurar el Goblin de Práctica (id 20) a su sala de origen (sala 16) si huyó.
+ * El goblin fue agregado a BOSS_MONSTERS en BUG-430 para evitar que huya en el futuro,
+ * pero los servidores que arrancaron antes del fix tienen el goblin en sala 21.
+ * Esto causa deadlock de tutorial: los nuevos jugadores no pueden salir de sala 16.
+ */
+function migrateRestoreGoblinTutorial() {
+  const goblin = db.getMonster(20);
+  if (!goblin) return;
+  if (goblin.room_id !== 16) {
+    const fx = goblin.status_effects ? (typeof goblin.status_effects === 'string' ? JSON.parse(goblin.status_effects) : goblin.status_effects) : {};
+    delete fx.fled_from;
+    db.upsertMonster({
+      ...goblin,
+      room_id: 16,
+      hp: goblin.max_hp, // restaurar HP completo
+      status_effects: JSON.stringify(fx),
+    });
+    console.log(`[seed] migrateRestoreGoblinTutorial: Goblin de Práctica restaurado a sala 16 (estaba en sala ${goblin.room_id}). BUG-447 ✓`);
   }
 }
