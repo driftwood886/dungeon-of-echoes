@@ -545,7 +545,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent };
 
 /**
  * STORY-003/004/005/007/012/017 — Migración de lore narrativo:
@@ -1176,6 +1176,40 @@ function migrateBossRebalance() {
  * Fix: agregar al final de la descripción una línea que indique el peligro del calor.
  * Idempotente: solo actualiza si la frase de advertencia no está ya presente.
  */
+function migratePrisonContent() {
+  // DIS-D425: Prisión Subterránea no era un destino valioso. Esta migración:
+  // 1. Actualiza descripción de sala 8 para que el lore y el guardián la hagan memorable
+  // 2. Agrega 'sello del carcelero' (+3 DEF) al loot del Guardia Espectral (monstruo id=8)
+  // 3. Agrega 'sello del carcelero' como ítem de piso en sala 8
+
+  let room8 = db.getRoom(8);
+  if (!room8) return;
+
+  const newDesc = 'Celdas de hierro corroído bordean las paredes. Las rejas están abiertas — algo estuvo aquí encerrado por mucho tiempo, y finalmente salió. En el suelo, entre restos de huesos, hay un medallón oscuro olvidado. El aire huele a miedo viejo. Un guardia espectral patrulla las sombras: el espíritu del último carcelero, incapaz de abandonar su puesto aun en la muerte. (Podés usar examine celdas para más detalles.)';
+
+  if (!room8.description.includes('medallón oscuro')) {
+    room8 = { ...room8, description: newDesc };
+    db.upsertRoom(room8);
+    console.log('[seed] migratePrisonContent: descripción de sala 8 actualizada. DIS-D425 ✓');
+  }
+
+  if (!(room8.items || []).includes('sello del carcelero')) {
+    const newItems = [...(room8.items || []), 'sello del carcelero'];
+    room8 = { ...room8, items: newItems };
+    db.upsertRoom(room8);
+    console.log('[seed] migratePrisonContent: sello del carcelero agregado a sala 8. DIS-D425 ✓');
+  }
+
+  // Agregar sello del carcelero al loot del Guardia Espectral (id=8)
+  const monsters = db.getAllMonsters ? db.getAllMonsters() : [];
+  const guardian = monsters.find(m => m.id === 8 || m.name === 'Guardia Espectral');
+  if (guardian && !(guardian.loot || []).includes('sello del carcelero')) {
+    const newLoot = [...(guardian.loot || []), 'sello del carcelero'];
+    db.upsertMonster({ ...guardian, loot: newLoot });
+    console.log('[seed] migratePrisonContent: sello del carcelero agregado al loot del Guardia Espectral. DIS-D425 ✓');
+  }
+}
+
 function migrateForjaHeatWarning() {
   const forjaRoom = db.getRoom(12);
   if (!forjaRoom) return;
