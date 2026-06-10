@@ -2422,7 +2422,11 @@ function cmdExamine(player, query) {
     'hongos', 'hongo', 'oscuridad', 'esporas', 'luz', 'obsidiana', 'espada',
     'herramientas', 'sombras', 'lago', 'agua', 'burbujas', 'plataformas',
     'gradas', 'esqueletos', 'arena', 'pozo', 'fuente', 'fisura', 'marmol', 'mármol', 'agua plateada',
-    'cristales', 'cristal', 'ecos', 'eco', 'paredes eco']);
+    'cristales', 'cristal', 'ecos', 'eco', 'paredes eco',
+    // BUG-418: palabras de lore en sala 11 (Galería de Hielo) que no deben matchear "Elemental de Hielo"
+    'hielo', 'columnas', 'figuras',
+    // BUG-419: "huesos" es lore de sala 5 (Sala de los Ecos), no debe matchear "peto de huesos"
+    'huesos']);
   const monster = monsters.find(m => {
     const mName = normalize(m.name);
     // Si el query es exactamente el nombre del monstruo o el nombre empieza por el query, matchear
@@ -2577,6 +2581,12 @@ function cmdExamine(player, query) {
     'ecos':            { rooms: [19], text: 'Los ecos de la Cámara no son simples rebotes del sonido. Escuchás tu voz cuando hablás, pero también escuchás palabras que no dijiste —frases a medio terminar, nombres, números contados en voz baja.\n\nAlguien —o varios— han estado en esta sala antes. Los ecos guardan algo de cada voz que habló aquí. Los muertos siguen hablando en esta sala, un segundo después de que dejaron de poder hacerlo.' },
     'eco':             { rooms: [19], text: 'Los ecos de la Cámara no son simples rebotes del sonido. Escuchás tu voz cuando hablás, pero también escuchás palabras que no dijiste —frases a medio terminar, nombres, números contados en voz baja.\n\nAlguien —o varios— han estado en esta sala antes. Los ecos guardan algo de cada voz que habló aquí. Los muertos siguen hablando en esta sala, un segundo después de que dejaron de poder hacerlo.' },
     'paredes eco':     { rooms: [19], text: 'Las paredes de la Cámara del Eco son de piedra oscura cubierta completamente por los cristales resonantes. Donde la piedra asoma entre los cristales, hay marcas de uñas —muchas, en distintas alturas, como si varias personas hubieran arañado la pared intentando encontrar algo.\n\nEn un tramo de la pared sur, más alto de lo que cualquier persona podría alcanzar sin ayuda, hay cinco palabras grabadas en piedra. El idioma es antiguo, pero las podés leer: "AÚN ESCUCHO LAS VOCES AQUÍ".' },
+    // BUG-418: Galería de Hielo (sala 11) — lore objects para hielo, columnas, figuras
+    'hielo':           { rooms: [11], text: 'El frío de la Galería de Hielo no es temperatura del aire —es una presencia. Se asienta sobre la piel de una manera que el frío normal no hace: no te enfría desde afuera, sino desde adentro, como si extrajera calor de la sangre.\n\nLas paredes están cubiertas por una capa de hielo perfectamente uniforme, sin burbujas ni grietas. Demasiado uniforme. Natural o creado así deliberadamente —no podés decirlo. En algunos tramos el hielo tiene transparencia suficiente para ver formas detrás: sombras que no se mueven cuando te movés.' },
+    'columnas':        { rooms: [11], text: 'Las columnas de la Galería son de piedra recubierta por el hielo, pero al mirar la base de cada una notás algo: no son columnas de carga. Son decorativas. Alguien construyó este corredor para que pareciera una galería de exhibición.\n\nCada columna tiene, en su base, una placa de metal ennegrecida. Los textos son ilegibles por la escarcha, pero el formato es el mismo en todas: título, fecha, y algo más corto —un epitafio, quizás. La Galería de Hielo no es un corredor. Es un mausoleo.' },
+    'figuras':         { rooms: [11], text: 'Las figuras congeladas dentro del hielo no son estatuas: son personas reales, preservadas en el mismo momento en que quedaron atrapadas. Los gestos lo delatan —brazos extendidos en equilibrio, cabezas giradas hacia atrás, bocas abiertas.\n\nLo que más te perturba: algunas figuras miran hacia vos. Sus ojos congelados siguen la posición donde estás parado, no hacia la entrada. Alguien las orientó así después de que el hielo las capturó. Alguien las reacomodó para que miraran a los visitantes.' },
+    // BUG-419: Sala de los Ecos (sala 3) — lore object para huesos
+    'huesos':          { rooms: [3],  text: 'El suelo de la Sala de los Ecos está cubierto de huesos —no amontonados, sino esparcidos con cierta uniformidad, como si el tiempo los hubiera redistribuido. La mayoría son demasiado fragmentados para identificar su origen.\n\nPero en el centro de la sala hay un conjunto diferente: tres cráneos colocados formando un triángulo perfecto, con las cuencas orientadas hacia el centro. No fue el tiempo. Alguien los puso así, deliberadamente, en algún momento entre el principio y ahora.\n\nLos ecos de la sala devuelven el sonido de tus pasos, pero también algo más: el eco de pasos que no son los tuyos, de cuando alguien caminó por aquí y acomodó los cráneos.' },
   };
 
   // Normalizar query para buscar en lore objects
