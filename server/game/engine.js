@@ -441,6 +441,18 @@ function execute(playerId, input, context) {
       }
       break;
     case 'unknown':
+      // BUG-445: Pozo Sin Fondo — interceptar comandos temáticos en sala 7
+      if (player.current_room_id === 7 && action.input) {
+        const inp = action.input.toLowerCase();
+        if (['bajar', 'saltar', 'usar cuerda', 'bajar al pozo', 'saltar al pozo', 'entrar al pozo', 'descender'].some(k => inp.includes(k))) {
+          const dmg = 1;
+          const freshP2 = db.getPlayer(player.id);
+          const newHp2 = Math.max(1, freshP2.hp - dmg);
+          db.updatePlayer(player.id, { hp: newHp2 });
+          result = { text: `Intentás bajar por el borde del pozo. Tus dedos encuentran las mismas marcas de uñas del brocal —viejas, profundas.\n\nEn cuanto tus piernas cuelgan sobre el vacío, el frío te golpea desde abajo: no temperatura, sino un rechazo físico, una presión hacia arriba que empuja con la fuerza de algo que no quiere compañía.\n\nPerdés el agarre. Caés hacia atrás sobre el suelo de piedra.\n\n💥 -${dmg} HP por el impacto. (${newHp2}/${freshP2.max_hp || 30} HP)\n\nEl pozo sigue quieto. El frío permanece.` };
+          break;
+        }
+      }
       result = { text: `Comando desconocido: "${action.input}". Escribí "help" para ver los comandos.` };
       break;
     default:
@@ -2165,6 +2177,15 @@ function cmdUse(player, itemQuery) {
 
   const found = items.findItem(player.inventory, itemQuery.trim());
   if (!found) {
+    // BUG-445: Pozo Sin Fondo (sala 7) — feedback narrativo al intentar interactuar con el pozo
+    const queryLower = itemQuery.trim().toLowerCase();
+    const pozoKeywords = ['pozo', 'cuerda', 'brocal', 'bajar', 'bajar al pozo', 'saltar', 'saltar al pozo'];
+    if (player.room === 7 && pozoKeywords.some(k => queryLower.includes(k))) {
+      const dmg = 1;
+      const newHp = Math.max(1, player.hp - dmg);
+      db.updatePlayer(player.id, { hp: newHp });
+      return { text: `Intentás bajar por el borde del pozo. Tus dedos encuentran las mismas marcas de uñas del brocal —viejas, profundas.\n\nEn cuanto tus piernas cuelgan sobre el vacío, el frío te golpea desde abajo: no temperatura, sino un rechazo físico, una presión hacia arriba que empuja con la fuerza de algo que no quiere compañía.\n\nPerdés el agarre. Caés hacia atrás sobre el suelo de piedra.\n\n💥 -${dmg} HP por el impacto. (${newHp}/${player.max_hp || 30} HP)\n\nEl pozo sigue quieto. El frío permanece.` };
+    }
     return { text: `No tenés ningún "${itemQuery}" en el inventario.` };
   }
 
