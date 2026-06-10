@@ -99,11 +99,23 @@ const BOSS_MONSTERS = {
     respawnMinutes: 30,
     deathAnnouncement: '💀 ¡El LICH ANCIANO ha caído! Un aventurero ha triunfado en la Catedral de la Oscuridad. El dungeon tiembla...',
     lootBonus: ['cofre de oro'], // 1x = 50g (antes: 5x monedas de oro — BUG-283)
+    // DIS-D423: Fase 2 al 50% HP — el Lich se potencia con magia oscura
+    phase2: {
+      atkBonus: 5,
+      defBonus: 3,
+      message: '💜 ¡El LICH ANCIANO invoca su filacteria! Un aura oscura lo envuelve — su poder aumenta drásticamente. (FASE 2)',
+    },
   },
   22: { // Sombra del Vacío — BUG-404: faltaba aquí, por eso podía huir (DIS-D364 no lo cubría)
     respawnMinutes: 30,
     deathAnnouncement: '💀 ¡La SOMBRA DEL VACÍO ha sido disipada! La oscuridad del Abismo Eterno retrocede por un momento...',
     lootBonus: [],
+    // DIS-D423: Fase 2 al 50% HP — la Sombra se divide temporalmente
+    phase2: {
+      atkBonus: 4,
+      defBonus: 2,
+      message: '🌑 ¡La SOMBRA DEL VACÍO se fragmenta y se reagrupa! Sus bordes oscilan más rápido — volviéndose más peligrosa. (FASE 2)',
+    },
   },
   21: { // Eco Viviente — BUG-404: faltaba aquí, por eso podía huir (DIS-D364 no lo cubría)
     respawnMinutes: 20,
@@ -140,9 +152,9 @@ const MONSTER_BASE_STATS = {
   9:  { name: 'Elemental de Hielo',    max_hp: 40, attack: 9  },
   10: { name: 'Golem de Forja',        max_hp: 42, attack: 10 },
   11: { name: 'Krakeling Abismal',     max_hp: 25, attack: 7  },
-  12: { name: 'Campeón Espectral',     max_hp: 40, attack: 10 },
-  21: { name: 'Eco Viviente',          max_hp: 35, attack: 7  },
-  22: { name: 'Sombra del Vacío',      max_hp: 60, attack: 10 },
+  12: { name: 'Campeón Espectral',     max_hp: 70, attack: 14 }, // DIS-D423: rebalanceado
+  21: { name: 'Eco Viviente',          max_hp: 55, attack: 10 }, // DIS-D423: rebalanceado
+  22: { name: 'Sombra del Vacío',      max_hp: 90, attack: 14 }, // DIS-D423: rebalanceado
 };
 
 const MONSTER_SPECIALS = {
@@ -347,6 +359,30 @@ function attackRound(player, monster) {
 
   // Actualizar monstruo en BD
   db.updateMonster(monster.id, { hp: monster.hp });
+
+  // DIS-D423: Fase 2 — activar si el boss llega al 50% HP por primera vez
+  if (monster.hp > 0) {
+    const bossDefPhase2 = BOSS_MONSTERS[monster.id];
+    if (bossDefPhase2 && bossDefPhase2.phase2) {
+      const monsterFxP2 = monster.status_effects
+        ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects)
+        : {};
+      const halfHp = Math.floor(monster.max_hp / 2);
+      if (!monsterFxP2.phase2_triggered && monster.hp <= halfHp) {
+        monsterFxP2.phase2_triggered = true;
+        const p2 = bossDefPhase2.phase2;
+        const newAtkP2 = monster.attack + p2.atkBonus;
+        const newDefP2 = (monster.defense || 0) + p2.defBonus;
+        monster.attack = newAtkP2;
+        db.updateMonster(monster.id, {
+          attack: newAtkP2,
+          defense: newDefP2,
+          status_effects: JSON.stringify(monsterFxP2),
+        });
+        lines.push(p2.message);
+      }
+    }
+  }
 
   // ── T191: Ataque de mascota ────────────────────────────────────────────────
   // Si el jugador tiene mascota, hay chance de que ataque al monstruo (si sigue vivo)
@@ -983,6 +1019,22 @@ function dropLoot(monster, roomId) {
 // T221: IDs de monstruos que NO pueden ser élite (maniquís y boss)
 const NO_ELITE_IDS = new Set([13, 20, 21, 22]); // Lich, goblin práctica, maniquís
 
+// DIS-D423: ATK base de bosses con fase 2 — para resetear al respawnear
+const BOSS_BASE_ATTACK = {
+  13: 16, // Lich Anciano (nuevo ATK base post-rebalance DIS-D423)
+  22: 14, // Sombra del Vacío (nuevo ATK base post-rebalance DIS-D423)
+  12: 14, // Campeón Espectral (nuevo ATK base post-rebalance DIS-D423)
+  21: 10, // Eco Viviente (nuevo ATK base post-rebalance DIS-D423)
+};
+
+// DIS-D423: DEF base de bosses con fase 2 — para resetear al respawnear (fase 2 suma defBonus)
+const BOSS_BASE_DEFENSE = {
+  13: 0, // Lich Anciano (base DEF 0, fase 2 agrega +3)
+  22: 0, // Sombra del Vacío (base DEF 0, fase 2 agrega +2)
+  12: 0, // Campeón Espectral (base DEF 0)
+  21: 0, // Eco Viviente (base DEF 0)
+};
+
 function checkRespawns(onBossRespawn, onAnyRespawn) {
   const now = new Date().toISOString();
   // Fix DIS-P02: usar db.getMonstersForRespawn() en lugar de raw().exec()
@@ -1017,11 +1069,13 @@ function checkRespawns(onBossRespawn, onAnyRespawn) {
     db.updateMonster(m.id, {
       hp: newMaxHp,
       max_hp: newMaxHp,
-      attack: newAttack,
+      attack: BOSS_BASE_ATTACK[m.id] !== undefined ? (isElite ? BOSS_BASE_ATTACK[m.id] + 2 : BOSS_BASE_ATTACK[m.id]) : newAttack,
+      // DIS-D423: restaurar DEF base al respawnear (fase 2 la modifica)
+      ...(BOSS_BASE_DEFENSE[m.id] !== undefined ? { defense: BOSS_BASE_DEFENSE[m.id] } : {}),
       name: newName,
       room_id: m.respawn_room_id,
       respawn_at: null,
-      status_effects: '{}', // T110: limpiar efectos de veneno al respawnear
+      status_effects: '{}', // T110: limpiar efectos de veneno al respawnear (incl. phase2_triggered — DIS-D423)
     });
     if (isElite) {
       console.log(`[combat] Respawn ÉLITE: ${newName} en sala ${m.respawn_room_id} (HP:${newMaxHp} ATK:${newAttack})`);
