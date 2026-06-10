@@ -137,6 +137,11 @@ const BOSS_MONSTERS = {
     deathAnnouncement: null, // sin anuncio global — es un mob tutorial
     lootBonus: [],
   },
+  8: { // Guardia Espectral — BUG-443: miniboss de la Prisión Subterránea, faltaba aquí, podía huir con <25% HP
+    respawnMinutes: 10,
+    deathAnnouncement: null, // sin anuncio global — es un miniboss local
+    lootBonus: [],
+  },
 };
 
 // T145: Habilidades especiales de monstruos
