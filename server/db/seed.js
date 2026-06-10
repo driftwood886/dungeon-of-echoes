@@ -545,7 +545,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning };
 
 /**
  * STORY-003/004/005/007/012/017 — Migración de lore narrativo:
@@ -1138,5 +1138,51 @@ function migrateSanctuaryEastHint() {
     );
     db.upsertRoom({ ...room10, description: newDesc });
     console.log('[seed] migrateSanctuaryEastHint: Santuario Profano (sala 10) actualizado — pista de zona avanzada al este. DIS-D352 ✓');
+  }
+}
+
+/**
+ * DIS-D423: Rebalancear bosses finales para que el combate tardío no sea trivial.
+ * Con ATK ~21 del jugador en nivel 7, los bosses caían en 3 hits. Subida de stats:
+ *   - Lich Anciano (id 13):        60HP/12ATK  →  100HP/16ATK
+ *   - Campeón Espectral (id 12):   40HP/10ATK  →   70HP/14ATK
+ *   - Sombra del Vacío (id 22):    60HP/10ATK  →   90HP/14ATK
+ *   - Eco Viviente (id 21):        35HP/ 7ATK  →   55HP/10ATK
+ * Idempotente: solo actualiza si max_hp no coincide con el nuevo valor (evita resets de HP actual).
+ */
+function migrateBossRebalance() {
+  const bosses = [
+    { id: 13, name: 'Lich Anciano',       new_max_hp: 100, new_attack: 16 },
+    { id: 12, name: 'Campeón Espectral',  new_max_hp: 70,  new_attack: 14 },
+    { id: 22, name: 'Sombra del Vacío',   new_max_hp: 90,  new_attack: 14 },
+    { id: 21, name: 'Eco Viviente',       new_max_hp: 55,  new_attack: 10 },
+  ];
+  for (const { id, name, new_max_hp, new_attack } of bosses) {
+    const m = db.getMonster(id);
+    if (!m) continue;
+    if (m.max_hp !== new_max_hp || m.attack !== new_attack) {
+      // Si el monstruo tiene HP actual por encima del nuevo máximo, escalarlo
+      const ratio = m.max_hp > 0 ? m.hp / m.max_hp : 1;
+      const new_hp = m.hp > 0 ? Math.min(new_max_hp, Math.max(1, Math.round(ratio * new_max_hp))) : new_max_hp;
+      db.updateMonster(id, { max_hp: new_max_hp, hp: new_hp, attack: new_attack });
+      console.log(`[seed] migrateBossRebalance: ${name} (id ${id}) → ${new_hp}/${new_max_hp} HP, ATK ${new_attack}. DIS-D423 ✓`);
+    }
+  }
+}
+
+/**
+ * DIS-D424: Agregar advertencia de daño en la descripción del Taller de la Forja (sala 12).
+ * El jugador pierde 2 HP al entrar por primera vez sin ninguna advertencia previa.
+ * Fix: agregar al final de la descripción una línea que indique el peligro del calor.
+ * Idempotente: solo actualiza si la frase de advertencia no está ya presente.
+ */
+function migrateForjaHeatWarning() {
+  const forjaRoom = db.getRoom(12);
+  if (!forjaRoom) return;
+  const heatWarning = 'El calor es tan intenso que quema la piel nada más cruzar el umbral.';
+  if (!forjaRoom.description.includes(heatWarning)) {
+    const newDesc = forjaRoom.description + ' ' + heatWarning;
+    db.upsertRoom({ ...forjaRoom, description: newDesc });
+    console.log('[seed] migrateForjaHeatWarning: Taller de la Forja (sala 12) — advertencia de daño por calor agregada. DIS-D424 ✓');
   }
 }
