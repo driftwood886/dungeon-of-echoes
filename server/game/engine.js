@@ -1997,11 +1997,8 @@ function cmdPick(player, itemQuery) {
     return { text: `No hay ningún "${itemQuery}" en el suelo.` };
   }
 
-  // Quitar el ítem del suelo — BUG-288: usar removeFirst para no eliminar duplicados
-  const newRoomItems = removeFirst(room.items, found);
-  db.updateRoomItems(room.id, newRoomItems);
-
-  // Refrescar jugador
+  // BUG-415: Chequear capacidad ANTES de quitar el ítem del suelo (evitar destrucción)
+  // Refrescar jugador para tener el inventario actualizado
   player = db.getPlayer(player.id);
 
   // Ítems de oro: se convierten en monedas reales en lugar de ir al inventario
@@ -2017,6 +2014,18 @@ function cmdPick(player, itemQuery) {
   };
   const foundLower = found.toLowerCase();
   const goldKey = Object.keys(GOLD_ITEMS).find(k => foundLower.includes(k) || k.includes(foundLower));
+
+  // DIS-D385: Chequear capacidad de inventario antes de recoger (solo para ítems no-moneda)
+  if (!goldKey && (player.inventory || []).length >= 20) {
+    return {
+      text: `🎒 Tu mochila está llena (20/20 ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.`,
+    };
+  }
+
+  // Quitar el ítem del suelo — BUG-288: usar removeFirst para no eliminar duplicados
+  const newRoomItems = removeFirst(room.items, found);
+  db.updateRoomItems(room.id, newRoomItems);
+
   if (goldKey) {
     const amount = GOLD_ITEMS[goldKey];
     const newGold = (player.gold || 0) + amount;
@@ -2092,13 +2101,6 @@ function cmdPick(player, itemQuery) {
       eventRoomId: room.id,
     };
   }
-  // DIS-D385: Chequear capacidad de inventario antes de recoger
-  if ((player.inventory || []).length >= 20) {
-    return {
-      text: `🎒 Tu mochila está llena (20/20 ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.`,
-    };
-  }
-
   const newInventory = [...player.inventory, found];
   db.updatePlayer(player.id, { inventory: newInventory });
 
