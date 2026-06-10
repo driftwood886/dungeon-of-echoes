@@ -941,8 +941,32 @@ function cmdMove(player, direction) {
     ? `\n\n⚠️ **Zona peligrosa** — Esta área es para aventureros nivel 5+. Sos nivel ${player.level || 1}. Los enemigos aquí pueden matarte en pocos turnos.`
     : '';
 
+  // DIS-449: Recuperación pasiva de maná para Mago al entrar a sala sin monstruos.
+  // Si la sala destino no tiene monstruos activos, el Mago recupera 10% del max_mana.
+  // Representa el breve momento de calma para concentrarse entre encuentros.
+  let passiveManaMsg = '';
+  {
+    const freshForMana = db.getPlayer(player.id);
+    const clsForMana = classes.getPlayerClass(freshForMana);
+    if (clsForMana && clsForMana.name === 'Mago') {
+      const monstersInTarget = db.getMonstersInRoom(targetId);
+      const aliveInTarget = monstersInTarget.filter(m => m.hp > 0);
+      if (aliveInTarget.length === 0) {
+        const curMana = freshForMana.mana != null ? freshForMana.mana : 0;
+        const maxMana = freshForMana.max_mana || 20;
+        if (curMana < maxMana) {
+          const manaRestore = Math.max(1, Math.floor(maxMana * 0.10));
+          const newMana = Math.min(maxMana, curMana + manaRestore);
+          const restored = newMana - curMana;
+          db.updatePlayer(player.id, { mana: newMana });
+          passiveManaMsg = `\n✨ En la calma de la sala, tu concentración se recupera. +${restored} maná. (${newMana}/${maxMana} 🔮)`;
+        }
+      }
+    }
+  }
+
   return {
-    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}`,
+    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${levelWarnMsg}${extremeWeatherMsg}${passiveManaMsg}${cartogAchLines}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -4070,8 +4094,26 @@ function cmdRest(player, context) {
     forageRestText = `\n${forageRoomData.msg}`;
   }
 
+  // DIS-449: Descansar también recupera maná para Mago (10% del max_mana, además del HP)
+  let restManaText = '';
+  {
+    const freshForRestMana = db.getPlayer(player.id);
+    const clsForRest = classes.getPlayerClass(freshForRestMana);
+    if (clsForRest && clsForRest.name === 'Mago') {
+      const curMana = freshForRestMana.mana != null ? freshForRestMana.mana : 0;
+      const maxMana = freshForRestMana.max_mana || 20;
+      if (curMana < maxMana) {
+        const manaRestore = Math.max(1, Math.floor(maxMana * 0.10));
+        const newMana2 = Math.min(maxMana, curMana + manaRestore);
+        const restoredMana = newMana2 - curMana;
+        db.updatePlayer(player.id, { mana: newMana2 });
+        restManaText = `\n✨ La calma restaura tu concentración: +${restoredMana} maná. (${newMana2}/${maxMana} 🔮)`;
+      }
+    }
+  }
+
   return {
-    text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP.${coldSuffix}${partyBonusText} ${hpBar} ${newHp}/${player.max_hp} HP${forageRestText}`,
+    text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP.${coldSuffix}${partyBonusText} ${hpBar} ${newHp}/${player.max_hp} HP${forageRestText}${restManaText}`,
   };
 }
 
