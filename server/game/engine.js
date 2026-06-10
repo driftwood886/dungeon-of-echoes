@@ -3735,23 +3735,33 @@ function cmdMap(player) {
   const gap = '       '; // 7 spaces para espaciar columnas
 
   //
-  // Layout del dungeon (conexiones reales):
+  // DIS-D422: Layout corregido — Corredor(2) NO está conectado a Forja(12).
+  //
+  // Conexiones reales:
+  //   Corredor(2): sur→Entrada(1), norte→Ecos(3), oeste→Túnel(6)
+  //   Forja(12):   sur→Galería(11), este→Coliseo(14)
+  //   Ruta Corredor↔Forja: Corredor→oeste→Túnel→norte→Trono→este→Santuario→este→Galería→norte→Forja
+  //
+  // Layout rediseñado:
   //
   // [18:Fuente]
-  //     |  (norte de sala 10)
-  //     |        [8:Prisión]  (norte de sala 4)
-  //     |             |
-  // [ 7:Pozo ]---[ 3:Ecos ]---[ 4:Tesoro ]
-  //     |
-  // [10:Santuario]---[ 9:Trono]---[ 6:Túnel ]---[ 2:Corredor ]---[12:Forja ]---[14:Coliseo]---[15:Catedral]
-  //     |                |              |                              |         |
-  // [11:Galería]    [ 5:Capilla ]---[ 1:Entrada ]               [13:Caverna]         [22:Cripta]
-  //                   |   ↓ (bajar)                                   ↓ (sur)
-  //               [16:Antesala]  [21:Práctica]               [19:Cám.Eco]
-  //                                                                    |
-  //                                                              [20:Abismo]
-  //
-  //  [22:Cripta]---[15 abajo]
+  //   |        [8:Prisión]
+  //   |        |
+  // [7:Pozo]─[3:Ecos]─[4:Tesoro]─[17:Sub]
+  //   |🔑
+  // [10:Santuario]─[9:Trono]─[6:Túnel]─[2:Corredor]
+  //   |                         |           |
+  // [11:Galería]          [5:Capilla]─[1:Entrada]
+  //   |   \                              ↓(bajar)
+  // [12:Forja] [13:Caverna]         [21:Práctica]─[16:Antesala]
+  //          ↘  ↙
+  //       [14:Coliseo]
+  //            |
+  //       [15:Catedral]─[22:Cripta]
+  //            |
+  //       [19:Cám.Eco]
+  //            |
+  //       [20:Abismo]
   //
 
   const lines = [
@@ -3761,18 +3771,24 @@ function cmdMap(player) {
     `${c(18)}`,
     `  |         ${c(8)}`,
     `  |         |`,
-    `${c(7)}---${c(3)}---${c(4)}`,
-    `  |`,
-    `${c(10)}---${c(9)}---${c(6)}---${c(2)}---${c(12)}---${c(14)}---${c(15)}`,
-    `  |              |          |                    |         |`,
-    `${c(11)}    ${c(5)}---${c(1)}              ${c(13)}${gap}${c(22)}`,
-    `               |   ↓ (bajar)                    ↓ (sur)`,
-    `           ${c(16)}  ${c(21)}                    ${c(19)}`,
-    `                                                 |`,
-    `                                              ${c(20)}`,
+    `${c(7)}---${c(3)}---${c(4)}---${c(17)}`,
+    `  | (llave)`,
+    `${c(10)}---${c(9)}---${c(6)}---${c(2)}`,
+    `  |              |         |`,
+    `${c(11)}    ${c(5)}---${c(1)}`,
+    `  |   \\               ↓ (bajar)`,
+    `${c(12)} ${c(13)}       ${c(21)}---${c(16)}`,
+    `      \\  /`,
+    `  ${c(14)}`,
+    `      |`,
+    `  ${c(15)}---${c(22)}`,
+    `      |`,
+    `  ${c(19)}`,
+    `      |`,
+    `  ${c(20)}`,
     ``,
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
-    `⚔ = monstruo activo`,
+    `⚔ = monstruo activo   (llave) = Pozo norte→Santuario requiere llave oxidada`,
   ];
 
   return { text: lines.join('\n') };
