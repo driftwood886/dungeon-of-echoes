@@ -904,12 +904,34 @@ function calcDamage(base) {
  * @param {number} roomId
  * @returns {string[]} ítems soltados
  */
+// DIS-D421: Probabilidades por ítem para drops específicos.
+// Ítems no listados aquí tienen chance 1.0 (100%).
+// Reduce la trivialidad de conseguir ítems épicos del suelo.
+const LOOT_CHANCES = {
+  12: { // Campeón Espectral
+    'lanza espectral':    0.55, // antes: 100% — ahora 55%
+    'armadura de placas': 0.45, // antes: 100% — ahora 45%
+  },
+  9: { // Elemental de Hielo
+    'cristal helado':     0.50, // antes: 100% — ahora 50%
+  },
+};
+
 function dropLoot(monster, roomId) {
   const loot = monster.loot || [];
   const bossDef = BOSS_MONSTERS[monster.id];
 
   // Loot especial del boss
-  const allLoot = bossDef ? [...loot, ...(bossDef.lootBonus || [])] : loot;
+  const baseAllLoot = bossDef ? [...loot, ...(bossDef.lootBonus || [])] : loot;
+
+  // DIS-D421: Aplicar probabilidades por ítem (si existen para este monstruo)
+  const chances = LOOT_CHANCES[monster.id];
+  const allLoot = chances
+    ? baseAllLoot.filter(item => {
+        const chance = chances[item];
+        return chance === undefined ? true : Math.random() < chance;
+      })
+    : baseAllLoot;
 
   if (allLoot.length > 0) {
     // Agregar ítems a la habitación
@@ -918,7 +940,7 @@ function dropLoot(monster, roomId) {
       // BUG-334: Antes de agregar nuevo loot, eliminar TODAS las copias previas de esos
       // mismos ítems del suelo. Evita acumulación cuando el jugador no recoge el loot
       // entre cycles de kill/respawn del mismo monstruo.
-      const lootSet = new Set(allLoot);
+      const lootSet = new Set(baseAllLoot); // limpiar basado en la lista completa (no filtrada)
       const floorWithoutOldLoot = room.items.filter(i => !lootSet.has(i));
       const newItems = [...floorWithoutOldLoot, ...allLoot];
       db.updateRoomItems(roomId, newItems);

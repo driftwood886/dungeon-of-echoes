@@ -2784,7 +2784,7 @@ function cmdLore(query) {
       'poción de salud', 'poción mayor', 'antídoto', 'cuchillo oxidado', 'espada oxidada',
       'hierba curativa', 'poción de maná', 'cuero endurecido', 'cota de malla', 'veste de sombra',
       'espada de hierro', 'daga envenenada', 'escudo de madera', 'antorcha', 'cuerda', 'llave oxidada',
-      'túnica encantada',
+      'túnica encantada', 'poción de maná mayor', 'cristal helado',
     ];
     const inShop = SHOP_CATALOG.some(s => s === itemKey);
 
@@ -4599,6 +4599,9 @@ const SHOP_CATALOG = [
   { name: 'túnica encantada',        price: 80, description: 'Armadura mágica. +4 defensa. Ideal para magos.' },
   // DIS-D27: poción de maná para Magos
   { name: 'poción de maná',          price: 20, description: 'Restaura 15 maná al instante. Indispensable para Magos.' },
+  // DIS-D421: Consumibles que presionan al jugador a gastar oro
+  { name: 'poción de maná mayor',    price: 40, description: 'Restaura 20 maná al instante. La versión potenciada, para situaciones críticas. Solo aquí.' },
+  { name: 'cristal helado',          price: 30, description: 'Un cristal del norte glacial. Ingrediente para craftear la lanza espectral. \'Fragmento de hielo + cristal helado = lanza espectral.\'' },
 ];
 
 // Precios de venta al mercader (jugador → mercader) — 40% del valor
@@ -5854,7 +5857,7 @@ const SURVEY_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutos por sala (T205)
 const ROOM_FORAGE_BONUS = {
   6:  { item: 'hongo azul',       prob: 0.45 },  // Túnel de los Hongos — desactiva trampa esporas
   9:  { item: 'corona rota',      prob: 0.45 },  // Sala del Trono — desactiva trampa fría
-  11: { item: 'fragmento de hielo', prob: 0.35 }, // DIS-D34: Galería de Hielo — ingrediente lanza espectral
+  11: { item: 'fragmento de hielo', prob: 0.15 }, // DIS-D34 → DIS-D421: bajado de 0.35 a 0.15 para que el crafteo de lanza espectral no sea trivial
   13: { item: 'red de pesca',     prob: 0.45 },  // Caverna Sumergida — desactiva trampa inundación
 };
 
