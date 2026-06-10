@@ -215,6 +215,8 @@ const COMMAND_ALIASES = {
   lore: 'lore', enciclopedia: 'lore', info: 'lore', descripcion: 'lore', descripción: 'lore',
   // peek / espiar (T139)
   peek: 'peek', espiar: 'peek', asomarse: 'peek', mirar_dir: 'peek', atisbar: 'peek',
+  // project / proyectar — Habilidad exclusiva de Mago: inspección mágica de sala adyacente (DIS-450)
+  project: 'project', proyectar: 'project', proyección: 'project', proyeccion: 'project', visión_astral: 'project', vision_astral: 'project',
   // runas / runes (T140)
   runas: 'runas', runes: 'runas', runacoleccion: 'runas', 'colección-runas': 'runas',
   // challenge / desafío diario (T141)

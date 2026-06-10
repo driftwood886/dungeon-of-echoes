@@ -315,6 +315,7 @@ function execute(playerId, input, context) {
     case 'trade':        result = cmdTrade(player, action.args); break;
     case 'lore':         result = cmdLore(action.args.join(' ')); break;
     case 'peek':         result = cmdPeek(player, action.args); break;
+    case 'project':      result = cmdProject(player, action.args); break;
     case 'runas':        result = cmdRunas(player); break;
     case 'challenge':    result = cmdChallenge(player); break;
     case 'contract':     result = cmdContract(player); break;
@@ -6135,19 +6136,63 @@ module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS };
  * Requiere: sin monstruos en la sala. Cooldown propio: 90 segundos.
  * Recupera entre 4 y 7 HP (más que rest).
  * Bonus si el jugador tiene mascota: +2 HP extra (la compañía ayuda a concentrarse).
+ *
+ * DIS-450: Para el Mago, meditar tiene un comportamiento diferente:
+ * recupera 25% del max_mana (foco en maná) con cooldown de 45 segundos.
+ * Es la habilidad de clase icónica del Mago — concentrarse para restaurar energía mágica.
  */
 function cmdMeditate(player) {
   player = db.getPlayer(player.id);
-
-  if (player.hp >= player.max_hp) {
-    return { text: '🧘 Ya estás al máximo de HP. No necesitás meditar.' };
-  }
 
   // Sin monstruos en la sala
   const monsters = db.getMonstersInRoom(player.current_room_id);
   if (monsters.length > 0) {
     const names = monsters.map(m => m.name).join(', ');
     return { text: `⚔️  No podés meditar con enemigos presentes: ${names}.` };
+  }
+
+  // DIS-450: Comportamiento especial para Mago — meditar recupera maná, no HP
+  const clsData = classes.getPlayerClass(player);
+  if (clsData && clsData.name === 'Mago') {
+    const curMana = player.mana != null ? player.mana : 0;
+    const maxMana = player.max_mana || 20;
+
+    if (curMana >= maxMana) {
+      return { text: '🔮 Tu mente ya está completamente en foco. El maná fluye libre.' };
+    }
+
+    // Cooldown: 45 segundos (más corto que el de HP — el Mago necesita maná para funcionar)
+    const MAGO_MEDITATE_CD = 45_000;
+    if (player.last_meditate) {
+      const elapsed = Date.now() - new Date(player.last_meditate).getTime();
+      if (elapsed < MAGO_MEDITATE_CD) {
+        const remaining = Math.ceil((MAGO_MEDITATE_CD - elapsed) / 1000);
+        return { text: `🔮 Tu mente aún está agitada por la concentración anterior. Esperá ${remaining} segundo${remaining !== 1 ? 's' : ''}.` };
+      }
+    }
+
+    // Recuperar 25% del max_mana (mínimo 3)
+    const manaRestore = Math.max(3, Math.floor(maxMana * 0.25));
+    const newMana = Math.min(maxMana, curMana + manaRestore);
+    const restored = newMana - curMana;
+
+    db.updatePlayer(player.id, {
+      mana: newMana,
+      last_meditate: new Date().toISOString(),
+    });
+
+    const manaBar = buildBar(newMana, maxMana, 20);
+    const petLine = player.pet
+      ? `\nTu ${player.pet} se sienta en silencio a tu lado, amplificando la calma.`
+      : '';
+    return {
+      text: `🔮 Cerrás los ojos y concentrás tu energía interior. La magia fluye desde el núcleo de tu ser hacia tus manos.${petLine}\n+${restored} maná restaurado. ${manaBar} ${newMana}/${maxMana} 🔮\n💡 (Cooldown: 45s. Mientras meditás no podés moverte — aprovechá para planificar tu próximo hechizo.)`,
+    };
+  }
+
+  // Comportamiento original para no-Magos: recuperar HP
+  if (player.hp >= player.max_hp) {
+    return { text: '🧘 Ya estás al máximo de HP. No necesitás meditar.' };
   }
 
   // Cooldown propio (90 segundos, independiente de rest)
@@ -8682,6 +8727,132 @@ function cmdPeek(player, args) {
   if (target.trap && target.trap.active) {
     lines.push(`⚠️  ¡Trampa activa detectada!`);
   }
+
+  return { text: lines.join('\n') };
+}
+
+/**
+ * DIS-450: project / proyectar — Habilidad exclusiva de Mago.
+ * Proyección astral para inspeccionar una sala adyacente sin entrar.
+ * Más detallada que peek: incluye descripción completa de sala, lore hints,
+ * HP de monstruos y descripción de trampas.
+ * Cooldown: 60 segundos. Solo disponible para Mago.
+ */
+function cmdProject(player, args) {
+  player = db.getPlayer(player.id);
+
+  // Solo Mago puede usar proyectar
+  const clsData = classes.getPlayerClass(player);
+  if (!clsData || clsData.name !== 'Mago') {
+    return { text: '🔮 «Proyectar» es una habilidad exclusiva del Mago. Requiere dominio de la magia arcana para proyectar la conciencia fuera del cuerpo.' };
+  }
+
+  if (!args || args.length === 0) {
+    return {
+      text: [
+        '🔮 Proyectás tu conciencia hacia una sala adyacente sin moverte.',
+        'Uso: proyectar <dirección>',
+        'Ej: proyectar norte  |  proyectar este',
+        '(Cooldown: 60s. Requiere maná para activarse.)',
+      ].join('\n'),
+    };
+  }
+
+  // Coste de maná: 3 (pequeño pero presente — tiene sabor de hechizo)
+  const MANA_COST = 3;
+  const curMana = player.mana != null ? player.mana : 0;
+  if (curMana < MANA_COST) {
+    return { text: `🔮 No tenés suficiente maná para proyectar. Necesitás ${MANA_COST} maná, tenés ${curMana}.` };
+  }
+
+  // Cooldown: 60 segundos
+  const COOLDOWN_MS = 60_000;
+  if (player.last_project) {
+    const elapsed = Date.now() - new Date(player.last_project).getTime();
+    if (elapsed < COOLDOWN_MS) {
+      const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+      return { text: `🔮 Tu proyección arcana todavía se está reintegrando. Esperá ${remaining} segundo${remaining !== 1 ? 's' : ''}.` };
+    }
+  }
+
+  const roomFull = dungeon.getRoomFull(player.current_room_id);
+  if (!roomFull) return { text: 'No podés proyectarte desde aquí.' };
+  const { room } = roomFull;
+
+  const dirArg = args[0];
+  const exit = dungeon.resolveExit(room, dirArg);
+
+  if (!exit) {
+    return { text: `No hay salida hacia esa dirección. No hay nada que proyectar.` };
+  }
+
+  if (exit.key) {
+    return { text: `🔮 La barrera mágica de la puerta bloqueada resiste tu proyección. Tu conciencia rebota de vuelta.` };
+  }
+
+  // Cargar sala destino
+  const targetFull = dungeon.getRoomFull(exit.targetId);
+  if (!targetFull) return { text: 'No podés ver nada en esa dirección.' };
+
+  const { room: target, monsters } = targetFull;
+  const targetRoomDB = db.getRoom(exit.targetId);
+
+  // Cobrar maná
+  const newMana = curMana - MANA_COST;
+  db.updatePlayer(player.id, {
+    mana: newMana,
+    last_project: new Date().toISOString(),
+  });
+
+  const DIR_NAMES_ES = { north: 'norte', south: 'sur', east: 'este', west: 'oeste', up: 'arriba', down: 'abajo' };
+  const normalized = dungeon.normalizeDirection(dirArg) || dirArg;
+  const dirLabel = DIR_NAMES_ES[normalized] || dirArg;
+
+  const lines = [
+    `🔮 Tu conciencia se desplaza hacia el ${dirLabel}... Una visión nítida se forma en tu mente.`,
+    ``,
+    `╔══ ${target.name.toUpperCase()} ══╗`,
+    ``,
+  ];
+
+  // Descripción completa de la sala (el Mago percibe más detalles)
+  if (target.description) {
+    lines.push(target.description);
+    lines.push('');
+  }
+
+  // Monstruos con HP completo (ventaja del Mago sobre peek básico)
+  const aliveMonsters = monsters.filter(m => m.hp > 0);
+  if (aliveMonsters.length > 0) {
+    lines.push('⚔️  Criaturas percibidas:');
+    for (const m of aliveMonsters) {
+      const hpBar = buildBar(m.hp, m.max_hp || m.hp, 10);
+      lines.push(`  • ${m.name} ${hpBar} ${m.hp}/${m.max_hp || m.hp} HP`);
+    }
+    lines.push('');
+  } else {
+    lines.push('🕊️  La sala está vacía de amenazas.');
+    lines.push('');
+  }
+
+  // Ítems en suelo
+  const floorItems = target.items || [];
+  if (floorItems.length > 0) {
+    const itemList = floorItems.map(i => `${items.getRarityEmoji(i)} ${i}`).join(', ');
+    lines.push(`🎒 Suelo: ${itemList}`);
+  }
+
+  // Trampa (el Mago la percibe con detalle)
+  if (targetRoomDB && targetRoomDB.trap && targetRoomDB.trap.active) {
+    const trap = targetRoomDB.trap;
+    lines.push(`⚠️  TRAMPA DETECTADA: ${trap.description}`);
+    if (trap.disarm_item) {
+      lines.push(`   Para desactivarla necesitás: «${trap.disarm_item}»`);
+    }
+  }
+
+  lines.push('');
+  lines.push(`🔮 Maná consumido: ${MANA_COST}. (${newMana}/${player.max_mana || 20} 🔮)`);
 
   return { text: lines.join('\n') };
 }
