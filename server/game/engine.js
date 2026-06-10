@@ -970,7 +970,10 @@ function cmdInventory(player) {
     const emoji = items.getRarityEmoji(item);
     const rarity = items.getItemRarity(item);
     const rarityLabel = rarity !== 'común' ? ` (${rarity})` : '';
-    lines.push(`  ${idx}. ${emoji} ${item}${rarityLabel}`);
+    // DIS-D428: marcar ítems de crafteo con ⚗️ para que el jugador sepa su propósito
+    const def = items.getItemDef(item);
+    const craftTag = (def && def.description && (def.description.includes('crafteo') || def.description.includes('🔧'))) ? ' ⚗️' : '';
+    lines.push(`  ${idx}. ${emoji} ${item}${rarityLabel}${craftTag}`);
     idx++;
   }
 
@@ -2276,6 +2279,10 @@ function cmdUse(player, itemQuery) {
     if (def.atk_bonus > 0) parts.push(`+${def.atk_bonus} ATK`);
     if (def.def_bonus > 0) parts.push(`+${def.def_bonus} DEF`);
     resultText = `📜 Leés el ${found}. ${def.description.split('(')[0].trim()} (${parts.join(', ')} por ${def.duration}s)`;
+
+  } else if (def.type === 'armor') {
+    // BUG-429: 'use <armadura>' debe equipar la armadura, no solo describir
+    return cmdWear(player, found);
 
   } else {
     // DIS-D362: manejo especial de ítems sellados/abribles

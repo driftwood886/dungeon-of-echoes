@@ -132,6 +132,11 @@ const BOSS_MONSTERS = {
     deathAnnouncement: '💀 ¡El CAMPEÓN ESPECTRAL ha caído! El Coliseo de Huesos guarda silencio por un momento. Luego el público esquelético reanuda sus murmullos...',
     lootBonus: [],
   },
+  20: { // Goblin de Práctica — BUG-430: mob tutorial no debe poder huir (rompe el flujo del tutorial)
+    respawnMinutes: 5,
+    deathAnnouncement: null, // sin anuncio global — es un mob tutorial
+    lootBonus: [],
+  },
 };
 
 // T145: Habilidades especiales de monstruos
