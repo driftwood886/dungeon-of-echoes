@@ -4608,7 +4608,7 @@ const SHOP_CATALOG = [
   { name: 'antorcha',                price: 5,  description: 'Ilumina pasillos oscuros. Dura varias horas.' },
   { name: 'cuerda',                  price: 10, description: 'Desactiva trampas de pinchos. 15m de largo.' },
   { name: 'espada oxidada',          price: 15, description: 'Una espada vieja pero funcional. +3 ataque. Ingrediente para craftear espada de obsidiana.' },
-  { name: 'llave oxidada',           price: 50, description: 'Abre cierta puerta al norte del Pozo. El mercader no explica más.' },
+  { name: 'llave oxidada',           price: 25, description: 'Abre cierta puerta al norte del Pozo. El mercader no explica más. (Precio reducido — vale usar a bajo nivel.)' },
   // T152: Armaduras
   { name: 'cuero endurecido',        price: 30, description: 'Armadura ligera. +2 defensa.' },
   { name: 'cota de malla',           price: 60, description: 'Armadura de hierro. +3 defensa.' },
