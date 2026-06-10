@@ -142,6 +142,11 @@ const BOSS_MONSTERS = {
     deathAnnouncement: null, // sin anuncio global — es un miniboss local
     lootBonus: [],
   },
+  5: { // Gólem de Piedra — BUG-444: el lore dice "nunca huye", faltaba en BOSS_MONSTERS → podía escapar con <25% HP
+    respawnMinutes: 15,
+    deathAnnouncement: null, // sin anuncio global — boss del Santuario Profano pero no merece anuncio global
+    lootBonus: [],
+  },
 };
 
 // T145: Habilidades especiales de monstruos
