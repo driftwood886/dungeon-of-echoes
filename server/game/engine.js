@@ -3051,8 +3051,17 @@ function cmdEquip(player, itemQuery) {
   const changeStr = change >= 0 ? `+${change}` : `${change}`;
   const swapMsg = player.equipped_weapon ? ` (reemplaza ${player.equipped_weapon} → vuelve a tu mochila)` : '';
 
+  // DIS-478: flavor narrativo cuando un mago equipa arma de guerrero (sin penalidad — libertad de builds)
+  const clsDataEquip = classes.getPlayerClass(player);
+  const heavyWeapons = ['martillo', 'hacha', 'alabarda', 'mandoble', 'lanza', 'ballesta'];
+  const isMagoEquip = clsDataEquip && clsDataEquip.name === 'Mago';
+  const isHeavyWeapon = heavyWeapons.some(w => found.toLowerCase().includes(w));
+  const magoHeavyFlavor = (isMagoEquip && isHeavyWeapon)
+    ? `\n💬 (Empuñás esto con ambas manos. No es lo que un mago estudia, pero nadie dijo que no podés.)`
+    : '';
+
   return {
-    text: `Empuñás ${found}${swapMsg}. Ataque: ${oldAttack} → ${newAttack} (${changeStr}).\n${def.description}`,
+    text: `Empuñás ${found}${swapMsg}. Ataque: ${oldAttack} → ${newAttack} (${changeStr}).\n${def.description}${magoHeavyFlavor}`,
     event: `${player.username} empuña ${found}.`,
     eventRoomId: player.current_room_id,
   };
