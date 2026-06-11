@@ -963,7 +963,11 @@ function tryFlee(player, monster, room, preferredDirection = null) {
     };
   }
   // El monstruo golpea al intentar huir
-  const monsterDmg = calcDamage(monster.attack);
+  // BUG-483: Para bosses, el daño de penalización de huida se reduce al 60%
+  // del ataque base — el boss golpea pero el jugador está en movimiento, no en postura.
+  // Esto previene que 3 intentos de huida = muerte garantizada contra bosses.
+  const fleeAttack = isBossFlee ? Math.ceil(monster.attack * 0.6) : monster.attack;
+  const monsterDmg = calcDamage(fleeAttack);
   const dmgToPlayer = Math.max(1, monsterDmg - Math.floor(player.defense || 0));
   player.hp = Math.max(0, player.hp - dmgToPlayer);
   db.updatePlayer(player.id, { hp: player.hp });
