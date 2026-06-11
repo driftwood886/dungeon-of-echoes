@@ -3316,23 +3316,29 @@ function cmdLoot(player) {
     }
   }
 
-  // Agregar solo ítems no-oro al inventario
-  const newInventory = [...player.inventory, ...nonGoldItems];
+  // Agregar solo ítems no-oro al inventario (BUG-469: respetar límite de 20)
+  const MAX_INVENTORY = 20;
+  const spaceAvailable = MAX_INVENTORY - player.inventory.length;
+  const itemsToPickup = nonGoldItems.slice(0, spaceAvailable);
+  const itemsLeft = nonGoldItems.slice(spaceAvailable);
+
+  const newInventory = [...player.inventory, ...itemsToPickup];
   db.updatePlayer(player.id, { inventory: newInventory });
   if (goldCollected > 0) {
     const freshP = db.getPlayer(player.id);
     db.updatePlayer(player.id, { gold: (freshP.gold || 0) + goldCollected });
   }
-  db.updateRoomItems(room.id, []);
+  // Dejar en el suelo los ítems que no entraron (las monedas ya se procesaron aparte)
+  db.updateRoomItems(room.id, itemsLeft);
 
-  const lista = nonGoldItems.map(i => {
+  const lista = itemsToPickup.map(i => {
     const emoji = items.getRarityEmoji(i);
     const rarity = items.getItemRarity(i);
     const rarityTag = rarity !== 'común' ? ` [${rarity}]` : '';
     return `  ${emoji} ${i}${rarityTag}`;
   }).join('\n');
 
-  const totalItems = nonGoldItems.length + (goldCollected > 0 ? 1 : 0);
+  const totalItems = itemsToPickup.length + (goldCollected > 0 ? 1 : 0);
   // DIS-D361: mostrar línea descriptiva para cofres abiertos, genérica para monedas simples
   let goldLine = '';
   if (goldCollected > 0) {
@@ -3369,8 +3375,13 @@ function cmdLoot(player) {
     }
   }
 
+  // BUG-469: advertencia si la mochila estaba llena y quedaron ítems en el suelo
+  const fullBagLine = itemsLeft.length > 0
+    ? `\n\n🎒 Mochila llena — ${itemsLeft.length} ítem${itemsLeft.length !== 1 ? 's' : ''} quedaron en el suelo.`
+    : '';
+
   return {
-    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}`,
+    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${fullBagLine}`,
     event: `${player.username} saquea el suelo de la sala.`,
     eventRoomId: room.id,
   };
