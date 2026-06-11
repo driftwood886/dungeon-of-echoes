@@ -141,7 +141,7 @@ const COMMAND_ALIASES = {
   // survey / sondear (T205)
   survey: 'survey', sondear: 'survey', escanear: 'survey', inspeccionar_sala: 'survey', prospeccionar: 'survey', prospectar: 'survey',
   // pet / mascota (T095)
-  pet: 'pet', mascota: 'pet', compañero: 'pet', familiar: 'pet',
+  pet: 'pet', mascota: 'pet', mascotas: 'pet', compañero: 'pet', familiar: 'pet',
   // auction / subasta (T098)
   auction: 'auction', subasta: 'auction', subastar: 'auction', rematar: 'auction', vender_subasta: 'auction',
   // bid / pujar (T098)
@@ -222,7 +222,7 @@ const COMMAND_ALIASES = {
   // challenge / desafío diario (T141)
   challenge: 'challenge', desafio: 'challenge', desafío: 'challenge', 'desafio-diario': 'challenge', daily: 'challenge', mision_diaria: 'challenge', reto: 'challenge',
   // contract / contrato semanal (T222)
-  contract: 'contract', contrato: 'contract', 'contrato-caza': 'contract', 'caza-semanal': 'contract', weekly: 'contract', semanal: 'contract',
+  contract: 'contract', contrato: 'contract', contratos: 'contract', 'contrato-caza': 'contract', 'caza-semanal': 'contract', weekly: 'contract', semanal: 'contract',
   // macro (T142)
   macro: 'macro', macros: 'macro', '!': 'macro',
   afk: 'afk', ausente: 'afk', ocupado: 'afk', away: 'afk',
