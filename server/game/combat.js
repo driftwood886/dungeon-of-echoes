@@ -376,7 +376,19 @@ function attackRound(player, monster) {
       equilibrado: '',
     };
     const stanceTag = stanceIndicators[stanceName] || '';
-    lines.push(`⚔  ${stanceTag}Atacás al ${monster.name} y le causás ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
+    // DIS-471: mensaje de sabor especial para el Mago sin maná (ataque físico con báculo)
+    const curMana = player.mana != null ? player.mana : 0;
+    const isMagoSinMana = clsData && clsData.name === 'Mago' && curMana <= 0;
+    const magoMsgs = [
+      'golpeás con el báculo',
+      'lanzás una chispa estática sin maná',
+      'dás un golpe torpe con el báculo',
+      'improvisás un ataque físico',
+    ];
+    const magoFlavor = isMagoSinMana
+      ? `[sin maná — ${magoMsgs[Math.floor(Math.random() * magoMsgs.length)]}] `
+      : '';
+    lines.push(`⚔  ${stanceTag}${magoFlavor}Atacás al ${monster.name} y le causás ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
   }
 
   // Actualizar monstruo en BD

@@ -995,14 +995,14 @@ function cmdMove(player, direction) {
           const newMana = Math.min(maxMana, curMana + manaRestore);
           const restored = newMana - curMana;
           db.updatePlayer(player.id, { mana: newMana });
-          passiveManaMsg = `\n✨ En la calma de la sala, tu concentración se recupera. +${restored} maná. (${newMana}/${maxMana} 🔮)`;
+          passiveManaMsg = `\n💧 En la calma de la sala, tu concentración se recupera. +${restored} maná. (${newMana}/${maxMana} 🔮)\n`;
         }
       }
     }
   }
 
   return {
-    text: `${moveText}\n${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${levelWarnMsg}${extremeWeatherMsg}${passiveManaMsg}${cartogAchLines}`,
+    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -2406,15 +2406,22 @@ function cmdUse(player, itemQuery) {
       }
     } else if (foundLow.includes('páginas congeladas') || foundLow.includes('paginas congeladas')) {
       // BUG-461: páginas congeladas — disparar tracking de Kaelthas igual que en cmdExamine
+      // DIS-476: agregar entrada específica de las páginas siempre que sea la primera vez
       const seFreshPag = parseSE(player.status_effects);
       let diarioExtraPag = '';
       if (!seFreshPag.leyo_diario_galeria) {
         const kaeCount = (seFreshPag.kaelthas_menciones || 0) + 1;
         const newSePag = { ...seFreshPag, leyo_diario_galeria: true, kaelthas_menciones: kaeCount, 'kaelthas_menc_paginas_11': true };
+        // Entrada genérica solo si es la 2ª mención
         if (kaeCount === 2 && !seFreshPag.kaelthas_nota_diario) {
           newSePag.kaelthas_nota_diario = true;
           db.addJournalEntry(player.id, 'lore', '🔍 Ese nombre — Kaelthas — aparece en varios lugares del dungeon. No es coincidencia. Alguien quiere que se recuerde, o que se olvide.');
-          diarioExtraPag = '\n\n📖 *Nuevo apunte en tu diario: el nombre Kaelthas aparece en varios lugares del dungeon.*';
+        }
+        // DIS-476: entrada específica de las páginas — siempre al leerlas por primera vez
+        if (!seFreshPag.kaelthas_nota_paginas) {
+          newSePag.kaelthas_nota_paginas = true;
+          db.addJournalEntry(player.id, 'lore', '📖 Las páginas hablan de alguien que sabía demasiado. "Kaelthas no murió. Eligió esto." Las fechas del diario coinciden con cuando Valdrath desapareció de los mapas oficiales.');
+          diarioExtraPag = '\n\n📖 *Nuevo apunte en tu diario: las páginas revelan algo sobre Kaelthas y Valdrath.*';
         }
         db.updatePlayer(player.id, { status_effects: JSON.stringify(newSePag) });
       }
@@ -2746,10 +2753,16 @@ function cmdExamine(player, query) {
       // DIS-456: contar como mención de Kaelthas
       const kaeCountDiario = (seFresh.kaelthas_menciones || 0) + 1;
       const newSeDiario = { ...seFresh, leyo_diario_galeria: true, kaelthas_menciones: kaeCountDiario, 'kaelthas_menc_paginas_11': true };
+      // Entrada genérica solo si es la 2ª mención
       if (kaeCountDiario === 2 && !seFresh.kaelthas_nota_diario) {
         newSeDiario.kaelthas_nota_diario = true;
         db.addJournalEntry(player.id, 'lore', '🔍 Ese nombre — Kaelthas — aparece en varios lugares del dungeon. No es coincidencia. Alguien quiere que se recuerde, o que se olvide.');
-        diarioExtra = '\n\n📖 *Nuevo apunte en tu diario: el nombre Kaelthas aparece en varios lugares del dungeon.*';
+      }
+      // DIS-476: entrada específica de las páginas — siempre al leerlas por primera vez
+      if (!seFresh.kaelthas_nota_paginas) {
+        newSeDiario.kaelthas_nota_paginas = true;
+        db.addJournalEntry(player.id, 'lore', '📖 Las páginas hablan de alguien que sabía demasiado. "Kaelthas no murió. Eligió esto." Las fechas del diario coinciden con cuando Valdrath desapareció de los mapas oficiales.');
+        diarioExtra = '\n\n📖 *Nuevo apunte en tu diario: las páginas revelan algo sobre Kaelthas y Valdrath.*';
       }
       db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeDiario) });
     }
@@ -6860,17 +6873,31 @@ function resolveExpiredAuctions(broadcastFn) {
       if (broadcastFn) broadcastFn(msg);
 
     } else {
-      // Sin pujas: devolver ítem al vendedor
+      // Sin pujas: comprador NPC de baja oferta (DIS-474) o devolver ítem al vendedor
       const seller = db.getPlayer(auction.seller_id);
-      if (seller) {
-        const sellerInv = Array.isArray(seller.inventory) ? seller.inventory : JSON.parse(seller.inventory || '[]');
-        sellerInv.push(auction.item_name);
-        db.updatePlayer(seller.id, { inventory: JSON.stringify(sellerInv) });
+      // DIS-474: el Escriba Elfo compra ítems sin postor a 30-50% del precio mínimo
+      const npcBuyChance = Math.random();
+      const npcBuyThreshold = 0.45; // 45% de chance de que el Escriba compre
+      if (seller && npcBuyChance < npcBuyThreshold && auction.min_price > 0) {
+        const npcOffer = Math.max(1, Math.floor(auction.min_price * (0.3 + Math.random() * 0.2)));
+        db.updatePlayer(seller.id, { gold: (seller.gold || 0) + npcOffer });
+        db.addJournalEntry(seller.id, 'system', `🔨 El Escriba Elfo adquirió "${auction.item_name}" por ${npcOffer}g (oferta de reserva). El dinero está en tu bolsa.`);
+        const msg = `🔨 Subasta: el Escriba Elfo compró "${auction.item_name}" por ${npcOffer}g (oferta de reserva de ${auction.seller_name}).`;
+        messages.push(msg);
+        if (broadcastFn) broadcastFn(msg);
+      } else {
+        // Devolver ítem al vendedor
+        if (seller) {
+          const sellerInv = Array.isArray(seller.inventory) ? seller.inventory : JSON.parse(seller.inventory || '[]');
+          sellerInv.push(auction.item_name);
+          db.updatePlayer(seller.id, { inventory: JSON.stringify(sellerInv) });
+          // DIS-474: notificar al vendedor que el ítem volvió a su inventario
+          db.addJournalEntry(seller.id, 'system', `🔨 La subasta de "${auction.item_name}" cerró sin postores. El ítem volvió a tu inventario.`);
+        }
+        const msg = `🔨 Subasta cerrada sin pujas: "${auction.item_name}" vuelve a ${auction.seller_name}.`;
+        messages.push(msg);
+        if (broadcastFn) broadcastFn(msg);
       }
-
-      const msg = `🔨 Subasta cerrada sin pujas: "${auction.item_name}" vuelve a ${auction.seller_name}.`;
-      messages.push(msg);
-      if (broadcastFn) broadcastFn(msg);
     }
   }
 
