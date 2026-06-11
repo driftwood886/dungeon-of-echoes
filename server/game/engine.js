@@ -3871,7 +3871,7 @@ function cmdMap(player) {
     `  |         ${c(8)}`,
     `  |         |`,
     `${c(7)}---${c(3)}---${c(4)}---${c(17)}`,
-    `  | (llave)`,
+    `  |🔑(bloqueado — ruta libre: Capilla→Túnel→Trono→Santuario)`,
     `${c(10)}---${c(9)}---${c(6)}---${c(2)}`,
     `  |              |         |`,
     `${c(11)}    ${c(5)}---${c(1)}`,
@@ -3887,7 +3887,8 @@ function cmdMap(player) {
     `  ${c(20)}`,
     ``,
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
-    `⚔ = monstruo activo   (llave) = Pozo norte→Santuario requiere llave oxidada`,
+    `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`,
+    `💡 Ruta al Santuario sin llave: Entrada → este → Capilla → norte → Túnel → norte → Trono → este → Santuario`,
   ];
 
   return { text: lines.join('\n') };
@@ -4783,6 +4784,12 @@ function cmdTalk(player, target) {
     const seFreshG = (() => { try { return JSON.parse(player.status_effects || '{}'); } catch (_) { return {}; } })();
     const leyoDiario = seFreshG.leyo_diario_galeria;
     const qStateG = player.aldric_quest || 'none';
+
+    // DIS-454: Pregunta específica sobre santuario o llave → ruta alternativa directa
+    const askingSanctuaryOrKey = tLow.includes('santuario') || tLow.includes('llave') || tLow.includes('pozo') || tLow.includes('cómo llegar') || tLow.includes('ruta');
+    if (askingSanctuaryOrKey) {
+      return { text: 'El anciano te mira cuando nombrás el Santuario —algo en su postura cambia, como si hubiera estado esperando esa pregunta.\n\n\"Hay dos rutas,\" dice. \"La directa: desde la Sala de los Ecos al oeste, llegás al Pozo Sin Fondo. La puerta al norte tiene cerradura —necesitás una llave oxidada. La vendemos en la tienda de sala 4 por 25 monedas de oro, o podés buscarla en la Prisión al norte del Tesoro.\"\n\nHace una pausa, como calibrando si vale la pena continuar.\n\n\"La otra ruta no necesita llave. Desde aquí: al este, la Capilla Olvidada. Al norte desde ahí, el Túnel de los Hongos. Norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario Profano.\"\n\nSeñala con la mano el camino este mientras habla. \"Es más largo, pero está siempre abierto. No sé por qué ese camino quedó sin cerradura. Tengo mis sospechas.\"' };
+    }
 
     // VARIANTE 1: Logro Cartógrafo — exploró todo el dungeon
     if (hasCartografo) {
