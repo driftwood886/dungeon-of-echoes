@@ -12,6 +12,7 @@ const initSqlJs = require('sql.js');
 const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
+const xpSystem = require('../game/xp.js');
 
 // Soportar DB_PATH via variable de entorno (Fly.io usa /data/dungeon.sqlite en volumen)
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../db/dungeon.sqlite');
@@ -1208,10 +1209,18 @@ function updateDailyChallengeProgress(playerId, type, target, amount = 1) {
     ch.done = true;
     ch.progress = ch.goal;
     reward = { xp: 30, gold: 20, reputation: 5 };
-    // Aplicar recompensas
+    // BUG-464: Aplicar recompensas recalculando el nivel
     const xp = (player.xp || 0) + 30;
     const gold = (player.gold || 0) + 20;
-    updatePlayer(playerId, { xp, gold, daily_challenge: JSON.stringify(ch) });
+    const newLevel = xpSystem.levelFromXp(xp);
+    const levelUpdates = { xp, gold, daily_challenge: JSON.stringify(ch), level: newLevel };
+    if (newLevel > (player.level || 1)) {
+      levelUpdates.max_hp = (player.max_hp || 30) + 5;
+      const healOnLevelUp = Math.ceil(levelUpdates.max_hp * 0.20);
+      levelUpdates.hp = Math.min(levelUpdates.max_hp, (player.hp || 1) + healOnLevelUp);
+      levelUpdates.attack = (player.attack || 5) + 1;
+    }
+    updatePlayer(playerId, levelUpdates);
     addReputation(playerId, 5);
     addJournalEntry(playerId, '🏆 Desafío diario completado: ' + ch.desc);
   } else {
@@ -1284,11 +1293,22 @@ function updateWeeklyContractProgress(playerId, killedMonsterName) {
     ct.done = true;
     reward = { xp: ct.reward_xp, gold: ct.reward_gold, item: ct.reward_item };
     const freshP = getPlayer(playerId);
-    updatePlayer(playerId, {
-      xp: (freshP.xp || 0) + ct.reward_xp,
+    // BUG-466: Recalcular nivel al aplicar recompensa de XP
+    const newContractXp = (freshP.xp || 0) + ct.reward_xp;
+    const newContractLevel = xpSystem.levelFromXp(newContractXp);
+    const contractUpdates = {
+      xp: newContractXp,
       gold: (freshP.gold || 0) + ct.reward_gold,
       weekly_contract: JSON.stringify(ct),
-    });
+      level: newContractLevel,
+    };
+    if (newContractLevel > (freshP.level || 1)) {
+      contractUpdates.max_hp = (freshP.max_hp || 30) + 5;
+      const healOnLevelUp = Math.ceil(contractUpdates.max_hp * 0.20);
+      contractUpdates.hp = Math.min(contractUpdates.max_hp, (freshP.hp || 1) + healOnLevelUp);
+      contractUpdates.attack = (freshP.attack || 5) + 1;
+    }
+    updatePlayer(playerId, contractUpdates);
     // Agregar ítem al inventario
     try {
       const inv = JSON.parse(freshP.inventory || '[]');

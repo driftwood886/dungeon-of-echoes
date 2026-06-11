@@ -2109,9 +2109,10 @@ function cmdPick(player, itemQuery) {
   const goldKey = Object.keys(GOLD_ITEMS).find(k => foundLower.includes(k) || k.includes(foundLower));
 
   // DIS-D385: Chequear capacidad de inventario antes de recoger (solo para ítems no-moneda)
-  if (!goldKey && (player.inventory || []).length >= 20) {
+  const currentInvCount = (player.inventory || []).length;
+  if (!goldKey && currentInvCount >= 20) {
     return {
-      text: `🎒 Tu mochila está llena (20/20 ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.`,
+      text: `🎒 Tu mochila está llena (${currentInvCount}/20 ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.`,
     };
   }
 
