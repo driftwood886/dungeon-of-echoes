@@ -444,9 +444,31 @@ async function main() {
       return res.status(400).json({ error: 'Se requiere player_id y command.' });
     }
 
+    // BUG-467: Inicializar sessionDataMap on-the-fly para que 'session' funcione via /api/action
+    const { sessionDataMap } = require('./socket/handlers');
+    if (!sessionDataMap.has(player_id)) {
+      const freshP = db.getPlayer(player_id);
+      sessionDataMap.set(player_id, {
+        startTime: Date.now(),
+        kills: 0,
+        xpStart: freshP ? (freshP.xp || 0) : 0,
+        goldStart: freshP ? (freshP.gold || 0) : 0,
+        commands: 0,
+      });
+    }
+    const actionContext = {
+      sessionData: sessionDataMap.get(player_id) || null,
+      sessionDataMap,
+    };
+    const actionSessData = sessionDataMap.get(player_id);
+
     let result;
     try {
-      result = execute(player_id, command);
+      result = execute(player_id, command, actionContext);
+      if (actionSessData) {
+        actionSessData.commands++;
+        if (result && result.sessionKill) actionSessData.kills++;
+      }
     } catch (err) {
       console.error('[/api/action] Error ejecutando comando:', err.message);
       result = { text: '(error interno al ejecutar el comando — intentá de nuevo)' };

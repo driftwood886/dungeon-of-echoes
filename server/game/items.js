@@ -29,8 +29,8 @@ const ITEM_CATALOG = {
   'poción de maná mayor': { type: 'mana_potion', effect: 'restore_mana', amount: 20, description: 'Un frasco azul intenso. Restaura 20 puntos de maná.' },
 
   // ── Antídotos ────────────────────────────────────────────────────────────────
-  'antídoto':            { type: 'antidote', effect: 'cure_poison', description: 'Un frasco con líquido verde pálido. Cura inmediatamente el envenenamiento.' },
-  'antidoto':            { type: 'antidote', effect: 'cure_poison', description: 'Un frasco con líquido verde pálido. Cura inmediatamente el envenenamiento.' },
+  'antídoto':            { type: 'antidote', effect: 'cure_poison', description: 'Un frasco con líquido verde pálido. Cura el veneno al instante. Si no estás envenenado, restaura 12 HP.' },
+  'antidoto':            { type: 'antidote', effect: 'cure_poison', description: 'Un frasco con líquido verde pálido. Cura el veneno al instante. Si no estás envenenado, restaura 12 HP.' },
   'hierba curativa':     { type: 'antidote', effect: 'cure_poison', description: 'Un manojo de hierba medicinal. Cura el veneno si estás envenenado, o restaura 12 HP si no lo estás. También sirve como ingrediente de crafteo.' },
 
   // ── Armas (dungeon base) ──────────────────────────────────────────────────
