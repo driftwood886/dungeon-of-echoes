@@ -876,7 +876,23 @@ function tryFlee(player, monster, room, preferredDirection = null) {
         ? `dañado (${monsterHpPct}% HP)`
         : `casi intacto (${monsterHpPct}% HP)`;
 
-  if (Math.random() < FLEE_CHANCE) {
+  // DIS-453: probabilidad de huida varía según el HP del monstruo
+  // Un enemigo herido está distraído con su dolor → más fácil escapar
+  let fleeChance;
+  if (monsterHpPct <= 25) {
+    fleeChance = 0.80; // muy herido → fácil huir
+  } else if (monsterHpPct <= 50) {
+    fleeChance = 0.65; // maltrecho → bastante probable
+  } else if (monsterHpPct <= 75) {
+    fleeChance = 0.50; // dañado → base
+  } else {
+    fleeChance = 0.35; // casi intacto → difícil
+  }
+
+  const roll = Math.random();
+  const margin = Math.abs(roll - fleeChance); // qué tan cerca estuvo
+
+  if (roll < fleeChance) {
     // BUG-345: Usar la dirección elegida por el jugador si existe; si no, sala aleatoria
     let destRoomId = null;
     let destRoomName = null;
@@ -918,7 +934,13 @@ function tryFlee(player, monster, room, preferredDirection = null) {
   player.hp = Math.max(0, player.hp - dmgToPlayer);
   db.updatePlayer(player.id, { hp: player.hp });
 
-  let line = `🏃 Intentás huir pero el ${monster.name} (${monsterHpDesc}) te bloquea y te golpea (${dmgToPlayer} dmg). Tu HP: ${player.hp}/${player.max_hp}.`;
+  // DIS-453: feedback narrativo sobre qué tan cerca estuvo la huida
+  const wasClose = margin < 0.15; // menos de 15% de diferencia → estuvo cerca
+  const fleeNarrative = wasClose
+    ? `El ${monster.name} casi te deja ir — por poco.`
+    : `El ${monster.name} te bloqueó sin esfuerzo.`;
+
+  let line = `🏃 Intentás huir pero ${fleeNarrative} Te golpea (${dmgToPlayer} dmg). Tu HP: ${player.hp}/${player.max_hp}.`;
 
   if (player.hp <= 0) {
     db.addJournalEntry(player.id, 'death', `💀 Muerto intentando huir del ${monster.name}.`);

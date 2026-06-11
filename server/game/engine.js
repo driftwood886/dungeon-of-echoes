@@ -2008,8 +2008,22 @@ function cmdFlee(player, targetQuery) {
 
   const { fled, line, destRoomId, globalEvent: fleeGlobalEvent } = combat.tryFlee(player, monster, room);
 
+  // DIS-453: hint sobre probabilidad de huida para el próximo intento
+  // (basado en HP actual del monstruo después del intento)
+  let fleeHint = '';
+  if (!fled) {
+    const freshMonster = db.getMonstersInRoom(player.current_room_id).find(m => m.id === monster.id);
+    if (freshMonster) {
+      const hpPct = Math.round((freshMonster.hp / freshMonster.max_hp) * 100);
+      if (hpPct <= 25) fleeHint = '\n💭 Está muy herido — si volvés a intentarlo, tus chances son altas (≈80%).';
+      else if (hpPct <= 50) fleeHint = '\n💭 Está maltrecho — con suerte podés escapar en el próximo intento (≈65%).';
+      else if (hpPct <= 75) fleeHint = '\n💭 Está dañado — las chances de huida son parejas (≈50%). Debilitarlo más te ayudaría.';
+      else fleeHint = '\n💭 Está casi intacto — es difícil escapar ahora (≈35%). Causale daño primero para mejorar tus chances.';
+    }
+  }
+
   return {
-    text: line,
+    text: line + fleeHint,
     event: fled ? `${player.username} huye de la sala.` : `${player.username} intenta huir pero falla.`,
     eventRoomId: room.id,
     ...(fleeGlobalEvent ? { globalEvent: fleeGlobalEvent } : {}),
