@@ -2266,6 +2266,15 @@ function cmdUse(player, itemQuery) {
 
   const found = items.findItem(player.inventory, itemQuery.trim());
   if (!found) {
+    // BUG-484: elementos de sala — "use fuente" en sala 18 debería beber de la fuente
+    const queryLower2 = itemQuery.trim().toLowerCase();
+    if (player.current_room_id === FOUNTAIN_ROOM_ID && ['fuente', 'fountain', 'agua', 'agua plateada', 'beber fuente'].includes(queryLower2)) {
+      return cmdDrink(player);
+    }
+    // BUG-481: "use cuenco" en sala 5 (Capilla) debería usar el cuenco sagrado
+    if (player.current_room_id === 5 && ['cuenco', 'bowl', 'cuenco sagrado', 'ofrenda'].includes(queryLower2)) {
+      return cmdChapelBowl(player);
+    }
     // BUG-445: Pozo Sin Fondo (sala 7) — feedback narrativo al intentar interactuar con el pozo
     const queryLower = itemQuery.trim().toLowerCase();
     const pozoKeywords = ['pozo', 'cuerda', 'brocal', 'bajar', 'bajar al pozo', 'saltar', 'saltar al pozo'];
