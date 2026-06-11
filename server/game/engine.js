@@ -4726,7 +4726,7 @@ const SHOP_CATALOG = [
   { name: 'antorcha',                price: 5,  description: 'Ilumina pasillos oscuros. Dura varias horas.' },
   { name: 'cuerda',                  price: 10, description: 'Desactiva trampas de pinchos. 15m de largo.' },
   { name: 'espada oxidada',          price: 15, description: 'Una espada vieja pero funcional. +3 ataque. Ingrediente para craftear espada de obsidiana.' },
-  { name: 'llave oxidada',           price: 25, description: 'Abre cierta puerta al norte del Pozo. El mercader no explica más. (Precio reducido — vale usar a bajo nivel.)' },
+  { name: 'llave oxidada',           price: 20, description: 'Abre cierta puerta al norte del Pozo. El mercader no explica más. (O buscá la Araña Tejedora del Pozo — a veces la lleva consigo.)' },
   // T152: Armaduras
   { name: 'cuero endurecido',        price: 30, description: 'Armadura ligera. +2 defensa.' },
   { name: 'cota de malla',           price: 60, description: 'Armadura de hierro. +3 defensa.' },
@@ -4788,7 +4788,7 @@ function cmdTalk(player, target) {
     // DIS-454: Pregunta específica sobre santuario o llave → ruta alternativa directa
     const askingSanctuaryOrKey = tLow.includes('santuario') || tLow.includes('llave') || tLow.includes('pozo') || tLow.includes('cómo llegar') || tLow.includes('ruta');
     if (askingSanctuaryOrKey) {
-      return { text: 'El anciano te mira cuando nombrás el Santuario —algo en su postura cambia, como si hubiera estado esperando esa pregunta.\n\n\"Hay dos rutas,\" dice. \"La directa: desde la Sala de los Ecos al oeste, llegás al Pozo Sin Fondo. La puerta al norte tiene cerradura —necesitás una llave oxidada. La vendemos en la tienda de sala 4 por 25 monedas de oro, o podés buscarla en la Prisión al norte del Tesoro.\"\n\nHace una pausa, como calibrando si vale la pena continuar.\n\n\"La otra ruta no necesita llave. Desde aquí: al este, la Capilla Olvidada. Al norte desde ahí, el Túnel de los Hongos. Norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario Profano.\"\n\nSeñala con la mano el camino este mientras habla. \"Es más largo, pero está siempre abierto. No sé por qué ese camino quedó sin cerradura. Tengo mis sospechas.\"' };
+      return { text: 'El anciano te mira cuando nombrás el Santuario —algo en su postura cambia, como si hubiera estado esperando esa pregunta.\n\n\"Hay dos rutas,\" dice. \"La directa: desde la Sala de los Ecos al oeste, llegás al Pozo Sin Fondo. La puerta al norte tiene cerradura —necesitás una llave oxidada. La vendemos en la tienda de sala 4 por 20 monedas de oro, o podés buscarla en la Prisión al norte del Tesoro. También, la Araña Tejedora del Pozo a veces la lleva consigo.\"\n\nHace una pausa, como calibrando si vale la pena continuar.\n\n\"La otra ruta no necesita llave. Desde aquí: al este, la Capilla Olvidada. Al norte desde ahí, el Túnel de los Hongos. Norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario Profano.\"\n\nSeñala con la mano el camino este mientras habla. \"Es más largo, pero está siempre abierto. No sé por qué ese camino quedó sin cerradura. Tengo mis sospechas.\"' };
     }
 
     // VARIANTE 1: Logro Cartógrafo — exploró todo el dungeon

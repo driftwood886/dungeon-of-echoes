@@ -160,7 +160,7 @@ const MONSTERS = [
     description: 'Una araña del tamaño de un gato. Su veneno paraliza las extremidades durante segundos.',
     hp: 8, max_hp: 8, attack: 4,
     room_id: 7,
-    loot: ['hilo de seda', 'veneno concentrado'],
+    loot: ['hilo de seda', 'veneno concentrado', 'llave oxidada'],
     respawn_room_id: 7,
   },
   {
@@ -666,6 +666,13 @@ function migrateArmorLoot() {
   if (spider && !spider.loot.includes('capa de araña')) {
     db.upsertMonster({ ...spider, loot: [...spider.loot, 'capa de araña'] });
     console.log('[seed] migrateArmorLoot: capa de araña agregada a Araña Tejedora (id 7).');
+  }
+
+  // DIS-455: Araña Tejedora (id 7) → llave oxidada (15% de drop vía LOOT_CHANCES)
+  const spiderFresh = db.getMonster(7);
+  if (spiderFresh && !spiderFresh.loot.includes('llave oxidada')) {
+    db.upsertMonster({ ...spiderFresh, loot: [...spiderFresh.loot, 'llave oxidada'] });
+    console.log('[seed] migrateArmorLoot: llave oxidada (15% drop) agregada a Araña Tejedora (id 7) — DIS-455.');
   }
 }
 

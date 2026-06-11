@@ -995,6 +995,9 @@ const LOOT_CHANCES = {
   9: { // Elemental de Hielo
     'cristal helado':     0.50, // antes: 100% — ahora 50%
   },
+  7: { // Araña Tejedora (Pozo Sin Fondo) — DIS-455: ruta alternativa a la llave de tienda
+    'llave oxidada':      0.15, // 15% — alternativa de bajo nivel a la compra (25g → 20g en tienda)
+  },
 };
 
 function dropLoot(monster, roomId) {
