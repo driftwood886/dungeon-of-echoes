@@ -814,6 +814,15 @@ function cmdMove(player, direction) {
       trapText = `\n\n🐾 ¡Tu ${player.pet} te advierte a tiempo! Evitás la trampa: ${trap.description.split('–')[0].trim()}.`;
       trapWasAvoided = true; // BUG-339: trampa evitada por mascota → no aplicar debuff de sala
     } else {
+      // DIS-451: línea atmosférica de advertencia antes de activar la trampa (pista implícita)
+      const TRAP_ATMOSPHERE = {
+        6:  '👃 Algo en el aire te hace cosquillear la nariz — un olor acre y punzante, como esporas que no deberían estar aquí en esta concentración.',
+        9:  '🥶 Un frío antinatural te golpea antes de que tus ojos puedan adaptarse a la oscuridad de la sala.',
+        3:  '🦶 El suelo cede levemente bajo tu primer paso — como si algo aguardara la presión exacta.',
+        13: '💧 Un sonido de agua en movimiento llega desde las paredes. Demasiado rápido para ser natural.',
+      };
+      const atmosphereHint = TRAP_ATMOSPHERE[targetId] || null;
+
       // Refrescar jugador para HP actualizado
       player = db.getPlayer(player.id);
       // DIS-D279: daño con leve varianza para que nunca sea exactamente predecible
@@ -824,7 +833,18 @@ function cmdMove(player, direction) {
       // También mantener cooldown legacy por compatibilidad (30 min)
       const updatedSE = { ...(player.status_effects || {}), [trapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
       db.updatePlayer(player.id, { hp: newHp, status_effects: JSON.stringify(updatedSE), known_traps: JSON.stringify(updatedKnownTraps) });
-      trapText = `\n\n⚠️  ¡TRAMPA! ${trap.description}\n💥 Perdés ${variantDmg} HP. (${newHp}/${player.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).`;
+
+      // DIS-451/452: tip personalizado según la trampa — indica dónde obtener el ítem de desactivación
+      const TRAP_DISARM_HINT = {
+        6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.',
+        9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Buscá en esta sala (intentá "buscar").',
+        3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).',
+        13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Buscá en esta sala o en los alrededores del Lago.',
+      };
+      const disarmHint = TRAP_DISARM_HINT[targetId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
+
+      const atmoPrefix = atmosphereHint ? `\n\n${atmosphereHint}` : '';
+      trapText = `${atmoPrefix}\n\n⚠️  ¡TRAMPA! ${trap.description}\n💥 Perdés ${variantDmg} HP. (${newHp}/${player.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).\n${disarmHint}`;
       if (newHp === 0) {
         // BUG-006 fix: usar handlePlayerDeath para registrar deaths correctamente
         const trapDeathLines = [];
@@ -837,7 +857,7 @@ function cmdMove(player, direction) {
         trapText += '\n☠️  Has muerto a causa de la trampa. Renacés en la Entrada.';
         if (trapDeathLines.length > 0) trapText += '\n' + trapDeathLines.join('\n');
       }
-      trapText += '\n💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
+      // (el hint específico ya se agregó en trapText arriba — no agregar el genérico)
     }
   }
 
@@ -6035,8 +6055,14 @@ function cmdForage(player) {
     const qBonusResult = quests.recordProgress(freshBonus, 'pick', { itemName: bonusItem });
     if (qBonusResult) db.updatePlayer(player.id, { quest_progress: qBonusResult.questProgress });
     const intro2 = [`Buscás con cuidado entre las grietas de ${room.name}...`, `Revisás los rincones de ${room.name}...`];
+    // DIS-452: mensaje específico por sala para conectar el ítem con la trampa
+    const FORAGE_TRAP_MSG = {
+      6:  `Buscás entre los hongos del suelo y encontrás uno que no brilla como los demás: azul oscuro, sin luz, con olor neutralizante.`,
+      9:  `Entre los escombros del trono encontrás un fragmento de corona decorativa. Parece que tiene algún significado para este lugar.`,
+    };
+    const forageIntroMsg = FORAGE_TRAP_MSG[player.current_room_id] || intro2[Math.floor(Math.random() * intro2.length)];
     return {
-      text: `${intro2[Math.floor(Math.random() * intro2.length)]}\n🌿 ¡Encontrás: ${bonusItem}! (Ítem para desactivar la trampa de esta sala.) Se agrega a tu inventario.${bonusChalMsg}`,
+      text: `${forageIntroMsg}\n🌿 ¡Encontrás: ${bonusItem}! (Ítem para desactivar la trampa de esta sala.) Se agrega a tu inventario.${bonusChalMsg}`,
       event: null,
     };
   }
