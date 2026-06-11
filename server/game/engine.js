@@ -5892,16 +5892,18 @@ function cmdCraft(player, args) {
   }
 
   // Consumir los ítems del inventario
+  // BUG-463: normalizar con NFD para que tildes no impidan encontrar el ítem
+  const nfn = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const inv = [...player.inventory];
-  const normalA = itemA.toLowerCase().trim();
-  const normalB = itemB.toLowerCase().trim();
+  const normalA = nfn(itemA);
+  const normalB = nfn(itemB);
 
   // Remover primer ocurrencia de A
-  const idxA = inv.findIndex(i => i.toLowerCase().trim() === normalA);
+  const idxA = inv.findIndex(i => nfn(i) === normalA);
   if (idxA !== -1) inv.splice(idxA, 1);
 
   // Remover primer ocurrencia de B (excluyendo el hueco de A)
-  const idxB = inv.findIndex(i => i.toLowerCase().trim() === normalB);
+  const idxB = inv.findIndex(i => nfn(i) === normalB);
   if (idxB !== -1) inv.splice(idxB, 1);
 
   // Agregar el resultado
@@ -7225,6 +7227,28 @@ function cmdCast(player, args) {
       }
     } else {
       db.updateMonster(target.id, { hp: newHp });
+    }
+
+    // BUG-462: el monstruo contraataca si sigue vivo tras el hechizo
+    if (newHp > 0) {
+      const freshPlayerCast = db.getPlayer(player.id);
+      const monsterDmgCast = Math.max(1, (target.attack || 2) - Math.floor(freshPlayerCast.defense || 0));
+      const shieldActiveCast = freshPlayerCast.shield_active || 0;
+      let dmgToCast = monsterDmgCast;
+      if (shieldActiveCast) {
+        const absorbCast = 5;
+        dmgToCast = Math.max(0, monsterDmgCast - absorbCast);
+        db.updatePlayer(player.id, { shield_active: 0 });
+        lines.push(`   🛡️ ¡Tu escudo mágico absorbe ${Math.min(absorbCast, monsterDmgCast)} puntos de daño! (${monsterDmgCast} → ${dmgToCast})`);
+      }
+      const freshHpAfterHit = db.getPlayer(player.id).hp;
+      const newHpAfterHit = Math.max(0, freshHpAfterHit - dmgToCast);
+      db.updatePlayer(player.id, { hp: newHpAfterHit });
+      const freshMaxHpCast = freshPlayerCast.max_hp || 30;
+      lines.push(`   🩸 ${target.name} contraataca: ${dmgToCast} de daño. (${newHpAfterHit}/${freshMaxHpCast} HP)`);
+      if (newHpAfterHit <= 0) {
+        combat.handlePlayerDeath(player.id, lines, target.name);
+      }
     }
 
     lines.push(`   💧 Maná restante: ${newMana}/${maxMana}`);
