@@ -370,12 +370,32 @@ function attackRound(player, monster) {
     lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
   } else {
     // DIS-D426: mostrar indicador de postura activa en el mensaje de ataque
-    const stanceIndicators = {
-      agresivo:    '⚡[agresivo +2ATK/-1DEF] ',
-      defensivo:   '🛡[defensivo -1ATK/+2DEF] ',
+    // DIS-472: cada postura tiene mensajes de ataque diferenciados que refuerzan la fantasía
+    const stanceAttackMsgs = {
+      agresivo: [
+        `arremetés sin guardia al ${monster.name}`,
+        `atacás con abandono al ${monster.name}`,
+        `lanzás un golpe salvaje al ${monster.name}`,
+        `atacás ofensivamente al ${monster.name} dejando flancos expuestos`,
+      ],
+      defensivo: [
+        `atacás al ${monster.name} desde detrás de tu guardia`,
+        `esperás la apertura correcta y golpeás al ${monster.name}`,
+        `respondés con cautela al ${monster.name}`,
+        `atacás al ${monster.name} sin sobreextenderte`,
+      ],
+      equilibrado: null, // usa mensaje genérico
+    };
+    const stanceIcons = {
+      agresivo:    '⚡[agresivo] ',
+      defensivo:   '🛡[defensivo] ',
       equilibrado: '',
     };
-    const stanceTag = stanceIndicators[stanceName] || '';
+    const stanceTag = stanceIcons[stanceName] || '';
+    const stanceMsgsForStance = stanceAttackMsgs[stanceName];
+    const attackVerb = stanceMsgsForStance
+      ? stanceMsgsForStance[Math.floor(Math.random() * stanceMsgsForStance.length)]
+      : `Atacás al ${monster.name}`;
     // DIS-471: mensaje de sabor especial para el Mago sin maná (ataque físico con báculo)
     const curMana = player.mana != null ? player.mana : 0;
     const isMagoSinMana = clsData && clsData.name === 'Mago' && curMana <= 0;
@@ -388,7 +408,7 @@ function attackRound(player, monster) {
     const magoFlavor = isMagoSinMana
       ? `[sin maná — ${magoMsgs[Math.floor(Math.random() * magoMsgs.length)]}] `
       : '';
-    lines.push(`⚔  ${stanceTag}${magoFlavor}Atacás al ${monster.name} y le causás ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
+    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
   }
 
   // Actualizar monstruo en BD
