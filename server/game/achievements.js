@@ -180,6 +180,36 @@ const ACHIEVEMENTS = [
       } catch (_) { return false; }
     },
   },
+  // DIS-479: Logros accesibles para nivel early — mejorar sense of progression
+  {
+    id: 'explorador_cinco',
+    icon: '🗺️',
+    name: 'Explorador',
+    desc: 'Visitar 5 salas distintas del dungeon',
+    flavor: 'Cinco salas. Empezás a entender que el dungeon es más grande de lo que parecía al entrar.',
+    check: (p, _ctx) => {
+      try {
+        const visited = JSON.parse(p.rooms_visited || '[]');
+        return visited.length >= 5;
+      } catch (_) { return false; }
+    },
+  },
+  {
+    id: 'supervivencia_tactica',
+    icon: '🏃',
+    name: 'Supervivencia Táctica',
+    desc: 'Huir exitosamente de un combate',
+    flavor: 'Huir no es cobardía. El que huye y vive puede pelear mañana.',
+    check: (_p, ctx) => !!(ctx && ctx.fled),
+  },
+  {
+    id: 'agua_bendita',
+    icon: '💧',
+    name: 'Gracia de la Capilla',
+    desc: 'Beber del Cuenco Sagrado en la Capilla Olvidada',
+    flavor: 'El cuenco no pregunta de dónde venís. Solo observa cuánto te necesitaba.',
+    check: (_p, ctx) => !!(ctx && ctx.bowlUsed),
+  },
 ];
 
 // ─── checkAchievements ─────────────────────────────────────────────────────────

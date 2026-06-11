@@ -2035,8 +2035,18 @@ function cmdFlee(player, targetQuery) {
     }
   }
 
+  // DIS-479: logro "Supervivencia Táctica" — huir exitosamente 1 vez
+  let fleeAchLines = '';
+  if (fled) {
+    const freshForFleeAch = db.getPlayer(player.id);
+    const fleeAchs = ach.checkAchievements(freshForFleeAch, { fled: true });
+    if (fleeAchs.length > 0) {
+      fleeAchLines = '\n' + fleeAchs.map(a => `🏆 ¡Logro desbloqueado: ${a.icon} ${a.name}! — ${a.desc}`).join('\n');
+    }
+  }
+
   return {
-    text: line + fleeHint,
+    text: line + fleeHint + fleeAchLines,
     event: fled ? `${player.username} huye de la sala.` : `${player.username} intenta huir pero falla.`,
     eventRoomId: room.id,
     ...(fleeGlobalEvent ? { globalEvent: fleeGlobalEvent } : {}),
@@ -6469,8 +6479,15 @@ function cmdChapelBowl(player) {
 
   const hpBar = buildBar(newHp, player.max_hp, 20);
 
+  // DIS-479: logro "Gracia de la Capilla" — usar el cuenco sagrado
+  const freshForBowlAch = db.getPlayer(player.id);
+  const bowlAchs = ach.checkAchievements(freshForBowlAch, { bowlUsed: true });
+  const bowlAchLines = bowlAchs.length > 0
+    ? '\n' + bowlAchs.map(a => `🏆 ¡Logro desbloqueado: ${a.icon} ${a.name}! — ${a.desc}`).join('\n')
+    : '';
+
   return {
-    text: `🙏 Te acercás al cuenco de piedra negra y tomás el agua fría con ambas manos.\nEl líquido sabe a tierra y a algo más antiguo. Una calidez lenta sube por tu pecho.\n+${restored} HP restaurado (${healAmount} de potencial, ${player.max_hp - newHp > 0 ? `cap en ${player.max_hp} HP máx` : 'curación completa'}).\n${hpBar} ${newHp}/${player.max_hp} HP\n\n⏳ El cuenco tardará 5 minutos en llenarse de nuevo.`,
+    text: `🙏 Te acercás al cuenco de piedra negra y tomás el agua fría con ambas manos.\nEl líquido sabe a tierra y a algo más antiguo. Una calidez lenta sube por tu pecho.\n+${restored} HP restaurado (${healAmount} de potencial, ${player.max_hp - newHp > 0 ? `cap en ${player.max_hp} HP máx` : 'curación completa'}).\n${hpBar} ${newHp}/${player.max_hp} HP\n\n⏳ El cuenco tardará 5 minutos en llenarse de nuevo.${bowlAchLines}`,
     event: `${player.username} bebe del Cuenco Sagrado. El agua brilla un instante y desaparece.`,
     eventRoomId: CHAPEL_ROOM_ID,
   };
