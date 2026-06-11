@@ -88,6 +88,8 @@ const COMMAND_ALIASES = {
   meditate: 'meditate', meditar: 'meditate', contemplar: 'meditate', concentrarse: 'meditate', zen: 'meditate',
   // emote / acción
   emote: 'emote', acción: 'emote', accion: 'emote', me: 'emote', hacer: 'emote',
+  // pronunciar — DIS-487: easter egg de Kaelthas Vorn (nombre completo en lugar especial)
+  pronunciar: 'pronunciar', pronounce: 'pronunciar', invocar_nombre: 'pronunciar', nombrar: 'pronunciar',
   // say
   say: 'say', decir: 'say', hablar: 'say',
   // shout

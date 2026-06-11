@@ -454,6 +454,7 @@ function execute(playerId, input, context) {
         result = { text: HELP_TEXT };
       }
       break;
+    case 'pronunciar':   result = cmdPronunciar(player, action.args.join(' ')); break; // DIS-487
     case 'unknown':
       // BUG-445: Pozo Sin Fondo — interceptar comandos temáticos en sala 7
       if (player.current_room_id === 7 && action.input) {
@@ -13311,6 +13312,79 @@ function cmdRoomNote(player, args) {
   }
 
   return { text: '📋 Uso:\n  mnota [list]           — Ver notas de la sala actual\n  mnota add <texto>      — Agregar nota\n  mnota del <número>     — Borrar nota\n  mnota salas            — Ver todas las salas con notas' };
+}
+
+
+// ── DIS-487: cmdPronunciar — Easter egg de Kaelthas Vorn ─────────────────────
+/**
+ * El jugador pronuncia un nombre en voz alta. Si pronuncia el nombre verdadero
+ * de Kaelthas en ciertos lugares sagrados (Sala del Trono, Catedral, Cripta),
+ * ocurre un efecto especial de lore + XP.
+ *
+ * Nombre conocido: "Kaelthas Vorn" (revelado por Aldric)
+ * Nombre verdadero: "Kaelthas Valdrath" (revelado al matar al Lich Anciano)
+ * Lugar correcto: Sala 9 (Trono), 15 (Catedral), 22 (Cripta)
+ */
+function cmdPronunciar(player, nameInput) {
+  if (!nameInput || !nameInput.trim()) {
+    return { text: '¿Qué nombre querés pronunciar? Ej: pronunciar Kaelthas Vorn' };
+  }
+
+  const name = nameInput.trim().toLowerCase();
+  const roomId = player.current_room_id;
+
+  // Salas donde el efecto tiene peso: Trono (9), Catedral (15), Cripta (22)
+  const SACRED_ROOMS = new Set([9, 15, 22]);
+
+  // Nombre verdadero: Kaelthas Valdrath (revelado por el bestiario al matar al Lich)
+  const isValdrath = ['kaelthas valdrath', 'valdrath', 'kaelthas vorn valdrath'].some(n => name.includes(n));
+  // Nombre conocido: Kaelthas Vorn (revelado por Aldric)
+  const isVorn = name.includes('kaelthas vorn') || name === 'vorn';
+  // Solo "Kaelthas" sin apellido
+  const isKaelthas = name.includes('kaelthas') && !isVorn && !isValdrath;
+
+  // Leer estado fresco del jugador
+  const fresh = db.getPlayer(player.id);
+
+  if (isValdrath && SACRED_ROOMS.has(roomId)) {
+    // ── EL EASTER EGG REAL ────────────────────────────────────────────────────
+    const xpGained = 150;
+    const newXp = (fresh.xp || 0) + xpGained;
+    db.updatePlayer(player.id, { xp: newXp });
+    db.addJournalEntry(player.id, 'lore', '✨ Pronuncié el nombre verdadero de Kaelthas en el lugar correcto. El dungeon lo escuchó. Algo se desplazó, levemente, como si un peso muy antiguo cambiara de posición.');
+
+    let roomText = '';
+    if (roomId === 9) {
+      roomText = 'El trono de huesos vibra. Un polvo muy fino cae de las junturas, como si el armazón respondiera al sonido de ese nombre. La sala entera permanece en silencio un segundo demasiado largo.\n\nEntonces, en los brazos del trono, la inscripción KAELTHAS cambia. Por un instante —solo un instante— podés leer el nombre completo: KAELTHAS VALDRATH. Y luego vuelve a ser solo KAELTHAS, como siempre.';
+    } else if (roomId === 15) {
+      roomText = 'La Catedral retumba. No como un terremoto —como una campana. Un golpe único, profundo, que sentís en el pecho antes que en los oídos.\n\nLas velas que nunca nadie encendió arden por un momento con una llama azul. Luego se apagan.';
+    } else if (roomId === 22) {
+      roomText = 'La Cripta de los Valientes responde. Las placas en las paredes vibran con un tintineo metálico suave, como monedas.\n\nDe algún lugar detrás de las paredes, escuchás pasos. Uno. Dos. Tres. Y luego nada.\n\nUna de las placas —nueva, sin nombre— brilla por un segundo antes de volver a ser piedra oscura.';
+    }
+
+    return { text: `Tomás aire y pronunciás las dos palabras:\n\n"${nameInput.trim()}"\n\n${roomText}\n\n✨ El dungeon lo escuchó. +${xpGained} XP.` };
+
+  } else if (isValdrath) {
+    // Nombre correcto, lugar incorrecto
+    return { text: 'Pronunciás el nombre en voz alta. La piedra absorbe el sonido como siempre.\n\nNada pasa. Quizás no es el lugar correcto.' };
+
+  } else if (isVorn && SACRED_ROOMS.has(roomId)) {
+    // Nombre conocido (pero no el verdadero) en lugar sagrado — pista de que falta algo
+    return { text: '"Kaelthas Vorn" resuena en las paredes de la sala.\n\nAlgo cambia en el aire — una tensión, casi una expectativa. Pero no pasa nada más.\n\nComo si el dungeon supiera que ese nombre está incompleto.' };
+
+  } else if (isVorn) {
+    return { text: 'El nombre de Kaelthas Vorn sale de tu boca con más peso de lo esperado. Como si el dungeon lo reconociera.\n\nPero nada más ocurre.' };
+
+  } else if (isKaelthas) {
+    if (SACRED_ROOMS.has(roomId)) {
+      return { text: '"Kaelthas..."\n\nEl nombre incompleto rebota en las paredes. Como un eco que no termina de repetirse.\n\nTenés la sensación de que falta algo. Que pronunciar solo la mitad del nombre es... insuficiente.' };
+    }
+    return { text: 'El nombre de Kaelthas resuena suavemente. Pero sin el apellido, sin el nombre completo, no es más que un sonido.' };
+
+  } else {
+    const safeName = nameInput.trim().slice(0, 40);
+    return { text: `Pronunciás "${safeName}" en voz alta. El dungeon no reacciona.\n\n💡 Si tenés lore sobre un nombre especial, pronunciarlo en el lugar correcto podría tener efecto.` };
+  }
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, cmdContract, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals, checkAndSetRecords };
