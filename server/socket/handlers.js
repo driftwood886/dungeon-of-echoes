@@ -65,12 +65,19 @@ function registerHandlers(io) {
     // Evento inicial: el cliente envía su username para identificarse.
     // Respuesta: { player_id, username, welcome } o { error }
     socket.on('join', (data, ack) => {
-      const { username } = data || {};
+      const { username, class: requestedClass } = data || {};
       if (!username || typeof username !== 'string' || !username.trim()) {
         return ack && ack({ error: 'Se requiere un username.' });
       }
 
       const player = engine.getOrCreatePlayer(username.trim().slice(0, 20));
+      // BUG-481: Si se pasa class y el jugador aún no tiene clase, aplicarla automáticamente
+      if (requestedClass && typeof requestedClass === 'string') {
+        const freshP = db.getPlayer(player.id);
+        if (!freshP.player_class || freshP.player_class === 'sin_clase') {
+          engine.execute(player.id, `clase ${requestedClass.trim()}`);
+        }
+      }
       currentPlayerId = player.id;
       currentRoomId   = player.current_room_id;
 
@@ -165,7 +172,7 @@ function registerHandlers(io) {
         '💡 Tip: algunos NPCs tienen quests especiales. Intentá "hablar aldric" cuando tengas nivel 5+.',
         '💡 Tip: en "status" podés ver tu clase, título, oro y estado de veneno.',
         '💡 Tip: "world" muestra si hay un evento global activo (invasión, luna de sangre, niebla).',
-        '💡 Tip: "rest" recupera HP si no hay monstruos en la sala. "meditar" da más HP si tenés mascota.',
+        '💡 Tip: "rest" recupera HP si no hay monstruos en la sala. "meditar" da más HP si tenés mascota (o restaura maná si sos Mago).',
         '💡 Tip: el Boss aparece en la sala 15. Su muerte da loot especial y broadcast global.',
       ];
       const tip = TIPS[Math.floor(Math.random() * TIPS.length)];

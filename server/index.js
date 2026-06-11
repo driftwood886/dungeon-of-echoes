@@ -68,11 +68,18 @@ async function main() {
    * Crea o recupera un jugador y devuelve su estado.
    */
   app.post('/api/login', (req, res) => {
-    const { username } = req.body;
+    const { username, class: requestedClass } = req.body;
     if (!username || typeof username !== 'string' || !username.trim()) {
       return res.status(400).json({ error: 'Se requiere un username.' });
     }
     const player = getOrCreatePlayer(username.trim().slice(0, 20));
+    // BUG-481: Si se pasa class y el jugador aún no tiene clase, aplicarla automáticamente
+    if (requestedClass && typeof requestedClass === 'string') {
+      const freshP = db.getPlayer(player.id);
+      if (!freshP.player_class || freshP.player_class === 'sin_clase') {
+        execute(player.id, `clase ${requestedClass.trim()}`);
+      }
+    }
     // Auto-look al entrar
     const lookResult = execute(player.id, 'look');
     res.json({ player_id: player.id, username: player.username, welcome: lookResult.text });
