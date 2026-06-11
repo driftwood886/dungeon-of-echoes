@@ -1,8 +1,9 @@
 /**
  * worldEvents.js — Eventos globales periódicos del dungeon (T090)
  *
- * Cada 20 minutos ocurre un evento aleatorio que afecta a todos los jugadores.
- * El evento dura 5 minutos y luego el dungeon vuelve a la calma.
+ * Cada 12 minutos ocurre un evento aleatorio que afecta a todos los jugadores.
+ * El evento dura 8 minutos y luego el dungeon vuelve a la calma.
+ * (DIS-480: antes era 20min/5min — demasiado raro para una sesión de 30-40 min)
  *
  * Eventos disponibles:
  *  - 'invasion'    → Los monstruos sueltan +50% XP
@@ -14,8 +15,8 @@
 
 'use strict';
 
-const EVENT_INTERVAL_MS  = 20 * 60 * 1000; // 20 minutos entre eventos
-const EVENT_DURATION_MS  =  5 * 60 * 1000; // 5 minutos de duración
+const EVENT_INTERVAL_MS  = 12 * 60 * 1000; // 12 minutos entre eventos (DIS-480: era 20min, demasiado raro en sesión casual)
+const EVENT_DURATION_MS  =  8 * 60 * 1000; // 8 minutos de duración (DIS-480: era 5min)
 
 const EVENT_CATALOG = [
   {
