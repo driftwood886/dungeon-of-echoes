@@ -890,15 +890,17 @@ function tryFlee(player, monster, room, preferredDirection = null) {
 
   // DIS-453: probabilidad de huida varía según el HP del monstruo
   // Un enemigo herido está distraído con su dolor → más fácil escapar
+  // DIS-470: los bosses son más difíciles de huir (−10% en todos los rangos)
+  const isBossFlee = !!(BOSS_MONSTERS && BOSS_MONSTERS[monster.id]);
   let fleeChance;
   if (monsterHpPct <= 25) {
-    fleeChance = 0.80; // muy herido → fácil huir
+    fleeChance = isBossFlee ? 0.70 : 0.80; // muy herido → fácil huir (boss: algo menos)
   } else if (monsterHpPct <= 50) {
-    fleeChance = 0.65; // maltrecho → bastante probable
+    fleeChance = isBossFlee ? 0.55 : 0.65; // maltrecho → bastante probable
   } else if (monsterHpPct <= 75) {
-    fleeChance = 0.50; // dañado → base
+    fleeChance = isBossFlee ? 0.40 : 0.50; // dañado → base
   } else {
-    fleeChance = 0.35; // casi intacto → difícil
+    fleeChance = isBossFlee ? 0.25 : 0.35; // casi intacto → difícil (boss al 100% HP: 25%)
   }
 
   const roll = Math.random();
@@ -947,10 +949,18 @@ function tryFlee(player, monster, room, preferredDirection = null) {
   db.updatePlayer(player.id, { hp: player.hp });
 
   // DIS-453: feedback narrativo sobre qué tan cerca estuvo la huida
+  // DIS-470: los bosses tienen mensajes diferenciados que refuerzan su peligro
   const wasClose = margin < 0.15; // menos de 15% de diferencia → estuvo cerca
-  const fleeNarrative = wasClose
-    ? `El ${monster.name} casi te deja ir — por poco.`
-    : `El ${monster.name} te bloqueó sin esfuerzo.`;
+  let fleeNarrative;
+  if (isBossFlee) {
+    fleeNarrative = wasClose
+      ? `${monster.name} te deja escapar... y luego te atrapa antes de que llegues a la salida.`
+      : `${monster.name} te corta el paso. Un boss no deja que te vayas tan fácil.`;
+  } else {
+    fleeNarrative = wasClose
+      ? `El ${monster.name} casi te deja ir — por poco.`
+      : `El ${monster.name} te bloqueó sin esfuerzo.`;
+  }
 
   let line = `🏃 Intentás huir pero ${fleeNarrative} Te golpea (${dmgToPlayer} dmg). Tu HP: ${player.hp}/${player.max_hp}.`;
 
