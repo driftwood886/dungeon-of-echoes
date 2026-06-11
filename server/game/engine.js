@@ -129,6 +129,19 @@ const STANCES = {
 };
 
 /**
+ * Parsea status_effects de forma segura — acepta tanto string JSON como objeto ya parseado.
+ * Necesario porque db.getPlayer() devuelve status_effects como objeto, pero algunos paths
+ * antiguos podrían guardar strings. (Fix DIS-456 bug)
+ * @param {string|object} se
+ * @returns {object}
+ */
+function parseSE(se) {
+  if (!se) return {};
+  if (typeof se === 'object') return se;
+  try { return JSON.parse(se); } catch (_) { return {}; }
+}
+
+/**
  * Devuelve el título del jugador basado en sus kills.
  * @param {number} kills
  * @returns {{ label: string, icon: string, full: string }}
@@ -1390,9 +1403,7 @@ function cmdAttack(player, targetName) {
   // esquivó la trampa por memoria (trap_cd_<roomId> en status_effects).
   const roomEffectForCombat = ROOM_EFFECTS[player.current_room_id];
   if (roomEffectForCombat && roomEffectForCombat.type === 'debuff' && roomEffectForCombat.stat === 'attack') {
-    const seForCombat = typeof player.status_effects === 'string'
-      ? JSON.parse(player.status_effects || '{}')
-      : (player.status_effects || {});
+    const seForCombat = parseSE(player.status_effects);
     const trapCdKeyForCombat = `trap_cd_${player.current_room_id}`;
     const trapMemoryActive = seForCombat[trapCdKeyForCombat]
       ? new Date(seForCombat[trapCdKeyForCombat]).getTime() > Date.now()
@@ -2709,9 +2720,18 @@ function cmdExamine(player, query) {
   if (isPageQuery && player.current_room_id === 11) {
     const questState = player.aldric_quest || 'none';
     // Marcar que leyó el diario de la Galería (para desbloquear diálogo del Guardián Anciano)
-    const seFresh = (() => { try { return JSON.parse(player.status_effects || '{}'); } catch (_) { return {}; } })();
+    const seFresh = parseSE(player.status_effects);
+    let diarioExtra = '';
     if (!seFresh.leyo_diario_galeria) {
-      db.updatePlayer(player.id, { status_effects: JSON.stringify({ ...seFresh, leyo_diario_galeria: true }) });
+      // DIS-456: contar como mención de Kaelthas
+      const kaeCountDiario = (seFresh.kaelthas_menciones || 0) + 1;
+      const newSeDiario = { ...seFresh, leyo_diario_galeria: true, kaelthas_menciones: kaeCountDiario, 'kaelthas_menc_paginas_11': true };
+      if (kaeCountDiario === 2 && !seFresh.kaelthas_nota_diario) {
+        newSeDiario.kaelthas_nota_diario = true;
+        db.addJournalEntry(player.id, 'lore', '🔍 Ese nombre — Kaelthas — aparece en varios lugares del dungeon. No es coincidencia. Alguien quiere que se recuerde, o que se olvide.');
+        diarioExtra = '\n\n📖 *Nuevo apunte en tu diario: el nombre Kaelthas aparece en varios lugares del dungeon.*';
+      }
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeDiario) });
     }
     let baseText = 'Las páginas del diario están medio fusionadas por el hielo, pero alcanzás a leer tres fragmentos:\n\n  "...llegamos cuatro. Somos dos. El frío no mata — algo lo usa."\n\n  "...vi su sombra en la Catedral. Desde aquí. Eso no es posible."\n\n  "...Kaelthas no murió. Eligió esto. Lo entendí cuando me miró. Me conocía."';
     if (questState === 'active') {
@@ -2719,7 +2739,7 @@ function cmdExamine(player, query) {
     } else if (questState === 'none') {
       baseText += '\n\n🔍 El nombre Kaelthas aparece grabado también en las runas del Santuario y en el trono de la sala 9. Hay alguien en el dungeon que sabe más — quizás el anciano de la entrada puede orientarte.';
     }
-    return { text: baseText };
+    return { text: baseText + diarioExtra };
   }
 
   // DIS-D360: "mecanismo", "umbral", "oeste", "norte", "sur", "este" → si hay trampa en sala adyacente, describir
@@ -2759,9 +2779,31 @@ function cmdExamine(player, query) {
     }
   }
 
+  // DIS-456: set de lore objects que mencionan a Kaelthas (sala 2 inscripciones, sala 9 trono, sala 10 runas)
+  const KAELTHAS_LORE_KEYS = new Set(['pared', 'inscripciones', 'trono', 'runas', 'runa']);
+
   for (const [key, val] of Object.entries(loreObjects)) {
     if (normalize(key).includes(qNorm) || qNorm.includes(normalize(key))) {
       if (!val.rooms || val.rooms.includes(player.current_room_id)) {
+        // DIS-456: rastrear menciones de Kaelthas vistas por el jugador
+        if (KAELTHAS_LORE_KEYS.has(key)) {
+          const seKae = parseSE(player.status_effects);
+          const kaeKey = `kaelthas_menc_${key}_${player.current_room_id}`;
+          if (!seKae[kaeKey]) {
+            // Primera vez que ve ESTA mención
+            seKae[kaeKey] = true;
+            const kaeCount = (seKae.kaelthas_menciones || 0) + 1;
+            seKae.kaelthas_menciones = kaeCount;
+            db.updatePlayer(player.id, { status_effects: JSON.stringify(seKae) });
+            if (kaeCount === 2 && !seKae.kaelthas_nota_diario) {
+              // Segunda mención → agregar nota al diario
+              seKae.kaelthas_nota_diario = true;
+              db.updatePlayer(player.id, { status_effects: JSON.stringify(seKae) });
+              db.addJournalEntry(player.id, 'lore', '🔍 Ese nombre — Kaelthas — aparece en varios lugares del dungeon. No es coincidencia. Alguien quiere que se recuerde, o que se olvide.');
+              return { text: val.text + '\n\n📖 *Nuevo apunte en tu diario: el nombre Kaelthas aparece en varios lugares del dungeon.*' };
+            }
+          }
+        }
         return { text: val.text };
       }
       // Si el key matchea pero la sala no aplica, seguir buscando
@@ -4781,7 +4823,7 @@ function cmdTalk(player, target) {
     const hasVisitedPozo = roomsVisited.includes(7);
     const playerAchs = (() => { try { return JSON.parse(player.achievements || '[]'); } catch (_) { return []; } })();
     const hasCartografo = playerAchs.includes('cartografo');
-    const seFreshG = (() => { try { return JSON.parse(player.status_effects || '{}'); } catch (_) { return {}; } })();
+    const seFreshG = parseSE(player.status_effects);
     const leyoDiario = seFreshG.leyo_diario_galeria;
     const qStateG = player.aldric_quest || 'none';
 
