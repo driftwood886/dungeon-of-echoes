@@ -34,7 +34,7 @@ const COMMAND_ALIASES = {
   // attack
   attack: 'attack', atacar: 'attack', ataque: 'attack', golpear: 'attack', kill: 'attack',
   // pick
-  pick: 'pick', tomar: 'pick', recoger: 'pick', agarrar: 'pick', get: 'pick',
+  pick: 'pick', tomar: 'pick', recoger: 'pick', agarrar: 'pick', get: 'pick', take: 'pick',  // BUG-458: take es alias natural de pick
   // use
   use: 'use', usar: 'use', utilizar: 'use', open: 'use',
   // heal (atajo: usar la primera poción del inventario)
@@ -346,6 +346,8 @@ function parse(input) {
       'tomar todo':     { cmd: 'loot',     skillId: null },
       'agarrar todo':   { cmd: 'loot',     skillId: null },
       'get all':        { cmd: 'loot',     skillId: null },
+      'pick up':        { cmd: 'pick',     skillId: null },  // BUG-457: "pick up X" → "pick X"
+      'take up':        { cmd: 'pick',     skillId: null },  // BUG-458: variante
       'golpe sucio':    { cmd: 'useSkill', skillId: 'golpe_sucio' },  // BUG-271: pícaro
       'dirty strike':   { cmd: 'useSkill', skillId: 'golpe_sucio' },
       // BUG-286: "tienda vender X" / "tienda comprar X" → sell/buy

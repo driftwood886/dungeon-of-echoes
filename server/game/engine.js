@@ -708,9 +708,11 @@ function cmdMove(player, direction) {
     const monster = aliveHere.sort((a, b) => b.hp - a.hp)[0];
     const fleeResult = combat.tryFlee(player, monster, room, direction); // BUG-345: pasar dirección elegida
     const nameList = aliveHere.map(m => m.name).join(', ');
+    // BUG-459: aclarar que el movimiento se interpreta como huida en combate
+    const combatNote = `⚔️ Hay un monstruo activo — moverte equivale a huir. (También podés usar "flee" directamente.)\n`;
     const prefix = aliveHere.length > 1
-      ? `⚡ Hay ${aliveHere.length} monstruos activos (${nameList}). Intentás escabullirte...\n`
-      : '';
+      ? `${combatNote}⚡ Hay ${aliveHere.length} monstruos activos (${nameList}). Intentás escabullirte...\n`
+      : combatNote;
     return {
       text: `${prefix}${fleeResult.line}`,
       event: fleeResult.fled
@@ -2401,6 +2403,21 @@ function cmdUse(player, itemQuery) {
       } else {
         resultText = `Intentás abrir el tomo sellado, pero las cadenas de cuero resisten. El sello pulsa con energía oscura cuando lo tocás.\n\n¿Habrá algo en el dungeon que pueda neutralizar esta energía? El amuleto que a veces dropean los Magos Liches podría resonar con esto...`;
       }
+    } else if (foundLow.includes('páginas congeladas') || foundLow.includes('paginas congeladas')) {
+      // BUG-461: páginas congeladas — disparar tracking de Kaelthas igual que en cmdExamine
+      const seFreshPag = parseSE(player.status_effects);
+      let diarioExtraPag = '';
+      if (!seFreshPag.leyo_diario_galeria) {
+        const kaeCount = (seFreshPag.kaelthas_menciones || 0) + 1;
+        const newSePag = { ...seFreshPag, leyo_diario_galeria: true, kaelthas_menciones: kaeCount, 'kaelthas_menc_paginas_11': true };
+        if (kaeCount === 2 && !seFreshPag.kaelthas_nota_diario) {
+          newSePag.kaelthas_nota_diario = true;
+          db.addJournalEntry(player.id, 'lore', '🔍 Ese nombre — Kaelthas — aparece en varios lugares del dungeon. No es coincidencia. Alguien quiere que se recuerde, o que se olvide.');
+          diarioExtraPag = '\n\n📖 *Nuevo apunte en tu diario: el nombre Kaelthas aparece en varios lugares del dungeon.*';
+        }
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(newSePag) });
+      }
+      resultText = `Las páginas del diario están medio fusionadas por el hielo, pero alcanzás a leer tres fragmentos:\n\n  "...llegamos cuatro. Somos dos. El frío no mata — algo lo usa."\n\n  "...vi su sombra en la Catedral. Desde aquí. Eso no es posible."\n\n  "...Kaelthas no murió. Eligió esto. Lo entendí cuando me miró. Me conocía."${diarioExtraPag}`;
     } else {
       resultText = `Examinás ${found}: ${def.description}`;
     }
@@ -2715,9 +2732,11 @@ function cmdExamine(player, query) {
   // DIS-D356: Páginas congeladas con propósito mecánico — si la quest de Aldric está activa
   // y el jugador lee las páginas del diario en sala 11, mostrar hint de conexión con Kaelthas
   // y registrar que el jugador leyó el diario para desbloquear diálogo en el Guardián Anciano.
-  const PAGINAS_KEYS = ['paginas', 'páginas', 'diario', 'diario helado'];
+  const PAGINAS_KEYS = ['paginas', 'páginas', 'diario', 'diario helado', 'paginas congeladas', 'páginas congeladas'];
   const isPageQuery = PAGINAS_KEYS.some(k => normalize(k).includes(qNorm) || qNorm.includes(normalize(k)));
-  if (isPageQuery && player.current_room_id === 11) {
+  // BUG-461: el trigger funciona en sala 11 (páginas en el suelo) O si el jugador tiene las páginas en el inventario
+  const hasPaginasInv = (player.inventory || []).some(i => i.toLowerCase().includes('páginas congeladas') || i.toLowerCase().includes('paginas congeladas'));
+  if (isPageQuery && (player.current_room_id === 11 || hasPaginasInv)) {
     const questState = player.aldric_quest || 'none';
     // Marcar que leyó el diario de la Galería (para desbloquear diálogo del Guardián Anciano)
     const seFresh = parseSE(player.status_effects);
