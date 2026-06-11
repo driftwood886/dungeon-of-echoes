@@ -889,8 +889,11 @@ function cmdMove(player, direction) {
       const heatKey = `heat_room_${targetId}`;
       const alreadyKnowsHeat = FIRST_TIME_DAMAGE_ROOMS.has(targetId) && Array.isArray(knownRoomsData) && knownRoomsData.includes(heatKey);
       if (alreadyKnowsHeat) {
-        // Ya conoce el calor — solo mensaje informativo, sin daño
-        effectText = `\n\n🔥 Conocés el calor de la forja y te protegés mejor esta vez. (Sin daño)`;
+        // BUG-486: Segunda y posteriores visitas — daño reducido con mensaje inmersivo
+        const reducedDamage = 1; // Mitad del daño original (de 2 a 1)
+        const newHpKnown = Math.max(1, player.hp - reducedDamage);
+        db.updatePlayer(player.id, { hp: newHpKnown });
+        effectText = `\n\n🔥 Ya conocés el calor de la forja y te cubrís la cara al entrar. Aun así, el ambiente abrasador te afecta. (-${reducedDamage} HP · ${newHpKnown}/${player.max_hp} HP)`;
       } else {
         const newHp = Math.max(1, player.hp - roomEffect.amount); // mínimo 1 HP (no mata)
         db.updatePlayer(player.id, { hp: newHp });
@@ -899,7 +902,7 @@ function cmdMove(player, direction) {
         if (FIRST_TIME_DAMAGE_ROOMS.has(targetId)) {
           const updatedKnown = Array.isArray(knownRoomsData) ? [...knownRoomsData, heatKey] : [heatKey];
           db.updatePlayer(player.id, { known_traps: JSON.stringify(updatedKnown) });
-          effectText += `\n🧠 Ahora conocés el calor de la forja — no te tomará por sorpresa la próxima vez.`;
+          effectText += `\n🧠 Ahora conocés el calor de la forja — la próxima vez podrás cubrirte mejor.`;
         }
       }
     } else if (roomEffect.type === 'heal') {
@@ -5226,12 +5229,38 @@ function cmdAchievements(player) {
 }
 
 /**
- * T086 — Quest activa: mostrar quest y progreso del jugador.
+ * T086 — Quest activa: mostrar quest global y progreso del jugador.
+ * BUG-485: También muestra la quest narrativa de Aldric si está activa o completada.
  */
 function cmdQuest(player) {
   player = db.getPlayer(player.id);
-  const text = quests.formatQuest(player);
-  return { text };
+  const lines = [];
+
+  // Quest global del sistema
+  lines.push(quests.formatQuest(player));
+
+  // Quest narrativa de Aldric (BUG-485)
+  const aldricState = player.aldric_quest || 'none';
+  if (aldricState === 'active') {
+    const inv = Array.isArray(player.inventory) ? player.inventory : (() => { try { return JSON.parse(player.inventory || '[]'); } catch (_) { return []; } })();
+    const hasCarta = inv.some(i => i.toLowerCase().includes('carta sellada'));
+    lines.push('');
+    lines.push('══ 📜 QUEST NARRATIVA: El Sello de las Dos Llaves ══');
+    lines.push('Aldric el Mercader te pidió encontrar una carta con el sello de dos llaves cruzadas.');
+    lines.push('📍 La carta sellada está en Sala 8 — Prisión Subterránea.');
+    if (hasCarta) {
+      lines.push('✅ ¡Tenés la carta sellada! Llevásela a Aldric (sala 4) con "hablar aldric".');
+    } else {
+      lines.push('⏳ Estado: buscando la carta en sala 8. (Ruta: norte → norte → este → norte desde Sala 4)');
+    }
+  } else if (aldricState === 'done') {
+    lines.push('');
+    lines.push('══ 📜 QUEST NARRATIVA: El Sello de las Dos Llaves ══');
+    lines.push('✅ ¡Completada! Entregaste la carta sellada a Aldric y descubriste el secreto de Kaelthas Vorn.');
+    lines.push('   (+50 XP · +25g)');
+  }
+
+  return { text: lines.join('\n') };
 }
 
 /**
