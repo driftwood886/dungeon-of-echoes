@@ -1133,8 +1133,15 @@ function cmdStatus(player) {
       if (effect === 'weapon_enchant') {
         effectLabel = enchantTypeNames[data.type] || '✨ Encantamiento';
       } else {
-        const effectNames = { fury: '📜 FURIA', shield: '📜 ESCUDO MÁGICO', speed: '📜 VELOCIDAD' };
-        effectLabel = effectNames[effect] || '📜 BUFF';
+        const effectNames = {
+          fury: '📜 FURIA',
+          shield: '📜 ESCUDO MÁGICO',
+          speed: '📜 VELOCIDAD',
+          power: '⚡ POCIÓN DE PODER',
+          altar_blessing: '🙏 BENDICIÓN DE ALTAR',
+        };
+        // BUG-490: si el dato tiene label propio (ej: altar_blessing), usarlo primero
+        effectLabel = effectNames[effect] || (data.label ? `✨ ${data.label}` : '📜 BUFF');
       }
       const partsStr = parts.length > 0 ? ` — ${parts.join(', ')}` : '';
       statusLines.push(`${effectLabel}${partsStr} por ${secsLeft}s más.`);
@@ -2083,9 +2090,11 @@ function cmdPick(player, itemQuery) {
     let current = db.getPlayer(player.id);
     for (const item of floorItems) {
       const inv = Array.isArray(current.inventory) ? current.inventory : [];
-      if (inv.length >= 20) {
+      // BUG-489: contar equipados también para el límite real
+      const eqCount = (current.equipped_weapon ? 1 : 0) + (current.equipped_armor ? 1 : 0);
+      if (inv.length + eqCount >= 20) {
         notPicked.push(item);
-        pickedLines.push(`⚠️ Inventario lleno (20/20) — quedó en el suelo: ${item}\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`.`);
+        pickedLines.push(`⚠️ Inventario lleno (${inv.length + eqCount}/20) — quedó en el suelo: ${item}\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`.`);
         continue;
       }
       const newInv = [...inv, item];
@@ -2123,7 +2132,9 @@ function cmdPick(player, itemQuery) {
   const goldKey = Object.keys(GOLD_ITEMS).find(k => foundLower.includes(k) || k.includes(foundLower));
 
   // DIS-D385: Chequear capacidad de inventario antes de recoger (solo para ítems no-moneda)
-  const currentInvCount = (player.inventory || []).length;
+  // BUG-489: contar también ítems equipados (no están en player.inventory pero ocupan slot visual)
+  const equippedCount = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
+  const currentInvCount = (player.inventory || []).length + equippedCount;
   if (!goldKey && currentInvCount >= 20) {
     return {
       text: `🎒 Tu mochila está llena (${currentInvCount}/20 ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.`,
