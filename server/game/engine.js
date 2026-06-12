@@ -368,7 +368,7 @@ function execute(playerId, input, context) {
     case 'weekly':       result = cmdWeekly(player); break;         // T208
     case 'tips':         result = cmdTips(action.args); break;       // T209
     case 'goals':        result = cmdGoals(player); break;           // T210
-    case 'legado':       result = cmdLegado(player); break;          // DIS-D291: legado post-boss
+    case 'legado':       result = cmdLegado(player, context); break;          // DIS-D291: legado post-boss
     case 'battlecry':    result = cmdBattlecry(player, action.args); break; // T211
     case 'champion':     result = cmdChampion(); break;                      // T212
     case 'gamble':       result = cmdGamble(player, action.args); break;     // T217
@@ -12864,7 +12864,10 @@ function cmdGoals(player) {
   const deaths  = fresh.deaths || 0;
   const goldSpent = fresh.gold_spent || 0;
   const duelWins = fresh.duel_wins || 0;
-  const playtime = fresh.playtime_minutes || 0;
+  const dbPlaytime = fresh.playtime_minutes || 0;
+  const sessData = context && context.sessionData;
+  const sessMinutes = sessData && sessData.startTime ? Math.floor((Date.now() - sessData.startTime) / 60000) : 0;
+  const playtime = dbPlaytime + sessMinutes;
   const roomsVisited = fresh.rooms_visited || 0;
 
   const goals = [];
@@ -12993,13 +12996,16 @@ function cmdGoals(player) {
 // DIS-D291: cmdLegado — Historial épico del héroe post-boss
 // Muestra ciclos completados, mejores tiempos, desafíos disponibles
 // ══════════════════════════════════════════════════════════════════════════════
-function cmdLegado(player) {
+function cmdLegado(player, context) {
   const fresh = db.getPlayer(player.id);
   if (!fresh) return { text: '❌ Error al cargar tu personaje.' };
 
   const lichKills = fresh.lich_kills || 0;
   const bestTime = fresh.cycle_best_time;
-  const playtime = fresh.playtime_minutes || 0;
+  const dbPlaytime = fresh.playtime_minutes || 0;
+  const sessData = context && context.sessionData;
+  const sessMinutes = sessData && sessData.startTime ? Math.floor((Date.now() - sessData.startTime) / 60000) : 0;
+  const playtime = dbPlaytime + sessMinutes;
   const kills = fresh.kills || 0;
   const deaths = fresh.deaths || 0;
   const level = fresh.level || 1;
