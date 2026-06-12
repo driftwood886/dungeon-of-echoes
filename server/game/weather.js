@@ -48,7 +48,7 @@ const WEATHER_CATALOG = [
     emoji: '✨',
     description: 'Una energía mística inunda el dungeon. Los aventureros aprenden más rápido (XP ×1.1).',
     announceMsg: '✨ Una energía arcana suave impregna el dungeon. Las enseñanzas del combate se absorben más profundamente — la XP ganada se multiplica por 1.1 durante la próxima hora.',
-    effect: 'xp_multiplier_1_1',
+    effect: 'xp_multiplier_11',
     extreme: false,
   },
   {
@@ -159,7 +159,7 @@ function getMonsterDamageBonus() {
 }
 
 function getXpMultiplier() {
-  return currentWeather.effect === 'xp_multiplier_1_1' ? 1.1 : 1.0;
+  return currentWeather.effect === 'xp_multiplier_11' ? 1.1 : 1.0;
 }
 
 function getRestPenalty() {
@@ -193,8 +193,8 @@ function getMaxHpPenalty() {
  * Formato de tiempo restante.
  */
 function formatRemaining(ms) {
-  const min = Math.floor(ms / 60_000);
-  const sec = Math.floor((ms % 60_000) / 1000);
+  const min = Math.floor(ms / 60000);
+  const sec = Math.floor((ms % 60000) / 1000);
   if (min > 0) return `${min}m ${sec}s`;
   return `${sec}s`;
 }

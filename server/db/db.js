@@ -88,7 +88,7 @@ async function init() {
   `);
 
   // Guardar al disco periódicamente (cada 30 segundos)
-  setInterval(persist, 30_000);
+  setInterval(persist, 30000);
 
   // Tabla de mensajes offline (tell)
   db.run(`
@@ -1457,7 +1457,7 @@ function getWallMessages(roomId, limit = 10) {
  * Si murieron hace poco, el cadáver todavía "está" en la sala.
  */
 function getRecentlyDeadMonsters(roomId, withinMinutes = 2) {
-  const cutoff = new Date(Date.now() + withinMinutes * 60_000).toISOString();
+  const cutoff = new Date(Date.now() + withinMinutes * 60000).toISOString();
   return all(
     `SELECT * FROM monsters WHERE respawn_room_id = ? AND room_id IS NULL AND respawn_at IS NOT NULL AND respawn_at <= ?`,
     [roomId, cutoff]

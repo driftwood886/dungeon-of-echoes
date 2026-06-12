@@ -4165,7 +4165,7 @@ function cmdRest(player, context) {
   }
 
   // Verificar cooldown (60 segundos)
-  const COOLDOWN_MS = 60_000;
+  const COOLDOWN_MS = 60000;
   if (player.last_rest) {
     const elapsed = Date.now() - new Date(player.last_rest).getTime();
     if (elapsed < COOLDOWN_MS) {
@@ -4191,7 +4191,7 @@ function cmdRest(player, context) {
   let partyBonusText = '';
   const partyMembers = player.party_id ? db.getPartyMembers(player.party_id) : [];
   if (partyMembers && partyMembers.length > 0) {
-    const PARTY_REST_WINDOW = 15_000; // 15 segundos
+    const PARTY_REST_WINDOW = 15000; // 15 segundos
     const now = Date.now();
     const roomRests = partyRestMap.get(roomId) || new Map();
 
@@ -4617,7 +4617,7 @@ function cmdTrade(player, args) {
     initiatorUsername: player.username,
     item: actualItem,
     roomId: player.current_room_id,
-    expiresAt: Date.now() + 30_000,
+    expiresAt: Date.now() + 30000,
   });
 
   return {
@@ -4818,7 +4818,7 @@ function cmdParty(player, args) {
     inviterId: player.id,
     inviterUsername: player.username,
     partyId,
-    expiresAt: Date.now() + 60_000,
+    expiresAt: Date.now() + 60000,
   });
 
   return {
@@ -5590,8 +5590,8 @@ function cmdWorld() {
     const nextText = worldEvents.getNextEventText();
     return { text: `🌍 El dungeon está en calma.\n${nextText}\n\nEventos posibles: Invasión de los Abismos, Niebla Espesa, Luna de Sangre, Bendición del Santuario, Maldición del Lich.` };
   }
-  const minLeft = Math.floor(ev.remainingMs / 60_000);
-  const secLeft = Math.floor((ev.remainingMs % 60_000) / 1000);
+  const minLeft = Math.floor(ev.remainingMs / 60000);
+  const secLeft = Math.floor((ev.remainingMs % 60000) / 1000);
   return {
     text: `🌍 EVENTO ACTIVO: ${ev.name}\n${ev.description}\n⏱ Tiempo restante: ${minLeft}m ${secLeft}s`,
   };
@@ -5651,7 +5651,7 @@ function cmdDuel(player, targetName) {
     challengerId: player.id,
     challengerUsername: player.username,
     roomId: player.current_room_id,
-    expiresAt: Date.now() + 60_000,
+    expiresAt: Date.now() + 60000,
   });
 
   return {
@@ -6355,7 +6355,7 @@ function cmdMeditate(player) {
     }
 
     // Cooldown: 45 segundos (más corto que el de HP — el Mago necesita maná para funcionar)
-    const MAGO_MEDITATE_CD = 45_000;
+    const MAGO_MEDITATE_CD = 45000;
     if (player.last_meditate) {
       const elapsed = Date.now() - new Date(player.last_meditate).getTime();
       if (elapsed < MAGO_MEDITATE_CD) {
@@ -6389,7 +6389,7 @@ function cmdMeditate(player) {
   }
 
   // Cooldown propio (90 segundos, independiente de rest)
-  const COOLDOWN_MS = 90_000;
+  const COOLDOWN_MS = 90000;
   if (player.last_meditate) {
     const elapsed = Date.now() - new Date(player.last_meditate).getTime();
     if (elapsed < COOLDOWN_MS) {
@@ -9002,7 +9002,7 @@ function cmdProject(player, args) {
   }
 
   // Cooldown: 60 segundos
-  const COOLDOWN_MS = 60_000;
+  const COOLDOWN_MS = 60000;
   if (player.last_project) {
     const elapsed = Date.now() - new Date(player.last_project).getTime();
     if (elapsed < COOLDOWN_MS) {
@@ -9243,8 +9243,8 @@ const afkMessages = new Map();
 function cmdAfk(player, args) {
   const now = Date.now();
   const lastToggle = afkCooldowns.get(player.id) || 0;
-  if (now - lastToggle < 10_000) {
-    const wait = Math.ceil((10_000 - (now - lastToggle)) / 1000);
+  if (now - lastToggle < 10000) {
+    const wait = Math.ceil((10000 - (now - lastToggle)) / 1000);
     return { text: `⚠️ Esperá ${wait}s antes de cambiar el estado AFK de nuevo.` };
   }
 
@@ -9352,7 +9352,7 @@ function cmdReadWall(player) {
 
 // Mapa de saludos recientes: playerId → { targetName, timestamp }
 const recentGreetings = new Map();
-const GREET_WINDOW_MS = 30_000; // 30 segundos para saludo mutuo
+const GREET_WINDOW_MS = 30000; // 30 segundos para saludo mutuo
 
 /**
  * Saluda a otro jugador en la sala.
@@ -10251,13 +10251,13 @@ function cmdHistory(player) {
 function cmdWeather() {
   const w = weather.getCurrentWeather();
   const remainingMs = w.changesInMs;
-  const min = Math.floor(remainingMs / 60_000);
-  const sec = Math.floor((remainingMs % 60_000) / 1000);
+  const min = Math.floor(remainingMs / 60000);
+  const sec = Math.floor((remainingMs % 60000) / 1000);
   const remainingStr = min > 0 ? `${min}m ${sec}s` : `${sec}s`;
 
   const EFFECT_DESC = {
     'monster_damage_plus_1': '⚠️  Los monstruos hacen +1 de daño.',
-    'xp_multiplier_1_1':     '🌟 La XP ganada se multiplica ×1.1.',
+    'xp_multiplier_11':     '🌟 La XP ganada se multiplica ×1.1.',
     'rest_minus_1':          '❄️  Descansar recupera 1 HP menos.',
     'hide_monster_hp':       '👁  HP de monstruos oculto en look.',
     'spore_storm':           '☠️  EXTREMO: Envenenamiento pasivo al moverse.',
@@ -12327,7 +12327,7 @@ function cmdTriviaPub(player, args, context) {
 
     roomTriviaMap.set(roomId, {
       questionIdx: idx,
-      expiresAt: now + 90_000, // 90s (más tiempo para que varios lo intenten)
+      expiresAt: now + 90000, // 90s (más tiempo para que varios lo intenten)
       proposerId: player.id,
     });
 
@@ -12378,7 +12378,7 @@ function cmdTriviaPub(player, args, context) {
 
   if (correct) {
     roomTriviaMap.delete(roomId);
-    ROOM_TRIVIA_COOLDOWNS.set(roomId, now + 5 * 60_000);
+    ROOM_TRIVIA_COOLDOWNS.set(roomId, now + 5 * 60000);
 
     // Recompensa al ganador — mismo patrón que cmdTrivia
     const freshWinner = db.getPlayer(player.id);

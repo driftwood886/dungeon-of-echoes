@@ -590,10 +590,10 @@ async function main() {
         }
       }
     );
-  }, 60_000);
+  }, 60000);
 
   // 9. Trap respawn loop: reactivar trampas desactivadas cada 60 segundos
-  setInterval(() => db.checkTrapRespawns(), 60_000);
+  setInterval(() => db.checkTrapRespawns(), 60000);
 
   // T143: Training dummy regen loop — regenerar maniquíes en sala 21 cada 10 segundos
   const TRAINING_DUMMY_IDS_SERVER = [23, 24, 25];
@@ -604,12 +604,12 @@ async function main() {
         db.updateMonster(dummyId, { hp: dummy.max_hp, room_id: 21 });
       }
     }
-  }, 10_000);
+  }, 10000);
 
   // T144: Bounty expiration loop — expirar recompensas vencidas y devolver oro cada minuto
   setInterval(() => {
     db.expireOldBounties();
-  }, 60_000);
+  }, 60000);
 
   // T181: Expirar anuncios del mercado cada 5 minutos (devolver ítems a vendedores)
   setInterval(() => {
@@ -632,7 +632,7 @@ async function main() {
         }
       }
     }
-  }, 5 * 60_000);
+  }, 5 * 60000);
 
   // 10. Quest loop: iniciar quest activa + rotar cada 5 minutos si pasaron 30 min
   quests.loadQuest();
@@ -646,7 +646,7 @@ async function main() {
       });
       console.log(`[quests] Quest rotada: ${newQuest.questDef.title}`);
     }
-  }, 5 * 60_000);
+  }, 5 * 60000);
 
   // 11. World Events loop: verificar cada 60 segundos si hay que activar/desactivar evento
   setInterval(() => {
@@ -668,7 +668,7 @@ async function main() {
       });
       console.log(`[weather] Nuevo clima: ${weatherResult.weather.name}`);
     }
-  }, 60_000);
+  }, 60000);
 
   // 12. Auction resolution loop: resolver subastas expiradas cada 30 segundos
   setInterval(() => {
@@ -676,7 +676,7 @@ async function main() {
       io.emit('shout', { username: '🔨 REMATE', message: msg });
       console.log(`[auctions] ${msg}`);
     });
-  }, 30_000);
+  }, 30000);
 
   // 13. T130: Regeneración periódica de sala sagrada (sala 1 — Entrada del Dungeon)
   // Cada 10s, los jugadores con HP < max que estén en la sala sagrada recuperan 1 HP.
@@ -701,7 +701,7 @@ async function main() {
     } catch (e) {
       console.error('[sacredRegen] Error:', e.message);
     }
-  }, 10_000);
+  }, 10000);
 
   // 14. T188: Expiración de posts del tablón cada hora
   setInterval(() => {
@@ -743,7 +743,7 @@ async function main() {
     } catch (e) {
       console.error('[wander] Error en loop de monstruos errantes:', e.message);
     }
-  }, 90_000);
+  }, 90000);
 }
 
 main().catch(err => {

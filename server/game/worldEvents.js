@@ -130,8 +130,8 @@ function tick() {
  * Texto de tiempo restante amigable.
  */
 function formatRemaining(ms) {
-  const min = Math.floor(ms / 60_000);
-  const sec = Math.floor((ms % 60_000) / 1000);
+  const min = Math.floor(ms / 60000);
+  const sec = Math.floor((ms % 60000) / 1000);
   if (min > 0) return `${min}m ${sec}s`;
   return `${sec}s`;
 }
