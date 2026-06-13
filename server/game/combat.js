@@ -1273,6 +1273,20 @@ function wanderMonsters(onMove) {
 
       // Obtener salas adyacentes válidas (no sala tutorial, no sala de práctica, no casa de subastas)
       const EXCLUDED_ROOMS = new Set([15, 16, 17, 18, 21, 22]); // catedral boss, tutorial, subastas, fuente, práctica, cripta
+
+      // BUG-502: excluir salas que son respawn_room_id de monstruos no vagabundos
+      // (p. ej. sala 5 = Capilla Olvidada es el respawn del murciélago vampiro de la quest)
+      try {
+        const allMonsters = db.getAllMonsters();
+        for (const m of allMonsters) {
+          if (!WANDERING_MONSTER_IDS.has(m.id) && m.respawn_room_id != null) {
+            EXCLUDED_ROOMS.add(Number(m.respawn_room_id));
+          }
+        }
+      } catch (e) {
+        console.error('[wander] Error obteniendo monstruos para excluir salas de quest:', e.message);
+      }
+
       const exits = currentRoom.exits || {};
       const adjacentRoomIds = Object.values(exits)
         .map(v => typeof v === 'object' ? v.room_id : v)

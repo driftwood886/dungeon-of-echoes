@@ -587,6 +587,12 @@ function completeTutorial(player) {
  * look — Describe la habitación actual.
  */
 function cmdLook(player) {
+  // BUG-503: correr checkRespawns antes de describir la sala para que monstruos
+  // recién respawneados sean visibles sin que el jugador tenga que salir y volver a entrar.
+  try {
+    combat.checkRespawns(() => {}, () => {});
+  } catch (_) { /* no romper look si checkRespawns falla */ }
+
   const text = dungeon.describeRoom(player.current_room_id, player.id);
   // Mostrar efecto de sala si existe
   const roomEffect = ROOM_EFFECTS[player.current_room_id];
@@ -894,7 +900,23 @@ function cmdMove(player, direction) {
       // DIS-D403: Para sala 12 (Calor Abrasador), el daño solo se aplica la primera vez.
       // En visitas posteriores, el jugador ya "sabe" protegerse y solo recibe un recordatorio.
       const FIRST_TIME_DAMAGE_ROOMS = new Set([12]); // rooms donde el daño es solo primera vez
-      const knownRoomsData = (() => { try { return JSON.parse(player.known_traps || '[]'); } catch (_) { return []; } })();
+      // BUG-486/BUG-502: known_traps puede ser array (sistema de calor) u objeto (sistema de trampas).
+      // NOTA: db.getPlayer() ya parsea known_traps a objeto JS, por lo que player.known_traps NO es string.
+      // Normalizar siempre a array de strings para hacer el check con includes().
+      const knownRoomsData = (() => {
+        try {
+          const raw = player.known_traps;
+          if (!raw) return [];
+          // Si ya es objeto JS (getPlayer lo parsea automáticamente)
+          if (typeof raw === 'object' && !Array.isArray(raw)) return Object.keys(raw);
+          if (Array.isArray(raw)) return raw; // formato array legacy ["heat_room_12"]
+          // Si por alguna razón llegó como string (ej: primer acceso antes del parse)
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed;
+          if (typeof parsed === 'object' && parsed !== null) return Object.keys(parsed);
+          return [];
+        } catch (_) { return []; }
+      })();
       const heatKey = `heat_room_${targetId}`;
       const alreadyKnowsHeat = FIRST_TIME_DAMAGE_ROOMS.has(targetId) && Array.isArray(knownRoomsData) && knownRoomsData.includes(heatKey);
       if (alreadyKnowsHeat) {
@@ -908,8 +930,22 @@ function cmdMove(player, direction) {
         db.updatePlayer(player.id, { hp: newHp });
         effectText = `\n\n${roomEffect.msg} (${newHp}/${player.max_hp} HP)`;
         // Si es una sala de daño primera-vez, registrar que ya la conoce
+        // BUG-502: guardar en formato objeto (mismo que el sistema de trampas) para evitar incompatibilidad
         if (FIRST_TIME_DAMAGE_ROOMS.has(targetId)) {
-          const updatedKnown = Array.isArray(knownRoomsData) ? [...knownRoomsData, heatKey] : [heatKey];
+          const existingKnown = (() => {
+            try {
+              const parsed = JSON.parse(player.known_traps || '{}');
+              if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+              if (Array.isArray(parsed)) {
+                // migrar array a objeto
+                const obj = {};
+                parsed.forEach(k => { obj[k] = true; });
+                return obj;
+              }
+              return {};
+            } catch (_) { return {}; }
+          })();
+          const updatedKnown = { ...existingKnown, [heatKey]: true };
           db.updatePlayer(player.id, { known_traps: JSON.stringify(updatedKnown) });
           effectText += `\n🧠 Ahora conocés el calor de la forja — la próxima vez podrás cubrirte mejor.`;
         }
