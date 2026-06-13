@@ -1995,9 +1995,9 @@ function cmdAttack(player, targetName) {
       // intente recoger el loot del boss y se frustre por no poder hacerlo.
       const freshForInv = db.getPlayer(player.id);
       const invCount = Array.isArray(freshForInv.inventory) ? freshForInv.inventory.length : 0;
-      if (invCount >= 18) {
-        lines.push(`║  ⚠️  Tu mochila tiene ${invCount}/20 ítems — hacé espacio      ║`);
-        lines.push('║  con "drop <ítem>" o "subastar <ítem> <precio>".    ║');
+      if (invCount >= 23) {
+        lines.push(`║  ⚠️  Tu mochila tiene ${invCount}/25 ítems — hacé espacio      ║`);
+        lines.push('║  con "drop <ítem>", "vault store <ítem>" o "subastar". ║');
       }
       lines.push('╚══════════════════════════════════════════════════════╝');
       return '\n\n' + lines.join('\n');
@@ -2181,9 +2181,9 @@ function cmdPick(player, itemQuery) {
   // BUG-489: contar también ítems equipados (no están en player.inventory pero ocupan slot visual)
   const equippedCount = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
   const currentInvCount = (player.inventory || []).length + equippedCount;
-  if (!goldKey && currentInvCount >= 20) {
+  if (!goldKey && currentInvCount >= 25) {
     return {
-      text: `🎒 Tu mochila está llena (${currentInvCount}/20 ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.`,
+      text: `🎒 Tu mochila está llena (${currentInvCount}/25 ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.\n💡 También podés usar la bóveda (vault) en la Entrada o en la Casa de Subastas.`,
     };
   }
 
@@ -3447,7 +3447,7 @@ function cmdLoot(player) {
 
   // Agregar solo ítems no-oro al inventario (BUG-469: respetar límite de 20)
   // BUG-504: contar también ítems equipados (no están en player.inventory pero ocupan slot)
-  const MAX_INVENTORY = 20;
+  const MAX_INVENTORY = 25;  // DIS-507: ampliado de 20→25
   const equippedCountLoot = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
   const spaceAvailable = MAX_INVENTORY - player.inventory.length - equippedCountLoot;
   const itemsToPickup = nonGoldItems.slice(0, spaceAvailable);
@@ -12661,8 +12661,11 @@ function cmdBattlecry(player, args) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// T200: cmdVault — Bóveda personal (hasta 10 ítems, solo en sala 1)
+// T200: cmdVault — Bóveda personal (hasta 20 ítems, sala 1 o sala 17)
+// DIS-506: ampliada de 10→20 slots, accesible también en Casa de Subastas (sala 17)
 // ══════════════════════════════════════════════════════════════════════════════
+const VAULT_MAX = 20;
+const VAULT_ROOMS = new Set([1, 17]); // Entrada + Casa de Subastas
 function cmdVault(player, args) {
   const W = 48;
   const vaultItems = JSON.parse(player.vault || '[]');
@@ -12682,10 +12685,12 @@ function cmdVault(player, args) {
       });
     }
     lines.push(`╠${'═'.repeat(W)}╣`);
-    lines.push(`║  ${`${vaultItems.length}/10 ítems guardados`.padEnd(W - 2)}║`);
+    lines.push(`║  ${`${vaultItems.length}/${VAULT_MAX} ítems guardados`.padEnd(W - 2)}║`);
     lines.push(`╠${'═'.repeat(W)}╣`);
     lines.push(`║  vault store <ítem>  — guardar un ítem`.padEnd(W + 2) + `║`);
     lines.push(`║  vault take <ítem>   — sacar un ítem`.padEnd(W + 2) + `║`);
+    lines.push(`╠${'═'.repeat(W)}╣`);
+    lines.push(`║  Accesible en sala 1 (Entrada) y sala 17 (Subastas)`.padEnd(W + 2) + `║`);
     lines.push(`╚${'═'.repeat(W)}╝`);
     return { text: lines.join('\n') };
   }
@@ -12693,14 +12698,14 @@ function cmdVault(player, args) {
   const subcmd = args[0].toLowerCase();
   const itemArg = args.slice(1).join(' ').trim();
 
-  // Solo accesible en sala 1
-  if (player.current_room_id !== 1) {
-    return { text: '🏛️  La bóveda solo es accesible en la Entrada del Dungeon (sala 1). Usá `recall` para volver.' };
+  // Accesible en sala 1 (Entrada) o sala 17 (Casa de Subastas)
+  if (!VAULT_ROOMS.has(player.current_room_id)) {
+    return { text: '🏛️  La bóveda es accesible en la Entrada (sala 1) o en la Casa de Subastas (sala 17).\n  Usá `recall` para volver a la Entrada.' };
   }
 
   if (subcmd === 'store' || subcmd === 'guardar' || subcmd === 'depositar') {
     if (!itemArg) return { text: '¿Qué ítem querés guardar? Ej: vault store espada oxidada' };
-    if (vaultItems.length >= 10) return { text: '🏛️  La bóveda está llena (10/10). Sacá algo primero.' };
+    if (vaultItems.length >= VAULT_MAX) return { text: `🏛️  La bóveda está llena (${VAULT_MAX}/${VAULT_MAX}). Sacá algo primero.` };
 
     const inv = JSON.parse(typeof player.inventory === 'string' ? player.inventory : JSON.stringify(player.inventory));
     const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -12723,7 +12728,7 @@ function cmdVault(player, args) {
       inventory: JSON.stringify(inv),
       vault: JSON.stringify(vaultItems),
     });
-    return { text: `🏛️  "${item}" guardado en la bóveda. (${vaultItems.length}/10)` };
+    return { text: `🏛️  "${item}" guardado en la bóveda. (${vaultItems.length}/${VAULT_MAX})` };
   }
 
   if (subcmd === 'take' || subcmd === 'sacar' || subcmd === 'retirar') {
@@ -12735,7 +12740,7 @@ function cmdVault(player, args) {
 
     const item = vaultItems[idx];
     const inv = JSON.parse(typeof player.inventory === 'string' ? player.inventory : JSON.stringify(player.inventory));
-    if (inv.length >= 20) return { text: '🎒 El inventario está lleno. Tirá algo primero.' };
+    if (inv.length >= 25) return { text: '🎒 El inventario está lleno (25/25). Tirá algo primero.' };
 
     vaultItems.splice(idx, 1);
     inv.push(item);
@@ -12915,7 +12920,7 @@ function cmdTips(args) {
       '💰 Reputación Respetado+ da descuento en la tienda: -5%/-10%/-15% según nivel.',
       '🛒 Sell en la tienda (mercader Aldric, sala 4) da solo 40% del precio. Mejor guardar ítems buenos.',
       '⚖️  "market post <ítem> <precio>" para vender al precio que vos querés en el mercado de jugadores.',
-      '🏦 Guardá oro en la bóveda (vault) en sala 1 antes de arriesgarte en el boss — así no lo perdés en duelos.',
+      '🏦 Guardá ítems en la bóveda (vault) en sala 1 o sala 17 — hasta 20 slots. No los perdés si morís.',
       '💸 "pay <jugador> <monto>" para transferir oro. Útil para coordinación de guild.',
       '🎁 Los monstruos de élite (Lich, Campeón Espectral) sueltan ítems épicos — mejor que comprarlos.',
     ],
