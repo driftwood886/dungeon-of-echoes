@@ -9435,10 +9435,14 @@ function cmdReadWall(player) {
   if (msgs.length === 0) {
     return { text: '📜 Las paredes están vacías. Nadie ha dejado ningún mensaje aquí.' };
   }
+  const BOT_PATTERNS = /^(PTBot_|Critico_Diseno_|PlaytestBot_|TestBot_|Bot_)/i;
   const lines = ['📜 Inscripciones en la pared:'];
   for (const m of msgs) {
     const date = m.created_at ? m.created_at.slice(5, 16).replace('T', ' ') : '';
-    lines.push(`  ✍️ ${m.player_name} [${date}]: ${m.message}`);
+    const isBot = BOT_PATTERNS.test(m.player_name);
+    // DIS-498: marcar visualmente inscripciones de bots con tono más tenue
+    const prefix = isBot ? '  🤖' : '  ✍️';
+    lines.push(`${prefix} ${m.player_name} [${date}]: ${m.message}`);
   }
   return { text: lines.join('\n') };
 }

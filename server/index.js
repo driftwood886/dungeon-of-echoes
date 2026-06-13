@@ -555,6 +555,14 @@ async function main() {
   registerHandlers(io);
 
   // 7. Arrancar servidor
+  // DIS-498: limpiar inscripciones de bots de playtests anteriores
+  try {
+    const botMsgsDeleted = db.cleanBotWallMessages ? db.cleanBotWallMessages() : 0;
+    if (botMsgsDeleted > 0) {
+      console.log(`🧹 DIS-498: ${botMsgsDeleted} inscripciones de bots eliminadas de las paredes.`);
+    }
+  } catch (e) { /* ignorar si la función no existe */ }
+
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🏰 Dungeon of Echoes corriendo en http://0.0.0.0:${PORT}`);
     console.log(`   Versión 0.6.0 — Fases 1-6 completas (Frontend + API LLM)`);

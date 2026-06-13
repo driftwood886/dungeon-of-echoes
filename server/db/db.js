@@ -1459,6 +1459,11 @@ function getWallMessages(roomId, limit = 10) {
     [roomId, limit]
   );
 }
+// DIS-498: Limpia inscripciones de jugadores-bot de las paredes
+function cleanBotWallMessages() {
+  run(`DELETE FROM wall_messages WHERE player_name LIKE 'PTBot_%' OR player_name LIKE 'Critico_Diseno_%' OR player_name LIKE 'PlaytestBot_%' OR player_name LIKE 'TestBot_%'`);
+}
+
 
 // ─── Monstruos muertos recientes (T149) ──────────────────────────────────────
 
@@ -1909,7 +1914,7 @@ module.exports = {
   // T144: bounties
   addBounty, getBountiesOnPlayer, getAllActiveBounties, claimBounty, expireOldBounties,
   // T147: mensajes en las paredes (graffiti)
-  addWallMessage, getWallMessages,
+  addWallMessage, getWallMessages, cleanBotWallMessages,
   // T149: monstruos muertos recientes
   getRecentlyDeadMonsters,
   // T156-T158: sesiones e historial de tiempo
