@@ -3090,13 +3090,22 @@ function cmdEquip(player, itemQuery) {
   const swapMsg = player.equipped_weapon ? ` (reemplaza ${player.equipped_weapon} → vuelve a tu mochila)` : '';
 
   // DIS-478: flavor narrativo cuando un mago equipa arma de guerrero (sin penalidad — libertad de builds)
+  // DIS-494: armas mágicas (espectral, del eco, arcana) tienen su propio flavor para el Mago
   const clsDataEquip = classes.getPlayerClass(player);
-  const heavyWeapons = ['martillo', 'hacha', 'alabarda', 'mandoble', 'lanza', 'ballesta'];
+  const heavyWeapons = ['martillo', 'hacha', 'alabarda', 'mandoble', 'ballesta'];
+  const magicWeaponKeywords = ['espectral', 'del eco', 'arcano', 'arcana', 'mística', 'místico', 'rúnico', 'rúnica', 'encantado', 'encantada', 'de luz', 'de sombra'];
   const isMagoEquip = clsDataEquip && clsDataEquip.name === 'Mago';
-  const isHeavyWeapon = heavyWeapons.some(w => found.toLowerCase().includes(w));
-  const magoHeavyFlavor = (isMagoEquip && isHeavyWeapon)
-    ? `\n💬 (Empuñás esto con ambas manos. No es lo que un mago estudia, pero nadie dijo que no podés.)`
-    : '';
+  const foundLower = found.toLowerCase();
+  const isHeavyWeapon = heavyWeapons.some(w => foundLower.includes(w));
+  const isMagicWeapon = magicWeaponKeywords.some(w => foundLower.includes(w));
+  let magoHeavyFlavor = '';
+  if (isMagoEquip) {
+    if (isMagicWeapon) {
+      magoHeavyFlavor = `\n✨ (Tu maná resuena con el arma. Esto sí es lo que estudiaste.)`;
+    } else if (isHeavyWeapon) {
+      magoHeavyFlavor = `\n💬 (Empuñás esto con ambas manos. No es lo que un mago estudia, pero nadie dijo que no podés.)`;
+    }
+  }
 
   return {
     text: `Empuñás ${found}${swapMsg}. Ataque: ${oldAttack} → ${newAttack} (${changeStr}).\n${def.description}${magoHeavyFlavor}`,
