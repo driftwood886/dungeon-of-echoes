@@ -62,7 +62,7 @@ const ITEM_CATALOG = {
   'monedas de plata':    { type: 'misc', description: 'Monedas de plata con inscripciones antiguas.' },
   'monedas de oro':      { type: 'misc', description: 'Monedas de oro resplandecientes. Son pocas, pero valen mucho.' },
   'cofre de oro':        { type: 'misc', description: 'Un cofre repleto de monedas de oro del Lich. Un tesoro maldito que vale una fortuna.' },
-  'pelaje áspero':       { type: 'misc', description: 'El pelaje de una rata gigante. Áspero al tacto.' },
+  'pelaje áspero':       { type: 'misc', description: 'El pelaje de una rata gigante. Áspero al tacto. 🔧 Combinalo con una escama abismal para curtirlo en cuero de criatura.' },
   'escudo roto':         { type: 'misc', description: 'Un escudo con el centro partido. Inútil para defenderse así. Las garras del esqueleto que lo portó podrían servir para reforzarlo... (crafteo: escudo roto + garra de esqueleto)' },
   'escudo de madera':    { type: 'armor', defense: 2, description: 'Un escudo de madera reforzada. No es glamoroso, pero te protege. +2 de defensa.' },
   'esencia etérea':      { type: 'misc', description: 'Una esencia brumosa dentro de un frasco. Resuena con el más allá.' },
@@ -88,7 +88,7 @@ const ITEM_CATALOG = {
   'cristal helado':      { type: 'misc', description: 'Un cristal extraído del cuerpo de un Elemental de Hielo. Conserva el frío de siglos.' },
   'núcleo de forja':     { type: 'misc', description: 'El núcleo energético de un Golem de Forja. Aún irradia calor y magia residual.' },
   'tinta de kraken':     { type: 'misc', description: 'Un frasco de tinta negra del Krakeling Abismal. Muy densa y de olor nauseabundo.' },
-  'escama abismal':      { type: 'misc', description: 'Una escama del Krakeling. Dura como el acero, ligera como el cartón.' },
+  'escama abismal':      { type: 'misc', description: 'Una escama del Krakeling. Dura como el acero, ligera como el cartón. 🔧 Combinala con pelaje áspero o cuerda para craftear armamento.' },
   'filacteria rota':     { type: 'misc', description: 'La filacteria del Lich Anciano, destruida. Sin ella, el Lich no puede regresar... ¿verdad?' },
   'esencia de sombra':   { type: 'misc', description: 'La esencia condensada de las sombras del dungeon. Vibra en la oscuridad.' },
 

@@ -920,6 +920,17 @@ function getActiveAuctions() {
 function getAuction(id) {
   return one(`SELECT * FROM auctions WHERE id = ?`, [id]);
 }
+/**
+ * DIS-500: Obtener las últimas subastas cerradas (para mostrar historial cuando no hay activas).
+ * @param {number} limit - máximo de filas a devolver (default 5)
+ */
+function getRecentClosedAuctions(limit = 5) {
+  return all(
+    `SELECT * FROM auctions WHERE closed = 1 ORDER BY id DESC LIMIT ?`,
+    [limit]
+  );
+}
+
 
 /**
  * Realizar una puja en una subasta.

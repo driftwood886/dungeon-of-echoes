@@ -95,6 +95,18 @@ const RECIPES = [
     result: 'poción de poder',
     message: 'Disolvés el cristal helado en la tinta de kraken. La mezcla forma una poción densa y humeante.',
   },
+  // ── DIS-492: Recetas para ítems de loot basura ───────────────────────────
+  {
+    ingredients: ['pelaje áspero', 'escama abismal'],
+    result: 'cuero de criatura',
+    message: 'Curtís el pelaje áspero usando la escama abismal como raspador. El resultado es un cuero irregular pero sorprendentemente resistente.',
+  },
+  {
+    // DIS-492: permite reciclar escamas sobrantes en algo útil
+    ingredients: ['escama abismal', 'cuerda'],
+    result: 'manopla abismal',
+    message: 'Cosés las escamas del Krakeling a una cuerda trenzada. Las escamas forman un guante improvisado de aspecto ominoso.',
+  },
   // ── Recetas del Dungeon Extendido (T132) ─────────────────────────────────
   {
     ingredients: ['cristal resonante', 'esencia de eco'],
@@ -122,6 +134,9 @@ const CRAFTED_ITEMS = {
   'red resistente':     { type: 'misc', description: 'Una red de araña y cuerda trenzadas. Casi imposible de romper. Podría usarse para atrapar cosas.' },
   'collar de garras':   { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Un collar artesanal de dientes de goblin y seda de araña. Emana poder primitivo. +2 de defensa.' },
   'grimorio del abismo':{ type: 'weapon', effect: 'attack_bonus', amount: 10, description: 'Un grimorio sellado con el poder de la perla negra abismal. +10 de ataque mágico.' },
+  // DIS-492: ítems de reciclaje de loot basura
+  'cuero de criatura':  { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Cuero curtido con escamas abismales. Áspero pero funcional. +2 de defensa.' },
+  'manopla abismal':    { type: 'weapon', effect: 'attack_bonus', amount: 4, description: 'Una manopla de escamas del Krakeling. Los picos rasgan en cada golpe. +4 de ataque.' },
   // Ítems del Dungeon Extendido (T132)
   'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 8, description: 'Una lanza fantasmal que resuena con voces de los caídos. +8 de ataque. Vibra al contacto con criaturas espectrales.' },
   'daga del vacío':     { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una daga que parece absorber la realidad. +12 de ataque. El arma más poderosa forjada en las profundidades del Abismo.' },
