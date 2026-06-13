@@ -554,7 +554,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats };
 
 /**
  * STORY-003/004/005/007/012/017 — Migración de lore narrativo:
@@ -1256,5 +1256,42 @@ function migrateRestoreGoblinTutorial() {
       status_effects: JSON.stringify(fx),
     });
     console.log(`[seed] migrateRestoreGoblinTutorial: Goblin de Práctica restaurado a sala 16 (estaba en sala ${goblin.room_id}). BUG-447 ✓`);
+  }
+}
+
+/**
+ * DIS-510: Distribuir Murciélagos Vampiro en 2-3 salas para que la quest "Plaga de Murciélagos"
+ * (que pide matar 3) sea solucionable explorando en lugar de esperar respawn del único mob.
+ * Agrega: Murciélago Vampiro id 26 en sala 3 (Sala de los Ecos) y id 27 en sala 6 (Túnel de Hongos).
+ * Sala 3 es oscura y acuosa (narrativamente plausible). Sala 6 es húmeda (ideal para murciélagos).
+ */
+function migrateExtraBats() {
+  const bat26 = db.getMonster(26);
+  if (!bat26) {
+    db.upsertMonster({
+      id: 26,
+      name: 'Murciélago Vampiro',
+      description: 'Un murciélago enorme con colmillos afilados como agujas. Revolotea entre los ecos de la sala.',
+      hp: 12, max_hp: 12, attack: 3,
+      room_id: 3,
+      loot: ['diente afilado', 'monedas de cobre'],
+      respawn_room_id: 3,
+      respawn_at: null,
+    });
+    console.log('[seed] migrateExtraBats: Murciélago Vampiro id 26 agregado en sala 3 (Sala de los Ecos). DIS-510 ✓');
+  }
+  const bat27 = db.getMonster(27);
+  if (!bat27) {
+    db.upsertMonster({
+      id: 27,
+      name: 'Murciélago Vampiro',
+      description: 'Un murciélago enorme que anida entre los hongos. Sus colmillos brillan en la penumbra.',
+      hp: 12, max_hp: 12, attack: 3,
+      room_id: 6,
+      loot: ['diente afilado', 'monedas de cobre'],
+      respawn_room_id: 6,
+      respawn_at: null,
+    });
+    console.log('[seed] migrateExtraBats: Murciélago Vampiro id 27 agregado en sala 6 (Túnel de Hongos). DIS-510 ✓');
   }
 }
