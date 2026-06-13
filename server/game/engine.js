@@ -3709,11 +3709,29 @@ function cmdGive(player, args) {
   // Buscar al jugador destinatario
   const target = db.getPlayerByUsername(targetName);
   if (!target) {
-    // BUG-347: Si el nombre coincide con un NPC conocido, sugerir "hablar <npc>"
+    // BUG-347 / DIS-513: Si el nombre coincide con un NPC conocido, sugerir "hablar <npc>"
     const npcNames = ['aldric', 'mercader', 'tendero', 'guardián', 'guardian', 'anciano'];
     const targetLower = targetName.toLowerCase();
     const isNPC = npcNames.some(n => targetLower.includes(n));
     if (isNPC) {
+      // DIS-513: si el ítem es relevante para una quest activa, activar la quest completion automáticamente
+      if (targetLower.includes('aldric') || targetLower.includes('mercader')) {
+        const freshP = db.getPlayer(player.id);
+        const inv = Array.isArray(freshP.inventory) ? freshP.inventory : JSON.parse(freshP.inventory || '[]');
+        const hasCarta = inv.some(i => i.toLowerCase().includes('carta sellada'));
+        if (hasCarta && found.toLowerCase().includes('carta sellada') && freshP.aldric_quest === 'active') {
+          // Completar la quest directamente como si el jugador hubiera dicho "hablar aldric"
+          db.updatePlayer(player.id, {
+            xp: (freshP.xp || 0) + 50,
+            gold: (freshP.gold || 0) + 25,
+            aldric_quest: 'done',
+            inventory: JSON.stringify(inv.filter(i => !i.toLowerCase().includes('carta sellada')))
+          });
+          db.addJournalEntry(player.id, 'quest', '📜 Aldric me reveló el nombre completo: Kaelthas Vorn. Guardián del reino. El dungeon fue su archivo. Su alma quedó atada aquí cuando lo mataron. Sigue en las piedras. En los corredores. En la Sala del Trono.');
+          db.logGlobalEvent('quest', `📜 ${player.username} descubrió el secreto de Aldric el Mercader.`);
+          return { text: 'Extendés la carta hacia Aldric. Él la toma despacio, con manos que no tiemblan, pero que deberían.\n\nEl sello de las dos llaves cruzadas. Lo mira durante un momento demasiado largo.\n\n\"Fue el guardián del sello del reino,\" dice al fin, en voz tan baja que casi no lo escuchás. \"No el rey. El guardián. Los que guardaban las llaves eran los que realmente mantenían el reino unido.\"\n\nPausa. \"Kaelthas Vorn. Ese era su nombre completo. El que todos olvidaron —o fingieron olvidar— cuando el reino cayó.\"\n\nDobla la carta sin abrirla y la guarda debajo del mostrador.\n\n\"Tomá esto. Y si algún día pronunciás su nombre completo en el lugar correcto, vas a entender por qué todavía importa.\"\n\n🎉 Quest completada: El Sello de las Dos Llaves. (+50 XP · +25g)\n📜 El lore de Kaelthas Vorn está ahora completo.\n📖 Diario actualizado.' };
+        }
+      }
       return { text: `«${targetName}» es un NPC, no un jugador — no podés darle ítems directamente. Probá con "hablar ${targetName}" para interactuar.` };
     }
     return { text: `No existe ningún jugador llamado "${targetName}".` };
