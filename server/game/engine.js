@@ -455,6 +455,7 @@ function execute(playerId, input, context) {
       }
       break;
     case 'pronunciar':   result = cmdPronunciar(player, action.args.join(' ')); break; // DIS-487
+    case 'heal':          result = cmdHeal(player, action.args); break; // DIS-496
     case 'unknown':
       // BUG-445: Pozo Sin Fondo — interceptar comandos temáticos en sala 7
       if (player.current_room_id === 7 && action.input) {
@@ -7502,6 +7503,10 @@ function cmdClase(player, args) {
   const newMaxMana = Math.max(clsStats.max_mana,  freshForClass.max_mana || 20);
   const newHp      = Math.min(freshForClass.hp || newMaxHp, newMaxHp);
   const newMana    = Math.min(freshForClass.mana || newMaxMana, newMaxMana);
+  // DIS-491: Dar 10g de inicio al elegir clase por primera vez
+  const isFirstClass = currentClass === 'sin_clase';
+  const startingGold = isFirstClass ? (freshForClass.gold || 0) + 10 : (freshForClass.gold || 0);
+
   db.updatePlayer(player.id, {
     player_class: className,
     hp:       newHp,
@@ -7510,6 +7515,7 @@ function cmdClase(player, args) {
     defense:  newDefense,
     mana:     newMana,
     max_mana: newMaxMana,
+    gold:     startingGold,
   });
 
   const lines = [
@@ -7531,9 +7537,75 @@ function cmdClase(player, args) {
     lines.push(``, `💡 Como Mago tus hechizos hacen 1.5× de daño y la recarga de maná es 6× más rápida.`);
   } else if (className === 'guerrero') {
     lines.push(``, `💡 Como Guerrero absorbés más daño y tenés mayor HP máximo.`);
+  } else if (className === 'clerigo') {
+    lines.push(``, `💡 Como Clérigo tu curación es 50% más potente y podés usar 'heal <jugador>' para sanar aliados en la sala.`);
+  }
+
+  // DIS-491: Mostrar oro inicial si es la primera clase
+  if (isFirstClass) {
+    lines.push(``, `🪙 Monedero inicial: +10 🪙 (suficiente para la primera poción de salud).`);
   }
 
   return { text: lines.join('\n') };
+}
+
+/**
+ * DIS-496: cmdHeal — Comando exclusivo del Clérigo para sanar a aliados en la sala.
+ * heal             → se auto-cura (15 HP base × heal_power)
+ * heal <jugador>   → cura a ese jugador si está en la misma sala (10 HP base × heal_power)
+ * Coste: 8 de maná
+ */
+function cmdHeal(player, args) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: 'Error al leer tu personaje.' };
+
+  const cls = fresh.player_class || 'sin_clase';
+  if (cls !== 'clerigo') {
+    return { text: `✨ El comando heal es exclusivo del Clérigo. Escribí "clase clerigo" para cambiar de clase (solo antes de 5 kills).` };
+  }
+
+  const mana = fresh.mana != null ? fresh.mana : 0;
+  const manaCost = 8;
+  if (mana < manaCost) {
+    return { text: `✨ No tenés suficiente maná para curar. Necesitás ${manaCost} maná (tenés ${mana}).` };
+  }
+
+  const healPower = 1.5; // DIS-496: Clérigo cura 50% más
+  const isSelf = !args || args.length === 0;
+
+  if (isSelf) {
+    // Auto-curación: 15 HP base × 1.5 = 22 HP
+    const healBase = 15;
+    const healAmt = Math.round(healBase * healPower);
+    const newHp = Math.min(fresh.max_hp, (fresh.hp || 0) + healAmt);
+    const newMana = mana - manaCost;
+    db.updatePlayer(fresh.id, { hp: newHp, mana: newMana });
+    return { text: `✨ Canalizás energía sagrada sobre tus heridas. +${newHp - (fresh.hp||0)} HP (${newHp}/${fresh.max_hp}) · -${manaCost} maná (${newMana}/${fresh.max_mana||30})` };
+  }
+
+  // Curar a aliado
+  const targetName = args[0].toLowerCase();
+  const playersInRoom = db.getPlayersInRoom(fresh.current_room_id).filter(p => p.id !== fresh.id);
+  const target = playersInRoom.find(p => p.username.toLowerCase().startsWith(targetName));
+  if (!target) {
+    return { text: `✨ No encontrás a ${args[0]} en esta sala. Usá heal sin argumentos para curarte a vos mismo.` };
+  }
+
+  const tFresh = db.getPlayer(target.id);
+  if (!tFresh) return { text: 'Error al leer al aliado.' };
+  if (tFresh.hp >= tFresh.max_hp) {
+    return { text: `✨ ${tFresh.username} ya está al máximo de HP (${tFresh.max_hp}/${tFresh.max_hp}). Heal cancelado.` };
+  }
+
+  const healBase = 10;
+  const healAmt = Math.round(healBase * healPower);
+  const newTargetHp = Math.min(tFresh.max_hp, (tFresh.hp || 0) + healAmt);
+  const healed = newTargetHp - (tFresh.hp || 0);
+  const newMana = mana - manaCost;
+  db.updatePlayer(fresh.id, { mana: newMana });
+  db.updatePlayer(tFresh.id, { hp: newTargetHp });
+
+  return { text: `✨ Extendés las manos hacia ${tFresh.username} y channelás luz sanadora. +${healed} HP a ${tFresh.username} (${newTargetHp}/${tFresh.max_hp}) · -${manaCost} maná (${newMana}/${fresh.max_mana||30})` };
 }
 
 // Sobreescribir module.exports para incluir T104

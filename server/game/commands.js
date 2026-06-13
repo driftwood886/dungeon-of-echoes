@@ -90,6 +90,8 @@ const COMMAND_ALIASES = {
   emote: 'emote', acción: 'emote', accion: 'emote', me: 'emote', hacer: 'emote',
   // pronunciar — DIS-487: easter egg de Kaelthas Vorn (nombre completo en lugar especial)
   pronunciar: 'pronunciar', pronounce: 'pronunciar', invocar_nombre: 'pronunciar', nombrar: 'pronunciar',
+  // heal — DIS-496: Clérigo puede sanar aliados
+  heal: 'heal', sanar: 'heal', curar: 'heal',
   // say
   say: 'say', decir: 'say', hablar: 'say',
   // shout
@@ -501,7 +503,12 @@ Comandos disponibles:
   wanted [jugador]    — Carteles de SE BUSCA: bounties activas en el dungeon, agrupadas por objetivo.
   rank <stat>         — Tu posición global en una estadística (kills, gold, xp, level, rep, deaths, time).
   hardcore [on/off/new] — Modo Hardcore: si morís, tu personaje cae para siempre (ghost mode). Solo antes del primer kill. "hardcore new" crea un sucesor tras caer.
-  pray [ítem]          — Rezar ante un altar (sala 5 o 10): ofrecer un ítem para obtener una bendición temporal.\n  preview <arma/arm>   — Previsualizar cómo cambiarían tus stats si equiparas un arma o armadura del inventario.\n  gamble <monto>       — Mini-juego de apuestas con dados en la Casa de Subastas (sala 17). Apostás oro vs la casa. Cooldown 2 min.\n\nAtajos de dirección: n, s, e, o (oeste), w (west)
+  pray [ítem]          — Rezar ante un altar (sala 5 o 10): ofrecer un ítem para obtener una bendición temporal.
+  preview <arma/arm>   — Previsualizar cómo cambiarían tus stats si equiparas un arma o armadura del inventario.
+  gamble <monto>       — Mini-juego de apuestas con dados en la Casa de Subastas (sala 17). Apostás oro vs la casa. Cooldown 2 min.
+  heal [jugador]       — (Solo Clérigo) Curás HP propio o de un aliado en la sala. Cuesta 8 maná.
+
+Atajos de dirección: n, s, e, o (oeste), w (west)
 `.trim();
 
 /**

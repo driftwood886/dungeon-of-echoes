@@ -53,12 +53,30 @@ const CLASSES = {
     spell_power: 1.0,
     perks: ['Crítico aumentado al 25%', 'Esquiva aumentada al 20%', 'Siempre actúa primero'],
   },
+  // DIS-496: Clérigo — clase de soporte con curación grupal
+  clerigo: {
+    name: 'Clérigo',
+    emoji: '✨',
+    description: 'Sanador del grupo. Curación potente, puede curar aliados en la misma sala.',
+    hp: 28,
+    max_hp: 28,
+    attack: 4,
+    defense: 3,
+    mana: 30,
+    max_mana: 30,
+    crit_bonus: 0,
+    dodge_bonus: 0,
+    spell_power: 1.0,
+    heal_power: 1.5,   // multiplicador de curación (heal base × 1.5)
+    perks: ['Curación 50% más potente', 'Comando heal: sanar a aliados en la misma sala', 'Rezo en altar siempre tiene efecto'],
+  },
 };
 
 const CLASS_ALIASES = {
   guerrero: 'guerrero', warrior: 'guerrero', 'war': 'guerrero',
   mago: 'mago', mage: 'mago', wizard: 'mago', maga: 'mago',
   picaro: 'picaro', pícaro: 'picaro', rogue: 'picaro', ladron: 'picaro', ladrón: 'picaro',
+  clerigo: 'clerigo', clérigo: 'clerigo', cleric: 'clerigo', sanador: 'clerigo', healer: 'clerigo', sacerdote: 'clerigo',
 };
 
 /**
