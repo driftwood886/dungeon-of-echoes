@@ -2685,18 +2685,42 @@ function cmdExamine(player, query) {
     }
   }
 
+  // DIS-511: Primero chequear si el ítem está específicamente en el inventario del jugador.
+  // Esto evita que lore objects de sala roben la búsqueda cuando el jugador quiere examinar
+  // algo que ya tiene en la mochila (ej: "examine carta sellada" con la carta en inventario).
+  const invForExamine = player.inventory || [];
+  const equippedForExamine = [player.equipped_weapon, player.equipped_armor].filter(Boolean);
+  const invItemName = items.findItem([...invForExamine, ...equippedForExamine], query.trim());
+  if (invItemName) {
+    const def = items.getItemDef(invItemName);
+    const isEquipped = equippedForExamine.includes(invItemName);
+    const locationTag = isEquipped ? ' [equipado]' : ' [en mochila]';
+    if (def) {
+      const typeLabel = def.type === 'weapon' ? 'Arma' : def.type === 'potion' ? 'Poción' : def.type === 'armor' ? 'Armadura' : 'Objeto';
+      return {
+        text: [
+          `=== ${invItemName.toUpperCase()}${locationTag} ===`,
+          def.description,
+          `Tipo: ${typeLabel}`,
+          def.amount !== undefined ? `Efecto: ${def.effect || 'daño'} ${def.amount > 0 ? '+' : ''}${def.amount}` : '',
+        ].filter(Boolean).join('\n'),
+      };
+    }
+    return { text: `Examinás ${invItemName}${locationTag}: es un objeto corriente. No hay información adicional sobre él.` };
+  }
+
   // ¿Es un ítem en el inventario, en el suelo, o equipado?
   const room = db.getRoom(player.current_room_id);
   const equippedItems = [player.equipped_weapon, player.equipped_armor].filter(Boolean);
   // BUG-410: Si la query es una lore-priority word, excluir ítems del suelo para que el lore
   // object de la sala tenga prioridad. Ej: "forja" con "núcleo de forja" en el suelo → lore wins.
   const roomItemsForSearch = LORE_PRIORITY_WORDS.has(qLow) ? [] : (room ? room.items : []);
-  const allItems = [...(player.inventory || []), ...roomItemsForSearch, ...equippedItems];
+  const allItems = [...roomItemsForSearch, ...equippedItems];
   const itemName = items.findItem(allItems, query.trim());
   if (itemName) {
     const def = items.getItemDef(itemName);
     if (def) {
-      const typeLabel = def.type === 'weapon' ? 'Arma' : def.type === 'potion' ? 'Poción' : 'Objeto';
+      const typeLabel = def.type === 'weapon' ? 'Arma' : def.type === 'potion' ? 'Poción' : def.type === 'armor' ? 'Armadura' : 'Objeto';
       return {
         text: [
           `=== ${itemName.toUpperCase()} ===`,
