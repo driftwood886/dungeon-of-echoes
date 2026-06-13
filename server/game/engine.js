@@ -39,7 +39,7 @@ const ROOM_EFFECTS = {
   // Sala 1 — Entrada del Santuario: aura sagrada regenera HP
   1:  { type: 'heal', amount: 3, label: '✨ Aura Sagrada', msg: '✨ El aura sagrada de la entrada te reconforta. (+3 HP)' },
   // Sala 15 — Catedral Maldita: maldición drena HP
-  15: { type: 'damage', amount: 3, label: '💀 Maldición del Lich', msg: '💀 Una maldición oscura te drena la vitalidad al entrar. (-3 HP)' },
+  15: { type: 'damage', amount: 1, label: '💀 Maldición del Lich', msg: '💀 Una maldición oscura te roza al entrar. (-1 HP)' },
   // Sala 19 — Cámara del Eco: confusión mental (-1 ATK)
   19: { type: 'debuff', stat: 'attack', amount: -1, label: '🔊 Ecos Enloquecedores', msg: '🔊 Los ecos multiplicados te confunden y desorientan. (-1 ATK mientras estés aquí)' },
   // Sala 20 — Abismo Eterno: el vacío drena energía (-2 HP al entrar)
@@ -995,7 +995,7 @@ function cmdMove(player, direction) {
         const curMana = freshForMana.mana != null ? freshForMana.mana : 0;
         const maxMana = freshForMana.max_mana || 20;
         if (curMana < maxMana) {
-          const manaRestore = Math.max(1, Math.floor(maxMana * 0.10));
+          const manaRestore = Math.max(1, Math.floor(maxMana * 0.15)); // DIS-493: subido de 0.10 a 0.15
           const newMana = Math.min(maxMana, curMana + manaRestore);
           const restored = newMana - curMana;
           db.updatePlayer(player.id, { mana: newMana });
@@ -2733,6 +2733,9 @@ function cmdExamine(player, query) {
     'gradas':          { rooms: [14], text: 'Las gradas del Coliseo están llenas de esqueletos sentados en posición de espectadores: algunos se inclinan hacia adelante como si siguieran la acción, otros tienen la mandíbula abierta en un grito que nunca llegó. Todos miran al centro de la arena.\n\nLo más perturbador: los esqueletos de las primeras filas tienen sus manos huesudas apoyadas en las rodillas del esqueleto delantero, como harías vos en un estadio lleno.' },
     'esqueletos':      { rooms: [14], text: 'Los esqueletos del Coliseo no son víctimas del dungeon —sus ropas, aunque podridas, corresponden a distintas épocas y regiones. Vinieron a ver. Vinieron voluntariamente, en algún momento de la historia de este lugar.\n\nUno de ellos, en la fila central, sostiene todavía un pergamino en la mano. Las letras son ilegibles, pero el formato es inconfundible: una apuesta.' },
     'arena':           { rooms: [14], text: 'La arena del Coliseo está cubierta de una capa de arena fina y oscura. En el centro exacto hay una mancha circular, más oscura que el resto, de unos dos metros de diámetro. Sangre antigua, absorbida a lo largo de décadas o siglos.\n\nLos surcos en la arena muestran patrones de movimiento —círculos, esquivas, avances. Alguien entrenó aquí, solo, durante mucho tiempo. Los surcos son frescos.' },
+    // DIS-495: Inscripción del Coliseo con pista sobre la Fase 2 del Lich
+    'inscripcion':     { rooms: [14], text: 'En el extremo norte del Coliseo, grabada en la piedra más oscura, hay una advertencia en idioma antiguo. La traducís lentamente:\n\n  "AL QUE MATE AL PORTADOR DE LA CORONA DE HUESO: NO CREAS QUE HA TERMINADO.\n  UN LICHE NO MUERE EN SU CUERPO. SU ESENCIA DUERME EN LA PIEDRA NEGRA QUE LLEVA AL PECHO.\n  DESTRUÍ LA PIEDRA. O VOLVERA."\n\nLas últimas letras están grabadas con más fuerza que las anteriores, como si quien las escribió lo hubiera hecho en un estado de urgencia, o de miedo.' },
+    'piedra':          { rooms: [14], text: 'En el extremo norte del Coliseo, grabada en la piedra más oscura, hay una advertencia en idioma antiguo. La traducís lentamente:\n\n  "AL QUE MATE AL PORTADOR DE LA CORONA DE HUESO: NO CREAS QUE HA TERMINADO.\n  UN LICHE NO MUERE EN SU CUERPO. SU ESENCIA DUERME EN LA PIEDRA NEGRA QUE LLEVA AL PECHO.\n  DESTRUÍ LA PIEDRA. O VOLVERA."\n\nLas últimas letras están grabadas con más fuerza que las anteriores, como si quien las escribió lo hubiera hecho en un estado de urgencia, o de miedo.' },
     // DIS-D400: Pozo Sin Fondo (sala 7) — elemento principal
     'pozo':            { rooms: [7],  text: 'El pozo está en el centro exacto de la sala, con un brocal de piedra que tiene marcas de dedos —uñas, por la profundidad de los surcos. La cuerda que alguna vez colgó de la polea de arriba fue cortada. Desde abajo.\n\nEl frío que sube del pozo no es temperatura del aire: es un rechazo activo, una presión hacia afuera. Algo en el fondo no quiere compañía. O algo en el fondo prefiere que no sepás lo que hay.' },
     // DIS-D413: Cámara de la Fuente Eterna (sala 18) — elementos interactivos
@@ -4268,7 +4271,7 @@ function cmdRest(player, context) {
       const curMana = freshForRestMana.mana != null ? freshForRestMana.mana : 0;
       const maxMana = freshForRestMana.max_mana || 20;
       if (curMana < maxMana) {
-        const manaRestore = Math.max(1, Math.floor(maxMana * 0.10));
+        const manaRestore = Math.max(1, Math.floor(maxMana * 0.15)); // DIS-493: subido de 0.10 a 0.15
         const newMana2 = Math.min(maxMana, curMana + manaRestore);
         const restoredMana = newMana2 - curMana;
         db.updatePlayer(player.id, { mana: newMana2 });
@@ -6366,7 +6369,7 @@ function cmdMeditate(player) {
     }
 
     // Cooldown: 45 segundos (más corto que el de HP — el Mago necesita maná para funcionar)
-    const MAGO_MEDITATE_CD = 45000;
+    const MAGO_MEDITATE_CD = 30000; // DIS-493: bajado de 45s a 30s
     if (player.last_meditate) {
       const elapsed = Date.now() - new Date(player.last_meditate).getTime();
       if (elapsed < MAGO_MEDITATE_CD) {
@@ -6390,7 +6393,7 @@ function cmdMeditate(player) {
       ? `\nTu ${player.pet} se sienta en silencio a tu lado, amplificando la calma.`
       : '';
     return {
-      text: `🔮 Cerrás los ojos y concentrás tu energía interior. La magia fluye desde el núcleo de tu ser hacia tus manos.${petLine}\n+${restored} maná restaurado. ${manaBar} ${newMana}/${maxMana} 🔮\n💡 (Cooldown: 45s. Mientras meditás no podés moverte — aprovechá para planificar tu próximo hechizo.)`,
+      text: `🔮 Cerrás los ojos y concentrás tu energía interior. La magia fluye desde el núcleo de tu ser hacia tus manos.${petLine}\n+${restored} maná restaurado. ${manaBar} ${newMana}/${maxMana} 🔮\n💡 (Cooldown: 30s. Mientras meditás no podés moverte — aprovechá para planificar tu próximo hechizo.)`,
     };
   }
 
