@@ -625,7 +625,13 @@ function cmdLook(player) {
   let lichStatusLine = '';
   if (player.current_room_id === 15) {
     try {
-      const bossStatus = getBossStatus();
+      // BUG-501 fix: si respawnReady es true (timer ya pasó pero checkRespawns aún no corrió),
+      // forzar el respawn inmediato para que el boss ya esté en la sala cuando se muestra el look.
+      let bossStatus = getBossStatus();
+      if (!bossStatus.alive && bossStatus.respawnReady) {
+        combat.checkRespawns(() => {}, () => {});
+        bossStatus = getBossStatus(); // re-leer estado tras respawn forzado
+      }
       if (!bossStatus.alive && bossStatus.inRespawn) {
         const secsLeft = Math.max(0, Math.ceil((bossStatus.respawnAt - Date.now()) / 1000));
         const mins = Math.floor(secsLeft / 60);
@@ -633,6 +639,7 @@ function cmdLook(player) {
         const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
         lichStatusLine = `\n💀 La oscuridad de la catedral palpita... El Lich Anciano fue derrotado. Regresará en ${timeStr}.`;
       } else if (!bossStatus.alive && bossStatus.respawnReady) {
+        // Caso extremo: el respawn forzado falló (p. ej. respawn_room_id nulo) — mostrar mensaje genérico
         lichStatusLine = `\n⚡ La oscuridad hierve — el Lich Anciano está a punto de reaparecer.`;
       }
     } catch (_) {}
