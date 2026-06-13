@@ -1158,6 +1158,8 @@ function cmdStatus(player) {
   const scrollsFx = JSON.parse(player.active_scrolls || '{}');
   const now = Date.now();
   for (const [effect, data] of Object.entries(scrollsFx)) {
+    // BUG-505: last_flee es metadata de rastreo interna, no un buff visible para el jugador
+    if (effect === 'last_flee') continue;
     if (data.expires_at > now) {
       const secsLeft = Math.ceil((data.expires_at - now) / 1000);
       const parts = [];
