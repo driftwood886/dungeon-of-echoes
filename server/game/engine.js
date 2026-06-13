@@ -2770,6 +2770,8 @@ function cmdExamine(player, query) {
     'estrado':         { rooms: [17], text: 'El estrado de roble barnizado ocupa el centro de la sala, elevado tres escalones sobre el suelo. La madera tiene la pátina oscura que solo dan décadas de barniz aplicado encima del anterior, nunca retirado.\n\nEn la superficie del estrado hay marcas de gaveta —ranuras paralelas donde la madera cedió bajo golpes repetidos. Cientos de subastas. Cada marca es el remate de algo: una armadura, un grimorio, una vida de aventuras reducida a precio de salida.\n\nEn el borde frontal hay grabadas dos palabras en idioma élfico. El escriba podría traducirlas si le preguntaras, pero no va a mirar.' },
     'candelabros':     { rooms: [17], text: 'Los dos candelabros de bronce que flanquean el estrado tienen el verde característico del verdín de bronce viejo —no suciedad, sino la oxidación natural de siglos. El metal debajo es anaranjado y brillante donde alguien lo limpió en algún punto, pero solo hasta la altura de los brazos extendidos.\n\nLas velas son blancas y nuevas. No encajan con el resto: el candelabro más antiguo que el dungeon, la vela reemplazada esta semana. Alguien viene regularmente a cambiarlas. Quien sea que mantiene esto encendido lo hace por razones que no tienen que ver con la iluminación.' },
     'escriba':         { rooms: [17], text: 'El escriba élfico sentado en el rincón izquierdo nunca mira hacia arriba. No desde que entraste. No mientras te movés por la sala. No mientras hablás.\n\nSu pluma se mueve sin pausa: números en columnas, nombres en listas, fechas en márgenes. Cada transacción del día registrada en pergamino. El tintero en su mesa es el más grande que viste fuera de una biblioteca.\n\nNo tiene nombre visible. No hay placa, ni insignia, ni marca de gremio. Solo el trabajo. Si le hablás, asiente sin dejar de escribir. Si le preguntás algo, responde en dos palabras sin levantar la vista. Lleva aquí más tiempo del que nadie recuerda, y nadie recuerda quién lo contrató.' },
+    // DIS-500: tablero de historial de subastas (da vida a la sala cuando no hay subastas activas)
+    'tablero':         { rooms: [17], text: '__AUCTION_HISTORY__' },
   };
 
   // Normalizar query para buscar en lore objects
@@ -2874,6 +2876,34 @@ function cmdExamine(player, query) {
               return { text: val.text + '\n\n📖 *Nuevo apunte en tu diario: el nombre Kaelthas aparece en varios lugares del dungeon.*' };
             }
           }
+        }
+        // DIS-500: resolver placeholder dinámico del tablero de historial de subastas
+        if (val.text === '__AUCTION_HISTORY__') {
+          const recent = db.getRecentClosedAuctions(5);
+          if (!recent || recent.length === 0) {
+            return { text: '📋 **Tablero de historial de subastas**
+
+El tablero está vacío. Todavía no se ha rematado ningún ítem.
+
+  *(El primero en subastar algo pasará a la historia.)*
+
+Para crear una subasta: subasta <ítem> <precio_mínimo>' };
+          }
+          const rows = recent.map((a, i) => {
+            const soldFor = a.current_bid > 0 ? a.current_bid + 'g' : 'sin pujas';
+            const soldTo = a.bidder_name ? '→ ' + a.bidder_name : '(sin comprador)';
+            return '  ' + (i + 1) + '. ' + a.item_name + ' — ' + soldFor + ' ' + soldTo + '  [vendedor: ' + a.seller_name + ']';
+          });
+          return { text: '📋 **Tablero de historial de subastas**
+
+Últimos remates cerrados:
+
+' + rows.join('
+') + '
+
+  *(El escriba actualiza el tablero después de cada remate.)*
+
+Para ver subastas activas: subastas   |   Para crear una: subasta <ítem> <precio>' };
         }
         return { text: val.text };
       }
@@ -6855,7 +6885,16 @@ function cmdAuctions() {
   const auctions = db.getActiveAuctions();
 
   if (auctions.length === 0) {
-    return { text: '🔨 No hay subastas activas en este momento.\n\nPodés crear una con: subasta <ítem> <precio_mínimo>\n(Debés estar en la Casa de Subastas, sala 17, al este de la sala 4)' };
+    // DIS-500: mostrar último ítem subastado para dar vida a la sala vacía
+    const recent = db.getRecentClosedAuctions(1);
+    let historyLine = '';
+    if (recent && recent.length > 0) {
+      const last = recent[0];
+      const soldFor = last.current_bid > 0 ? `${last.current_bid}g` : 'sin pujas';
+      const soldTo = last.bidder_name ? `a ${last.bidder_name}` : '(sin comprador)';
+      historyLine = `\n\n📋 Último ítem subastado: **${last.item_name}** — ${soldFor} ${soldTo}`;
+    }
+    return { text: `🔨 No hay subastas activas en este momento.${historyLine}\n\nPodés crear una con: subasta <ítem> <precio_mínimo>\n(Debés estar en la Casa de Subastas, sala 17, al este de la sala 4)` };
   }
 
   const lines = auctions.map(a => {
