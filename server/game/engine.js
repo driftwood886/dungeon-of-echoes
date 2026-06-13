@@ -3444,8 +3444,10 @@ function cmdLoot(player) {
   }
 
   // Agregar solo ítems no-oro al inventario (BUG-469: respetar límite de 20)
+  // BUG-504: contar también ítems equipados (no están en player.inventory pero ocupan slot)
   const MAX_INVENTORY = 20;
-  const spaceAvailable = MAX_INVENTORY - player.inventory.length;
+  const equippedCountLoot = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
+  const spaceAvailable = MAX_INVENTORY - player.inventory.length - equippedCountLoot;
   const itemsToPickup = nonGoldItems.slice(0, spaceAvailable);
   const itemsLeft = nonGoldItems.slice(spaceAvailable);
 
