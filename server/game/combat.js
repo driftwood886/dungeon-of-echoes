@@ -677,6 +677,36 @@ function attackRound(player, monster) {
     }
     db.updatePlayer(player.id, updates);
 
+    // DIS-497: Bonus de asistencia — otros jugadores activos en la misma sala reciben +25% XP
+    // Esto hace que cooperar tenga valor concreto: estar en la misma sala que otro jugador
+    // que mata un monstruo otorga XP de asistencia pasiva.
+    try {
+      const roommates = db.getPlayersInRoom(player.current_room_id).filter(p => p.id !== player.id);
+      if (roommates.length > 0) {
+        const assistXp = Math.max(1, Math.floor(xpGain * 0.25));
+        const assistNames = [];
+        for (const ally of roommates) {
+          const freshAlly = db.getPlayer(ally.id);
+          if (!freshAlly) continue;
+          const allyNewXp = (freshAlly.xp || 0) + assistXp;
+          const allyOldLevel = freshAlly.level || 1;
+          const allyNewLevel = xpSystem.levelFromXp(allyNewXp);
+          const allyUpdates = { xp: allyNewXp, level: allyNewLevel };
+          if (allyNewLevel > allyOldLevel) {
+            allyUpdates.max_hp = (freshAlly.max_hp || 30) + 5;
+            const allyHeal = Math.ceil(allyUpdates.max_hp * 0.20);
+            allyUpdates.hp = Math.min(allyUpdates.max_hp, (freshAlly.hp || 1) + allyHeal);
+            allyUpdates.attack = (freshAlly.attack || 5) + 1;
+          }
+          db.updatePlayer(freshAlly.id, allyUpdates);
+          assistNames.push(freshAlly.username);
+        }
+        if (assistNames.length > 0) {
+          lines.push(`🤝 ¡Asistencia! ${assistNames.join(', ')} recibe${assistNames.length > 1 ? 'n' : ''} +${assistXp} XP por estar en la misma sala.`);
+        }
+      }
+    } catch (_) { /* no interrumpir el flujo si falla la asistencia */ }
+
     return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
   }
 
