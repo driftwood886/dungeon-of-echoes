@@ -1901,7 +1901,7 @@ module.exports = {
   // global events (T093)
   logGlobalEvent, getGlobalEvents, getGlobalEventsSince, countKillsSince,
   // subastas (T098)
-  createAuction, getActiveAuctions, getAuction, placeBid, closeExpiredAuctions,
+  createAuction, getActiveAuctions, getAuction, placeBid, closeExpiredAuctions, getRecentClosedAuctions,
   // acceso raw (por si acaso)
   raw: () => db,
   // T115: logros secretos

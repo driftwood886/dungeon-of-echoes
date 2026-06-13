@@ -2881,29 +2881,14 @@ function cmdExamine(player, query) {
         if (val.text === '__AUCTION_HISTORY__') {
           const recent = db.getRecentClosedAuctions(5);
           if (!recent || recent.length === 0) {
-            return { text: '📋 **Tablero de historial de subastas**
-
-El tablero está vacío. Todavía no se ha rematado ningún ítem.
-
-  *(El primero en subastar algo pasará a la historia.)*
-
-Para crear una subasta: subasta <ítem> <precio_mínimo>' };
+            return { text: '📋 **Tablero de historial de subastas**\n\nEl tablero está vacío. Todavía no se ha rematado ningún ítem.\n\n  *(El primero en subastar algo pasará a la historia.)*\n\nPara crear una subasta: subasta <ítem> <precio_mínimo>' };
           }
           const rows = recent.map((a, i) => {
             const soldFor = a.current_bid > 0 ? a.current_bid + 'g' : 'sin pujas';
             const soldTo = a.bidder_name ? '→ ' + a.bidder_name : '(sin comprador)';
             return '  ' + (i + 1) + '. ' + a.item_name + ' — ' + soldFor + ' ' + soldTo + '  [vendedor: ' + a.seller_name + ']';
           });
-          return { text: '📋 **Tablero de historial de subastas**
-
-Últimos remates cerrados:
-
-' + rows.join('
-') + '
-
-  *(El escriba actualiza el tablero después de cada remate.)*
-
-Para ver subastas activas: subastas   |   Para crear una: subasta <ítem> <precio>' };
+          return { text: '📋 **Tablero de historial de subastas**\n\nÚltimos remates cerrados:\n\n' + rows.join('\n') + '\n\n  *(El escriba actualiza el tablero después de cada remate.)*\n\nPara ver subastas activas: subastas   |   Para crear una: subasta <ítem> <precio>' };
         }
         return { text: val.text };
       }
