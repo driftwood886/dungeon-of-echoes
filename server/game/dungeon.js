@@ -160,6 +160,23 @@ function describeRoom(roomId, excludePlayerId = null) {
       return `  • ${m.name} ${bar} ${m.hp}/${m.max_hp} HP ${cond}`;
     }).join('\n');
     lines.push(`\nCriaturas:\n${monsterList}`);
+  } else {
+    // DIS-508: mostrar criaturas en respawn para dar contexto al jugador
+    try {
+      const deadHere = db.getDeadMonstersForRoom(roomId);
+      if (deadHere.length > 0) {
+        const respawnList = deadHere.map(m => {
+          const secsLeft = m.respawn_at
+            ? Math.max(0, Math.ceil((new Date(m.respawn_at) - Date.now()) / 1000))
+            : 0;
+          const mins = Math.floor(secsLeft / 60);
+          const secs = secsLeft % 60;
+          const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+          return `  • ${m.name} (vuelve en ~${timeStr})`;
+        }).join('\n');
+        lines.push(`\n💀 La sala está vacía — los monstruos volverán:\n${respawnList}`);
+      }
+    } catch (_) { /* no romper look si falla */ }
   }
 
   if (room.items.length > 0) {

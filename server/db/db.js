@@ -1480,6 +1480,14 @@ function getRecentlyDeadMonsters(roomId, withinMinutes = 2) {
   );
 }
 
+// DIS-508: todos los monstruos en respawn para una sala dada (sin límite de tiempo)
+function getDeadMonstersForRoom(roomId) {
+  return all(
+    `SELECT * FROM monsters WHERE respawn_room_id = ? AND room_id IS NULL AND respawn_at IS NOT NULL`,
+    [roomId]
+  );
+}
+
 // T156: Guardar sesión al desconectar
 function saveSession(playerId, { startTime, kills, xpGained, goldGained, commands }) {
   const startIso = new Date(startTime).toISOString().replace('T', ' ').split('.')[0];
@@ -1917,6 +1925,7 @@ module.exports = {
   addWallMessage, getWallMessages, cleanBotWallMessages,
   // T149: monstruos muertos recientes
   getRecentlyDeadMonsters,
+  getDeadMonstersForRoom,
   // T156-T158: sesiones e historial de tiempo
   saveSession, getPlayerSessions, getLeaderboardByPlaytime, getWeeklyStats,
   getFallenHardcorePlayers,
