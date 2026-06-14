@@ -746,7 +746,18 @@ function cmdMove(player, direction) {
 
   const { targetId, key } = exit;
 
-  // Verificar si la salida requiere una llave
+  // DIS-527: Si el jugador está en sala 15 (Catedral) y quiere ir "abajo" con el Lich vivo,
+  // dar mensaje explicativo antes de procesar la huida normal.
+  if (player.current_room_id === 15 && dungeon.normalizeDirection(direction) === 'down') {
+    const lichInRoom = db.getMonstersInRoom(15).find(m => m.hp > 0 && m.name && m.name.toLowerCase().includes('lich'));
+    if (lichInRoom) {
+      return {
+        text: `💀 El Lich Anciano bloquea el paso hacia la Cripta de los Valientes.\n\nSu presencia llena el corredor con un frío que va más allá de la temperatura. La escalera de piedra está justo ahí —pero moverse hacia ella con el Lich vivo sería... imprudente.\n\n⚔️ Deberás derrotarlo primero.`,
+      };
+    }
+  }
+
+
   if (key) {
     const inventory = player.inventory || [];
     const hasKey = inventory.some(item => item.toLowerCase() === key.toLowerCase());
