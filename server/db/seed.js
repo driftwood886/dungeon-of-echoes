@@ -554,7 +554,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1353,4 +1353,36 @@ function migratePassiveAuctions() {
       console.warn('[seed] migratePassiveAuctions:', e.message);
     }
   }
+}
+
+function migratePrisonConnection() {
+  // DIS-538: Conectar Prisión Subterránea (8) con Casa de Subastas (17) vía pasillo este/norte.
+  // Antes: sala 8 solo tenía salida al sur (→ sala 4). Dead-end total.
+  // Después: sala 8 tiene también salida al este (→ sala 17), y sala 17 tiene salida al norte (→ sala 8).
+  // Esto crea un pequeño loop: sala 4 ↔ sala 8 ↔ sala 17 ↔ sala 4, mejorando la conectividad
+  // del ala noreste del dungeon y dando razón para explorar la Prisión.
+
+  const room8 = db.getRoom(8);
+  const room17 = db.getRoom(17);
+  if (!room8 || !room17) return;
+
+  if (room8.exits.east) {
+    // Ya tiene salida al este — migración ya aplicada
+    return;
+  }
+
+  // Actualizar sala 8: agregar salida este hacia sala 17
+  const newExits8 = Object.assign({}, room8.exits, { east: 17 });
+  // Actualizar descripción para mencionar el pasillo recién descubierto
+  const newDesc8 = room8.description.replace(
+    'Podés usar examine celdas para más detalles.',
+    'Un pasillo angosto al este lleva hacia el ruido distante de una subasta. Podés usar examine celdas para más detalles.'
+  );
+  db.upsertRoom(Object.assign({}, room8, { exits: newExits8, description: newDesc8 }));
+
+  // Actualizar sala 17: agregar salida norte hacia sala 8
+  const newExits17 = Object.assign({}, room17.exits, { north: 8 });
+  db.upsertRoom(Object.assign({}, room17, { exits: newExits17 }));
+
+  console.log('[seed] migratePrisonConnection: Prisión (8) ↔ Casa de Subastas (17) conectadas. DIS-538 ✓');
 }
