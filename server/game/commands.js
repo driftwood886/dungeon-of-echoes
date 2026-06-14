@@ -359,6 +359,9 @@ function parse(input) {
       'tienda comprar': { cmd: 'buy',     skillId: null },
       'shop sell':      { cmd: 'sell',    skillId: null },
       'shop buy':       { cmd: 'buy',     skillId: null },
+      // DIS-525: "desactivar trampa <dir>" → disarm con dirección
+      'desactivar trampa': { cmd: 'disarm', skillId: null },
+      'desarmar trampa':   { cmd: 'disarm', skillId: null },
     };
     const mwMatch = MULTI_WORD_ALIASES[twoWord];
     if (mwMatch) {

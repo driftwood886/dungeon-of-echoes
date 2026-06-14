@@ -240,7 +240,7 @@ function execute(playerId, input, context) {
     case 'reply':     result = cmdReply(player, action.args); break;
     case 'inbox':     result = cmdInbox(player, action.args); break;
     case 'unlock':    result = cmdUnlock(player, action.args[0]); break;
-    case 'disarm':    result = cmdDisarm(player); break;
+    case 'disarm':    result = cmdDisarm(player, action.args); break;
     case 'rest':      result = cmdRest(player, context); break;
     case 'meditate':  result = cmdMeditate(player); break;
     case 'emote':     result = cmdEmote(player, action.args.join(' ')); break;
@@ -870,10 +870,10 @@ function cmdMove(player, direction) {
 
       // DIS-451/452: tip personalizado según la trampa — indica dónde obtener el ítem de desactivación
       const TRAP_DISARM_HINT = {
-        6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.',
-        9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Buscá en esta sala (intentá "buscar").',
-        3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).',
-        13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Buscá en esta sala o en los alrededores del Lago.',
+        6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa al norte, podés escribir "desactivar trampa norte" antes de entrar.',
+        9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
+        3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).\n🧠 Próxima vez que veas el hint de trampa al oeste, podés escribir "desactivar trampa oeste" antes de entrar.',
+        13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Buscá en esta sala o en los alrededores del Lago.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
       };
       const disarmHint = TRAP_DISARM_HINT[targetId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
 
@@ -2935,12 +2935,12 @@ function cmdExamine(player, query) {
         const match = trappedDirs.find(t => t.dir === engDir);
         if (match) {
           const trap = match.adjRoom.trap;
-          return { text: `🔍 Examinás el umbral ${qLow}.\nHay marcas de mecanismo en el borde del umbral: ranuras para un gatillo de presión, cuerdas tensadas a la altura de las rodillas, y un pequeño pivote de metal que parece lista para activarse.\nLa trampa está cargada. Podés desactivarla si tenés el ítem adecuado una vez que estés en ${match.adjRoom.name}.\n\n💡 Tip: \"desactivar trampa\" en la sala ${match.adjRoom.name} con un ítem apropiado.` };
+          return { text: `🔍 Examinás el umbral ${qLow}.\nHay marcas de mecanismo en el borde del umbral: ranuras para un gatillo de presión, cuerdas tensadas a la altura de las rodillas, y un pequeño pivote de metal que parece lista para activarse.\nLa trampa está cargada.\n\n💡 Podés desactivarla ANTES DE ENTRAR: escribí "desactivar trampa ${qLow}" con el ítem correcto en el inventario.` };
         }
       }
       // Mecanismo genérico → mostrar todas las direcciones con trampa
-      const desc = trappedDirs.map(t => `  • Hacia el ${t.dirEs} (${t.adjRoom.name}): mecanismo de trampa visible en el umbral`).join('\n');
-      return { text: `🔍 Examinás los mecanismos sospechosos que viste mencionados.\n${desc}\n\nSon trampas de presión. Podés desactivarlas con el ítem correcto una vez que estés en la sala correspondiente.\n💡 \"desactivar trampa\" funciona en salas con trampa activa.` };
+      const desc = trappedDirs.map(t => `  • Hacia el ${t.dirEs} (${t.adjRoom.name}): mecanismo de trampa visible en el umbral → "desactivar trampa ${t.dirEs}"`).join('\n');
+      return { text: `🔍 Examinás los mecanismos sospechosos que viste mencionados.\n${desc}\n\nSon trampas de presión. Podés desactivarlas con el ítem correcto ANTES DE ENTRAR.\n💡 "desactivar trampa <dirección>" funciona desde esta sala.` };
     } else if (isMecQuery) {
       return { text: 'Mirás con atención el umbral mencionado, pero la trampa ya no está activa — o quizás te equivocaste de sala.' };
     }
@@ -4249,10 +4249,73 @@ function cmdUnlock(player, direction) {
 
 /**
  * disarm / desactivar trampa — Desactivar la trampa de la habitación actual con el ítem correcto.
+ * Uso extendido (DIS-525): "disarm <dirección>" — desactiva la trampa en sala adyacente en esa dirección.
  * El ítem se consume del inventario. La trampa queda inactiva en la BD (para todos).
  */
-function cmdDisarm(player) {
+function cmdDisarm(player, args) {
   player = db.getPlayer(player.id);
+
+  // DIS-525: soporte para desactivar trampa de sala adyacente antes de entrar
+  if (args && args.length > 0) {
+    const dirArg = args[0];
+    const room = db.getRoom(player.current_room_id);
+    if (!room) return { text: 'Error: tu habitación actual no existe en la BD.' };
+
+    const exit = dungeon.resolveExit(room, dirArg);
+    const DIR_NAMES_ES2 = { north: 'norte', south: 'sur', east: 'este', west: 'oeste', up: 'arriba', down: 'abajo' };
+    const normalized2 = dungeon.normalizeDirection(dirArg);
+    const dirLabel2 = (normalized2 && DIR_NAMES_ES2[normalized2]) || dirArg;
+
+    if (!exit) {
+      return { text: `No hay salida hacia el ${dirLabel2}.` };
+    }
+
+    const adjRoom = db.getRoom(exit.targetId);
+    if (!adjRoom) return { text: 'No podés acceder a esa sala.' };
+
+    if (!adjRoom.trap || !adjRoom.trap.active) {
+      return { text: `No hay trampa activa hacia el ${dirLabel2} (${adjRoom.name}).` };
+    }
+
+    const trapAdj = adjRoom.trap;
+
+    if (!trapAdj.item_needed) {
+      // Sin ítem requerido — desactivación manual a distancia
+      const newTrap = { ...trapAdj, active: false };
+      db.updateRoomTrap(adjRoom.id, newTrap);
+      return {
+        text: `🔧 Con cuidado, lográs desactivar el mecanismo desde el umbral sin entrar.\n✅ La trampa en ${adjRoom.name} quedó inerte.`,
+        event: `${player.username} desactiva una trampa desde el umbral.`,
+        eventRoomId: player.current_room_id,
+      };
+    }
+
+    // Verificar ítem requerido en inventario
+    const inventory = player.inventory || [];
+    const keyIdx = inventory.findIndex(i => i.toLowerCase() === trapAdj.item_needed.toLowerCase());
+
+    if (keyIdx === -1) {
+      return {
+        text: `Intentás desactivar la trampa de ${adjRoom.name} desde aquí, pero no tenés lo necesario.\n🔧 Ítem requerido: "${trapAdj.item_needed}"`,
+      };
+    }
+
+    // Consumir ítem y desactivar trampa
+    const newInventory = [...inventory.slice(0, keyIdx), ...inventory.slice(keyIdx + 1)];
+    db.updatePlayer(player.id, { inventory: newInventory });
+
+    const respawnAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const newTrap = { ...trapAdj, active: false, respawn_at: respawnAt };
+    db.updateRoomTrap(adjRoom.id, newTrap);
+
+    return {
+      text: `🔧 Desde el umbral, usás la ${trapAdj.item_needed} para neutralizar el mecanismo antes de entrar.\n✅ La trampa en ${adjRoom.name} está desactivada. Podés pasar sin peligro.`,
+      event: `${player.username} desactiva una trampa desde el umbral.`,
+      eventRoomId: player.current_room_id,
+    };
+  }
+
+  // Comportamiento original: desactivar trampa en sala actual
   const room = db.getRoom(player.current_room_id);
   if (!room) {
     return { text: 'Error: tu habitación actual no existe en la BD.' };
@@ -10387,7 +10450,7 @@ function cmdPath(player, args) {
   // DIS-D14: Agregar advertencia de trampas al final si las hay
   if (trappedRooms.length > 0) {
     lines.push(`⚠️  ADVERTENCIA: la ruta pasa por ${trappedRooms.length} sala${trappedRooms.length > 1 ? 's' : ''} con trampa activa:`);
-    trappedRooms.forEach(name => lines.push(`   • ${name} — usá "disarm" para desactivarla antes de salir`));
+    trappedRooms.forEach(name => lines.push(`   • ${name} — usá "disarm" para desactivarla (o "disarm <dirección>" desde la sala anterior)`));
 
     // DIS-D24: buscar ruta alternativa con menos trampas (Dijkstra con peso 5 por trampa)
     const trapRoomIds = new Set(found

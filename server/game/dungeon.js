@@ -209,7 +209,7 @@ function describeRoom(roomId, excludePlayerId = null) {
     if (!adjId) continue;
     const adjRoom = db.getRoom(adjId);
     if (adjRoom && adjRoom.trap && adjRoom.trap.active) {
-      trapHints.push(`${DIR_NAMES[dir] || dir}: marcas de mecanismo sospechosas en el umbral`);
+      trapHints.push(`${DIR_NAMES[dir] || dir}: marcas de mecanismo sospechosas en el umbral (podés escribir "desactivar trampa ${DIR_NAMES[dir] || dir}" para neutralizarla sin entrar)`);
     }
   }
   if (trapHints.length > 0) {
