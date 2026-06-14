@@ -5319,7 +5319,36 @@ function cmdSell(player, itemQuery) {
 
   const found = items.findItem(player.inventory, resolvedQuery);
   if (!found) {
-    return { text: `No tenés ningún "${itemQuery}" en el inventario.` };
+    // BUG-517: también buscar en ítems equipados (no están en player.inventory)
+    const nq = resolvedQuery.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const eqWeapon = player.equipped_weapon && player.equipped_weapon !== 'null' ? player.equipped_weapon : null;
+    const eqArmor  = player.equipped_armor  && player.equipped_armor  !== 'null' ? player.equipped_armor  : null;
+    const matchEquipped = (eqWeapon && eqWeapon.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(nq) ? eqWeapon : null)
+                       || (eqArmor  && eqArmor.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(nq)  ? eqArmor  : null);
+    if (!matchEquipped) {
+      return { text: `No tenés ningún "${itemQuery}" en el inventario.` };
+    }
+    // Vender ítem equipado directamente
+    const sellQuery = matchEquipped;
+    const catalogItemEq = SHOP_CATALOG.find(i => i.name.toLowerCase() === sellQuery.toLowerCase());
+    const basePriceEq = catalogItemEq ? catalogItemEq.price : 10;
+    const sellPriceEq = Math.max(1, Math.floor(basePriceEq * SELL_PRICE_RATIO));
+    const newGoldEq = (player.gold || 0) + sellPriceEq;
+    // Desequipar y actualizar stats
+    if (sellQuery === eqWeapon) {
+      const wDef = items.getItemDef(sellQuery);
+      const wBonus = wDef?.amount || 0;
+      db.updatePlayer(player.id, { attack: player.attack - wBonus, equipped_weapon: null, gold: newGoldEq });
+    } else {
+      const aDef = items.getItemDef(sellQuery);
+      const aBonus = aDef?.amount || 0;
+      db.updatePlayer(player.id, { defense: player.defense - aBonus, equipped_armor: null, gold: newGoldEq });
+    }
+    return {
+      text: `🏪 Aldric examina el objeto.\n(Primero lo desequipás.)\n\"Te doy ${sellPriceEq}g por eso.\"\n💰 Vendiste: ${sellQuery} por ${sellPriceEq}g. Total: ${newGoldEq}g.`,
+      event: `${player.username} vende algo al mercader.`,
+      eventRoomId: player.current_room_id,
+    };
   }
 
   // Determinar precio de venta — buscar en catálogo, si no usar precio genérico
