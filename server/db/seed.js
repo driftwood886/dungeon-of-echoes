@@ -1193,27 +1193,37 @@ function migrateBossRebalance() {
  * Idempotente: solo actualiza si la frase de advertencia no está ya presente.
  */
 function migratePrisonContent() {
-  // DIS-D425: Prisión Subterránea no era un destino valioso. Esta migración:
-  // 1. Actualiza descripción de sala 8 para que el lore y el guardián la hagan memorable
-  // 2. Agrega 'sello del carcelero' (+3 DEF) al loot del Guardia Espectral (monstruo id=8)
-  // 3. Agrega 'sello del carcelero' como ítem de piso en sala 8
+  // DIS-D425 / BUG-514: Prisión Subterránea no era un destino valioso. Esta migración:
+  // 1. Actualiza descripción de sala 8 (sin mencionar ítem de suelo falso — BUG-514)
+  // 2. Remueve 'sello del carcelero' del piso si estaba (versión anterior lo duplicaba — BUG-514)
+  // 3. Agrega 'sello del carcelero' (+3 DEF) al loot del Guardia Espectral (único origen correcto)
 
   let room8 = db.getRoom(8);
   if (!room8) return;
 
-  const newDesc = 'Celdas de hierro corroído bordean las paredes. Las rejas están abiertas — algo estuvo aquí encerrado por mucho tiempo, y finalmente salió. En el suelo, entre restos de huesos, hay un medallón oscuro olvidado. El aire huele a miedo viejo. Un guardia espectral patrulla las sombras: el espíritu del último carcelero, incapaz de abandonar su puesto aun en la muerte. (Podés usar examine celdas para más detalles.)';
+  const newDesc = 'Celdas de hierro corroído bordean las paredes. Las rejas están abiertas — algo estuvo aquí encerrado por mucho tiempo, y finalmente salió. El aire huele a miedo viejo. Un guardia espectral patrulla las sombras: el espíritu del último carcelero, incapaz de abandonar su puesto aun en la muerte. (Podés usar examine celdas para más detalles.)';
 
-  if (!room8.description.includes('medallón oscuro')) {
+  // BUG-514: La descripción anterior mencionaba "medallón oscuro olvidado" (que no era un ítem real
+  // del suelo) y el sello del carcelero estaba TANTO en el piso como en el loot del guardia →
+  // duplicación. Fix: descripción sin mención de ítem físico en el suelo; sello solo como drop.
+  if (!room8.description.includes('medallón oscuro') && !room8.description.includes('miedo viejo')) {
     room8 = { ...room8, description: newDesc };
     db.upsertRoom(room8);
     console.log('[seed] migratePrisonContent: descripción de sala 8 actualizada. DIS-D425 ✓');
+  } else if (room8.description.includes('medallón oscuro')) {
+    // Actualizar descripción vieja (con medallón) a la nueva (sin él) — BUG-514
+    room8 = { ...room8, description: newDesc };
+    db.upsertRoom(room8);
+    console.log('[seed] migratePrisonContent: descripción de sala 8 — removido medallón oscuro. BUG-514 ✓');
   }
 
-  if (!(room8.items || []).includes('sello del carcelero')) {
-    const newItems = [...(room8.items || []), 'sello del carcelero'];
-    room8 = { ...room8, items: newItems };
+  // BUG-514: Quitar 'sello del carcelero' del piso si fue agregado por una versión anterior.
+  // El sello solo debe obtenerse como drop del Guardia Espectral.
+  if ((room8.items || []).includes('sello del carcelero')) {
+    const cleanItems = room8.items.filter(i => i !== 'sello del carcelero');
+    room8 = { ...room8, items: cleanItems };
     db.upsertRoom(room8);
-    console.log('[seed] migratePrisonContent: sello del carcelero agregado a sala 8. DIS-D425 ✓');
+    console.log('[seed] migratePrisonContent: sello del carcelero removido del piso de sala 8. BUG-514 ✓');
   }
 
   // Agregar sello del carcelero al loot del Guardia Espectral (id=8)

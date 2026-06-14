@@ -30,7 +30,7 @@ const ROOM_TAGS = {
   dark:    ['maldita', 'maldito', 'catedral', 'sombra', 'oscur', 'tinieblas', 'penumbra', 'negro', 'profundidades'],
   sacred:  ['santuario', 'sagra', 'altar', 'templo', 'bless', 'divino', 'divina'],
   water:   ['lago', 'agua', 'sumerg', 'piscina', 'corriente', 'río', 'charco'],
-  throne:  ['trono', 'cámara', 'palacio', 'salón del', 'sala del trono'],
+  throne:  ['trono', 'palacio', 'salón del', 'sala del trono'],  // BUG-515: removido 'cámara' — falso positivo en Sala de los Ecos
   cave:    ['caverna', 'gruta', 'cueva', 'túnel', 'pasaje', 'corredor'],
 };
 
