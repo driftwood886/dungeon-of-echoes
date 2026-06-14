@@ -7179,8 +7179,10 @@ function cmdAuction(player, args) {
  */
 function cmdAuctions() {
   const auctions = db.getActiveAuctions();
+  // DIS-535: mostrar también ítems en mercado pasivo
+  const passiveAuctions = db.getActivePassiveAuctions ? db.getActivePassiveAuctions() : [];
 
-  if (auctions.length === 0) {
+  if (auctions.length === 0 && passiveAuctions.length === 0) {
     // DIS-500: mostrar último ítem subastado para dar vida a la sala vacía
     const recent = db.getRecentClosedAuctions(1);
     let historyLine = '';
@@ -7201,8 +7203,18 @@ function cmdAuctions() {
     return `  #${a.id} | ${a.item_name} | ${bidInfo} | ⏳ ${timeLeft} | Vendedor: ${a.seller_name}`;
   });
 
+  // DIS-535: líneas de mercado pasivo
+  const passiveLines = passiveAuctions.map(a => {
+    const timeLeft = formatTimeLeft(a.ends_at);
+    const merchantPrice = Math.max(1, Math.floor(a.min_price * 0.5));
+    return `  🛒 ${a.item_name} | En mercado pasivo — Mercader comprará por ${merchantPrice}g en ⏳ ${timeLeft} | De: ${a.seller_name}`;
+  });
+
+  const allLines = [...lines, ...passiveLines];
+  const totalCount = auctions.length + passiveAuctions.length;
+
   return {
-    text: `🔨 Subastas activas (${auctions.length}):\n\n${lines.join('\n')}\n\nPara pujar: pujar <id> <monto>  |  Para detalle: help subasta`,
+    text: `🔨 Subastas activas (${auctions.length}) + mercado pasivo (${passiveAuctions.length}):\n\n${allLines.join('\n')}\n\nPara pujar: pujar <id> <monto>  |  Para detalle: help subasta`,
   };
 }
 
@@ -7296,32 +7308,29 @@ function resolveExpiredAuctions(broadcastFn) {
       messages.push(msg);
       if (broadcastFn) broadcastFn(msg);
 
-    } else {
-      // Sin pujas: comprador NPC de baja oferta (DIS-474) o devolver ítem al vendedor
+    } else if (auction.is_passive) {
+      // DIS-535: Subasta PASIVA expirada sin postor → El Mercader la compra garantizado al 50%
       const seller = db.getPlayer(auction.seller_id);
-      // DIS-474: el Escriba Elfo compra ítems sin postor a 30-50% del precio mínimo
-      const npcBuyChance = Math.random();
-      const npcBuyThreshold = 0.45; // 45% de chance de que el Escriba compre
-      if (seller && npcBuyChance < npcBuyThreshold && auction.min_price > 0) {
-        const npcOffer = Math.max(1, Math.floor(auction.min_price * (0.3 + Math.random() * 0.2)));
-        db.updatePlayer(seller.id, { gold: (seller.gold || 0) + npcOffer });
-        db.addJournalEntry(seller.id, 'system', `🔨 El Escriba Elfo adquirió "${auction.item_name}" por ${npcOffer}g (oferta de reserva). El dinero está en tu bolsa.`);
-        const msg = `🔨 Subasta: el Escriba Elfo compró "${auction.item_name}" por ${npcOffer}g (oferta de reserva de ${auction.seller_name}).`;
-        messages.push(msg);
-        if (broadcastFn) broadcastFn(msg);
-      } else {
-        // Devolver ítem al vendedor
-        if (seller) {
-          const sellerInv = Array.isArray(seller.inventory) ? seller.inventory : JSON.parse(seller.inventory || '[]');
-          sellerInv.push(auction.item_name);
-          db.updatePlayer(seller.id, { inventory: JSON.stringify(sellerInv) });
-          // DIS-474: notificar al vendedor que el ítem volvió a su inventario
-          db.addJournalEntry(seller.id, 'system', `🔨 La subasta de "${auction.item_name}" cerró sin postores. El ítem volvió a tu inventario.`);
-        }
-        const msg = `🔨 Subasta cerrada sin pujas: "${auction.item_name}" vuelve a ${auction.seller_name}.`;
-        messages.push(msg);
-        if (broadcastFn) broadcastFn(msg);
+      const merchantPrice = Math.max(1, Math.floor(auction.min_price * 0.5));
+      if (seller) {
+        db.updatePlayer(seller.id, { gold: (seller.gold || 0) + merchantPrice });
+        db.addJournalEntry(seller.id, 'system', `🛒 El Mercader compró "${auction.item_name}" del mercado pasivo por ${merchantPrice}g. El dinero está en tu bolsa.`);
       }
+      const msg = `🛒 Mercado pasivo: El Mercader compró "${auction.item_name}" de ${auction.seller_name} por ${merchantPrice}g (50% precio base).`;
+      messages.push(msg);
+      if (broadcastFn) broadcastFn(msg);
+
+    } else {
+      // Sin pujas en subasta normal: crear subasta pasiva de 30 min (DIS-535)
+      // El Escriba Elfo registra el ítem para venta al Mercader
+      const seller = db.getPlayer(auction.seller_id);
+      db.createPassiveAuction(auction.seller_id, auction.seller_name, auction.item_name, auction.min_price);
+      if (seller) {
+        db.addJournalEntry(seller.id, 'system', `🔨 La subasta de "${auction.item_name}" cerró sin postores. El Escriba Elfo lo puso en el mercado pasivo — el Mercader lo comprará en 30 min por ${Math.max(1, Math.floor(auction.min_price * 0.5))}g si nadie puja.`);
+      }
+      const msg = `🔨 Subasta sin pujas: "${auction.item_name}" de ${auction.seller_name} pasa al mercado pasivo (venta al Mercader en 30 min a 50%).`;
+      messages.push(msg);
+      if (broadcastFn) broadcastFn(msg);
     }
   }
 

@@ -554,7 +554,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1336,5 +1336,21 @@ function migrateExtraBats() {
       respawn_at: null,
     });
     console.log('[seed] migrateExtraBats: Murciélago Vampiro id 27 agregado en sala 6 (Túnel de Hongos). DIS-510 ✓');
+  }
+}
+
+/**
+ * DIS-535: Mercado pasivo — agregar columna is_passive a la tabla auctions.
+ * Las subastas pasivas son segundas rondas de 30 minutos que el Mercader
+ * comprará garantizado al 50% del precio mínimo si nadie puja.
+ */
+function migratePassiveAuctions() {
+  try {
+    db.raw().run(`ALTER TABLE auctions ADD COLUMN is_passive INTEGER NOT NULL DEFAULT 0`);
+    console.log('[seed] migratePassiveAuctions: columna is_passive agregada a auctions. DIS-535 ✓');
+  } catch (e) {
+    if (!e.message.includes('duplicate column')) {
+      console.warn('[seed] migratePassiveAuctions:', e.message);
+    }
   }
 }

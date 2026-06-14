@@ -976,7 +976,37 @@ function closeExpiredAuctions() {
   return expired;
 }
 
-// ─── T115: Helpers para logros secretos ───────────────────────────────────────
+/**
+ * DIS-535: Crear una subasta pasiva (mercado pasivo) para ítems sin postor.
+ * Dura 30 minutos y el Mercader la compra garantizado al 50% del precio mínimo.
+ */
+function createPassiveAuction(sellerId, sellerName, itemName, minPrice) {
+  const PASSIVE_DURATION_MS = 30 * 60 * 1000; // 30 minutos
+  const endsAt = new Date(Date.now() + PASSIVE_DURATION_MS).toISOString().replace('T', ' ').replace(/\\.\\d{3}Z$/, '');
+  run(
+    `INSERT INTO auctions (seller_id, seller_name, item_name, min_price, current_bid, ends_at, is_passive)
+     VALUES (?, ?, ?, ?, 0, ?, 1)`,
+    [sellerId, sellerName, itemName, minPrice, endsAt]
+  );
+  const row = one(
+    `SELECT * FROM auctions WHERE seller_id = ? AND item_name = ? AND closed = 0 AND is_passive = 1 ORDER BY id DESC LIMIT 1`,
+    [sellerId, itemName]
+  );
+  return row;
+}
+
+/**
+ * DIS-535: Obtener subastas pasivas activas (pendientes de venta al Mercader).
+ */
+function getActivePassiveAuctions() {
+  const now = new Date().toISOString().replace('T', ' ').replace(/\\.\\d{3}Z$/, '');
+  return all(
+    `SELECT * FROM auctions WHERE closed = 0 AND is_passive = 1 AND replace(ends_at,'T',' ') > ? ORDER BY ends_at ASC`,
+    [now]
+  );
+}
+
+
 
 /**
  * Registra una visita a una sala. Devuelve el array actualizado de salas visitadas.
@@ -1910,6 +1940,7 @@ module.exports = {
   logGlobalEvent, getGlobalEvents, getGlobalEventsSince, countKillsSince,
   // subastas (T098)
   createAuction, getActiveAuctions, getAuction, placeBid, closeExpiredAuctions, getRecentClosedAuctions,
+  createPassiveAuction, getActivePassiveAuctions, // DIS-535
   // acceso raw (por si acaso)
   raw: () => db,
   // T115: logros secretos
