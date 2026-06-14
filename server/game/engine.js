@@ -722,6 +722,10 @@ function cmdMove(player, direction) {
     // Elegir el monstruo más amenazante (mayor HP) para la narrativa de huida
     const monster = aliveHere.sort((a, b) => b.hp - a.hp)[0];
     const fleeResult = combat.tryFlee(player, monster, room, direction); // BUG-345: pasar dirección elegida
+    // BUG-518: resetear killStreak si el jugador murió huyendo al moverse
+    if (fleeResult.playerDied) {
+      killStreakMap.set(player.id, 0);
+    }
     const nameList = aliveHere.map(m => m.name).join(', ');
     // BUG-459: aclarar que el movimiento se interpreta como huida en combate
     const combatNote = `⚔️ Hay un monstruo activo — moverte equivale a huir. (También podés usar "flee" directamente.)\n`;
@@ -2073,7 +2077,11 @@ function cmdFlee(player, targetQuery) {
       const nameList = monsters.map(m => m.name).join(', ');
       // Huir del primero pero informar que hay varios
       monster = monsters[0];
-      const { fled, line, destRoomId } = combat.tryFlee(player, monster, room);
+      const { fled, line, destRoomId, playerDied: multiDied } = combat.tryFlee(player, monster, room);
+      // BUG-518: resetear killStreak si el jugador murió huyendo (múltiples monstruos)
+      if (multiDied) {
+        killStreakMap.set(player.id, 0);
+      }
       const multiMsg = `⚡ Hay ${monsters.length} monstruos (${nameList}). Usá "huir <monstruo>" para huir de uno específico.\n${line}`;
       return {
         text: multiMsg,
@@ -2084,7 +2092,16 @@ function cmdFlee(player, targetQuery) {
     monster = monsters[0];
   }
 
-  const { fled, line, destRoomId, globalEvent: fleeGlobalEvent } = combat.tryFlee(player, monster, room);
+  const { fled, line, destRoomId, playerDied: fleeDied, globalEvent: fleeGlobalEvent } = combat.tryFlee(player, monster, room);
+
+  // BUG-518: resetear killStreak si el jugador murió huyendo
+  if (fleeDied) {
+    const oldStreakFlee = killStreakMap.get(player.id) || 0;
+    if (oldStreakFlee >= 3) {
+      // La notificación de pérdida de racha ya se muestra en cmdAttack; aquí solo reseteamos
+    }
+    killStreakMap.set(player.id, 0);
+  }
 
   // DIS-453: hint sobre probabilidad de huida para el próximo intento
   // (basado en HP actual del monstruo después del intento)

@@ -1022,7 +1022,7 @@ function tryFlee(player, monster, room, preferredDirection = null) {
     db.addJournalEntry(player.id, 'death', `💀 Muerto intentando huir del ${monster.name}.`);
     line += `\n💀 ¡Moriste! Respawneás en la entrada del dungeon con 25% HP...`;
     const hcResultFlee = handlePlayerDeath(player.id, [], 'huida');
-    return { fled: false, destRoomId: null, line, ...(hcResultFlee.globalEvent ? { globalEvent: hcResultFlee.globalEvent } : {}) };
+    return { fled: false, destRoomId: null, line, playerDied: true, ...(hcResultFlee.globalEvent ? { globalEvent: hcResultFlee.globalEvent } : {}) };
   }
 
   return { fled: false, destRoomId: null, line };
