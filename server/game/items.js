@@ -48,7 +48,8 @@ const ITEM_CATALOG = {
   // ── Armas (dungeon expandido) ─────────────────────────────────────────────
   // STORY-014: Lore narrativo agregado a ítems clave del dungeon
   'espada de obsidiana': { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una espada de obsidiana pura que absorbe la luz —la luz literalmente desaparece al acercarse a la hoja. El molde para esta espada existe en la Forja de la sala 12, pero nunca fue terminado por manos humanas. Alguien —o algo— la completó a su manera. +12 de ataque. El arma más poderosa del dungeon.' },
-  'lanza espectral':     { type: 'weapon', effect: 'attack_bonus', amount: 9,  description: 'Una lanza hecha de luz negra condensada, fría al tacto como el mármol pero sin peso. Se dice que pertenecía a un espectro que murió por segunda vez —algo que casi no ocurre. No tiene filo visible, pero penetra cualquier material. +9 de ataque.' },
+  'lanza espectral':     { type: 'weapon', effect: 'attack_bonus', amount: 6,  description: 'Una lanza hecha de luz negra condensada, fría al tacto como el mármol pero sin peso. Potente para un arma temprana, pero los aventureros experimentados buscan reforzarla con materiales de las profundidades. +6 de ataque.' },
+  'lanza espectral reforzada': { type: 'weapon', effect: 'attack_bonus', amount: 9,  description: 'La lanza espectral básica ha sido reforzada con esencia de espectro de las profundidades. La luz negra es más densa, el frío más absoluto. Un arma formidable para los valientes que llegan al corazón del dungeon. +9 de ataque.' },
   'alabarda de huesos':  { type: 'weapon', effect: 'attack_bonus', amount: 6,  description: 'La alabarda de un guardia espectral, forjada mientras el portador aún estaba vivo. Ligera a pesar de estar hecha de hueso comprimido. Los bordes están marcados con el símbolo del Reino de Valdrath —el mismo de los escudos de la Sala del Trono. +6 de ataque.' },
   'martillo de forja':   { type: 'weapon', effect: 'attack_bonus', amount: 7,  description: 'Un martillo colosal de las forjas. Aplastante y pesado. +7 de ataque.' },
 
@@ -65,7 +66,7 @@ const ITEM_CATALOG = {
   'pelaje áspero':       { type: 'misc', description: 'El pelaje de una rata gigante. Áspero al tacto. 🔧 Combinalo con una escama abismal para curtirlo en cuero de criatura.' },
   'escudo roto':         { type: 'misc', description: 'Un escudo con el centro partido. Inútil para defenderse así. Las garras del esqueleto que lo portó podrían servir para reforzarlo... (crafteo: escudo roto + garra de esqueleto)' },
   'escudo de madera':    { type: 'armor', defense: 2, description: 'Un escudo de madera reforzada. No es glamoroso, pero te protege. +2 de defensa.' },
-  'esencia etérea':      { type: 'misc', description: 'Una esencia brumosa dentro de un frasco. Resuena con el más allá.' },
+  'esencia etérea':      { type: 'misc', description: 'Una esencia brumosa dentro de un frasco. Resuena con el más allá. 🔧 Pista: combinala con una lanza espectral para reforzarla (+9 ATK).' },
   'mochila de cuero':    { type: 'misc', description: 'Una mochila resistente de cuero curtido. Útil para cargar cosas.' },
   'vela encendida':      { type: 'misc', description: 'Una vela que arde con una llama temblorosa. Apenas ilumina.' },
   'libro de hechizos':   { type: 'misc', description: 'Un libro de hechizos con runas grabadas. La tinta parece moverse.' },
@@ -187,6 +188,7 @@ const ITEM_RARITY = {
   // ── Épico ─────────────────────────────────────────────────────────────────
   'espada de obsidiana':      'épico',
   'lanza espectral':          'épico',
+  'lanza espectral reforzada':'épico',
   'lanza espectral del eco':  'épico',
   'filacteria rota':          'épico',
   'espada envenenada':        'épico',

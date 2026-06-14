@@ -59,6 +59,13 @@ const RECIPES = [
     message: 'El fragmento de hielo y el cristal helado se fusionan en un fulgurante estallido de frío eterno. Una lanza de hielo puro y magia emerge de la reacción.',
   },
   {
+    // DIS-509: mejora de la lanza espectral — requiere esencia etérea (drop del Espectro del Corredor)
+    // Hace que el +9 ATK esté disponible en zona media en lugar de zona 3
+    ingredients: ['lanza espectral', 'esencia etérea'],
+    result: 'lanza espectral reforzada',
+    message: 'La esencia etérea del espectro impregna la lanza. La luz negra se intensifica, el frío se vuelve absoluto. La lanza espectral emerge reforzada y más mortífera.',
+  },
+  {
     ingredients: ['garra de esqueleto', 'cuerda'],
     result: 'látigo de garras',
     message: 'Atás las garras de esqueleto con la cuerda para crear un látigo improvisado pero mortal.',
@@ -139,6 +146,7 @@ const CRAFTED_ITEMS = {
   'manopla abismal':    { type: 'weapon', effect: 'attack_bonus', amount: 4, description: 'Una manopla de escamas del Krakeling. Los picos rasgan en cada golpe. +4 de ataque.' },
   // Ítems del Dungeon Extendido (T132)
   'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 8, description: 'Una lanza fantasmal que resuena con voces de los caídos. +8 de ataque. Vibra al contacto con criaturas espectrales.' },
+  'lanza espectral reforzada': { type: 'weapon', effect: 'attack_bonus', amount: 9, description: 'La lanza espectral básica reforzada con esencia etérea. La luz negra es más densa, el frío más absoluto. +9 de ataque.' },
   'daga del vacío':     { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una daga que parece absorber la realidad. +12 de ataque. El arma más poderosa forjada en las profundidades del Abismo.' },
   'amuleto del eco':    { type: 'misc', description: 'Un amuleto que pulsa con ecos de memorias antiguas. Los sabios dicen que protege su portador de los efectos de la Cámara del Eco.' },
 };
