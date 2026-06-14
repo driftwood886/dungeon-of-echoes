@@ -3622,6 +3622,16 @@ function cmdLoot(player) {
     ? `\n\n🎒 Mochila llena — ${itemsLeft.length} ítem${itemsLeft.length !== 1 ? 's' : ''} quedaron en el suelo.`
     : '';
 
+  // BUG-532: si no se recogió nada (mochila llena, sin oro), mostrar mensaje directo sin "0 ítems"
+  if (totalItems === 0 && itemsLeft.length > 0) {
+    const usedSlots = player.inventory.length + equippedCountLoot;
+    return {
+      text: `🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada. ${itemsLeft.length} ítem${itemsLeft.length !== 1 ? 's' : ''} quedaron en el suelo.`,
+      event: null,
+      eventRoomId: room.id,
+    };
+  }
+
   return {
     text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${fullBagLine}`,
     event: `${player.username} saquea el suelo de la sala.`,
@@ -7578,12 +7588,13 @@ function cmdCast(player, args) {
         status_effects: '{}',
       });
       // BUG-336: Usar combat.dropLoot() igual que cmdAttack para evitar duplicación de ítems.
-      // dropLoot ya tiene el fix de BUG-334 (limpia copias previas antes de agregar el nuevo loot).
-      const { droppedLoot: castLoot } = combat.dropLoot(target, player.current_room_id);
+      // dropLoot ya tiene el fix de BUG-334 (limpia copias previas antes de agregar el nuevo loot).\n      const { droppedLoot: castLoot } = combat.dropLoot(target, player.current_room_id);
+      // BUG-533: alinear formato de muerte/drop/XP con el del ataque físico
+      lines.push(`💀 ¡El ${target.name} cae derrotado!`);
       if (castLoot.length > 0) {
-        lines.push(`   💀 ${target.name} cae fulminado! Soltó: ${castLoot.join(', ')}.`);
+        lines.push(`💰 El ${target.name} suelta: ${castLoot.join(', ')}.`);
       } else {
-        lines.push(`   💀 ${target.name} cae fulminado!`);
+        lines.push(`El ${target.name} no deja nada.`);
       }
       const loot = castLoot;
       // XP y kills
@@ -7601,9 +7612,10 @@ function cmdCast(player, args) {
         const healCast = Math.ceil(castUpd.max_hp * 0.20);
         castUpd.hp = Math.min(castUpd.max_hp, (player.hp || 1) + healCast);
         castUpd.attack = (player.attack || 5) + 1;
+        lines.push(`✨ ¡Subiste al nivel ${newLevel}! +5 HP máx, +1 ataque, +${healCast} HP restaurado.`);
       }
       db.updatePlayer(player.id, castUpd);
-      lines.push(`   +${xpGain} XP (Total: ${newXp} XP, Nivel ${newLevel}).`);
+      lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})`);
       broadcastEvent = `🔥 ¡${player.username} incineró a ${target.name} con ${spellName}!`;
       // Bestiario
       db.addBestiaryKill(player.id, target.name);
