@@ -38,8 +38,8 @@ const ROOM_EFFECTS = {
   12: { type: 'damage', amount: 2, label: '🔥 Calor Abrasador', msg: '🔥 El calor extremo de la forja te abrasa la piel al entrar. (-2 HP)' },
   // Sala 1 — Entrada del Santuario: aura sagrada regenera HP
   1:  { type: 'heal', amount: 3, label: '✨ Aura Sagrada', msg: '✨ El aura sagrada de la entrada te reconforta. (+3 HP)' },
-  // Sala 15 — Catedral Maldita: maldición drena HP
-  15: { type: 'damage', amount: 1, label: '💀 Maldición del Lich', msg: '💀 Una maldición oscura te roza al entrar. (-1 HP)' },
+  // Sala 15 — Catedral Maldita: maldición drena HP (solo primera visita — DIS-512)
+  15: { type: 'damage', amount: 1, label: '💀 Maldición del Lich (1ª visita)', msg: '💀 Una maldición oscura te roza al cruzar el umbral. (-1 HP) [Solo ocurre la primera vez que entrás]' },
   // Sala 19 — Cámara del Eco: confusión mental (-1 ATK)
   19: { type: 'debuff', stat: 'attack', amount: -1, label: '🔊 Ecos Enloquecedores', msg: '🔊 Los ecos multiplicados te confunden y desorientan. (-1 ATK mientras estés aquí)' },
   // Sala 20 — Abismo Eterno: el vacío drena energía (-2 HP al entrar)
@@ -899,7 +899,9 @@ function cmdMove(player, direction) {
     if (roomEffect.type === 'damage') {
       // DIS-D403: Para sala 12 (Calor Abrasador), el daño solo se aplica la primera vez.
       // En visitas posteriores, el jugador ya "sabe" protegerse y solo recibe un recordatorio.
-      const FIRST_TIME_DAMAGE_ROOMS = new Set([12]); // rooms donde el daño es solo primera vez
+      // DIS-509: Para sala 15 (Catedral Maldita), el daño solo se aplica 1 vez por sesión.
+      // El jugador que vuelve para loot del Lich no debería ser penalizado en bucle.
+      const FIRST_TIME_DAMAGE_ROOMS = new Set([12, 15]); // rooms donde el daño es solo primera vez
       // BUG-486/BUG-502: known_traps puede ser array (sistema de calor) u objeto (sistema de trampas).
       // NOTA: db.getPlayer() ya parsea known_traps a objeto JS, por lo que player.known_traps NO es string.
       // Normalizar siempre a array de strings para hacer el check con includes().
@@ -920,11 +922,17 @@ function cmdMove(player, direction) {
       const heatKey = `heat_room_${targetId}`;
       const alreadyKnowsHeat = FIRST_TIME_DAMAGE_ROOMS.has(targetId) && Array.isArray(knownRoomsData) && knownRoomsData.includes(heatKey);
       if (alreadyKnowsHeat) {
-        // BUG-486: Segunda y posteriores visitas — daño reducido con mensaje inmersivo
-        const reducedDamage = 1; // Mitad del daño original (de 2 a 1)
+        // BUG-486: Segunda y posteriores visitas — daño reducido o nulo con mensaje inmersivo
+        // DIS-512: Sala 15 (Catedral) — sin daño en revisitas (la maldición pierde fuerza)
+        const REVISIT_NO_DAMAGE = new Set([15]);
+        const reducedDamage = REVISIT_NO_DAMAGE.has(targetId) ? 0 : 1; // Sala 15: 0, Sala 12: 1
         const newHpKnown = Math.max(1, player.hp - reducedDamage);
-        db.updatePlayer(player.id, { hp: newHpKnown });
-        effectText = `\n\n🔥 Ya conocés el calor de la forja y te cubrís la cara al entrar. Aun así, el ambiente abrasador te afecta. (-${reducedDamage} HP · ${newHpKnown}/${player.max_hp} HP)`;
+        if (reducedDamage > 0) db.updatePlayer(player.id, { hp: newHpKnown });
+        const revisitMsgs = {
+          12: `🔥 Ya conocés el calor de la forja y te cubrís la cara al entrar. Aun así, el ambiente abrasador te afecta. (-${reducedDamage} HP · ${newHpKnown}/${player.max_hp} HP)`,
+          15: `💀 La maldición de la Catedral te roza... pero ya sabés cómo resistirla. El frío oscuro no penetra esta vez.`,
+        };
+        effectText = `\n\n${revisitMsgs[targetId] || `Ya conocés este lugar. El efecto es menor. (-${reducedDamage} HP · ${newHpKnown}/${player.max_hp} HP)`}`;
       } else {
         const newHp = Math.max(1, player.hp - roomEffect.amount); // mínimo 1 HP (no mata)
         db.updatePlayer(player.id, { hp: newHp });
