@@ -5268,6 +5268,21 @@ function cmdTalk(player, target) {
 
   // DIS-537: Escriba élfico de la Casa de Subastas (sala 17) — responde a "hablar escriba"
   const isEscribaAuction = tLow.includes('escriba') || tLow.includes('elfo') || tLow.includes('élfico') || tLow.includes('subastador');
+
+  // DIS-543: Maestro de Combate en Sala del Trono (sala 9) — responde a "hablar maestro"
+  const isMaestroCombate = tLow === 'maestro' || tLow.includes('maestro de combate') || tLow.includes('maestro combate') || tLow.includes('instructor');
+  if (isMaestroCombate) {
+    if (player.current_room_id !== 9) {
+      return { text: '⚔️ El Maestro de Combate reside en la Sala del Trono (sala 9). Llegá desde la Sala de los Hongos al norte, o desde el Santuario Profano al oeste.' };
+    }
+    const duelWins = player.duel_wins || 0;
+    const duelLosses = player.duel_losses || 0;
+    if (duelWins > 0 || duelLosses > 0) {
+      return { text: `⚔️ El Maestro de Combate te estudia con sus ojos quietos —ojos que han visto mil peleas.\n\n"${duelWins > duelLosses ? 'Veo que ganás más de lo que perdés. Eso no es suficiente.' : 'Perdiste más de lo que ganaste. Eso tampoco es suficiente.'} Lo que importa es si aprendiste algo en cada pelea."\n\nSeñala el centro de la sala con la espada envainada.\n\n"Volvé cuando quieras entrenar. El comando es: duel maestro. Yo no sangro, así que no tenés que preocuparte por matarme."\n\nEl trono detrás de él no parece tan vacío como antes.` };
+    }
+    return { text: '⚔️ Un guerrero de armadura oscura ocupa un rincón de la Sala del Trono, inmóvil como parte del mobiliario. Cuando te acercás, se gira sin hacer ruido.\n\n"Maestro de Combate," dice, como si fuera su nombre. "Los duelos son la única pelea justa que vas a encontrar en este dungeon. Sin ventajas de terreno, sin envenenamiento, sin emboscada. Solo vos y otro —o yo."\n\nDesenvaina la espada despacio, la examina, y la vuelve a envainar.\n\n"El sistema funciona así: retás a otro jugador con \'duel <nombre>\'. Ellos aceptan con \'accept\'. Pelean en rounds hasta que uno cae a 0 HP —sin morir, es simulado. El perdedor conserva su HP real. Solo el orgullo queda en juego."\n\nHace una pausa.\n\n"Si querés probarlo sin necesitar a otro jugador: escribe \'duel maestro\'. Yo soy un oponente a tu nivel. No te voy a dar XP ni loot —pero vas a aprender cómo funciona un duelo real."' };
+  }
+
   if (isEscribaAuction) {
     const inAuctionRoom = player.current_room_id === 17;
     if (!inAuctionRoom) {
@@ -5277,7 +5292,7 @@ function cmdTalk(player, target) {
   }
 
   if (!isAldric) {
-    return { text: '🗣️ No hay nadie con ese nombre con quien hablar. (Pista: "hablar aldric" en la Cámara del Tesoro, "hablar anciano" en la Entrada, o "hablar escriba" en la Casa de Subastas.)' };
+    return { text: '🗣️ No hay nadie con ese nombre con quien hablar. (Pista: "hablar aldric" en la Cámara del Tesoro, "hablar anciano" en la Entrada, "hablar escriba" en la Casa de Subastas, o "hablar maestro" en la Sala del Trono.)' };
   }
 
   if (!inRoom4) {
@@ -5976,7 +5991,16 @@ function cmdChampion() {
  */
 function cmdDuel(player, targetName) {
   if (!targetName) {
-    return { text: 'Indicá a quién querés retar. Ej: "duel Ana"' };
+    return { text: 'Indicá a quién querés retar. Ej: "duel Ana" o "duel maestro" en la Sala del Trono.' };
+  }
+
+  // DIS-543: Maestro de Combate en Sala del Trono — duelo simulado
+  const tLowDuel = targetName.trim().toLowerCase();
+  if (tLowDuel === 'maestro' || tLowDuel === 'maestro de combate' || tLowDuel === 'maestro combate') {
+    if (player.current_room_id !== 9) {
+      return { text: '⚔️ El Maestro de Combate solo acepta duelos en la Sala del Trono (sala 9). Hablar con él primero: "hablar maestro".' };
+    }
+    return _cmdDuelMaestro(player);
   }
 
   const target = db.getPlayerByUsername(targetName.trim());
@@ -6008,6 +6032,60 @@ function cmdDuel(player, targetName) {
     targetPlayerMsg: `⚔️ ${player.username} te está retando a un duelo! Escribí "accept" para aceptar o "decline" para rechazar (60s).`,
     targetEventType: 'duel_challenge',
   };
+}
+
+/**
+ * DIS-543: _cmdDuelMaestro — Duelo simulado contra el Maestro de Combate en sala 9.
+ */
+function _cmdDuelMaestro(player) {
+  player = db.getPlayer(player.id);
+  if (player.hp < player.max_hp * 0.3) {
+    return { text: '⚔️ El Maestro de Combate te mira y frunce el ceño.\n\n"No. No en ese estado." Señala tu HP. "Curate antes de venir a pelear. Un duelo no es suicidio."\n\nTiene razón.' };
+  }
+
+  const maestroMaxHp = Math.round(player.max_hp * 1.1);
+  const maestroAtk = Math.round((player.attack || 5) * 1.05) + 1;
+  const maestroDef = Math.round((player.defense || 2) * 1.1);
+
+  const lines = [];
+  lines.push('⚔️ El Maestro de Combate asiente lentamente y desenfunda.');
+  lines.push('\n"Bien. Sin trucos, sin venenos. Solo acero y voluntad. Empecemos."\n');
+  lines.push(`📊 Maestro: ${maestroMaxHp}/${maestroMaxHp} HP | ATK ${maestroAtk} | DEF ${maestroDef}`);
+  lines.push(`📊 Vos:     ${player.hp}/${player.max_hp} HP | ATK ${player.attack} | DEF ${player.defense}\n`);
+
+  let playerHp = player.hp;
+  let maestroHp = maestroMaxHp;
+  let round = 0;
+  const MAX_ROUNDS = 20;
+  let playerWon = false;
+
+  while (playerHp > 0 && maestroHp > 0 && round < MAX_ROUNDS) {
+    round++;
+    const playerDmg = Math.max(1, (player.attack || 5) - maestroDef + Math.floor(Math.random() * 4));
+    maestroHp -= playerDmg;
+    lines.push(`Round ${round}: Atacás → ${playerDmg} dmg al Maestro (${Math.max(0, maestroHp)}/${maestroMaxHp} HP)`);
+    if (maestroHp <= 0) { playerWon = true; break; }
+    const maestroDmg = Math.max(1, maestroAtk - (player.defense || 2) + Math.floor(Math.random() * 3));
+    playerHp -= maestroDmg;
+    lines.push(`       ↩ Maestro contraataca → ${maestroDmg} dmg (${Math.max(0, playerHp)}/${player.max_hp} HP)`);
+    if (playerHp <= 0) break;
+  }
+
+  lines.push('');
+  if (playerWon) {
+    lines.push(`🏆 ¡Derrotaste al Maestro de Combate en ${round} rounds!`);
+    lines.push('\n"Bien." Recoge la espada con calma. "Buscá un rival humano para el verdadero desafío."');
+  } else if (playerHp <= 0) {
+    lines.push(`💀 El Maestro te dejó fuera de combate en ${round} rounds.`);
+    lines.push('\n"La derrota en el entrenamiento vale más que la victoria en la ignorancia. Volvé cuando estés listo."');
+  } else {
+    lines.push(`⏱ Duelo detenido tras ${round} rounds (empate técnico).`);
+    lines.push('\n"Estás listo para un duelo real. Buscá otro jugador con \'duel <nombre>\'."');
+  }
+
+  lines.push('\n📖 Tutorial: "duel <nombre>" para retar a otro jugador | "accept" para aceptar un reto | "decline" para rechazar');
+  // El HP real del jugador NO cambia — es solo simulación
+  return { text: lines.join('\n') };
 }
 
 /**
