@@ -1627,6 +1627,29 @@ function cmdAttack(player, targetName) {
     db.addBestiaryKill(player.id, monster.name);
   }
 
+  // ── DIS-529: swap poción de maná → poción de salud para Guerreros ─────────
+  // El Goblin Merodeador (id=1) dropea una poción de maná que es inútil para Guerreros.
+  // Si el jugador es Guerrero, reemplazar el drop en la sala por una poción de salud.
+  if (monsterDead && monster.id === 1) {
+    const freshPlayerClass = db.getPlayer(player.id);
+    const pClass = freshPlayerClass && freshPlayerClass.player_class;
+    if (pClass === 'guerrero') {
+      const room = db.getRoom(player.current_room_id);
+      if (room && room.items.includes('poción de maná')) {
+        const newItems = [...room.items];
+        const idx = newItems.indexOf('poción de maná');
+        if (idx !== -1) {
+          newItems[idx] = 'poción de salud';
+          db.updateRoomItems(player.current_room_id, newItems);
+          // Actualizar la última línea del loot en el mensaje para reflejo correcto
+          const lootIdx = lines.findLastIndex(l => l.includes('poción de maná'));
+          if (lootIdx !== -1) {
+            lines[lootIdx] = lines[lootIdx].replace('poción de maná', 'poción de salud');
+          }
+        }
+      }
+    }
+  }
   // ── Metas globales (T194) — contabilizar kill ─────────────────────────────
   let worldGoalMsg = '';
   if (monsterDead) {
