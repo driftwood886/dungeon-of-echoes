@@ -6110,6 +6110,17 @@ function cmdCraft(player, args) {
 
   const parsed = parseCraftArgs(args);
   if (!parsed) {
+    // BUG-516: si el argumento coincide con el nombre de un resultado de receta,
+    // mostrar sugerencia con los ingredientes en lugar del error genérico
+    const rawInput = args.join(' ').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const matchingRecipe = crafting.RECIPES.find(r => {
+      const norm = r.result.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return norm === rawInput;
+    });
+    if (matchingRecipe) {
+      const [ing1, ing2] = matchingRecipe.ingredients;
+      return { text: `Para craftear "${matchingRecipe.result}" necesitás dos ingredientes.\n💡 Receta: ${ing1} + ${ing2} → ${matchingRecipe.result}\nUsá: craft ${ing1} con ${ing2}` };
+    }
     return { text: 'No entendí la sintaxis. Usá:\n  craft <ítem1> con <ítem2>\n  craft <ítem1> + <ítem2>\nEjemplo: craft hierba curativa con poción menor' };
   }
 
