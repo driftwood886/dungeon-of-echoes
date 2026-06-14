@@ -1323,6 +1323,14 @@ function cmdStatus(player) {
       const streak = killStreakMap.get(player.id) || 0;
       return streak >= 3 ? `Racha:    🔥 ${streak} kills consecutivos` : null;
     })(),
+    (() => {
+      // DIS-542: mostrar combo actual en status
+      const combo = comboMap.get(player.id);
+      if (!combo || combo.count < 2) return null;
+      const levelCap = Math.ceil((player.level || 1) / 4);
+      const bonusDmg = Math.min(combo.count - 1, levelCap);
+      return `Combo:    ⚡ x${combo.count} (${bonusDmg > 0 ? `+${bonusDmg} dmg` : 'sin bonus aún'} — se resetea al cambiar de objetivo)`;
+    })(),
     ...(statusLines.length ? ['', ...statusLines] : []),
   ].filter(l => l !== null).join('\n');
 
