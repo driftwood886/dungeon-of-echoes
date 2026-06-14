@@ -5256,8 +5256,18 @@ function cmdTalk(player, target) {
   const inRoom4 = player.current_room_id === MERCHANT_ROOM_ID;
   const isAldric = tLow.includes('aldric') || tLow === 'mercader' || tLow === 'tendero' || (tLow === '' && inRoom4);
 
+  // DIS-537: Escriba élfico de la Casa de Subastas (sala 17) — responde a "hablar escriba"
+  const isEscribaAuction = tLow.includes('escriba') || tLow.includes('elfo') || tLow.includes('élfico') || tLow.includes('subastador');
+  if (isEscribaAuction) {
+    const inAuctionRoom = player.current_room_id === 17;
+    if (!inAuctionRoom) {
+      return { text: '📜 El escriba élfico no está aquí. Está en la Casa de Subastas (sala 17, al este de la Cámara del Tesoro).\n  💡 Ruta desde la Cámara del Tesoro: este' };
+    }
+    return { text: '📜 El escriba levanta la pluma un instante —lo único que se detiene— y te mira de costado sin girar la cabeza.\n\n"¿Subasta? Simple." Vuelve a escribir sin dejar de hablar.\n\n"Tenés un ítem. Querés oro. Escribís: subasta <ítem> <precio_mínimo>. Ejemplo: subasta espada oxidada 10."\n\nTic. Tac. La pluma sigue.\n\n"Para ver subastas activas: subastas. Para pujar: pujar <id> <monto>. La sala acepta vendedores y compradores simultáneamente."\n\nPausa. Un segundo. "Si nadie compra, el ítem vuelve. Si alguien supera tu puja, el oro te vuelve. Sin pérdidas involuntarias."\n\nReanuda el registro como si la conversación hubiera terminado antes de que empezara.' };
+  }
+
   if (!isAldric) {
-    return { text: '🗣️ No hay nadie con ese nombre con quien hablar. (Pista: "hablar aldric" en la Cámara del Tesoro o "hablar anciano" en la Entrada.)' };
+    return { text: '🗣️ No hay nadie con ese nombre con quien hablar. (Pista: "hablar aldric" en la Cámara del Tesoro, "hablar anciano" en la Entrada, o "hablar escriba" en la Casa de Subastas.)' };
   }
 
   if (!inRoom4) {
