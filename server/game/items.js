@@ -116,7 +116,7 @@ const ITEM_CATALOG = {
   'grimorio del abismo': { type: 'weapon', effect: 'attack_bonus', amount: 10, on_hit: { type: 'shadow_bolt', chance: 0.20, bonus_damage: 8 }, description: 'Un grimorio sellado con poder abismal. +10 de ataque mágico. 20% de chance de lanzar un rayo de sombra (+8 daño extra).' },
 
   // ── DIS-D425: Ítem único de la Prisión Subterránea ───────────────────────
-  'sello del carcelero': { type: 'armor', effect: 'defense_bonus', amount: 3, description: 'Un medallón de hierro negro con una calavera grabada. Los carceleros de la prisión lo usaban como símbolo de autoridad. Aún irradia una energía disuasoria. +3 de defensa.' },
+  'sello del carcelero': { type: 'armor', effect: 'defense_bonus', amount: 3, description: 'Un medallón de hierro negro con una calavera grabada. Los carceleros de la Prisión Subterránea lo usaban como símbolo de autoridad. Aún irradia una energía disuasoria. ⚔️ Equípalo para +3 de defensa, o vendelo al Mercader como pieza histórica (20g).' },
 
   // ── Armaduras (T152) ─────────────────────────────────────────────────────
   'cota de malla':       { type: 'armor', effect: 'defense_bonus', amount: 3,  description: 'Una cota de malla de hierro. Pesada pero fiable. +3 de defensa.' },

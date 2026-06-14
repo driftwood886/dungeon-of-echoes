@@ -5152,6 +5152,8 @@ const SHOP_CATALOG = [
   // DIS-D421: Consumibles que presionan al jugador a gastar oro
   { name: 'poción de maná mayor',    price: 40, description: 'Restaura 20 maná al instante. La versión potenciada, para situaciones críticas. Solo aquí.' },
   { name: 'cristal helado',          price: 30, description: 'Un cristal del norte glacial. Ingrediente para craftear la lanza espectral. \'Fragmento de hielo + cristal helado = lanza espectral.\'' },
+  // DIS-536: sello del carcelero como pieza de colección — Aldric lo compra a 20g (40% de 50g)
+  { name: 'sello del carcelero',     price: 50, description: 'El sello oficial de los carceleros de la Prisión Subterránea. Aldric lo compra como pieza histórica. (+3 DEF si lo equipás, o vendelo por 20g)' },
 ];
 
 // Precios de venta al mercader (jugador → mercader) — 40% del valor
