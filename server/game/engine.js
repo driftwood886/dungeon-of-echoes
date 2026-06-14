@@ -82,7 +82,10 @@ const sessionExploredRooms = new Map();
 // ── Sistema de combos (T192) ───────────────────────────────────────────────────
 // comboMap: playerId → { monsterId, count }
 // Atacar al mismo monstruo consecutivamente incrementa el combo (máx 5).
-// Cada nivel de combo da +1 daño al siguiente ataque.
+// DIS-521: el bonus de daño está CAPADO según el nivel del jugador para evitar
+// que jugadores experimentados se vuelvan invencibles. A nivel bajo el combo
+// tiene más impacto relativo (tensión real), a nivel alto es cosmético.
+// Fórmula: bonusDmg = min(comboCount-1, ceil(level/4))  → máx +1 a nivel 1-4, +2 a 5-8, +3 a 9-12, +4 a 13+
 // Se resetea al cambiar de objetivo, al morir, o al morir el monstruo.
 const comboMap = new Map();
 const COMBO_MAX = 5;
@@ -1579,7 +1582,9 @@ function cmdAttack(player, targetName) {
     comboCount = 1;
   }
   // Aplicar bonus de combo como modificador temporal al ataque del jugador
-  const comboBonusDmg = Math.max(0, comboCount - 1); // 0 en x1, +1 en x2, +2 en x3...
+  // DIS-521: capear el bonus según nivel para no romper el balance en late game
+  const comboLevelCap = Math.ceil((player.level || 1) / 4); // max +1 en L1-4, +2 en L5-8, etc.
+  const comboBonusDmg = Math.min(Math.max(0, comboCount - 1), comboLevelCap);
   if (comboBonusDmg > 0) {
     player = { ...player, attack: (player.attack || 5) + comboBonusDmg };
   }
