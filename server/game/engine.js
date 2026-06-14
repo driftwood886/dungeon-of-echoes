@@ -5252,7 +5252,7 @@ function cmdTalk(player, target) {
       });
       db.addJournalEntry(player.id, 'quest', '📜 Aldric me reveló el nombre completo: Kaelthas Vorn. Guardián del reino. El dungeon fue su archivo. Su alma quedó atada aquí cuando lo mataron. Sigue en las piedras. En los corredores. En la Sala del Trono.');
       db.logGlobalEvent('quest', `📜 ${player.username} descubrió el secreto de Aldric el Mercader.`);
-      return { text: 'Aldric toma la carta con manos que no tiemblan, pero que deberían.\n\nEl sello de las dos llaves cruzadas. Lo mira durante un momento demasiado largo.\n\n"Fue el guardián del sello del reino," dice al fin, en voz tan baja que casi no lo escuchás. "No el rey. El guardián. Los que guardaban las llaves eran los que realmente mantenían el reino unido."\n\nPausa. "Kaelthas Vorn. Ese era su nombre completo. El que todos olvidaron —o fingieron olvidar— cuando el reino cayó."\n\n"El dungeon no fue siempre esto. Era su biblioteca. Su archivo. Cuando murió —cuando lo mataron— su alma no pudo irse porque tenía demasiadas deudas con el mundo. Quedó atada aquí. A las piedras. A los nombres grabados en los corredores."\n\nSe inclina hacia vos. "Si alguna vez llegás a la Sala del Trono y sentís que algo te observa desde el vacío... es él. Sigue aquí. Esperando que alguien entienda qué pasó."\n\nDobla la carta sin abrirla y la guarda debajo del mostrador.\n\n"Tomá esto. Y si algún día pronunciás su nombre completo en el lugar correcto, vas a entender por qué todavía importa."\n\n🎉 Quest completada: El Sello de las Dos Llaves. (+50 XP · +25g)\n📜 El lore de Kaelthas Vorn está ahora completo — su presencia en el dungeon tiene sentido.\n📖 Diario actualizado: "Kaelthas Vorn fue el guardián. El dungeon fue su archivo. Su alma quedó atada aquí."' };
+      return { text: 'Aldric toma la carta con manos que no tiemblan, pero que deberían.\n\nEl sello de las dos llaves cruzadas. Lo mira durante un momento demasiado largo.\n\n"Fue el guardián del sello del reino," dice al fin, en voz tan baja que casi no lo escuchás. "No el rey. El guardián. Los que guardaban las llaves eran los que realmente mantenían el reino unido."\n\nPausa. "Kaelthas Vorn. Ese era su nombre completo. El que todos olvidaron —o fingieron olvidar— cuando el reino cayó."\n\n"El dungeon no fue siempre esto. Era su biblioteca. Su archivo. Cuando murió —cuando lo mataron— su alma no pudo irse porque tenía demasiadas deudas con el mundo. Quedó atada aquí. A las piedras. A los nombres grabados en los corredores."\n\nSe inclina hacia vos. "Si alguna vez llegás a la Sala del Trono y sentís que algo te observa desde el vacío... es él. Sigue aquí. Esperando que alguien entienda qué pasó."\n\nDobla la carta sin abrirla y la guarda debajo del mostrador.\n\n"Tomá esto. Y si algún día pronunciás su nombre completo en el lugar correcto, vas a entender por qué todavía importa."\n\n"Ah, y si explorás el dungeon con otros aventureros — las hermandades tienen misiones propias. guild create sombra_de_hierro, por ejemplo. Las podés completar incluso en solitario."\n\n🎉 Quest completada: El Sello de las Dos Llaves. (+50 XP · +25g)\n📜 El lore de Kaelthas Vorn está ahora completo — su presencia en el dungeon tiene sentido.\n📖 Diario actualizado: "Kaelthas Vorn fue el guardián. El dungeon fue su archivo. Su alma quedó atada aquí."' };
     } else {
       return { text: 'Aldric asiente levemente cuando te ve.\n\n"¿La encontraste ya?"\n\nSu expresión no cambia, pero algo en sus ojos dice que sí le importa.\n\n"Sala 8. La prisión del nivel inferior. Buscá la carta con el sello de las dos llaves cruzadas. Traémela."\n\nVuelve a sus cuentas. La conversación terminó.' };
     }
@@ -5756,10 +5756,10 @@ function cmdGuild(player, args) {
       return { text: `Ya pertenecés a la hermandad [${player.guild}]. Salí primero con "guild leave".` };
     }
 
-    // Costo de fundación: 50 oro
+    // Costo de fundación: 30 oro (DIS-523: reducido de 50 para bajar la barrera de entrada)
     const gold = player.gold || 0;
-    if (gold < 50) {
-      return { text: `Fundar una hermandad cuesta 50 de oro. Tenés ${gold}g. ¡Conseguí más monedas y volvé!` };
+    if (gold < 30) {
+      return { text: `Fundar una hermandad cuesta 30 de oro. Tenés ${gold}g. ¡Conseguí más monedas y volvé!` };
     }
 
     // Verificar si ya existe
@@ -5773,10 +5773,10 @@ function cmdGuild(player, args) {
     const guildId = randomUUID();
     db.createGuild(guildId, guildArg, player.id);
     db.setPlayerGuild(player.id, guildArg);
-    db.updatePlayer(player.id, { gold: gold - 50 });
+    db.updatePlayer(player.id, { gold: gold - 30 });
 
     return {
-      text: `⚔ ¡Hermandad [${guildArg}] fundada! Te costo 50 de oro. Sos el líder 👑.\nInvitá jugadores diciéndoles que usen "guild join ${guildArg}". Chateá con "gc <mensaje>".`,
+      text: `⚔ ¡Hermandad [${guildArg}] fundada! Te costó 30 de oro. Sos el líder 👑.\nInvitá jugadores diciéndoles que usen "guild join ${guildArg}". Chateá con "gc <mensaje>".\n\n💡 Las hermandades tienen misiones colectivas activas siempre — "guild quest" para ver la actual. ¡Las podés completar vos solo también!`,
       event: `⚔ ¡${player.username} fundó la hermandad [${guildArg}]!`,
       eventRoomId: player.current_room_id,
     };
