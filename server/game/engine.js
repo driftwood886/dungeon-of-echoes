@@ -3739,8 +3739,18 @@ function cmdGive(player, args) {
           db.logGlobalEvent('quest', `📜 ${player.username} descubrió el secreto de Aldric el Mercader.`);
           return { text: 'Extendés la carta hacia Aldric. Él la toma despacio, con manos que no tiemblan, pero que deberían.\n\nEl sello de las dos llaves cruzadas. Lo mira durante un momento demasiado largo.\n\n\"Fue el guardián del sello del reino,\" dice al fin, en voz tan baja que casi no lo escuchás. \"No el rey. El guardián. Los que guardaban las llaves eran los que realmente mantenían el reino unido.\"\n\nPausa. \"Kaelthas Vorn. Ese era su nombre completo. El que todos olvidaron —o fingieron olvidar— cuando el reino cayó.\"\n\nDobla la carta sin abrirla y la guarda debajo del mostrador.\n\n\"Tomá esto. Y si algún día pronunciás su nombre completo en el lugar correcto, vas a entender por qué todavía importa.\"\n\n🎉 Quest completada: El Sello de las Dos Llaves. (+50 XP · +25g)\n📜 El lore de Kaelthas Vorn está ahora completo.\n📖 Diario actualizado.' };
         }
+        // DIS-513: mensajes de guía cuando el give no completa la quest
+        if (freshP.aldric_quest === 'active' && !found.toLowerCase().includes('carta sellada')) {
+          return { text: `Aldric te mira el ítem y niega con la cabeza. "Eso no es lo que busco." 💡 Tip: la quest de Aldric requiere la carta sellada del corredor de sombras (sala 3).` };
+        }
+        if (freshP.aldric_quest === 'done') {
+          return { text: `Aldric ya recibió lo que necesitaba. No hay nada más que entregarle.` };
+        }
+        if (freshP.aldric_quest !== 'active') {
+          return { text: `Aldric no parece interesado en ese ítem. Hablale primero para descubrir qué busca: "hablar aldric".` };
+        }
       }
-      return { text: `«${targetName}» es un NPC, no un jugador — no podés darle ítems directamente. Probá con "hablar ${targetName}" para interactuar.` };
+      return { text: `«${targetName}» es un NPC — no podés darle ítems directamente. Interactuá con comandos como "hablar ${targetName}".` };
     }
     return { text: `No existe ningún jugador llamado "${targetName}".` };
   }
