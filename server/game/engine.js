@@ -959,7 +959,12 @@ function cmdMove(player, direction) {
           })();
           const updatedKnown = { ...existingKnown, [heatKey]: true };
           db.updatePlayer(player.id, { known_traps: JSON.stringify(updatedKnown) });
-          effectText += `\n🧠 Ahora conocés el calor de la forja — la próxima vez podrás cubrirte mejor.`;
+          // DIS-528: mensaje de aprendizaje específico por sala (no usar mensaje de forja en Catedral)
+          const learnMsgs = {
+            12: `\n🧠 Ahora conocés el calor de la forja — la próxima vez podrás cubrirte mejor.`,
+            15: `\n🧠 Ahora conocés la maldición de la Catedral — la próxima vez la oscuridad no te alcanza igual.`,
+          };
+          effectText += learnMsgs[targetId] || `\n🧠 Recordás este lugar. La próxima vez estarás mejor preparado.`;
         }
       }
     } else if (roomEffect.type === 'heal') {
