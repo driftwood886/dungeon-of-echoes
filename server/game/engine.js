@@ -3345,7 +3345,12 @@ function cmdScore(player, args) {
   }
 
   // Modo default: kills + XP
-  const leaders = db.getLeaderboard(10);
+  // DIS-522: filtrar bots de playtest del ranking visible (patrones de username)
+  const BOT_PATTERNS = [/^BotTester/i, /^playtest_bot/i, /^PTBot/i, /^DisTester/i, /^PTBotD/i, /^DisDesign/i];
+  const isBot = name => BOT_PATTERNS.some(p => p.test(name));
+
+  const mode2 = mode === 'bots' || mode === 'todo';
+  const leaders = db.getLeaderboard(mode2 ? 10 : 20).filter(p => mode2 || !isBot(p.username || '')).slice(0, 10);
 
   if (leaders.length === 0) {
     return { text: 'Aún no hay aventureros en la tabla de líderes.' };
@@ -3374,6 +3379,7 @@ function cmdScore(player, args) {
 
   lines.push(`╚═════════════════════════════════════════════════════╝`);
   lines.push(`  Subcategorías: "score oro" | "score duelos" | "score rep" | "score crafteos" | "score tiempo" | "score amigos" | "score sesión"`);
+  lines.push(`  (Bots de playtest ocultos. "score todo" para ver todos.)`);
 
   return { text: lines.join('\n') };
 }
