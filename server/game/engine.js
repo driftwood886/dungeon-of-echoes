@@ -3216,8 +3216,13 @@ function cmdEquip(player, itemQuery) {
     }
   }
 
+  // DIS-520: mostrar tanto el bono absoluto del arma como el delta neto para evitar confusión
+  const baseStr = player.equipped_weapon
+    ? ` (bono base del arma: +${def.amount} ATK; ${changeStr} neto vs ${player.equipped_weapon})`
+    : ` (bono del arma: +${def.amount} ATK)`;
+
   return {
-    text: `Empuñás ${found}${swapMsg}. Ataque: ${oldAttack} → ${newAttack} (${changeStr}).\n${def.description}${magoHeavyFlavor}`,
+    text: `Empuñás ${found}${swapMsg}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.\n${def.description}${magoHeavyFlavor}`,
     event: `${player.username} empuña ${found}.`,
     eventRoomId: player.current_room_id,
   };
