@@ -3346,7 +3346,7 @@ function cmdScore(player, args) {
 
   // Modo default: kills + XP
   // DIS-522: filtrar bots de playtest del ranking visible (patrones de username)
-  const BOT_PATTERNS = [/^BotTester/i, /^playtest_bot/i, /^PTBot/i, /^DisTester/i, /^PTBotD/i, /^DisDesign/i];
+  const BOT_PATTERNS = [/^BotTester/i, /^playtest_bot/i, /^PTBot/i, /^DisTester/i, /^PTBotD/i, /^DisDesign/i, /^PlayBot/i, /^bot_/i, /^BotPlaytest/i];
   const isBot = name => BOT_PATTERNS.some(p => p.test(name));
 
   const mode2 = mode === 'bots' || mode === 'todo';

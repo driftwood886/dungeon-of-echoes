@@ -1461,7 +1461,7 @@ function getWallMessages(roomId, limit = 10) {
 }
 // DIS-498: Limpia inscripciones de jugadores-bot de las paredes
 function cleanBotWallMessages() {
-  run(`DELETE FROM wall_messages WHERE player_name LIKE 'PTBot_%' OR player_name LIKE 'Critico_Diseno_%' OR player_name LIKE 'PlaytestBot_%' OR player_name LIKE 'TestBot_%'`);
+  run(`DELETE FROM wall_messages WHERE player_name LIKE 'PTBot_%' OR player_name LIKE 'Critico_Diseno_%' OR player_name LIKE 'PlaytestBot_%' OR player_name LIKE 'TestBot_%' OR player_name LIKE 'PlayBot%' OR player_name LIKE 'bot_%' OR player_name LIKE 'BotPlaytest%'`);
 }
 
 
