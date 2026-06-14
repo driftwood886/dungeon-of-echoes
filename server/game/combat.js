@@ -1074,6 +1074,9 @@ const LOOT_CHANCES = {
   7: { // Araña Tejedora (Pozo Sin Fondo) — DIS-455: ruta alternativa a la llave de tienda
     'llave oxidada':      0.15, // 15% — alternativa de bajo nivel a la compra (25g → 20g en tienda)
   },
+  3: { // Rata Gigante — DIS-541: drop de hierba curativa para curación temprana (40%)
+    'hierba curativa':    0.40, // 40% — rompe el ciclo "necesitás poción para craftear poción"
+  },
 };
 
 function dropLoot(monster, roomId) {

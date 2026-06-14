@@ -554,7 +554,40 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy };
+
+/**
+ * DIS-534 + DIS-541: Arregla la economía temprana rota.
+ * - Goblin Merodeador (id 1): cobre (1g) → plata (5g) + agrega monedas de cobre extra
+ *   para que la Rata Gigante (id 3) tenga hierba curativa en su loot.
+ * - Rata Gigante (id 3): agrega 'hierba curativa' al loot (drops a 40% via LOOT_CHANCES en combat.js)
+ * - Araña Tejedora (id 7): agrega 'monedas de plata' al loot
+ * Resultado esperado: a nivel 3, el jugador acumula ~20-25g en 5-6 peleas.
+ * Además, la Rata Gigante da acceso a curación básica sin depender del ciclo roto hierba+poción.
+ */
+function migrateEarlyEconomy() {
+  // Goblin Merodeador (id 1): reemplazar 'monedas de cobre' por 'monedas de plata'
+  const goblin = db.getMonster(1);
+  if (goblin && goblin.loot.includes('monedas de cobre') && !goblin.loot.includes('monedas de plata')) {
+    const newLoot = goblin.loot.map(item => item === 'monedas de cobre' ? 'monedas de plata' : item);
+    db.upsertMonster({ ...goblin, loot: newLoot });
+    console.log('[seed] migrateEarlyEconomy: Goblin Merodeador ahora suelta monedas de plata (5g). DIS-534 ✓');
+  }
+
+  // Rata Gigante (id 3): agregar 'hierba curativa' al loot si no la tiene ya
+  const rat = db.getMonster(3);
+  if (rat && !rat.loot.includes('hierba curativa')) {
+    db.upsertMonster({ ...rat, loot: [...rat.loot, 'hierba curativa'] });
+    console.log('[seed] migrateEarlyEconomy: Rata Gigante ahora puede soltar hierba curativa. DIS-541 ✓');
+  }
+
+  // Araña Tejedora (id 7): agregar 'monedas de plata' al loot si no las tiene ya
+  const spider = db.getMonster(7);
+  if (spider && !spider.loot.includes('monedas de plata')) {
+    db.upsertMonster({ ...spider, loot: [...spider.loot, 'monedas de plata'] });
+    console.log('[seed] migrateEarlyEconomy: Araña Tejedora ahora suelta monedas de plata. DIS-534 ✓');
+  }
+}
 
 /**
  * STORY-003/004/005/007/012/017 — Migración de lore narrativo:
