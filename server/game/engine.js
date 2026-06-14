@@ -2007,8 +2007,8 @@ function cmdAttack(player, targetName) {
       // intente recoger el loot del boss y se frustre por no poder hacerlo.
       const freshForInv = db.getPlayer(player.id);
       const invCount = Array.isArray(freshForInv.inventory) ? freshForInv.inventory.length : 0;
-      if (invCount >= 23) {
-        lines.push(`║  ⚠️  Tu mochila tiene ${invCount}/25 ítems — hacé espacio      ║`);
+      if (invCount >= 18) {
+        lines.push(`║  ⚠️  Tu mochila tiene ${invCount}/20 ítems — hacé espacio      ║`);
         lines.push('║  con "drop <ítem>", "vault store <ítem>" o "subastar". ║');
       }
       lines.push('╚══════════════════════════════════════════════════════╝');
@@ -2206,9 +2206,9 @@ function cmdPick(player, itemQuery) {
   // BUG-489: contar también ítems equipados (no están en player.inventory pero ocupan slot visual)
   const equippedCount = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
   const currentInvCount = (player.inventory || []).length + equippedCount;
-  if (!goldKey && currentInvCount >= 25) {
+  if (!goldKey && currentInvCount >= 20) {
     return {
-      text: `🎒 Tu mochila está llena (${currentInvCount}/25 ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.\n💡 También podés usar la bóveda (vault) en la Entrada o en la Casa de Subastas.`,
+      text: `🎒 Tu mochila está llena (${currentInvCount}/20 ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.\n💡 También podés usar la bóveda (vault) en la Entrada o en la Casa de Subastas.`,
     };
   }
 
@@ -12857,7 +12857,7 @@ function cmdVault(player, args) {
 
     const item = vaultItems[idx];
     const inv = JSON.parse(typeof player.inventory === 'string' ? player.inventory : JSON.stringify(player.inventory));
-    if (inv.length >= 25) return { text: '🎒 El inventario está lleno (25/25). Tirá algo primero.' };
+    if (inv.length >= 20) return { text: '🎒 El inventario está lleno (20/20). Tirá algo primero.' };
 
     vaultItems.splice(idx, 1);
     inv.push(item);
