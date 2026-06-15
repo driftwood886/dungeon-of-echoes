@@ -3040,7 +3040,7 @@ function cmdExamine(player, query) {
             const soldTo = a.bidder_name ? '→ ' + a.bidder_name : '(sin comprador)';
             return '  ' + (i + 1) + '. ' + a.item_name + ' — ' + soldFor + ' ' + soldTo + '  [vendedor: ' + a.seller_name + ']';
           });
-          return { text: '📋 **Tablero de historial de subastas**\n\nÚltimos remates cerrados:\n\n' + rows.join('\n') + '\n\n  *(El escriba actualiza el tablero después de cada remate.)*\n\nPara ver subastas activas: subastas   |   Para crear una: subasta <ítem> <precio>' };
+          return { text: '📋 **Tablero de historial de subastas**\n\nÚltimos remates cerrados:\n\n' + rows.join('\n') + '\n\n  *(El escriba actualiza el tablero después de cada remate.)*\n\nPara ver subastas activas: subastas   |   Para crear una: subastar <ítem> <precio>' };
         }
         return { text: val.text };
       }
@@ -5297,7 +5297,7 @@ function cmdTalk(player, target) {
     if (!inAuctionRoom) {
       return { text: '📜 El escriba élfico no está aquí. Está en la Casa de Subastas (sala 17, al este de la Cámara del Tesoro).\n  💡 Ruta desde la Cámara del Tesoro: este' };
     }
-    return { text: '📜 El escriba levanta la pluma un instante —lo único que se detiene— y te mira de costado sin girar la cabeza.\n\n"¿Subasta? Simple." Vuelve a escribir sin dejar de hablar.\n\n"Tenés un ítem. Querés oro. Escribís: subasta <ítem> <precio_mínimo>. Ejemplo: subasta espada oxidada 10."\n\nTic. Tac. La pluma sigue.\n\n"Para ver subastas activas: subastas. Para pujar: pujar <id> <monto>. La sala acepta vendedores y compradores simultáneamente."\n\nPausa. Un segundo. "Si nadie compra, el ítem vuelve. Si alguien supera tu puja, el oro te vuelve. Sin pérdidas involuntarias."\n\nReanuda el registro como si la conversación hubiera terminado antes de que empezara.' };
+    return { text: '📜 El escriba levanta la pluma un instante —lo único que se detiene— y te mira de costado sin girar la cabeza.\n\n"¿Subasta? Simple." Vuelve a escribir sin dejar de hablar.\n\n"Tenés un ítem. Querés oro. Escribís: subastar <ítem> <precio_mínimo>. Ejemplo: subastar espada oxidada 10."\n\nTic. Tac. La pluma sigue.\n\n"Para ver subastas activas: subastas. Para pujar: pujar <id> <monto>. La sala acepta vendedores y compradores simultáneamente."\n\nPausa. Un segundo. "Si nadie compra, el ítem vuelve. Si alguien supera tu puja, el oro te vuelve. Sin pérdidas involuntarias."\n\nReanuda el registro como si la conversación hubiera terminado antes de que empezara.' };
   }
 
   if (!isAldric) {
