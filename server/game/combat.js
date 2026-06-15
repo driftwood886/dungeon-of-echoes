@@ -1036,7 +1036,7 @@ function tryFlee(player, monster, room, preferredDirection = null) {
     let nextPct = pctActual;
     if (monsterHpPct > 50) nextPct = isBossFlee ? 55 : 65;
     else if (monsterHpPct > 25) nextPct = isBossFlee ? 70 : 80;
-    line += `\n💡 Chance de huida actual: ${pctActual}% (${monsterHpStr}). Si bajás al boss a <${monsterHpPct > 50 ? '50' : '25'}% HP → ${nextPct}% de chance.`;
+    line += `\n💡 Chance de huida actual: ${pctActual}% (${monsterHpDesc}). Si bajás al boss a <${monsterHpPct > 50 ? '50' : '25'}% HP → ${nextPct}% de chance.`;
   }
 
   if (player.hp <= 0) {
