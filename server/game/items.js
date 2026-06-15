@@ -130,6 +130,9 @@ const ITEM_CATALOG = {
   // DIS-560: crafteo de Mago
   'catalizador mágico':    { type: 'weapon', effect: 'attack_bonus', amount: 7, mage_only_bonus: 3, description: 'Un concentrado de energía arcana, resultado de combinar cristales y esencias espectrales. +7 de ataque. Los Magos reciben +3 de ataque adicional — ideal para potenciar hechizos.' },
 
+  // ── Bolsas / expansión de inventario (DIS-595) ───────────────────────────
+  'bolsa de lona':         { type: 'bag', slots: 4, description: 'Una bolsa de lona resistente con correas de cuero. Al usarla se conecta a tu mochila y amplía tu capacidad de carga en 4 slots adicionales. Hasta 2 bolsas simultáneas.' },
+
   // ── Pergaminos mágicos (T153) ──────────────────────────────────────────────
   'pergamino de furia':    { type: 'scroll', effect: 'fury',    atk_bonus: 3, def_bonus: 0, duration: 60,  description: 'Un pergamino que irradia energía roja. Al leerlo, sentís una furia ardiente. (+3 ATK por 60s)' },
   'pergamino de escudo':   { type: 'scroll', effect: 'shield',  atk_bonus: 0, def_bonus: 3, duration: 60,  description: 'Runas protectoras grabadas en papel dorado. Una barrera mágica te envuelve. (+3 DEF por 60s)' },

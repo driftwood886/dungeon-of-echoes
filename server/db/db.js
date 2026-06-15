@@ -180,6 +180,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN last_hp_regen TEXT`,                                // DIS-D326: timestamp última regen pasiva de HP
     `ALTER TABLE players ADD COLUMN known_traps TEXT NOT NULL DEFAULT '{}'`,             // DIS-D370: trampas aprendidas (persistente entre sesiones)
     `ALTER TABLE players ADD COLUMN last_project TEXT`,                                  // DIS-450: timestamp última proyección arcana (habilidad exclusiva de Mago)
+    `ALTER TABLE players ADD COLUMN inventory_bonus INTEGER NOT NULL DEFAULT 0`,         // DIS-595: slots extra de inventario (bolsa de lona: +4 por bolsa, máx 2)
     `ALTER TABLE monsters ADD COLUMN defense INTEGER NOT NULL DEFAULT 0`,                // BUG-462: columna defense faltante en monsters (crash en Fase 2 de bosses)
     ];
   for (const sql of migrations) {

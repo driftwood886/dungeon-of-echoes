@@ -2105,8 +2105,9 @@ function cmdAttack(player, targetName) {
       // intente recoger el loot del boss y se frustre por no poder hacerlo.
       const freshForInv = db.getPlayer(player.id);
       const invCount = Array.isArray(freshForInv.inventory) ? freshForInv.inventory.length : 0;
-      if (invCount >= 23) {
-        lines.push(`║  ⚠️  Tu mochila tiene ${invCount}/25 ítems — hacé espacio      ║`);
+      const invMaxDisplay = 25 + (freshForInv.inventory_bonus || 0);
+      if (invCount >= invMaxDisplay - 2) {
+        lines.push(`║  ⚠️  Tu mochila tiene ${invCount}/${invMaxDisplay} ítems — hacé espacio      ║`);
         lines.push('║  con "drop <ítem>", "vault store <ítem>" o "subastar". ║');
       }
       lines.push('╚══════════════════════════════════════════════════════╝');
@@ -2328,9 +2329,10 @@ function cmdPick(player, itemQuery) {
   // BUG-489: contar también ítems equipados (no están en player.inventory pero ocupan slot visual)
   const equippedCount = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
   const currentInvCount = (player.inventory || []).length + equippedCount;
-  if (!goldKey && currentInvCount >= 25) {
+  const maxInvSingle = 25 + (player.inventory_bonus || 0); // DIS-595: bolsas de lona
+  if (!goldKey && currentInvCount >= maxInvSingle) {
     return {
-      text: `🎒 Tu mochila está llena (${currentInvCount}/25 ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.\n💡 También podés usar la bóveda (vault) en la Entrada o en la Casa de Subastas.`,
+      text: `🎒 Tu mochila está llena (${currentInvCount}/${maxInvSingle} ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.\n💡 También podés usar la bóveda (vault) en la Entrada o en la Casa de Subastas.\n💡 Aldric vende bolsas de lona (30g) que amplían tu mochila +4 slots.`,
     };
   }
 
@@ -2622,6 +2624,19 @@ function cmdUse(player, itemQuery) {
   } else if (def.type === 'armor') {
     // BUG-429: 'use <armadura>' debe equipar la armadura, no solo describir
     return cmdWear(player, found);
+
+  } else if (def.type === 'bag') {
+    // DIS-595: bolsa de lona — expande inventario en +slots (máx 2 bolsas = +8 slots)
+    const freshBag = db.getPlayer(player.id);
+    const currentBonus = freshBag.inventory_bonus || 0;
+    const MAX_BAG_BONUS = 8; // máximo 2 bolsas de 4 slots
+    if (currentBonus >= MAX_BAG_BONUS) {
+      return { text: `🎒 Ya tenés el máximo de bolsas adicionales (2). Tu mochila no puede expandirse más.` };
+    }
+    const newBonus = Math.min(MAX_BAG_BONUS, currentBonus + def.slots);
+    const newInvBag = removeFirst(freshBag.inventory, found);
+    db.updatePlayer(player.id, { inventory: newInvBag, inventory_bonus: newBonus });
+    resultText = `🎒 Atás la bolsa de lona a tu mochila. Tu capacidad de carga aumenta +${def.slots} slots.\n📦 Inventario: ${freshBag.inventory.length - 1}/${25 + newBonus} slots disponibles.`;
 
   } else {
     // DIS-D362: manejo especial de ítems sellados/abribles
@@ -3698,7 +3713,7 @@ function cmdLoot(player) {
 
   // Agregar solo ítems no-oro al inventario (BUG-469: respetar límite de 20)
   // BUG-504: contar también ítems equipados (no están en player.inventory pero ocupan slot)
-  const MAX_INVENTORY = 25;  // DIS-507: ampliado de 20→25
+  const MAX_INVENTORY = 25 + (player.inventory_bonus || 0);  // DIS-507: ampliado de 20→25; DIS-595: +inventory_bonus por bolsas de lona
   const equippedCountLoot = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
   const spaceAvailable = MAX_INVENTORY - player.inventory.length - equippedCountLoot;
   const itemsToPickup = nonGoldItems.slice(0, spaceAvailable);
@@ -5338,6 +5353,8 @@ const SHOP_CATALOG = [
   // DIS-558: ítems específicos de clase Mago
   { name: 'vara de energía',         price: 40, description: '🔮 (Mago) Una vara canalizada con energía arcana. Amplifica los hechizos del portador. +5 ataque mágico. Bonus especial para Magos.' },
   { name: 'pergamino de hechizo',    price: 25, description: '🔮 (Mago) Un pergamino consumible que otorga un lanzamiento de hechizo gratuito — no consume maná. Útil cuando estás al límite.' },
+  // DIS-595: bolsa de lona — expande inventario +4 slots, máx 2 bolsas
+  { name: 'bolsa de lona',           price: 30, description: 'Una bolsa de lona resistente con correas de cuero. Al usarla, amplía tu capacidad de inventario en 4 slots (+4 más si comprás una segunda). Máximo 2.' },
   // DIS-585: materiales de loot con precios diferenciados (sellOnly — no aparecen en la tienda)
   { name: 'pelaje áspero',           price: 13,  sellOnly: true, description: 'Pelaje de rata gigante. Aldric lo compra para curtiembre.' },
   { name: 'garra de esqueleto',      price: 15,  sellOnly: true, description: 'Garra de esqueleto. Aldric la compra como material de armamento.' },
@@ -13328,7 +13345,8 @@ function cmdVault(player, args) {
 
     const item = vaultItems[idx];
     const inv = JSON.parse(typeof player.inventory === 'string' ? player.inventory : JSON.stringify(player.inventory));
-    if (inv.length >= 20) return { text: '🎒 El inventario está lleno (20/20). Tirá algo primero.' };
+    const maxInvVault = 25 + (player.inventory_bonus || 0); // DIS-595
+    if (inv.length >= maxInvVault) return { text: `🎒 El inventario está lleno (${inv.length}/${maxInvVault}). Tirá algo primero.` };
 
     vaultItems.splice(idx, 1);
     inv.push(item);
