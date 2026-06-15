@@ -5589,11 +5589,12 @@ function cmdBuy(player, itemQuery) {
 
   // BUG-248: aceptar número de índice (ej: "comprar 1" → primer ítem del catálogo)
   let item;
+  const buyableCatalog = SHOP_CATALOG.filter(i => !i.sellOnly);
   const numQuery = parseInt(query, 10);
-  if (!isNaN(numQuery) && numQuery >= 1 && numQuery <= SHOP_CATALOG.length) {
-    item = SHOP_CATALOG[numQuery - 1];
+  if (!isNaN(numQuery) && numQuery >= 1 && numQuery <= buyableCatalog.length) {
+    item = buyableCatalog[numQuery - 1];
   } else {
-    item = SHOP_CATALOG.find(i => {
+    item = buyableCatalog.find(i => {
       const itemNorm = i.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       return itemNorm.includes(query) || query.includes(itemNorm);
     });
