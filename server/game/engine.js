@@ -630,6 +630,37 @@ function cmdLook(player) {
     classReminderLine = `\n💡 Aún no elegiste clase (nivel ${player.level}). Escribí 'clase' para ver las opciones.`;
   }
 
+  // DIS-573: hint de peligro extremo en salas adyacentes a bosses que bloquean huida
+  // Sirve para que el jugador pueda PREPARARSE antes de comprometerse a entrar
+  const BOSS_ROOM_DANGER = {
+    15: { name: 'el Lich Anciano', level: 7, icon: '💀', roomName: 'Catedral de la Oscuridad' },
+    10: { name: 'el Gólem de Piedra', level: 5, icon: '🪨', roomName: 'Santuario Profano' },
+    8:  { name: 'el Guardia Espectral', level: 4, icon: '👻', roomName: 'Prisión Subterránea' },
+  };
+  let adjacentDangerLine = '';
+  try {
+    const curRoom = db.getRoom(player.current_room_id);
+    if (curRoom) {
+      const curExits = typeof curRoom.exits === 'string' ? JSON.parse(curRoom.exits) : curRoom.exits;
+      const DIR_ES = { north: 'al norte', south: 'al sur', east: 'al este', west: 'al oeste', up: 'arriba', down: 'abajo' };
+      const dangerLines = [];
+      for (const [dir, destId] of Object.entries(curExits)) {
+        const danger = BOSS_ROOM_DANGER[destId];
+        if (danger) {
+          const playerLevel = player.level || 1;
+          if (playerLevel < danger.level) {
+            dangerLines.push(`${danger.icon} PELIGRO ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}). ¡Preparate antes de entrar!`);
+          } else {
+            dangerLines.push(`${danger.icon} ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe). El combate no admite escape fácil.`);
+          }
+        }
+      }
+      if (dangerLines.length > 0) {
+        adjacentDangerLine = '\n⚠️ ' + dangerLines.join('\n⚠️ ');
+      }
+    }
+  } catch (_) { /* no romper look si falla */ }
+
   // DIS-D384: estado del Lich Anciano en la Catedral de la Oscuridad (sala 15)
   let lichStatusLine = '';
   if (player.current_room_id === 15) {
@@ -661,7 +692,7 @@ function cmdLook(player) {
     } catch (_) {}
   }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + lichStatusLine };
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine };
 }
 
 /**
@@ -7580,7 +7611,11 @@ function regenMana(player) {
   // Con 35 de maná máx y hechizos de 8-12, a 4/min el mago se quedaba sin maná en mid-game.
   // A 6/min recarga completo en ~6 min, viable en sesión de 10-15 min.
   const clsData = classes.getPlayerClass(player);
-  const regenRate = (clsData && clsData.name === 'Mago') ? 6 : 1;
+  let regenRate = (clsData && clsData.name === 'Mago') ? 6 : 1;
+  // DIS-576: la vara de energía equipada da +2 maná/min de regen extra al Mago
+  if (clsData && clsData.name === 'Mago' && player.equipped_weapon === 'vara de energía') {
+    regenRate += 2; // 6 → 8 maná/min con vara equipada
+  }
   const manaGained = Math.floor(minutesPassed * regenRate);
 
   if (manaGained <= 0) return player;

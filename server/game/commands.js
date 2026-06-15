@@ -431,7 +431,7 @@ Comandos disponibles:
   status / estado       — Ver tus stats (HP, ataque, defensa)
   attack <monstruo>     — Atacar a un monstruo
   flee / huir           — Intentar huir del combate
-  pick <ítem>           — Recoger un ítem del suelo
+  pick <ítem>           — Recoger un ítem del suelo (también: "pick todo" para recoger todo)
   drop <ítem>           — Tirar un ítem al suelo
   use <ítem>            — Usar un ítem (poción → consume, arma → equipar)
   equip <arma>          — Equipar un arma del inventario explícitamente
