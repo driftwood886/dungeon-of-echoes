@@ -1005,6 +1005,7 @@ function tryFlee(player, monster, room, preferredDirection = null) {
 
   // DIS-453: feedback narrativo sobre qué tan cerca estuvo la huida
   // DIS-470: los bosses tienen mensajes diferenciados que refuerzan su peligro
+  // DIS-574: mostrar % de éxito de huida para bosses, para que el jugador pueda planificar
   const wasClose = margin < 0.15; // menos de 15% de diferencia → estuvo cerca
   let fleeNarrative;
   if (isBossFlee) {
@@ -1018,6 +1019,15 @@ function tryFlee(player, monster, room, preferredDirection = null) {
   }
 
   let line = `🏃 Intentás huir pero ${fleeNarrative} Te golpea (${dmgToPlayer} dmg). Tu HP: ${player.hp}/${player.max_hp}.`;
+
+  // DIS-574: para bosses, indicar el % de éxito de huida y cómo mejorarlo
+  if (isBossFlee) {
+    const pctActual = Math.round(fleeChance * 100);
+    let nextPct = pctActual;
+    if (monsterHpPct > 50) nextPct = isBossFlee ? 55 : 65;
+    else if (monsterHpPct > 25) nextPct = isBossFlee ? 70 : 80;
+    line += `\n💡 Chance de huida actual: ${pctActual}% (${monsterHpStr}). Si bajás al boss a <${monsterHpPct > 50 ? '50' : '25'}% HP → ${nextPct}% de chance.`;
+  }
 
   if (player.hp <= 0) {
     db.addJournalEntry(player.id, 'death', `💀 Muerto intentando huir del ${monster.name}.`);
