@@ -495,6 +495,7 @@ Comandos disponibles:
   trade <jug> <ítem>   — Proponer intercambio seguro de ítems (el otro acepta/rechaza con trade accept/decline).
   peek <dir> / espiar  — Espiar en una dirección sin moverse: ver nombre de sala, monstruos e ítems del suelo.
   runas / runes        — Ver tu colección de runas (5 tipos: fuego/hielo/sombra/luz/caos; 15% drop de cualquier monstruo; 3 iguales = +1 ATK permanente).
+  enchant <tipo>       — Encantar el arma equipada con 1 runa (fuego/hielo/sombra/luz/caos). Efectos por 3 min: fuego +2 ATK, hielo ralentiza, sombra +crit, luz +HP al matar.
   session / sesión     — Ver estadísticas de tu sesión actual (kills, XP, oro ganados y tiempo conectado).
   sessions / historial — Ver el historial de tus últimas 5 sesiones y el tiempo de juego total acumulado.
   score tiempo         — Ranking por tiempo de juego total (los aventureros más veteranos).

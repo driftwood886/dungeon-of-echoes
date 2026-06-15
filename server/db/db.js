@@ -1153,7 +1153,12 @@ function tryAddRune(playerId) {
     updatePlayer(playerId, { runes: JSON.stringify(runes) });
     const needed = 3 - (current + 1);
     const bonus = RUNE_BONUSES[type];
-    return `🔮 Encontrás una Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]}! (${current + 1}/3)\n   Al juntar 3 del mismo tipo se fusionan → ${bonus.label}.\n   ${needed === 1 ? '⚡ ¡Solo necesitás 1 más para la fusión!' : `Necesitás ${needed} más para fusionar.`}\n   Usá "runas" para ver tu colección.`;
+    // DIS-587: hint de enchant en la primera runa obtenida
+    const isFirstRune = Object.values(runes).reduce((a, b) => a + b, 0) === 1;
+    const enchantHint = isFirstRune
+      ? `\n   🪄 ¡Primera runa! Podés usarla: "enchant ${type}" encanta tu arma por 3 min.`
+      : '';
+    return `🔮 Encontrás una Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]}! (${current + 1}/3)\n   Al juntar 3 del mismo tipo se fusionan → ${bonus.label}.\n   ${needed === 1 ? '⚡ ¡Solo necesitás 1 más para la fusión!' : `Necesitás ${needed} más para fusionar.`}\n   Usá "runas" para ver tu colección.${enchantHint}`;
   }
 }
 
