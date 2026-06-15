@@ -385,6 +385,12 @@ function parse(input) {
     return { command: 'move', args: [dir], raw: trimmed };
   }
 
+  // BUG-549: "abrir <ítem>" → si el arg NO es una dirección, redirigir a 'use'
+  // Ej: "abrir carta sellada" → use carta sellada
+  if (canonical === 'unlock' && rest.length > 0 && !normalizeDirection(rest[0])) {
+    return { command: 'use', args: rest, raw: trimmed };
+  }
+
   // Para 'gesture', pasar el alias como primer arg (para saber qué gesto es)
   if (canonical === 'gesture') {
     const GESTURE_MAP = {

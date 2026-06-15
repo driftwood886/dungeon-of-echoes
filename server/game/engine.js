@@ -737,13 +737,12 @@ function cmdMove(player, direction) {
       killStreakMap.set(player.id, 0);
     }
     const nameList = aliveHere.map(m => m.name).join(', ');
-    // BUG-459: aclarar que el movimiento se interpreta como huida en combate
-    const combatNote = `⚔️ Hay un monstruo activo — moverte equivale a huir. (También podés usar "flee" directamente.)\n`;
-    const prefix = aliveHere.length > 1
-      ? `${combatNote}⚡ Hay ${aliveHere.length} monstruos activos (${nameList}). Intentás escabullirte...\n`
-      : combatNote;
+    // BUG-459 / BUG-550: aclarar que el movimiento inicia una huida, mostrar resultado después
+    const fleeNote = aliveHere.length > 1
+      ? `⚔️ ¡Huís de ${aliveHere.length} monstruos activos (${nameList})!\n`
+      : `⚔️ ¡Huís del combate! (💡 También podés usar "flee" directamente.)\n`;
     return {
-      text: `${prefix}${fleeResult.line}`,
+      text: `${fleeNote}${fleeResult.line}`,
       event: fleeResult.fled
         ? `${player.username} huye de la sala.`
         : `${player.username} intenta escapar pero falla.`,
@@ -3626,15 +3625,19 @@ function cmdLoot(player) {
   }
 
   // BUG-469: advertencia si la mochila estaba llena y quedaron ítems en el suelo
+  // BUG-551: mostrar cuáles ítems quedaron en el suelo
+  const itemsLeftList = itemsLeft.length > 0
+    ? `\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}`
+    : '';
   const fullBagLine = itemsLeft.length > 0
-    ? `\n\n🎒 Mochila llena — ${itemsLeft.length} ítem${itemsLeft.length !== 1 ? 's' : ''} quedaron en el suelo.`
+    ? `\n\n🎒 Mochila llena — ${itemsLeft.length} ítem${itemsLeft.length !== 1 ? 's' : ''} quedaron en el suelo:${itemsLeftList}`
     : '';
 
   // BUG-532: si no se recogió nada (mochila llena, sin oro), mostrar mensaje directo sin "0 ítems"
   if (totalItems === 0 && itemsLeft.length > 0) {
     const usedSlots = player.inventory.length + equippedCountLoot;
     return {
-      text: `🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada. ${itemsLeft.length} ítem${itemsLeft.length !== 1 ? 's' : ''} quedaron en el suelo.`,
+      text: `🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada.\nQuedaron en el suelo:\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}`,
       event: null,
       eventRoomId: room.id,
     };
@@ -4375,8 +4378,14 @@ function cmdDisarm(player, args) {
     const keyIdx = inventory.findIndex(i => i.toLowerCase() === trapAdj.item_needed.toLowerCase());
 
     if (keyIdx === -1) {
+      // BUG-552: mensaje claro indicando qué sala y qué ítem; mencionar trampa propia si existe
+      const currentRoomForHint = db.getRoom(player.current_room_id);
+      let ownTrapHint = '';
+      if (currentRoomForHint && currentRoomForHint.trap && currentRoomForHint.trap.active && currentRoomForHint.trap.item_needed) {
+        ownTrapHint = `\n💡 Nota: esta sala (${currentRoomForHint.name}) también tiene trampa — necesitás "${currentRoomForHint.trap.item_needed}" y escribí "desactivar trampa" (sin dirección) para desactivarla aquí.`;
+      }
       return {
-        text: `Intentás desactivar la trampa de ${adjRoom.name} desde aquí, pero no tenés lo necesario.\n🔧 Ítem requerido: "${trapAdj.item_needed}"`,
+        text: `Intentás desactivar la trampa de ${adjRoom.name} (al ${dirLabel2}) desde aquí, pero no tenés lo necesario.\n🔧 Ítem requerido para ${adjRoom.name}: "${trapAdj.item_needed}"${ownTrapHint}`,
       };
     }
 
