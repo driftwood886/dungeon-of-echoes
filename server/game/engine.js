@@ -4384,7 +4384,10 @@ function cmdMap(player) {
     `  |         ${c(8)}`,
     `  |         |`,
     `${c(7)}---${c(3)}---${c(4)}---${c(17)}`,
-    `  |🔑(bloqueado — ruta libre: Capilla→Túnel→Trono→Santuario)`,
+    // DIS-588: hint de llave solo si el jugador ya visitó sala 7 (Pozo) o sala 4 (Tesoro)
+    visitedRooms.has(7) || visitedRooms.has(4)
+      ? `  |🔑(bloqueado — ruta libre: Capilla→Túnel→Trono→Santuario)`
+      : `  |🔑(bloqueado)`,
     `${c(10)}---${c(9)}---${c(6)}---${c(2)}`,
     `  |              |         |`,
     `${c(11)}    ${c(5)}---${c(1)}`,
@@ -4402,7 +4405,10 @@ function cmdMap(player) {
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
     `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`,
     `[??:?????????] = sala aún no explorada`,
-    `💡 Ruta al Santuario sin llave: Entrada → este → Capilla → norte → Túnel → norte → Trono → este → Santuario`,
+    // DIS-588: la ruta completa al Santuario solo aparece si ya se visitó sala 7 o sala 4
+    ...(visitedRooms.has(7) || visitedRooms.has(4)
+      ? [`💡 Ruta al Santuario sin llave: Entrada → este → Capilla → norte → Túnel → norte → Trono → este → Santuario`]
+      : []),
   ];
 
   return { text: lines.join('\n') };
