@@ -683,7 +683,7 @@ function cmdLook(player) {
         const playerLevel = player.level || 1;
         const diffHint = playerLevel < 7
           ? `\n⚠️ Lich Anciano — Jefe Final. Nivel recomendado: 7+. (Tu nivel: ${playerLevel}) Preparate bien antes de atacar.`
-          : `\n💀 Lich Anciano — Jefe Final. Nivel recomendado: 7+. Tiene dos fases. Buena suerte.`;
+          : `\n💀 Lich Anciano — Jefe Final. Nivel recomendado: 7+. Tiene dos fases (segunda se activa al 50% HP: +ATK +DEF). Buena suerte.`;
         lichStatusLine = diffHint;
       } else if (!bossStatus.alive && bossStatus.inRespawn) {
         const secsLeft = Math.max(0, Math.ceil((bossStatus.respawnAt - Date.now()) / 1000));
