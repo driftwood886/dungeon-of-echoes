@@ -5308,6 +5308,24 @@ const SHOP_CATALOG = [
   // DIS-558: ítems específicos de clase Mago
   { name: 'vara de energía',         price: 40, description: '🔮 (Mago) Una vara canalizada con energía arcana. Amplifica los hechizos del portador. +5 ataque mágico. Bonus especial para Magos.' },
   { name: 'pergamino de hechizo',    price: 25, description: '🔮 (Mago) Un pergamino consumible que otorga un lanzamiento de hechizo gratuito — no consume maná. Útil cuando estás al límite.' },
+  // DIS-585: materiales de loot con precios diferenciados (sellOnly — no aparecen en la tienda)
+  { name: 'pelaje áspero',           price: 13,  sellOnly: true, description: 'Pelaje de rata gigante. Aldric lo compra para curtiembre.' },
+  { name: 'garra de esqueleto',      price: 15,  sellOnly: true, description: 'Garra de esqueleto. Aldric la compra como material de armamento.' },
+  { name: 'diente afilado',          price: 13,  sellOnly: true, description: 'Colmillo de murciélago. Aldric lo compra para herramientas.' },
+  { name: 'hilo de seda',            price: 20,  sellOnly: true, description: 'Hilo de seda de araña. Alta demanda en artesanía mágica.' },
+  { name: 'veneno concentrado',      price: 25,  sellOnly: true, description: 'Veneno de Araña Tejedora. Aldric lo usa para preparar dagas.' },
+  { name: 'esencia etérea',          price: 30,  sellOnly: true, description: 'Esencia brumosa de espectro. Ingrediente alquímico valioso.' },
+  { name: 'piedra de poder',         price: 20,  sellOnly: true, description: 'Piedra que vibra con magia. Aldric la compra para encantamientos.' },
+  { name: 'fragmento de hielo',      price: 20,  sellOnly: true, description: 'Hielo antiguo que no se derrite. Material raro y codiciado.' },
+  { name: 'núcleo de forja',         price: 38,  sellOnly: true, description: 'Núcleo de gólem. Irradia calor arcano — muy valioso.' },
+  { name: 'tinta de kraken',         price: 25,  sellOnly: true, description: 'Tinta abismal. Se usa en pergaminos de hechizos avanzados.' },
+  { name: 'escama abismal',          price: 30,  sellOnly: true, description: 'Escama del Krakeling. Dura como el acero, ideal para armaduras.' },
+  { name: 'cristal resonante',       price: 20,  sellOnly: true, description: 'Cristal que vibra con el eco. Ingrediente para armas espectrales.' },
+  { name: 'polvo de eco',            price: 15,  sellOnly: true, description: 'Polvo de la Cámara del Eco. Artesanal, Aldric lo colecciona.' },
+  { name: 'esencia de eco',          price: 30,  sellOnly: true, description: 'Esencia de Eco Viviente. Ingrediente raro para crafteo espectral.' },
+  { name: 'esencia de sombra',       price: 38,  sellOnly: true, description: 'Esencia de las sombras del dungeon. Material de altísimo nivel.' },
+  { name: 'esencia del abismo',      price: 38,  sellOnly: true, description: 'Esencia pura de la Sombra del Vacío. Extremadamente valiosa.' },
+  { name: 'fragmento de vacío',      price: 38,  sellOnly: true, description: 'Fragmento del Abismo Eterno. Aldric lo quiere para investigación.' },
 ];
 
 // Precios de venta al mercader (jugador → mercader) — 40% del valor
@@ -5531,7 +5549,7 @@ function cmdShop(player) {
   }
   lines.push('─'.repeat(60));
 
-  SHOP_CATALOG.forEach((item, i) => {
+  SHOP_CATALOG.filter(item => !item.sellOnly).forEach((item, i) => {
     const num = String(i + 1).padStart(2, ' ');
     const namePad = item.name.padEnd(26, ' ');
     const finalPrice = getDiscountedPrice(item.price, reputation);
@@ -5717,9 +5735,12 @@ function cmdSell(player, itemQuery) {
     'legendario': 'Aldric sostiene el ítem un momento más de lo necesario. Cuando levanta la vista, algo en su expresión cambió. "Este... este tiene historia. ¿Estás seguro de que querés venderlo?"',
   };
   const rareFlavorLine = (soldRarity && rareFlavorMap[soldRarity]) ? `\n${rareFlavorMap[soldRarity]}` : '';
+  // DIS-585: línea especial para materiales de loot (sellOnly)
+  const isSellOnlyMaterial = catalogItem?.sellOnly;
+  const materialFlavorLine = isSellOnlyMaterial ? `\n"${catalogItem.description}"` : '';
 
   return {
-    text: `🏪 Aldric examina el objeto.${rareFlavorLine}\n"Te doy ${sellPrice}g por eso."\n💰 Vendiste: ${found} por ${sellPrice}g. Total: ${newGold}g.`,
+    text: `🏪 Aldric examina el objeto.${rareFlavorLine}${materialFlavorLine}\n"Te doy ${sellPrice}g por eso."\n💰 Vendiste: ${found} por ${sellPrice}g. Total: ${newGold}g.`,
     event: `${player.username} vende algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
