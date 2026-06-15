@@ -224,7 +224,7 @@ const COMMAND_ALIASES = {
   // runas / runes (T140)
   runas: 'runas', runes: 'runas', runacoleccion: 'runas', 'colección-runas': 'runas',
   // challenge / desafío diario (T141)
-  challenge: 'challenge', desafio: 'challenge', desafío: 'challenge', 'desafio-diario': 'challenge', daily: 'challenge', mision_diaria: 'challenge', reto: 'challenge',
+  challenge: 'challenge', desafio: 'challenge', desafíos: 'challenge', desafios: 'challenge', desafío: 'challenge', 'desafio-diario': 'challenge', daily: 'challenge', mision_diaria: 'challenge', reto: 'challenge',
   // contract / contrato semanal (T222)
   contract: 'contract', contrato: 'contract', contratos: 'contract', 'contrato-caza': 'contract', 'caza-semanal': 'contract', weekly: 'contract', semanal: 'contract',
   // macro (T142)
