@@ -206,9 +206,44 @@ function findRecipe(a, b) {
 function craft(player, itemA, itemB) {
   const recipe = findRecipe(itemA, itemB);
   if (!recipe) {
+    // DIS-577: Sugerir recetas cercanas cuando hay ingredientes similares
+    const na = normalize(itemA);
+    const nb = normalize(itemB);
+
+    // Buscar ingredientes parecidos en las recetas (comparten palabras de ≥4 letras)
+    const wordsOf = s => s.split(/\s+/).filter(w => w.length >= 4);
+    const wordsA = wordsOf(na);
+    const wordsB = wordsOf(nb);
+
+    const similar = [];
+    for (const r of RECIPES) {
+      const ri0 = normalize(r.ingredients[0]);
+      const ri1 = normalize(r.ingredients[1]);
+      const ri0Words = wordsOf(ri0);
+      const ri1Words = wordsOf(ri1);
+
+      // ¿Alguno de los ingredientes provistos comparte palabras con algún ingrediente de la receta?
+      const shareWords = (inputWords, recipeIngWords) =>
+        inputWords.some(w => recipeIngWords.some(rw => rw.includes(w) || w.includes(rw)));
+
+      const matchA0 = shareWords(wordsA, ri0Words) || shareWords(wordsA, ri1Words);
+      const matchB0 = shareWords(wordsB, ri0Words) || shareWords(wordsB, ri1Words);
+
+      // Solo sugerir si al menos un ingrediente provisto es parecido a uno de la receta
+      if ((matchA0 || matchB0) && na !== ri0 && na !== ri1 && nb !== ri0 && nb !== ri1) {
+        similar.push(r);
+      }
+    }
+
+    let hint = '';
+    if (similar.length > 0) {
+      const suggestions = similar.slice(0, 3).map(r => `  ${r.ingredients[0]} + ${r.ingredients[1]} → ${r.result}`).join('\n');
+      hint = `\n\n💡 ¿Quisiste decir alguna de estas recetas?\n${suggestions}`;
+    }
+
     return {
       ok: false,
-      text: `No conocés ninguna receta que combine "${itemA}" con "${itemB}". Intentá otros materiales.`,
+      text: `No conocés ninguna receta que combine "${itemA}" con "${itemB}". Intentá otros materiales.${hint}`,
     };
   }
 
