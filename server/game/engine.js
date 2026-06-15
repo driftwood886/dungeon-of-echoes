@@ -4212,9 +4212,21 @@ function cmdInbox(player, args) {
  * map — Mostrar mapa ASCII del dungeon con la sala actual marcada.
  * El layout es fijo para el dungeon de 15 salas actual.
  * La sala del jugador se muestra como [★NN] en lugar de [ NN].
+ * DIS-580: Las salas no visitadas aparecen como [??? ------] para añadir exploración.
  */
 function cmdMap(player) {
   const here = player.current_room_id;
+
+  // DIS-580: Salas visitadas (set para O(1) lookup)
+  let visitedRooms;
+  try {
+    const rawVisited = db.getPlayer(player.id).rooms_visited;
+    visitedRooms = new Set(Array.isArray(rawVisited) ? rawVisited : JSON.parse(rawVisited || '[]'));
+  } catch (_) {
+    visitedRooms = new Set();
+  }
+  // La sala actual siempre está "visitada" visualmente
+  visitedRooms.add(here);
 
   // T105: Decoración según hora del servidor
   const hour = new Date().getUTCHours();
@@ -4272,6 +4284,10 @@ function cmdMap(player) {
   // DIS-D05: Mapa rediseñado con mejor alineación y leyenda numérica más clara
   // Cada celda es [NN:Nombre] de ancho fijo, sin emojis que rompan alineación
   function cell(id) {
+    // DIS-580: salas no visitadas aparecen como neblina
+    if (!visitedRooms.has(id)) {
+      return `[ ??:?????????]`;
+    }
     const label = (NAMES[id] || `Sala${id}`).substring(0, 9).padEnd(9, ' ');
     const marker = id === here ? '★' : ' ';
     const sword  = roomsWithMonsters.has(id) ? '⚔' : ' ';
@@ -4336,6 +4352,7 @@ function cmdMap(player) {
     ``,
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
     `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`,
+    `[??:?????????] = sala aún no explorada`,
     `💡 Ruta al Santuario sin llave: Entrada → este → Capilla → norte → Túnel → norte → Trono → este → Santuario`,
   ];
 
