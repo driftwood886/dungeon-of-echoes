@@ -2158,7 +2158,10 @@ function cmdFlee(player, targetQuery) {
 
   let monster;
   // Si se indica un monstruo específico, buscarlo
-  if (targetQuery && targetQuery.trim()) {
+  // BUG-594: si el argumento es una dirección cardinal, ignorarlo (flee south → flee sin dirección)
+  const DIRECTIONS = new Set(['north', 'south', 'east', 'west', 'up', 'down', 'norte', 'sur', 'este', 'oeste', 'arriba', 'abajo', 'n', 's', 'e', 'o', 'w']);
+  const isDirectionArg = targetQuery && DIRECTIONS.has(targetQuery.trim().toLowerCase());
+  if (targetQuery && targetQuery.trim() && !isDirectionArg) {
     const query = targetQuery.trim().toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     monster = monsters.find(m => {
