@@ -7704,7 +7704,9 @@ function cmdCast(player, args) {
         status_effects: '{}',
       });
       // BUG-336: Usar combat.dropLoot() igual que cmdAttack para evitar duplicación de ítems.
-      // dropLoot ya tiene el fix de BUG-334 (limpia copias previas antes de agregar el nuevo loot).\n      const { droppedLoot: castLoot } = combat.dropLoot(target, player.current_room_id);
+      // dropLoot ya tiene el fix de BUG-334 (limpia copias previas antes de agregar el nuevo loot).
+      // BUG-553: Fix — la línea de código estaba pegada al comentario con \n literal, haciendo que castLoot fuera undefined.
+      const { droppedLoot: castLoot } = combat.dropLoot(target, player.current_room_id);
       // BUG-533: alinear formato de muerte/drop/XP con el del ataque físico
       lines.push(`💀 ¡El ${target.name} cae derrotado!`);
       if (castLoot.length > 0) {
