@@ -970,16 +970,23 @@ function tryFlee(player, monster, room, preferredDirection = null) {
         const normalizedDir = preferredDirection.toLowerCase().trim();
         const preferredExit = exits[normalizedDir];
         if (preferredExit !== undefined && preferredExit !== null) {
-          destRoomId = typeof preferredExit === 'object' ? preferredExit.room_id : preferredExit;
-          usedPreferredDir = true;
-          actualDirName = normalizedDir;
+          // BUG-593: no huir por salidas con llave si el jugador no la tiene
+          const exitKey = typeof preferredExit === 'object' ? preferredExit.key : null;
+          const hasExitKey = exitKey
+            ? (player.inventory || []).some(item => item.toLowerCase() === exitKey.toLowerCase())
+            : true;
+          if (hasExitKey) {
+            destRoomId = typeof preferredExit === 'object' ? preferredExit.room_id : preferredExit;
+            usedPreferredDir = true;
+            actualDirName = normalizedDir;
+          }
         }
       }
-      // Si no hay dirección preferida o no existe en exits, elegir aleatoriamente
+      // Si no hay dirección preferida o no existe en exits (o estaba bloqueada), elegir aleatoriamente entre salidas sin llave
       if (!destRoomId) {
         const exitEntries = Object.entries(exits)
-          .map(([dir, v]) => ({ dir, id: typeof v === 'object' ? v.room_id : v }))
-          .filter(e => typeof e.id === 'number');
+          .map(([dir, v]) => ({ dir, id: typeof v === 'object' ? v.room_id : v, key: typeof v === 'object' ? v.key : null }))
+          .filter(e => typeof e.id === 'number' && (!e.key || (player.inventory || []).some(item => item.toLowerCase() === (e.key || '').toLowerCase())));
         if (exitEntries.length > 0) {
           const chosen = exitEntries[Math.floor(Math.random() * exitEntries.length)];
           destRoomId = chosen.id;
