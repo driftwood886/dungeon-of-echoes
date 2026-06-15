@@ -632,10 +632,11 @@ function cmdLook(player) {
 
   // DIS-573: hint de peligro extremo en salas adyacentes a bosses que bloquean huida
   // Sirve para que el jugador pueda PREPARARSE antes de comprometerse a entrar
+  // BUG-584: monsterId agregado para verificar si el boss está vivo antes de mostrar la advertencia
   const BOSS_ROOM_DANGER = {
-    15: { name: 'el Lich Anciano', level: 7, icon: '💀', roomName: 'Catedral de la Oscuridad' },
-    10: { name: 'el Gólem de Piedra', level: 5, icon: '🪨', roomName: 'Santuario Profano' },
-    8:  { name: 'el Guardia Espectral', level: 4, icon: '👻', roomName: 'Prisión Subterránea' },
+    15: { name: 'el Lich Anciano',     level: 7, icon: '💀', roomName: 'Catedral de la Oscuridad', monsterId: 13 },
+    10: { name: 'el Gólem de Piedra',  level: 5, icon: '🪨', roomName: 'Santuario Profano',        monsterId: 5  },
+    8:  { name: 'el Guardia Espectral',level: 4, icon: '👻', roomName: 'Prisión Subterránea',       monsterId: 8  },
   };
   let adjacentDangerLine = '';
   try {
@@ -647,6 +648,11 @@ function cmdLook(player) {
       for (const [dir, destId] of Object.entries(curExits)) {
         const danger = BOSS_ROOM_DANGER[destId];
         if (danger) {
+          // BUG-584: verificar si el boss está efectivamente vivo antes de advertir
+          // Si está muerto (en respawn), no tiene sentido alertar al jugador
+          const bossMonster = db.getMonster(danger.monsterId);
+          const bossIsAlive = bossMonster && bossMonster.room_id !== null && bossMonster.room_id !== undefined && (bossMonster.hp || 0) > 0;
+          if (!bossIsAlive) continue; // boss muerto → sin advertencia
           const playerLevel = player.level || 1;
           if (playerLevel < danger.level) {
             dangerLines.push(`${danger.icon} PELIGRO ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}). ¡Preparate antes de entrar!`);
