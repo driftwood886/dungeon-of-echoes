@@ -2826,12 +2826,26 @@ function cmdExamine(player, query) {
     const locationTag = isEquipped ? ' [equipado]' : ' [en mochila]';
     if (def) {
       const typeLabel = def.type === 'weapon' ? 'Arma' : def.type === 'potion' ? 'Poción' : def.type === 'armor' ? 'Armadura' : 'Objeto';
+      // DIS-581: precio de venta estimado de Aldric
+      const catalogEntry = SHOP_CATALOG.find(i => i.name.toLowerCase() === invItemName.toLowerCase());
+      let sellLine = '';
+      if (catalogEntry) {
+        const sellAmt = Math.max(1, Math.floor(catalogEntry.price * SELL_PRICE_RATIO));
+        sellLine = `💰 Precio de venta (Aldric): ~${sellAmt}g`;
+      } else {
+        // Ítem no vendible en tienda
+        const NO_SELL_ITEMS = new Set(['páginas congeladas', 'paginas congeladas', 'carta sellada', 'carta abierta', 'diario helado', 'corona de hueso', 'piedra negra del lich', 'esencia de kaelthas']);
+        if (NO_SELL_ITEMS.has(invItemName.toLowerCase())) {
+          sellLine = `🚫 No vendible (objeto único o de misión)`;
+        }
+      }
       return {
         text: [
           `=== ${invItemName.toUpperCase()}${locationTag} ===`,
           def.description,
           `Tipo: ${typeLabel}`,
           def.amount !== undefined ? `Efecto: ${def.effect || 'daño'} ${def.amount > 0 ? '+' : ''}${def.amount}` : '',
+          sellLine,
         ].filter(Boolean).join('\n'),
       };
     }
