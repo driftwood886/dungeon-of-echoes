@@ -738,9 +738,12 @@ function cmdMove(player, direction) {
     }
     const nameList = aliveHere.map(m => m.name).join(', ');
     // BUG-459 / BUG-550: aclarar que el movimiento inicia una huida, mostrar resultado después
-    const fleeNote = aliveHere.length > 1
-      ? `⚔️ ¡Huís de ${aliveHere.length} monstruos activos (${nameList})!\n`
-      : `⚔️ ¡Huís del combate! (💡 También podés usar "flee" directamente.)\n`;
+    // BUG-565: solo mostrar "¡Huís!" si la huida realmente funcionó — si no, solo el mensaje de fallo
+    const fleeNote = fleeResult.fled
+      ? (aliveHere.length > 1
+          ? `⚔️ ¡Huís de ${aliveHere.length} monstruos activos (${nameList})!\n`
+          : `⚔️ ¡Huís del combate! (💡 También podés usar "flee" directamente.)\n`)
+      : '';
     return {
       text: `${fleeNote}${fleeResult.line}`,
       event: fleeResult.fled
@@ -4428,11 +4431,18 @@ function cmdDisarm(player, args) {
     const keyIdx = inventory.findIndex(i => i.toLowerCase() === trapAdj.item_needed.toLowerCase());
 
     if (keyIdx === -1) {
-      // BUG-552: mensaje claro indicando qué sala y qué ítem; mencionar trampa propia si existe
+      // BUG-552 / BUG-563: mensaje claro indicando qué sala y qué ítem; mencionar trampa propia si existe
       const currentRoomForHint = db.getRoom(player.current_room_id);
       let ownTrapHint = '';
       if (currentRoomForHint && currentRoomForHint.trap && currentRoomForHint.trap.active && currentRoomForHint.trap.item_needed) {
-        ownTrapHint = `\n💡 Nota: esta sala (${currentRoomForHint.name}) también tiene trampa — necesitás "${currentRoomForHint.trap.item_needed}" y escribí "desactivar trampa" (sin dirección) para desactivarla aquí.`;
+        const ownItem = currentRoomForHint.trap.item_needed;
+        const playerHasOwnItem = (player.inventory || []).some(i => i.toLowerCase() === ownItem.toLowerCase());
+        if (playerHasOwnItem) {
+          // BUG-563: jugador tiene el ítem para SU sala actual — probablemente se confundió con la dirección
+          ownTrapHint = `\n\n⚠️  ¿Querías desactivar la trampa de TU sala actual (${currentRoomForHint.name})?\n   Tenés "${ownItem}" en tu inventario — escribí "desactivar trampa" sin dirección para eso.`;
+        } else {
+          ownTrapHint = `\n💡 Nota: esta sala (${currentRoomForHint.name}) también tiene trampa — necesitás "${ownItem}" y escribí "desactivar trampa" (sin dirección) para desactivarla aquí.`;
+        }
       }
       return {
         text: `Intentás desactivar la trampa de ${adjRoom.name} (al ${dirLabel2}) desde aquí, pero no tenés lo necesario.\n🔧 Ítem requerido para ${adjRoom.name}: "${trapAdj.item_needed}"${ownTrapHint}`,
@@ -6106,9 +6116,13 @@ function _cmdDuelMaestro(player) {
     return { text: '⚔️ El Maestro de Combate te mira y frunce el ceño.\n\n"No. No en ese estado." Señala tu HP. "Curate antes de venir a pelear. Un duelo no es suicidio."\n\nTiene razón.' };
   }
 
-  const maestroMaxHp = Math.round(player.max_hp * 1.1);
-  const maestroAtk = Math.round((player.attack || 5) * 1.05) + 1;
-  const maestroDef = Math.round((player.defense || 2) * 1.1);
+  // BUG-564: escalar al nivel del jugador pero ligeramente por DEBAJO en ATK/DEF
+  // para que la pelea sea 70-30 a favor del jugador, no 14 rounds imposibles
+  const playerAtk = player.attack || 5;
+  const playerDef = player.defense || 2;
+  const maestroMaxHp = player.max_hp;                            // igual HP que el jugador
+  const maestroAtk = Math.max(3, Math.round(playerAtk * 0.85)); // 85% del ataque del jugador
+  const maestroDef = Math.max(1, Math.round(playerDef * 0.75)); // 75% defensa — jugador puede hacer daño real
 
   const lines = [];
   lines.push('⚔️ El Maestro de Combate asiente lentamente y desenfunda.');
@@ -6124,11 +6138,11 @@ function _cmdDuelMaestro(player) {
 
   while (playerHp > 0 && maestroHp > 0 && round < MAX_ROUNDS) {
     round++;
-    const playerDmg = Math.max(1, (player.attack || 5) - maestroDef + Math.floor(Math.random() * 4));
+    const playerDmg = Math.max(1, playerAtk - maestroDef + Math.floor(Math.random() * 4));
     maestroHp -= playerDmg;
     lines.push(`Round ${round}: Atacás → ${playerDmg} dmg al Maestro (${Math.max(0, maestroHp)}/${maestroMaxHp} HP)`);
     if (maestroHp <= 0) { playerWon = true; break; }
-    const maestroDmg = Math.max(1, maestroAtk - (player.defense || 2) + Math.floor(Math.random() * 3));
+    const maestroDmg = Math.max(1, maestroAtk - playerDef + Math.floor(Math.random() * 3));
     playerHp -= maestroDmg;
     lines.push(`       ↩ Maestro contraataca → ${maestroDmg} dmg (${Math.max(0, playerHp)}/${player.max_hp} HP)`);
     if (playerHp <= 0) break;

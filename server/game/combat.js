@@ -1105,7 +1105,11 @@ function dropLoot(monster, roomId) {
       // entre cycles de kill/respawn del mismo monstruo.
       const lootSet = new Set(baseAllLoot); // limpiar basado en la lista completa (no filtrada)
       const floorWithoutOldLoot = room.items.filter(i => !lootSet.has(i));
-      const newItems = [...floorWithoutOldLoot, ...allLoot];
+      // BUG-566: No dropear ítems que YA están en el suelo (ítems pre-placed de la sala)
+      // para evitar duplicados cuando el loot_table del boss coincide con objetos del mapa
+      const floorItemsSet = new Set(floorWithoutOldLoot);
+      const dedupedLoot = allLoot.filter(item => !floorItemsSet.has(item));
+      const newItems = [...floorWithoutOldLoot, ...dedupedLoot];
       db.updateRoomItems(roomId, newItems);
     }
   }
