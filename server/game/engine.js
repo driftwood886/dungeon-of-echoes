@@ -3286,10 +3286,12 @@ function cmdEquip(player, itemQuery) {
   // DIS-478: flavor narrativo cuando un mago equipa arma de guerrero (sin penalidad — libertad de builds)
   // DIS-494: armas mágicas (espectral, del eco, arcana) tienen su propio flavor para el Mago
   // DIS-558: vara de energía y catalizador mágico también tienen flavor específico
+  // DIS-561: extender mensajes de clase a más ítems mágicos; mensajes negativos para Guerrero en ítems de Mago
   const clsDataEquip = classes.getPlayerClass(player);
   const heavyWeapons = ['martillo', 'hacha', 'alabarda', 'mandoble', 'ballesta'];
   const magicWeaponKeywords = ['espectral', 'del eco', 'arcano', 'arcana', 'mística', 'místico', 'rúnico', 'rúnica', 'encantado', 'encantada', 'de luz', 'de sombra', 'vara de energía', 'catalizador'];
   const isMagoEquip = clsDataEquip && clsDataEquip.name === 'Mago';
+  const isGuerreroEquip = clsDataEquip && clsDataEquip.name === 'Guerrero';
   const foundLower = found.toLowerCase();
   const isHeavyWeapon = heavyWeapons.some(w => foundLower.includes(w));
   const isMagicWeapon = magicWeaponKeywords.some(w => foundLower.includes(w));
@@ -3299,10 +3301,25 @@ function cmdEquip(player, itemQuery) {
       magoHeavyFlavor = `\n✨ (Las runas de la vara resuenan con tu maná. +${def.mage_only_bonus || 0} de ataque adicional por ser Mago.)`;
     } else if (foundLower.includes('catalizador')) {
       magoHeavyFlavor = `\n✨ (El catalizador amplifica tu conexión arcana. +${def.mage_only_bonus || 0} de ataque adicional por ser Mago.)`;
+    } else if (foundLower.includes('lanza espectral del eco')) {
+      magoHeavyFlavor = `\n✨ (Los ecos de los caídos susurran en sintonía con tu maná. Esta arma fue hecha para alguien como vos.)`;
+    } else if (foundLower.includes('grimorio del abismo')) {
+      magoHeavyFlavor = `\n✨ (El grimorio te reconoce. Las páginas se abren solas ante tu presencia. Esto es lo que debería ser la magia.)`;
+    } else if (foundLower.includes('cristal mágico')) {
+      magoHeavyFlavor = `\n✨ (El cristal vibra en sintonía con tu campo arcano. Podés sentir el maná fluyendo hacia él.)`;
     } else if (isMagicWeapon) {
       magoHeavyFlavor = `\n✨ (Tu maná resuena con el arma. Esto sí es lo que estudiaste.)`;
     } else if (isHeavyWeapon) {
       magoHeavyFlavor = `\n💬 (Empuñás esto con ambas manos. No es lo que un mago estudia, pero nadie dijo que no podés.)`;
+    }
+  } else if (isGuerreroEquip && isMagicWeapon) {
+    // DIS-561: mensajes negativos para Guerrero intentando equipar ítems mágicos
+    if (foundLower.includes('grimorio')) {
+      magoHeavyFlavor = `\n💬 (Abrís el grimorio. Las páginas están cubiertas de símbolos que no reconocés. Lo empuñás de todas formas — pesa bien, eso sí.)`;
+    } else if (foundLower.includes('espectral') || foundLower.includes('del eco')) {
+      magoHeavyFlavor = `\n💬 (El arma se siente extraña en tu mano — demasiado liviana, demasiado fría. Los guerreros prefieren metal que suene al golpear.)`;
+    } else if (foundLower.includes('catalizador') || foundLower.includes('vara')) {
+      magoHeavyFlavor = `\n💬 (Esto claramente fue hecho para alguien que lee libros. Pero si pega, pega.)`;
     }
   }
 
@@ -7709,12 +7726,19 @@ function cmdCast(player, args) {
     // T107: Mago tiene spell_power 1.5 (hechizos hacen 50% más daño)
     const playerCls = classes.getPlayerClass(player);
     const spellPower = playerCls ? (playerCls.spell_power || 1.0) : 1.0;
-    const finalDmg = Math.round(dmg * spellPower);
+    // DIS-562: Resistencia mágica para bosses/élites — reducen el daño mágico al 65%
+    // Afecta a criaturas físicas/pétricas que resistirían la magia
+    const MAGIC_RESISTANT_MONSTERS = ['gólem', 'golem', 'guardia espectral', 'elemental', 'lich'];
+    const targetNameLow = target.name.toLowerCase().replace('⭐ ', '');
+    const hasMagicResist = MAGIC_RESISTANT_MONSTERS.some(n => targetNameLow.includes(n));
+    const magicResist = hasMagicResist ? 0.65 : 1.0;
+    const finalDmg = Math.max(1, Math.round(dmg * spellPower * magicResist));
     const newHp = Math.max(0, target.hp - finalDmg);
     db.updatePlayer(player.id, { mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
 
     lines.push(`🪄 Lanzás ${spell.icon} **${spellName}** sobre ${target.name}!`);
-    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago)` : '';
+    const magicResistNote = hasMagicResist ? ` 🛡️ (resistencia mágica: ×${magicResist})` : '';
+    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote})` : magicResistNote;
     lines.push(`   ${target.name} recibe ${finalDmg} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
 
     // T214: stun_chance — hechizos que pueden aturdir al monstruo (ej: rayo)
