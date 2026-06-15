@@ -36,7 +36,7 @@ const ITEM_CATALOG = {
   // ── Armas (dungeon base) ──────────────────────────────────────────────────
   'espada oxidada':      { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'Una espada vieja con filo irregular. +3 de ataque.' },
   'cuchillo oxidado':    { type: 'weapon', effect: 'attack_bonus', amount: 1,  description: 'Un cuchillo pequeño y oxidado. +1 de ataque.' },
-  'espada de hierro':    { type: 'weapon', effect: 'attack_bonus', amount: 6,  description: 'Una espada de hierro forjado, sólida y confiable. +6 de ataque.' },
+  'espada de hierro':    { type: 'weapon', effect: 'attack_bonus', amount: 8,  description: 'Una espada de hierro forjado, sólida y confiable. +8 de ataque.' },
   'daga envenenada':     { type: 'weapon', effect: 'attack_bonus', amount: 4,  on_hit: { type: 'poison', chance: 0.35 }, description: 'Una daga con el filo impregnado de veneno. +4 de ataque. 35% de envenenar al golpear.' },
   'espada larga':        { type: 'weapon', effect: 'attack_bonus', amount: 5,  description: 'Una espada bien balanceada. +5 de ataque.' },
   'cristal mágico':      { type: 'weapon', effect: 'attack_bonus', amount: 7,  description: 'Un cristal que amplifica la fuerza. +7 de ataque.' },

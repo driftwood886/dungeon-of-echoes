@@ -5316,7 +5316,7 @@ const SHOP_CATALOG = [
   { name: 'poción de salud',         price: 15, description: 'Recupera 15 HP. Esencial para aventureros.' },
   { name: 'poción mayor de salud',   price: 35, description: 'Recupera 50 HP. Para las situaciones desesperadas.' },
   { name: 'antídoto',                price: 20, description: 'Cura el veneno al instante.' },
-  { name: 'espada de hierro',        price: 30, description: 'Arma sólida. Daño base +6.' },
+  { name: 'espada de hierro',        price: 30, description: 'Arma sólida. Daño base +8.' },
   { name: 'daga envenenada',         price: 45, description: 'Daño +4, aplica veneno al enemigo.' },
   { name: 'escudo de madera',        price: 25, description: 'Defensa +2. No es glamoroso, pero funciona.' },
   { name: 'antorcha',                price: 5,  description: 'Ilumina pasillos oscuros. Dura varias horas.' },
