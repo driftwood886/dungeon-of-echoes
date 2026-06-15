@@ -961,6 +961,8 @@ function tryFlee(player, monster, room, preferredDirection = null) {
     // BUG-345: Usar la dirección elegida por el jugador si existe; si no, sala aleatoria
     let destRoomId = null;
     let destRoomName = null;
+    let usedPreferredDir = false;
+    let actualDirName = null;
     if (room) {
       const exits = room.exits || {};
       // Intentar usar la dirección preferida del jugador primero
@@ -969,15 +971,19 @@ function tryFlee(player, monster, room, preferredDirection = null) {
         const preferredExit = exits[normalizedDir];
         if (preferredExit !== undefined && preferredExit !== null) {
           destRoomId = typeof preferredExit === 'object' ? preferredExit.room_id : preferredExit;
+          usedPreferredDir = true;
+          actualDirName = normalizedDir;
         }
       }
       // Si no hay dirección preferida o no existe en exits, elegir aleatoriamente
       if (!destRoomId) {
-        const exitRooms = Object.values(exits)
-          .map(v => (typeof v === 'object' ? v.room_id : v))
-          .filter(id => typeof id === 'number');
-        if (exitRooms.length > 0) {
-          destRoomId = exitRooms[Math.floor(Math.random() * exitRooms.length)];
+        const exitEntries = Object.entries(exits)
+          .map(([dir, v]) => ({ dir, id: typeof v === 'object' ? v.room_id : v }))
+          .filter(e => typeof e.id === 'number');
+        if (exitEntries.length > 0) {
+          const chosen = exitEntries[Math.floor(Math.random() * exitEntries.length)];
+          destRoomId = chosen.id;
+          actualDirName = chosen.dir;
         }
       }
       if (destRoomId) {
@@ -986,7 +992,11 @@ function tryFlee(player, monster, room, preferredDirection = null) {
         db.updatePlayer(player.id, { current_room_id: destRoomId });
       }
     }
-    const toText = destRoomName ? ` Te refugiás en «${destRoomName}».` : '';
+    let toText = destRoomName ? ` Te refugiás en «${destRoomName}».` : '';
+    // DIS-591: si la dirección real fue diferente a la solicitada, aclararlo
+    if (!usedPreferredDir && preferredDirection && actualDirName && destRoomName) {
+      toText += ` (huiste hacia el ${actualDirName}, no hacia el ${preferredDirection} que intentaste)`;
+    }
     return {
       fled: true,
       destRoomId,
