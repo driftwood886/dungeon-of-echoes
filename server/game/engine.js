@@ -2253,11 +2253,34 @@ function cmdPick(player, itemQuery) {
     if (floorItems.length === 0) {
       return { text: 'No hay ítems en el suelo.' };
     }
+    // DIS-016: tabla de conversión de monedas a oro
+    const GOLD_ITEMS_ALL = {
+      'monedas de oro': 10,
+      'monedas de plata': 5,
+      'monedas de cobre': 1,
+      'monedas': 5,
+      'oro': 15,
+      'bolsa de monedas': 25,
+      'cofre de oro': 50,
+    };
     // Recoger todos — acumular resultados
     const pickedLines = [];
     const notPicked = [];
     let current = db.getPlayer(player.id);
+    let totalGoldConverted = 0;
     for (const item of floorItems) {
+      // DIS-589: monedas se auto-convierten a oro sin ocupar inventario
+      const itemLower = item.toLowerCase();
+      const goldKey = Object.keys(GOLD_ITEMS_ALL).find(k => itemLower.includes(k) || k.includes(itemLower));
+      if (goldKey) {
+        const amount = GOLD_ITEMS_ALL[goldKey];
+        current = db.getPlayer(current.id);
+        db.updatePlayer(current.id, { gold: (current.gold || 0) + amount });
+        totalGoldConverted += amount;
+        pickedLines.push(`  💰 ${item} → +${amount}g`);
+        current = db.getPlayer(current.id);
+        continue;
+      }
       const inv = Array.isArray(current.inventory) ? current.inventory : [];
       // BUG-489: contar equipados también para el límite real
       const eqCount = (current.equipped_weapon ? 1 : 0) + (current.equipped_armor ? 1 : 0);
@@ -2274,7 +2297,8 @@ function cmdPick(player, itemQuery) {
     // Dejar en el suelo solo los ítems no recogidos
     db.updateRoomItems(room.id, notPicked);
     const total = floorItems.length - notPicked.length;
-    return { text: `📦 Recogiste ${total} ítem(s) del suelo:\n${pickedLines.join('\n')}` };
+    const goldSuffix = totalGoldConverted > 0 ? ` (monedas convertidas: +${totalGoldConverted}g → ${current.gold}g total)` : '';
+    return { text: `📦 Recogiste ${total} ítem(s) del suelo${goldSuffix}:\n${pickedLines.join('\n')}` };
   }
 
   const found = items.findItem(room.items, itemQuery.trim());
