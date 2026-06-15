@@ -2525,6 +2525,18 @@ function cmdUse(player, itemQuery) {
 
     resultText = `⚡ Bebés la ${found}. Una energía oscura recorre tus músculos. (+${def.atk_bonus} ATK por ${def.duration}s)`;
 
+  } else if (def.type === 'spell_scroll') {
+    // DIS-558: Pergamino de hechizo — próximo hechizo gratis (sin coste de maná)
+    const freshP558 = db.getPlayer(player.id);
+    if (!freshP558.player_class || freshP558.player_class !== 'mago') {
+      return { text: `📜 Intentás leer el pergamino de hechizo, pero los símbolos arcanos no tienen sentido para vos. Este pergamino está calibrado para Magos.` };
+    }
+    const se558 = parseSE(freshP558.status_effects);
+    se558['free_spell'] = true;
+    const newInvSS = removeFirst(freshP558.inventory, found);
+    db.updatePlayer(player.id, { inventory: newInvSS, status_effects: JSON.stringify(se558) });
+    resultText = `📜 Leés el pergamino de hechizo. Las runas se disuelven y la energía arcana fluye hacia tus manos.\n✨ Tu próximo lanzamiento de hechizo no costará maná.`;
+
   } else if (def.type === 'scroll') {
     // T153: Pergaminos mágicos de un solo uso
     const scrolls = JSON.parse(player.active_scrolls || '{}');
@@ -3248,9 +3260,16 @@ function cmdEquip(player, itemQuery) {
 
   const oldAttack = player.attack;
   // Calcular ataque base real (sin el bonus del arma previa si había una)
-  const prevWeaponBonusEquip = player.equipped_weapon ? (items.getItemDef(player.equipped_weapon)?.amount || 0) : 0;
-  const baseAttackEquip = player.attack - prevWeaponBonusEquip;
-  const newAttack = baseAttackEquip + def.amount;
+  const prevWeaponDef = player.equipped_weapon ? items.getItemDef(player.equipped_weapon) : null;
+  const prevWeaponBonusEquip = prevWeaponDef ? (prevWeaponDef.amount || 0) : 0;
+  // DIS-558: Si el arma anterior tenía mage_only_bonus y el jugador es Mago, restar también ese bonus
+  const clsCheckPrev = classes.getPlayerClass(player);
+  const isMagoPrev = clsCheckPrev && clsCheckPrev.name === 'Mago';
+  const prevMageBonus = (isMagoPrev && prevWeaponDef && prevWeaponDef.mage_only_bonus) ? prevWeaponDef.mage_only_bonus : 0;
+  const baseAttackEquip = player.attack - prevWeaponBonusEquip - prevMageBonus;
+  // DIS-558: aplicar mage_only_bonus si el jugador es Mago y el arma nueva lo tiene
+  const mageOnlyBonus = (isMagoPrev && def.mage_only_bonus) ? def.mage_only_bonus : 0;
+  const newAttack = baseAttackEquip + def.amount + mageOnlyBonus;
 
   // BUG-269: remover el arma nueva del inventario, devolver la anterior si había una
   const invEquip = [...player.inventory];
@@ -3266,16 +3285,21 @@ function cmdEquip(player, itemQuery) {
 
   // DIS-478: flavor narrativo cuando un mago equipa arma de guerrero (sin penalidad — libertad de builds)
   // DIS-494: armas mágicas (espectral, del eco, arcana) tienen su propio flavor para el Mago
+  // DIS-558: vara de energía y catalizador mágico también tienen flavor específico
   const clsDataEquip = classes.getPlayerClass(player);
   const heavyWeapons = ['martillo', 'hacha', 'alabarda', 'mandoble', 'ballesta'];
-  const magicWeaponKeywords = ['espectral', 'del eco', 'arcano', 'arcana', 'mística', 'místico', 'rúnico', 'rúnica', 'encantado', 'encantada', 'de luz', 'de sombra'];
+  const magicWeaponKeywords = ['espectral', 'del eco', 'arcano', 'arcana', 'mística', 'místico', 'rúnico', 'rúnica', 'encantado', 'encantada', 'de luz', 'de sombra', 'vara de energía', 'catalizador'];
   const isMagoEquip = clsDataEquip && clsDataEquip.name === 'Mago';
   const foundLower = found.toLowerCase();
   const isHeavyWeapon = heavyWeapons.some(w => foundLower.includes(w));
   const isMagicWeapon = magicWeaponKeywords.some(w => foundLower.includes(w));
   let magoHeavyFlavor = '';
   if (isMagoEquip) {
-    if (isMagicWeapon) {
+    if (foundLower.includes('vara de energía')) {
+      magoHeavyFlavor = `\n✨ (Las runas de la vara resuenan con tu maná. +${def.mage_only_bonus || 0} de ataque adicional por ser Mago.)`;
+    } else if (foundLower.includes('catalizador')) {
+      magoHeavyFlavor = `\n✨ (El catalizador amplifica tu conexión arcana. +${def.mage_only_bonus || 0} de ataque adicional por ser Mago.)`;
+    } else if (isMagicWeapon) {
       magoHeavyFlavor = `\n✨ (Tu maná resuena con el arma. Esto sí es lo que estudiaste.)`;
     } else if (isHeavyWeapon) {
       magoHeavyFlavor = `\n💬 (Empuñás esto con ambas manos. No es lo que un mago estudia, pero nadie dijo que no podés.)`;
@@ -3283,9 +3307,10 @@ function cmdEquip(player, itemQuery) {
   }
 
   // DIS-520: mostrar tanto el bono absoluto del arma como el delta neto para evitar confusión
+  const mageOnlyBonusStr = (isMagoPrev && mageOnlyBonus > 0) ? ` +${mageOnlyBonus} Mago` : '';
   const baseStr = player.equipped_weapon
-    ? ` (bono base del arma: +${def.amount} ATK; ${changeStr} neto vs ${player.equipped_weapon})`
-    : ` (bono del arma: +${def.amount} ATK)`;
+    ? ` (bono base del arma: +${def.amount} ATK${mageOnlyBonusStr}; ${changeStr} neto vs ${player.equipped_weapon})`
+    : ` (bono del arma: +${def.amount} ATK${mageOnlyBonusStr})`;
 
   return {
     text: `Empuñás ${found}${swapMsg}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.\n${def.description}${magoHeavyFlavor}`,
@@ -5173,12 +5198,16 @@ const SHOP_CATALOG = [
   { name: 'cota de malla',           price: 60, description: 'Armadura de hierro. +3 defensa.' },
   { name: 'túnica encantada',        price: 80, description: 'Armadura mágica. +4 defensa. Ideal para magos.' },
   // DIS-D27: poción de maná para Magos
-  { name: 'poción de maná',          price: 20, description: 'Restaura 15 maná al instante. Indispensable para Magos.' },
+  // DIS-559: precio bajado de 20g → 12g para compensar economía doble del Mago
+  { name: 'poción de maná',          price: 12, description: 'Restaura 15 maná al instante. Indispensable para Magos.' },
   // DIS-D421: Consumibles que presionan al jugador a gastar oro
-  { name: 'poción de maná mayor',    price: 40, description: 'Restaura 20 maná al instante. La versión potenciada, para situaciones críticas. Solo aquí.' },
+  { name: 'poción de maná mayor',    price: 30, description: 'Restaura 20 maná al instante. La versión potenciada, para situaciones críticas. Solo aquí.' },
   { name: 'cristal helado',          price: 30, description: 'Un cristal del norte glacial. Ingrediente para craftear la lanza espectral. \'Fragmento de hielo + cristal helado = lanza espectral.\'' },
   // DIS-536: sello del carcelero como pieza de colección — Aldric lo compra a 20g (40% de 50g)
   { name: 'sello del carcelero',     price: 50, description: 'El sello oficial de los carceleros de la Prisión Subterránea. Aldric lo compra como pieza histórica. (+3 DEF si lo equipás, o vendelo por 20g)' },
+  // DIS-558: ítems específicos de clase Mago
+  { name: 'vara de energía',         price: 40, description: '🔮 (Mago) Una vara canalizada con energía arcana. Amplifica los hechizos del portador. +5 ataque mágico. Bonus especial para Magos.' },
+  { name: 'pergamino de hechizo',    price: 25, description: '🔮 (Mago) Un pergamino consumible que otorga un lanzamiento de hechizo gratuito — no consume maná. Útil cuando estás al límite.' },
 ];
 
 // Precios de venta al mercader (jugador → mercader) — 40% del valor
@@ -7632,7 +7661,12 @@ function cmdCast(player, args) {
   const { key: spellName, spell } = found;
 
   // Verificar maná suficiente
-  if (currentMana < spell.cost) {
+  // DIS-558: Si tiene free_spell activo, no verificar ni cobrar maná
+  const freshForFreeSp = db.getPlayer(player.id);
+  const seForFreeSp = parseSE(freshForFreeSp.status_effects);
+  const hasFreeSpell = seForFreeSp['free_spell'] === true;
+
+  if (!hasFreeSpell && currentMana < spell.cost) {
     return {
       text: `🪄 No tenés maná suficiente para ${spell.icon} ${spellName}.\n   Necesitás ${spell.cost} maná, tenés ${currentMana}/${maxMana}.\n   Esperá que se recargue (${(() => { const c = classes.getPlayerClass(player); return (c && c.name === 'Mago') ? 6 : 1; })()}\u00a0maná/minuto) o usá una poción de maná.`,
     };
@@ -7640,7 +7674,14 @@ function cmdCast(player, args) {
 
   const monsters = db.getMonstersInRoom(player.current_room_id);
   let lines = [];
-  let newMana = currentMana - spell.cost;
+  // DIS-558: Si free_spell está activo, no deducir maná; consumir el flag
+  let newMana = hasFreeSpell ? currentMana : currentMana - spell.cost;
+  if (hasFreeSpell) {
+    const seFS = parseSE(freshForFreeSp.status_effects);
+    delete seFS['free_spell'];
+    db.updatePlayer(player.id, { status_effects: JSON.stringify(seFS) });
+    lines.push('✨ (Hechizo gratuito activado — sin coste de maná)');
+  }
   let broadcastEvent = null;
 
   if (spell.type === 'damage') {

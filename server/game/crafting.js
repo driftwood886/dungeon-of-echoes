@@ -130,6 +130,25 @@ const RECIPES = [
     result: 'amuleto del eco',
     message: 'Combinás el cristal con el polvo. El amuleto resultante pulsa con ecos de memorias antiguas.',
   },
+  // ── DIS-560: Recetas exclusivas de Mago ──────────────────────────────────
+  {
+    // Cristal fragmentado + hierba curativa = catalizador mágico
+    ingredients: ['cristal fragmentado', 'hierba curativa'],
+    result: 'catalizador mágico',
+    message: 'Triturar el cristal fragmentado en la hierba curativa genera una reacción inesperada: en lugar de sanar, la energía curativa de la planta se convierte en poder arcano. El catalizador resultante amplifica hechizos.',
+  },
+  {
+    // Esencia etérea + poción de maná = poción de maná mayor (craft alternativo)
+    ingredients: ['esencia etérea', 'poción de maná'],
+    result: 'poción de maná mayor',
+    message: 'La esencia etérea del espectro se funde con la poción de maná, amplificando sus propiedades restaurativas. Obtenés una poción de maná mayor.',
+  },
+  {
+    // Cristal mágico + esencia de eco = catalizador mágico (ruta alternativa)
+    ingredients: ['cristal mágico', 'esencia de eco'],
+    result: 'catalizador mágico',
+    message: 'El cristal mágico absorbe la esencia de eco. La energía espectral cristaliza en un catalizador que concentra poder arcano.',
+  },
 ];
 
 // ─── Catálogo de ítems artesanales nuevos ─────────────────────────────────────
@@ -149,6 +168,8 @@ const CRAFTED_ITEMS = {
   'lanza espectral reforzada': { type: 'weapon', effect: 'attack_bonus', amount: 9, description: 'La lanza espectral básica reforzada con esencia etérea. La luz negra es más densa, el frío más absoluto. +9 de ataque.' },
   'daga del vacío':     { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una daga que parece absorber la realidad. +12 de ataque. El arma más poderosa forjada en las profundidades del Abismo.' },
   'amuleto del eco':    { type: 'misc', description: 'Un amuleto que pulsa con ecos de memorias antiguas. Los sabios dicen que protege su portador de los efectos de la Cámara del Eco.' },
+  // DIS-560: ítems artesanales de Mago
+  'catalizador mágico': { type: 'weapon', effect: 'attack_bonus', amount: 7, mage_only_bonus: 3, description: 'Un concentrado de energía arcana. Amplifica la potencia de los hechizos del Mago. +7 de ataque. Los Magos reciben +3 de ataque adicional al empuñarlo.' },
 };
 
 // ─── Función de crafteo ────────────────────────────────────────────────────────

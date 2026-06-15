@@ -124,6 +124,12 @@ const ITEM_CATALOG = {
   'túnica encantada':    { type: 'armor', effect: 'defense_bonus', amount: 4,  description: 'Una túnica de tela mágica que repele golpes. +4 de defensa. Ideal para magos.' },
   'armadura de placas':  { type: 'armor', effect: 'defense_bonus', amount: 5,  description: 'Placas de acero que cubren el cuerpo. La protección más alta del dungeon. +5 de defensa.' },
 
+  // ── DIS-558: Ítems específicos de clase Mago ─────────────────────────────
+  'vara de energía':       { type: 'weapon', effect: 'attack_bonus', amount: 5, mage_only_bonus: 2, description: 'Una vara de madera oscura grabada con runas arcanas. Canaliza la energía mágica del portador. +5 de ataque. Los Magos reciben +2 de ataque adicional al empuñarla.' },
+  'pergamino de hechizo':  { type: 'spell_scroll', effect: 'free_spell', description: 'Un pergamino cubierto de ecuaciones mágicas y símbolos arcanos. Al usarlo, podés lanzar tu próximo hechizo sin coste de maná. El pergamino se consume en el proceso.' },
+  // DIS-560: crafteo de Mago
+  'catalizador mágico':    { type: 'weapon', effect: 'attack_bonus', amount: 7, mage_only_bonus: 3, description: 'Un concentrado de energía arcana, resultado de combinar cristales y esencias espectrales. +7 de ataque. Los Magos reciben +3 de ataque adicional — ideal para potenciar hechizos.' },
+
   // ── Pergaminos mágicos (T153) ──────────────────────────────────────────────
   'pergamino de furia':    { type: 'scroll', effect: 'fury',    atk_bonus: 3, def_bonus: 0, duration: 60,  description: 'Un pergamino que irradia energía roja. Al leerlo, sentís una furia ardiente. (+3 ATK por 60s)' },
   'pergamino de escudo':   { type: 'scroll', effect: 'shield',  atk_bonus: 0, def_bonus: 3, duration: 60,  description: 'Runas protectoras grabadas en papel dorado. Una barrera mágica te envuelve. (+3 DEF por 60s)' },
