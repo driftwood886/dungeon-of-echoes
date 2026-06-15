@@ -3042,6 +3042,14 @@ function cmdExamine(player, query) {
           });
           return { text: '📋 **Tablero de historial de subastas**\n\nÚltimos remates cerrados:\n\n' + rows.join('\n') + '\n\n  *(El escriba actualiza el tablero después de cada remate.)*\n\nPara ver subastas activas: subastas   |   Para crear una: subastar <ítem> <precio>' };
         }
+        // BUG-555: carta sellada — si el jugador ya la abrió (no está en inventario), mostrar descripción post-apertura
+        if ((key === 'carta' || key === 'carta sellada') && player.current_room_id === 8) {
+          const hasCartaInInv = (player.inventory || []).some(i => i.toLowerCase().includes('carta sellada') || i.toLowerCase() === 'carta');
+          if (!hasCartaInInv) {
+            // La carta ya fue abierta (consumida del inventario)
+            return { text: 'Buscás el sobre con cera negra, pero ya no está. Lo abriste: los restos del sobre rasgado quedaron en el suelo, la cera negra partida en dos. El papel que contenía ya lo leíste.\n\nLo que decía no se puede desaprender.' };
+          }
+        }
         return { text: val.text };
       }
       // Si el key matchea pero la sala no aplica, seguir buscando
