@@ -8,6 +8,11 @@
  *   - smash / golpetazo   (nivel 3): Ataque potente ×1.8 daño, cooldown 45s
  *   - shield_bash / escudo_bash (nivel 6): Daño normal + stun al monstruo 1 turno, cooldown 60s
  *   - rally / arenga      (nivel 10): En party, +2 ATK a todos en la sala por 60s
+ *
+ * Habilidades de Clérigo (DIS-612):
+ *   - sanacion_mayor     (nivel 3): Cura 30 HP, 12 maná, cooldown 60s
+ *   - bendicion          (nivel 6): Buff +2 DEF a todos en sala, 10 maná, cooldown 60s
+ *   - resurreccion       (nivel 10): Revive a jugador muerto en la sala al 50% HP, una vez por sesión
  */
 
 'use strict';
@@ -24,7 +29,7 @@ const SKILLS = {
     dmg_multiplier: 1.8,
     description: 'Un golpe devastador que hace ×1.8 del daño normal. Cooldown: 45s.',
     combat_only: true,
-    excluded_classes: ['mago'],  // DIS-D304: Mago usa hechizos, no golpes físicos
+    excluded_classes: ['mago', 'clerigo'],  // DIS-D304: Mago usa hechizos; DIS-612: Clérigo tiene habilidades propias
   },
   shield_bash: {
     id: 'shield_bash',
@@ -37,7 +42,7 @@ const SKILLS = {
     stun_turns: 1,
     description: 'Golpea con el escudo: daño normal + aturde al monstruo 1 turno. Cooldown: 60s.',
     combat_only: true,
-    excluded_classes: ['mago'],  // DIS-D304
+    excluded_classes: ['mago', 'clerigo'],  // DIS-D304, DIS-612
   },
   rally: {
     id: 'rally',
@@ -50,7 +55,7 @@ const SKILLS = {
     duration_seconds: 60,
     description: 'Arenga a tu grupo: +2 ATK a todos en la sala por 60s. Requiere grupo. Cooldown: 2 min.',
     combat_only: false,
-    excluded_classes: ['mago'],  // DIS-D304
+    excluded_classes: ['mago', 'clerigo'],  // DIS-D304, DIS-612
   },
   // ── Habilidades exclusivas del Pícaro (BUG-271) ──────────────────────────
   robar: {
@@ -77,6 +82,46 @@ const SKILLS = {
     poison_turns: 3,
     description: 'Ataque traicionero: ×1.5 daño + veneno al monstruo (3 dmg × 3 turnos). Cooldown: 50s. Solo pícaro.',
     combat_only: true,
+  },
+  // ── Habilidades exclusivas del Clérigo (DIS-612) ─────────────────────────
+  sanacion_mayor: {
+    id: 'sanacion_mayor',
+    name: 'Sanación Mayor',
+    aliases: ['sanacion_mayor', 'sanación_mayor', 'sanacion mayor', 'sanación mayor', 'gran_curacion', 'gran_curación', 'big_heal'],
+    required_level: 3,
+    required_class: 'clerigo',
+    cooldown_seconds: 60,
+    type: 'cleric_heal',
+    heal_amount: 30,
+    mana_cost: 12,
+    description: 'Canaliza la gracia divina: cura 30 HP instantáneamente. Cooldown: 60s. Solo Clérigo.',
+    combat_only: false,
+  },
+  bendicion: {
+    id: 'bendicion',
+    name: 'Bendición',
+    aliases: ['bendicion', 'bendición', 'bless', 'blesear', 'bendecir', 'consagrar'],
+    required_level: 6,
+    required_class: 'clerigo',
+    cooldown_seconds: 60,
+    type: 'cleric_buff',
+    def_bonus: 2,
+    duration_seconds: 60,
+    mana_cost: 10,
+    description: 'Invoca una barrera sagrada: +2 DEF a todos los jugadores en la sala por 60s. Cooldown: 60s. Solo Clérigo.',
+    combat_only: false,
+  },
+  resurreccion: {
+    id: 'resurreccion',
+    name: 'Resurrección',
+    aliases: ['resurreccion', 'resurrección', 'resurrect', 'revivir', 'revive', 'resucitar'],
+    required_level: 10,
+    required_class: 'clerigo',
+    cooldown_seconds: 0,  // Una vez por sesión — manejo especial
+    type: 'cleric_resurrect',
+    heal_percent: 50,
+    description: 'Reza por el alma de un aliado caído en la misma sala y lo revive al 50% de HP. Una vez por sesión. Solo Clérigo.',
+    combat_only: false,
   },
 };
 

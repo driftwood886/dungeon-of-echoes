@@ -1285,6 +1285,8 @@ function cmdStatus(player) {
           speed: '📜 VELOCIDAD',
           power: '⚡ POCIÓN DE PODER',
           altar_blessing: '🙏 BENDICIÓN DE ALTAR',
+          blessing: '✨ BENDICIÓN (poción)',
+          cleric_bless: '✨ BENDICIÓN (Clérigo)',
         };
         // BUG-490: si el dato tiene label propio (ej: altar_blessing), usarlo primero
         effectLabel = effectNames[effect] || (data.label ? `✨ ${data.label}` : '📜 BUFF');
@@ -2629,6 +2631,23 @@ function cmdUse(player, itemQuery) {
     db.updatePlayer(player.id, { inventory: newInvSS, status_effects: JSON.stringify(se558) });
     resultText = `📜 Leés el pergamino de hechizo. Las runas se disuelven y la energía arcana fluye hacia tus manos.\n✨ Tu próximo lanzamiento de hechizo no costará maná.`;
 
+  } else if (def.type === 'blessing_potion') {
+    // DIS-610: Poción de bendición — restaura maná + buff ATK temporal (Clérigo preferido pero cualquiera puede usarla)
+    const freshPB = db.getPlayer(player.id);
+    const maxMana = freshPB.max_mana || 20;
+    const currMana = freshPB.mana || 0;
+    const newMana = Math.min(maxMana, currMana + def.mana_restore);
+    const manaGained = newMana - currMana;
+    // Buff ATK temporal usando active_scrolls
+    const scrollsPB = JSON.parse(freshPB.active_scrolls || '{}');
+    const nowPB = Date.now();
+    scrollsPB['blessing'] = { atk_bonus: def.atk_bonus, def_bonus: 0, expires_at: nowPB + def.duration * 1000 };
+    const newInvPB = removeFirst(freshPB.inventory, found);
+    db.updatePlayer(freshPB.id, { inventory: newInvPB, mana: newMana, active_scrolls: JSON.stringify(scrollsPB) });
+    const isClerigoPB = freshPB.player_class === 'clerigo';
+    const flavorPB = isClerigoPB ? '\n✨ (La fe del Clérigo amplifica el efecto de la poción. Sentís la gracia divina fluyendo.)' : '';
+    resultText = `✨ Bebés la poción de bendición. Una calidez dorada te envuelve.\n💙 Maná: ${currMana} → ${newMana}/${maxMana} (+${manaGained})\n⚔️ +${def.atk_bonus} ATK por ${def.duration}s.${flavorPB}`;
+
   } else if (def.type === 'scroll') {
     // T153: Pergaminos mágicos de un solo uso
     const scrolls = JSON.parse(player.active_scrolls || '{}');
@@ -3403,11 +3422,16 @@ function cmdEquip(player, itemQuery) {
   // DIS-558: Si el arma anterior tenía mage_only_bonus y el jugador es Mago, restar también ese bonus
   const clsCheckPrev = classes.getPlayerClass(player);
   const isMagoPrev = clsCheckPrev && clsCheckPrev.name === 'Mago';
+  const isClericoPrev = clsCheckPrev && clsCheckPrev.name === 'Clérigo';
   const prevMageBonus = (isMagoPrev && prevWeaponDef && prevWeaponDef.mage_only_bonus) ? prevWeaponDef.mage_only_bonus : 0;
-  const baseAttackEquip = player.attack - prevWeaponBonusEquip - prevMageBonus;
+  // DIS-610: Si el arma anterior tenía cleric_only_bonus y el jugador es Clérigo, restar también ese bonus
+  const prevClericBonus = (isClericoPrev && prevWeaponDef && prevWeaponDef.cleric_only_bonus) ? prevWeaponDef.cleric_only_bonus : 0;
+  const baseAttackEquip = player.attack - prevWeaponBonusEquip - prevMageBonus - prevClericBonus;
   // DIS-558: aplicar mage_only_bonus si el jugador es Mago y el arma nueva lo tiene
   const mageOnlyBonus = (isMagoPrev && def.mage_only_bonus) ? def.mage_only_bonus : 0;
-  const newAttack = baseAttackEquip + def.amount + mageOnlyBonus;
+  // DIS-610: aplicar cleric_only_bonus si el jugador es Clérigo y el arma nueva lo tiene
+  const clericOnlyBonus = (isClericoPrev && def.cleric_only_bonus) ? def.cleric_only_bonus : 0;
+  const newAttack = baseAttackEquip + def.amount + mageOnlyBonus + clericOnlyBonus;
 
   // BUG-269: remover el arma nueva del inventario, devolver la anterior si había una
   const invEquip = [...player.inventory];
@@ -3430,6 +3454,7 @@ function cmdEquip(player, itemQuery) {
   const magicWeaponKeywords = ['espectral', 'del eco', 'arcano', 'arcana', 'mística', 'místico', 'rúnico', 'rúnica', 'encantado', 'encantada', 'de luz', 'de sombra', 'vara de energía', 'catalizador'];
   const isMagoEquip = clsDataEquip && clsDataEquip.name === 'Mago';
   const isGuerreroEquip = clsDataEquip && clsDataEquip.name === 'Guerrero';
+  const isClerigoEquip = clsDataEquip && clsDataEquip.name === 'Clérigo';
   const foundLower = found.toLowerCase();
   const isHeavyWeapon = heavyWeapons.some(w => foundLower.includes(w));
   const isMagicWeapon = magicWeaponKeywords.some(w => foundLower.includes(w));
@@ -3459,13 +3484,17 @@ function cmdEquip(player, itemQuery) {
     } else if (foundLower.includes('catalizador') || foundLower.includes('vara')) {
       magoHeavyFlavor = `\n💬 (Esto claramente fue hecho para alguien que lee libros. Pero si pega, pega.)`;
     }
+  } else if (isClerigoEquip && foundLower.includes('símbolo sagrado')) {
+    // DIS-610: flavor para Clérigo equipando símbolo sagrado
+    magoHeavyFlavor = `\n✨ (El símbolo responde a tu fe. +${def.cleric_only_bonus || 0} de ataque adicional por ser Clérigo. El cooldown de tus rezos se reduce a 3 minutos.)`;
   }
 
   // DIS-520: mostrar tanto el bono absoluto del arma como el delta neto para evitar confusión
   const mageOnlyBonusStr = (isMagoPrev && mageOnlyBonus > 0) ? ` +${mageOnlyBonus} Mago` : '';
+  const clericOnlyBonusStr = (isClericoPrev && clericOnlyBonus > 0) ? ` +${clericOnlyBonus} Clérigo` : '';
   const baseStr = player.equipped_weapon
-    ? ` (bono base del arma: +${def.amount} ATK${mageOnlyBonusStr}; ${changeStr} neto vs ${player.equipped_weapon})`
-    : ` (bono del arma: +${def.amount} ATK${mageOnlyBonusStr})`;
+    ? ` (bono base del arma: +${def.amount} ATK${mageOnlyBonusStr}${clericOnlyBonusStr}; ${changeStr} neto vs ${player.equipped_weapon})`
+    : ` (bono del arma: +${def.amount} ATK${mageOnlyBonusStr}${clericOnlyBonusStr})`;
 
   return {
     text: `Empuñás ${found}${swapMsg}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.\n${def.description}${magoHeavyFlavor}`,
@@ -5393,6 +5422,9 @@ const SHOP_CATALOG = [
   // DIS-558: ítems específicos de clase Mago
   { name: 'vara de energía',         price: 40, description: '🔮 (Mago) Una vara canalizada con energía arcana. Amplifica los hechizos del portador. +5 ataque mágico. Bonus especial para Magos.' },
   { name: 'pergamino de hechizo',    price: 25, description: '🔮 (Mago) Un pergamino consumible que otorga un lanzamiento de hechizo gratuito — no consume maná. Útil cuando estás al límite.' },
+  // DIS-610: ítems específicos de clase Clérigo
+  { name: 'símbolo sagrado',         price: 30, description: '✨ (Clérigo) Un símbolo sagrado de madera bendecida. +2 ataque. Clérigos reciben +2 ATK adicional y reducen el cooldown de pray a 3 min.' },
+  { name: 'poción de bendición',     price: 20, description: '✨ (Clérigo) Poción clerical dorada. Restaura 20 maná y otorga +1 ATK por 2 minutos. Perfecta para sostener la cadena de curación.' },
   // DIS-595: bolsa de lona — expande inventario +4 slots, máx 2 bolsas
   { name: 'bolsa de lona',           price: 30, description: 'Una bolsa de lona resistente con correas de cuero. Al usarla, amplía tu capacidad de inventario en 4 slots (+4 más si comprás una segunda). Máximo 2.' },
   // DIS-585: materiales de loot con precios diferenciados (sellOnly — no aparecen en la tienda)
@@ -8118,13 +8150,18 @@ function cmdCast(player, args) {
     if (player.hp >= maxHp) {
       return { text: `🪄 Ya tenés el HP al máximo. Maná no consumido.` };
     }
-    const newHp = Math.min(maxHp, player.hp + spell.amount);
+    // DIS-611: Clérigo tiene heal_power 1.5 — el bonus debe aplicarse también a cast curación
+    const castPlayerCls = classes.getPlayerClass(player);
+    const castHealPower = (castPlayerCls && castPlayerCls.heal_power) ? castPlayerCls.heal_power : 1.0;
+    const healAmtRaw = Math.round(spell.amount * castHealPower);
+    const newHp = Math.min(maxHp, player.hp + healAmtRaw);
     const healed = newHp - player.hp;
+    const healPowerNote = castHealPower > 1.0 ? ` (${spell.amount}×${castHealPower} — bonus de Clérigo)` : '';
 
     db.updatePlayer(player.id, { hp: newHp, mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
 
     lines.push(`🪄 Canalizás ${spell.icon} energía curativa...`);
-    lines.push(`   Recuperás ${healed} HP. (${player.hp} → ${newHp}/${maxHp})`);
+    lines.push(`   Recuperás ${healed} HP.${healPowerNote} (${player.hp} → ${newHp}/${maxHp})`);
     lines.push(`   💧 Maná restante: ${newMana}/${maxMana}`);
 
   } else if (spell.type === 'shield') {
@@ -8595,7 +8632,7 @@ function cmdSkills(player) {
  */
 function cmdUseSkill(player, args, context) {
   if (!args || args.length === 0) {
-    return { text: 'Uso: smash | escudo_bash | arenga. Ver habilidades disponibles con "skills".' };
+    return { text: 'Uso: smash | escudo_bash | arenga | sanacion_mayor | bendicion | resurreccion. Ver habilidades disponibles con "skills".' };
   }
 
   const freshPlayer = db.getPlayer(player.id);
@@ -9048,8 +9085,116 @@ function cmdUseSkill(player, args, context) {
     }
   }
 
+  // ── Sanación Mayor (sanacion_mayor) — Clérigo Lv3 ────────────────────────
+  if (skillId === 'sanacion_mayor') {
+    const freshCler = db.getPlayer(freshPlayer.id);
+    const manaCostSM = skill.mana_cost || 12;
+    const currManaSM = freshCler.mana != null ? freshCler.mana : 0;
+    if (currManaSM < manaCostSM) {
+      return { text: `✨ No tenés suficiente maná para Sanación Mayor. Necesitás ${manaCostSM} maná (tenés ${currManaSM}).` };
+    }
+    if (freshCler.hp >= freshCler.max_hp) {
+      return { text: `✨ Ya tenés el HP al máximo. Maná no consumido.` };
+    }
+    const healAmt = Math.round((skill.heal_amount || 30) * 1.5); // Clérigo tiene heal_power 1.5
+    const newHpSM = Math.min(freshCler.max_hp, freshCler.hp + healAmt);
+    const healedSM = newHpSM - freshCler.hp;
+    const newManaSM = currManaSM - manaCostSM;
+    const newCDsM = skills.applyCooldown(freshCler, 'sanacion_mayor');
+    db.updatePlayer(freshCler.id, { hp: newHpSM, mana: newManaSM, skill_cooldowns: newCDsM });
+    const text = `✨ ¡SANACIÓN MAYOR! Canalizás la gracia divina completa sobre tus heridas.\n   +${healedSM} HP (${freshCler.hp} → ${newHpSM}/${freshCler.max_hp}) · -${manaCostSM} maná (${newManaSM}/${freshCler.max_mana || 30})\n   (Cooldown: ${skill.cooldown_seconds}s)`;
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `✨ ${freshPlayer.username} canaliza una Sanación Mayor. (+${healedSM} HP)`);
+    }
+    return { text };
+  }
+
+  // ── Bendición (bendicion) — Clérigo Lv6 ──────────────────────────────────
+  if (skillId === 'bendicion') {
+    const freshClerB = db.getPlayer(freshPlayer.id);
+    const manaCostB = skill.mana_cost || 10;
+    const currManaB = freshClerB.mana != null ? freshClerB.mana : 0;
+    if (currManaB < manaCostB) {
+      return { text: `✨ No tenés suficiente maná para Bendición. Necesitás ${manaCostB} maná (tenés ${currManaB}).` };
+    }
+    // Aplicar buff DEF a todos en la sala (incluido el jugador)
+    const playersInBless = db.getPlayersInRoom(freshClerB.current_room_id);
+    const buffDurB = (skill.duration_seconds || 60) * 1000;
+    const buffExpiresAtB = Date.now() + buffDurB;
+    const blessedNames = [];
+    for (const mp of playersInBless) {
+      const mFreshB = db.getPlayer(mp.id);
+      if (!mFreshB) continue;
+      const scrollsB = JSON.parse(mFreshB.active_scrolls || '{}');
+      scrollsB['cleric_bless'] = { atk_bonus: 0, def_bonus: skill.def_bonus || 2, expires_at: buffExpiresAtB };
+      const newDefB = (mFreshB.defense || 0) + (skill.def_bonus || 2);
+      db.updatePlayer(mFreshB.id, { defense: newDefB, active_scrolls: JSON.stringify(scrollsB) });
+      blessedNames.push(mFreshB.username);
+    }
+    // Revertir DEF después de la duración
+    setTimeout(() => {
+      for (const mp of playersInBless) {
+        try {
+          const mFreshB2 = db.getPlayer(mp.id);
+          if (!mFreshB2) continue;
+          const scrollsB2 = JSON.parse(mFreshB2.active_scrolls || '{}');
+          if (scrollsB2['cleric_bless']) {
+            delete scrollsB2['cleric_bless'];
+            const revertDef = Math.max(0, (mFreshB2.defense || 0) - (skill.def_bonus || 2));
+            db.updatePlayer(mFreshB2.id, { defense: revertDef, active_scrolls: JSON.stringify(scrollsB2) });
+          }
+        } catch (_) {}
+      }
+    }, buffDurB);
+    const newManaB = currManaB - manaCostB;
+    const newCDsB = skills.applyCooldown(freshClerB, 'bendicion');
+    db.updatePlayer(freshClerB.id, { mana: newManaB, skill_cooldowns: newCDsB });
+    const blessMsg = blessedNames.length > 1
+      ? `${blessedNames.join(', ')}`
+      : (blessedNames[0] || freshClerB.username);
+    const textB = `✨ ¡BENDICIÓN! Una barrera sagrada envuelve a ${blessMsg}.\n   +${skill.def_bonus} DEF por ${skill.duration_seconds}s · -${manaCostB} maná (${newManaB}/${freshClerB.max_mana || 30})\n   (Cooldown: ${skill.cooldown_seconds}s)`;
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `✨ ${freshPlayer.username} invoca una Bendición sobre todos en la sala. (+${skill.def_bonus} DEF)`);
+    }
+    return { text: textB };
+  }
+
+  // ── Resurrección (resurreccion) — Clérigo Lv10 ───────────────────────────
+  if (skillId === 'resurreccion') {
+    const freshClerR = db.getPlayer(freshPlayer.id);
+    // Una vez por sesión — verificar flag en status_effects
+    const seResur = parseSE(freshClerR.status_effects);
+    if (seResur.resurreccion_used) {
+      return { text: `✨ Ya usaste Resurrección esta sesión. Esta habilidad solo puede usarse una vez por aventura.` };
+    }
+    // Buscar jugadores caídos (hp <= 0 o fallen=1) en la misma sala
+    const playersInRoomR = db.getPlayersInRoom(freshClerR.current_room_id);
+    const fallen = playersInRoomR.filter(p => p.id !== freshClerR.id && ((p.hp || 0) <= 0 || p.fallen === 1));
+    if (fallen.length === 0) {
+      return { text: `✨ No hay ningún aliado caído en esta sala. La Resurrección requiere un compañero de aventura que haya muerto aquí.` };
+    }
+    const targetRevive = fallen[0];
+    const reviveHp = Math.max(5, Math.floor((targetRevive.max_hp || 30) * (skill.heal_percent / 100)));
+    const seResurUsed = seResur;
+    seResurUsed.resurreccion_used = true;
+    db.updatePlayer(freshClerR.id, { status_effects: JSON.stringify(seResurUsed) });
+    db.updatePlayer(targetRevive.id, { hp: reviveHp, fallen: 0 });
+    const textR = `✨ ¡RESURRECCIÓN! Rezás con toda tu fe por el alma de ${targetRevive.username}...\n   ¡${targetRevive.username} vuelve a la vida con ${reviveHp}/${targetRevive.max_hp} HP!\n   ⚠️ Esta habilidad solo puede usarse una vez por sesión.`;
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `✨ ${freshPlayer.username} resucita a ${targetRevive.username}!`);
+    }
+    return { text: textR };
+  }
+
   return { text: `Habilidad "${skillId}" no implementada aún.` };
 }
+
+// ── Habilidades de Clérigo (DIS-612) ─────────────────────────────────────────
+// Implementadas dentro de cmdUseSkill, antes del fallback anterior.
+// Este bloque está aquí como documentación — la lógica está integrada arriba.
 
 /**
  * T113: journal/diario — Diario personal del aventurero.
@@ -12249,13 +12394,18 @@ function cmdPray(player, args) {
 
   // Verificar cooldown
   const lastPray = altarCooldowns.get(player.id) || 0;
-  const COOLDOWN_MS = 5 * 60 * 1000;
+  // DIS-610: Clérigo con símbolo sagrado equipado tiene cooldown reducido a 3 min
+  const isClericoPray = player.player_class === 'clerigo';
+  const hasSimboloSagrado = isClericoPray && player.equipped_weapon && player.equipped_weapon.toLowerCase().includes('símbolo sagrado');
+  const prayCD_min = hasSimboloSagrado ? 3 : 5;
+  const COOLDOWN_MS = prayCD_min * 60 * 1000;
   const elapsed = Date.now() - lastPray;
   if (elapsed < COOLDOWN_MS) {
     const remainingSec = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
     const remMin = Math.floor(remainingSec / 60);
     const remSec = remainingSec % 60;
-    return { text: `🙏 El altar aún necesita recuperarse de tu última ofrenda. Espera ${remMin}m ${remSec}s.` };
+    const cdNote = hasSimboloSagrado ? ' (símbolo sagrado activo — cooldown reducido a 3 min)' : '';
+    return { text: `🙏 El altar aún necesita recuperarse de tu última ofrenda. Espera ${remMin}m ${remSec}s.${cdNote}` };
   }
 
   // Identificar el ítem ofrecido

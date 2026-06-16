@@ -127,6 +127,10 @@ const ITEM_CATALOG = {
   // ── DIS-558: Ítems específicos de clase Mago ─────────────────────────────
   'vara de energía':       { type: 'weapon', effect: 'attack_bonus', amount: 5, mage_only_bonus: 2, description: 'Una vara de madera oscura grabada con runas arcanas. Canaliza la energía mágica del portador. +5 de ataque. Los Magos reciben +2 de ataque adicional y +2 maná/min de regeneración extra al empuñarla.' },
   'pergamino de hechizo':  { type: 'spell_scroll', effect: 'free_spell', description: 'Un pergamino cubierto de ecuaciones mágicas y símbolos arcanos. Al usarlo, podés lanzar tu próximo hechizo sin coste de maná. El pergamino se consume en el proceso.' },
+
+  // ── DIS-610: Ítems específicos de clase Clérigo ──────────────────────────
+  'símbolo sagrado':       { type: 'weapon', effect: 'attack_bonus', amount: 2, cleric_only_bonus: 2, cleric_pray_cooldown: 3, description: 'Un símbolo sagrado de madera bendecida con relieves de deidades antiguas. +2 de ataque. Los Clérigos reciben +2 de ataque adicional y reducen el cooldown de pray a 3 minutos.' },
+  'poción de bendición':   { type: 'blessing_potion', mana_restore: 20, atk_bonus: 1, duration: 120, description: 'Una poción color dorado con aroma a incienso. Al beberla, el maná fluye renovado y el cuerpo se fortalece temporalmente. Restaura 20 maná + +1 ATK por 2 minutos.' },
   // DIS-560: crafteo de Mago
   'catalizador mágico':    { type: 'weapon', effect: 'attack_bonus', amount: 7, mage_only_bonus: 3, description: 'Un concentrado de energía arcana, resultado de combinar cristales y esencias espectrales. +7 de ataque. Los Magos reciben +3 de ataque adicional — ideal para potenciar hechizos.' },
 
