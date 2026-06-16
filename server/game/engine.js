@@ -1395,6 +1395,19 @@ function cmdStatus(player) {
       const bonusDmg = Math.min(combo.count - 1, levelCap);
       return `Combo:    ⚡ x${combo.count} (${bonusDmg > 0 ? `+${bonusDmg} dmg` : 'sin bonus aún'} — se resetea al cambiar de objetivo)`;
     })(),
+    (() => {
+      // DIS-618: mostrar esquiva/crítico del Pícaro en status
+      const clsStatus = classes.getPlayerClass(player);
+      if (!clsStatus || clsStatus.name !== 'Pícaro') return null;
+      const stanceName = player.stance || 'equilibrado';
+      const baseCrit = 0.10 + (clsStatus.crit_bonus || 0) / 100; // 25%
+      // DIS-619: penalización de crit en postura agresiva
+      const critPenalty = stanceName === 'agresivo' ? -0.05 : 0;
+      const effectiveCrit = Math.round((baseCrit + critPenalty) * 100);
+      const dodgePct = Math.round((0.08 + (clsStatus.dodge_bonus || 0) / 100) * 100);
+      const critNote = stanceName === 'agresivo' ? ' (↓ postura agresiva)' : '';
+      return `Especial: 💨 Esquiva: ${dodgePct}% | ⚡ Crítico: ${effectiveCrit}%${critNote}`;
+    })(),
     ...(statusLines.length ? ['', ...statusLines] : []),
   ].filter(l => l !== null).join('\n');
 
