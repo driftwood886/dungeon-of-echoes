@@ -8221,6 +8221,14 @@ function cmdSpells(player) {
   lines.push(``);
   lines.push(`Uso: cast <hechizo>  (ej: "cast bola de fuego", "cast escudo", "cast curación")`);
 
+  // DIS-614: nota para Clérigo sobre heal como alternativa diferenciadora
+  if (player.player_class === 'clerigo') {
+    lines.push(``);
+    lines.push(`✨ Como Clérigo, también tenés:`);
+    lines.push(`  • \`heal\` (22 HP, 8 maná) — más potente que cast curación gracias a tu heal_power ×1.5`);
+    lines.push(`  • \`sanacion_mayor\` (Lv3, 45 HP, 12 maná, CD 60s) — tu habilidad de curación masiva`);
+  }
+
   return { text: lines.join('\n') };
 }
 
