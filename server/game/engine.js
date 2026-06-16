@@ -783,9 +783,11 @@ function cmdMove(player, direction) {
         db.updatePlayer(player.id, { current_room_id: destId });
         const destRoom = db.getRoom(destId);
         const destName = destRoom ? destRoom.name : 'sala desconocida';
+        // BUG-608: el texto anterior decía "¡Huís del combate!" aunque no hubiera combate activo.
+        // Cambiamos el mensaje cuando no hay boss: texto neutro de movimiento.
         return {
-          text: `⚔️ ¡Huís del combate! Los monstruos normales no pueden retenerte.\n🏃 Te refugiás en «${destName}».`,
-          event: `${player.username} huye de la sala.`,
+          text: `🚶 Te movés a «${destName}».\n(Los monstruos de esta sala no te detienen — pero si los atacás, necesitarás \`flee\` para escapar.)`,
+          event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
       }
@@ -8308,7 +8310,8 @@ function cmdHeal(player, args) {
     if (cls === 'mago') {
       return { text: `✨ El comando \`heal\` es la habilidad sagrada del Clérigo. Como Mago, podés curar con:\n  • \`cast curación\` — hechizo de curación (cuesta maná)\n  • \`use poción de salud\` — usar una poción del inventario` };
     }
-    return { text: `✨ El comando heal es exclusivo del Clérigo. Escribí "clase clerigo" para cambiar de clase (solo antes de 5 kills).` };
+    // DIS-609: otras clases (Guerrero, Pícaro, sin_clase) — indicar alternativa de curación
+    return { text: `✨ El comando \`heal\` es la habilidad sagrada del Clérigo. Para curarte, usá:\n  • \`use poción de salud\` — usar una poción del inventario\n  • (Si querés cambiar de clase: solo antes de 5 kills con \`clase clerigo\`)` };
   }
 
   const mana = fresh.mana != null ? fresh.mana : 0;
