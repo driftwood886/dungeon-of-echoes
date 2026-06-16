@@ -697,8 +697,11 @@ function attackRound(player, monster) {
       if (Math.random() < 0.5) loot.push('monedas de oro');
       if (loot.length > 0) {
         // Actualizar el mensaje de loot si ya lo pusimos
+        // BUG-624: deduplicar el display del loot para evitar "monedas de oro, monedas de oro"
+        // (el loot real en la sala ya está deduplicado por dropLoot, pero el array local acumula duplicados)
+        const lootDisplay = [...new Set(loot)];
         const lootIdx = lines.findLastIndex(l => l.includes('suelta:') || l.includes('no deja nada'));
-        if (lootIdx >= 0) lines[lootIdx] = `💰 El ${monster.name} suelta: ${loot.join(', ')}.`;
+        if (lootIdx >= 0) lines[lootIdx] = `💰 El ${monster.name} suelta: ${lootDisplay.join(', ')}.`;
       }
     }
     const eliteXpMult = isEliteMonster ? 1.75 : 1.0;
