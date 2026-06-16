@@ -5700,6 +5700,31 @@ function cmdShop(player) {
     '',
   ];
 
+  // DIS-621: recomendaciones personalizadas por clase
+  const clsShop = classes.getPlayerClass(player);
+  if (clsShop) {
+    const CLASS_RECS = {
+      'Mago':    ['vara de energía', 'pergamino de hechizo', 'poción de maná'],
+      'Clérigo': ['símbolo sagrado', 'poción de bendición', 'poción de salud'],
+      'Pícaro':  ['guantes de cuero fino', 'veneno de contacto', 'cuchillo de hierro'],
+      'Guerrero':['espada de hierro', 'escudo de madera', 'poción de salud'],
+    };
+    const recs = CLASS_RECS[clsShop.name];
+    if (recs) {
+      const recItems = recs.map(name => {
+        const cat = SHOP_CATALOG.find(i => i.name === name && !i.sellOnly);
+        if (!cat) return null;
+        const fp = getDiscountedPrice(cat.price, player.reputation || 0);
+        return `• ${cat.name} (${fp}g)`;
+      }).filter(Boolean);
+      if (recItems.length > 0) {
+        lines.push(`${clsShop.emoji} Como ${clsShop.name}, Aldric te recomienda especialmente:`);
+        lines.push(recItems.join('  '));
+        lines.push('');
+      }
+    }
+  }
+
   if (discount > 0) {
     lines.push(`${repInfo.icon} Tu reputación (${repInfo.name}) te da un descuento de ${Math.round(discount * 100)}%.`);
     lines.push('');
