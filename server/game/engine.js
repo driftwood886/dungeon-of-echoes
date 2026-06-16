@@ -2885,6 +2885,10 @@ function cmdExamine(player, query) {
         const NO_SELL_ITEMS = new Set(['páginas congeladas', 'paginas congeladas', 'carta sellada', 'carta abierta', 'diario helado', 'corona de hueso', 'piedra negra del lich', 'esencia de kaelthas']);
         if (NO_SELL_ITEMS.has(invItemName.toLowerCase())) {
           sellLine = `🚫 No vendible (objeto único o de misión)`;
+        } else if (def && def.amount !== undefined && (def.effect === 'attack_bonus' || def.effect === 'defense_bonus')) {
+          // BUG-600: ítems craftados/dropeados que no están en SHOP_CATALOG — estimar precio por bonus
+          const estimatedPrice = Math.max(2, def.amount * 3);
+          sellLine = `💰 Precio de venta (Aldric): ~${estimatedPrice}g (estimado)`;
         }
       }
       return {

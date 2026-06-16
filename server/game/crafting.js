@@ -230,14 +230,19 @@ function craft(player, itemA, itemB) {
       const matchB0 = shareWords(wordsB, ri0Words) || shareWords(wordsB, ri1Words);
 
       // Solo sugerir si al menos un ingrediente provisto es parecido a uno de la receta
-      if ((matchA0 || matchB0) && na !== ri0 && na !== ri1 && nb !== ri0 && nb !== ri1) {
-        similar.push(r);
+      // BUG-601: excluir solo si es match EXACTO (findRecipe lo habría encontrado ya)
+      const exactMatch = (na === ri0 && nb === ri1) || (na === ri1 && nb === ri0);
+      if ((matchA0 || matchB0) && !exactMatch) {
+        // Score más alto si AMBOS ingredientes tienen coincidencia (receta más relevante)
+        similar.push({ r, score: (matchA0 ? 1 : 0) + (matchB0 ? 1 : 0) });
       }
     }
+    // Ordenar por score descendente (2 = ambos coinciden, 1 = uno coincide)
+    similar.sort((a, b) => b.score - a.score);
 
     let hint = '';
     if (similar.length > 0) {
-      const suggestions = similar.slice(0, 3).map(r => `  ${r.ingredients[0]} + ${r.ingredients[1]} → ${r.result}`).join('\n');
+      const suggestions = similar.slice(0, 3).map(({r}) => `  ${r.ingredients[0]} + ${r.ingredients[1]} → ${r.result}`).join('\n');
       hint = `\n\n💡 ¿Quisiste decir alguna de estas recetas?\n${suggestions}`;
     }
 
