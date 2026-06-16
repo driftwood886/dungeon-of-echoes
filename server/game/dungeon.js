@@ -130,7 +130,16 @@ function describeRoom(roomId, excludePlayerId = null) {
   const lines = [];
 
   lines.push(`\n=== ${room.name.toUpperCase()} ===`);
-  lines.push(room.description);
+  // BUG-602: La descripción de sala 7 (Pozo Sin Fondo) verifica si la puerta norte ya fue desbloqueada
+  let roomDesc = room.description;
+  if (room.id === 7) {
+    const northExit = room.exits ? room.exits['north'] : undefined;
+    const puertaAbierta = northExit !== undefined && northExit !== null && typeof northExit !== 'object';
+    if (puertaAbierta) {
+      roomDesc = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, la puerta de hierro macizo está abierta 🔓 —la llave oxidada hizo su trabajo. El Santuario Profano te espera al otro lado.';
+    }
+  }
+  lines.push(roomDesc);
 
   // Texto ambiental dinámico (T096)
   const ambientLine = ambient.getAmbientText(room);

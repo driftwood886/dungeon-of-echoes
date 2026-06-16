@@ -3144,6 +3144,16 @@ function cmdExamine(player, query) {
   // DIS-456: set de lore objects que mencionan a Kaelthas (sala 2 inscripciones, sala 9 trono, sala 10 runas)
   const KAELTHAS_LORE_KEYS = new Set(['pared', 'inscripciones', 'trono', 'runas', 'runa']);
 
+  // BUG-602: La descripción de 'examine puerta' en sala 7 debe verificar si ya está desbloqueada
+  if (player.current_room_id === 7 && (qNorm.includes('puerta') || qNorm === 'reja')) {
+    const room7 = db.getRoom(7);
+    const northExit = room7 && room7.exits ? room7.exits['north'] : undefined;
+    const isPuertaAbierta = northExit !== undefined && northExit !== null && typeof northExit !== 'object';
+    if (isPuertaAbierta) {
+      return { text: 'La puerta al norte del Pozo Sin Fondo está abierta. 🔓\n\nLos goznes de hierro aún están un poco forzados —la llave oxidada hizo su trabajo. El pasillo que se abre al otro lado huele a piedra antigua y algo más difícil de identificar: quizás incienso quemado hace décadas.\n\n  ↑ Al norte: el Santuario Profano te espera.' };
+    }
+  }
+
   for (const [key, val] of Object.entries(loreObjects)) {
     if (normalize(key).includes(qNorm) || qNorm.includes(normalize(key))) {
       if (!val.rooms || val.rooms.includes(player.current_room_id)) {
