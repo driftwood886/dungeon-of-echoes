@@ -2666,6 +2666,20 @@ function cmdUse(player, itemQuery) {
     if (def.def_bonus > 0) parts.push(`+${def.def_bonus} DEF`);
     resultText = `📜 Leés el ${found}. ${def.description.split('(')[0].trim()} (${parts.join(', ')} por ${def.duration}s)`;
 
+  } else if (def.type === 'contact_poison') {
+    // DIS-615: veneno de contacto — Pícaro. Agrega cargas de veneno al arma equipada
+    const freshCP = db.getPlayer(player.id);
+    const clsCP = classes.getPlayerClass(freshCP);
+    const isPicaroCP = clsCP && clsCP.name === 'Pícaro';
+    if (!isPicaroCP) {
+      return { text: `🗡️ Intentás aplicar el veneno de contacto, pero la técnica requiere conocimiento de las artes del Pícaro. Solo los Pícaros saben aprovechar este veneno correctamente.` };
+    }
+    const seCP = parseSE(freshCP.status_effects);
+    seCP['contact_poison'] = { charges: def.charges || 3, poison_chance: 0.40 };
+    const newInvCP = removeFirst(freshCP.inventory, found);
+    db.updatePlayer(freshCP.id, { inventory: newInvCP, status_effects: JSON.stringify(seCP) });
+    resultText = `🧪 Frotás el veneno de contacto en tu arma. La hoja queda impregnada de toxina aceitosa.\n🗡️ Los próximos ${def.charges || 3} ataques tienen 40% de envenenar al objetivo. (Las cargas se consumen en cada golpe.)`;
+
   } else if (def.type === 'armor') {
     // BUG-429: 'use <armadura>' debe equipar la armadura, no solo describir
     return cmdWear(player, found);
@@ -3423,9 +3437,12 @@ function cmdEquip(player, itemQuery) {
   const clsCheckPrev = classes.getPlayerClass(player);
   const isMagoPrev = clsCheckPrev && clsCheckPrev.name === 'Mago';
   const isClericoPrev = clsCheckPrev && clsCheckPrev.name === 'Clérigo';
+  const isPicaroPrev = clsCheckPrev && clsCheckPrev.name === 'Pícaro';
   const prevMageBonus = (isMagoPrev && prevWeaponDef && prevWeaponDef.mage_only_bonus) ? prevWeaponDef.mage_only_bonus : 0;
   // DIS-610: Si el arma anterior tenía cleric_only_bonus y el jugador es Clérigo, restar también ese bonus
   const prevClericBonus = (isClericoPrev && prevWeaponDef && prevWeaponDef.cleric_only_bonus) ? prevWeaponDef.cleric_only_bonus : 0;
+  // DIS-615: Si el arma anterior tenía rogue_only_atk_bonus y el jugador es Pícaro, restar ese bonus
+  const prevRogueBonus = (isPicaroPrev && prevWeaponDef && prevWeaponDef.rogue_only_crit_bonus) ? 1 : 0; // los guantes dan +1 ATK siempre, sin bonus extra de ATK
   const baseAttackEquip = player.attack - prevWeaponBonusEquip - prevMageBonus - prevClericBonus;
   // DIS-558: aplicar mage_only_bonus si el jugador es Mago y el arma nueva lo tiene
   const mageOnlyBonus = (isMagoPrev && def.mage_only_bonus) ? def.mage_only_bonus : 0;
@@ -3487,6 +3504,9 @@ function cmdEquip(player, itemQuery) {
   } else if (isClerigoEquip && foundLower.includes('símbolo sagrado')) {
     // DIS-610: flavor para Clérigo equipando símbolo sagrado
     magoHeavyFlavor = `\n✨ (El símbolo responde a tu fe. +${def.cleric_only_bonus || 0} de ataque adicional por ser Clérigo. El cooldown de tus rezos se reduce a 3 minutos.)`;
+  } else if (clsDataEquip && clsDataEquip.name === 'Pícaro' && foundLower.includes('guantes de cuero fino')) {
+    // DIS-615: flavor para Pícaro equipando guantes
+    magoHeavyFlavor = `\n🗡️ (Los guantes se ajustan perfectamente. Tus dedos encuentran los puntos débiles con más facilidad. +${def.rogue_only_crit_bonus || 0}% crit adicional como Pícaro.)`;
   }
 
   // DIS-520: mostrar tanto el bono absoluto del arma como el delta neto para evitar confusión
@@ -5425,6 +5445,9 @@ const SHOP_CATALOG = [
   // DIS-610: ítems específicos de clase Clérigo
   { name: 'símbolo sagrado',         price: 30, description: '✨ (Clérigo) Un símbolo sagrado de madera bendecida. +2 ataque. Clérigos reciben +2 ATK adicional y reducen el cooldown de pray a 3 min.' },
   { name: 'poción de bendición',     price: 20, description: '✨ (Clérigo) Poción clerical dorada. Restaura 20 maná y otorga +1 ATK por 2 minutos. Perfecta para sostener la cadena de curación.' },
+  // DIS-615: ítems específicos de clase Pícaro
+  { name: 'guantes de cuero fino',   price: 25, description: '🗡️ (Pícaro) Guantes de cuero fino. +1 ataque. Los Pícaros reciben +10% de probabilidad de crítico adicional — ideal para build de golpes críticos.' },
+  { name: 'veneno de contacto',      price: 20, description: '🗡️ (Pícaro) Vial de veneno aceitoso. Al aplicarlo en tu arma, los próximos 3 ataques tienen 40% de envenenar al objetivo. Se consume al agotar las cargas.' },
   // DIS-595: bolsa de lona — expande inventario +4 slots, máx 2 bolsas
   { name: 'bolsa de lona',           price: 30, description: 'Una bolsa de lona resistente con correas de cuero. Al usarla, amplía tu capacidad de inventario en 4 slots (+4 más si comprás una segunda). Máximo 2.' },
   // DIS-585: materiales de loot con precios diferenciados (sellOnly — no aparecen en la tienda)

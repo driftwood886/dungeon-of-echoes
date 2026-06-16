@@ -354,7 +354,11 @@ function attackRound(player, monster) {
   const enchantData = scrolls['weapon_enchant'];
   const enchantActive = enchantData && enchantData.expires_at > Date.now();
   const enchantCritBonus = (enchantActive && enchantData.type === 'sombra') ? (enchantData.crit_bonus || 0) : 0;
-  const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0) + enchantCritBonus;
+  // DIS-615: bonus crit de guantes de cuero fino (Pícaro)
+  const equippedWeaponDef = player.equipped_weapon ? items.getItemDef(player.equipped_weapon) : null;
+  const rogueCritBonusGloves = (equippedWeaponDef && equippedWeaponDef.rogue_only_crit_bonus && clsData && clsData.name === 'Pícaro')
+    ? equippedWeaponDef.rogue_only_crit_bonus / 100 : 0;
+  const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0) + enchantCritBonus + rogueCritBonusGloves;
   const isCrit = Math.random() < critChance;
   const rawPlayerDmg = isCrit ? playerDmg * 2 : playerDmg;
   const dmgToMonster = Math.max(1, rawPlayerDmg - Math.floor(monster.defense || 0));
@@ -567,6 +571,31 @@ function attackRound(player, monster) {
           }
         }
       }
+    }
+  }
+
+  // ── DIS-615: Veneno de contacto del Pícaro (cargas en status_effects) ────
+  if (monster.hp > 0) {
+    const sePlayer = JSON.parse(player.status_effects || '{}');
+    const cpData = sePlayer['contact_poison'];
+    if (cpData && cpData.charges > 0) {
+      if (Math.random() < (cpData.poison_chance || 0.40)) {
+        const monsterFxCP = monster.status_effects
+          ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects)
+          : {};
+        if (!monsterFxCP.poisoned) {
+          monsterFxCP.poisoned = { damage: 3, turns: 3 };
+          monster.status_effects = monsterFxCP;
+          db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterFxCP) });
+          lines.push(`🧪 ¡El veneno de contacto envenena al ${monster.name}! (3 dmg/turno por 3 turnos)`);
+        }
+      }
+      cpData.charges -= 1;
+      if (cpData.charges <= 0) {
+        delete sePlayer['contact_poison'];
+        lines.push(`🧪 Las cargas de veneno de contacto se agotaron.`);
+      }
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(sePlayer) });
     }
   }
 

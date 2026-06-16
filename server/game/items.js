@@ -131,6 +131,10 @@ const ITEM_CATALOG = {
   // ── DIS-610: Ítems específicos de clase Clérigo ──────────────────────────
   'símbolo sagrado':       { type: 'weapon', effect: 'attack_bonus', amount: 2, cleric_only_bonus: 2, cleric_pray_cooldown: 3, description: 'Un símbolo sagrado de madera bendecida con relieves de deidades antiguas. +2 de ataque. Los Clérigos reciben +2 de ataque adicional y reducen el cooldown de pray a 3 minutos.' },
   'poción de bendición':   { type: 'blessing_potion', mana_restore: 20, atk_bonus: 1, duration: 120, description: 'Una poción color dorado con aroma a incienso. Al beberla, el maná fluye renovado y el cuerpo se fortalece temporalmente. Restaura 20 maná + +1 ATK por 2 minutos.' },
+
+  // ── DIS-615: Ítems específicos de clase Pícaro ───────────────────────────
+  'guantes de cuero fino':  { type: 'weapon', effect: 'attack_bonus', amount: 1, rogue_only_crit_bonus: 10, description: 'Guantes de cuero curtido con dedos reforzados. Permiten un agarre más preciso y aumentan la probabilidad de golpes críticos. +1 de ataque. Los Pícaros reciben +10% de probabilidad de crítico adicional.' },
+  'veneno de contacto':     { type: 'contact_poison', charges: 3, description: 'Un vial de veneno denso y aceitoso. Al frotarlo en tu arma, impregna los próximos 3 ataques con toxina — cada golpe tiene 40% de envenenar al objetivo. Se consume al agotar las cargas.' },
   // DIS-560: crafteo de Mago
   'catalizador mágico':    { type: 'weapon', effect: 'attack_bonus', amount: 7, mage_only_bonus: 3, description: 'Un concentrado de energía arcana, resultado de combinar cristales y esencias espectrales. +7 de ataque. Los Magos reciben +3 de ataque adicional — ideal para potenciar hechizos.' },
 
