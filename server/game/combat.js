@@ -368,7 +368,10 @@ function attackRound(player, monster) {
   const equippedWeaponDef = player.equipped_weapon ? items.getItemDef(player.equipped_weapon) : null;
   const rogueCritBonusGloves = (equippedWeaponDef && equippedWeaponDef.rogue_only_crit_bonus && clsData && clsData.name === 'Pícaro')
     ? equippedWeaponDef.rogue_only_crit_bonus / 100 : 0;
-  const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0) + enchantCritBonus + rogueCritBonusGloves;
+  // DIS-619: en postura agresiva, el Pícaro pierde 5% de crit (golpes más salvajes, menos precisos para puntos vitales)
+  // Equilibrado: 25% crit | Agresivo: 20% crit (+2 ATK compensa) | Defensivo: 25% crit
+  const stanceCritPenalty = (stanceName === 'agresivo' && clsData && clsData.name === 'Pícaro') ? -0.05 : 0;
+  const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0) + enchantCritBonus + rogueCritBonusGloves + stanceCritPenalty;
   const isCrit = Math.random() < critChance;
   const rawPlayerDmg = isCrit ? playerDmg * 2 : playerDmg;
   const dmgToMonster = Math.max(1, rawPlayerDmg - Math.floor(monster.defense || 0));
