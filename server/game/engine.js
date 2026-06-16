@@ -8168,6 +8168,12 @@ function cmdSpells(player) {
     `Hechizos disponibles:`,
   ];
 
+  // DIS-605: mostrar si el pergamino de hechizo está activo
+  const se605 = parseSE(player.status_effects);
+  if (se605.free_spell) {
+    lines.splice(3, 0, `✨ Próximo hechizo GRATIS (pergamino de hechizo activo)`);
+  }
+
   for (const [name, spell] of Object.entries(SPELL_CATALOG)) {
     const canCast = currentMana >= spell.cost ? '✓' : '✗';
     lines.push(`  ${canCast} ${spell.icon} ${name.padEnd(16)} — Coste: ${spell.cost} maná — ${spell.description}`);
@@ -8298,6 +8304,10 @@ function cmdHeal(player, args) {
 
   const cls = fresh.player_class || 'sin_clase';
   if (cls !== 'clerigo') {
+    // DIS-604: el Mago puede curar con 'cast curación' — darle la alternativa correcta
+    if (cls === 'mago') {
+      return { text: `✨ El comando \`heal\` es la habilidad sagrada del Clérigo. Como Mago, podés curar con:\n  • \`cast curación\` — hechizo de curación (cuesta maná)\n  • \`use poción de salud\` — usar una poción del inventario` };
+    }
     return { text: `✨ El comando heal es exclusivo del Clérigo. Escribí "clase clerigo" para cambiar de clase (solo antes de 5 kills).` };
   }
 
