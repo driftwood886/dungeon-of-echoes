@@ -768,12 +768,32 @@ function cmdMove(player, direction) {
   if (aliveHere.length > 0) {
     // Elegir el monstruo más amenazante (mayor HP) para la narrativa de huida
     const monster = aliveHere.sort((a, b) => b.hp - a.hp)[0];
+    // BUG-603: Los monstruos normales (no-boss) no deben bloquear la huida directional.
+    // Solo los bosses (marcados en BOSS_MONSTERS) pueden retener al jugador.
+    const hasBoss = aliveHere.some(m => combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[m.id]);
+    const nameList = aliveHere.map(m => m.name).join(', ');
+    if (!hasBoss) {
+      // Huida garantizada contra monstruos normales — el jugador simplemente escapa
+      // Mover al jugador a la sala destino directamente (igual que el movimiento normal)
+      const exits = room ? (room.exits || {}) : {};
+      const exitVal = exits[direction.toLowerCase().trim()];
+      const destId = exitVal ? (typeof exitVal === 'object' ? exitVal.room_id : exitVal) : null;
+      if (destId) {
+        db.updatePlayer(player.id, { current_room_id: destId });
+        const destRoom = db.getRoom(destId);
+        const destName = destRoom ? destRoom.name : 'sala desconocida';
+        return {
+          text: `⚔️ ¡Huís del combate! Los monstruos normales no pueden retenerte.\n🏃 Te refugiás en «${destName}».`,
+          event: `${player.username} huye de la sala.`,
+          eventRoomId: player.current_room_id,
+        };
+      }
+    }
     const fleeResult = combat.tryFlee(player, monster, room, direction); // BUG-345: pasar dirección elegida
     // BUG-518: resetear killStreak si el jugador murió huyendo al moverse
     if (fleeResult.playerDied) {
       killStreakMap.set(player.id, 0);
     }
-    const nameList = aliveHere.map(m => m.name).join(', ');
     // BUG-459 / BUG-550: aclarar que el movimiento inicia una huida, mostrar resultado después
     // BUG-565: solo mostrar "¡Huís!" si la huida realmente funcionó — si no, solo el mensaje de fallo
     const fleeNote = fleeResult.fled
