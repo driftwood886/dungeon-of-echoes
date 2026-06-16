@@ -7952,6 +7952,21 @@ function findSpell(query) {
  * Escudo y curación son autodirigidos.
  */
 function cmdCast(player, args) {
+  // BUG-626: Verificar que la clase del jugador puede lanzar hechizos
+  const castClass = classes.getPlayerClass(player);
+  const castClassName = castClass ? castClass.name : 'sin_clase';
+  if (castClassName !== 'Mago' && castClassName !== 'Clérigo') {
+    const classMsgMap = {
+      'Guerrero': 'Los Guerreros no tienen poder arcano',
+      'Pícaro':   'Los Pícaros no tienen poder arcano',
+      'sin_clase': 'Tu personaje aún no tiene clase mágica',
+    };
+    const castMsg = classMsgMap[castClassName] || `Los ${castClassName}s no tienen poder arcano`;
+    return {
+      text: `🚫 ${castMsg}.\nLos hechizos son exclusivos de Magos y Clérigos.\nUsá "clase mago" o "clase clerigo" para cambiar de clase (solo antes de 5 kills).`,
+    };
+  }
+
   if (!args || args.length === 0) {
     return {
       text: `🪄 ¿Qué hechizo querés lanzar?\nHechizos disponibles: ${Object.keys(SPELL_CATALOG).join(', ')}.\nUsá "hechizos" para ver el catálogo completo.`,
@@ -8267,6 +8282,21 @@ function cmdCast(player, args) {
  * spells / hechizos — Listar los hechizos conocidos y el maná actual.
  */
 function cmdSpells(player) {
+  // DIS-627: Solo Magos y Clérigos son lanzadores de hechizos
+  const spellClass = classes.getPlayerClass(player);
+  const spellClassName = spellClass ? spellClass.name : 'sin_clase';
+  if (spellClassName !== 'Mago' && spellClassName !== 'Clérigo') {
+    const spellMsgMap = {
+      'Guerrero': 'Los Guerreros no son lanzadores de hechizos',
+      'Pícaro':   'Los Pícaros no son lanzadores de hechizos',
+      'sin_clase': 'Tu personaje aún no tiene clase mágica',
+    };
+    const spellMsg = spellMsgMap[spellClassName] || `Los ${spellClassName}s no son lanzadores de hechizos`;
+    return {
+      text: `🔒 ${spellMsg.toUpperCase()}\n━━━━━━━━━━━━━━━━━━━━\nTu clase no tiene acceso a la magia arcana ni divina.\nSi querés lanzar hechizos, cambiá de clase antes de 5 kills:\n  • "clase mago"    — Magia arcana (bola de fuego, rayo, escudo, escarcha)\n  • "clase clerigo" — Magia divina (curación, heal, sanación mayor, bendición)`,
+    };
+  }
+
   // Regenerar maná antes de mostrar
   player = regenMana(db.getPlayer(player.id));
 
