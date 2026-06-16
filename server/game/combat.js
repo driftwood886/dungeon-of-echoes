@@ -603,7 +603,9 @@ function attackRound(player, monster) {
 
   // ── DIS-615: Veneno de contacto del Pícaro (cargas en status_effects) ────
   if (monster.hp > 0) {
-    const sePlayer = JSON.parse(player.status_effects || '{}');
+    const sePlayer = player.status_effects
+      ? (typeof player.status_effects === 'string' ? JSON.parse(player.status_effects) : player.status_effects)
+      : {};
     const cpData = sePlayer['contact_poison'];
     if (cpData && cpData.charges > 0) {
       if (Math.random() < (cpData.poison_chance || 0.40)) {
