@@ -554,7 +554,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1385,4 +1385,26 @@ function migratePrisonConnection() {
   db.upsertRoom(Object.assign({}, room17, { exits: newExits17 }));
 
   console.log('[seed] migratePrisonConnection: Prisión (8) ↔ Casa de Subastas (17) conectadas. DIS-538 ✓');
+}
+
+/**
+ * DIS-598: El Guardia Espectral (sala 8, nivel recomendado 4) es demasiado fácil para Magos de nivel 3.
+ * Subir HP de 25 a 40 para que requiera más de 2 hechizos para matarlo.
+ * La resistencia mágica extra ya fue aplicada en engine.js (×0.4 para rayo/bola de fuego).
+ */
+function migrateGuardiaEspectralHP() {
+  const guardian = db.getMonsterById ? db.getMonsterById(8) : null;
+  // Intentar por ID o por nombre si getMonsterById no existe
+  const all = db.getAllMonsters ? db.getAllMonsters() : [];
+  const g = all.find(m => m.id === 8 || (m.name && m.name.toLowerCase().includes('guardia espectral')));
+  if (!g) {
+    console.warn('[seed] migrateGuardiaEspectralHP: Guardia Espectral no encontrado');
+    return;
+  }
+  if (g.max_hp >= 40) {
+    // Ya actualizado
+    return;
+  }
+  db.updateMonster(g.id, { hp: 40, max_hp: 40 });
+  console.log('[seed] migrateGuardiaEspectralHP: Guardia Espectral HP 25→40. DIS-598 ✓');
 }

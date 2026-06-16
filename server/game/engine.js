@@ -4402,8 +4402,8 @@ function cmdMap(player) {
     `  |         ${c(8)}`,
     `  |         |`,
     `${c(7)}---${c(3)}---${c(4)}---${c(17)}`,
-    // DIS-588: hint de llave solo si el jugador ya visitó sala 7 (Pozo) o sala 4 (Tesoro)
-    visitedRooms.has(7) || visitedRooms.has(4)
+    // DIS-597: hint de llave solo si el jugador ya visitó sala 9 (Trono) o sala 7 (Pozo) — sala 4 aparece demasiado pronto
+    visitedRooms.has(9) || visitedRooms.has(7)
       ? `  |🔑(bloqueado — ruta libre: Capilla→Túnel→Trono→Santuario)`
       : `  |🔑(bloqueado)`,
     `${c(10)}---${c(9)}---${c(6)}---${c(2)}`,
@@ -4423,8 +4423,8 @@ function cmdMap(player) {
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
     `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`,
     `[??:?????????] = sala aún no explorada`,
-    // DIS-588: la ruta completa al Santuario solo aparece si ya se visitó sala 7 o sala 4
-    ...(visitedRooms.has(7) || visitedRooms.has(4)
+    // DIS-597: la ruta completa al Santuario solo aparece si ya se visitó sala 9 (Trono) o sala 7 (Pozo)
+    ...(visitedRooms.has(9) || visitedRooms.has(7)
       ? [`💡 Ruta al Santuario sin llave: Entrada → este → Capilla → norte → Túnel → norte → Trono → este → Santuario`]
       : []),
   ];
@@ -7840,13 +7840,20 @@ function cmdCast(player, args) {
 
   const { key: spellName, spell } = found;
 
-  // Verificar maná suficiente
+  // DIS-599: Escarcha cuesta 0 maná para Magos con ≤20% de maná total (recurso de emergencia)
+  // Así el Mago no queda completamente inútil cuando se queda sin maná.
+  const playerClass = classes.getPlayerClass(player);
+  const isMago = playerClass && playerClass.name === 'Mago';
+  const isEscarcha = spellName === 'escarcha';
+  const lowManaThreshold = Math.floor(maxMana * 0.20);
+  const escarchaEmergency = isMago && isEscarcha && currentMana <= lowManaThreshold;
+  const effectiveCost = escarchaEmergency ? 0 : spell.cost;
   // DIS-558: Si tiene free_spell activo, no verificar ni cobrar maná
   const freshForFreeSp = db.getPlayer(player.id);
   const seForFreeSp = parseSE(freshForFreeSp.status_effects);
   const hasFreeSpell = seForFreeSp['free_spell'] === true;
 
-  if (!hasFreeSpell && currentMana < spell.cost) {
+  if (!hasFreeSpell && currentMana < effectiveCost) {
     return {
       text: `🪄 No tenés maná suficiente para ${spell.icon} ${spellName}.\n   Necesitás ${spell.cost} maná, tenés ${currentMana}/${maxMana}.\n   Esperá que se recargue (${(() => { const c = classes.getPlayerClass(player); return (c && c.name === 'Mago') ? 6 : 1; })()}\u00a0maná/minuto) o usá una poción de maná.`,
     };
@@ -7855,7 +7862,10 @@ function cmdCast(player, args) {
   const monsters = db.getMonstersInRoom(player.current_room_id);
   let lines = [];
   // DIS-558: Si free_spell está activo, no deducir maná; consumir el flag
-  let newMana = hasFreeSpell ? currentMana : currentMana - spell.cost;
+  let newMana = hasFreeSpell ? currentMana : currentMana - effectiveCost;
+  if (escarchaEmergency && !hasFreeSpell) {
+    lines.push('❄️ (Escarcha de emergencia — sin coste de maná con maná bajo)');
+  }
   if (hasFreeSpell) {
     const seFS = parseSE(freshForFreeSp.status_effects);
     delete seFS['free_spell'];
@@ -7894,7 +7904,11 @@ function cmdCast(player, args) {
     const MAGIC_RESISTANT_MONSTERS = ['gólem', 'golem', 'guardia espectral', 'elemental', 'lich'];
     const targetNameLow = target.name.toLowerCase().replace('⭐ ', '');
     const hasMagicResist = MAGIC_RESISTANT_MONSTERS.some(n => targetNameLow.includes(n));
-    const magicResist = hasMagicResist ? 0.65 : 1.0;
+    // DIS-598: El Guardia Espectral tiene resistencia ALTA (×0.4) a hechizos de área/poderosos
+    // para que no sea mateable con 2 hechizos por Magos de nivel 3
+    const isGuardiaEspectral = targetNameLow.includes('guardia espectral');
+    const isHighImpactSpell = ['rayo', 'bola de fuego', 'fireball', 'lightning'].includes(spellName);
+    const magicResist = isGuardiaEspectral && isHighImpactSpell ? 0.4 : (hasMagicResist ? 0.65 : 1.0);
     const finalDmg = Math.max(1, Math.round(dmg * spellPower * magicResist));
     const newHp = Math.max(0, target.hp - finalDmg);
     db.updatePlayer(player.id, { mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
