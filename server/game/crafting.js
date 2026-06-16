@@ -257,14 +257,24 @@ function craft(player, itemA, itemB) {
   const na = normalize(itemA);
   const nb = normalize(itemB);
 
+  // BUG-617: verificar si el ítem está equipado (weapon/armor) en vez de en inventario
+  const equippedWeapon = (player.equipped_weapon && player.equipped_weapon !== 'null') ? normalize(player.equipped_weapon) : null;
+  const equippedArmor  = (player.equipped_armor  && player.equipped_armor  !== 'null') ? normalize(player.equipped_armor)  : null;
+
   const idxA = inv.findIndex(i => normalize(i) === na);
   if (idxA === -1) {
+    if (na === equippedWeapon || na === equippedArmor) {
+      return { ok: false, text: `«${itemA}» está equipado — desequipalo con \`unequip\` antes de craftear.` };
+    }
     return { ok: false, text: `No tenés "${itemA}" en el inventario. Si lo usaste antes, ya no está disponible.` };
   }
   // Remover A para no contar el mismo ítem dos veces si A === B
   inv.splice(idxA, 1);
   const idxB = inv.findIndex(i => normalize(i) === nb);
   if (idxB === -1) {
+    if (nb === equippedWeapon || nb === equippedArmor) {
+      return { ok: false, text: `«${itemB}» está equipado — desequipalo con \`unequip\` antes de craftear.` };
+    }
     return { ok: false, text: `No tenés "${itemB}" en el inventario. Si lo usaste antes, ya no está disponible.` };
   }
 
