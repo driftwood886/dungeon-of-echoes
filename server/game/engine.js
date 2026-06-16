@@ -1418,9 +1418,13 @@ function cmdStatus(player) {
       if (!clsStatus || clsStatus.name !== 'Pícaro') return null;
       const stanceName = player.stance || 'equilibrado';
       const baseCrit = 0.10 + (clsStatus.crit_bonus || 0) / 100; // 25%
+      // DIS-615: bonus crit de guantes de cuero fino (Pícaro) — BUG-628
+      const equippedWpnStatus = player.equipped_weapon ? items.getItemDef(player.equipped_weapon) : null;
+      const glovesCritBonus = (equippedWpnStatus && equippedWpnStatus.rogue_only_crit_bonus)
+        ? equippedWpnStatus.rogue_only_crit_bonus / 100 : 0;
       // DIS-619: penalización de crit en postura agresiva
       const critPenalty = stanceName === 'agresivo' ? -0.05 : 0;
-      const effectiveCrit = Math.round((baseCrit + critPenalty) * 100);
+      const effectiveCrit = Math.round((baseCrit + glovesCritBonus + critPenalty) * 100);
       const dodgePct = Math.round((0.08 + (clsStatus.dodge_bonus || 0) / 100) * 100);
       const critNote = stanceName === 'agresivo' ? ' (↓ postura agresiva)' : '';
       // DIS-620: mostrar sigilo activo si corresponde
@@ -5722,7 +5726,7 @@ function cmdShop(player) {
     const CLASS_RECS = {
       'Mago':    ['vara de energía', 'pergamino de hechizo', 'poción de maná'],
       'Clérigo': ['símbolo sagrado', 'poción de bendición', 'poción de salud'],
-      'Pícaro':  ['guantes de cuero fino', 'veneno de contacto', 'cuchillo de hierro'],
+      'Pícaro':  ['guantes de cuero fino', 'veneno de contacto', 'daga envenenada'],
       'Guerrero':['espada de hierro', 'escudo de madera', 'poción de salud'],
     };
     const recs = CLASS_RECS[clsShop.name];
