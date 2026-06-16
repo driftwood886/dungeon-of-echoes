@@ -58,8 +58,9 @@ const CLASSES = {
     name: 'Clérigo',
     emoji: '✨',
     description: 'Sanador del grupo. Curación potente, puede curar aliados en la misma sala.',
-    hp: 28,
-    max_hp: 28,
+    // DIS-613: HP base subido de 28→32 para compensar fragilidad en combate físico (entre Guerrero 35 y Pícaro 28)
+    hp: 32,
+    max_hp: 32,
     attack: 4,
     defense: 3,
     mana: 30,

@@ -8329,6 +8329,7 @@ function cmdClase(player, args) {
     lines.push(``, `💡 Como Guerrero absorbés más daño y tenés mayor HP máximo.`);
   } else if (className === 'clerigo') {
     lines.push(``, `💡 Como Clérigo tu curación es 50% más potente y podés usar 'heal <jugador>' para sanar aliados en la sala.`);
+    lines.push(`   Habilidades exclusivas: sanacion_mayor (Lv3), bendicion (Lv6), resurreccion (Lv10).`);
   }
 
   // DIS-491: Mostrar oro inicial si es la primera clase
