@@ -371,8 +371,22 @@ function attackRound(player, monster) {
   // DIS-619: en postura agresiva, el Pícaro pierde 5% de crit (golpes más salvajes, menos precisos para puntos vitales)
   // Equilibrado: 25% crit | Agresivo: 20% crit (+2 ATK compensa) | Defensivo: 25% crit
   const stanceCritPenalty = (stanceName === 'agresivo' && clsData && clsData.name === 'Pícaro') ? -0.05 : 0;
+
+  // DIS-620: Sigilo — crítico garantizado en el golpe de sorpresa
+  const freshForStealth = db.getPlayer(player.id);
+  const seStealth = freshForStealth.status_effects ? (typeof freshForStealth.status_effects === 'string' ? JSON.parse(freshForStealth.status_effects) : freshForStealth.status_effects) : {};
+  const stealthReady = seStealth.stealth_active && new Date(seStealth.stealth_active).getTime() > Date.now();
+  let stealthSurprise = false;
+  if (stealthReady && clsData && clsData.name === 'Pícaro') {
+    stealthSurprise = true;
+    // Limpiar sigilo al atacar
+    delete seStealth.stealth_active;
+    db.updatePlayer(player.id, { status_effects: JSON.stringify(seStealth) });
+    lines.push(`🥷 [GOLPE DE SORPRESA] Salís de las sombras con un ataque letal...`);
+  }
+
   const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0) + enchantCritBonus + rogueCritBonusGloves + stanceCritPenalty;
-  const isCrit = Math.random() < critChance;
+  const isCrit = stealthSurprise ? true : Math.random() < critChance;
   const rawPlayerDmg = isCrit ? playerDmg * 2 : playerDmg;
   const dmgToMonster = Math.max(1, rawPlayerDmg - Math.floor(monster.defense || 0));
   monster.hp = Math.max(0, monster.hp - dmgToMonster);
@@ -793,6 +807,13 @@ function attackRound(player, monster) {
   }
 
   // ── Monstruo contraataca ──────────────────────────────────────────────────
+  // DIS-620: Si fue golpe de sorpresa (sigilo), el monstruo no responde este turno
+  if (stealthSurprise && !monsterDead) {
+    lines.push(`🥷 El ${monster.name} está aturdido por la sorpresa — no puede responder este turno.`);
+    db.updatePlayer(player.id, { hp: player.hp });
+    return { lines, monsterDead, playerDead, loot, poisonSurvived };
+  }
+
   const monsterDmg = calcDamage(monster.attack);
   // Bonus daño si hay evento luna de sangre o clima lluvia de esporas (T166)
   const activeEvMon = worldEvents.getCurrentEvent();

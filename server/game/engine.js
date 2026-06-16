@@ -387,6 +387,7 @@ function execute(playerId, input, context) {
     case 'vault':        result = cmdVault(player, action.args); break;         // T200
     case 'epitaph':      result = cmdEpitaph(player, action.args); break;       // T201
     case 'follow':       result = cmdFollow(player, action.args, context); break; // T204
+    case 'sigilo':       result = cmdSigilo(player); break;                     // DIS-620
     case 'unfollow':     result = cmdUnfollow(player, context); break;           // T204
     case 'say':
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
@@ -1406,7 +1407,11 @@ function cmdStatus(player) {
       const effectiveCrit = Math.round((baseCrit + critPenalty) * 100);
       const dodgePct = Math.round((0.08 + (clsStatus.dodge_bonus || 0) / 100) * 100);
       const critNote = stanceName === 'agresivo' ? ' (↓ postura agresiva)' : '';
-      return `Especial: 💨 Esquiva: ${dodgePct}% | ⚡ Crítico: ${effectiveCrit}%${critNote}`;
+      // DIS-620: mostrar sigilo activo si corresponde
+      const seSt = parseSE(player.status_effects);
+      const stealthOn = seSt.stealth_active && new Date(seSt.stealth_active).getTime() > Date.now();
+      const stealthNote = stealthOn ? ` | 🥷 SIGILO ACTIVO (${Math.ceil((new Date(seSt.stealth_active).getTime() - Date.now()) / 1000)}s)` : '';
+      return `Especial: 💨 Esquiva: ${dodgePct}% | ⚡ Crítico: ${effectiveCrit}%${critNote}${stealthNote}`;
     })(),
     ...(statusLines.length ? ['', ...statusLines] : []),
   ].filter(l => l !== null).join('\n');
@@ -11049,8 +11054,50 @@ function cmdScoreTime() {
 // T161: cmdStance — Posturas de combate
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DIS-620: cmdSigilo — Mecánica de sigilo del Pícaro
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * stance [postura] — Ver o cambiar postura de combate.
+ * sigilo / hide / stealth — El Pícaro entra en modo sigilo.
+ * Dura 60 segundos o hasta que ataque.
+ * Al atacar desde sigilo: golpe de sorpresa (crítico garantizado, monstruo no responde ese turno).
+ */
+function cmdSigilo(player) {
+  const clsSig = classes.getPlayerClass(player);
+  if (!clsSig || clsSig.name !== 'Pícaro') {
+    return { text: '🥷 El sigilo es una habilidad exclusiva del Pícaro.\n💡 Para cambiar de clase: \"clase picaro\" (antes de 5 kills).' };
+  }
+
+  // Verificar que no haya un monstruo en combate activo (si el jugador ya atacó en esta sala)
+  const monstersInRoomSig = db.getMonstersInRoom(player.current_room_id);
+  const freshSig = db.getPlayer(player.id);
+  const seSig = parseSE(freshSig.status_effects);
+
+  // Si ya está en sigilo, recordar el estado
+  const stealthActive = seSig.stealth_active && new Date(seSig.stealth_active).getTime() > Date.now();
+  if (stealthActive) {
+    const secsLeft = Math.ceil((new Date(seSig.stealth_active).getTime() - Date.now()) / 1000);
+    return { text: `🥷 Ya estás en sigilo (${secsLeft}s restantes).\n💡 Atacá a un monstruo para ejecutar el golpe de sorpresa: \"attack <monstruo>\"` };
+  }
+
+  // Activar sigilo: expires_at = ahora + 60 segundos
+  const stealthExpiry = new Date(Date.now() + 60000).toISOString();
+  const newSe = { ...seSig, stealth_active: stealthExpiry };
+  db.updatePlayer(freshSig.id, { status_effects: JSON.stringify(newSe) });
+
+  const mCount = monstersInRoomSig ? monstersInRoomSig.filter(m => m.hp > 0).length : 0;
+  const mHint = mCount > 0
+    ? `\n⚔️ Hay ${mCount} monstruo(s) en la sala. Atacá para el golpe de sorpresa: \"attack\"`.trim()
+    : `\n💡 Movete a una sala con enemigos y usá \"attack\" para el golpe de sorpresa.`;
+
+  return { text: `🥷 Entrás en las sombras, volviéndote casi invisible.\n⏳ Sigilo activo por 60 segundos.${mHint}\n\n✨ Efecto: El primer golpe será un crítico garantizado y el monstruo no podrá responder ese turno.` };
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * T161: cmdStance — Posturas de combate
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 function cmdStance(player, args) {
   player = db.getPlayer(player.id);

@@ -196,6 +196,8 @@ const COMMAND_ALIASES = {
   // Habilidades de Pícaro Lv6 y Lv10 (DIS-616)
   evasion: 'useSkill', evasión: 'useSkill', evadir: 'useSkill', esquivar: 'useSkill', dodge: 'useSkill', esquive: 'useSkill',
   golpe_sombra: 'useSkill', sombra: 'useSkill', shadow_strike: 'useSkill', ataque_sombra: 'useSkill', backstab_avanzado: 'useSkill',
+  // DIS-620: Sigilo del Pícaro (nivel 1)
+  sigilo: 'sigilo', hide: 'sigilo', stealth: 'sigilo', ocultarse: 'sigilo', esconderse: 'sigilo', sombras: 'sigilo',
   // note / apunte (T116)
   note: 'note', apunte: 'note', apuntes: 'note', notas: 'note', nota: 'note', memo: 'note', memos: 'note',
   // changelog / novedades (T117)
@@ -488,6 +490,7 @@ Comandos disponibles:
   smash / golpetazo     — Habilidad: golpe potente ×1.8 daño (requiere Nivel 3, cooldown 45s)
   bash / escudo_bash    — Habilidad: golpe de escudo + stun al monstruo 1 turno (Nivel 6, 60s)
   rally / arenga        — Habilidad: +2 ATK al grupo en la sala por 60s (Nivel 10, 2min)
+  sigilo / hide         — [Pícaro] Entrar en modo sigilo (60s): el primer ataque es crítico garantizado y el monstruo no responde ese turno.
   note / apunte         — Notas personales: "note add <texto>" para agregar, "note list" para ver, "note del <n>" para borrar
   changelog / novedades — Ver las últimas actualizaciones y mejoras del juego
   server / estadísticas — Ver estadísticas globales del servidor (jugadores, kills, oro, uptime)
@@ -594,7 +597,7 @@ const COMMAND_HELP = {
   preview:   'preview <arma o armadura> / probar <ítem>\\\\n  Previsualizar cómo cambiarían tus stats si equiparas un ítem.\\\\n  Funciona con armas y armaduras del inventario.\\\\n  No modifica tu equipo — es solo informativo.\\\\n  Útil para decidir si vale la pena cambiar de equipo antes de una pelea.',
   calendar:  'calendar / eventos / timers / temporizadores\\\\n  Panel de temporizadores del dungeon.\\\\n  Muestra: estado del boss (vivo/respawn con cuenta regresiva), clima actual con tiempo restante,\\\\n  fuente eterna (disponible o en cooldown), tus buffs activos con tiempo restante,\\\\n  y estado de las trampas del dungeon (armadas/desactivadas).',
   // BUG-028: ayuda detallada para comandos de habilidades, magia y bóveda
-  skills:    'skills / habilidades / poderes\\\\n  Ver tus habilidades activas desbloqueadas y sus cooldowns.\\\\n  Las habilidades se desbloquean al subir de nivel (varían según clase):\\\\n  Guerrero: Nivel 3: smash/golpetazo (×1.8) | Nivel 6: shield_bash (stun) | Nivel 10: arenga\\\\n  Pícaro:   Nivel 3: golpe_sucio (×1.5+veneno) | Nivel 6: evasion (esquiva garantizada) | Nivel 10: golpe_sombra (×2.5)\\\\n  Clérigo:  Nivel 3: sanacion_mayor | Nivel 6: bendicion | Nivel 10: resurreccion\\\\n  Pícaro desde Nivel 1: robar (robo de monedas)',
+  skills:    'skills / habilidades / poderes\\\\\\\\n  Ver tus habilidades activas desbloqueadas y sus cooldowns.\\\\\\\\n  Las habilidades se desbloquean al subir de nivel (varían según clase):\\\\\\\\n  Guerrero: Nivel 3: smash/golpetazo (×1.8) | Nivel 6: shield_bash (stun) | Nivel 10: arenga\\\\\\\\n  Pícaro:   Nivel 3: golpe_sucio (×1.5+veneno) | Nivel 6: evasion (esquiva garantizada) | Nivel 10: golpe_sombra (×2.5)\\\\\\\\n  Clérigo:  Nivel 3: sanacion_mayor | Nivel 6: bendicion | Nivel 10: resurreccion\\\\\\\\n  Pícaro desde Nivel 1: robar (robo de monedas) | sigilo/hide (golpe de sorpresa garantizado)',
   smash:     'smash [monstruo] / golpetazo [monstruo]\\\\n  Habilidad activa desbloqueada en Nivel 3.\\\\n  Ataque potente: inflige ×1.8 del daño normal.\\\\n  Cooldown: 45 segundos. Si hay múltiples monstruos, especificá el nombre.',
   shield_bash: 'shield_bash [monstruo] / escudo_bash [monstruo]\\\\n  Habilidad activa desbloqueada en Nivel 6.\\\\n  Golpe con escudo: daño normal + aturdimiento al monstruo por 1 turno (no ataca).\\\\n  Cooldown: 60 segundos.',
   cast:      'cast <hechizo> [objetivo] / lanzar <hechizo>\\\\\\\\n  Lanzar un hechizo gastando maná.\\\\\\\\n  Hechizos disponibles:\\\\\\\\n    bola de fuego / fuego — 10 daño (15 Mago), costo 8 maná\\\\\\\\n    escudo / shield      — +5 DEF por 1 turno en combate, costo 6 maná\\\\\\\\n    curación / heal      — +15 HP, costo 10 maná\\\\\\\\n    rayo / lightning     — 15 daño (18 Mago), 25% stun, costo 12 maná\\\\\\\\n  El maná se recarga 1/min (6/min para Magos). Usá pociones de maná para recargar rápido.\\\\\\\\n  Ej: \\\"cast fuego goblin\\\", \\\"cast curación\\\", \\\"cast rayo guardia espectral\\\"',
