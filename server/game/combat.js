@@ -224,6 +224,16 @@ function attackRound(player, monster) {
   let poisonSurvived = false;
   let globalEventHardcore = null; // T175: para muerte hardcore en combate principal
 
+  // DIS-616: limpiar flag "attacked_player_this_turn" del monstruo al inicio del turno
+  try {
+    const monsterSeClean = monster.status_effects ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects) : {};
+    if (monsterSeClean.attacked_player_this_turn) {
+      delete monsterSeClean.attacked_player_this_turn;
+      db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterSeClean) });
+      monster.status_effects = monsterSeClean; // actualizar referencia local
+    }
+  } catch (_) {}
+
   // ── Efecto de veneno (al inicio del turno) ───────────────────────────────
   const statusFx = player.status_effects || {};
   if (statusFx.poisoned) {
@@ -788,10 +798,29 @@ function attackRound(player, monster) {
 
   // T101: 8% de esquiva — el jugador evita el daño por completo
   // T107: Pícaro tiene +12% de esquiva extra
+  // DIS-616: Si evasion_ready está activo → esquiva garantizada
   const dodgeChance = 0.08 + (clsData ? (clsData.dodge_bonus || 0) / 100 : 0);
-  const isEvasion = Math.random() < dodgeChance;
+  const freshForEvasionCheck = db.getPlayer(player.id);
+  const seForEvasion = freshForEvasionCheck.status_effects ? (typeof freshForEvasionCheck.status_effects === 'string' ? JSON.parse(freshForEvasionCheck.status_effects) : freshForEvasionCheck.status_effects) : {};
+  let isEvasion = Math.random() < dodgeChance;
+  let evasionWasActive = false;
+  if (!isEvasion && seForEvasion.evasion_ready) {
+    const evExp = seForEvasion.evasion_ready.expires_at ? new Date(seForEvasion.evasion_ready.expires_at) : null;
+    if (!evExp || evExp > new Date()) {
+      isEvasion = true;
+      evasionWasActive = true;
+    }
+  }
+  if (evasionWasActive) {
+    // Consumir el buff de evasión
+    delete seForEvasion.evasion_ready;
+    db.updatePlayer(player.id, { status_effects: JSON.stringify(seForEvasion) });
+  }
   if (isEvasion) {
-    lines.push(`💨 ¡Esquivás el ataque del ${monster.name}! Ningún daño recibido.`);
+    const evasionMsg = evasionWasActive
+      ? `💨 ¡EVASIÓN PERFECTA! Tu postura defensiva funciona — el ataque del ${monster.name} no te alcanza.`
+      : `💨 ¡Esquivás el ataque del ${monster.name}! Ningún daño recibido.`;
+    lines.push(evasionMsg);
   } else {
     // T145: Si el jugador está cegado, su DEF efectiva se reduce
     const freshForBlindCheck = db.getPlayer(player.id);
@@ -814,6 +843,13 @@ function attackRound(player, monster) {
     const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🩸(+${bloodmoonBonus} Luna de Sangre)` : '';
     const weatherDmgSuffix = weatherDmgBonus > 0 ? ` 🍄(+${weatherDmgBonus} Esporas)` : '';
     lines.push(`🩸 El ${monster.name} te golpea y causa ${dmgToPlayer} de daño.${bloodmoonSuffix}${weatherDmgSuffix} (${player.hp}/${player.max_hp} HP)`);
+
+    // DIS-616: marcar que el monstruo atacó este turno (para golpe_sombra)
+    try {
+      const monsterSeForGS = monster.status_effects ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects) : {};
+      monsterSeForGS.attacked_player_this_turn = true;
+      db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterSeForGS) });
+    } catch (_) {}
 
     // ── Posible envenenamiento del monstruo ──────────────────────────────────
     const poisonerDef = POISONERS[monster.name];

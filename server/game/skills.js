@@ -4,7 +4,7 @@
  * Al alcanzar ciertos niveles, el jugador desbloquea habilidades activas
  * que puede usar en combate con comandos explícitos y cooldown.
  *
- * Habilidades:
+ * Habilidades (Guerrero/sin clase):
  *   - smash / golpetazo   (nivel 3): Ataque potente ×1.8 daño, cooldown 45s
  *   - shield_bash / escudo_bash (nivel 6): Daño normal + stun al monstruo 1 turno, cooldown 60s
  *   - rally / arenga      (nivel 10): En party, +2 ATK a todos en la sala por 60s
@@ -13,6 +13,11 @@
  *   - sanacion_mayor     (nivel 3): Cura 30 HP, 12 maná, cooldown 60s
  *   - bendicion          (nivel 6): Buff +2 DEF a todos en sala, 10 maná, cooldown 60s
  *   - resurreccion       (nivel 10): Revive a jugador muerto en la sala al 50% HP, una vez por sesión
+ *
+ * Habilidades de Pícaro (DIS-616):
+ *   - golpe_sucio        (nivel 3): ×1.5 daño + veneno (3dmg×3 turnos), cooldown 50s
+ *   - evasion            (nivel 6): Esquiva garantizada 1 turno, cooldown 90s
+ *   - golpe_sombra       (nivel 10): ×2.5 daño si el monstruo no atacó este turno, cooldown 90s
  */
 
 'use strict';
@@ -29,7 +34,7 @@ const SKILLS = {
     dmg_multiplier: 1.8,
     description: 'Un golpe devastador que hace ×1.8 del daño normal. Cooldown: 45s.',
     combat_only: true,
-    excluded_classes: ['mago', 'clerigo'],  // DIS-D304: Mago usa hechizos; DIS-612: Clérigo tiene habilidades propias
+    excluded_classes: ['mago', 'clerigo', 'picaro'],  // DIS-D304: Mago usa hechizos; DIS-612: Clérigo tiene habilidades propias; DIS-616: Pícaro tiene habilidades propias
   },
   shield_bash: {
     id: 'shield_bash',
@@ -42,7 +47,7 @@ const SKILLS = {
     stun_turns: 1,
     description: 'Golpea con el escudo: daño normal + aturde al monstruo 1 turno. Cooldown: 60s.',
     combat_only: true,
-    excluded_classes: ['mago', 'clerigo'],  // DIS-D304, DIS-612
+    excluded_classes: ['mago', 'clerigo', 'picaro'],  // DIS-D304, DIS-612, DIS-616
   },
   rally: {
     id: 'rally',
@@ -55,7 +60,7 @@ const SKILLS = {
     duration_seconds: 60,
     description: 'Arenga a tu grupo: +2 ATK a todos en la sala por 60s. Requiere grupo. Cooldown: 2 min.',
     combat_only: false,
-    excluded_classes: ['mago', 'clerigo'],  // DIS-D304, DIS-612
+    excluded_classes: ['mago', 'clerigo', 'picaro'],  // DIS-D304, DIS-612, DIS-616
   },
   // ── Habilidades exclusivas del Pícaro (BUG-271) ──────────────────────────
   robar: {
@@ -81,6 +86,30 @@ const SKILLS = {
     poison_damage: 3,
     poison_turns: 3,
     description: 'Ataque traicionero: ×1.5 daño + veneno al monstruo (3 dmg × 3 turnos). Cooldown: 50s. Solo pícaro.',
+    combat_only: true,
+  },
+  // ── Habilidades exclusivas del Pícaro nivel 6 y 10 (DIS-616) ─────────────
+  evasion: {
+    id: 'evasion',
+    name: 'Evasión',
+    aliases: ['evasion', 'evasión', 'evadir', 'esquivar', 'dodge', 'esquive'],
+    required_level: 6,
+    required_class: 'picaro',
+    cooldown_seconds: 90,
+    type: 'picaro_evasion',
+    description: 'Te colocás en posición defensiva perfecta: esquiva garantizada ante el próximo ataque recibido. Cooldown: 90s. Solo Pícaro.',
+    combat_only: false,
+  },
+  golpe_sombra: {
+    id: 'golpe_sombra',
+    name: 'Golpe en la Sombra',
+    aliases: ['golpe_sombra', 'sombra', 'shadow_strike', 'golpe en la sombra', 'ataque_sombra', 'backstab_avanzado'],
+    required_level: 10,
+    required_class: 'picaro',
+    cooldown_seconds: 90,
+    type: 'picaro_shadow',
+    dmg_multiplier: 2.5,
+    description: 'Ataque desde las sombras: ×2.5 daño si el monstruo no te atacó este turno (primer golpe del combate o turno sin contraataque). Cooldown: 90s. Solo Pícaro.',
     combat_only: true,
   },
   // ── Habilidades exclusivas del Clérigo (DIS-612) ─────────────────────────

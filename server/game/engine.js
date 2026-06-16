@@ -8664,7 +8664,7 @@ function cmdSkills(player) {
  */
 function cmdUseSkill(player, args, context) {
   if (!args || args.length === 0) {
-    return { text: 'Uso: smash | escudo_bash | arenga | sanacion_mayor | bendicion | resurreccion. Ver habilidades disponibles con "skills".' };
+    return { text: 'Uso: smash | escudo_bash | arenga | sanacion_mayor | bendicion | resurreccion | golpe_sucio | robar | evasion | golpe_sombra. Ver habilidades disponibles con "skills".' };
   }
 
   const freshPlayer = db.getPlayer(player.id);
@@ -9219,6 +9219,128 @@ function cmdUseSkill(player, args, context) {
         `✨ ${freshPlayer.username} resucita a ${targetRevive.username}!`);
     }
     return { text: textR };
+  }
+
+  // ── Evasión (evasion) — Pícaro Lv6 ───────────────────────────────────────
+  if (skillId === 'evasion') {
+    // Aplica el buff de evasión garantizada (1 ataque del monstruo es esquivado)
+    const freshPicEv = db.getPlayer(freshPlayer.id);
+    const seEv = freshPicEv.status_effects ? JSON.parse(freshPicEv.status_effects || '{}') : {};
+    const evExpires = new Date(Date.now() + 60 * 1000).toISOString(); // vigente 60s (máximo un turno largo)
+    seEv.evasion_ready = { expires_at: evExpires };
+    const newCDsEv = skills.applyCooldown(freshPicEv, 'evasion');
+    db.updatePlayer(freshPicEv.id, { status_effects: JSON.stringify(seEv), skill_cooldowns: newCDsEv });
+    const textEv = `💨 ¡EVASIÓN! Adoptás una postura defensiva perfecta.\n   El próximo ataque que recibas será esquivado garantizadamente.\n   (Vigente por 60s · Cooldown: ${skill.cooldown_seconds}s)`;
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `💨 ${freshPlayer.username} adopta una postura evasiva.`);
+    }
+    return { text: textEv };
+  }
+
+  // ── Golpe en la Sombra (golpe_sombra) — Pícaro Lv10 ──────────────────────
+  if (skillId === 'golpe_sombra') {
+    const monsters = db.getMonstersInRoom(freshPlayer.current_room_id);
+    const alive = monsters.filter(m => m.hp > 0);
+    const targetName = args.slice(1).join(' ').trim();
+    if (alive.length === 0) {
+      if (targetName) return { text: `🌑 No hay ningún "${targetName}" aquí.` };
+      return { text: '🌑 No hay monstruos aquí para el Golpe en la Sombra.' };
+    }
+    let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
+    if (!target) target = alive[0];
+
+    // Verificar si el monstruo ya atacó al jugador este turno
+    // Se detecta por si tiene hp_last_hit en sus efectos (registro de último turno)
+    // Fallback: si el jugador tiene `last_hit_by` reciente del mismo monstruo → monstruo ya atacó
+    const freshPicSh = db.getPlayer(freshPlayer.id);
+    const monsterSe = target.status_effects ? JSON.parse(target.status_effects || '{}') : {};
+    const monsterAttackedThisTurn = !!(monsterSe.attacked_player_this_turn);
+
+    const baseDmgSh = freshPicSh.attack || 5;
+    // Si el monstruo NO atacó este turno → multiplicador completo ×2.5
+    // Si el monstruo YA atacó → multiplicador reducido ×1.5 (igual que golpe_sucio)
+    const multiplierSh = monsterAttackedThisTurn ? 1.5 : skill.dmg_multiplier;
+    const shadowBonus = !monsterAttackedThisTurn;
+    const rawDmgSh = Math.max(1, Math.floor(baseDmgSh * multiplierSh));
+    const variationSh = Math.floor(rawDmgSh * 0.15);
+    const dmgSh = rawDmgSh + Math.floor(Math.random() * (variationSh * 2 + 1)) - variationSh;
+    const finalDmgSh = Math.max(1, dmgSh - Math.floor(target.defense || 0));
+    const newHpSh = Math.max(0, target.hp - finalDmgSh);
+
+    db.updateMonster(target.id, { hp: newHpSh });
+    const newCDsSh = skills.applyCooldown(freshPicSh, 'golpe_sombra');
+    db.updatePlayer(freshPicSh.id, { skill_cooldowns: newCDsSh });
+
+    const deadSh = newHpSh <= 0;
+    let textSh;
+    if (shadowBonus) {
+      textSh = `🌑 ¡GOLPE EN LA SOMBRA! Emergés de las sombras y atacás al ${target.name} por ×2.5 — ¡${finalDmgSh} de daño!`;
+    } else {
+      textSh = `🌑 ¡GOLPE EN LA SOMBRA! El ${target.name} ya te detectó — atacás por ×1.5 (${finalDmgSh} dmg).`;
+    }
+    if (deadSh) {
+      textSh += `\n💀 El ${target.name} cae ante tu ataque letal desde las sombras.`;
+      const { droppedLoot: shLoot, globalEvent: shGlobalEvent } = combat.dropLoot(target, freshPicSh.current_room_id);
+      if (shLoot && shLoot.length > 0) textSh += `\n💰 El ${target.name} suelta: ${shLoot.join(', ')}.`;
+      if (shGlobalEvent) {
+        db.logGlobalEvent('boss', shGlobalEvent);
+        if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: shGlobalEvent });
+      }
+      const xpGainSh = Math.max(5, Math.floor(target.max_hp * 2));
+      const newXpSh = (freshPicSh.xp || 0) + xpGainSh;
+      const newLevelSh = xpSystem.levelFromXp(newXpSh);
+      const levelUpSh = newLevelSh > (freshPicSh.level || 1);
+      const skillUpdSh = { xp: newXpSh, level: newLevelSh, kills: (freshPicSh.kills || 0) + 1 };
+      if (levelUpSh) {
+        skillUpdSh.max_hp = (freshPicSh.max_hp || 30) + 5;
+        const healSh = Math.ceil(skillUpdSh.max_hp * 0.20);
+        skillUpdSh.hp = Math.min(skillUpdSh.max_hp, (freshPicSh.hp || 1) + healSh);
+        skillUpdSh.attack = (freshPicSh.attack || 5) + 1;
+      }
+      db.updatePlayer(freshPicSh.id, skillUpdSh);
+      textSh += `\n  +${xpGainSh} XP${levelUpSh ? ` ✨ ¡SUBE AL NIVEL ${newLevelSh}!` : ''}`;
+      db.addBestiaryKill(freshPicSh.id, target.name);
+      const shBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+      const shLichKill = target.id === 13;
+      const freshForShAch = db.getPlayer(freshPicSh.id);
+      if (freshForShAch) {
+        const newShAchs = ach.checkAchievements(freshForShAch, { bossKill: shLichKill });
+        const shAchLines = ach.formatNewAchievements(newShAchs);
+        if (shAchLines) textSh += '\n' + shAchLines;
+        if (shBossKill) {
+          db.logGlobalEvent('boss', `⚔️ ${freshPicSh.username} derrotó al ${target.name} con Golpe en la Sombra.`);
+          db.addJournalEntry(freshPicSh.id, 'boss', `☠️ Derrotaste al ${target.name} con Golpe en la Sombra.`);
+          textSh += `\n\n╔════════════════════════════════════╗\n║  ☠  ¡${target.name.toUpperCase()} DERROTADO!  ☠  ║\n╚════════════════════════════════════╝\n¡Usá 'loot' para recoger los tesoros!`;
+        }
+      }
+      const freshForShQuest = db.getPlayer(freshPicSh.id);
+      const qShResult = quests.recordProgress(freshForShQuest, 'kill', { monsterName: target.name });
+      const crSh = db.updateDailyChallengeProgress(freshPicSh.id, 'kill', target.name);
+      const wcrSh = db.updateWeeklyContractProgress(freshPicSh.id, target.name);
+      if (wcrSh && wcrSh.reward) textSh += `\n📜 ¡CONTRATO COMPLETADO! +${wcrSh.reward.xp} XP · +${wcrSh.reward.gold}g`;
+      if (crSh && crSh.reward) textSh += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙`;
+      if (qShResult) {
+        db.updatePlayer(freshPicSh.id, { quest_progress: qShResult.questProgress });
+        if (qShResult.justCompleted && qShResult.reward) {
+          const r = qShResult.reward;
+          const freshQ2 = db.getPlayer(freshPicSh.id);
+          const questNewXp = (freshQ2.xp || 0) + r.xp;
+          const questNewLevel = xpSystem.levelFromXp(questNewXp);
+          const questLevelUp = questNewLevel > (freshQ2.level || 1);
+          db.updatePlayer(freshPicSh.id, { gold: (freshQ2.gold || 0) + r.gold, xp: questNewXp, level: questNewLevel });
+          textSh += `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP.${questLevelUp ? ` ✨ ¡SUBÍS AL NIVEL ${questNewLevel}!` : ''}`;
+        }
+      }
+    } else {
+      textSh += `\n  El ${target.name} tiene ${newHpSh}/${target.max_hp} HP.`;
+      textSh += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+    }
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `🌑 ${freshPlayer.username} emerge de las sombras y golpea al ${target.name}! (-${finalDmgSh} HP)`);
+    }
+    return { text: textSh };
   }
 
   return { text: `Habilidad "${skillId}" no implementada aún.` };
