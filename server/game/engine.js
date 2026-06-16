@@ -780,6 +780,22 @@ function cmdMove(player, direction) {
       const exits = room ? (room.exits || {}) : {};
       const exitVal = exits[direction.toLowerCase().trim()];
       const destId = exitVal ? (typeof exitVal === 'object' ? exitVal.room_id : exitVal) : null;
+      // BUG-625: verificar si la salida requiere llave antes de mover (aunque no haya boss)
+      const requiredKeyFlee = exitVal && typeof exitVal === 'object' ? exitVal.key : null;
+      if (requiredKeyFlee) {
+        const inventory = player.inventory || [];
+        const hasKey = inventory.some(item => item.toLowerCase() === requiredKeyFlee.toLowerCase());
+        if (!hasKey) {
+          const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
+          const isPozo = player.current_room_id === 7 && dungeon.normalizeDirection(direction) === 'north';
+          const altRouteHint = isPozo
+            ? `\n\n💡 Podés conseguir la llave:\n  • Comprándola a Aldric (sala 4) por 20g\n  • Buscando en la Prisión (sala 8)\n  • Matando la Araña Tejedora de esta sala (15% de chance)\n\n🗺 Ruta alternativa (sin llave): Entrada → este → Capilla → norte → Túnel de Hongos → norte → Sala del Trono → este → Santuario.\n\n(Tip: "examine puerta" para más detalles.)`
+            : '';
+          return {
+            text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${requiredKeyFlee}" para abrirla.${altRouteHint}`,
+          };
+        }
+      }
       if (destId) {
         db.updatePlayer(player.id, { current_room_id: destId });
         const destRoom = db.getRoom(destId);
