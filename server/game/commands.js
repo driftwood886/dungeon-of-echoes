@@ -366,6 +366,10 @@ function parse(input) {
       'dirty strike':   { cmd: 'useSkill', skillId: 'golpe_sucio' },
       'golpe sombra':   { cmd: 'useSkill', skillId: 'golpe_sombra' },  // DIS-616: pícaro
       'golpe en la sombra': { cmd: 'useSkill', skillId: 'golpe_sombra' },
+      'sanacion mayor': { cmd: 'useSkill', skillId: 'sanacion_mayor' },  // DIS-663: clérigo
+      'sanación mayor': { cmd: 'useSkill', skillId: 'sanacion_mayor' },
+      'gran curacion':  { cmd: 'useSkill', skillId: 'sanacion_mayor' },
+      'gran curación':  { cmd: 'useSkill', skillId: 'sanacion_mayor' },
       // BUG-286: "tienda vender X" / "tienda comprar X" → sell/buy
       'tienda vender':  { cmd: 'sell',    skillId: null },
       'tienda comprar': { cmd: 'buy',     skillId: null },

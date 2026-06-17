@@ -8989,6 +8989,9 @@ function cmdSkills(player) {
       lines.push('  Los Magos no usan habilidades físicas.');
       lines.push('  Tu poder está en los hechizos: usá "hechizos" para verlos.');
       lines.push('  (cast bola de fuego / cast rayo / cast curación / cast escudo)');
+    } else if (cls === 'clerigo') {
+      lines.push('  Aún no desbloqueaste ninguna habilidad.');
+      lines.push('  (Nivel 3: sanacion_mayor · Nivel 6: bendicion · Nivel 10: resurreccion)');
     } else {
       lines.push('  Aún no desbloqueaste ninguna habilidad.');
       lines.push('  (Nivel 3: Golpetazo · Nivel 6: Golpe de Escudo · Nivel 10: Arenga)');
