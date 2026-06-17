@@ -113,6 +113,13 @@ const CHAPEL_ROOM_ID = 5;
 const CHAPEL_BOWL_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos
 const chapelBowlCooldowns = new Map(); // playerId → timestamp
 
+// ── Cuenco de Reconcentración (DIS-649) ──────────────────────────────────────
+// Sala 19 — Cámara del Eco. Cooldown personal: 5 minutos por jugador.
+// Recupera 50% del maná máximo. Solo para Mago y Clérigo.
+const ECHO_ROOM_ID = 19;
+const ECHO_BOWL_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos
+const echoBowlCooldowns = new Map(); // playerId → timestamp
+
 // ── Sistema de títulos/rangos (T099) ─────────────────────────────────────────
 // Título calculado on-the-fly a partir de los kills del jugador.
 const TITLES = [
@@ -309,7 +316,13 @@ function execute(playerId, input, context) {
       }
       break;
     }
-    case 'bowl':         result = cmdChapelBowl(player); break;
+    case 'bowl':
+      if (player.current_room_id === ECHO_ROOM_ID) {
+        result = cmdEchoBowl(player);
+      } else {
+        result = cmdChapelBowl(player);
+      }
+      break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
     case 'clase':        result = cmdClase(player, action.args); break;
@@ -712,6 +725,8 @@ function cmdMove(player, direction) {
   if (!direction) {
     return { text: 'Indicá una dirección. Ej: "move norte" o simplemente "norte".' };
   }
+  // BUG-645: guardar sala de origen ANTES de cualquier updatePlayer que cambie current_room_id
+  const _originRoomId = player.current_room_id;
 
   // Fix DIS-P05 + BUG-012: decrementar/limpiar debuffs por turno al moverse fuera de combate
   try {
@@ -914,6 +929,10 @@ function cmdMove(player, direction) {
       const healExp = Math.ceil(upd.max_hp * 0.20);
       upd.hp = Math.min(upd.max_hp, (freshExp.hp || 1) + healExp);
       upd.attack = (freshExp.attack || 5) + 1;
+      // DIS-647: Mago y Clérigo ganan +3 max_mana por nivel
+      if (freshExp.player_class === 'mago' || freshExp.player_class === 'clerigo') {
+        upd.max_mana = (freshExp.max_mana || 20) + 3;
+      }
     }
     db.updatePlayer(player.id, upd);
     explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +2 XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!` : ''}`;
@@ -1094,7 +1113,7 @@ function cmdMove(player, direction) {
     15: '⛪ A medida que cruzás el umbral de la Catedral de la Oscuridad, el eco de tus pasos revela la inmensidad del lugar. Las vidrieras rotas dejan entrar rayos de luz violácea. Sentís el peso de siglos de oscuridad posarse sobre tus hombros.',
     20: '🕳️ Al asomarte al Abismo Eterno, el vacío te mira de vuelta. No hay fondo visible. Solo oscuridad infinita, y el certero presentimiento de que algo muy antiguo — y muy hambriento — acaba de notar tu presencia.\n\n⚠️ Nivel recomendado: 7+. La Sombra del Vacío que habita aquí no permite huida fácil.',
     22: '🪦 La Cripta de los Valientes te recibe en silencio. Las placas en las paredes murmuran nombres olvidados. Una voz que no existe te susurra: "¿Serás digno de ser recordado aquí, o morirás en el anonimato?"',
-    19: '🔊 La Cámara del Eco no te recibe — te absorbe. El sonido de tus pasos no rebota: se multiplica, se distorsiona, regresa transformado en algo que no es exactamente tu pisada sino una versión de ella que tomó otro camino.\n\nEn el centro, los cristales resonantes pulsan con luz tenue. Cada uno guarda un eco atrapado. Algunas frecuencias son voces humanas. El eco más largo, el más persistente, es el nombre de alguien que claramente no quiso que lo recordaran.\n\nUna presencia se hace notar. El Eco Viviente.\n\n⚠️ Nivel recomendado: 6+. Este guardián no deja escapar a quien perturba la sala.',
+    19: '🔊 La Cámara del Eco no te recibe — te absorbe. El sonido de tus pasos no rebota: se multiplica, se distorsiona, regresa transformado en algo que no es exactamente tu pisada sino una versión de ella que tomó otro camino.\n\nEn el centro, los cristales resonantes pulsan con luz tenue. Cada uno guarda un eco atrapado. Algunas frecuencias son voces humanas. El eco más largo, el más persistente, es el nombre de alguien que claramente no quiso que lo recordaran.\n\nEn un rincón hay un cuenco de cristal que palpita con luz azulada. Los Magos y Clérigos que lleguen aquí pueden reconcentrarse usando ese cuenco (\"use cuenco\") para recuperar maná antes de lo que les espera al sur.\n\nUna presencia se hace notar. El Eco Viviente.\n\n⚠️ Nivel recomendado: 6+. Este guardián no deja escapar a quien perturba la sala.',
   };
 
   const cinematicEvent = (firstVisitEver && CINEMATIC_EVENTS[targetId])
@@ -1170,9 +1189,10 @@ function cmdMove(player, direction) {
   }
 
   // DIS-639: Advertencia si el jugador deja ítems épicos/raros en el suelo de la sala de origen
+  // BUG-645 fix: usar _originRoomId (capturado antes del updatePlayer) para verificar sala correcta
   let leftEpicMsg = '';
   {
-    const prevRoomItems = db.getRoom(player.current_room_id);
+    const prevRoomItems = db.getRoom(_originRoomId);
     if (prevRoomItems) {
       const floorItems = Array.isArray(prevRoomItems.items) ? prevRoomItems.items : [];
       const epicLeft = floorItems.filter(i => {
@@ -2036,6 +2056,10 @@ function cmdAttack(player, targetName) {
             upd.max_hp = (freshComp.max_hp || 30) + 5;
             const healComp = Math.ceil(upd.max_hp * 0.20);
             upd.hp     = Math.min(upd.max_hp, (freshComp.hp || 1) + healComp);
+            // DIS-647: Mago y Clérigo ganan +3 max_mana por nivel
+            if (freshComp.player_class === 'mago' || freshComp.player_class === 'clerigo') {
+              upd.max_mana = (freshComp.max_mana || 20) + 3;
+            }
             upd.attack = (freshComp.attack || 5) + 1;
           }
           db.updatePlayer(comp.id, upd);
@@ -2066,6 +2090,10 @@ function cmdAttack(player, targetName) {
         upd.max_hp = (freshStreak.max_hp || 30) + 5;
         const healStreak = Math.ceil(upd.max_hp * 0.20);
         upd.hp = Math.min(upd.max_hp, (freshStreak.hp || 1) + healStreak);
+        // DIS-647: Mago y Clérigo ganan +3 max_mana por nivel
+        if (freshStreak.player_class === 'mago' || freshStreak.player_class === 'clerigo') {
+          upd.max_mana = (freshStreak.max_mana || 20) + 3;
+        }
         upd.attack = (freshStreak.attack || 5) + 1;
       }
       db.updatePlayer(player.id, upd);
@@ -2582,6 +2610,10 @@ function cmdUse(player, itemQuery) {
     // BUG-481: "use cuenco" en sala 5 (Capilla) debería usar el cuenco sagrado
     if (player.current_room_id === 5 && ['cuenco', 'bowl', 'cuenco sagrado', 'ofrenda'].includes(queryLower2)) {
       return cmdChapelBowl(player);
+    }
+    // DIS-649: cuenco de reconcentración en sala 19
+    if (player.current_room_id === ECHO_ROOM_ID && ['cuenco', 'bowl', 'cuenco de cristal', 'cristal resonante', 'reconcentrar', 'reconcentracion', 'reconcentración'].includes(queryLower2)) {
+      return cmdEchoBowl(player);
     }
     // BUG-445: Pozo Sin Fondo (sala 7) — feedback narrativo al intentar interactuar con el pozo
     const queryLower = itemQuery.trim().toLowerCase();
@@ -6453,35 +6485,92 @@ function cmdDuel(player, targetName) {
 function _cmdDuelMaestro(player) {
   player = db.getPlayer(player.id);
   if (player.hp < player.max_hp * 0.3) {
-    return { text: '⚔️ El Maestro de Combate te mira y frunce el ceño.\n\n"No. No en ese estado." Señala tu HP. "Curate antes de venir a pelear. Un duelo no es suicidio."\n\nTiene razón.' };
+    return { text: '⚔️ El Maestro de Combate te mira y frunce el ceño.\n\n\"No. No en ese estado.\" Señala tu HP. \"Curate antes de venir a pelear. Un duelo no es suicidio.\"\n\nTiene razón.' };
+  }
+
+  const playerClass = (player.class || 'sin_clase').toLowerCase();
+  const playerLevel = player.level || 1;
+
+  // DIS-644: el simulador respeta la clase del jugador
+  // Mago: usa daño de hechizo en rotación (rayo/bola de fuego/escarcha)
+  // Clérigo: puede curar cada 3 rounds cuando HP < 60%
+  // Guerrero/Pícaro: combate físico normal
+  let playerAtkBase = player.attack || 5;
+  const playerDef = player.defense || 2;
+  let classNote = '';
+  let spellDmgBase = 0;
+
+  if (playerClass === 'mago') {
+    spellDmgBase = Math.max(10, playerLevel * 3 + 8);
+    playerAtkBase = spellDmgBase;
+    classNote = `🔮 Modo Mago: usás hechizos en rotación (daño base ~${spellDmgBase}/round). El Maestro no tiene resistencia mágica en entrenamiento.`;
+  } else if (playerClass === 'clerigo') {
+    classNote = `✨ Modo Clérigo: podés curarte cada 3 rounds cuando tu HP baje del 60%.`;
+  } else if (playerClass === 'picaro') {
+    classNote = `🗡️ Modo Pícaro: primer golpe es crítico garantizado (×2 daño). El Maestro solo cae en el truco una vez.`;
+  } else {
+    classNote = `⚔️ Combate físico puro — las clases mágicas deberían probar su clase específica.`;
   }
 
   // BUG-564: escalar al nivel del jugador pero ligeramente por DEBAJO en ATK/DEF
-  // para que la pelea sea 70-30 a favor del jugador, no 14 rounds imposibles
-  const playerAtk = player.attack || 5;
-  const playerDef = player.defense || 2;
-  const maestroMaxHp = player.max_hp;                            // igual HP que el jugador
-  const maestroAtk = Math.max(3, Math.round(playerAtk * 0.85)); // 85% del ataque del jugador
-  const maestroDef = Math.max(1, Math.round(playerDef * 0.75)); // 75% defensa — jugador puede hacer daño real
+  const maestroMaxHp = player.max_hp;
+  const maestroAtk = Math.max(3, Math.round((player.attack || 5) * 0.85));
+  const maestroDef = Math.max(1, Math.round(playerDef * 0.75));
 
   const lines = [];
   lines.push('⚔️ El Maestro de Combate asiente lentamente y desenfunda.');
-  lines.push('\n"Bien. Sin trucos, sin venenos. Solo acero y voluntad. Empecemos."\n');
+  lines.push('\n\"Bien. Mostrá lo que sabés.\"\n');
   lines.push(`📊 Maestro: ${maestroMaxHp}/${maestroMaxHp} HP | ATK ${maestroAtk} | DEF ${maestroDef}`);
-  lines.push(`📊 Vos:     ${player.hp}/${player.max_hp} HP | ATK ${player.attack} | DEF ${player.defense}\n`);
+  lines.push(`📊 Vos:     ${player.hp}/${player.max_hp} HP | ATK ${player.attack} | DEF ${player.defense} | Clase: ${playerClass}`);
+  lines.push(`ℹ️  ${classNote}\n`);
 
   let playerHp = player.hp;
   let maestroHp = maestroMaxHp;
   let round = 0;
   const MAX_ROUNDS = 20;
   let playerWon = false;
+  let firstRoundPicaro = (playerClass === 'picaro');
+  let clerigoHealCooldown = 0;
 
   while (playerHp > 0 && maestroHp > 0 && round < MAX_ROUNDS) {
     round++;
-    const playerDmg = Math.max(1, playerAtk - maestroDef + Math.floor(Math.random() * 4));
+
+    // Clérigo: curar cuando HP < 60% y cooldown cumplido
+    if (playerClass === 'clerigo' && clerigoHealCooldown <= 0 && playerHp < player.max_hp * 0.6) {
+      const healAmt = Math.round(15 * 1.5);
+      playerHp = Math.min(player.max_hp, playerHp + healAmt);
+      lines.push(`Round ${round}: 🙏 Plegaria de curación → +${healAmt} HP (${playerHp}/${player.max_hp} HP)`);
+      clerigoHealCooldown = 3;
+      const maestroDmg2 = Math.max(1, maestroAtk - playerDef + Math.floor(Math.random() * 3));
+      playerHp -= maestroDmg2;
+      lines.push(`       ↩ Maestro aprovecha → ${maestroDmg2} dmg (${Math.max(0, playerHp)}/${player.max_hp} HP)`);
+      if (playerHp <= 0) break;
+      clerigoHealCooldown--;
+      continue;
+    }
+    if (clerigoHealCooldown > 0) clerigoHealCooldown--;
+
+    // Daño del jugador
+    let playerDmg;
+    let atkNote = '';
+    if (playerClass === 'mago') {
+      const spellIdx = (round - 1) % 3;
+      const spellMults = [1.2, 1.0, 0.7];
+      const spellNames = ['rayo ⚡', 'bola de fuego 🔥', 'escarcha ❄️'];
+      playerDmg = Math.max(1, Math.round(playerAtkBase * spellMults[spellIdx] + Math.floor(Math.random() * 3)));
+      atkNote = ` (${spellNames[spellIdx]})`;
+    } else if (playerClass === 'picaro' && firstRoundPicaro) {
+      playerDmg = Math.max(1, (playerAtkBase - maestroDef) * 2 + Math.floor(Math.random() * 4));
+      atkNote = ' (🎯 crítico sorpresa)';
+      firstRoundPicaro = false;
+    } else {
+      playerDmg = Math.max(1, playerAtkBase - maestroDef + Math.floor(Math.random() * 4));
+    }
+
     maestroHp -= playerDmg;
-    lines.push(`Round ${round}: Atacás → ${playerDmg} dmg al Maestro (${Math.max(0, maestroHp)}/${maestroMaxHp} HP)`);
+    lines.push(`Round ${round}: Atacás${atkNote} → ${playerDmg} dmg al Maestro (${Math.max(0, maestroHp)}/${maestroMaxHp} HP)`);
     if (maestroHp <= 0) { playerWon = true; break; }
+
     const maestroDmg = Math.max(1, maestroAtk - playerDef + Math.floor(Math.random() * 3));
     playerHp -= maestroDmg;
     lines.push(`       ↩ Maestro contraataca → ${maestroDmg} dmg (${Math.max(0, playerHp)}/${player.max_hp} HP)`);
@@ -6491,16 +6580,16 @@ function _cmdDuelMaestro(player) {
   lines.push('');
   if (playerWon) {
     lines.push(`🏆 ¡Derrotaste al Maestro de Combate en ${round} rounds!`);
-    lines.push('\n"Bien." Recoge la espada con calma. "Buscá un rival humano para el verdadero desafío."');
+    lines.push('\n\"Bien.\" Recoge la espada con calma. \"Buscá un rival humano para el verdadero desafío.\"');
   } else if (playerHp <= 0) {
     lines.push(`💀 El Maestro te dejó fuera de combate en ${round} rounds.`);
-    lines.push('\n"La derrota en el entrenamiento vale más que la victoria en la ignorancia. Volvé cuando estés listo."');
+    lines.push('\n\"La derrota en el entrenamiento vale más que la victoria en la ignorancia. Volvé cuando estés listo.\"');
   } else {
     lines.push(`⏱ Duelo detenido tras ${round} rounds (empate técnico).`);
-    lines.push('\n"Estás listo para un duelo real. Buscá otro jugador con \'duel <nombre>\'."');
+    lines.push('\n\"Estás listo para un duelo real. Buscá otro jugador con \'duel <nombre>\'.\"');
   }
 
-  lines.push('\n📖 Tutorial: "duel <nombre>" para retar a otro jugador | "accept" para aceptar un reto | "decline" para rechazar');
+  lines.push('\n📖 Tutorial: \"duel <nombre>\" para retar a otro jugador | \"accept\" para aceptar un reto | \"decline\" para rechazar');
   // El HP real del jugador NO cambia — es solo simulación
   return { text: lines.join('\n') };
 }
@@ -7394,6 +7483,57 @@ function cmdChapelBowl(player) {
   };
 }
 
+
+/**
+ * DIS-649: Cuenco de Reconcentración en la Cámara del Eco (sala 19).
+ * Restaura 50% del maná máximo. Solo para Mago y Clérigo.
+ * Cooldown personal de 5 minutos.
+ */
+function cmdEchoBowl(player) {
+  player = db.getPlayer(player.id);
+
+  if (player.current_room_id !== ECHO_ROOM_ID) {
+    return { text: '🔊 No hay ningún cuenco de reconcentración aquí.\n   El Cuenco de Cristal Resonante se encuentra en la Cámara del Eco (sala 19).' };
+  }
+
+  const playerClass = (player.player_class || 'sin_clase').toLowerCase();
+  if (playerClass !== 'mago' && playerClass !== 'clerigo') {
+    return { text: '🔊 Los cristales resonantes pulsan con energía arcana, pero no resuenan con vos.\n   Este cuenco solo puede ser utilizado por Magos y Clérigos.' };
+  }
+
+  const maxMana = player.max_mana || 20;
+  const currentMana = player.mana != null ? player.mana : 0;
+
+  if (currentMana >= maxMana) {
+    return { text: '🔊 Los cristales resuenan en armonía con tu espíritu. Tu maná ya está completo.' };
+  }
+
+  const now = Date.now();
+  const lastUsed = echoBowlCooldowns.get(player.id) || 0;
+  if (now - lastUsed < ECHO_BOWL_COOLDOWN_MS) {
+    const remaining = Math.ceil((ECHO_BOWL_COOLDOWN_MS - (now - lastUsed)) / 1000);
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    const timeStr = mins > 0 ? `${mins} minuto${mins !== 1 ? 's' : ''} y ${secs}s` : `${secs} segundo${secs !== 1 ? 's' : ''}`;
+    return { text: `🔊 Los cristales aún vibran por tu última reconcentración.\n   Disponible en: ${timeStr}.` };
+  }
+
+  const restoreAmount = Math.floor(maxMana * 0.50);
+  const newMana = Math.min(maxMana, currentMana + restoreAmount);
+  const restored = newMana - currentMana;
+
+  db.updatePlayer(player.id, { mana: newMana });
+  echoBowlCooldowns.set(player.id, now);
+
+  const manaBar = buildBar(newMana, maxMana, 20);
+
+  return {
+    text: `🔊 Colocás las manos sobre el cuenco de cristal resonante. Los ecos de poder arcano fluyen hacia vos.\n+${restored} maná restaurado (${restoreAmount} de potencial).\n${manaBar} ${newMana}/${maxMana} 🔮\n\n⏳ El cuenco tardará 5 minutos en resonar de nuevo.\n💡 Preparate aquí antes de enfrentar lo que yace al sur.`,
+    event: `${player.username} reconcentra su energía en el cuenco de cristal.`,
+    eventRoomId: ECHO_ROOM_ID,
+  };
+}
+
 // ─── T095: Sistema de Mascotas ───────────────────────────────────────────────
 
 /**
@@ -7888,7 +8028,7 @@ const SPELL_CATALOG = {
     icon: '✨',
   },
   'rayo': {
-    cost: 12,
+    cost: 10, // DIS-647: reducido de 12→10 para mejorar economía de maná del Mago
     type: 'damage',
     amount: 15,
     description: 'Invoca un rayo de tormenta. 15 de daño y 25% de probabilidad de aturdir al objetivo.',

@@ -554,7 +554,30 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP };
+/**
+ * DIS-648: El Campeón Espectral dropea lanza espectral duplicada si el jugador ya la crafteo.
+ * Cambiar 'lanza espectral' en el loot base por 'cristal resonante' (ingrediente de lanza espectral del eco).
+ * Así el crafteo y el drop dan recompensas complementarias.
+ */
+function migrateCampeonEspectralLoot() {
+  const all = db.getAllMonsters ? db.getAllMonsters() : [];
+  const campeon = all.find(m => m.id === 12 || (m.name && m.name.toLowerCase().includes('campeón espectral')));
+  if (!campeon) {
+    console.warn('[seed] migrateCampeonEspectralLoot: Campeón Espectral no encontrado');
+    return;
+  }
+  const loot = Array.isArray(campeon.loot) ? campeon.loot : (typeof campeon.loot === 'string' ? JSON.parse(campeon.loot) : []);
+  if (!loot.includes('lanza espectral')) {
+    // Ya migrado o no tiene lanza espectral en loot
+    return;
+  }
+  const newLoot = loot.map(i => i === 'lanza espectral' ? 'cristal resonante' : i);
+  db.updateMonster(campeon.id, { loot: JSON.stringify(newLoot) });
+  console.log('[seed] migrateCampeonEspectralLoot: Campeón Espectral loot lanza espectral→cristal resonante. DIS-648 ✓');
+}
+
+
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
