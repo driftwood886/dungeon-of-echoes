@@ -528,6 +528,16 @@ function handleTutorialCommand(player, action, step) {
     return null;
   }
 
+  // BUG-672: Magos pueden usar `cast` como equivalente a `attack` en el tutorial
+  if (cmd === 'cast') {
+    // Avanzar a paso 3 si estamos en paso 2 (cast equivale a attack para Magos)
+    if (step === 2) {
+      db.updatePlayer(player.id, { tutorial_step: 3 });
+    }
+    // Dejar que el comando cast fluya normalmente
+    return null;
+  }
+
   if (cmd === 'move') {
     // Si el jugador quiere salir al dungeon, completar el tutorial
     const dir = (action.args[0] || '').toLowerCase();
@@ -543,7 +553,7 @@ function handleTutorialCommand(player, action, step) {
           return completeTutorial(player);
         }
         const hint = tutorial.getStepMessage(step);
-        return { text: `¡Todavía no terminaste el entrenamiento!\nAntes de salir, atacá al Goblin de Práctica escribiendo: attack goblin\n\n${hint}` };
+        return { text: `¡Todavía no terminaste el entrenamiento!\nAntes de salir, atacá al Goblin de Práctica escribiendo:\n  attack goblin  (o «atacar goblin»)\n  (Magos: también podés usar  cast rayo  o  cast bola de fuego)\n\n${hint}` };
       }
       // Completar tutorial: +10 XP, mover a sala 1, tutorial_step = 0
       return completeTutorial(player);
@@ -826,6 +836,26 @@ function cmdMove(player, direction) {
         };
       }
     }
+    // BUG-671: DIS-667 fix incompleto — si el boss está a HP lleno (nunca fue atacado),
+    // saltear tryFlee() completamente y dejar pasar al jugador sin daño ni tirada de huida.
+    const bossAtFullHp = monster && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id] && monster.hp >= monster.max_hp;
+    if (bossAtFullHp) {
+      const exits = room ? (room.exits || {}) : {};
+      const exitVal = exits[direction.toLowerCase().trim()];
+      const destId = exitVal ? (typeof exitVal === 'object' ? exitVal.room_id : exitVal) : null;
+      if (destId) {
+        db.updatePlayer(player.id, { current_room_id: destId });
+        const destRoom = db.getRoom(destId);
+        const destName = destRoom ? destRoom.name : 'sala desconocida';
+        const freshPlayer = db.getPlayer(player.id);
+        const lookResult = cmdLook(freshPlayer);
+        return {
+          text: `🚶 Pasás cerca del ${monster.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.\n\n${lookResult.text}`,
+          event: `${player.username} sale de la sala.`,
+          eventRoomId: player.current_room_id,
+        };
+      }
+    }
     const fleeResult = combat.tryFlee(player, monster, room, direction); // BUG-345: pasar dirección elegida
     // BUG-518: resetear killStreak si el jugador murió huyendo al moverse
     if (fleeResult.playerDied) {
@@ -833,8 +863,6 @@ function cmdMove(player, direction) {
     }
     // BUG-459 / BUG-550: aclarar que el movimiento inicia una huida, mostrar resultado después
     // BUG-565: solo mostrar "¡Huís!" si la huida realmente funcionó — si no, solo el mensaje de fallo
-    // DIS-667: si el boss está a HP lleno (el jugador nunca lo atacó), usar mensaje neutro
-    const bossAtFullHp = monster && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id] && monster.hp >= monster.max_hp;
     const fleeNote = fleeResult.fled
       ? (bossAtFullHp
           ? `🚶 Pasás cerca del ${monster.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.\n`
@@ -8480,6 +8508,15 @@ function cmdCast(player, args) {
         lines.push(`   📜 ¡CONTRATO DE CAZA COMPLETADO! +${wcrCast.reward.xp} XP · +${wcrCast.reward.gold}g · Recibís: ${wcrCast.reward.item}`);
       } else if (wcrCast && wcrCast.contract && !wcrCast.contract.done) {
         lines.push(`   📜 Contrato semanal: ${wcrCast.contract.target} (${wcrCast.contract.progress}/${wcrCast.contract.goal})`);
+      }
+      // BUG-672: Completar tutorial si el goblin de práctica murió con un hechizo
+      {
+        const freshForCastTutorial = db.getPlayer(player.id);
+        if (freshForCastTutorial && freshForCastTutorial.tutorial_step >= 3 && freshForCastTutorial.current_room_id === tutorial.TUTORIAL_ROOM_ID) {
+          const tutResult = completeTutorial(freshForCastTutorial);
+          lines.push('\n' + tutResult.text);
+          return { text: lines.join('\n'), event: tutResult.event, eventRoomId: tutResult.eventRoomId };
+        }
       }
       if (qCastResult) {
         db.updatePlayer(player.id, { quest_progress: qCastResult.questProgress });

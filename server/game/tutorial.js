@@ -41,6 +41,7 @@ Escribí:  look   (o «mirar»)
 🦶 Ahora: hay un Goblin de Práctica aquí.
 Atacalo antes de irte. Escribí:
   attack goblin   (o «atacar goblin»)
+  (Magos: también podés usar  cast rayo  o  cast bola de fuego)
 ═══════════════════════════════════════`,
 
   3: `═══════════════════════════════════════
