@@ -8110,6 +8110,32 @@ function cmdCast(player, args) {
       } catch (e) { /* silenciar errores de parseo */ }
     }
 
+    // DIS-632: Fase 2 del boss al recibir daño mágico — mismo trigger que en combat.js
+    // Bug original: la fase 2 solo se activaba con ataques físicos (combat.js), no con hechizos
+    if (newHp > 0 && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]) {
+      const bossDefSpell = combat.BOSS_MONSTERS[target.id];
+      if (bossDefSpell.phase2) {
+        try {
+          const mFxSpell = target.status_effects
+            ? (typeof target.status_effects === 'string' ? JSON.parse(target.status_effects) : target.status_effects)
+            : {};
+          const halfHpSpell = Math.floor(target.max_hp / 2);
+          if (!mFxSpell.phase2_triggered && newHp <= halfHpSpell) {
+            mFxSpell.phase2_triggered = true;
+            const p2Spell = bossDefSpell.phase2;
+            const newAtkSpell = (target.attack || 0) + p2Spell.atkBonus;
+            const newDefSpell = (target.defense || 0) + p2Spell.defBonus;
+            db.updateMonster(target.id, {
+              attack: newAtkSpell,
+              defense: newDefSpell,
+              status_effects: JSON.stringify(mFxSpell),
+            });
+            lines.push(p2Spell.message);
+          }
+        } catch (e) { /* silenciar errores de fase 2 */ }
+      }
+    }
+
     if (newHp <= 0) {
       // Monstruo muerto — BUG-041: db.killMonster no existe, usar updateMonster con respawn
       const PRACTICE_GOBLIN_ID = 20;
