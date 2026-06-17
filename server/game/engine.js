@@ -639,6 +639,7 @@ function cmdLook(player) {
     10: { name: 'el Gólem de Piedra',  level: 5, icon: '🪨', roomName: 'Santuario Profano',        monsterId: 5  },
     8:  { name: 'el Guardia Espectral',level: 4, icon: '👻', roomName: 'Prisión Subterránea',       monsterId: 8  },
     20: { name: 'la Sombra del Vacío', level: 7, icon: '🌑', roomName: 'Abismo Eterno',             monsterId: 22 }, // DIS-606
+    12: { name: 'el Golem de Forja',   level: 5, icon: '🔥', roomName: 'Taller de la Forja',        monsterId: 10 }, // DIS-631
   };
   let adjacentDangerLine = '';
   try {
@@ -1087,8 +1088,8 @@ function cmdMove(player, direction) {
     9:  '👑 Al cruzar el umbral de la Sala del Trono, la temperatura cae varios grados. El trono de huesos al fondo te mira sin ojos. Tenés la certeza, irracional pero absoluta, de que ese trono no siempre estuvo vacío. Y de que quien lo usaba sabe que estás aquí.\n\n💡 Notás una puerta al este, más pesada que las anteriores. Parece llevar a zonas más profundas del dungeon. Aquí empieza lo desconocido. Y si caés — recordá que la muerte en este dungeon no es el final. Tu espíritu regresará a la Entrada de la Cripta para intentarlo de nuevo.',
     10: '🩸 El Santuario Profano te recibe en un silencio que no es ausencia de sonido sino presencia de algo más. La estatua con diez brazos no te mira — te cataloga. Las runas en el suelo forman un nombre que creés poder leer aunque nunca hayas visto ese idioma. El aire sabe a cera quemada y tiempo.',
     11: '❄️ La Galería de Hielo detiene tu respiración. Las paredes de cristal azul reflejan tu imagen distorsionada en docenas de ángulos. En uno de los reflejos, tu imagen te devuelve la mirada... medio segundo antes que vos.',
-    12: '🔥 Antes de ver la forja, la sentís. No es solo calor — es algo más persistente, más profundo. Como la respiración de algo que no debería seguir vivo. El fuego en el centro no proyecta sombras normales. Las sombras se mueven solas.',
-    14: '🦴 El Coliseo de Huesos te recibe con el silencio de mil batallas perdidas. Gradas de huesos apilados se elevan hacia la oscuridad. Podés sentir el peso de todos los gladiadores que murieron aquí — sus espíritus aún esperan un digno rival que los vengue.',
+    12: '🔥 Antes de ver la forja, la sentís. No es solo calor — es algo más persistente, más profundo. Como la respiración de algo que no debería seguir vivo. El fuego en el centro no proyecta sombras normales. Las sombras se mueven solas.\n\n⚠️ Nivel recomendado: 5+. El Golem de Forja que custodia este lugar es un constructo imparable — una vez activado, no cesa.',
+    14: '🦴 El Coliseo de Huesos te recibe con el silencio de mil batallas perdidas. Gradas de huesos apilados se elevan hacia la oscuridad. Podés sentir el peso de todos los gladiadores que murieron aquí — sus espíritus aún esperan un digno rival que los vengue.\n\n⚠️ Nivel recomendado: 6+. El Campeón Espectral que domina esta arena es un guerrero de la muerte — solo los más preparados sobreviven su arena.',
     15: '⛪ A medida que cruzás el umbral de la Catedral de la Oscuridad, el eco de tus pasos revela la inmensidad del lugar. Las vidrieras rotas dejan entrar rayos de luz violácea. Sentís el peso de siglos de oscuridad posarse sobre tus hombros.',
     20: '🕳️ Al asomarte al Abismo Eterno, el vacío te mira de vuelta. No hay fondo visible. Solo oscuridad infinita, y el certero presentimiento de que algo muy antiguo — y muy hambriento — acaba de notar tu presencia.\n\n⚠️ Nivel recomendado: 7+. La Sombra del Vacío que habita aquí no permite huida fácil.',
     22: '🪦 La Cripta de los Valientes te recibe en silencio. Las placas en las paredes murmuran nombres olvidados. Una voz que no existe te susurra: "¿Serás digno de ser recordado aquí, o morirás en el anonimato?"',

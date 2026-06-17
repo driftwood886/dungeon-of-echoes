@@ -554,7 +554,7 @@ function migrateTrainingRoomAccess() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1407,4 +1407,24 @@ function migrateGuardiaEspectralHP() {
   }
   db.updateMonster(g.id, { hp: 40, max_hp: 40 });
   console.log('[seed] migrateGuardiaEspectralHP: Guardia Espectral HP 25→40. DIS-598 ✓');
+}
+
+/**
+ * DIS-630: El Gólem de Piedra (Santuario Profano, nivel 4+) muere demasiado rápido.
+ * Subir HP de 35 a 55 para que aguante 4-5 turnos vs Guerrero nivel 5 con smash.
+ * La resistencia física ×0.75 ya fue aplicada en combat.js.
+ */
+function migrateGolemPiedraHP() {
+  const all = db.getAllMonsters ? db.getAllMonsters() : [];
+  const g = all.find(m => m.id === 5 || (m.name && m.name.toLowerCase().includes('gólem de piedra')));
+  if (!g) {
+    console.warn('[seed] migrateGolemPiedraHP: Gólem de Piedra no encontrado');
+    return;
+  }
+  if (g.max_hp >= 55) {
+    // Ya actualizado
+    return;
+  }
+  db.updateMonster(g.id, { hp: 55, max_hp: 55 });
+  console.log('[seed] migrateGolemPiedraHP: Gólem de Piedra HP 35→55. DIS-630 ✓');
 }

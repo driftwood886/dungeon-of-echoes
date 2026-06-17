@@ -159,7 +159,7 @@ const MONSTER_BASE_STATS = {
   2:  { name: 'Esqueleto Guerrero',    max_hp: 20, attack: 5  },
   3:  { name: 'Rata Gigante',          max_hp: 10, attack: 2  },
   4:  { name: 'Espectro del Corredor', max_hp: 18, attack: 6  },
-  5:  { name: 'Gólem de Piedra',       max_hp: 35, attack: 8  },
+  5:  { name: 'Gólem de Piedra',       max_hp: 55, attack: 8  },  // DIS-630: HP 35→55
   6:  { name: 'Murciélago Vampiro',    max_hp: 12, attack: 3  },
   7:  { name: 'Araña Tejedora',        max_hp: 8,  attack: 4  },
   8:  { name: 'Guardia Espectral',     max_hp: 25, attack: 7  },
@@ -388,7 +388,13 @@ function attackRound(player, monster) {
   const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0) + enchantCritBonus + rogueCritBonusGloves + stanceCritPenalty;
   const isCrit = stealthSurprise ? true : Math.random() < critChance;
   const rawPlayerDmg = isCrit ? playerDmg * 2 : playerDmg;
-  const dmgToMonster = Math.max(1, rawPlayerDmg - Math.floor(monster.defense || 0));
+  // DIS-630: El Gólem de Piedra tiene resistencia física ×0.75 — análoga a resistencia mágica del Guardia Espectral
+  // Es un constructo pétrico: los golpes físicos se amortiguan en su cuerpo de piedra
+  const PHYS_RESISTANT_MONSTERS = ['gólem de piedra'];
+  const monNameLow = monster.name.toLowerCase().replace('⭐ ', '');
+  const physResist = PHYS_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? 0.75 : 1.0;
+  const dmgAfterPhysResist = Math.round(rawPlayerDmg * physResist);
+  const dmgToMonster = Math.max(1, dmgAfterPhysResist - Math.floor(monster.defense || 0));
   monster.hp = Math.max(0, monster.hp - dmgToMonster);
 
   // T190: mensaje de encantamiento activo en el primer golpe del turno
@@ -398,7 +404,8 @@ function attackRound(player, monster) {
   }
 
   if (isCrit) {
-    lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
+    const physResistNote = physResist < 1.0 ? ` 🪨 (resistencia física: ×${physResist})` : '';
+    lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño.${physResistNote} (${monster.hp}/${monster.max_hp} HP)`);
   } else {
     // DIS-D426: mostrar indicador de postura activa en el mensaje de ataque
     // DIS-472: cada postura tiene mensajes de ataque diferenciados que refuerzan la fantasía
@@ -439,7 +446,7 @@ function attackRound(player, monster) {
     const magoFlavor = isMagoSinMana
       ? `[sin maná — ${magoMsgs[Math.floor(Math.random() * magoMsgs.length)]}] `
       : '';
-    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño. (${monster.hp}/${monster.max_hp} HP)`);
+    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño.${physResist < 1.0 ? ` 🪨 (resistencia física: ×${physResist})` : ''} (${monster.hp}/${monster.max_hp} HP)`);
   }
 
   // Actualizar monstruo en BD
