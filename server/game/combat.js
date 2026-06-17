@@ -916,10 +916,29 @@ function attackRound(player, monster) {
       if (specialDef.type === 'mana_drain') {
         // Drenar maná del jugador
         const freshForMana = db.getPlayer(player.id);
-        const curMana = freshForMana.mana || 0;
-        const drained = Math.min(curMana, specialDef.amount);
-        db.updatePlayer(player.id, { mana: Math.max(0, curMana - drained) });
-        lines.push(rawMsg + (drained < specialDef.amount ? ` (solo tenías ${curMana} maná)` : ''));
+        // DIS-666: verificar protección de maná sagrado (del cuenco del Eco para Clérigo)
+        const seForDrain = typeof freshForMana.status_effects === 'object'
+          ? freshForMana.status_effects
+          : (() => { try { return JSON.parse(freshForMana.status_effects || '{}'); } catch(_) { return {}; } })();
+        const manaShieldUntil = seForDrain.mana_shield_lich;
+        if (manaShieldUntil && new Date(manaShieldUntil).getTime() > Date.now()) {
+          const turnsLeft = seForDrain.mana_shield_turns || 0;
+          lines.push(`🛡️ ¡El Lich intenta drenar tu maná, pero la bendición del cuenco lo protege! (${turnsLeft} turno${turnsLeft !== 1 ? 's' : ''} restante${turnsLeft !== 1 ? 's' : ''})`);
+          // Decrementar contador de turnos
+          const newTurns = turnsLeft - 1;
+          if (newTurns <= 0) {
+            delete seForDrain.mana_shield_lich;
+            delete seForDrain.mana_shield_turns;
+          } else {
+            seForDrain.mana_shield_turns = newTurns;
+          }
+          db.updatePlayer(player.id, { status_effects: seForDrain });
+        } else {
+          const curMana = freshForMana.mana || 0;
+          const drained = Math.min(curMana, specialDef.amount);
+          db.updatePlayer(player.id, { mana: Math.max(0, curMana - drained) });
+          lines.push(rawMsg + (drained < specialDef.amount ? ` (solo tenías ${curMana} maná)` : ''));
+        }
 
       } else if (specialDef.type === 'web') {
         // Enredar al jugador por N turnos

@@ -123,7 +123,7 @@ const SKILLS = {
     type: 'cleric_heal',
     heal_amount: 30,
     mana_cost: 12,
-    description: 'Canaliza la gracia divina: cura 30 HP instantáneamente. Cooldown: 60s. Solo Clérigo.',
+    description: 'Canaliza la gracia divina: cura 30 HP base × 1.5 (heal_power Clérigo) = 45 HP efectivos. Cooldown: 60s. Solo Clérigo.',
     combat_only: false,
   },
   bendicion: {

@@ -833,10 +833,14 @@ function cmdMove(player, direction) {
     }
     // BUG-459 / BUG-550: aclarar que el movimiento inicia una huida, mostrar resultado después
     // BUG-565: solo mostrar "¡Huís!" si la huida realmente funcionó — si no, solo el mensaje de fallo
+    // DIS-667: si el boss está a HP lleno (el jugador nunca lo atacó), usar mensaje neutro
+    const bossAtFullHp = monster && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id] && monster.hp >= monster.max_hp;
     const fleeNote = fleeResult.fled
-      ? (aliveHere.length > 1
-          ? `⚔️ ¡Huís de ${aliveHere.length} monstruos activos (${nameList})!\n`
-          : `⚔️ ¡Huís del combate! (💡 También podés usar "flee" directamente.)\n`)
+      ? (bossAtFullHp
+          ? `🚶 Pasás cerca del ${monster.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.\n`
+          : (aliveHere.length > 1
+              ? `⚔️ ¡Huís de ${aliveHere.length} monstruos activos (${nameList})!\n`
+              : `⚔️ ¡Huís del combate! (💡 También podés usar "flee" directamente.)\n`))
       : '';
     return {
       text: `${fleeNote}${fleeResult.line}`,
@@ -1113,7 +1117,7 @@ function cmdMove(player, direction) {
     15: '⛪ A medida que cruzás el umbral de la Catedral de la Oscuridad, el eco de tus pasos revela la inmensidad del lugar. Las vidrieras rotas dejan entrar rayos de luz violácea. Sentís el peso de siglos de oscuridad posarse sobre tus hombros.',
     20: '🕳️ Al asomarte al Abismo Eterno, el vacío te mira de vuelta. No hay fondo visible. Solo oscuridad infinita, y el certero presentimiento de que algo muy antiguo — y muy hambriento — acaba de notar tu presencia.\n\n⚠️ Nivel recomendado: 7+. La Sombra del Vacío que habita aquí no permite huida fácil.',
     22: '🪦 La Cripta de los Valientes te recibe en silencio. Las placas en las paredes murmuran nombres olvidados. Una voz que no existe te susurra: "¿Serás digno de ser recordado aquí, o morirás en el anonimato?"',
-    19: '🔊 La Cámara del Eco no te recibe — te absorbe. El sonido de tus pasos no rebota: se multiplica, se distorsiona, regresa transformado en algo que no es exactamente tu pisada sino una versión de ella que tomó otro camino.\n\nEn el centro, los cristales resonantes pulsan con luz tenue. Cada uno guarda un eco atrapado. Algunas frecuencias son voces humanas. El eco más largo, el más persistente, es el nombre de alguien que claramente no quiso que lo recordaran.\n\nEn un rincón hay un cuenco de cristal que palpita con luz azulada. Los Magos y Clérigos que lleguen aquí pueden reconcentrarse usando ese cuenco (\"use cuenco\") para recuperar maná antes de lo que les espera al sur.\n\nUna presencia se hace notar. El Eco Viviente.\n\n⚠️ Nivel recomendado: 6+. Este guardián no deja escapar a quien perturba la sala.',
+    19: '🔊 La Cámara del Eco no te recibe — te absorbe. El sonido de tus pasos no rebota: se multiplica, se distorsiona, regresa transformado en algo que no es exactamente tu pisada sino una versión de ella que tomó otro camino.\n\nEn el centro, los cristales resonantes pulsan con luz tenue. Cada uno guarda un eco atrapado. Algunas frecuencias son voces humanas. El eco más largo, el más persistente, es el nombre de alguien que claramente no quiso que lo recordaran.\n\nEn un rincón hay un cuenco de cristal que palpita con luz azulada. Cualquier aventurero puede usarlo (\"use cuenco\") para recuperar 30% de HP. Los Magos y Clérigos también recuperan 50% del maná. Los Clérigos además reciben una bendición sagrada que protege su maná del drenado del Lich durante 3 turnos.\n\nUna presencia se hace notar. El Eco Viviente.\n\n⚠️ Nivel recomendado: 6+. Este guardián no deja escapar a quien perturba la sala.',
   };
 
   const cinematicEvent = (firstVisitEver && CINEMATIC_EVENTS[targetId])
@@ -5575,7 +5579,7 @@ const SHOP_CATALOG = [
   { name: 'pergamino de hechizo',    price: 25, description: '🔮 (Mago) Un pergamino consumible que otorga un lanzamiento de hechizo gratuito — no consume maná. Útil cuando estás al límite.' },
   // DIS-610: ítems específicos de clase Clérigo
   { name: 'símbolo sagrado',         price: 30, description: '✨ (Clérigo) Un símbolo sagrado de madera bendecida. +2 ataque. Clérigos reciben +2 ATK adicional y reducen el cooldown de pray a 3 min.' },
-  { name: 'poción de bendición',     price: 20, description: '✨ (Clérigo) Poción clerical dorada. Restaura 20 maná y otorga +1 ATK por 2 minutos. Perfecta para sostener la cadena de curación.' },
+  { name: 'poción de bendición',     price: 12, description: '✨ (Clérigo) Poción clerical dorada. Restaura 20 maná y otorga +1 ATK por 2 minutos. Perfecta para sostener la cadena de curación.' },
   // DIS-615: ítems específicos de clase Pícaro
   { name: 'guantes de cuero fino',   price: 25, description: '🗡️ (Pícaro) Guantes de cuero fino. +1 ataque. Los Pícaros reciben +10% de probabilidad de crítico adicional — ideal para build de golpes críticos.' },
   { name: 'veneno de contacto',      price: 20, description: '🗡️ (Pícaro) Vial de veneno aceitoso. Al aplicarlo en tu arma, los próximos 3 ataques tienen 40% de envenenar al objetivo. Se consume al agotar las cargas.' },
@@ -7555,6 +7559,16 @@ function cmdEchoBowl(player) {
 
   const updates = { hp: newHp };
   if (isCaster) updates.mana = newMana;
+  // DIS-666: Clérigo recibe protección de maná sagrado contra el drain del Lich por 3 turnos
+  if (playerClass === 'clerigo') {
+    const seEcho = typeof player.status_effects === 'object'
+      ? Object.assign({}, player.status_effects)
+      : (() => { try { return JSON.parse(player.status_effects || '{}'); } catch(_) { return {}; } })();
+    // Expiración amplia (30 min) — el control real es por turns (mana_shield_turns)
+    seEcho.mana_shield_lich = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    seEcho.mana_shield_turns = 3;
+    updates.status_effects = seEcho;
+  }
   db.updatePlayer(player.id, updates);
   echoBowlCooldowns.set(player.id, now);
 
@@ -7578,6 +7592,9 @@ function cmdEchoBowl(player) {
     }
   }
   lines.push(`\n⏳ El cuenco tardará 5 minutos en resonar de nuevo.`);
+  if (playerClass === 'clerigo') {
+    lines.push(`✨ Como Clérigo, el cuenco imbuye una bendición sagrada: los primeros 3 intentos de drenado de maná del Lich serán bloqueados.`);
+  }
   lines.push(`💡 Preparate aquí antes de enfrentar lo que yace al sur.`);
 
   return {
@@ -8747,7 +8764,29 @@ function cmdHeal(player, args) {
   const mana = fresh.mana != null ? fresh.mana : 0;
   const manaCost = 8;
   if (mana < manaCost) {
-    return { text: `✨ No tenés suficiente maná para curar. Necesitás ${manaCost} maná (tenés ${mana}).` };
+    // DIS-664: heal de emergencia — sin maná, el Clérigo puede invocar a expensas de su propia vitalidad
+    const seEmerg = parseSE(fresh.status_effects);
+    const emergCd = seEmerg.emergency_heal_cd;
+    if (emergCd && new Date(emergCd).getTime() > Date.now()) {
+      const secsLeft = Math.ceil((new Date(emergCd).getTime() - Date.now()) / 1000);
+      return { text: `✨ No tenés suficiente maná (${mana}/${manaCost}). Tu heal de emergencia recarga en ${secsLeft}s más.` };
+    }
+    // Verificar que el jugador tenga suficiente HP para pagar el costo (mínimo 5 HP)
+    const emergHpCost = 8;
+    if ((fresh.hp || 0) <= emergHpCost + 1) {
+      return { text: `✨ No tenés suficiente maná (${mana}/${manaCost}) ni HP para invocar la gracia divina de emergencia. Buscá pociones o un altar.` };
+    }
+    if (fresh.hp >= fresh.max_hp) {
+      return { text: `✨ Tu HP ya está al máximo. No se activó la curación de emergencia.` };
+    }
+    // Heal de emergencia: cura 22 HP a costo de 8 HP propios, cooldown 5 min
+    const emergHealAmt = Math.round(15 * 1.5); // 22 HP, mismo poder que heal normal
+    const newHp = Math.min(fresh.max_hp, (fresh.hp || 0) + emergHealAmt - emergHpCost);
+    const hpChange = newHp - (fresh.hp || 0);
+    const cdExpiry = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    seEmerg.emergency_heal_cd = cdExpiry;
+    db.updatePlayer(fresh.id, { hp: newHp, status_effects: seEmerg });
+    return { text: `⛪ Sin maná, invocás la gracia divina a expensas de tu propia fuerza vital.\n${hpChange >= 0 ? '+' : ''}${hpChange} HP (${newHp}/${fresh.max_hp}) — (Heal de emergencia, cooldown 5 min)` };
   }
 
   const healPower = 1.5; // DIS-496: Clérigo cura 50% más
