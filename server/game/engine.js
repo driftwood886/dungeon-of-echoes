@@ -640,6 +640,7 @@ function cmdLook(player) {
     8:  { name: 'el Guardia Espectral',level: 4, icon: '👻', roomName: 'Prisión Subterránea',       monsterId: 8  },
     20: { name: 'la Sombra del Vacío', level: 7, icon: '🌑', roomName: 'Abismo Eterno',             monsterId: 22 }, // DIS-606
     12: { name: 'el Golem de Forja',   level: 5, icon: '🔥', roomName: 'Taller de la Forja',        monsterId: 10 }, // DIS-631
+    19: { name: 'el Eco Viviente',     level: 6, icon: '🔊', roomName: 'Cámara del Eco',            monsterId: 21 }, // DIS-637: boss que bloquea flee — agregar advertencia previa
   };
   let adjacentDangerLine = '';
   try {
@@ -1093,6 +1094,7 @@ function cmdMove(player, direction) {
     15: '⛪ A medida que cruzás el umbral de la Catedral de la Oscuridad, el eco de tus pasos revela la inmensidad del lugar. Las vidrieras rotas dejan entrar rayos de luz violácea. Sentís el peso de siglos de oscuridad posarse sobre tus hombros.',
     20: '🕳️ Al asomarte al Abismo Eterno, el vacío te mira de vuelta. No hay fondo visible. Solo oscuridad infinita, y el certero presentimiento de que algo muy antiguo — y muy hambriento — acaba de notar tu presencia.\n\n⚠️ Nivel recomendado: 7+. La Sombra del Vacío que habita aquí no permite huida fácil.',
     22: '🪦 La Cripta de los Valientes te recibe en silencio. Las placas en las paredes murmuran nombres olvidados. Una voz que no existe te susurra: "¿Serás digno de ser recordado aquí, o morirás en el anonimato?"',
+    19: '🔊 La Cámara del Eco no te recibe — te absorbe. El sonido de tus pasos no rebota: se multiplica, se distorsiona, regresa transformado en algo que no es exactamente tu pisada sino una versión de ella que tomó otro camino.\n\nEn el centro, los cristales resonantes pulsan con luz tenue. Cada uno guarda un eco atrapado. Algunas frecuencias son voces humanas. El eco más largo, el más persistente, es el nombre de alguien que claramente no quiso que lo recordaran.\n\nUna presencia se hace notar. El Eco Viviente.\n\n⚠️ Nivel recomendado: 6+. Este guardián no deja escapar a quien perturba la sala.',
   };
 
   const cinematicEvent = (firstVisitEver && CINEMATIC_EVENTS[targetId])
@@ -1167,8 +1169,25 @@ function cmdMove(player, direction) {
     }
   }
 
+  // DIS-639: Advertencia si el jugador deja ítems épicos/raros en el suelo de la sala de origen
+  let leftEpicMsg = '';
+  {
+    const prevRoomItems = db.getRoom(player.current_room_id);
+    if (prevRoomItems) {
+      const floorItems = Array.isArray(prevRoomItems.items) ? prevRoomItems.items : [];
+      const epicLeft = floorItems.filter(i => {
+        const r = items.getItemRarity(i);
+        return r === 'épico' || r === 'legendario';
+      });
+      if (epicLeft.length > 0) {
+        const names = epicLeft.join(', ');
+        leftEpicMsg = `\n\n⚠️ **Dejaste ítems épicos en ${prevRoomItems.name}:** ${names}. ¡No los olvides!`;
+      }
+    }
+  }
+
   return {
-    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}`,
+    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}${leftEpicMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -3925,7 +3944,7 @@ function cmdLoot(player) {
   if (totalItems === 0 && itemsLeft.length > 0) {
     const usedSlots = player.inventory.length + equippedCountLoot;
     return {
-      text: `🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada.\nQuedaron en el suelo:\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}`,
+      text: `🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada.\nQuedaron en el suelo:\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}\n\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (30g) en la tienda de Aldric para +4 slots.`,
       event: null,
       eventRoomId: room.id,
     };
@@ -4558,7 +4577,10 @@ function cmdMap(player) {
     `  ${c(20)}`,
     ``,
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
-    `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`,
+    // DIS-635: solo mencionar sala 8 como fuente de llave si ya fue visitada
+    visitedRooms.has(8)
+      ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
+      : `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda del Mercader)`,
     `[??:?????????] = sala aún no explorada`,
     // DIS-597: la ruta completa al Santuario solo aparece si ya se visitó sala 9 (Trono) o sala 7 (Pozo)
     ...(visitedRooms.has(9) || visitedRooms.has(7)
@@ -7585,7 +7607,7 @@ function cmdAuction(player, args) {
   }
 
   if (player.current_room_id !== AUCTION_ROOM_ID) {
-    return { text: '🔨 Solo podés subastar desde la Casa de Subastas (sala 17).\n  Movete al este desde la Cámara del Tesoro (sala 4).\n\n🔍 Para ver subastas activas usá: remates' };
+    return { text: '🔨 Solo podés subastar desde la Casa de Subastas (sala 17).\n  Movete al este desde la Cámara del Tesoro (sala 4).\n\n💰 También podés vender directamente a Aldric con `vender <ítem>` desde la Cámara del Tesoro (sala 4).\n🔍 Para ver subastas activas usá: remates' };
   }
 
   if (args.length < 2) {
