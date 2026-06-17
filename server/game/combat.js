@@ -855,8 +855,12 @@ function attackRound(player, monster) {
     }
   }
   if (evasionWasActive) {
-    // Consumir el buff de evasión
+    // BUG-671: Consumir el buff de evasión — actualizar también player.status_effects en memoria
+    // para que la escritura final (línea ~969) no sobreescriba el delete con la copia vieja del objeto player.
     delete seForEvasion.evasion_ready;
+    if (player.status_effects && typeof player.status_effects === 'object') {
+      delete player.status_effects.evasion_ready;
+    }
     db.updatePlayer(player.id, { status_effects: JSON.stringify(seForEvasion) });
   }
   if (isEvasion) {
