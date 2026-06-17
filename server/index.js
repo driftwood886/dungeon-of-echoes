@@ -10,7 +10,7 @@ const http    = require('http');
 const path    = require('path');
 
 const db                     = require('./db/db');
-const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection } = require('./db/seed');
+const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates } = require('./db/seed');
 const { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions } = require('./game/engine');
 const { checkRespawns, wanderMonsters } = require('./game/combat');
 const quests                 = require('./game/quests');
@@ -54,6 +54,7 @@ async function main() {
   migrateGolemPiedraHP(); // DIS-630: subir HP del Gólem de Piedra 35→55 + resistencia física ×0.75
   migrateCampeonEspectralLoot(); // DIS-648: Campeón Espectral dropea cristal resonante en vez de lanza espectral
   migrateColiseoEcoConnection(); // DIS-652: Coliseo(14)→Eco(19)→Catedral(15), no bypass directo
+  migrateFixEcoConnectionDuplicates(); // BUG-659/660: quitar salidas duplicadas north/south→Catedral en salas 19 y 15
 
   // 2. Crear app Express
   const app = express();

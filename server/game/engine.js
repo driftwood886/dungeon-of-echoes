@@ -2992,7 +2992,9 @@ function cmdExamine(player, query) {
     // DIS-D417/D420: nuevas palabras de lore que no deben matchear ítems del inventario
     'cofres', 'estantes', 'velas', 'cera', 'trono',
     // DIS-D446: Casa de Subastas (sala 17)
-    'estrado', 'candelabros', 'escriba']);
+    'estrado', 'candelabros', 'escriba',
+    // BUG-661: 'espada de obsidiana' como frase completa debe priorizar el lore object de sala 15
+    'espada de obsidiana']);
   const monster = monsters.find(m => {
     const mName = normalize(m.name);
     // Si el query es exactamente el nombre del monstruo o el nombre empieza por el query, matchear
@@ -3159,6 +3161,7 @@ function cmdExamine(player, query) {
     'altar catedral':           { rooms: [15], text: 'El altar de la Catedral está tallado en una sola pieza de piedra oscura que no tiene costuras ni marcas de cincel. Sobre él, la espada de obsidiana parece flotar un milímetro por encima de la superficie. Cuando extendés la mano, sentís una presión suave que te empuja hacia atrás —no violenta, casi cortés. El altar no quiere que la toques antes de estar listo.\n\nEn la base, en letras tan pequeñas que requieren cuclillas para leer: "El que toma sin merecer, devuelve más de lo que tomó."' },
     // BUG-411: 'espada' y 'obsidiana' tienen descripción propia de la espada
     // DIS-579: incluir nivel requerido para tomar la espada
+    // BUG-661: agregar también 'espada de obsidiana' (frase completa) como lore-priority word para sala 15
     'espada':              { rooms: [15], text: 'La espada de obsidiana es negra de una manera que no es color sino ausencia. Donde debería haber un filo, hay una línea donde la luz simplemente deja de existir —no se refleja, no se dispersa, desaparece.\n\nCuando extendés la mano hacia ella, sentís una resistencia que no es física: es una presión en la mente, un umbral. La hoja no te rechaza. Te evalúa.\n\nLos bordes no tienen marcas de uso, pero tampoco parecen nuevos. Es como si el tiempo no pasara por ella.\n\n⚔️ Nivel requerido para equiparla: 6 (o tomarla del altar: sin restricción de nivel, pero enfrentarás al Lich Anciano —nivel recomendado 7).' },
     'obsidiana':           { rooms: [15], text: 'La espada de obsidiana es negra de una manera que no es color sino ausencia. Donde debería haber un filo, hay una línea donde la luz simplemente deja de existir —no se refleja, no se dispersa, desaparece.\n\nCuando extendés la mano hacia ella, sentís una resistencia que no es física: es una presión en la mente, un umbral. La hoja no te rechaza. Te evalúa.\n\nLos bordes no tienen marcas de uso, pero tampoco parecen nuevos. Es como si el tiempo no pasara por ella.\n\n⚔️ Nivel requerido para equiparla: 6 (o tomarla del altar: sin restricción de nivel, pero enfrentarás al Lich Anciano —nivel recomendado 7).' },
     'espada de obsidiana': { rooms: [15], text: 'La espada de obsidiana es negra de una manera que no es color sino ausencia. Donde debería haber un filo, hay una línea donde la luz simplemente deja de existir —no se refleja, no se dispersa, desaparece.\n\nCuando extendés la mano hacia ella, sentís una resistencia que no es física: es una presión en la mente, un umbral. La hoja no te rechaza. Te evalúa.\n\n⚔️ Nivel requerido para equiparla: 6 (o tomarla del altar: sin restricción de nivel, pero enfrentarás al Lich Anciano —nivel recomendado 7).' },
@@ -9059,7 +9062,12 @@ function cmdUseSkill(player, args, context) {
     const rawDmg = Math.max(1, Math.floor(baseDmg * skill.dmg_multiplier));
     const variation = Math.floor(rawDmg * 0.2);
     const dmg = rawDmg + Math.floor(Math.random() * (variation * 2 + 1)) - variation;
-    const finalDmg = Math.max(1, dmg - Math.floor(target.defense || 0));
+    // BUG-658: aplicar resistencia física igual que combat.js (×0.75 para el Gólem de Piedra)
+    const SMASH_PHYS_RESISTANT = ['gólem de piedra'];
+    const smashMonNameLow = target.name.toLowerCase().replace('⭐ ', '');
+    const smashPhysResist = SMASH_PHYS_RESISTANT.some(n => smashMonNameLow.includes(n)) ? 0.75 : 1.0;
+    const dmgAfterSmashResist = Math.round(dmg * smashPhysResist);
+    const finalDmg = Math.max(1, dmgAfterSmashResist - Math.floor(target.defense || 0));
     const newHp = Math.max(0, target.hp - finalDmg);
     db.updateMonster(target.id, { hp: newHp });
     // Aplicar cooldown
@@ -9067,7 +9075,8 @@ function cmdUseSkill(player, args, context) {
     db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldowns });
 
     const dead = newHp <= 0;
-    let text = `⚡ ¡GOLPETAZO! Golpeás al ${target.name} con toda tu fuerza causando ${finalDmg} de daño (×1.8)!`;
+    const smashResistNote = smashPhysResist < 1.0 ? ` 🪨 (resistencia física: ×${smashPhysResist})` : '';
+    let text = `⚡ ¡GOLPETAZO! Golpeás al ${target.name} con toda tu fuerza causando ${finalDmg} de daño (×1.8)!${smashResistNote}`;
     if (dead) {
       text += `\n💀 El ${target.name} sucumbe ante tu brutal ataque.`;
       // Loot via dropLoot (igual que cmdAttack) — incluye loot bonus de boss
@@ -9175,7 +9184,12 @@ function cmdUseSkill(player, args, context) {
     const baseDmg = freshPlayer.attack || 5;
     const variation = Math.floor(baseDmg * 0.2);
     const rawDmg = baseDmg + Math.floor(Math.random() * (variation * 2 + 1)) - variation;
-    const finalDmg = Math.max(1, rawDmg - Math.floor(target.defense || 0));
+    // BUG-658: aplicar resistencia física igual que combat.js (×0.75 para el Gólem de Piedra)
+    const BASH_PHYS_RESISTANT = ['gólem de piedra'];
+    const bashMonNameLow = target.name.toLowerCase().replace('⭐ ', '');
+    const bashPhysResist = BASH_PHYS_RESISTANT.some(n => bashMonNameLow.includes(n)) ? 0.75 : 1.0;
+    const dmgAfterBashResist = Math.round(rawDmg * bashPhysResist);
+    const finalDmg = Math.max(1, dmgAfterBashResist - Math.floor(target.defense || 0));
     const newHp = Math.max(0, target.hp - finalDmg);
     // Stun: guardar en status_effects del monstruo
     const monsterEffects = target.status_effects ? JSON.parse(target.status_effects || '{}') : {};
@@ -9186,7 +9200,8 @@ function cmdUseSkill(player, args, context) {
     db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldowns });
 
     const dead = newHp <= 0;
-    let text = `🛡️ ¡GOLPE DE ESCUDO! Golpeás al ${target.name} con tu escudo (${finalDmg} dmg) aturdiéndolo!`;
+    const bashResistNote = bashPhysResist < 1.0 ? ` 🪨 (resistencia física: ×${bashPhysResist})` : '';
+    let text = `🛡️ ¡GOLPE DE ESCUDO! Golpeás al ${target.name} con tu escudo (${finalDmg} dmg) aturdiéndolo!${bashResistNote}`;
     if (dead) {
       text += `\n💀 El impacto fue tan brutal que el ${target.name} cae fulminado.`;
       // Loot via dropLoot (igual que cmdAttack) — incluye loot bonus de boss

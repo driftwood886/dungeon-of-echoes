@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1485,4 +1485,28 @@ function migrateColiseoEcoConnection() {
   db.upsertRoom({ ...r15, exits: exits15 });
 
   console.log('[seed] migrateColiseoEcoConnection: DIS-652 — Coliseo(14) east→19(Eco), Eco east→15(Catedral), Catedral west→19 ✓');
+}
+
+// BUG-659 / BUG-660: sala 19 tenía north:15 Y east:15 (duplicado), sala 15 tenía west:19 Y south:19 (duplicado)
+// La migración DIS-652 añadió east/west sin quitar north/south — este fix los limpia
+function migrateFixEcoConnectionDuplicates() {
+  const r15 = db.getRoom(15);
+  const r19 = db.getRoom(19);
+  if (!r15 || !r19) return;
+  let changed = false;
+  // Sala 19: quitar north:15 si existe (dejar solo east:15)
+  const exits19 = r19.exits || {};
+  if (exits19.north === 15) {
+    delete exits19.north;
+    db.upsertRoom({ ...r19, exits: exits19 });
+    changed = true;
+  }
+  // Sala 15: quitar south:19 si existe (dejar solo west:19)
+  const exits15 = r15.exits || {};
+  if (exits15.south === 19) {
+    delete exits15.south;
+    db.upsertRoom({ ...r15, exits: exits15 });
+    changed = true;
+  }
+  if (changed) console.log('[seed] migrateFixEcoConnectionDuplicates: BUG-659/660 — salidas duplicadas Eco↔Catedral eliminadas ✓');
 }
