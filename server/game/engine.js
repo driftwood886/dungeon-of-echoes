@@ -2363,9 +2363,10 @@ function cmdPick(player, itemQuery) {
       const inv = Array.isArray(current.inventory) ? current.inventory : [];
       // BUG-489: contar equipados también para el límite real
       const eqCount = (current.equipped_weapon ? 1 : 0) + (current.equipped_armor ? 1 : 0);
-      if (inv.length + eqCount >= 20) {
+      const pickMaxInv = 25 + (current.inventory_bonus || 0); // DIS-634: usar límite dinámico (DIS-507/DIS-595)
+      if (inv.length + eqCount >= pickMaxInv) {
         notPicked.push(item);
-        pickedLines.push(`⚠️ Inventario lleno (${inv.length + eqCount}/20) — quedó en el suelo: ${item}\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`.`);
+        pickedLines.push(`⚠️ Inventario lleno (${inv.length + eqCount}/${pickMaxInv}) — quedó en el suelo: ${item}\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (30g) en la tienda de Aldric para +4 slots.`);
         continue;
       }
       const newInv = [...inv, item];
@@ -4875,9 +4876,14 @@ function cmdRest(player, context) {
   const forageRoomData = FORAGE_REST_ROOMS[player.current_room_id];
   if (forageRoomData && Math.random() < forageRoomData.chance) {
     const refreshedPlayer = db.getPlayer(player.id);
-    const updatedInv = [...(refreshedPlayer.inventory || []), forageRoomData.item];
-    db.updatePlayer(player.id, { inventory: updatedInv });
-    forageRestText = `\n${forageRoomData.msg}`;
+    const restInv = Array.isArray(refreshedPlayer.inventory) ? refreshedPlayer.inventory : [];
+    const restEq = (refreshedPlayer.equipped_weapon ? 1 : 0) + (refreshedPlayer.equipped_armor ? 1 : 0);
+    const restMax = 25 + (refreshedPlayer.inventory_bonus || 0);
+    if (restInv.length + restEq < restMax) { // DIS-634: verificar espacio antes de agregar
+      const updatedInv = [...restInv, forageRoomData.item];
+      db.updatePlayer(player.id, { inventory: updatedInv });
+      forageRestText = `\n${forageRoomData.msg}`;
+    }
   }
 
   // DIS-449: Descansar también recupera maná para Mago (10% del max_mana, además del HP)
@@ -6985,6 +6991,15 @@ function cmdForage(player) {
   if (monsters.length > 0) {
     const names = monsters.map(m => m.name).join(', ');
     return { text: `No podés buscar con calma mientras hay monstruos aquí: ${names}.` };
+  }
+
+  // DIS-634: Verificar capacidad de inventario antes de agregar cualquier ítem
+  const _forageInv = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+  const _forageEq = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
+  const _forageMax = 25 + (player.inventory_bonus || 0);
+  const _forageUsed = _forageInv.length + _forageEq;
+  if (_forageUsed >= _forageMax) {
+    return { text: `🎒 Inventario lleno (${_forageUsed}/${_forageMax}) — no hay espacio para lo que podrías encontrar.\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (30g) en la tienda de Aldric para +4 slots.` };
   }
 
   // T242: Quest narrativa con Aldric — carta sellada en sala 8 si quest activa
