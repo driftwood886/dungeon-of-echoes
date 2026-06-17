@@ -6488,7 +6488,7 @@ function _cmdDuelMaestro(player) {
     return { text: '⚔️ El Maestro de Combate te mira y frunce el ceño.\n\n\"No. No en ese estado.\" Señala tu HP. \"Curate antes de venir a pelear. Un duelo no es suicidio.\"\n\nTiene razón.' };
   }
 
-  const playerClass = (player.class || 'sin_clase').toLowerCase();
+  const playerClass = (player.player_class || player.class || 'sin_clase').toLowerCase();
   const playerLevel = player.level || 1;
 
   // DIS-644: el simulador respeta la clase del jugador
