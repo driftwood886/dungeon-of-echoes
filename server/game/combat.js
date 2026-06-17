@@ -393,7 +393,14 @@ function attackRound(player, monster) {
   const PHYS_RESISTANT_MONSTERS = ['gólem de piedra'];
   const monNameLow = monster.name.toLowerCase().replace('⭐ ', '');
   const physResist = PHYS_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? 0.75 : 1.0;
-  const dmgAfterPhysResist = Math.round(rawPlayerDmg * physResist);
+  // DIS-657: La Sombra del Vacío tiene resistencia a emboscada — reduce el daño de golpe de sorpresa al 70%
+  // Narrativa: la criatura de oscuridad "espera" el ataque del Pícaro — no puede ser sorprendida en su propio dominio
+  let ambushResist = 1.0;
+  if (stealthSurprise && monNameLow.includes('sombra del vacío')) {
+    ambushResist = 0.70;
+    lines.push(`🌑 La Sombra del Vacío percibe tu presencia en la oscuridad — tu golpe de sorpresa se atenúa. (emboscada: ×0.70)`);
+  }
+  const dmgAfterPhysResist = Math.round(rawPlayerDmg * physResist * ambushResist);
   const dmgToMonster = Math.max(1, dmgAfterPhysResist - Math.floor(monster.defense || 0));
   monster.hp = Math.max(0, monster.hp - dmgToMonster);
 

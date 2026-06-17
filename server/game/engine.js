@@ -2221,6 +2221,24 @@ function cmdAttack(player, targetName) {
         lines.push(`║  ⚠️  Tu mochila tiene ${invCount}/${invMaxDisplay} ítems — hacé espacio      ║`);
         lines.push('║  con "drop <ítem>", "vault store <ítem>" o "subastar". ║');
       }
+      // DIS-656: mostrar progreso de exploración en el panel de victoria
+      const TOTAL_ROOMS = 20;
+      let visitedRooms = [];
+      try { visitedRooms = JSON.parse(freshForInv.rooms_visited || '[]'); } catch (_) {}
+      const visitedCount = visitedRooms.length;
+      const roomsRemaining = TOTAL_ROOMS - visitedCount;
+      const exploredPct = Math.round((visitedCount / TOTAL_ROOMS) * 100);
+      lines.push('╠══════════════════════════════════════════════════════╣');
+      if (visitedCount >= TOTAL_ROOMS) {
+        lines.push('║  🗺️ ¡CARTÓGRAFO! Exploraste las 20/20 salas del dungeon ║');
+      } else {
+        lines.push(`║  🗺️ Exploración: ${visitedCount}/${TOTAL_ROOMS} salas (${exploredPct}%)`.padEnd(56) + '║');
+        if (roomsRemaining <= 5) {
+          lines.push(`║  ¡Casi! Te faltan solo ${roomsRemaining} sala${roomsRemaining !== 1 ? 's' : ''} — ¡buscalas!`.padEnd(56) + '║');
+        } else {
+          lines.push(`║  Desafío Cartógrafo: visitá las ${roomsRemaining} salas restantes`.padEnd(56) + '║');
+        }
+      }
       lines.push('╚══════════════════════════════════════════════════════╝');
       return '\n\n' + lines.join('\n');
     })()
@@ -7486,7 +7504,8 @@ function cmdChapelBowl(player) {
 
 /**
  * DIS-649: Cuenco de Reconcentración en la Cámara del Eco (sala 19).
- * Restaura 50% del maná máximo. Solo para Mago y Clérigo.
+ * Restaura 50% del maná máximo para Mago y Clérigo.
+ * DIS-654: También restaura 30% del HP para TODAS las clases (preparación pre-boss final).
  * Cooldown personal de 5 minutos.
  */
 function cmdEchoBowl(player) {
@@ -7497,15 +7516,28 @@ function cmdEchoBowl(player) {
   }
 
   const playerClass = (player.player_class || 'sin_clase').toLowerCase();
-  if (playerClass !== 'mago' && playerClass !== 'clerigo') {
-    return { text: '🔊 Los cristales resonantes pulsan con energía arcana, pero no resuenan con vos.\n   Este cuenco solo puede ser utilizado por Magos y Clérigos.' };
-  }
+  const isCaster = playerClass === 'mago' || playerClass === 'clerigo';
 
   const maxMana = player.max_mana || 20;
   const currentMana = player.mana != null ? player.mana : 0;
+  const currentHp = player.hp || 1;
+  const maxHp = player.max_hp || 30;
 
-  if (currentMana >= maxMana) {
-    return { text: '🔊 Los cristales resuenan en armonía con tu espíritu. Tu maná ya está completo.' };
+  // DIS-654: restaurar HP para todas las clases (30%)
+  const hpRestoreAmount = Math.floor(maxHp * 0.30);
+  const newHp = Math.min(maxHp, currentHp + hpRestoreAmount);
+  const hpRestored = newHp - currentHp;
+
+  // Maná solo para Mago/Clérigo
+  const manaRestoreAmount = isCaster ? Math.floor(maxMana * 0.50) : 0;
+  const newMana = isCaster ? Math.min(maxMana, currentMana + manaRestoreAmount) : currentMana;
+  const manaRestored = newMana - currentMana;
+
+  // Verificar si ambos recursos están llenos
+  const hpFull = currentHp >= maxHp;
+  const manaFull = !isCaster || currentMana >= maxMana;
+  if (hpFull && manaFull) {
+    return { text: '🔊 Los cristales resuenan en armonía con tu espíritu. Tu HP y maná ya están completos.' };
   }
 
   const now = Date.now();
@@ -7518,17 +7550,35 @@ function cmdEchoBowl(player) {
     return { text: `🔊 Los cristales aún vibran por tu última reconcentración.\n   Disponible en: ${timeStr}.` };
   }
 
-  const restoreAmount = Math.floor(maxMana * 0.50);
-  const newMana = Math.min(maxMana, currentMana + restoreAmount);
-  const restored = newMana - currentMana;
-
-  db.updatePlayer(player.id, { mana: newMana });
+  const updates = { hp: newHp };
+  if (isCaster) updates.mana = newMana;
+  db.updatePlayer(player.id, updates);
   echoBowlCooldowns.set(player.id, now);
 
-  const manaBar = buildBar(newMana, maxMana, 20);
+  const hpBar = buildBar(newHp, maxHp, 20);
+  const manaBar = isCaster ? buildBar(newMana, maxMana, 20) : null;
+
+  let lines = [];
+  lines.push(`🔊 Colocás las manos sobre el cuenco de cristal resonante. Los ecos de poder fluyen hacia vos.`);
+  if (hpRestored > 0) {
+    lines.push(`+${hpRestored} HP restaurado.`);
+    lines.push(`${hpBar} ${newHp}/${maxHp} HP`);
+  } else {
+    lines.push(`(HP ya estaba al máximo)`);
+  }
+  if (isCaster) {
+    if (manaRestored > 0) {
+      lines.push(`+${manaRestored} maná restaurado.`);
+      lines.push(`${manaBar} ${newMana}/${maxMana} 🔮`);
+    } else {
+      lines.push(`(Maná ya estaba al máximo)`);
+    }
+  }
+  lines.push(`\n⏳ El cuenco tardará 5 minutos en resonar de nuevo.`);
+  lines.push(`💡 Preparate aquí antes de enfrentar lo que yace al sur.`);
 
   return {
-    text: `🔊 Colocás las manos sobre el cuenco de cristal resonante. Los ecos de poder arcano fluyen hacia vos.\n+${restored} maná restaurado (${restoreAmount} de potencial).\n${manaBar} ${newMana}/${maxMana} 🔮\n\n⏳ El cuenco tardará 5 minutos en resonar de nuevo.\n💡 Preparate aquí antes de enfrentar lo que yace al sur.`,
+    text: lines.join('\n'),
     event: `${player.username} reconcentra su energía en el cuenco de cristal.`,
     eventRoomId: ECHO_ROOM_ID,
   };
@@ -9536,8 +9586,9 @@ function cmdUseSkill(player, args, context) {
   // ── Evasión (evasion) — Pícaro Lv6 ───────────────────────────────────────
   if (skillId === 'evasion') {
     // Aplica el buff de evasión garantizada (1 ataque del monstruo es esquivado)
+    // BUG-651: usar parseSE() — db.getPlayer() ya entrega status_effects como objeto, no string
     const freshPicEv = db.getPlayer(freshPlayer.id);
-    const seEv = freshPicEv.status_effects ? JSON.parse(freshPicEv.status_effects || '{}') : {};
+    const seEv = parseSE(freshPicEv.status_effects);
     const evExpires = new Date(Date.now() + 60 * 1000).toISOString(); // vigente 60s (máximo un turno largo)
     seEv.evasion_ready = { expires_at: evExpires };
     const newCDsEv = skills.applyCooldown(freshPicEv, 'evasion');
@@ -11376,16 +11427,22 @@ function cmdSigilo(player) {
   }
 
   // Activar sigilo: expires_at = ahora + 60 segundos
-  const stealthExpiry = new Date(Date.now() + 60000).toISOString();
+  // DIS-655: En salas de oscuridad/sombra (Abismo Eterno, sala 20), +30s de duración extra
+  const DARK_ROOMS = [20]; // Abismo Eterno — sala de oscuridad pura narrativa
+  const inDarkRoom = DARK_ROOMS.includes(player.current_room_id);
+  const stealthDuration = inDarkRoom ? 90000 : 60000; // 90s o 60s
+  const stealthExpiry = new Date(Date.now() + stealthDuration).toISOString();
+  const stealthSecs = stealthDuration / 1000;
   const newSe = { ...seSig, stealth_active: stealthExpiry };
   db.updatePlayer(freshSig.id, { status_effects: JSON.stringify(newSe) });
 
+  const darkBonus = inDarkRoom ? '\n🌑 La oscuridad del Abismo te envuelve perfectamente — +30s de duración extra.' : '';
   const mCount = monstersInRoomSig ? monstersInRoomSig.filter(m => m.hp > 0).length : 0;
   const mHint = mCount > 0
     ? `\n⚔️ Hay ${mCount} monstruo(s) en la sala. Atacá para el golpe de sorpresa: \"attack\"`.trim()
     : `\n💡 Movete a una sala con enemigos y usá \"attack\" para el golpe de sorpresa.`;
 
-  return { text: `🥷 Entrás en las sombras, volviéndote casi invisible.\n⏳ Sigilo activo por 60 segundos.${mHint}\n\n✨ Efecto: El primer golpe será un crítico garantizado y el monstruo no podrá responder ese turno.` };
+  return { text: `🥷 Entrás en las sombras, volviéndote casi invisible.\n⏳ Sigilo activo por ${stealthSecs} segundos.${darkBonus}${mHint}\n\n✨ Efecto: El primer golpe será un crítico garantizado y el monstruo no podrá responder ese turno.` };
 }
 
 /**
@@ -11424,7 +11481,8 @@ function cmdStance(player, args) {
   let target = input;
   if (target === 'ofensivo' || target === 'ofensiva' || target === 'agresiva') target = 'agresivo';
   if (target === 'defensiva') target = 'defensivo';
-  if (target === 'balanceado' || target === 'normal' || target === 'neutro' || target === 'neutral') target = 'equilibrado';
+  // DIS-653: aceptar forma femenina "equilibrada" y otros alias
+  if (target === 'balanceado' || target === 'balanceada' || target === 'normal' || target === 'neutro' || target === 'neutral' || target === 'equilibrada') target = 'equilibrado';
 
   if (!STANCES[target]) {
     return { text: `Postura desconocida: "${args[0]}". Las posturas válidas son: agresivo, defensivo, equilibrado.` };

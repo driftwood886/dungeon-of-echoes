@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1450,4 +1450,39 @@ function migrateGolemPiedraHP() {
   }
   db.updateMonster(g.id, { hp: 55, max_hp: 55 });
   console.log('[seed] migrateGolemPiedraHP: Gólem de Piedra HP 35→55. DIS-630 ✓');
+}
+
+/**
+ * DIS-652: La ruta Coliseo(14) →east→ Catedral(15) bypasea la Cámara del Eco(19).
+ * El orden narrativo correcto es Coliseo → Eco → Catedral.
+ * Cambiar: sala 14 east→19 (Cámara del Eco), sala 19 agrega east→15 (Catedral), sala 15 west→19 (de 14 a 19).
+ */
+function migrateColiseoEcoConnection() {
+  const r14 = db.getRoom(14);
+  const r15 = db.getRoom(15);
+  const r19 = db.getRoom(19);
+  if (!r14 || !r15 || !r19) {
+    console.warn('[seed] migrateColiseoEcoConnection: no se encontraron las salas 14, 15 o 19.');
+    return;
+  }
+  // Verificar si ya está migrado (sala 14 east ya apunta a 19)
+  if (r14.exits && r14.exits.east === 19) {
+    return; // ya migrado
+  }
+  // Sala 14: east → 19 (antes: 15)
+  const exits14 = r14.exits || {};
+  exits14.east = 19;
+  db.upsertRoom({ ...r14, exits: exits14 });
+
+  // Sala 19: agregar east → 15 (nueva conexión)
+  const exits19 = r19.exits || {};
+  exits19.east = 15;
+  db.upsertRoom({ ...r19, exits: exits19 });
+
+  // Sala 15: west → 19 (antes: 14)
+  const exits15 = r15.exits || {};
+  exits15.west = 19;
+  db.upsertRoom({ ...r15, exits: exits15 });
+
+  console.log('[seed] migrateColiseoEcoConnection: DIS-652 — Coliseo(14) east→19(Eco), Eco east→15(Catedral), Catedral west→19 ✓');
 }
