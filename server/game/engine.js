@@ -8561,6 +8561,10 @@ function cmdHeal(player, args) {
   const isSelf = !args || args.length === 0;
 
   if (isSelf) {
+    // BUG-642: verificar que el HP no esté al máximo antes de gastar maná
+    if (fresh.hp >= fresh.max_hp) {
+      return { text: `✨ Ya estás al máximo de HP (${fresh.max_hp}/${fresh.max_hp}). No gastaste maná.` };
+    }
     // Auto-curación: 15 HP base × 1.5 = 22 HP
     const healBase = 15;
     const healAmt = Math.round(healBase * healPower);

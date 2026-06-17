@@ -196,6 +196,11 @@ const COMMAND_ALIASES = {
   // Habilidades de Pícaro Lv6 y Lv10 (DIS-616)
   evasion: 'useSkill', evasión: 'useSkill', evadir: 'useSkill', esquivar: 'useSkill', dodge: 'useSkill', esquive: 'useSkill',
   golpe_sombra: 'useSkill', sombra: 'useSkill', shadow_strike: 'useSkill', ataque_sombra: 'useSkill', backstab_avanzado: 'useSkill',
+  // Habilidades de Clérigo (DIS-642: faltaban en el mapa de aliases)
+  // eslint-disable-next-line camelcase
+  sanacion_mayor: 'useSkill', 'sanación_mayor': 'useSkill', big_heal: 'useSkill', gran_curacion: 'useSkill', gran_curación: 'useSkill', curar_mayor: 'useSkill',
+  bendicion: 'useSkill', bendición: 'useSkill', bless: 'useSkill', benedicion: 'useSkill', barrera_sagrada: 'useSkill',
+  resurreccion: 'useSkill', resurrección: 'useSkill', revivir: 'useSkill', resurrect: 'useSkill', rezar_revival: 'useSkill',
   // DIS-620: Sigilo del Pícaro (nivel 1)
   sigilo: 'sigilo', hide: 'sigilo', stealth: 'sigilo', ocultarse: 'sigilo', esconderse: 'sigilo', sombras: 'sigilo',
   // note / apunte (T116)

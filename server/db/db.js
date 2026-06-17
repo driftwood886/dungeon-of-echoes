@@ -348,7 +348,10 @@ async function init() {
     const now050 = new Date().toISOString();
     const respawnDelay050 = new Date(Date.now() + 60000).toISOString(); // 1 minuto
     db.run(`UPDATE monsters SET hp = max_hp, room_id = NULL, respawn_at = ? WHERE room_id IS NOT NULL AND hp <= 0 AND id NOT IN (23, 24, 25)`, [respawnDelay050]);
-    console.log('[db] BUG-030/050: HP de monstruos vivos restaurado a max_hp al reiniciar');
+    // BUG-643: limpiar status_effects de monstruos vivos al reiniciar
+    // Los efectos de veneno/aturdimiento de sesiones anteriores no deben persistir
+    db.run(`UPDATE monsters SET status_effects = '{}' WHERE room_id IS NOT NULL`);
+    console.log('[db] BUG-030/050/643: HP y status_effects de monstruos vivos restaurados al reiniciar');
   } catch (hpRestoreErr) {
     console.error('[db] BUG-030 HP restore error:', hpRestoreErr.message);
   }
