@@ -166,7 +166,9 @@ function describeRoom(roomId, excludePlayerId = null) {
       const bar = '[' + '█'.repeat(filled) + '░'.repeat(barLen - filled) + ']';
       // Color indicator: green >=70%, yellow >=30%, red <30%
       const cond = pct >= 0.7 ? '★' : pct >= 0.3 ? '◆' : '☠';
-      return `  • ${m.name} ${bar} ${m.hp}/${m.max_hp} HP ${cond}`;
+      // BUG-696: indicador explícito de versión élite para que el jugador entienda por qué tiene más HP
+      const eliteNote = m.name.startsWith('⭐ ') ? ' ⚡ÉLITE' : '';
+      return `  • ${m.name} ${bar} ${m.hp}/${m.max_hp} HP ${cond}${eliteNote}`;
     }).join('\n');
     lines.push(`\nCriaturas:\n${monsterList}`);
   } else {

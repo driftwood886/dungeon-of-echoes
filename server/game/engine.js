@@ -8250,6 +8250,25 @@ const SPELL_CATALOG = {
 };
 
 /**
+ * BUG-695: Calcula la tasa de regeneración de maná del jugador (maná/minuto).
+ * Centraliza la lógica que antes estaba duplicada en regenMana(), cmdSpells() y cmdCast().
+ * @param {object} player — objeto jugador
+ * @param {object} [clsData] — resultado de classes.getPlayerClass(player), opcional
+ * @returns {number} maná/minuto
+ */
+function getManaRegenRate(player, clsData) {
+  const c = clsData || classes.getPlayerClass(player);
+  let rate = 1; // base: 1/min para no-casters
+  if (c && c.name === 'Mago') rate = 6;
+  else if (c && c.name === 'Clérigo') rate = 6;
+  // DIS-576: la vara de energía equipada da +2 maná/min de regen extra al Mago
+  if (c && c.name === 'Mago' && player.equipped_weapon === 'vara de energía') {
+    rate += 2; // 6 → 8 maná/min con vara equipada
+  }
+  return rate;
+}
+
+/**
  * Regenerar maná basado en tiempo transcurrido (1 maná por minuto).
  * Actualiza al jugador en BD si hubo ganancia.
  * @returns {object} jugador fresco con maná actualizado
@@ -8270,11 +8289,7 @@ function regenMana(player) {
   // Con 35 de maná máx y hechizos de 8-12, a 4/min el mago se quedaba sin maná en mid-game.
   // A 6/min recarga completo en ~6 min, viable en sesión de 10-15 min.
   const clsData = classes.getPlayerClass(player);
-  let regenRate = (clsData && clsData.name === 'Mago') ? 6 : 1;
-  // DIS-576: la vara de energía equipada da +2 maná/min de regen extra al Mago
-  if (clsData && clsData.name === 'Mago' && player.equipped_weapon === 'vara de energía') {
-    regenRate += 2; // 6 → 8 maná/min con vara equipada
-  }
+  let regenRate = getManaRegenRate(player, clsData);
   const manaGained = Math.floor(minutesPassed * regenRate);
 
   if (manaGained <= 0) return player;
@@ -8415,7 +8430,7 @@ function cmdCast(player, args) {
 
   if (!hasFreeSpell && currentMana < effectiveCost) {
     return {
-      text: `🪄 No tenés maná suficiente para ${spell.icon} ${spellName}.\n   Necesitás ${spell.cost} maná, tenés ${currentMana}/${maxMana}.\n   Esperá que se recargue (${(() => { const c = classes.getPlayerClass(player); return (c && c.name === 'Mago') ? 6 : 1; })()}\u00a0maná/minuto) o usá una poción de maná.`,
+      text: `🪄 No tenés maná suficiente para ${spell.icon} ${spellName}.\n   Necesitás ${spell.cost} maná, tenés ${currentMana}/${maxMana}.\n   Esperá que se recargue (${getManaRegenRate(player)}\u00a0maná/minuto) o usá una poción de maná.`,
     };
   }
 
@@ -8746,7 +8761,7 @@ function cmdSpells(player) {
     `🪄 SISTEMA DE MAGIA`,
     `━━━━━━━━━━━━━━━━━━━━`,
     `Maná: ${manaBar} ${currentMana}/${maxMana}${shieldActive}`,
-    `(Recarga: ${(() => { const c = classes.getPlayerClass(player); return (c && c.name === 'Mago') ? 6 : 1; })()} maná/minuto. Pociones de maná restauran instantáneamente.)`,
+    `(Recarga: ${getManaRegenRate(player)} maná/minuto. Pociones de maná restauran instantáneamente.)`,
     ``,
     `Hechizos disponibles:`,
   ];
