@@ -165,7 +165,7 @@ const MONSTER_BASE_STATS = {
   8:  { name: 'Guardia Espectral',     max_hp: 55, attack: 7  },  // DIS-679: HP 40→55
   // DIS-D46: Monstruos expandidos — stats balanceados para curva de dificultad progresiva
   9:  { name: 'Elemental de Hielo',    max_hp: 40, attack: 9  },
-  10: { name: 'Golem de Forja',        max_hp: 42, attack: 10 },
+  10: { name: 'Golem de Forja',        max_hp: 55, attack: 10 }, // DIS-688: HP 42→55 + resistencia fuego ×0.80
   11: { name: 'Krakeling Abismal',     max_hp: 25, attack: 7  },
   12: { name: 'Campeón Espectral',     max_hp: 70, attack: 14 }, // DIS-D423: rebalanceado
   21: { name: 'Eco Viviente',          max_hp: 55, attack: 10 }, // DIS-D423: rebalanceado
@@ -413,9 +413,16 @@ function attackRound(player, monster) {
   const rawPlayerDmg = isCrit ? playerDmg * critMultiplier : playerDmg;
   // DIS-630: El Gólem de Piedra tiene resistencia física ×0.75 — análoga a resistencia mágica del Guardia Espectral
   // Es un constructo pétrico: los golpes físicos se amortiguan en su cuerpo de piedra
+  // DIS-688: El Golem de Forja tiene resistencia de fuego ×0.80 — constructo de metal candente
   const PHYS_RESISTANT_MONSTERS = ['gólem de piedra'];
+  const FIRE_RESISTANT_MONSTERS  = ['golem de forja'];
   const monNameLow = monster.name.toLowerCase().replace('⭐ ', '');
-  const physResist = PHYS_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? 0.75 : 1.0;
+  const physResist = PHYS_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? 0.75
+    : FIRE_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? 0.80
+    : 1.0;
+  const physResistLabel = PHYS_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? '🪨 (resistencia física: ×0.75)'
+    : FIRE_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? '🔥 (resistencia de fuego: ×0.80)'
+    : '';
   // DIS-657: La Sombra del Vacío tiene resistencia a emboscada — reduce el daño de golpe de sorpresa al 70%
   // Narrativa: la criatura de oscuridad "espera" el ataque del Pícaro — no puede ser sorprendida en su propio dominio
   let ambushResist = 1.0;
@@ -434,7 +441,7 @@ function attackRound(player, monster) {
   }
 
   if (isCrit) {
-    const physResistNote = physResist < 1.0 ? ` 🪨 (resistencia física: ×${physResist})` : '';
+    const physResistNote = physResist < 1.0 ? ` ${physResistLabel}` : '';
     lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño.${physResistNote} (${monster.hp}/${monster.max_hp} HP)`);
   } else {
     // DIS-D426: mostrar indicador de postura activa en el mensaje de ataque
@@ -476,7 +483,7 @@ function attackRound(player, monster) {
     const magoFlavor = isMagoSinMana
       ? `[sin maná — ${magoMsgs[Math.floor(Math.random() * magoMsgs.length)]}] `
       : '';
-    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño.${physResist < 1.0 ? ` 🪨 (resistencia física: ×${physResist})` : ''} (${monster.hp}/${monster.max_hp} HP)`);
+    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño.${physResist < 1.0 ? ` ${physResistLabel}` : ''} (${monster.hp}/${monster.max_hp} HP)`);
   }
 
   // Actualizar monstruo en BD
@@ -496,6 +503,9 @@ function attackRound(player, monster) {
         const newAtkP2 = monster.attack + p2.atkBonus;
         const newDefP2 = (monster.defense || 0) + p2.defBonus;
         monster.attack = newAtkP2;
+        // BUG-687: actualizar status_effects en memoria para que escrituras posteriores
+        // (attacked_player_this_turn en contraataque) no sobreescriban phase2_triggered en BD
+        monster.status_effects = monsterFxP2;
         db.updateMonster(monster.id, {
           attack: newAtkP2,
           defense: newDefP2,

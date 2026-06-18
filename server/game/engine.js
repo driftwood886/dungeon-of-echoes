@@ -8479,6 +8479,9 @@ function cmdCast(player, args) {
             const p2Spell = bossDefSpell.phase2;
             const newAtkSpell = (target.attack || 0) + p2Spell.atkBonus;
             const newDefSpell = (target.defense || 0) + p2Spell.defBonus;
+            // BUG-687: actualizar status_effects en memoria (igual que fix en combat.js)
+            // para que escrituras posteriores no sobreescriban phase2_triggered en BD
+            target.status_effects = mFxSpell;
             db.updateMonster(target.id, {
               attack: newAtkSpell,
               defense: newDefSpell,
@@ -9216,9 +9219,16 @@ function cmdUseSkill(player, args, context) {
     const variation = Math.floor(rawDmg * 0.2);
     const dmg = rawDmg + Math.floor(Math.random() * (variation * 2 + 1)) - variation;
     // BUG-658: aplicar resistencia física igual que combat.js (×0.75 para el Gólem de Piedra)
+    // DIS-688: Golem de Forja tiene resistencia de fuego ×0.80
     const SMASH_PHYS_RESISTANT = ['gólem de piedra'];
+    const SMASH_FIRE_RESISTANT = ['golem de forja'];
     const smashMonNameLow = target.name.toLowerCase().replace('⭐ ', '');
-    const smashPhysResist = SMASH_PHYS_RESISTANT.some(n => smashMonNameLow.includes(n)) ? 0.75 : 1.0;
+    const smashPhysResist = SMASH_PHYS_RESISTANT.some(n => smashMonNameLow.includes(n)) ? 0.75
+      : SMASH_FIRE_RESISTANT.some(n => smashMonNameLow.includes(n)) ? 0.80
+      : 1.0;
+    const smashResistLabel = SMASH_PHYS_RESISTANT.some(n => smashMonNameLow.includes(n)) ? '🪨 (resistencia física: ×0.75)'
+      : SMASH_FIRE_RESISTANT.some(n => smashMonNameLow.includes(n)) ? '🔥 (resistencia de fuego: ×0.80)'
+      : '';
     const dmgAfterSmashResist = Math.round(dmg * smashPhysResist);
     const finalDmg = Math.max(1, dmgAfterSmashResist - Math.floor(target.defense || 0));
     const newHp = Math.max(0, target.hp - finalDmg);
@@ -9228,7 +9238,7 @@ function cmdUseSkill(player, args, context) {
     db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldowns });
 
     const dead = newHp <= 0;
-    const smashResistNote = smashPhysResist < 1.0 ? ` 🪨 (resistencia física: ×${smashPhysResist})` : '';
+    const smashResistNote = smashPhysResist < 1.0 ? ` ${smashResistLabel}` : '';
     let text = `⚡ ¡GOLPETAZO! Golpeás al ${target.name} con toda tu fuerza causando ${finalDmg} de daño (×1.8)!${smashResistNote}`;
     if (dead) {
       text += `\n💀 El ${target.name} sucumbe ante tu brutal ataque.`;
@@ -9338,9 +9348,16 @@ function cmdUseSkill(player, args, context) {
     const variation = Math.floor(baseDmg * 0.2);
     const rawDmg = baseDmg + Math.floor(Math.random() * (variation * 2 + 1)) - variation;
     // BUG-658: aplicar resistencia física igual que combat.js (×0.75 para el Gólem de Piedra)
+    // DIS-688: Golem de Forja tiene resistencia de fuego ×0.80
     const BASH_PHYS_RESISTANT = ['gólem de piedra'];
+    const BASH_FIRE_RESISTANT = ['golem de forja'];
     const bashMonNameLow = target.name.toLowerCase().replace('⭐ ', '');
-    const bashPhysResist = BASH_PHYS_RESISTANT.some(n => bashMonNameLow.includes(n)) ? 0.75 : 1.0;
+    const bashPhysResist = BASH_PHYS_RESISTANT.some(n => bashMonNameLow.includes(n)) ? 0.75
+      : BASH_FIRE_RESISTANT.some(n => bashMonNameLow.includes(n)) ? 0.80
+      : 1.0;
+    const bashResistLabel = BASH_PHYS_RESISTANT.some(n => bashMonNameLow.includes(n)) ? '🪨 (resistencia física: ×0.75)'
+      : BASH_FIRE_RESISTANT.some(n => bashMonNameLow.includes(n)) ? '🔥 (resistencia de fuego: ×0.80)'
+      : '';
     const dmgAfterBashResist = Math.round(rawDmg * bashPhysResist);
     const finalDmg = Math.max(1, dmgAfterBashResist - Math.floor(target.defense || 0));
     const newHp = Math.max(0, target.hp - finalDmg);
@@ -9353,7 +9370,7 @@ function cmdUseSkill(player, args, context) {
     db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldowns });
 
     const dead = newHp <= 0;
-    const bashResistNote = bashPhysResist < 1.0 ? ` 🪨 (resistencia física: ×${bashPhysResist})` : '';
+    const bashResistNote = bashPhysResist < 1.0 ? ` ${bashResistLabel}` : '';
     let text = `🛡️ ¡GOLPE DE ESCUDO! Golpeás al ${target.name} con tu escudo (${finalDmg} dmg) aturdiéndolo!${bashResistNote}`;
     if (dead) {
       text += `\n💀 El impacto fue tan brutal que el ${target.name} cae fulminado.`;

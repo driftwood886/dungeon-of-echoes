@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1539,4 +1539,29 @@ function migrateEcoColiseoReturn() {
   exits19.west = 14;
   db.upsertRoom({ ...r19, exits: exits19 });
   console.log('[seed] migrateEcoColiseoReturn: BUG-682 — Eco(19) west→14(Coliseo) ✓');
+}
+
+// DIS-689: Corregir error de ID en migrateArmorLoot — peto de huesos se agregó al
+// Murciélago Vampiro (id 6) por error, debía ir al Guardia Espectral (id 8).
+// Remover del Murciélago Vampiro y asegurar que esté en el Guardia Espectral.
+function migratePetoHuesosFixID() {
+  const bat = db.getMonster(6); // Murciélago Vampiro
+  if (bat && bat.loot.includes('peto de huesos')) {
+    db.upsertMonster({ ...bat, loot: bat.loot.filter(i => i !== 'peto de huesos') });
+    console.log('[seed] migratePetoHuesosFixID: DIS-689 — peto de huesos removido del Murciélago Vampiro (id 6) ✓');
+  }
+  const guardia = db.getMonster(8); // Guardia Espectral
+  if (guardia && !guardia.loot.includes('peto de huesos')) {
+    db.upsertMonster({ ...guardia, loot: [...guardia.loot, 'peto de huesos'] });
+    console.log('[seed] migratePetoHuesosFixID: DIS-689 — peto de huesos agregado al Guardia Espectral (id 8) ✓');
+  }
+}
+
+// DIS-688: Golem de Forja — HP 42→55
+function migrateGolemForjaHP() {
+  const m = db.getMonster(10);
+  if (!m) return;
+  if (m.max_hp >= 55) return; // ya migrado
+  db.updateMonster(10, { hp: Math.min(m.hp, 55), max_hp: 55 });
+  console.log('[seed] migrateGolemForjaHP: DIS-688 — Golem de Forja HP 42→55 ✓');
 }
