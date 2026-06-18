@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1564,4 +1564,25 @@ function migrateGolemForjaHP() {
   if (m.max_hp >= 55) return; // ya migrado
   db.updateMonster(10, { hp: Math.min(m.hp, 55), max_hp: 55 });
   console.log('[seed] migrateGolemForjaHP: DIS-688 — Golem de Forja HP 42→55 ✓');
+}
+
+/**
+ * BUG-697: Murciélagos Vampiro extra (id 26, sala 3; id 27, sala 6) no estaban en
+ * MONSTER_BASE_STATS, por lo que al morir como élite sus stats de élite se guardaban
+ * permanentemente — el siguiente respawn aplicaba HP×1.5 sobre el HP ya elevado,
+ * acumulando HP en cada ciclo (reportado: id 26 con 41 HP cuando debería tener 12).
+ * Fix: agregar 26 y 27 a MONSTER_BASE_STATS (en combat.js) + resetear BD a stats base.
+ */
+function migrateBatStatsReset() {
+  const BASE = { max_hp: 12, attack: 3, name: 'Murciélago Vampiro' };
+  for (const id of [26, 27]) {
+    const m = db.getMonster(id);
+    if (!m) continue;
+    // Si los stats están inflados (max_hp > base o attack > base), resetear
+    if (m.max_hp > BASE.max_hp || m.attack > BASE.attack || m.name.startsWith('⭐ ')) {
+      const newHp = Math.min(m.hp, BASE.max_hp); // no curar más allá del base
+      db.updateMonster(id, { name: BASE.name, max_hp: BASE.max_hp, hp: newHp > 0 ? newHp : BASE.max_hp, attack: BASE.attack });
+      console.log(`[seed] migrateBatStatsReset: BUG-697 — Murciélago Vampiro id ${id} reseteado (era max_hp=${m.max_hp} atk=${m.attack}) ✓`);
+    }
+  }
 }

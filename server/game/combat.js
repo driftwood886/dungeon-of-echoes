@@ -170,6 +170,9 @@ const MONSTER_BASE_STATS = {
   12: { name: 'Campeón Espectral',     max_hp: 70, attack: 14 }, // DIS-D423: rebalanceado
   21: { name: 'Eco Viviente',          max_hp: 55, attack: 10 }, // DIS-D423: rebalanceado
   22: { name: 'Sombra del Vacío',      max_hp: 90, attack: 14 }, // DIS-D423: rebalanceado
+  // BUG-697: Murciélagos extra de DIS-510 — sin entrada = élite acumula HP en cada ciclo
+  26: { name: 'Murciélago Vampiro',    max_hp: 12, attack: 3  }, // sala 3 (Sala de los Ecos)
+  27: { name: 'Murciélago Vampiro',    max_hp: 12, attack: 3  }, // sala 6 (Túnel de Hongos)
 };
 
 const MONSTER_SPECIALS = {
