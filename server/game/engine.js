@@ -681,10 +681,11 @@ function cmdLook(player) {
           const bossIsAlive = bossMonster && bossMonster.room_id !== null && bossMonster.room_id !== undefined && (bossMonster.hp || 0) > 0;
           if (!bossIsAlive) continue; // boss muerto → sin advertencia
           const playerLevel = player.level || 1;
+          // DIS-690: ambas ramas incluyen nivel recomendado para consistencia
           if (playerLevel < danger.level) {
-            dangerLines.push(`${danger.icon} PELIGRO ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}). ¡Preparate antes de entrar!`);
+            dangerLines.push(`${danger.icon} PELIGRO ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}). ¡Preparate antes de entrar!`);
           } else {
-            dangerLines.push(`${danger.icon} ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe). El combate no admite escape fácil.`);
+            dangerLines.push(`${danger.icon} ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel ${danger.level}+). El combate no admite escape fácil.`);
           }
         }
       }
@@ -1424,11 +1425,18 @@ function cmdStatus(player) {
     `HP:       ${hpBar} ${player.hp}/${player.max_hp}`,
     (() => {
       // BUG-049: mostrar maná en status para Mago u otros jugadores con max_mana > 20
+      // DIS-693: mostrar regen de maná para clases que lo usan
       const maxMana = player.max_mana || 0;
-      if (maxMana > 20 || (player.player_class === 'mago')) {
+      const cls693 = classes.getPlayerClass(player);
+      const isMagicClass = cls693 && (cls693.name === 'Mago' || cls693.name === 'Clérigo');
+      if (maxMana > 20 || isMagicClass) {
         const mana = player.mana || 0;
         const manaBar = buildBar(mana, maxMana || 1, 20);
-        return `Maná:     ${manaBar} ${mana}/${maxMana}`;
+        // Calcular regen según clase y equipo
+        let regenRate693 = (cls693 && cls693.name === 'Mago') ? 6 : 1;
+        if (cls693 && cls693.name === 'Mago' && player.equipped_weapon === 'vara de energía') regenRate693 += 2;
+        const regenNote = isMagicClass ? ` (+${regenRate693}/min)` : '';
+        return `Maná:     ${manaBar} ${mana}/${maxMana}${regenNote}`;
       }
       return null;
     })(),
@@ -1956,11 +1964,26 @@ function cmdAttack(player, targetName) {
       if (freshForCycle) {
         const prevLichKills = freshForCycle.lich_kills || 0;
         const newLichKills = prevLichKills + 1;
-        const currentPlaytime = freshForCycle.playtime_minutes || 0;
+        // DIS-691: calcular tiempo del ciclo con timestamp de inicio del ciclo
+        let cycleTimeMin = 0;
+        if (freshForCycle.cycle_start_at) {
+          cycleTimeMin = Math.floor((Date.now() - new Date(freshForCycle.cycle_start_at).getTime()) / 60000);
+        } else {
+          // fallback si no hay timestamp: usar playtime acumulado en sesión actual
+          const dbPt = freshForCycle.playtime_minutes || 0;
+          const sessStartMin = context && context.sessionData && context.sessionData.startTime
+            ? Math.floor((Date.now() - context.sessionData.startTime) / 60000)
+            : 0;
+          cycleTimeMin = dbPt + sessStartMin;
+        }
         const prevBest = freshForCycle.cycle_best_time;
-        const updateData = { lich_kills: newLichKills };
-        if (!prevBest || currentPlaytime < prevBest) {
-          updateData.cycle_best_time = currentPlaytime;
+        const updateData = {
+          lich_kills: newLichKills,
+          // DIS-691: resetear cycle_start_at — el próximo ciclo comienza ahora (o cuando respawnee el Lich)
+          cycle_start_at: new Date().toISOString(),
+        };
+        if (!prevBest || cycleTimeMin < prevBest) {
+          updateData.cycle_best_time = cycleTimeMin;
         }
         db.updatePlayer(player.id, updateData);
       }
@@ -2836,6 +2859,17 @@ function cmdUse(player, itemQuery) {
     const isClerigoPB = freshPB.player_class === 'clerigo';
     const flavorPB = isClerigoPB ? '\n✨ (La fe del Clérigo amplifica el efecto de la poción. Sentís la gracia divina fluyendo.)' : '';
     resultText = `✨ Bebés la poción de bendición. Una calidez dorada te envuelve.\n💙 Maná: ${currMana} → ${newMana}/${maxMana} (+${manaGained})\n⚔️ +${def.atk_bonus} ATK por ${def.duration}s.${flavorPB}`;
+
+  } else if (def.type === 'potion' && def.effect === 'defense_bonus') {
+    // DIS-692: ungüento de araña — buff temporal de DEF (y otros ítems similares)
+    const freshUng = db.getPlayer(player.id);
+    const scrollsUng = JSON.parse(freshUng.active_scrolls || '{}');
+    const nowUng = Date.now();
+    const expiresUng = nowUng + (def.duration || 120) * 1000;
+    scrollsUng['defense'] = { atk_bonus: 0, def_bonus: def.amount || 2, expires_at: expiresUng };
+    const newInvUng = removeFirst(freshUng.inventory, found);
+    db.updatePlayer(freshUng.id, { inventory: newInvUng, active_scrolls: JSON.stringify(scrollsUng) });
+    resultText = `🕷️ Aplicás el ${found} sobre tu piel. Una capa protectora se forma brevemente.\n🛡️ +${def.amount || 2} DEF por ${Math.floor((def.duration || 120) / 60)} minutos.`;
 
   } else if (def.type === 'scroll') {
     // T153: Pergaminos mágicos de un solo uso
@@ -6960,6 +6994,7 @@ function getOrCreatePlayer(username) {
     db.updatePlayer(player.id, {
       tutorial_step: 1,
       current_room_id: tutorial.TUTORIAL_ROOM_ID,
+      cycle_start_at: new Date().toISOString(), // DIS-691: iniciar ciclo desde creación
     });
     player = db.getPlayer(player.id);
     console.log(`[engine] Nuevo jugador creado: ${username} (${player.id}) — iniciando tutorial en sala 16`);

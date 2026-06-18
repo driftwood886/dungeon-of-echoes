@@ -109,6 +109,12 @@ const RECIPES = [
     message: 'Curtís el pelaje áspero usando la escama abismal como raspador. El resultado es un cuero irregular pero sorprendentemente resistente.',
   },
   {
+    // DIS-692: receta para capa de araña (acumulada frecuentemente) + hongo azul (misc sin uso de crafteo)
+    ingredients: ['capa de araña', 'hongo azul'],
+    result: 'ungüento de araña',
+    message: 'Mezclás los filamentos de la capa con el polvo luminiscente del hongo azul. La pasta resultante tiene propiedades que endurecen la piel temporalmente.',
+  },
+  {
     // DIS-492: permite reciclar escamas sobrantes en algo útil
     ingredients: ['escama abismal', 'cuerda'],
     result: 'manopla abismal',
@@ -163,6 +169,8 @@ const CRAFTED_ITEMS = {
   // DIS-492: ítems de reciclaje de loot basura
   'cuero de criatura':  { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Cuero curtido con escamas abismales. Áspero pero funcional. +2 de defensa.' },
   'manopla abismal':    { type: 'weapon', effect: 'attack_bonus', amount: 4, description: 'Una manopla de escamas del Krakeling. Los picos rasgan en cada golpe. +4 de ataque.' },
+  // DIS-692: reciclaje de capa de araña + hongo azul
+  'ungüento de araña':  { type: 'potion', effect: 'defense_bonus', amount: 2, duration: 120, description: 'Una pasta que endurece la piel por 2 minutos. +2 DEF temporal. Consumible.' },
   // Ítems del Dungeon Extendido (T132)
   'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 8, description: 'Una lanza fantasmal que resuena con voces de los caídos. +8 de ataque. Vibra al contacto con criaturas espectrales.' },
   'lanza espectral reforzada': { type: 'weapon', effect: 'attack_bonus', amount: 9, description: 'La lanza espectral básica reforzada con esencia etérea. La luz negra es más densa, el frío más absoluto. +9 de ataque.' },

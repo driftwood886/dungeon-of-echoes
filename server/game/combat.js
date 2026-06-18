@@ -1289,6 +1289,10 @@ const LOOT_CHANCES = {
   3: { // Rata Gigante — DIS-541: drop de hierba curativa para curación temprana (40%)
     'hierba curativa':    0.40, // 40% — rompe el ciclo "necesitás poción para craftear poción"
   },
+  // DIS-692: reducir drop de diente afilado — Murciélagos Vampiro en 3 salas × drop frecuente = acumulación excesiva
+  6:  { 'diente afilado': 0.25 }, // Murciélago Vampiro (Capilla, sala 5) — antes: 100%
+  26: { 'diente afilado': 0.25 }, // Murciélago Vampiro (Sala de los Ecos, sala 3) — antes: 100%
+  27: { 'diente afilado': 0.25 }, // Murciélago Vampiro (Túnel de Hongos, sala 6) — antes: 100%
 };
 
 function dropLoot(monster, roomId) {
@@ -1427,6 +1431,20 @@ function checkRespawns(onBossRespawn, onAnyRespawn) {
     // T220: Notificar respawn del boss
     if (BOSS_MONSTERS[m.id] && typeof onBossRespawn === 'function') {
       try { onBossRespawn(m.id, m.name, m.respawn_room_id); } catch (_) {}
+    }
+    // DIS-691: Al respawnear el Lich (id 13), resetear cycle_start_at para todos los jugadores
+    // que tienen un lich_kills > 0 (están en ciclo post-endgame). Los nuevos ya lo tienen del onboarding.
+    if (m.id === 13) {
+      try {
+        const allPlayerIds = db.getAllPlayerIds ? db.getAllPlayerIds() : [];
+        const nowIso = new Date().toISOString();
+        for (const p of allPlayerIds) {
+          db.updatePlayer(p.id, { cycle_start_at: nowIso });
+        }
+        console.log(`[combat] DIS-691: cycle_start_at reseteado para ${allPlayerIds.length} jugadores (Lich respawneó).`);
+      } catch (e) {
+        console.warn('[combat] DIS-691: no se pudo resetear cycle_start_at:', e.message);
+      }
     }
     // DIS-D37: Al respawnear el boss, limpiar el loot acumulado en el suelo de su sala.
     // La Catedral de la Oscuridad (sala 15) acumula ítems de kills anteriores si nadie los recoge.

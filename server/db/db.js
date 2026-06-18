@@ -182,6 +182,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN last_project TEXT`,                                  // DIS-450: timestamp última proyección arcana (habilidad exclusiva de Mago)
     `ALTER TABLE players ADD COLUMN inventory_bonus INTEGER NOT NULL DEFAULT 0`,         // DIS-595: slots extra de inventario (bolsa de lona: +4 por bolsa, máx 2)
     `ALTER TABLE monsters ADD COLUMN defense INTEGER NOT NULL DEFAULT 0`,                // BUG-462: columna defense faltante en monsters (crash en Fase 2 de bosses)
+    `ALTER TABLE players ADD COLUMN cycle_start_at TEXT`,                                // DIS-691: timestamp de inicio del ciclo actual (para calcular tiempo de ciclo)
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -437,6 +438,11 @@ function createPlayer(username) {
 /** T202: Obtener todos los jugadores para calcular promedios del servidor. */
 function getAllPlayers() {
   return all(`SELECT hp, max_hp, attack, defense, level, kills, gold, reputation, xp FROM players`, []);
+}
+
+/** DIS-691: Obtener IDs de todos los jugadores para resetear cycle_start_at. */
+function getAllPlayerIds() {
+  return all(`SELECT id FROM players`, []);
 }
 
 function updatePlayer(id, fields) {
@@ -1928,7 +1934,7 @@ function processLoginStreak(playerId) {
 module.exports = {
   init, persist,
   // players
-  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, addJournalEntry, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers, getAllPlayers,
+  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, addJournalEntry, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers, getAllPlayers, getAllPlayerIds,
   // DIS-007: cleanup de test players
   getTestPlayers, deletePlayer,
   // reputación (T125)

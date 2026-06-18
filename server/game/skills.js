@@ -136,8 +136,8 @@ const SKILLS = {
     type: 'cleric_buff',
     def_bonus: 2,
     duration_seconds: 60,
-    mana_cost: 10,
-    description: 'Invoca una barrera sagrada: +2 DEF a todos los jugadores en la sala por 60s. Cooldown: 60s. Solo Clérigo.',
+    mana_cost: 6, // DIS-694: reducido de 10→6 para que sea accesible incluso con maná bajo post-combate
+    description: 'Invoca una barrera sagrada: +2 DEF a todos los jugadores en la sala por 60s. Cooldown: 60s. Costo: 6 maná. Solo Clérigo.',
     combat_only: false,
   },
   resurreccion: {
