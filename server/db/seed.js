@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1573,6 +1573,22 @@ function migrateGolemForjaHP() {
  * acumulando HP en cada ciclo (reportado: id 26 con 41 HP cuando debería tener 12).
  * Fix: agregar 26 y 27 a MONSTER_BASE_STATS (en combat.js) + resetear BD a stats base.
  */
+/**
+ * DIS-701: Reducir HP del Lich Anciano de 100 → 90 para aliviar la curva
+ * del Mago en late-game. Con BUG-698 fix (stun cancela contraataque),
+ * el Mago tiene más respiración. 90 HP mantiene el desafío sin requerir
+ * obligatoriamente la poción de maná para ganar.
+ * Idempotente: solo actualiza si max_hp === 100.
+ */
+function migrateLichHPRebalance() {
+  const lich = db.getMonster(13);
+  if (lich && lich.max_hp === 100) {
+    const newHp = Math.min(lich.hp, 90); // no curar si ya tenía menos
+    db.updateMonster(13, { max_hp: 90, hp: newHp });
+    console.log(`[seed] migrateLichHPRebalance: DIS-701 — Lich Anciano HP 100 → 90. HP actual: ${newHp}/90.`);
+  }
+}
+
 function migrateBatStatsReset() {
   const BASE = { max_hp: 12, attack: 3, name: 'Murciélago Vampiro' };
   for (const id of [26, 27]) {
