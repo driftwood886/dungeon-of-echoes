@@ -3141,6 +3141,26 @@ function cmdExamine(player, query) {
           sellLine = `💰 Precio de venta (Aldric): ~${estimatedPrice}g (estimado)`;
         }
       }
+      // DIS-685: indicar si el ítem tiene recetas de crafteo conocidas
+      let recipeLine = '';
+      try {
+        const { RECIPES } = require('./crafting');
+        const itemLower = invItemName.toLowerCase();
+        const hasRecipe = RECIPES.some(r =>
+          r.ingredients.some(ing => ing.toLowerCase() === itemLower) ||
+          r.result.toLowerCase() === itemLower
+        );
+        const recipeAsIngredient = RECIPES.filter(r =>
+          r.ingredients.some(ing => ing.toLowerCase() === itemLower)
+        );
+        if (!hasRecipe) {
+          const sellNote = sellLine ? ` Útil para vender a Aldric.` : '';
+          recipeLine = `🧪 Sin receta conocida — no es un ingrediente de crafteo.${sellNote}`;
+        } else if (recipeAsIngredient.length > 0) {
+          const recipesList = recipeAsIngredient.map(r => `${r.ingredients.join(' + ')} → ${r.result}`).join(' | ');
+          recipeLine = `🧪 Ingrediente de crafteo: ${recipesList}`;
+        }
+      } catch(_) {}
       return {
         text: [
           `=== ${invItemName.toUpperCase()}${locationTag} ===`,
@@ -3148,6 +3168,7 @@ function cmdExamine(player, query) {
           `Tipo: ${typeLabel}`,
           def.amount !== undefined ? `Efecto: ${def.effect || 'daño'} ${def.amount > 0 ? '+' : ''}${def.amount}` : '',
           sellLine,
+          recipeLine,
         ].filter(Boolean).join('\n'),
       };
     }
@@ -7619,7 +7640,7 @@ function cmdEchoBowl(player) {
   const hpFull = currentHp >= maxHp;
   const manaFull = !isCaster || currentMana >= maxMana;
   if (hpFull && manaFull) {
-    return { text: '🔊 Los cristales resuenan en armonía con tu espíritu. Tu HP y maná ya están completos.' };
+    return { text: '🔊 Los cristales resuenan en armonía con tu espíritu. Tu HP y maná ya están completos. (Cooldown no consumido — volvé cuando necesites recuperarte.)' };
   }
 
   const now = Date.now();

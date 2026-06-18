@@ -103,7 +103,7 @@ const ITEM_CATALOG = {
   'fragmento de roca volcánica': { type: 'misc', description: 'Un fragmento de roca volcánica cristalizada por el calor extremo de la forja. Material artesanal de alta densidad térmica.' },
 
   // ── Armas artesanales avanzadas — Dungeon Extendido (T132) ──────────────────
-  'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 8, description: 'Una lanza fantasmal que resuena con voces de los caídos. +8 de ataque.' },
+  'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 8, description: 'Versión potenciada de la lanza espectral, forjada con los ecos de los caídos en las profundidades. El arma más poderosa del mid-game. Requiere: cristal resonante (drop del Campeón Espectral) + esencia de eco (drop del Eco Viviente). +8 de ataque.' },
   'daga del vacío':      { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una daga que parece absorber la realidad. +12 de ataque. El arma más poderosa de las profundidades.' },
   'amuleto del eco':     { type: 'misc', description: 'Un amuleto que pulsa con ecos de memorias antiguas. Protección de la Cámara del Eco.' },
 
