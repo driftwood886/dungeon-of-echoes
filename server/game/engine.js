@@ -1085,12 +1085,13 @@ function cmdMove(player, direction) {
       if (alreadyKnowsHeat) {
         // BUG-486: Segunda y posteriores visitas — daño reducido o nulo con mensaje inmersivo
         // DIS-512: Sala 15 (Catedral) — sin daño en revisitas (la maldición pierde fuerza)
-        const REVISIT_NO_DAMAGE = new Set([15]);
-        const reducedDamage = REVISIT_NO_DAMAGE.has(targetId) ? 0 : 1; // Sala 15: 0, Sala 12: 1
+        // DIS-703: Sala 12 (Taller) — sin daño en revisitas (el jugador ya aprendió a cubrirse)
+        const REVISIT_NO_DAMAGE = new Set([15, 12]);
+        const reducedDamage = REVISIT_NO_DAMAGE.has(targetId) ? 0 : 1; // Salas 12/15: 0
         const newHpKnown = Math.max(1, player.hp - reducedDamage);
         if (reducedDamage > 0) db.updatePlayer(player.id, { hp: newHpKnown });
         const revisitMsgs = {
-          12: `🔥 Ya conocés el calor de la forja y te cubrís la cara al entrar. Aun así, el ambiente abrasador te afecta. (-${reducedDamage} HP · ${newHpKnown}/${player.max_hp} HP)`,
+          12: `🔥 Ya conocés el calor de la forja y te cubrís la cara al entrar. El calor no te afecta esta vez.`,
           15: `💀 La maldición de la Catedral te roza... pero ya sabés cómo resistirla. El frío oscuro no penetra esta vez.`,
         };
         effectText = `\n\n${revisitMsgs[targetId] || `Ya conocés este lugar. El efecto es menor. (-${reducedDamage} HP · ${newHpKnown}/${player.max_hp} HP)`}`;
