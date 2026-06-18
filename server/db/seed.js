@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1528,4 +1528,15 @@ function migrateFixEcoConnectionDuplicates() {
     changed = true;
   }
   if (changed) console.log('[seed] migrateFixEcoConnectionDuplicates: BUG-659/660 — salidas duplicadas Eco↔Catedral eliminadas ✓');
+}
+
+// BUG-682: Eco(19) no tenía west:14 (Coliseo) — la migración DIS-652 agregó east:14→19 pero olvidó la dirección contraria
+function migrateEcoColiseoReturn() {
+  const r19 = db.getRoom(19);
+  if (!r19) return;
+  if (r19.exits && r19.exits.west === 14) return; // ya migrado
+  const exits19 = r19.exits || {};
+  exits19.west = 14;
+  db.upsertRoom({ ...r19, exits: exits19 });
+  console.log('[seed] migrateEcoColiseoReturn: BUG-682 — Eco(19) west→14(Coliseo) ✓');
 }

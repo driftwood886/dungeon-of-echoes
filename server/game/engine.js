@@ -3135,8 +3135,8 @@ function cmdExamine(player, query) {
         } else if (def && def.amount !== undefined && (def.effect === 'attack_bonus' || def.effect === 'defense_bonus')) {
           // BUG-600: ítems craftados/dropeados que no están en SHOP_CATALOG — estimar precio por bonus
           // BUG-681: multiplicador según rareza (épico ×5, raro ×4, común ×3)
-          const rarity = def.rarity || 'comun';
-          const rarityMult = rarity === 'epico' ? 5 : rarity === 'raro' ? 4 : 3;
+          const rarity = items.getItemRarity(invItemName);
+          const rarityMult = rarity === 'épico' ? 5 : rarity === 'raro' ? 4 : 3;
           const estimatedPrice = Math.max(2, def.amount * rarityMult);
           sellLine = `💰 Precio de venta (Aldric): ~${estimatedPrice}g (estimado)`;
         }
