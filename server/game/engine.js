@@ -2381,6 +2381,31 @@ function cmdFlee(player, targetQuery) {
     return { text: 'No hay nada de lo que huir aquí.' };
   }
 
+  // BUG-705: Si hay un boss a HP lleno (no fue atacado), la huida es libre — sin daño ni tirada.
+  // Mismo criterio que cmdMove (DIS-667): el boss "te deja pasar" si nunca hubo combate.
+  const bossFleeInRoom = monsters.find(m => combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[m.id]);
+  if (bossFleeInRoom && bossFleeInRoom.hp >= bossFleeInRoom.max_hp) {
+    // Mover a una salida aleatoria accesible (sin llave)
+    const exits = room ? (room.exits || {}) : {};
+    const accessibleExits = Object.entries(exits).filter(([, v]) => {
+      if (typeof v === 'object' && v.key) return false; // bloqueada por llave
+      return true;
+    });
+    const exitIds = accessibleExits.map(([, v]) => (typeof v === 'object' ? v.room_id : v)).filter(Boolean);
+    const destId = exitIds.length > 0 ? exitIds[Math.floor(Math.random() * exitIds.length)] : null;
+    if (destId) {
+      db.updatePlayer(player.id, { current_room_id: destId });
+      const destRoom = db.getRoom(destId);
+      const destName = destRoom ? destRoom.name : `sala ${destId}`;
+      return {
+        text: `🚶 Pasás cerca del ${bossFleeInRoom.name} con cuidado. No lo atacaste, así que te deja pasar.\n\nTe movés a «${destName}».`,
+        event: `${player.username} se retira sin combatir.`,
+        eventRoomId: room.id,
+      };
+    }
+    return { text: `No hay ningún combate activo del que huir. El ${bossFleeInRoom.name} no te atacó todavía.` };
+  }
+
   let monster;
   // Si se indica un monstruo específico, buscarlo
   // BUG-594: si el argumento es una dirección cardinal, ignorarlo (flee south → flee sin dirección)
@@ -4766,9 +4791,11 @@ function cmdMap(player) {
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
       : `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda del Mercader)`,
     `[??:?????????] = sala aún no explorada`,
+    // DIS-702: hint de navegación con ruta
+    `💡 ¿Perdido? Usá: ruta <sala>  —  Ej: ruta tesoro  /  ruta catedral  /  ruta 4`,
     // DIS-597: la ruta completa al Santuario solo aparece si ya se visitó sala 9 (Trono) o sala 7 (Pozo)
     ...(visitedRooms.has(9) || visitedRooms.has(7)
-      ? [`💡 Ruta al Santuario sin llave: Entrada → este → Capilla → norte → Túnel → norte → Trono → este → Santuario`]
+      ? [`🗺  Ruta al Santuario sin llave: Entrada → este → Capilla → norte → Túnel → norte → Trono → este → Santuario`]
       : []),
   ];
 
@@ -12004,6 +12031,26 @@ function cmdPath(player, args) {
         lines.push(`💡 Ruta alternativa con menos trampas (${altTraps} trampa${altTraps !== 1 ? 's' : ''}):   ${altPath.map(s => `move ${DIR_NAMES[s.dir] || s.dir}`).join('; ')}`);
       }
     }
+  }
+
+  // DIS-706: Advertir si la ruta pasa por salas con boss de alto nivel para el jugador actual
+  const PATH_BOSS_ROOMS = {
+    15: { name: 'Catedral de la Oscuridad', boss: 'Lich Anciano',     level: 7, icon: '💀' },
+    10: { name: 'Santuario Profano',        boss: 'Gólem de Piedra',  level: 5, icon: '🪨' },
+    8:  { name: 'Prisión Subterránea',      boss: 'Guardia Espectral',level: 4, icon: '👻' },
+    20: { name: 'Abismo Eterno',            boss: 'Sombra del Vacío', level: 7, icon: '🌑' },
+    12: { name: 'Taller de la Forja',       boss: 'Golem de Forja',   level: 5, icon: '🔥' },
+    19: { name: 'Cámara del Eco',           boss: 'Eco Viviente',     level: 6, icon: '🔊' },
+  };
+  const dangerSteps = found
+    .filter(step => PATH_BOSS_ROOMS[step.toId] && step.toId !== targetRoom.id)
+    .map(step => PATH_BOSS_ROOMS[step.toId]);
+  if (dangerSteps.length > 0) {
+    lines.push(`⚠️  CUIDADO: la ruta pasa por ${dangerSteps.length} sala${dangerSteps.length > 1 ? 's' : ''} con boss peligroso (nivel insuficiente puede ser fatal):`);
+    dangerSteps.forEach(d => {
+      const levelWarn = player.level < d.level ? ` ⚡ tu nivel ${player.level} < recomendado ${d.level}` : ` (tu nivel ${player.level} OK)`;
+      lines.push(`   ${d.icon} ${d.name} — ${d.boss} (nivel ${d.level}+)${levelWarn}`);
+    });
   }
 
   return { text: lines.join('\n') };

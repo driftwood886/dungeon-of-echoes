@@ -455,6 +455,7 @@ Comandos disponibles:
   wear <armadura>       — Ponerse una armadura del inventario (+defensa)
   unwear / quitarse     — Quitarse la armadura (volver a defensa base)
   map / mapa            — Ver el mapa ASCII del dungeon
+  ruta <sala>           — Calcular ruta más corta a una sala (ej: ruta tesoro / ruta 15)
   who / jugadores       — Ver los aventureros activos en el dungeon
   score / ranking       — Ver la tabla de líderes global
   give <ítem> <jugador> — Dar un ítem a otro jugador en la misma sala
