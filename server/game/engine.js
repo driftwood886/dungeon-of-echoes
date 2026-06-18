@@ -3134,7 +3134,10 @@ function cmdExamine(player, query) {
           sellLine = `🚫 No vendible (objeto único o de misión)`;
         } else if (def && def.amount !== undefined && (def.effect === 'attack_bonus' || def.effect === 'defense_bonus')) {
           // BUG-600: ítems craftados/dropeados que no están en SHOP_CATALOG — estimar precio por bonus
-          const estimatedPrice = Math.max(2, def.amount * 3);
+          // BUG-681: multiplicador según rareza (épico ×5, raro ×4, común ×3)
+          const rarity = def.rarity || 'comun';
+          const rarityMult = rarity === 'epico' ? 5 : rarity === 'raro' ? 4 : 3;
+          const estimatedPrice = Math.max(2, def.amount * rarityMult);
           sellLine = `💰 Precio de venta (Aldric): ~${estimatedPrice}g (estimado)`;
         }
       }
@@ -4162,8 +4165,16 @@ function cmdWear(player, itemQuery) {
   const changeStr = change >= 0 ? `+${change}` : `${change}`;
   const swapMsg = oldArmor ? ` (reemplaza ${oldArmor} → vuelve a tu mochila)` : '';
 
+  // BUG-680: mostrar el cambio neto con contexto claro cuando hay swap de armadura
+  let defMsg;
+  if (oldArmor && oldArmorAmount > 0) {
+    defMsg = `Defensa: ${oldDefense} → ${newDefense} (+${def.amount} del ${found}, −${oldArmorAmount} al desequipar ${oldArmor} = neto ${changeStr})`;
+  } else {
+    defMsg = `Defensa: ${oldDefense} → ${newDefense} (+${def.amount} del ${found})`;
+  }
+
   return {
-    text: `Te ponés ${found}${swapMsg}. Defensa: ${oldDefense} → ${newDefense} (${changeStr}).\n${def.description}`,
+    text: `Te ponés ${found}${swapMsg}. ${defMsg}.\n${def.description}`,
     event: `${player.username} se pone ${found}.`,
     eventRoomId: player.current_room_id,
   };
