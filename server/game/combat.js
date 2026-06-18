@@ -67,6 +67,25 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
     const trapMemories = Object.fromEntries(Object.entries(prevSe).filter(([k]) => k.startsWith('trap_cd_')));
     const newSe = Object.keys(trapMemories).length > 0 ? JSON.stringify(trapMemories) : '{}';
     db.updatePlayer(playerId, { hp: respawnHp, current_room_id: 1, deaths, status_effects: newSe });
+    // BUG-697: Si el jugador murió con un boss vivo pero dañado en su sala,
+    // restaurar el HP del boss a su máximo. El boss "regenera" mientras el
+    // jugador estaba fuera — evita que reaparezca con 4/100 HP en la próxima visita.
+    try {
+      const bossInRoom = db.getMonstersInRoom(freshP.current_room_id)
+        .find(m => BOSS_MONSTERS[m.id] && m.room_id !== null && (m.hp || 0) < m.max_hp);
+      if (bossInRoom) {
+        db.updateMonster(bossInRoom.id, {
+          hp: bossInRoom.max_hp,
+          // DIS-D423: limpiar status_effects del boss (phase2_triggered, etc.)
+          status_effects: '{}',
+          // Restaurar DEF base si el boss tenía bonus de fase 2
+          ...(BOSS_BASE_DEFENSE[bossInRoom.id] !== undefined ? { defense: BOSS_BASE_DEFENSE[bossInRoom.id] } : {}),
+        });
+        console.log(`[combat] BUG-697: Boss ${bossInRoom.name} (id ${bossInRoom.id}) restaurado a HP máximo (${bossInRoom.max_hp}) tras muerte del jugador.`);
+      }
+    } catch (e) {
+      console.warn('[combat] BUG-697: Error restaurando HP de boss tras muerte del jugador:', e.message);
+    }
     // STORY-019: entrada de diario con color emocional para primera muerte
     if (deaths === 1) {
       db.addJournalEntry(playerId, 'death', `💀 Moriste. No fue heroico. Fue un pasillo oscuro y algo que no viste.`);

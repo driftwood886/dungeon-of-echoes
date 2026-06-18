@@ -839,7 +839,10 @@ function cmdMove(player, direction) {
     }
     // BUG-671: DIS-667 fix incompleto — si el boss está a HP lleno (nunca fue atacado),
     // saltear tryFlee() completamente y dejar pasar al jugador sin daño ni tirada de huida.
-    const bossAtFullHp = monster && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id] && monster.hp >= monster.max_hp;
+    // DIS-700: Extendido para verificar TODOS los bosses en la sala, no solo el de mayor HP.
+    // El jugador pasa libremente si el único boss presente está a HP lleno.
+    const bossInRoom = aliveHere.find(m => combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[m.id]);
+    const bossAtFullHp = bossInRoom && bossInRoom.hp >= bossInRoom.max_hp;
     if (bossAtFullHp) {
       const exits = room ? (room.exits || {}) : {};
       const exitVal = exits[direction.toLowerCase().trim()];
@@ -851,7 +854,7 @@ function cmdMove(player, direction) {
         const freshPlayer = db.getPlayer(player.id);
         const lookResult = cmdLook(freshPlayer);
         return {
-          text: `🚶 Pasás cerca del ${monster.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.\n\n${lookResult.text}`,
+          text: `🚶 Pasás cerca del ${bossInRoom.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.\n\n${lookResult.text}`,
           event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
@@ -8500,7 +8503,7 @@ function cmdCast(player, args) {
         const mStatus = JSON.parse(target.status_effects || '{}');
         mStatus.stunned = 1;  // dura 1 turno
         db.updateMonster(target.id, { status_effects: JSON.stringify(mStatus) });
-        lines.push(`   ⚡ ¡${target.name} quedó aturdido por el rayo! (pierde su próximo turno de ataque)`);
+        lines.push(`   ⚡ ¡${target.name} quedó aturdido por el rayo! (no puede atacar este turno)`);
       } catch (e) { /* silenciar errores de parseo */ }
     }
 
@@ -8510,7 +8513,7 @@ function cmdCast(player, args) {
         const mStatus2 = JSON.parse(target.status_effects || '{}');
         mStatus2.stunned = 1;  // ralentizar = skip 1 turno (mismo mecanismo que stun)
         db.updateMonster(target.id, { status_effects: JSON.stringify(mStatus2) });
-        lines.push(`   ❄️ ¡${target.name} quedó ralentizado por el hielo! (pierde su próximo turno de ataque)`);
+        lines.push(`   ❄️ ¡${target.name} quedó ralentizado por el hielo! (no puede atacar este turno)`);
       } catch (e) { /* silenciar errores de parseo */ }
     }
 
@@ -8608,6 +8611,32 @@ function cmdCast(player, args) {
           db.addJournalEntry(player.id, 'boss', `☠️ Derrotaste al ${target.name} con ${spellName}.`);
           if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: bossGlobalEvent });
           lines.push(`\n╔════════════════════════════════════╗\n║  ☠️  ¡${target.name.toUpperCase()} DERROTADO!  ☠️  ║\n╚════════════════════════════════════╝\n¡Usá 'loot' para recoger los tesoros!`);
+          // BUG-699: Incrementar lich_kills al matar al Lich con hechizos (igual que en cmdAttack)
+          if (castLichKill) {
+            try {
+              const freshForCastCycle = db.getPlayer(player.id);
+              if (freshForCastCycle) {
+                const prevLichKillsCast = freshForCastCycle.lich_kills || 0;
+                const newLichKillsCast = prevLichKillsCast + 1;
+                let cycleTimeMinCast = 0;
+                if (freshForCastCycle.cycle_start_at) {
+                  cycleTimeMinCast = Math.floor((Date.now() - new Date(freshForCastCycle.cycle_start_at).getTime()) / 60000);
+                }
+                const prevBestCast = freshForCastCycle.cycle_best_time;
+                const updateDataCast = {
+                  lich_kills: newLichKillsCast,
+                  cycle_start_at: new Date().toISOString(),
+                };
+                if (!prevBestCast || cycleTimeMinCast < prevBestCast) {
+                  updateDataCast.cycle_best_time = cycleTimeMinCast;
+                }
+                db.updatePlayer(player.id, updateDataCast);
+                console.log(`[engine] BUG-699: lich_kills actualizado a ${newLichKillsCast} tras muerte del Lich con hechizo.`);
+              }
+            } catch (e) {
+              console.warn('[engine] BUG-699: Error incrementando lich_kills con hechizo:', e.message);
+            }
+          }
         }
         if (newCastAchs && newCastAchs.length > 0) {
           db.logGlobalEvent('achievement', `🏅 ${player.username} desbloqueó el logro "${newCastAchs[0].name}".`);
@@ -8663,8 +8692,27 @@ function cmdCast(player, args) {
       db.updateMonster(target.id, { hp: newHp });
     }
 
+    // BUG-698: Verificar si el stun se aplicó en ESTE turno para evitar el contraataque
+    // El stun (rayo/escarcha) debe cancelar el ataque del turno en que se aplica,
+    // no solo del siguiente turno.
+    let castStunAppliedThisTurn = false;
+    if ((spell.stun_chance || spell.slow_chance) && newHp > 0) {
+      // Releer status_effects del monstruo (puede haber sido actualizado por el stun)
+      try {
+        const freshTargetAfterStun = db.getMonster(target.id);
+        if (freshTargetAfterStun) {
+          const seAfterStun = freshTargetAfterStun.status_effects
+            ? (typeof freshTargetAfterStun.status_effects === 'string'
+                ? JSON.parse(freshTargetAfterStun.status_effects)
+                : freshTargetAfterStun.status_effects)
+            : {};
+          if (seAfterStun.stunned) castStunAppliedThisTurn = true;
+        }
+      } catch (_) {}
+    }
+
     // BUG-462: el monstruo contraataca si sigue vivo tras el hechizo
-    if (newHp > 0) {
+    if (newHp > 0 && !castStunAppliedThisTurn) {
       const freshPlayerCast = db.getPlayer(player.id);
       const monsterDmgCast = Math.max(1, (target.attack || 2) - Math.floor(freshPlayerCast.defense || 0));
       const shieldActiveCast = freshPlayerCast.shield_active || 0;
