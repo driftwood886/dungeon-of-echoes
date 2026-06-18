@@ -4626,13 +4626,9 @@ function cmdMap(player) {
   //   |   \                              ↓(bajar)
   // [12:Forja] [13:Caverna]         [21:Práctica]─[16:Antesala]
   //          ↘  ↙
-  //       [14:Coliseo]
-  //            |
-  //       [15:Catedral]─[22:Cripta]
-  //            |
-  //       [19:Cám.Eco]
-  //            |
-  //       [20:Abismo]
+  //   [14:Coliseo]─[19:Cám.Eco]─[15:Catedral]─[22:Cripta]
+  //                      |
+  //                 [20:Abismo]
   //
 
   const lines = [
@@ -4653,13 +4649,9 @@ function cmdMap(player) {
     `  |   \\               ↓ (bajar)`,
     `${c(12)} ${c(13)}       ${c(21)}---${c(16)}`,
     `      \\  /`,
-    `  ${c(14)}`,
-    `      |`,
-    `  ${c(15)}---${c(22)}`,
-    `      |`,
-    `  ${c(19)}`,
-    `      |`,
-    `  ${c(20)}`,
+    `  ${c(14)}---${c(19)}---${c(15)}---${c(22)}`,
+    `              |`,
+    `         ${c(20)}`,
     ``,
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
     // DIS-635: solo mencionar sala 8 como fuente de llave si ya fue visitada
