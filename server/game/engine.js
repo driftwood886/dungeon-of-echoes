@@ -9770,7 +9770,12 @@ function cmdUseSkill(player, args, context) {
     const baseDmgSh = freshPicSh.attack || 5;
     // Si el monstruo NO atacó este turno → multiplicador completo ×2.5
     // Si el monstruo YA atacó → multiplicador reducido ×1.5 (igual que golpe_sucio)
-    const multiplierSh = monsterAttackedThisTurn ? 1.5 : skill.dmg_multiplier;
+    // DIS-683: Los bosses son resistentes a emboscadas — cap en ×1.8 para bosses
+    const isBossTargetSh = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+    let multiplierSh = monsterAttackedThisTurn ? 1.5 : skill.dmg_multiplier;
+    if (isBossTargetSh && !monsterAttackedThisTurn) {
+      multiplierSh = 1.8; // reducido de ×2.5 vs bosses
+    }
     const shadowBonus = !monsterAttackedThisTurn;
     const rawDmgSh = Math.max(1, Math.floor(baseDmgSh * multiplierSh));
     const variationSh = Math.floor(rawDmgSh * 0.15);
@@ -9785,7 +9790,11 @@ function cmdUseSkill(player, args, context) {
     const deadSh = newHpSh <= 0;
     let textSh;
     if (shadowBonus) {
-      textSh = `🌑 ¡GOLPE EN LA SOMBRA! Emergés de las sombras y atacás al ${target.name} por ×2.5 — ¡${finalDmgSh} de daño!`;
+      if (isBossTargetSh) {
+        textSh = `🌑 ¡GOLPE EN LA SOMBRA! Emergés de las sombras contra el boss — resistencia a emboscada: ×1.8 — ¡${finalDmgSh} de daño!`;
+      } else {
+        textSh = `🌑 ¡GOLPE EN LA SOMBRA! Emergés de las sombras y atacás al ${target.name} por ×2.5 — ¡${finalDmgSh} de daño!`;
+      }
     } else {
       textSh = `🌑 ¡GOLPE EN LA SOMBRA! El ${target.name} ya te detectó — atacás por ×1.5 (${finalDmgSh} dmg).`;
     }

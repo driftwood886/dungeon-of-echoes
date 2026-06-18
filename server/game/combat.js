@@ -402,7 +402,15 @@ function attackRound(player, monster) {
 
   const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0) + enchantCritBonus + rogueCritBonusGloves + stanceCritPenalty;
   const isCrit = stealthSurprise ? true : Math.random() < critChance;
-  const rawPlayerDmg = isCrit ? playerDmg * 2 : playerDmg;
+  // DIS-683: Los bosses son resistentes a emboscadas del Pícaro — multiplicador 1.5x en vez de 2x
+  // Los monstruos normales siguen recibiendo el 2x completo (fantasía de clase intacta)
+  const isBossForStealth = !!(BOSS_MONSTERS && BOSS_MONSTERS[monster.id]);
+  let critMultiplier = 2;
+  if (stealthSurprise && isBossForStealth) {
+    critMultiplier = 1.5;
+    lines.push(`🛡️ El boss percibe el sigilo — el multiplicador de emboscada se reduce a ×1.5.`);
+  }
+  const rawPlayerDmg = isCrit ? playerDmg * critMultiplier : playerDmg;
   // DIS-630: El Gólem de Piedra tiene resistencia física ×0.75 — análoga a resistencia mágica del Guardia Espectral
   // Es un constructo pétrico: los golpes físicos se amortiguan en su cuerpo de piedra
   const PHYS_RESISTANT_MONSTERS = ['gólem de piedra'];
