@@ -6672,7 +6672,12 @@ function _cmdDuelMaestro(player) {
   }
 
   // BUG-564: escalar al nivel del jugador pero ligeramente por DEBAJO en ATK/DEF
-  const maestroMaxHp = player.max_hp;
+  // DIS-704: HP del Maestro escala más agresivo en niveles altos — el duelo no debería
+  // terminar en 2 rounds para el Mago de late-game. nivel ≥6 → 60 HP, nivel ≥8 → 80 HP
+  let maestroMaxHp = player.max_hp;
+  if (playerLevel >= 8) maestroMaxHp = Math.max(player.max_hp, 80);
+  else if (playerLevel >= 6) maestroMaxHp = Math.max(player.max_hp, 60);
+  else if (playerLevel >= 4) maestroMaxHp = Math.max(player.max_hp, 45);
   const maestroAtk = Math.max(3, Math.round((player.attack || 5) * 0.85));
   const maestroDef = Math.max(1, Math.round(playerDef * 0.75));
 
