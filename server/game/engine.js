@@ -1270,6 +1270,20 @@ function cmdInventory(player) {
     return { text: 'Tu inventario está vacío.' };
   }
 
+  // DIS-677: detectar qué ítems tienen receta viable con materiales ya en el inventario
+  const { RECIPES } = require('./crafting');
+  const allItemNames = new Set(allItems.map(i => i.toLowerCase()));
+  // Un ítem tiene receta viable si existe al menos una receta en la que sea ingrediente
+  // Y el otro ingrediente TAMBIÉN está en el inventario
+  const viableRecipeItems = new Set();
+  for (const recipe of RECIPES) {
+    const [ing1, ing2] = recipe.ingredients.map(s => s.toLowerCase());
+    if (allItemNames.has(ing1) && allItemNames.has(ing2)) {
+      viableRecipeItems.add(ing1);
+      viableRecipeItems.add(ing2);
+    }
+  }
+
   const lines = [];
   let idx = 1;
   // Primero los equipados (con marcador visual)
@@ -1288,7 +1302,9 @@ function cmdInventory(player) {
     // DIS-D428: marcar ítems de crafteo con ⚗️ para que el jugador sepa su propósito
     const def = items.getItemDef(item);
     const craftTag = (def && def.description && (def.description.includes('crafteo') || def.description.includes('🔧'))) ? ' ⚗️' : '';
-    lines.push(`  ${idx}. ${emoji} ${item}${rarityLabel}${craftTag}`);
+    // DIS-677: marcar ítems con receta viable usando ✨ (tenés los dos ingredientes)
+    const viableTag = viableRecipeItems.has(item.toLowerCase()) ? ' ✨' : '';
+    lines.push(`  ${idx}. ${emoji} ${item}${rarityLabel}${craftTag}${viableTag}`);
     idx++;
   }
 
@@ -1300,7 +1316,12 @@ function cmdInventory(player) {
     ? `─ ${totalVisible} ítem${totalVisible !== 1 ? 's' : ''} (${rareCount} no común${rareCount !== 1 ? 'es' : ''})`
     : `─ ${totalVisible} ítem${totalVisible !== 1 ? 's' : ''}`;
 
-  return { text: `Inventario:\n${lines.join('\n')}\n${summary}` };
+  // Nota de recetas viables si hay alguna
+  const viableNote = viableRecipeItems.size > 0
+    ? `\n✨ = tenés ingredientes para craftear algo con ese ítem — probá 'recetas'`
+    : '';
+
+  return { text: `Inventario:\n${lines.join('\n')}\n${summary}${viableNote}` };
 }
 
 /**
@@ -2266,7 +2287,23 @@ function cmdAttack(player, targetName) {
       } else {
         lines.push(`║  🗺️ Exploración: ${visitedCount}/${TOTAL_ROOMS} salas (${exploredPct}%)`.padEnd(56) + '║');
         if (roomsRemaining <= 5) {
-          lines.push(`║  ¡Casi! Te faltan solo ${roomsRemaining} sala${roomsRemaining !== 1 ? 's' : ''} — ¡buscalas!`.padEnd(56) + '║');
+          lines.push(`║  ¡Casi! Te faltan solo ${roomsRemaining} sala${roomsRemaining !== 1 ? 's' : ''}:`.padEnd(56) + '║');
+          // DIS-678: dar pistas vagas de las zonas sin explorar
+          const ROOM_ZONE_HINTS = {
+            1: 'entrada del dungeon', 2: 'corredor inicial', 3: 'zona de la capilla',
+            4: 'cámara del tesoro', 5: 'capilla', 6: 'zona del pozo',
+            7: 'pozo sin fondo', 8: 'prisión subterránea', 9: 'sala del trono',
+            10: 'santuario profano', 11: 'galería de hielo', 12: 'taller de la forja',
+            13: 'cámara de la fuente', 14: 'coliseo espectral', 15: 'catedral de la perdición',
+            16: 'bóveda del destino', 17: 'casa de subastas', 18: 'cripta olvidada',
+            19: 'cámara del eco', 20: 'abismo eterno',
+          };
+          const allRoomIds = Array.from({ length: TOTAL_ROOMS }, (_, i) => i + 1);
+          const unvisited = allRoomIds.filter(id => !visitedRooms.includes(id));
+          for (const rid of unvisited) {
+            const hint = ROOM_ZONE_HINTS[rid] || `zona desconocida (sala ${rid})`;
+            lines.push(`║    → Hay algo sin explorar: ${hint}`.padEnd(56) + '║');
+          }
         } else {
           lines.push(`║  Desafío Cartógrafo: visitá las ${roomsRemaining} salas restantes`.padEnd(56) + '║');
         }
@@ -5583,7 +5620,7 @@ const SHOP_CATALOG = [
   { name: 'espada oxidada',          price: 15, description: 'Una espada vieja pero funcional. +3 ataque. Ingrediente para craftear espada de obsidiana.' },
   { name: 'llave oxidada',           price: 20, description: 'Abre cierta puerta al norte del Pozo. El mercader no explica más. (O buscá la Araña Tejedora del Pozo — a veces la lleva consigo.)' },
   // T152: Armaduras
-  { name: 'cuero endurecido',        price: 30, description: 'Armadura ligera. +2 defensa.' },
+  { name: 'cuero endurecido',        price: 20, description: 'Armadura ligera. +2 defensa.' },  // DIS-676: 30g→20g para incentivar compra temprana
   { name: 'cota de malla',           price: 60, description: 'Armadura de hierro. +3 defensa.' },
   { name: 'túnica encantada',        price: 80, description: 'Armadura mágica. +4 defensa. Ideal para magos.' },
   // DIS-D27: poción de maná para Magos
@@ -5950,6 +5987,13 @@ function cmdBuy(player, itemQuery) {
 
   const discountMsg = discount > 0 ? ` (descuento ${Math.round(discount * 100)}% por reputación)` : '';
 
+  // DIS-676: Si el jugador compra un arma y no tiene armadura, Aldric sugiere comprar cuero endurecido
+  const boughtWeapon = items.getItemDef(item.name);
+  const noArmor = !freshBuyer.equipped_armor || freshBuyer.equipped_armor === 'null';
+  const armorTip = (boughtWeapon && boughtWeapon.type === 'weapon' && noArmor)
+    ? '\n"Una espada sin protección es invitación al funeral." Aldric señala el cuero endurecido. "20 monedas — más barato que respawnear."'
+    : '';
+
   // STORY-008: Personalidad de Aldric — líneas de flavor al comprar
   const buyFlavors = [
     'Aldric no levanta la vista de sus cuentas mientras envuelve el ítem.',
@@ -5967,7 +6011,7 @@ function cmdBuy(player, itemQuery) {
     : '';
 
   return {
-    text: `🏪 ${flavor}${legendaryLine}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${buyAchLines}`,
+    text: `🏪 ${flavor}${legendaryLine}${armorTip}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${buyAchLines}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
@@ -9130,7 +9174,13 @@ function cmdUseSkill(player, args, context) {
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
     const baseDmg = freshPlayer.attack || 5;
-    const rawDmg = Math.max(1, Math.floor(baseDmg * skill.dmg_multiplier));
+    // DIS-679: aplicar entumecimiento espectral (atk_debuffed) igual que en combat.js
+    const smashAtkFx = freshPlayer.status_effects
+      ? (typeof freshPlayer.status_effects === 'string' ? JSON.parse(freshPlayer.status_effects) : freshPlayer.status_effects)
+      : {};
+    const smashAtkDebuff = smashAtkFx.atk_debuffed ? (smashAtkFx.atk_debuffed.amount || 0) : 0;
+    const effectiveSmashAtk = Math.max(1, baseDmg - smashAtkDebuff);
+    const rawDmg = Math.max(1, Math.floor(effectiveSmashAtk * skill.dmg_multiplier));
     const variation = Math.floor(rawDmg * 0.2);
     const dmg = rawDmg + Math.floor(Math.random() * (variation * 2 + 1)) - variation;
     // BUG-658: aplicar resistencia física igual que combat.js (×0.75 para el Gólem de Piedra)

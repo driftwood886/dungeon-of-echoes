@@ -209,7 +209,7 @@ const ITEM_RARITY = {
   'lanza espectral del eco':  'épico',
   'filacteria rota':          'épico',
   'espada envenenada':        'épico',
-  'alabarda de huesos':       'épico',
+  'alabarda de huesos':       'raro',    // DIS-675: rareza bajada de épico a raro — +6 ATK vs espada de hierro +8 ATK
   'hacha de guerra':          'épico',
   // ── Raro ──────────────────────────────────────────────────────────────────
   'cuchillo envenenado':      'raro',

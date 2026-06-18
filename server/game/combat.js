@@ -162,7 +162,7 @@ const MONSTER_BASE_STATS = {
   5:  { name: 'Gólem de Piedra',       max_hp: 55, attack: 8  },  // DIS-630: HP 35→55
   6:  { name: 'Murciélago Vampiro',    max_hp: 12, attack: 3  },
   7:  { name: 'Araña Tejedora',        max_hp: 8,  attack: 4  },
-  8:  { name: 'Guardia Espectral',     max_hp: 25, attack: 7  },
+  8:  { name: 'Guardia Espectral',     max_hp: 55, attack: 7  },  // DIS-679: HP 40→55
   // DIS-D46: Monstruos expandidos — stats balanceados para curva de dificultad progresiva
   9:  { name: 'Elemental de Hielo',    max_hp: 40, attack: 9  },
   10: { name: 'Golem de Forja',        max_hp: 42, attack: 10 },
@@ -197,6 +197,15 @@ const MONSTER_SPECIALS = {
     amount: 2,
     turns: 2,
     msg: '🌑 ¡La Sombra del Vacío oscurece tu visión! (-{amount} DEF por {turns} turnos)',
+  },
+  // DIS-679: El Guardia Espectral aplica "entumecimiento espectral" — reduce ATK del jugador
+  // Fuerza al Guerrero a aguantar más turnos (era 2 turnos con smash+attack)
+  'Guardia Espectral': {
+    chance: 0.40,
+    type: 'atk_debuff',
+    amount: 3,
+    turns: 2,
+    msg: '👻 ¡El Guardia Espectral te infunde entumecimiento espectral! (-{amount} ATK por {turns} turnos)',
   },
 };
 
@@ -337,7 +346,13 @@ function attackRound(player, monster) {
   const stanceName = player.stance || 'equilibrado';
   const stanceMods = STANCE_DATA[stanceName] || STANCE_DATA.equilibrado;
 
-  const effectiveAtk = player.attack + petBonus + scrollAtkBonus + stanceMods.atkMod;
+  // DIS-679: entumecimiento espectral reduce ATK del jugador por N turnos
+  const freshForAtkDebuff = db.getPlayer(player.id);
+  const atkDebuffFx = freshForAtkDebuff.status_effects
+    ? (typeof freshForAtkDebuff.status_effects === 'string' ? JSON.parse(freshForAtkDebuff.status_effects) : freshForAtkDebuff.status_effects)
+    : {};
+  const atkDebuffAmt = atkDebuffFx.atk_debuffed ? (atkDebuffFx.atk_debuffed.amount || 0) : 0;
+  const effectiveAtk = Math.max(1, player.attack + petBonus + scrollAtkBonus + stanceMods.atkMod - atkDebuffAmt);
   const effectiveDef = (player.defense || 0) + scrollDefBonus + stanceMods.defMod;
 
   // Miss extra por postura agresiva
@@ -965,6 +980,13 @@ function attackRound(player, monster) {
           player.status_effects = spFx;
           lines.push(rawMsg);
         }
+      } else if (specialDef.type === 'atk_debuff') {
+        // DIS-679: Reducir ATK del jugador por N turnos (entumecimiento espectral del Guardia Espectral)
+        if (!spFx.atk_debuffed) {
+          spFx.atk_debuffed = { amount: specialDef.amount, turns: specialDef.turns };
+          player.status_effects = spFx;
+          lines.push(rawMsg);
+        }
       }
     }
   } // fin else (no esquivó)
@@ -984,6 +1006,19 @@ function attackRound(player, monster) {
       lines.push(`👁 Tu visión se recupera. La oscuridad se disipa.`);
       db.updatePlayer(player.id, { status_effects: JSON.stringify(bFx), defense: player.defense }); // defense ya estaba OK
     }
+  }
+  // DIS-679: decrementar contador de entumecimiento espectral (atk_debuffed)
+  const freshForAtkTick = db.getPlayer(player.id);
+  const atkFx = freshForAtkTick.status_effects
+    ? (typeof freshForAtkTick.status_effects === 'string' ? JSON.parse(freshForAtkTick.status_effects) : freshForAtkTick.status_effects)
+    : {};
+  if (atkFx.atk_debuffed && atkFx.atk_debuffed.turns > 0) {
+    atkFx.atk_debuffed.turns -= 1;
+    if (atkFx.atk_debuffed.turns <= 0) {
+      delete atkFx.atk_debuffed;
+      lines.push(`🌡️ El entumecimiento espectral se disipa. Tu fuerza regresa.`);
+    }
+    db.updatePlayer(player.id, { status_effects: JSON.stringify(atkFx) });
   }
 
   if (player.hp <= 0) {

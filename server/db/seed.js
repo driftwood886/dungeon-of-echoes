@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2 };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1450,6 +1450,25 @@ function migrateGolemPiedraHP() {
   }
   db.updateMonster(g.id, { hp: 55, max_hp: 55 });
   console.log('[seed] migrateGolemPiedraHP: Gólem de Piedra HP 35→55. DIS-630 ✓');
+}
+
+/**
+ * DIS-679: El Guardia Espectral (sala 8, nivel 4+) cae demasiado rápido.
+ * Subir HP de 40 a 55 para que aguante 4+ turnos vs Guerrero nivel 4 con smash.
+ * El entumecimiento espectral ya fue implementado en combat.js.
+ */
+function migrateGuardiaEspectralHP2() {
+  const all = db.getAllMonsters ? db.getAllMonsters() : [];
+  const g = all.find(m => m.id === 8 || (m.name && m.name.toLowerCase().includes('guardia espectral')));
+  if (!g) {
+    console.warn('[seed] migrateGuardiaEspectralHP2: Guardia Espectral no encontrado');
+    return;
+  }
+  if (g.max_hp >= 55) {
+    return; // Ya actualizado
+  }
+  db.updateMonster(g.id, { hp: 55, max_hp: 55 });
+  console.log('[seed] migrateGuardiaEspectralHP2: Guardia Espectral HP 40→55. DIS-679 ✓');
 }
 
 /**
