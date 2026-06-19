@@ -218,7 +218,7 @@ function execute(playerId, input, context) {
 
   // ── T175: Ghost mode (Hardcore fallen) ────────────────────────────────────
   // Si el jugador cayó en modo Hardcore, solo puede usar comandos pasivos
-  const GHOST_ALLOWED = new Set(['look', 'status', 'who', 'score', 'profile', 'bestiary', 'journal', 'news', 'dungeon', 'history', 'help', 'changelog', 'server', 'time', 'enemies', 'compare', 'reputation', 'path', 'guide', 'find', 'runas', 'map', 'hardcore', 'read', 'lore', 'weather', 'world', 'challenge', 'rank', 'inventory', 'memorial', 'recent']);
+  const GHOST_ALLOWED = new Set(['look', 'status', 'who', 'score', 'profile', 'bestiary', 'journal', 'news', 'dungeon', 'history', 'help', 'changelog', 'server', 'time', 'enemies', 'compare', 'reputation', 'path', 'guide', 'find', 'runas', 'map', 'hardcore', 'read', 'lore', 'weather', 'world', 'challenge', 'rank', 'inventory', 'junk', 'memorial', 'recent']);
   if (player.fallen === 1 && !GHOST_ALLOWED.has(action.command)) {
     return { text: `✝ Tu personaje cayó en modo Hardcore. Solo podés usar comandos pasivos.\n  (look, status, who, score, map, etc.)\n  Escribí "hardcore" para ver tu estado.` };
   }
@@ -228,6 +228,7 @@ function execute(playerId, input, context) {
     case 'move':      result = cmdMove(player, action.args[0]); break;
     case 'inventory': result = cmdInventory(player); break;
     case 'status':    result = cmdStatus(player); break;
+    case 'junk':      result = cmdJunk(player); break;
     case 'attack':    result = cmdAttack(player, action.args.join(' ')); break;
     case 'flee':      result = cmdFlee(player, action.args ? action.args.join(' ') : ''); break;
     case 'pick':      result = cmdPick(player, action.args.join(' ')); break;
@@ -1327,6 +1328,91 @@ function cmdInventory(player) {
     : '';
 
   return { text: `Inventario:\n${lines.join('\n')}\n${summary}${viableNote}` };
+}
+
+/**
+ * DIS-711: basura / limpiar — Lista ítems del inventario "descartables":
+ * no son arma/armadura equipable, no son ingrediente de ninguna receta conocida,
+ * y no son ítems únicos/de misión sin precio. Incluye precio de venta estimado.
+ */
+function cmdJunk(player) {
+  player = db.getPlayer(player.id) || player;
+  const inv = player.inventory || [];
+  if (inv.length === 0) return { text: 'Tu inventario está vacío.' };
+
+  const { RECIPES } = require('./crafting');
+
+  // Construir set de todos los ingredientes de recetas
+  const recipeIngredients = new Set();
+  for (const r of RECIPES) {
+    for (const ing of r.ingredients) recipeIngredients.add(ing.toLowerCase());
+  }
+
+  // Ítems equipados (no están en inventory, pero por si acaso)
+  const equippedWeapon = (player.equipped_weapon && player.equipped_weapon !== 'null') ? player.equipped_weapon.toLowerCase() : null;
+  const equippedArmor  = (player.equipped_armor  && player.equipped_armor  !== 'null') ? player.equipped_armor.toLowerCase()  : null;
+
+  const junkItems = [];
+  const keepItems = [];
+
+  for (const item of inv) {
+    const itemLower = item.toLowerCase();
+    const def = items.getItemDef(item);
+
+    // Equipables (weapon/armor) → conservar
+    if (def && (def.type === 'weapon' || def.type === 'armor')) {
+      keepItems.push({ item, reason: 'equipable' });
+      continue;
+    }
+    // Ingrediente de alguna receta → conservar
+    if (recipeIngredients.has(itemLower)) {
+      keepItems.push({ item, reason: 'receta' });
+      continue;
+    }
+    // Consumibles (pociones, pergaminos, etc.) → conservar
+    if (def && (def.type === 'consumable' || def.type === 'potion' || def.type === 'scroll' || def.type === 'key')) {
+      keepItems.push({ item, reason: 'consumible' });
+      continue;
+    }
+    // Es basura candidata
+    junkItems.push(item);
+  }
+
+  if (junkItems.length === 0) {
+    return { text: `🧹 No hay ítems claramente descartables en tu inventario.\nTodos tienen uso: son equipables, ingredientes de receta, consumibles o de misión.\n💡 Revisá 'inv' para ver qué podés craftear (✨).` };
+  }
+
+  // Calcular precio de venta para cada basura
+  // Reutilizamos la lógica de SHOP_CATALOG
+  const lines = junkItems.map(item => {
+    const catalogEntry = SHOP_CATALOG.find(i => i.name.toLowerCase() === item.toLowerCase());
+    let salePrice;
+    if (catalogEntry) {
+      salePrice = Math.floor(catalogEntry.price * 0.5);
+    } else {
+      const d = items.getItemDef(item);
+      if (d && d.amount) {
+        const rarityMult = { épico: 5, raro: 4, común: 3 }[items.getItemRarity(item)] || 3;
+        salePrice = d.amount * rarityMult;
+      } else {
+        salePrice = 4;
+      }
+    }
+    return `  • ${item} → ~${salePrice}g (vender a Aldric)`;
+  });
+
+  const totalEstimate = junkItems.reduce((acc, item) => {
+    const catalogEntry = SHOP_CATALOG.find(i => i.name.toLowerCase() === item.toLowerCase());
+    if (catalogEntry) return acc + Math.floor(catalogEntry.price * 0.5);
+    const d = items.getItemDef(item);
+    if (d && d.amount) {
+      const rarityMult = { épico: 5, raro: 4, común: 3 }[items.getItemRarity(item)] || 3;
+      return acc + d.amount * rarityMult;
+    }
+    return acc + 4;
+  }, 0);
+
+  return { text: `🧹 Ítems descartables (sin receta, no equipables):\n${lines.join('\n')}\n─ ${junkItems.length} ítem${junkItems.length !== 1 ? 's' : ''} · ~${totalEstimate}g potenciales de venta\n💡 Usá 'vender <ítem>' en la Cámara del Tesoro (sala 4) para deshacerte de ellos.` };
 }
 
 /**

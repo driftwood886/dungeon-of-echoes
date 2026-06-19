@@ -29,6 +29,8 @@ const COMMAND_ALIASES = {
   move: 'move', ir: 'move', go: 'move', caminar: 'move',
   // inventory
   inventory: 'inventory', inv: 'inventory', i: 'inventory', inventario: 'inventory',
+  // junk — DIS-711: listar ítems descartables del inventario
+  junk: 'junk', basura: 'junk', limpiar: 'junk', clean: 'junk',
   // status
   status: 'status', stats: 'status', estado: 'status', stat: 'status',
   // attack
