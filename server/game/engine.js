@@ -2552,8 +2552,7 @@ function cmdPick(player, itemQuery) {
       const pickMaxInv = 25 + (current.inventory_bonus || 0); // DIS-634: usar límite dinámico (DIS-507/DIS-595)
       if (inv.length + eqCount >= pickMaxInv) {
         notPicked.push(item);
-        pickedLines.push(`⚠️ Inventario lleno (${inv.length + eqCount}/${pickMaxInv}) — quedó en el suelo: ${item}\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (30g) en la tienda de Aldric para +4 slots.`);
-        continue;
+        continue; // BUG-707: no generar mensaje por ítem — condensar al final
       }
       const newInv = [...inv, item];
       db.updatePlayer(current.id, { inventory: newInv });
@@ -2564,7 +2563,14 @@ function cmdPick(player, itemQuery) {
     db.updateRoomItems(room.id, notPicked);
     const total = floorItems.length - notPicked.length;
     const goldSuffix = totalGoldConverted > 0 ? ` (monedas convertidas: +${totalGoldConverted}g → ${current.gold}g total)` : '';
-    return { text: `📦 Recogiste ${total} ítem(s) del suelo${goldSuffix}:\n${pickedLines.join('\n')}` };
+    let resultMsg = `📦 Recogiste ${total} ítem(s) del suelo${goldSuffix}:\n${pickedLines.join('\n')}`;
+    // BUG-707: condensar todos los ítems que no cupieron en un único bloque al final
+    if (notPicked.length > 0) {
+      const freshFinal = db.getPlayer(player.id);
+      const finalMax = 25 + (freshFinal.inventory_bonus || 0);
+      resultMsg += `\n\n⚠️ Inventario lleno (${finalMax}/${finalMax}) — quedaron en el suelo:\n  ${notPicked.map(i => `❌ ${i}`).join('\n  ')}\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (30g, +4 slots) en la tienda de Aldric.`;
+    }
+    return { text: resultMsg };
   }
 
   const found = items.findItem(room.items, itemQuery.trim());
@@ -3776,7 +3782,9 @@ function cmdEquip(player, itemQuery) {
     if (foundLower.includes('grimorio')) {
       magoHeavyFlavor = `\n💬 (Abrís el grimorio. Las páginas están cubiertas de símbolos que no reconocés. Lo empuñás de todas formas — pesa bien, eso sí.)`;
     } else if (foundLower.includes('espectral') || foundLower.includes('del eco')) {
-      magoHeavyFlavor = `\n💬 (El arma se siente extraña en tu mano — demasiado liviana, demasiado fría. Los guerreros prefieren metal que suene al golpear.)`;
+      // DIS-708: aclarar que el ATK es equivalente a espada de hierro pero útil contra espectrales
+      const atkNote = (def.amount >= 8) ? ` (+${def.amount} ATK — igual a la espada de hierro, pero más efectiva contra espectrales y criaturas mágicas.)` : '';
+      magoHeavyFlavor = `\n💬 (El arma se siente extraña en tu mano — demasiado liviana, demasiado fría. Los guerreros prefieren metal que suene al golpear.${atkNote})`;
     } else if (foundLower.includes('catalizador') || foundLower.includes('vara')) {
       magoHeavyFlavor = `\n💬 (Esto claramente fue hecho para alguien que lee libros. Pero si pega, pega.)`;
     }
