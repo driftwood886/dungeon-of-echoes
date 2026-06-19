@@ -1532,9 +1532,8 @@ function cmdStatus(player) {
       if (maxMana > 20 || isMagicClass) {
         const mana = player.mana || 0;
         const manaBar = buildBar(mana, maxMana || 1, 20);
-        // Calcular regen según clase y equipo
-        let regenRate693 = (cls693 && cls693.name === 'Mago') ? 6 : 1;
-        if (cls693 && cls693.name === 'Mago' && player.equipped_weapon === 'vara de energía') regenRate693 += 2;
+        // BUG-717: usar getManaRegenRate() centralizado (cubre Mago Y Clérigo a 6/min)
+        const regenRate693 = getManaRegenRate(player, cls693);
         const regenNote = isMagicClass ? ` (+${regenRate693}/min)` : '';
         return `Maná:     ${manaBar} ${mana}/${maxMana}${regenNote}`;
       }
