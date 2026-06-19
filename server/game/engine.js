@@ -1154,7 +1154,7 @@ function cmdMove(player, direction) {
     15: '⛪ A medida que cruzás el umbral de la Catedral de la Oscuridad, el eco de tus pasos revela la inmensidad del lugar. Las vidrieras rotas dejan entrar rayos de luz violácea. Sentís el peso de siglos de oscuridad posarse sobre tus hombros.',
     20: '🕳️ Al asomarte al Abismo Eterno, el vacío te mira de vuelta. No hay fondo visible. Solo oscuridad infinita, y el certero presentimiento de que algo muy antiguo — y muy hambriento — acaba de notar tu presencia.\n\n⚠️ Nivel recomendado: 7+. La Sombra del Vacío que habita aquí no permite huida fácil.',
     22: '🪦 La Cripta de los Valientes te recibe en silencio. Las placas en las paredes murmuran nombres olvidados. Una voz que no existe te susurra: "¿Serás digno de ser recordado aquí, o morirás en el anonimato?"',
-    19: '🔊 La Cámara del Eco no te recibe — te absorbe. El sonido de tus pasos no rebota: se multiplica, se distorsiona, regresa transformado en algo que no es exactamente tu pisada sino una versión de ella que tomó otro camino.\n\nEn el centro, los cristales resonantes pulsan con luz tenue. Cada uno guarda un eco atrapado. Algunas frecuencias son voces humanas. El eco más largo, el más persistente, es el nombre de alguien que claramente no quiso que lo recordaran.\n\nEn un rincón hay un cuenco de cristal que palpita con luz azulada. Cualquier aventurero puede usarlo (\"use cuenco\") para recuperar 30% de HP. Los Magos y Clérigos también recuperan 50% del maná. Los Clérigos además reciben una bendición sagrada que protege su maná del drenado del Lich durante 3 turnos.\n\nUna presencia se hace notar. El Eco Viviente.\n\n⚠️ Nivel recomendado: 6+. Este guardián no deja escapar a quien perturba la sala.',
+    19: '🔊 La Cámara del Eco no te recibe — te absorbe. El sonido de tus pasos no rebota: se multiplica, se distorsiona, regresa transformado en algo que no es exactamente tu pisada sino una versión de ella que tomó otro camino.\n\nEn el centro, los cristales resonantes pulsan con luz tenue. Cada uno guarda un eco atrapado. Algunas frecuencias son voces humanas. El eco más largo, el más persistente, es el nombre de alguien que claramente no quiso que lo recordaran.\n\nEn un rincón hay un cuenco de cristal que palpita con luz azulada. Cualquier aventurero puede usarlo (\"use cuenco\") para recuperar hasta 30% del HP máximo (o lo que falte si falta menos). Los Magos y Clérigos también recuperan hasta 50% del maná máximo. Los Clérigos además reciben una bendición sagrada que protege su maná del drenado del Lich durante 3 turnos.\n\nUna presencia se hace notar. El Eco Viviente.\n\n⚠️ Nivel recomendado: 6+. Este guardián no deja escapar a quien perturba la sala.',
   };
 
   const cinematicEvent = (firstVisitEver && CINEMATIC_EVENTS[targetId])
@@ -7866,7 +7866,8 @@ function cmdEchoBowl(player) {
   let lines = [];
   lines.push(`🔊 Colocás las manos sobre el cuenco de cristal resonante. Los ecos de poder fluyen hacia vos.`);
   if (hpRestored > 0) {
-    lines.push(`+${hpRestored} HP restaurado.`);
+    const hpNote = hpRestored < Math.floor(maxHp * 0.30) ? ` (cap en HP máximo)` : ` (30% de ${maxHp} HP máx)`;
+    lines.push(`+${hpRestored} HP restaurado${hpNote}.`);
     lines.push(`${hpBar} ${newHp}/${maxHp} HP`);
   } else {
     lines.push(`(HP ya estaba al máximo)`);
