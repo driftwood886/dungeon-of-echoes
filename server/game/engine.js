@@ -8791,8 +8791,16 @@ function cmdCast(player, args) {
     if (newHp <= 0) {
       // Monstruo muerto — BUG-041: db.killMonster no existe, usar updateMonster con respawn
       const PRACTICE_GOBLIN_ID = 20;
+      const EARLY_GAME_MONSTER_IDS_SPELL = new Set([1, 3, 4, 6, 7, 26, 27]); // DIS-742
       const isBossSpell = combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id];
-      const respawnMinutesSpell = isBossSpell ? (combat.BOSS_MONSTERS[target.id].respawnMinutes || 30) : 5;
+      let respawnMinutesSpell;
+      if (isBossSpell) {
+        respawnMinutesSpell = combat.BOSS_MONSTERS[target.id].respawnMinutes || 30;
+      } else if (EARLY_GAME_MONSTER_IDS_SPELL.has(target.id)) {
+        respawnMinutesSpell = 3; // DIS-742: early game = 3 min
+      } else {
+        respawnMinutesSpell = 5;
+      }
       const respawnAtSpell = target.id === PRACTICE_GOBLIN_ID
         ? new Date(Date.now() + 30 * 1000).toISOString()
         : new Date(Date.now() + respawnMinutesSpell * 60 * 1000).toISOString();

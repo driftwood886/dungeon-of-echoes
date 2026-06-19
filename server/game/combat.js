@@ -1488,10 +1488,14 @@ function dropLoot(monster, roomId) {
 
   // Tiempo de respawn: boss = 30 min, goblin de práctica = 30s, normal = 5 min
   // Fix DIS-004: el goblin de práctica (id=20) respawnea rápido para no bloquear el tutorial
+  // DIS-742: monstruos de early game (nivel 1-2) respawnean en 3 min para evitar esperas frustrantes
   const PRACTICE_GOBLIN_ID = 20;
+  const EARLY_GAME_MONSTER_IDS = new Set([1, 3, 4, 6, 7, 26, 27]); // Goblin, Rata, Espectro Corredor, Murciélagos, Araña
   let respawnAt;
   if (monster.id === PRACTICE_GOBLIN_ID) {
     respawnAt = new Date(Date.now() + 30 * 1000).toISOString(); // 30 segundos
+  } else if (!bossDef && EARLY_GAME_MONSTER_IDS.has(monster.id)) {
+    respawnAt = new Date(Date.now() + 3 * 60 * 1000).toISOString(); // DIS-742: 3 minutos para early game
   } else {
     const respawnMinutes = bossDef ? bossDef.respawnMinutes : 5;
     respawnAt = new Date(Date.now() + respawnMinutes * 60 * 1000).toISOString();
