@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1610,5 +1610,20 @@ function migrateSombraVacioHP() {
     const newHp = Math.min(sombra.hp, 120);
     db.updateMonster(22, { max_hp: 120, hp: newHp });
     console.log(`[seed] migrateSombraVacioHP: DIS-729 — Sombra del Vacío HP ${sombra.max_hp}→120 ✓`);
+  }
+}
+
+// DIS-730: Remover ítems pre-placed del suelo del Abismo Eterno (sala 20)
+// El loot 'fragmento de vacío' y 'cristal resonante' solo deben aparecer como drop de la Sombra del Vacío
+// No como ítems del suelo que spoilean la sala antes del combate
+function migrateAbismoLootFix() {
+  const room20 = db.getRoom(20);
+  if (!room20) return;
+  const floorItems = Array.isArray(room20.items) ? room20.items : [];
+  const spoilerItems = new Set(['fragmento de vacío', 'cristal resonante', 'esencia del abismo', 'veste de sombra', 'pergamino de escudo']);
+  const cleaned = floorItems.filter(i => !spoilerItems.has(i.toLowerCase()));
+  if (cleaned.length < floorItems.length) {
+    db.updateRoomItems(20, cleaned);
+    console.log(`[seed] migrateAbismoLootFix: DIS-730 — Removidos ${floorItems.length - cleaned.length} ítems pre-placed del Abismo Eterno. Solo quedan en el suelo: [${cleaned.join(', ')}] ✓`);
   }
 }
