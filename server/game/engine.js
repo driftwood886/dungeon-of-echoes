@@ -3939,6 +3939,9 @@ function cmdEquip(player, itemQuery) {
   } else if (isClerigoEquip && foundLower.includes('símbolo sagrado')) {
     // DIS-610: flavor para Clérigo equipando símbolo sagrado
     magoHeavyFlavor = `\n✨ (El símbolo responde a tu fe. +${def.cleric_only_bonus || 0} de ataque adicional por ser Clérigo. El cooldown de tus rezos se reduce a 3 minutos.)`;
+  } else if (isClerigoEquip && !def.cleric_only_bonus && def.type === 'weapon') {
+    // DIS-722: Clérigo con arma no-sagrada recibe penalidad de -10% daño físico
+    magoHeavyFlavor = `\n⚕️ (Arma no-sagrada: el Clérigo inflige ×0.9 de daño físico con esta arma. Considerá usar el símbolo sagrado (30g en Aldric) para eliminar la penalidad y ganar +2 ATK adicional de Clérigo.)`;
   } else if (clsDataEquip && clsDataEquip.name === 'Pícaro' && foundLower.includes('guantes de cuero fino')) {
     // DIS-615: flavor para Pícaro equipando guantes
     magoHeavyFlavor = `\n🗡️ (Los guantes se ajustan perfectamente. Tus dedos encuentran los puntos débiles con más facilidad. +${def.rogue_only_crit_bonus || 0}% crit adicional como Pícaro.)`;
@@ -6266,6 +6269,17 @@ function cmdBuy(player, itemQuery) {
   ];
   const flavor = buyFlavors[Math.floor(Math.random() * buyFlavors.length)];
 
+  // DIS-723: Si el jugador es Clérigo y no tiene la poción de bendición, Aldric la menciona al comprar
+  const clsBuy = classes.getPlayerClass(freshBuyer);
+  const isClericoBuy = clsBuy && clsBuy.name === 'Clérigo';
+  const hasBendicion = freshBuyer.inventory && (
+    freshBuyer.inventory.includes('poción de bendición') ||
+    freshBuyer.inventory.some(i => i && i.toLowerCase().includes('bendici'))
+  );
+  const bendicionTip = (isClericoBuy && !hasBendicion && item.name !== 'poción de bendición')
+    ? '\n⚕️ Aldric baja la voz: "Para los de tu orden, también tengo poción de bendición — 12 monedas. Restaura maná y te da fuerza. Imprescindible en los primeros combates."'
+    : '';
+
   // Línea especial con reputación Legendario
   const repLevel = db.getReputationLevel(freshBuyer.reputation || 0);
   const legendaryLine = repLevel === 'Legendario'
@@ -6273,7 +6287,7 @@ function cmdBuy(player, itemQuery) {
     : '';
 
   return {
-    text: `🏪 ${flavor}${legendaryLine}${armorTip}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${buyAchLines}`,
+    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${buyAchLines}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };

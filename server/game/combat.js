@@ -504,7 +504,20 @@ function attackRound(player, monster) {
     ambushResist = 0.70;
     lines.push(`🌑 La Sombra del Vacío percibe tu presencia en la oscuridad — tu golpe de sorpresa se atenúa. (emboscada: ×0.70)`);
   }
-  const dmgAfterPhysResist = Math.round(rawPlayerDmg * physResist * ambushResist);
+  // DIS-722: Clérigo con arma no-sagrada (sin cleric_only_bonus) recibe -10% de daño físico
+  // Narrativa: el Clérigo canaliza su poder a través de la fe, no de la fuerza bruta
+  // Usar el símbolo sagrado (+cleric_only_bonus) evita la penalidad y refleja la fantasía de clase
+  let clericWeaponPenalty = 1.0;
+  const clericWeaponPenaltyNote = [];
+  if (clsData && clsData.name === 'Clérigo') {
+    const equippedWpnDef = player.equipped_weapon ? items.getItemDef(player.equipped_weapon) : null;
+    const hasSacredBonus = equippedWpnDef && equippedWpnDef.cleric_only_bonus;
+    if (!hasSacredBonus) {
+      clericWeaponPenalty = 0.90;
+      clericWeaponPenaltyNote.push(`⚕️ (×0.9 — arma no-sagrada: el Clérigo prefiere el símbolo sagrado)`);
+    }
+  }
+  const dmgAfterPhysResist = Math.round(rawPlayerDmg * physResist * ambushResist * clericWeaponPenalty);
   const dmgToMonster = Math.max(1, dmgAfterPhysResist - Math.floor(monster.defense || 0));
   monster.hp = Math.max(0, monster.hp - dmgToMonster);
 
@@ -516,7 +529,8 @@ function attackRound(player, monster) {
 
   if (isCrit) {
     const physResistNote = physResist < 1.0 ? ` ${physResistLabel}` : '';
-    lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño.${physResistNote} (${monster.hp}/${monster.max_hp} HP)`);
+    const clericNote = clericWeaponPenaltyNote.length > 0 ? ' ' + clericWeaponPenaltyNote[0] : '';
+    lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño.${physResistNote}${clericNote} (${monster.hp}/${monster.max_hp} HP)`);
   } else {
     // DIS-D426: mostrar indicador de postura activa en el mensaje de ataque
     // DIS-472: cada postura tiene mensajes de ataque diferenciados que refuerzan la fantasía
@@ -557,7 +571,7 @@ function attackRound(player, monster) {
     const magoFlavor = isMagoSinMana
       ? `[sin maná — ${magoMsgs[Math.floor(Math.random() * magoMsgs.length)]}] `
       : '';
-    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño.${physResist < 1.0 ? ` ${physResistLabel}` : ''} (${monster.hp}/${monster.max_hp} HP)`);
+    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño.${physResist < 1.0 ? ` ${physResistLabel}` : ''}${clericWeaponPenaltyNote.length > 0 ? ' ' + clericWeaponPenaltyNote[0] : ''} (${monster.hp}/${monster.max_hp} HP)`);
   }
 
   // Actualizar monstruo en BD
