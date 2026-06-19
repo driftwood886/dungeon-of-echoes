@@ -7991,7 +7991,7 @@ function cmdEchoBowl(player) {
   if (playerClass === 'clerigo') {
     lines.push(`✨ Como Clérigo, el cuenco imbuye una bendición sagrada: los primeros 3 intentos de drenado de maná del Lich serán bloqueados.`);
   }
-  lines.push(`💡 Preparate aquí antes de enfrentar lo que yace al sur.`);
+  lines.push(`💡 Preparate aquí antes de enfrentar lo que yace al este.`);
 
   return {
     text: lines.join('\n'),
