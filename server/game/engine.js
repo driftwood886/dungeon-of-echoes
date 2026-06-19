@@ -3478,8 +3478,8 @@ function cmdExamine(player, query) {
     'diario':          { rooms: [11], text: 'Las páginas del diario están medio fusionadas por el hielo, pero alcanzás a leer tres fragmentos:\n\n  "...llegamos cuatro. Somos dos. El frío no mata — algo lo usa."\n\n  "...vi su sombra en la Catedral. Desde aquí. Eso no es posible."\n\n  "...Kaelthas no murió. Eligió esto. Lo entendí cuando me miró. Me conocía."' },
     'diario helado':   { rooms: [11], text: 'Las páginas del diario están medio fusionadas por el hielo, pero alcanzás a leer tres fragmentos:\n\n  "...llegamos cuatro. Somos dos. El frío no mata — algo lo usa."\n\n  "...vi su sombra en la Catedral. Desde aquí. Eso no es posible."\n\n  "...Kaelthas no murió. Eligió esto. Lo entendí cuando me miró. Me conocía."' },
     // DIS-D40: objetos ambientales examinables (hongos sala 6, vitrales sala 15, grieta sala 20)
-    'hongos':          { rooms: [6],  text: 'Los hongos luminiscentes emiten una luz azul-verdosa que no proyecta sombras. Tocás uno con el dedo: es suave, casi caliente, y deja una tintura que no desaparece. El tallo es hueco. Si aplastás uno, libera esporas que brillan en el aire unos segundos antes de apagarse.\n\nNo son hongos normales. Responden a la presencia —cuando te acercás demasiado rápido, los más cercanos se apagan un instante, como un destello de alarma.' },
-    'hongo':           { rooms: [6],  text: 'Los hongos luminiscentes emiten una luz azul-verdosa que no proyecta sombras. Tocás uno con el dedo: es suave, casi caliente, y deja una tintura que no desaparece. El tallo es hueco. Si aplastás uno, libera esporas que brillan en el aire unos segundos antes de apagarse.\n\nNo son hongos normales. Responden a la presencia —cuando te acercás demasiado rápido, los más cercanos se apagan un instante, como un destello de alarma.' },
+    'hongos':          { rooms: [6],  text: 'Los hongos luminiscentes emiten una luz azul-verdosa que no proyecta sombras. Tocás uno con el dedo: es suave, casi caliente, y deja una tintura que no desaparece. El tallo es hueco. Si aplastás uno, libera esporas que brillan en el aire unos segundos antes de apagarse.\n\nNo son hongos normales. Responden a la presencia —cuando te acercás demasiado rápido, los más cercanos se apagan un instante, como un destello de alarma.\n\n🍄 Los de tonalidad más azul, cerca del suelo, parecen maduros. ¿Se pueden recolectar? (probá "pick hongo" o "buscar")' },
+    'hongo':           { rooms: [6],  text: 'Los hongos luminiscentes emiten una luz azul-verdosa que no proyecta sombras. Tocás uno con el dedo: es suave, casi caliente, y deja una tintura que no desaparece. El tallo es hueco. Si aplastás uno, libera esporas que brillan en el aire unos segundos antes de apagarse.\n\nNo son hongos normales. Responden a la presencia —cuando te acercás demasiado rápido, los más cercanos se apagan un instante, como un destello de alarma.\n\n🍄 Los de tonalidad más azul, cerca del suelo, parecen maduros. ¿Se pueden recolectar? (probá "pick hongo" o "buscar")' },
     'luz':             { rooms: [6],  text: 'La luz de los hongos no viene de ningún punto fijo — emana de las paredes, el techo, incluso del suelo en algunos parches. No hay sombras. Eso resulta más perturbador que la oscuridad: cada objeto tiene cuatro fuentes de luz distintas y ninguna sombra. El cerebro intenta compensar y fracasa.' },
     'esporas':         { rooms: [6],  text: 'Las esporas flotan en el aire en cantidades apenas visibles, como polvo dorado. No las estás respirando conscientemente, pero ya te picaron un poco los ojos. Las paredes más viejas del túnel tienen una costra de esporas endurecidas de décadas. Si se activaran todas a la vez, el túnel entero sería tóxico en segundos.' },
     'vitrales':        { rooms: [15], text: 'Los vitrales son de un negro tan profundo que parecen absorber la luz antes de que pueda atravesarlos. Y sin embargo, hay algo al otro lado —no luz, sino una oscuridad de textura diferente, más densa, que se mueve.\n\nUno de los paneles tiene una grieta fina que recorre su diagonal. Al acercarte, notás que la grieta no está en el vidrio sino en el espacio detrás de él. No tiene explicación arquitectónica posible.' },
@@ -5063,6 +5063,15 @@ function cmdUnlock(player, direction) {
  * Uso extendido (DIS-525): "disarm <dirección>" — desactiva la trampa en sala adyacente en esa dirección.
  * El ítem se consume del inventario. La trampa queda inactiva en la BD (para todos).
  */
+
+// DIS-740: Mapa de origen de ítems de desactivación — se muestra cuando el jugador no tiene el ítem
+const TRAP_ITEM_SOURCE = {
+  'hongo azul':  'Los hongos azules crecen en el suelo del Túnel de los Hongos (esta sala). Probá "buscar" o "pick hongo" para recolectarlos.',
+  'corona rota': 'Buscá en la Sala del Trono (sala 9) — aparece en el suelo o con "buscar".',
+  'cuerda':      'Disponible en la tienda del Mercader Aldric (sala 4). También puede aparecer con "buscar".',
+  'red de pesca':'Podés encontrarla con "buscar" en la Caverna Sumergida (sala 13).',
+};
+
 function cmdDisarm(player, args) {
   player = db.getPlayer(player.id);
 
@@ -5120,7 +5129,7 @@ function cmdDisarm(player, args) {
         }
       }
       return {
-        text: `Intentás desactivar la trampa de ${adjRoom.name} (al ${dirLabel2}) desde aquí, pero no tenés lo necesario.\n🔧 Ítem requerido para ${adjRoom.name}: "${trapAdj.item_needed}"${ownTrapHint}`,
+        text: `Intentás desactivar la trampa de ${adjRoom.name} (al ${dirLabel2}) desde aquí, pero no tenés lo necesario.\n🔧 Ítem requerido para ${adjRoom.name}: "${trapAdj.item_needed}"${TRAP_ITEM_SOURCE[trapAdj.item_needed] ? `\n💡 ${TRAP_ITEM_SOURCE[trapAdj.item_needed]}` : ''}${ownTrapHint}`,
       };
     }
 
@@ -5172,7 +5181,7 @@ function cmdDisarm(player, args) {
 
   if (keyIdx === -1) {
     return {
-      text: `Intentás desactivar la trampa pero no tenés lo necesario.\n🔧 Ítem requerido: "${trap.item_needed}"`,
+      text: `Intentás desactivar la trampa pero no tenés lo necesario.\n🔧 Ítem requerido: "${trap.item_needed}"${TRAP_ITEM_SOURCE[trap.item_needed] ? `\n💡 ${TRAP_ITEM_SOURCE[trap.item_needed]}` : ''}`,
     };
   }
 
