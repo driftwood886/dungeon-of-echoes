@@ -10047,10 +10047,17 @@ function cmdUseSkill(player, args, context) {
     const newManaB = currManaB - manaCostB;
     const newCDsB = skills.applyCooldown(freshClerB, 'bendicion');
     db.updatePlayer(freshClerB.id, { mana: newManaB, skill_cooldowns: newCDsB });
+    // DIS-724: Bendición también genera un escudo absorbente de 10 HP para el Clérigo (singleplayer buff)
+    // El escudo se guarda en status_effects del Clérigo, aplicado en el daño recibido en combat.js
+    const freshClerAfterBless = db.getPlayer(freshClerB.id);
+    const seBless = parseSE(freshClerAfterBless.status_effects);
+    seBless.blessing_shield = { amount: 10, expires_at: new Date(Date.now() + buffDurB).toISOString() };
+    db.updatePlayer(freshClerB.id, { status_effects: JSON.stringify(seBless) });
     const blessMsg = blessedNames.length > 1
       ? `${blessedNames.join(', ')}`
       : (blessedNames[0] || freshClerB.username);
-    const textB = `✨ ¡BENDICIÓN! Una barrera sagrada envuelve a ${blessMsg}.\n   +${skill.def_bonus} DEF por ${skill.duration_seconds}s · -${manaCostB} maná (${newManaB}/${freshClerB.max_mana || 30})\n   (Cooldown: ${skill.cooldown_seconds}s)`;
+    const extraShieldNote = blessedNames.length <= 1 ? `\\n   🛡️ Escudo sagrado personal: absorbe 10 HP de daño (activo ${skill.duration_seconds}s)` : '';
+    const textB = `✨ ¡BENDICIÓN! Una barrera sagrada envuelve a ${blessMsg}.\\n   +${skill.def_bonus} DEF por ${skill.duration_seconds}s · -${manaCostB} maná (${newManaB}/${freshClerB.max_mana || 30})${extraShieldNote}\\n   (Cooldown: ${skill.cooldown_seconds}s)`;
     if (context && context.broadcastToRoom) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
         `✨ ${freshPlayer.username} invoca una Bendición sobre todos en la sala. (+${skill.def_bonus} DEF)`);

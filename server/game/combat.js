@@ -1040,6 +1040,21 @@ function attackRound(player, monster) {
       lines.push(`🛡️ ¡Tu escudo mágico absorbe ${Math.min(shieldAbsorb, rawDmgToPlayer)} puntos de daño! (${rawDmgToPlayer} → ${dmgToPlayer})`);
     }
 
+    // DIS-724: Escudo sagrado de Bendición — absorbe hasta 10 HP de daño adicional
+    const freshForBlessShield = db.getPlayer(player.id);
+    const seBlessShield = freshForBlessShield.status_effects ? (typeof freshForBlessShield.status_effects === 'string' ? JSON.parse(freshForBlessShield.status_effects) : freshForBlessShield.status_effects) : {};
+    const blessShield = seBlessShield.blessing_shield;
+    if (blessShield && new Date(blessShield.expires_at).getTime() > Date.now() && blessShield.amount > 0) {
+      const blessAbsorb = Math.min(blessShield.amount, dmgToPlayer);
+      if (blessAbsorb > 0) {
+        dmgToPlayer = Math.max(0, dmgToPlayer - blessAbsorb);
+        blessShield.amount -= blessAbsorb;
+        if (blessShield.amount <= 0) delete seBlessShield.blessing_shield;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(seBlessShield) });
+        lines.push(`🛡️ El escudo sagrado de Bendición absorbe ${blessAbsorb} de daño${blessShield.amount > 0 ? ` (${blessShield.amount} HP restantes)` : ' (agotado)'}!`);
+      }
+    }
+
     player.hp = Math.max(0, player.hp - dmgToPlayer);
 
     const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🩸(+${bloodmoonBonus} Luna de Sangre)` : '';
