@@ -1826,6 +1826,7 @@ function _cmdTrainingFight(player, monster) {
  */
 
 function cmdAttack(player, targetName) {
+  let _autoTargetHint = ''; // DIS-741: se llena cuando hay múltiples enemigos y se auto-selecciona
   if (!targetName || !targetName.trim()) {
     // DIS-D303: Si hay exactamente 1 monstruo en la sala, auto-apuntar a él
     const monstersInRoom = db.getMonstersInRoom(player.current_room_id);
@@ -1839,9 +1840,14 @@ function cmdAttack(player, targetName) {
       } else if (alive.length === 0) {
         return { text: '⚔️ No hay monstruos vivos aquí para atacar.' };
       } else {
-        const list = alive.map((m, i) => `(${i + 1}) ${m.name} [${m.hp}/${m.max_hp} HP]`).join('  ');
-        const exampleName = alive[0].name.replace(/^[\s\p{Emoji_Presentation}\u2B50\u2764\u26A1\u2728\u{1F300}-\u{1FFFF}]+/u, '').trim().split(' ')[0].toLowerCase() || 'elemental';
-        return { text: `⚔️ Hay ${alive.length} enemigos en la sala:\n  ${list}\nIndicá a quién atacar: attack 1 / attack ${exampleName}` };
+        // DIS-741: auto-atacar al monstruo de menor HP (o el primero si hay empate)
+        // El jugador no pierde el turno — se ataca automáticamente al objetivo más débil
+        const lowestHp = alive.reduce((prev, cur) => (cur.hp < prev.hp ? cur : prev), alive[0]);
+        targetName = lowestHp.name;
+        // Armar hint para mostrar al final del resultado
+        const exampleName = lowestHp.name.replace(/^[\s\p{Emoji_Presentation}\u2B50\u2764\u26A1\u2728\u{1F300}-\u{1FFFF}]+/u, '').trim().split(' ')[0].toLowerCase() || 'monstruo';
+        const list = alive.map((m, i) => `(${i + 1}) ${m.name}`).join(' | ');
+        _autoTargetHint = `\n💡 Auto-ataqué al objetivo más débil. Para elegir: attack 1 / attack ${exampleName} — [${list}]`;
       }
     } else {
       return { text: '⚔️ No hay monstruos aquí para atacar.' };
@@ -2487,7 +2493,7 @@ function cmdAttack(player, targetName) {
     })()
     : '';
 
-  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock;
+  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint;
 
   if (tutorialCompletionResult) {
     return {
