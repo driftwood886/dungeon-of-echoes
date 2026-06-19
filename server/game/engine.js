@@ -859,8 +859,13 @@ function cmdMove(player, direction) {
     // saltear tryFlee() completamente y dejar pasar al jugador sin daño ni tirada de huida.
     // DIS-700: Extendido para verificar TODOS los bosses en la sala, no solo el de mayor HP.
     // El jugador pasa libremente si el único boss presente está a HP lleno.
+    // DIS-745: ADEMÁS, si el boss fue dañado por OTRO jugador (sesión diferente), pero ESTE
+    // jugador nunca lo atacó en esta sala, también pasa libremente.
+    // Se verifica via flag `boss_attacked_<roomId>` en status_effects del jugador.
     const bossInRoom = aliveHere.find(m => combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[m.id]);
-    const bossAtFullHp = bossInRoom && bossInRoom.hp >= bossInRoom.max_hp;
+    const seForBossCheck = parseSE(player.status_effects);
+    const thisPlayerAttackedBoss = bossInRoom && !!seForBossCheck[`boss_attacked_${player.current_room_id}`];
+    const bossAtFullHp = bossInRoom && (bossInRoom.hp >= bossInRoom.max_hp || !thisPlayerAttackedBoss);
     if (bossAtFullHp) {
       const exits = room ? (room.exits || {}) : {};
       const exitVal = exits[direction.toLowerCase().trim()];
@@ -1977,6 +1982,17 @@ function cmdAttack(player, targetName) {
   const combatResult = combat.attackRound(player, monster);
   const { lines, monsterDead, playerDead, globalEvent } = combatResult;
 
+  // DIS-745: Si el jugador ataca a un boss, guardar flag para que la huida posterior
+  // sepa que ESTE jugador inició combate (incluso si el boss ya fue dañado por otro).
+  if (!playerDead && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]) {
+    const seForBossAtk = parseSE(db.getPlayer(player.id).status_effects);
+    if (!seForBossAtk[`boss_attacked_${player.current_room_id}`]) {
+      seForBossAtk[`boss_attacked_${player.current_room_id}`] = true;
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(seForBossAtk) });
+    }
+  }
+
+
   // ── T192: Actualizar comboMap post-ronda ────────────────────────────────────
   if (playerDead) {
     comboMap.delete(player.id); // reset al morir
@@ -2546,8 +2562,12 @@ function cmdFlee(player, targetQuery) {
 
   // BUG-705: Si hay un boss a HP lleno (no fue atacado), la huida es libre — sin daño ni tirada.
   // Mismo criterio que cmdMove (DIS-667): el boss "te deja pasar" si nunca hubo combate.
+  // DIS-745: Extendido para considerar flag personal `boss_attacked_<roomId>` del jugador.
   const bossFleeInRoom = monsters.find(m => combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[m.id]);
-  if (bossFleeInRoom && bossFleeInRoom.hp >= bossFleeInRoom.max_hp) {
+  const seForFleeBossCheck = parseSE(player.status_effects);
+  const thisPlayerAttackedBossFlee = bossFleeInRoom && !!seForFleeBossCheck[`boss_attacked_${player.current_room_id}`];
+  const bossFleeNotAttacked = bossFleeInRoom && (bossFleeInRoom.hp >= bossFleeInRoom.max_hp || !thisPlayerAttackedBossFlee);
+  if (bossFleeNotAttacked) {
     // Mover a una salida aleatoria accesible (sin llave)
     const exits = room ? (room.exits || {}) : {};
     const accessibleExits = Object.entries(exits).filter(([, v]) => {
@@ -8732,6 +8752,16 @@ function cmdCast(player, args) {
     const finalDmg = Math.max(1, Math.round(dmg * spellPower * magicResist));
     const newHp = Math.max(0, target.hp - finalDmg);
     db.updatePlayer(player.id, { mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
+
+    // DIS-745: Si el jugador lanza un hechizo sobre un boss, marcar que inició combate
+    // para que cmdMove/cmdFlee sepan que este jugador atacó al boss en esta sala.
+    if (combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]) {
+      const seForBossAtkCast = parseSE(db.getPlayer(player.id).status_effects);
+      if (!seForBossAtkCast[`boss_attacked_${player.current_room_id}`]) {
+        seForBossAtkCast[`boss_attacked_${player.current_room_id}`] = true;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(seForBossAtkCast) });
+      }
+    }
 
     lines.push(`🪄 Lanzás ${spell.icon} **${spellName}** sobre ${target.name}!`);
     const magicResistNote = hasMagicResist ? ` 🛡️ (resistencia mágica: ×${magicResist})` : '';
