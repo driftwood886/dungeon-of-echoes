@@ -209,7 +209,7 @@ const MONSTER_BASE_STATS = {
   11: { name: 'Krakeling Abismal',     max_hp: 25, attack: 7  },
   12: { name: 'Campeón Espectral',     max_hp: 70, attack: 14 }, // DIS-D423: rebalanceado
   21: { name: 'Eco Viviente',          max_hp: 55, attack: 10 }, // DIS-D423: rebalanceado
-  22: { name: 'Sombra del Vacío',      max_hp: 90, attack: 14 }, // DIS-D423: rebalanceado
+  22: { name: 'Sombra del Vacío',      max_hp: 120, attack: 14 }, // DIS-729: HP 90→120, boss secreto más desafiante
   // BUG-697: Murciélagos extra de DIS-510 — sin entrada = élite acumula HP en cada ciclo
   26: { name: 'Murciélago Vampiro',    max_hp: 12, attack: 3  }, // sala 3 (Sala de los Ecos)
   27: { name: 'Murciélago Vampiro',    max_hp: 12, attack: 3  }, // sala 6 (Túnel de Hongos)
@@ -413,6 +413,36 @@ function attackRound(player, monster) {
     }
     lines.push(`⚡ El ${monster.name} contraataca: ${rawMissReturn} de daño. (Tus HP: ${player.hp}/${player.max_hp})`);
     return { lines, monsterDead: false, playerDead: false, loot: [], poisonSurvived: false };
+  }
+
+  // DIS-729: Oscuridad Paralizante — la Sombra del Vacío tiene 25% de chance de anular el turno del jugador
+  // Este efecto hace que el combate requiera estrategia variada (no solo ataques físicos en loop)
+  if (monster.name && monster.name.includes('Sombra del Vacío') && !monsterDead) {
+    const freshForParalyze = db.getPlayer(player.id);
+    const seParalyze = freshForParalyze.status_effects ? (typeof freshForParalyze.status_effects === 'string' ? JSON.parse(freshForParalyze.status_effects) : freshForParalyze.status_effects) : {};
+    // Solo aplica si la Sombra del Vacío ya atacó al menos una vez (no en el primer turno)
+    const shadowHasActed = seParalyze.shadow_attacked || false;
+    if (shadowHasActed && Math.random() < 0.25) {
+      lines.push(`🌑 ¡La OSCURIDAD PARALIZANTE te envuelve! No podés atacar este turno.`);
+      // El monstruo sí contraataca
+      const shadowDmg = calcDamage(monster.attack);
+      const evParalyze = worldEvents.getCurrentEvent();
+      const bmBonusP = (evParalyze && evParalyze.id === 'bloodmoon') ? 2 : 0;
+      const freshBlindParalyze = freshForParalyze;
+      const blindFxP = freshBlindParalyze.status_effects ? (typeof freshBlindParalyze.status_effects === 'string' ? JSON.parse(freshBlindParalyze.status_effects) : freshBlindParalyze.status_effects) : {};
+      const blindDefP = blindFxP.blinded ? (blindFxP.blinded.amount || 0) : 0;
+      const netDmgShadow = Math.max(1, shadowDmg + bmBonusP - Math.floor((freshForParalyze.defense || 0) - blindDefP));
+      player.hp = Math.max(0, freshForParalyze.hp - netDmgShadow);
+      db.updatePlayer(player.id, { hp: player.hp });
+      lines.push(`   🌑 La Sombra del Vacío aprovecha para atacar: ${netDmgShadow} de daño. (${player.hp}/${player.max_hp} HP)`);
+      if (player.hp <= 0) {
+        const paralDeathResult = handlePlayerDeath(player.id, lines, 'Sombra del Vacío');
+        if (!paralDeathResult.autoResurrected) {
+          return { lines, monsterDead: false, playerDead: true, loot: [], poisonSurvived: false };
+        }
+      }
+      return { lines, monsterDead: false, playerDead: false, loot: [], poisonSurvived: false };
+    }
   }
 
   const playerDmg = calcDamage(effectiveAtk);
@@ -908,6 +938,16 @@ function attackRound(player, monster) {
     lines.push(`🥷 El ${monster.name} está aturdido por la sorpresa — no puede responder este turno.`);
     db.updatePlayer(player.id, { hp: player.hp });
     return { lines, monsterDead, playerDead, loot, poisonSurvived };
+  }
+
+  // DIS-729: marcar que la Sombra del Vacío ya actuó (para habilitar Oscuridad Paralizante desde el 2do turno)
+  if (!monsterDead && monster.name && monster.name.includes('Sombra del Vacío')) {
+    const freshShadowP = db.getPlayer(player.id);
+    const seShadow = freshShadowP.status_effects ? (typeof freshShadowP.status_effects === 'string' ? JSON.parse(freshShadowP.status_effects) : freshShadowP.status_effects) : {};
+    if (!seShadow.shadow_attacked) {
+      seShadow.shadow_attacked = true;
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(seShadow) });
+    }
   }
 
   // DIS-720: Ataque de apertura inevitable del Guardia Espectral

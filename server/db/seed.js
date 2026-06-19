@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1600,5 +1600,15 @@ function migrateBatStatsReset() {
       db.updateMonster(id, { name: BASE.name, max_hp: BASE.max_hp, hp: newHp > 0 ? newHp : BASE.max_hp, attack: BASE.attack });
       console.log(`[seed] migrateBatStatsReset: BUG-697 — Murciélago Vampiro id ${id} reseteado (era max_hp=${m.max_hp} atk=${m.attack}) ✓`);
     }
+  }
+}
+
+// DIS-729: Sombra del Vacío HP 90→120 — el boss secreto debe ser más desafiante que el Lich
+function migrateSombraVacioHP() {
+  const sombra = db.getMonster(22);
+  if (sombra && sombra.max_hp < 120) {
+    const newHp = Math.min(sombra.hp, 120);
+    db.updateMonster(22, { max_hp: 120, hp: newHp });
+    console.log(`[seed] migrateSombraVacioHP: DIS-729 — Sombra del Vacío HP ${sombra.max_hp}→120 ✓`);
   }
 }
