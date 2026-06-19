@@ -1161,6 +1161,15 @@ function cmdMove(player, direction) {
     ? `\n\n✨ ${CINEMATIC_EVENTS[targetId]}`
     : '';
 
+  // DIS-719: Si el jugador visita sala 9 (Trono) por primera vez, agregar advertencia del Gólem al este
+  let golemWarningMsg = '';
+  if (firstVisitEver && targetId === 9) {
+    const golem = db.getMonstersInRoom(10).find(m => m.hp > 0);
+    if (golem) {
+      golemWarningMsg = '\n\n⚠️ Al este — el Gólem de Piedra aguarda en el Santuario Profano (jefe, nivel 5+). El combate no admite escape fácil.';
+    }
+  }
+
   // T165: Badge de primera visita permanente — fusionado en explorationMsg para evitar duplicar texto
   const firstVisitMsg = '';
 
@@ -1248,7 +1257,7 @@ function cmdMove(player, direction) {
   }
 
   return {
-    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}${leftEpicMsg}`,
+    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}${leftEpicMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -1367,13 +1376,20 @@ function cmdJunk(player) {
       keepItems.push({ item, reason: 'equipable' });
       continue;
     }
+    // DIS-718: ítems raros/épicos/legendarios → conservar (tienen valor o uso especial)
+    const rarity = items.getItemRarity(item);
+    if (rarity === 'raro' || rarity === 'épico' || rarity === 'legendario') {
+      keepItems.push({ item, reason: 'raro/épico' });
+      continue;
+    }
     // Ingrediente de alguna receta → conservar
     if (recipeIngredients.has(itemLower)) {
       keepItems.push({ item, reason: 'receta' });
       continue;
     }
-    // Consumibles (pociones, pergaminos, etc.) → conservar
-    if (def && (def.type === 'consumable' || def.type === 'potion' || def.type === 'scroll' || def.type === 'key')) {
+    // Consumibles (pociones, pergaminos, buffs, etc.) → conservar
+    if (def && (def.type === 'consumable' || def.type === 'potion' || def.type === 'mana_potion' ||
+                def.type === 'atk_potion' || def.type === 'scroll' || def.type === 'key')) {
       keepItems.push({ item, reason: 'consumible' });
       continue;
     }

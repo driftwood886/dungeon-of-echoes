@@ -889,6 +889,34 @@ function attackRound(player, monster) {
     return { lines, monsterDead, playerDead, loot, poisonSurvived };
   }
 
+  // DIS-720: Ataque de apertura inevitable del Guardia Espectral
+  // En el primer contraataque (flag guardian_opening_done aún no seteado), el Guardia
+  // aplica un golpe espectral fijo de 8 HP que no puede esquivarse — establece amenaza
+  // independientemente del RNG del entumecimiento.
+  if (!monsterDead && monster.name === 'Guardia Espectral') {
+    const guardFx = monster.status_effects
+      ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects)
+      : {};
+    if (!guardFx.guardian_opening_done) {
+      // Primer contraataque — golpe espectral inevitable
+      const openingDmg = Math.max(0, 8 - Math.floor((player.defense || 0) * 0.5));
+      player.hp = Math.max(0, player.hp - openingDmg);
+      lines.push(`👻 ¡El Guardia Espectral lanza un GOLPE ESPECTRAL de apertura! ${openingDmg} de daño (inevitable). (${player.hp}/${player.max_hp} HP)`);
+      guardFx.guardian_opening_done = true;
+      monster.status_effects = guardFx;
+      db.updateMonster(monster.id, { status_effects: JSON.stringify(guardFx) });
+      db.updatePlayer(player.id, { hp: player.hp });
+      if (player.hp <= 0) {
+        playerDead = true;
+        lines.push(`💀 ¡El golpe espectral te derribó! Respawneás en la entrada con 25% HP...`);
+        db.addJournalEntry(player.id, 'death', `💀 Muerto por el golpe espectral de apertura del Guardia Espectral.`);
+        const hcR = handlePlayerDeath(player.id, lines, 'Guardia Espectral');
+        return { lines, monsterDead, playerDead, loot, poisonSurvived, ...(hcR.globalEvent ? { globalEvent: hcR.globalEvent } : {}) };
+      }
+    }
+  }
+
+
   const monsterDmg = calcDamage(monster.attack);
   // Bonus daño si hay evento luna de sangre o clima lluvia de esporas (T166)
   const activeEvMon = worldEvents.getCurrentEvent();
