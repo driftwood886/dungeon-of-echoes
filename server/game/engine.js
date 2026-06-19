@@ -1369,6 +1369,13 @@ function cmdStatus(player) {
     statusLines.push(`🌑 CEGADO — ${statusFx.blinded.turns} turno(s) restante(s) (-${statusFx.blinded.amount} DEF efectiva).`);
   }
 
+  // DIS-710: mostrar debuff de sala activo en status
+  const roomEffectStatus = ROOM_EFFECTS[player.current_room_id];
+  if (roomEffectStatus && roomEffectStatus.type === 'debuff') {
+    const statLabel = roomEffectStatus.stat === 'attack' ? 'ATK' : roomEffectStatus.stat === 'defense' ? 'DEF' : roomEffectStatus.stat;
+    statusLines.push(`${roomEffectStatus.label} — mientras estés en esta sala: ${roomEffectStatus.amount} ${statLabel} efectivo.`);
+  }
+
   // T153: Buffs de pergaminos activos
   const scrollsFx = JSON.parse(player.active_scrolls || '{}');
   const now = Date.now();
@@ -1446,6 +1453,7 @@ function cmdStatus(player) {
     })(),
     (() => {
       // BUG-011: mostrar ATK efectivo con todos los buffs activos
+      // DIS-710: incluir debuff de sala activo en el cálculo visible
       const scrollsStatus = JSON.parse(player.active_scrolls || '{}');
       const nowStatus = Date.now();
       const STANCE_ATK = { agresivo: +2, defensivo: -1, equilibrado: 0 };
@@ -1455,7 +1463,11 @@ function cmdStatus(player) {
       }
       const stanceAtkMod = STANCE_ATK[player.stance || 'equilibrado'] || 0;
       const petAtk = player.pet ? 1 : 0;
-      const totalBonus = atkBuffTotal + stanceAtkMod + petAtk;
+      // DIS-710: room effect penalty (ej: Ecos Enloquecedores sala 19 = -1 ATK)
+      const roomEffStatus = ROOM_EFFECTS[player.current_room_id];
+      const roomAtkMod = (roomEffStatus && roomEffStatus.type === 'debuff' && roomEffStatus.stat === 'attack')
+        ? roomEffStatus.amount : 0;
+      const totalBonus = atkBuffTotal + stanceAtkMod + petAtk + roomAtkMod;
       const effectiveAtk = player.attack + totalBonus;
       if (totalBonus !== 0) {
         const bonusParts = [];
@@ -1463,6 +1475,7 @@ function cmdStatus(player) {
         if (atkBuffTotal > 0) bonusParts.push(`+${atkBuffTotal} 📜buff`);
         if (stanceAtkMod > 0) bonusParts.push(`+${stanceAtkMod} postura`);
         else if (stanceAtkMod < 0) bonusParts.push(`${stanceAtkMod} postura`);
+        if (roomAtkMod !== 0) bonusParts.push(`${roomAtkMod} sala actual`);
         return `Ataque:   ${player.attack} (${bonusParts.join(', ')} = ${effectiveAtk} efectivo)`;
       }
       return `Ataque:   ${player.attack}`;
