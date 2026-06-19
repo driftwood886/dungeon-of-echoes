@@ -592,15 +592,19 @@ function handleTutorialCommand(player, action, step) {
 function completeTutorial(player) {
   const xp = (player.xp || 0) + 10;
   const level = xpSystem.levelFromXp(xp);
-  db.updatePlayer(player.id, {
+  // DIS-713: el tiempo de ciclo debe medirse desde que el jugador sale del tutorial.
+  // DIS-728: solo setear cycle_start_at si aún no tiene valor (no sobreescribir ciclo en progreso)
+  const existingCycleStart = player.cycle_start_at || null;
+  const updateData = {
     tutorial_step: 0,
     current_room_id: 1,
     xp,
     level,
-    // DIS-713: el tiempo de ciclo debe medirse desde que el jugador sale del tutorial,
-    // no desde el primer kill. Reseteamos cycle_start_at aquí.
-    cycle_start_at: new Date().toISOString(),
-  });
+  };
+  if (!existingCycleStart) {
+    updateData.cycle_start_at = new Date().toISOString();
+  }
+  db.updatePlayer(player.id, updateData);
   // BUG-019: limpiar el suelo de la sala 16 para no acumular loot entre sesiones
   try { db.updateRoomItems(16, []); } catch (e) { /* silencioso */ }
   // DIS-D278: Leer estado fresco del jugador para saber si ya tiene clase asignada
@@ -1043,14 +1047,19 @@ function cmdMove(player, direction) {
       if (newHp === 0) {
         // BUG-006 fix: usar handlePlayerDeath para registrar deaths correctamente
         const trapDeathLines = [];
-        combat.handlePlayerDeath(player.id, trapDeathLines, `trampa en sala ${targetId}`);
-        // Restaurar HP completo si no está en hardcore (handlePlayerDeath ya maneja el respawn)
-        const afterDeath = db.getPlayer(player.id);
-        if (afterDeath && afterDeath.fallen !== 1 && afterDeath.current_room_id !== 1) {
-          db.updatePlayer(player.id, { hp: afterDeath.max_hp || 30, current_room_id: 1 });
+        const trapDeathResult = combat.handlePlayerDeath(player.id, trapDeathLines, `trampa en sala ${targetId}`);
+        if (trapDeathResult.autoResurrected) {
+          // DIS-726: Clérigo nivel 10 sobrevivió por autoresurrección
+          if (trapDeathLines.length > 0) trapText += '\n' + trapDeathLines.join('\n');
+        } else {
+          // Restaurar HP completo si no está en hardcore (handlePlayerDeath ya maneja el respawn)
+          const afterDeath = db.getPlayer(player.id);
+          if (afterDeath && afterDeath.fallen !== 1 && afterDeath.current_room_id !== 1) {
+            db.updatePlayer(player.id, { hp: afterDeath.max_hp || 30, current_room_id: 1 });
+          }
+          trapText += '\n☠️  Has muerto a causa de la trampa. Renacés en la Entrada.';
+          if (trapDeathLines.length > 0) trapText += '\n' + trapDeathLines.join('\n');
         }
-        trapText += '\n☠️  Has muerto a causa de la trampa. Renacés en la Entrada.';
-        if (trapDeathLines.length > 0) trapText += '\n' + trapDeathLines.join('\n');
       }
       // (el hint específico ya se agregó en trapText arriba — no agregar el genérico)
     }
@@ -1240,18 +1249,27 @@ function cmdMove(player, direction) {
 
   // DIS-639: Advertencia si el jugador deja ítems épicos/raros en el suelo de la sala de origen
   // BUG-645 fix: usar _originRoomId (capturado antes del updatePlayer) para verificar sala correcta
+  // BUG-727 fix: solo avisar UNA VEZ por sala — guardar epic_warn_room en status_effects para no repetir
   let leftEpicMsg = '';
   {
-    const prevRoomItems = db.getRoom(_originRoomId);
-    if (prevRoomItems) {
-      const floorItems = Array.isArray(prevRoomItems.items) ? prevRoomItems.items : [];
-      const epicLeft = floorItems.filter(i => {
-        const r = items.getItemRarity(i);
-        return r === 'épico' || r === 'legendario';
-      });
-      if (epicLeft.length > 0) {
-        const names = epicLeft.join(', ');
-        leftEpicMsg = `\n\n⚠️ **Dejaste ítems épicos en ${prevRoomItems.name}:** ${names}. ¡No los olvides!`;
+    const freshForEpic = db.getPlayer(player.id) || player;
+    const seForEpic = parseSE(freshForEpic);
+    const alreadyWarnedRoom = seForEpic.epic_warn_room;
+    if (alreadyWarnedRoom !== _originRoomId) {
+      const prevRoomItems = db.getRoom(_originRoomId);
+      if (prevRoomItems) {
+        const floorItems = Array.isArray(prevRoomItems.items) ? prevRoomItems.items : [];
+        const epicLeft = floorItems.filter(i => {
+          const r = items.getItemRarity(i);
+          return r === 'épico' || r === 'legendario';
+        });
+        if (epicLeft.length > 0) {
+          const names = epicLeft.join(', ');
+          leftEpicMsg = `\n\n⚠️ **Dejaste ítems épicos en ${prevRoomItems.name}:** ${names}. ¡No los olvides!`;
+          // Marcar que ya avisamos de esta sala para no repetir en movimientos posteriores
+          seForEpic.epic_warn_room = _originRoomId;
+          db.updatePlayer(freshForEpic.id, { status_effects: JSON.stringify(seForEpic) });
+        }
       }
     }
   }
@@ -9015,6 +9033,15 @@ function cmdSpells(player) {
     lines.push(`✨ Como Clérigo, también tenés:`);
     lines.push(`  • \`heal\` (22 HP, 8 maná) — más potente que cast curación gracias a tu heal_power ×1.5`);
     lines.push(`  • \`sanacion_mayor\` (Lv3, 45 HP, 12 maná, CD 60s) — tu habilidad de curación masiva`);
+    // DIS-726: mostrar estado de autoresurrección si es nivel 10
+    if ((player.level || 1) >= 10) {
+      const seResurSpells = parseSE(player.status_effects);
+      if (seResurSpells.autoresurreccion_used) {
+        lines.push(`  • ⚡ AUTORESURRECCIÓN — Ya usada esta sesión (se renueva al morir y respawnear)`);
+      } else {
+        lines.push(`  • ⚡ AUTORESURRECCIÓN — ✅ Disponible (Lv10 pasivo: si morís, sobrevivís con 50% HP — solo 1 vez por sesión)`);
+      }
+    }
   }
 
   return { text: lines.join('\n') };

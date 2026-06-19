@@ -33,6 +33,27 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
   const freshP = db.getPlayer(playerId);
   if (!freshP) return {};
   const deaths = (freshP.deaths || 0) + 1;
+
+  // DIS-726: Autoresurrección del Clérigo nivel 10 (singleplayer fallback)
+  // Si el Clérigo tiene resurreccion desbloqueada y no la usó esta sesión, se salva de la muerte
+  if (!freshP.is_hardcore && freshP.player_class === 'clerigo' && (freshP.level || 1) >= 10) {
+    const prevSeAuto = freshP.status_effects ? (typeof freshP.status_effects === 'string' ? JSON.parse(freshP.status_effects) : freshP.status_effects) : {};
+    if (!prevSeAuto.resurreccion_used && !prevSeAuto.autoresurreccion_used) {
+      // Activar autoresurrección — revivir con 50% HP, marcar como usada
+      const reviveHp = Math.max(10, Math.floor((freshP.max_hp || 32) * 0.5));
+      prevSeAuto.autoresurreccion_used = true;
+      db.updatePlayer(playerId, {
+        hp: reviveHp,
+        status_effects: JSON.stringify(prevSeAuto),
+      });
+      lines.push(`✨ ¡AUTORESURRECCIÓN! En el momento más oscuro, tu fe te sostiene.`);
+      lines.push(`  Canalizás todo tu poder divino para resistir la muerte.`);
+      lines.push(`  Resuicás con ${reviveHp}/${freshP.max_hp} HP. (Solo ocurre una vez por sesión.)`);
+      db.addJournalEntry(playerId, 'special', `✨ La fe del Clérigo venció a la muerte en ${causeDescription}. Autoresurrección activada.`);
+      return { autoResurrected: true };
+    }
+  }
+
   if (freshP.is_hardcore === 1 && freshP.fallen !== 1) {
     // MUERTE HARDCORE — marcar como fallen
     const gen = freshP.hardcore_generation || 1;
@@ -1101,11 +1122,17 @@ function attackRound(player, monster) {
   }
 
   if (player.hp <= 0) {
-    playerDead = true;
-    lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon con 25% HP...`);
-    db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name}.`);
+    // DIS-726: antes de decretar muerte, verificar autoresurrección del Clérigo nivel 10
     const hcResult2 = handlePlayerDeath(player.id, lines, `combate con ${monster.name}`);
-    if (hcResult2.globalEvent) globalEventHardcore = hcResult2.globalEvent;
+    if (hcResult2.autoResurrected) {
+      // El Clérigo sobrevivió — no marcar playerDead, no pushear mensaje de muerte normal
+      // handlePlayerDeath ya pusheó los mensajes de autoresurrección en lines
+    } else {
+      playerDead = true;
+      lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon con 25% HP...`);
+      db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name}.`);
+      if (hcResult2.globalEvent) globalEventHardcore = hcResult2.globalEvent;
+    }
   }
 
   // ── Huida del monstruo (< 10% HP) ────────────────────────────────────────
