@@ -133,7 +133,7 @@ const TITLES = [
 
 // ── Posturas de combate (T161) ────────────────────────────────────────────────
 const STANCES = {
-  agresivo:    { icon: '⚔️',  atkMod: +2, defMod: -1, extraMiss: 0.05, desc: 'Atacás más fuerte pero quedás más expuesto. +2 ATK / -1 DEF / 5% más chance de fallar. (Pícaro: -5% crit — golpes salvajes)' },
+  agresivo:    { icon: '⚔️',  atkMod: +2, defMod: -1, extraMiss: 0.05, desc: 'Atacás más fuerte pero quedás más expuesto. +2 ATK / -1 DEF / 5% más chance de fallar. (Pícaro: -2% crit — tradeoff mínimo, +2 ATK casi siempre compensa)' },
   defensivo:   { icon: '🛡️',  atkMod: -1, defMod: +2, extraMiss: 0,    desc: 'Priorizás la defensa. -1 ATK / +2 DEF.' },
   equilibrado: { icon: '⚖️',  atkMod:  0, defMod:  0, extraMiss: 0,    desc: 'Postura estándar, sin modificadores.' },
 };
@@ -1630,7 +1630,8 @@ function cmdStatus(player) {
       const glovesCritBonus = (equippedWpnStatus && equippedWpnStatus.rogue_only_crit_bonus)
         ? equippedWpnStatus.rogue_only_crit_bonus / 100 : 0;
       // DIS-619: penalización de crit en postura agresiva
-      const critPenalty = stanceName === 'agresivo' ? -0.05 : 0;
+      // DIS-715: reducido de -5% a -2%
+      const critPenalty = stanceName === 'agresivo' ? -0.02 : 0;
       const effectiveCrit = Math.round((baseCrit + glovesCritBonus + critPenalty) * 100);
       const baseDodgePct = Math.round((0.08 + (clsStatus.dodge_bonus || 0) / 100) * 100);
       // DIS-712: mostrar reducción de esquiva vs bosses avanzados
@@ -11943,8 +11944,18 @@ function cmdStance(player, args) {
   db.updatePlayer(player.id, { stance: target });
 
   const s = STANCES[target];
+  const cls = player.player_class || player.class || 'sin_clase';
+  // DIS-715: Para Pícaro en postura agresiva, mostrar el tradeoff de crit de forma explícita
+  let stanceDesc = s.desc;
+  if (target === 'agresivo' && cls === 'picaro') {
+    const equippedWpn = player.equipped_weapon ? items.getItemDef(player.equipped_weapon) : null;
+    const glovesCrit = (equippedWpn && equippedWpn.rogue_only_crit_bonus) ? equippedWpn.rogue_only_crit_bonus : 0;
+    const baseCrit = 25 + glovesCrit; // crit en equilibrado
+    const agresivoCrit = baseCrit - 2; // DIS-715: penalidad de -2%
+    stanceDesc += `\n\n💡 Con tus stats actuales: crit ${baseCrit}% → ${agresivoCrit}% en agresivo. El +2 ATK fijo generalmente supera perder 2% de crit.`;
+  }
   return {
-    text: `${s.icon} Adoptás la postura **${target}**.\n${s.desc}`,
+    text: `${s.icon} Adoptás la postura **${target}**.\n${stanceDesc}`,
     event: 'stance_change',
   };
 }
