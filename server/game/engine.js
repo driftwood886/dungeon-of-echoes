@@ -1629,13 +1629,19 @@ function cmdStatus(player) {
       // DIS-619: penalización de crit en postura agresiva
       const critPenalty = stanceName === 'agresivo' ? -0.05 : 0;
       const effectiveCrit = Math.round((baseCrit + glovesCritBonus + critPenalty) * 100);
-      const dodgePct = Math.round((0.08 + (clsStatus.dodge_bonus || 0) / 100) * 100);
+      const baseDodgePct = Math.round((0.08 + (clsStatus.dodge_bonus || 0) / 100) * 100);
+      // DIS-712: mostrar reducción de esquiva vs bosses avanzados
+      const INEV_BOSS_IDS = new Set([12, 13, 21, 22]);
+      const roomMonsters = db.getMonstersInRoom ? db.getMonstersInRoom(player.current_room_id) : [];
+      const hasInevBoss = roomMonsters && roomMonsters.some(m => INEV_BOSS_IDS.has(m.id) && m.room_id !== null);
+      const dodgePct = hasInevBoss ? Math.round(baseDodgePct * 0.5) : baseDodgePct;
+      const dodgeNote = hasInevBoss ? ` (⚠️ ↓ boss avanzado)` : '';
       const critNote = stanceName === 'agresivo' ? ' (↓ postura agresiva)' : '';
       // DIS-620: mostrar sigilo activo si corresponde
       const seSt = parseSE(player.status_effects);
       const stealthOn = seSt.stealth_active && new Date(seSt.stealth_active).getTime() > Date.now();
       const stealthNote = stealthOn ? ` | 🥷 SIGILO ACTIVO (${Math.ceil((new Date(seSt.stealth_active).getTime() - Date.now()) / 1000)}s)` : '';
-      return `Especial: 💨 Esquiva: ${dodgePct}% | ⚡ Crítico: ${effectiveCrit}%${critNote}${stealthNote}`;
+      return `Especial: 💨 Esquiva: ${dodgePct}%${dodgeNote} | ⚡ Crítico: ${effectiveCrit}%${critNote}${stealthNote}`;
     })(),
     ...(statusLines.length ? ['', ...statusLines] : []),
   ].filter(l => l !== null).join('\n');
@@ -1691,7 +1697,12 @@ function _cmdTrainingFight(player, monster) {
   const classes = require('./classes');
   const clsData = classes.getPlayerClass(player);
   const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0);
-  const dodgeChance = 0.08 + (clsData ? (clsData.dodge_bonus || 0) / 100 : 0);
+  // DIS-712: bosses avanzados reducen esquiva del Pícaro al 50% (ataques inevitables)
+  const INEVITABLE_ATTACK_BOSSES_ATK = new Set([12, 13, 21, 22]);
+  const baseRogueDodgeAtk = 0.08 + (clsData ? (clsData.dodge_bonus || 0) / 100 : 0);
+  const dodgeChance = (clsData && clsData.name === 'Pícaro' && INEVITABLE_ATTACK_BOSSES_ATK.has(monster.id))
+    ? baseRogueDodgeAtk * 0.5
+    : baseRogueDodgeAtk;
 
   let MAX_TURNS = 50; // seguridad
   while (monsterHp > 0 && playerHp > 4 && MAX_TURNS-- > 0) {

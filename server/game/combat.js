@@ -897,7 +897,17 @@ function attackRound(player, monster) {
   // T101: 8% de esquiva — el jugador evita el daño por completo
   // T107: Pícaro tiene +12% de esquiva extra
   // DIS-616: Si evasion_ready está activo → esquiva garantizada
-  const dodgeChance = 0.08 + (clsData ? (clsData.dodge_bonus || 0) / 100 : 0);
+  // DIS-712: Bosses avanzados (Campeón Espectral, Eco Viviente, Lich, Sombra) tienen ataques inevitables
+  //          que reducen la esquiva del Pícaro al 50% (20%→10%) para crear incentivo de armadura
+  const INEVITABLE_ATTACK_BOSSES = new Set([12, 13, 21, 22]); // Campeón, Lich, Eco Viviente, Sombra
+  const baseRogueDodge = 0.08 + (clsData ? (clsData.dodge_bonus || 0) / 100 : 0);
+  let dodgeChance;
+  if (clsData && clsData.name === 'Pícaro' && INEVITABLE_ATTACK_BOSSES.has(monster.id)) {
+    // Boss avanzado: reducir esquiva del Pícaro al 50%
+    dodgeChance = baseRogueDodge * 0.5;
+  } else {
+    dodgeChance = baseRogueDodge;
+  }
   const freshForEvasionCheck = db.getPlayer(player.id);
   const seForEvasion = freshForEvasionCheck.status_effects ? (typeof freshForEvasionCheck.status_effects === 'string' ? JSON.parse(freshForEvasionCheck.status_effects) : freshForEvasionCheck.status_effects) : {};
   let isEvasion = Math.random() < dodgeChance;
