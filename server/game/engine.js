@@ -597,6 +597,9 @@ function completeTutorial(player) {
     current_room_id: 1,
     xp,
     level,
+    // DIS-713: el tiempo de ciclo debe medirse desde que el jugador sale del tutorial,
+    // no desde el primer kill. Reseteamos cycle_start_at aquí.
+    cycle_start_at: new Date().toISOString(),
   });
   // BUG-019: limpiar el suelo de la sala 16 para no acumular loot entre sesiones
   try { db.updateRoomItems(16, []); } catch (e) { /* silencioso */ }
