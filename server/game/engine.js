@@ -9032,6 +9032,18 @@ function cmdSpells(player) {
     lines.push(``);
     lines.push(`✨ Como Clérigo, también tenés:`);
     lines.push(`  • \`heal\` (22 HP, 8 maná) — más potente que cast curación gracias a tu heal_power ×1.5`);
+    // DIS-725: mostrar cooldown del heal de emergencia
+    const seHealEmerg = parseSE(player.status_effects);
+    const emergCdSpells = seHealEmerg.emergency_heal_cd;
+    if (emergCdSpells && new Date(emergCdSpells).getTime() > Date.now()) {
+      const secsLeftEmerg = Math.ceil((new Date(emergCdSpells).getTime() - Date.now()) / 1000);
+      const minsLeft = Math.floor(secsLeftEmerg / 60);
+      const sLeft = secsLeftEmerg % 60;
+      const cdStr = minsLeft > 0 ? `${minsLeft}m ${sLeft}s` : `${sLeft}s`;
+      lines.push(`  • \`heal\` emergencia (sin maná) — ⏳ en cooldown: ${cdStr} restantes`);
+    } else {
+      lines.push(`  • \`heal\` emergencia (sin maná, −8 HP propio) — ✅ disponible si falta maná`);
+    }
     lines.push(`  • \`sanacion_mayor\` (Lv3, 45 HP, 12 maná, CD 60s) — tu habilidad de curación masiva`);
     // DIS-726: mostrar estado de autoresurrección si es nivel 10
     if ((player.level || 1) >= 10) {
