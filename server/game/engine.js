@@ -838,8 +838,18 @@ function cmdMove(player, direction) {
         const destName = destRoom ? destRoom.name : 'sala desconocida';
         // BUG-608: el texto anterior decía "¡Huís del combate!" aunque no hubiera combate activo.
         // Cambiamos el mensaje cuando no hay boss: texto neutro de movimiento.
+        // DIS-739: El mensaje sobre "los monstruos no te detienen" solo se muestra una vez por sesión
+        // para evitar spam visual en cada movimiento cuando hay monstruos vivos en la sala.
+        const seForMoveHint = parseSE(player.status_effects);
+        const alreadyShownMoveHint = !!seForMoveHint.shown_monster_move_hint;
+        let moveHintText = '';
+        if (!alreadyShownMoveHint) {
+          moveHintText = '\n(Los monstruos de esta sala no te detienen — pero si los atacás, necesitarás `flee` para escapar.)';
+          const newSe = { ...seForMoveHint, shown_monster_move_hint: true };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe) });
+        }
         return {
-          text: `🚶 Te movés a «${destName}».\n(Los monstruos de esta sala no te detienen — pero si los atacás, necesitarás \`flee\` para escapar.)`,
+          text: `🚶 Te movés a «${destName}».${moveHintText}`,
           event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
