@@ -4909,10 +4909,19 @@ function cmdMap(player) {
     `  |         ${c(8)}`,
     `  |         |`,
     `${c(7)}---${c(3)}---${c(4)}---${c(17)}`,
-    // DIS-597: hint de llave solo si el jugador ya visitó sala 9 (Trono) o sala 7 (Pozo) — sala 4 aparece demasiado pronto
-    visitedRooms.has(9) || visitedRooms.has(7)
-      ? `  |🔑(bloqueado — ruta libre: Capilla→Túnel→Trono→Santuario)`
-      : `  |🔑(bloqueado)`,
+    // BUG-721: verificar si la puerta norte de sala 7 está desbloqueada
+    (() => {
+      const room7 = db.getRoom(7);
+      const northExit7 = room7 && room7.exits ? room7.exits['north'] : undefined;
+      const isPuertaAbierta = northExit7 !== undefined && northExit7 !== null && typeof northExit7 !== 'object';
+      if (isPuertaAbierta) {
+        return `  |🔓(abierta)`;
+      }
+      // DIS-597: hint de llave solo si el jugador ya visitó sala 9 (Trono) o sala 7 (Pozo)
+      return visitedRooms.has(9) || visitedRooms.has(7)
+        ? `  |🔑(bloqueado — ruta libre: Capilla→Túnel→Trono→Santuario)`
+        : `  |🔑(bloqueado)`;
+    })(),
     `${c(10)}---${c(9)}---${c(6)}---${c(2)}`,
     `  |              |         |`,
     `${c(11)}    ${c(5)}---${c(1)}`,
