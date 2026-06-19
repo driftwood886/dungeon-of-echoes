@@ -412,6 +412,39 @@ function execute(playerId, input, context) {
     case 'help':
       if (action.args && action.args.length > 0) {
         const cmdKey = action.args[0].toLowerCase();
+        // DIS-746: Soporte para "help basico" / "help basic" / "ayuda rapida"
+        if (['basico', 'básico', 'basic', 'basica', 'básica', 'rapida', 'rápida', 'quick', 'esencial', 'esenciales', 'inicio', 'start', 'starter'].includes(cmdKey)) {
+          result = {
+            text: `═══════════════════════════════════════
+🗺️  COMANDOS ESENCIALES — Dungeon of Echoes
+═══════════════════════════════════════
+Comandos que necesitás para jugar:
+
+  look / mirar     — Ver la sala actual y sus salidas
+  north/south/east/west — Moverse entre salas
+  attack <monstruo> — Atacar a un monstruo
+  flee             — Huir del combate
+  status           — Ver tu HP, ataque, defensa y clase
+  inv / inventario — Ver tu mochila
+  pick <ítem>      — Recoger un ítem del suelo (pick todo = todo)
+  use <ítem>       — Usar un ítem del inventario
+  equip <arma>     — Equipar arma o armadura
+  map / mapa       — Mapa del dungeon (salas visitadas)
+  tienda           — Comprar/vender en el Mercader (sala 4)
+  recetas          — Ver recetas de crafteo disponibles
+
+Comandos útiles en combate:
+  cast <hechizo>   — Lanzar hechizo (Mago/Clérigo)
+  skills / habilidades — Ver habilidades desbloqueadas
+  heal             — Curación rápida (Clérigo)
+
+Para más detalle: help <comando>  (ej: help attack)
+Para ayuda de clase: guide
+Para todos los comandos: help
+═══════════════════════════════════════`,
+          };
+          break;
+        }
         // Buscar el comando canónico
         const COMMAND_ALIASES_MAP = {
           look: 'look', mirar: 'look', ver: 'look', l: 'look',

@@ -380,6 +380,11 @@ function parse(input) {
       // DIS-525: "desactivar trampa <dir>" → disarm con dirección
       'desactivar trampa': { cmd: 'disarm', skillId: null },
       'desarmar trampa':   { cmd: 'disarm', skillId: null },
+      // DIS-746: "ayuda rapida" / "help basico" → help básico
+      'ayuda rapida':    { cmd: 'help', skillId: null },
+      'ayuda rápida':    { cmd: 'help', skillId: null },
+      'help basico':     { cmd: 'help', skillId: null },
+      'help básico':     { cmd: 'help', skillId: null },
     };
     const mwMatch = MULTI_WORD_ALIASES[twoWord];
     if (mwMatch) {
@@ -467,6 +472,7 @@ Comandos disponibles:
   say <mensaje>         — Hablar con jugadores en la misma habitación
   shout <mensaje>       — Gritar a todo el dungeon
   help / ayuda          — Esta ayuda
+  help basico           — Solo los comandos esenciales (para nuevos jugadores)
   whisper <jug> <msg>   — Mensaje privado a otro jugador (en cualquier sala)
   tell <jug> <msg>      — Mensaje privado con aviso offline (llega aunque no esté conectado)
   reply <msg>           — Contestar el último whisper/tell recibido (sin escribir el nombre)
