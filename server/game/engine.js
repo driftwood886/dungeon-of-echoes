@@ -7827,11 +7827,15 @@ function cmdChapelBowl(player) {
   const newHp = Math.min(player.max_hp, player.hp + healAmount);
   const restored = newHp - player.hp;
 
-  // BUG-264: si el jugador recibiría menos del 50% del potencial del cuenco,
+  // BUG-264: si el jugador recibiría menos del 25% del potencial del cuenco,
   // no consumir el cooldown — el cuenco no "se vacía" por una herida mínima.
-  if (restored < Math.ceil(healAmount * 0.5)) {
+  // BUG-732: threshold bajado de 50% a 25% (era demasiado restrictivo — bloqueaba
+  // curar 4 HP cuando faltaban 4/40 HP, lo cual es válido para el jugador).
+  // También: se muestra el HP actual real de la BD para evitar confusión si
+  // el jugador tiene datos de status desactualizados (ej: post-levelup).
+  if (restored < Math.ceil(healAmount * 0.25)) {
     return {
-      text: `🙏 Te inclinás sobre el cuenco, pero el agua apenas pulsa.\nEl cuenco te daría solo +${restored} HP (de los ${healAmount} que puede dar). No lo desperdicies con tan poca herida.\n💡 Volvé cuando estés más herido. El cooldown no se consumió.`,
+      text: `🙏 Te inclinás sobre el cuenco, pero el agua apenas pulsa.\nEl cuenco te daría solo +${restored} HP (de los ${healAmount} disponibles). Tu HP actual: ${player.hp}/${player.max_hp}.\nNo lo desperdicies con tan poca herida.\n💡 Volvé cuando estés más herido. El cooldown no se consumió.`,
     };
   }
 
