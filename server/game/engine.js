@@ -5214,8 +5214,15 @@ function cmdDisarm(player, args) {
   const newTrap = { ...trap, active: false, respawn_at: respawnAt };
   db.updateRoomTrap(room.id, newTrap);
 
+  // DIS-744: Si es la sala 9 (Sala del Trono), aclarar que el Frío sobrenatural es permanente
+  // — es un atributo ambiental de la sala, independiente de la trampa de la corona rota.
+  let roomEffectNote744 = '';
+  if (room.id === 9) {
+    roomEffectNote744 = '\n🥶 Nota: el "Frío sobrenatural" (-1 ATK) es un efecto permanente de la Sala del Trono — es el ambiente de la sala, no parte de la trampa. Seguirá presente aunque la trampa esté desactivada.';
+  }
+
   return {
-    text: `${trap.disarm_msg}\n✅ La trampa está desactivada. Usaste: "${trap.item_needed}".`,
+    text: `${trap.disarm_msg}\n✅ La trampa está desactivada. Usaste: "${trap.item_needed}".${roomEffectNote744}`,
     event: `${player.username} desactiva una trampa en la sala.`,
     eventRoomId: room.id,
   };
