@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateBossHPFullReset };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1627,3 +1627,22 @@ function migrateAbismoLootFix() {
     console.log(`[seed] migrateAbismoLootFix: DIS-730 — Removidos ${floorItems.length - cleaned.length} ítems pre-placed del Abismo Eterno. Solo quedan en el suelo: [${cleaned.join(', ')}] ✓`);
   }
 }
+
+/**
+ * BUG-731: Restaurar HP completo de todos los bosses vivos al arrancar el servidor.
+ * El BUG-030 en db.init() restaura HP ANTES de las migraciones. Si una migración
+ * cambia max_hp pero preserva hp < max_hp (ej: Math.min), el boss queda con HP reducido.
+ * Esta migración corre DESPUÉS de todas las demás y garantiza que los bosses vivos
+ * inicien con HP completo.
+ */
+function migrateBossHPFullReset() {
+  try {
+    // Restaurar todos los monstruos vivos con hp < max_hp a hp máximo
+    // Esto incluye bosses heridos de sesiones previas que no murieron
+    db.run(`UPDATE monsters SET hp = max_hp WHERE room_id IS NOT NULL AND hp < max_hp AND hp > 0`);
+    console.log('[seed] migrateBossHPFullReset: BUG-731 — HP de bosses/monstruos vivos restaurados al máximo post-migración ✓');
+  } catch (e) {
+    console.warn('[seed] migrateBossHPFullReset: error —', e.message);
+  }
+}
+
