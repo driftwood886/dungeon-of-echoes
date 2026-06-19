@@ -2678,10 +2678,11 @@ function cmdPick(player, itemQuery) {
     const goldSuffix = totalGoldConverted > 0 ? ` (monedas convertidas: +${totalGoldConverted}g → ${current.gold}g total)` : '';
     let resultMsg = `📦 Recogiste ${total} ítem(s) del suelo${goldSuffix}:\n${pickedLines.join('\n')}`;
     // BUG-707: condensar todos los ítems que no cupieron en un único bloque al final
+    // BUG-714: no presentar los ítems del suelo como "loot fresco del boss" — son todos los ítems del suelo (pueden ser pre-existentes de sesiones previas)
     if (notPicked.length > 0) {
       const freshFinal = db.getPlayer(player.id);
       const finalMax = 25 + (freshFinal.inventory_bonus || 0);
-      resultMsg += `\n\n⚠️ Inventario lleno (${finalMax}/${finalMax}) — quedaron en el suelo:\n  ${notPicked.map(i => `❌ ${i}`).join('\n  ')}\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (30g, +4 slots) en la tienda de Aldric.`;
+      resultMsg += `\n\n⚠️ Inventario lleno (${finalMax}/${finalMax}) — siguen en el suelo (puede incluir ítems de sesiones previas):\n  ${notPicked.map(i => `❌ ${i}`).join('\n  ')}\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (30g, +4 slots) en la tienda de Aldric.`;
     }
     return { text: resultMsg };
   }
