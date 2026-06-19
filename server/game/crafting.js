@@ -227,8 +227,10 @@ function craft(player, itemA, itemB) {
     for (const r of RECIPES) {
       const ri0 = normalize(r.ingredients[0]);
       const ri1 = normalize(r.ingredients[1]);
+      const riResult = normalize(r.result);
       const ri0Words = wordsOf(ri0);
       const ri1Words = wordsOf(ri1);
+      const riResultWords = wordsOf(riResult);
 
       // ¿Alguno de los ingredientes provistos comparte palabras con algún ingrediente de la receta?
       const shareWords = (inputWords, recipeIngWords) =>
@@ -236,13 +238,21 @@ function craft(player, itemA, itemB) {
 
       const matchA0 = shareWords(wordsA, ri0Words) || shareWords(wordsA, ri1Words);
       const matchB0 = shareWords(wordsB, ri0Words) || shareWords(wordsB, ri1Words);
+      // DIS-709: también buscar coincidencias con el RESULTADO de la receta
+      // (ej: "lanza espectral + esencia de eco" → sugiere "cristal resonante + esencia de eco → lanza espectral del eco")
+      const matchAResult = shareWords(wordsA, riResultWords);
+      const matchBResult = shareWords(wordsB, riResultWords);
 
-      // Solo sugerir si al menos un ingrediente provisto es parecido a uno de la receta
+      // Solo sugerir si al menos un ingrediente provisto es parecido a un ingrediente O AL RESULTADO de la receta
       // BUG-601: excluir solo si es match EXACTO (findRecipe lo habría encontrado ya)
       const exactMatch = (na === ri0 && nb === ri1) || (na === ri1 && nb === ri0);
-      if ((matchA0 || matchB0) && !exactMatch) {
+      const hasMatch = matchA0 || matchB0 || matchAResult || matchBResult;
+      if (hasMatch && !exactMatch) {
         // Score más alto si AMBOS ingredientes tienen coincidencia (receta más relevante)
-        similar.push({ r, score: (matchA0 ? 1 : 0) + (matchB0 ? 1 : 0) });
+        // Coincidencia con ingredientes vale más que con resultado (ingredientes son más específicos)
+        const ingScore = (matchA0 ? 1 : 0) + (matchB0 ? 1 : 0);
+        const resultScore = (matchAResult || matchBResult) ? 0.5 : 0;
+        similar.push({ r, score: ingScore + resultScore });
       }
     }
     // Ordenar por score descendente (2 = ambos coinciden, 1 = uno coincide)
@@ -252,6 +262,18 @@ function craft(player, itemA, itemB) {
     if (similar.length > 0) {
       const suggestions = similar.slice(0, 3).map(({r}) => `  ${r.ingredients[0]} + ${r.ingredients[1]} → ${r.result}`).join('\n');
       hint = `\n\n💡 ¿Quisiste decir alguna de estas recetas?\n${suggestions}`;
+    }
+    // DIS-709: Hint especial si el input parece buscar por el NOMBRE del resultado (ej: "lanza espectral + esencia de eco")
+    const resultHints = similar.filter(({r}) => {
+      const riResult = normalize(r.result);
+      const rWords = wordsOf(riResult);
+      return wordsOf(na).some(w => rWords.some(rw => rw.includes(w) || w.includes(rw))) ||
+             wordsOf(nb).some(w => rWords.some(rw => rw.includes(w) || w.includes(rw)));
+    });
+    if (resultHints.length > 0 && resultHints[0].score < 1) {
+      // El match principal es por resultado, no por ingrediente — añadir aclaración
+      const rh = resultHints[0].r;
+      hint = `\n\n💡 Para obtener **${rh.result}**, la receta es:\n  ${rh.ingredients[0]} + ${rh.ingredients[1]} → ${rh.result}` + hint;
     }
 
     return {
@@ -299,7 +321,13 @@ function craft(player, itemA, itemB) {
  * Lista todas las recetas conocidas como texto.
  */
 function listRecipes() {
-  const lines = RECIPES.map(r => `  ${r.ingredients[0]} + ${r.ingredients[1]} → ${r.result}`);
+  const lines = RECIPES.map(r => {
+    // DIS-709: Para lanza espectral del eco, mostrar origen de ingredientes
+    if (r.result === 'lanza espectral del eco') {
+      return `  ${r.ingredients[0]} (Campeón Espectral) + ${r.ingredients[1]} (Eco Viviente) → ${r.result}`;
+    }
+    return `  ${r.ingredients[0]} + ${r.ingredients[1]} → ${r.result}`;
+  });
   return '📖 **Recetas conocidas:**\n' + lines.join('\n');
 }
 
