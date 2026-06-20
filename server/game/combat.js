@@ -620,6 +620,29 @@ function attackRound(player, monster) {
 
   // ── T191: Ataque de mascota ────────────────────────────────────────────────
   // Si el jugador tiene mascota, hay chance de que ataque al monstruo (si sigue vivo)
+
+  // DIS-778: Regeneración del Gólem de Piedra — cada 2 turnos regenera 8 HP
+  // Crea presión de tiempo e incentiva el uso de recursos para terminar el combate rápido
+  if (monster.hp > 0 && monNameLow.includes('gólem de piedra')) {
+    const golemFx = monster.status_effects
+      ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects)
+      : {};
+    const golemTurns = (golemFx.golem_turns || 0) + 1;
+    golemFx.golem_turns = golemTurns;
+    if (golemTurns % 2 === 0) {
+      // Cada 2 turnos: regeneración
+      const regenAmount = 8;
+      const newGolemHp = Math.min(monster.max_hp, monster.hp + regenAmount);
+      const actualRegen = newGolemHp - monster.hp;
+      if (actualRegen > 0) {
+        monster.hp = newGolemHp;
+        lines.push(`🪨 Los fragmentos del Gólem de Piedra se reensamblan — regenera ${actualRegen} HP. (${monster.hp}/${monster.max_hp} HP)`);
+      }
+    }
+    monster.status_effects = golemFx;
+    db.updateMonster(monster.id, { hp: monster.hp, status_effects: JSON.stringify(golemFx) });
+  }
+
   if (monster.hp > 0 && player.pet) {
     const PET_COMBAT = {
       'rata de las mazmorras': { name: 'Rata', emoji: '🐀', chance: 0.15, minDmg: 1, maxDmg: 2, poisonChance: 0 },

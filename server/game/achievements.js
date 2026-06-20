@@ -140,8 +140,10 @@ const ACHIEVEMENTS = [
     check: (p, _ctx) => {
       let visited = [];
       try { visited = JSON.parse(p.rooms_visited || '[]'); } catch (_) {}
-      const ALL_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18];
-      return ALL_ROOMS.every(id => visited.includes(id));
+      // DIS-781: actualizado para incluir todas las 20 salas del dungeon
+      // (salas 1-18 base + sala 19 Cámara del Eco + sala 20 Abismo Eterno)
+      const ALL_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+      return ALL_ROOMS.every(id => visited.includes(id) || visited.map(Number).includes(id));
     },
   },
   // T157a: Logro secreto Veterano del Dungeon

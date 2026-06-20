@@ -1048,8 +1048,9 @@ function cmdMove(player, direction) {
     const statusEff = player.status_effects || {};
     const trapCdKey = `trap_cd_${targetId}`;
     const trapCdExpiry = statusEff[trapCdKey] ? new Date(statusEff[trapCdKey]).getTime() : 0;
-    // Trampa conocida: persistente (known_traps) O cooldown activo (legacy)
-    const trapKnown = knownTraps[targetId] === true || trapCdExpiry > Date.now();
+    // BUG-777: JSON keys siempre son strings — verificar tanto con string como con número
+    // para compatibilidad con datos guardados antes y después del fix.
+    const trapKnown = knownTraps[targetId] === true || knownTraps[String(targetId)] === true || trapCdExpiry > Date.now();
     if (trapKnown) {
       // DIS-D307: si ya conoce la trampa, la esquiva siempre (era 80% antes).
       // El jugador aprendió el mecanismo — no tiene sentido que siga haciéndole daño.
@@ -8909,6 +8910,29 @@ function cmdCast(player, args) {
           }
         } catch (e) { /* silenciar errores de fase 2 */ }
       }
+    }
+
+    // DIS-778: Regeneración del Gólem de Piedra en cmdCast — igual que en combat.js
+    if (newHp > 0 && target.name && target.name.toLowerCase().includes('gólem de piedra')) {
+      try {
+        const golemFxSpell = target.status_effects
+          ? (typeof target.status_effects === 'string' ? JSON.parse(target.status_effects) : target.status_effects)
+          : {};
+        const golemTurnsSpell = (golemFxSpell.golem_turns || 0) + 1;
+        golemFxSpell.golem_turns = golemTurnsSpell;
+        if (golemTurnsSpell % 2 === 0) {
+          const regenAmountSpell = 8;
+          const newGolemHpSpell = Math.min(target.max_hp, newHp + regenAmountSpell);
+          const actualRegenSpell = newGolemHpSpell - newHp;
+          if (actualRegenSpell > 0) {
+            // No podemos reasignar newHp (es const) — actualizar target.hp directamente
+            target.hp = newGolemHpSpell;
+            lines.push(`🪨 Los fragmentos del Gólem de Piedra se reensamblan — regenera ${actualRegenSpell} HP. (${target.hp}/${target.max_hp} HP)`);
+          }
+        }
+        target.status_effects = golemFxSpell;
+        db.updateMonster(target.id, { hp: target.hp, status_effects: JSON.stringify(golemFxSpell) });
+      } catch (e) { /* silenciar errores de regen */ }
     }
 
     if (newHp <= 0) {

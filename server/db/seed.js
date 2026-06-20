@@ -1659,9 +1659,9 @@ function migrateHongoAzulSala6() {
 
 function migrateBossHPFullReset() {
   try {
-    // Restaurar todos los monstruos vivos con hp < max_hp a hp máximo
-    // Esto incluye bosses heridos de sesiones previas que no murieron
-    db.run(`UPDATE monsters SET hp = max_hp WHERE room_id IS NOT NULL AND hp < max_hp AND hp > 0`);
+    // DIS-779: db.run() no existe en las exports de db.js (sql.js API).
+    // Usar db.raw().run() para acceder a la instancia interna de sql.js.
+    db.raw().run(`UPDATE monsters SET hp = max_hp WHERE room_id IS NOT NULL AND hp < max_hp AND hp > 0`);
     console.log('[seed] migrateBossHPFullReset: BUG-731 — HP de bosses/monstruos vivos restaurados al máximo post-migración ✓');
   } catch (e) {
     console.warn('[seed] migrateBossHPFullReset: error —', e.message);
