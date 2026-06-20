@@ -2531,7 +2531,7 @@ function cmdAttack(player, targetName) {
         lines.push('║  🗺️ ¡CARTÓGRAFO! Exploraste las 20/20 salas del dungeon ║');
       } else {
         lines.push(`║  🗺️ Exploración: ${visitedCount}/${TOTAL_ROOMS} salas (${exploredPct}%)`.padEnd(56) + '║');
-        if (roomsRemaining <= 5) {
+        if (roomsRemaining <= 6) {
           lines.push(`║  ¡Casi! Te faltan solo ${roomsRemaining} sala${roomsRemaining !== 1 ? 's' : ''}:`.padEnd(56) + '║');
           // DIS-678: dar pistas vagas de las zonas sin explorar
           const ROOM_ZONE_HINTS = {
@@ -2544,7 +2544,8 @@ function cmdAttack(player, targetName) {
             19: 'cámara del eco', 20: 'abismo eterno',
           };
           const allRoomIds = Array.from({ length: TOTAL_ROOMS }, (_, i) => i + 1);
-          const unvisited = allRoomIds.filter(id => !visitedRooms.includes(id));
+          // DIS-762: usar comparación con == para manejar casos donde IDs sean strings o números
+          const unvisited = allRoomIds.filter(id => !visitedRooms.some(v => v == id));
           for (const rid of unvisited) {
             const hint = ROOM_ZONE_HINTS[rid] || `zona desconocida (sala ${rid})`;
             lines.push(`║    → Hay algo sin explorar: ${hint}`.padEnd(56) + '║');
@@ -2791,7 +2792,7 @@ function cmdPick(player, itemQuery) {
     if (notPicked.length > 0) {
       const freshFinal = db.getPlayer(player.id);
       const finalMax = 25 + (freshFinal.inventory_bonus || 0);
-      resultMsg += `\n\n⚠️ Inventario lleno (${finalMax}/${finalMax}) — siguen en el suelo (puede incluir ítems de sesiones previas):\n  ${notPicked.map(i => `❌ ${i}`).join('\n  ')}\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (30g, +4 slots) en la tienda de Aldric.`;
+      resultMsg += `\n\n⚠️ Inventario lleno (${finalMax}/${finalMax}) — siguen en el suelo (puede incluir ítems de sesiones previas):\n  ${notPicked.map(i => `❌ ${i}`).join('\n  ')}\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g, +4 slots) en la tienda de Aldric.`;
     }
     return { text: resultMsg };
   }
@@ -4389,7 +4390,7 @@ function cmdLoot(player) {
   if (totalItems === 0 && itemsLeft.length > 0) {
     const usedSlots = player.inventory.length + equippedCountLoot;
     return {
-      text: `🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada.\nQuedaron en el suelo:\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}\n\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (30g) en la tienda de Aldric para +4 slots.`,
+      text: `🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada.\nQuedaron en el suelo:\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}\n\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g) en la tienda de Aldric para +4 slots.`,
       event: null,
       eventRoomId: room.id,
     };
@@ -6003,7 +6004,7 @@ const SHOP_CATALOG = [
   { name: 'guantes de cuero fino',   price: 25, description: '🗡️ (Pícaro) Guantes de cuero fino. +1 ataque. Los Pícaros reciben +10% de probabilidad de crítico adicional — ideal para build de golpes críticos.' },
   { name: 'veneno de contacto',      price: 20, description: '🗡️ (Pícaro) Vial de veneno aceitoso. Al aplicarlo en tu arma, los próximos 3 ataques tienen 40% de envenenar al objetivo. Se consume al agotar las cargas.' },
   // DIS-595: bolsa de lona — expande inventario +4 slots, máx 2 bolsas
-  { name: 'bolsa de lona',           price: 30, description: 'Una bolsa de lona resistente con correas de cuero. Al usarla, amplía tu capacidad de inventario en 4 slots (+4 más si comprás una segunda). Máximo 2.' },
+  { name: 'bolsa de lona',           price: 20, description: 'Una bolsa de lona resistente con correas de cuero. Al usarla, amplía tu capacidad de inventario en 4 slots (+4 más si comprás una segunda). Máximo 2.' },
   // DIS-585: materiales de loot con precios diferenciados (sellOnly — no aparecen en la tienda)
   { name: 'pelaje áspero',           price: 13,  sellOnly: true, description: 'Pelaje de rata gigante. Aldric lo compra para curtiembre.' },
   { name: 'garra de esqueleto',      price: 15,  sellOnly: true, description: 'Garra de esqueleto. Aldric la compra como material de armamento.' },
@@ -7578,7 +7579,7 @@ function cmdForage(player) {
   const _forageMax = 25 + (player.inventory_bonus || 0);
   const _forageUsed = _forageInv.length + _forageEq;
   if (_forageUsed >= _forageMax) {
-    return { text: `🎒 Inventario lleno (${_forageUsed}/${_forageMax}) — no hay espacio para lo que podrías encontrar.\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (30g) en la tienda de Aldric para +4 slots.` };
+    return { text: `🎒 Inventario lleno (${_forageUsed}/${_forageMax}) — no hay espacio para lo que podrías encontrar.\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g) en la tienda de Aldric para +4 slots.` };
   }
 
   // T242: Quest narrativa con Aldric — carta sellada en sala 8 si quest activa
@@ -12094,7 +12095,7 @@ function cmdSigilo(player) {
     ? `\n⚔️ Hay ${mCount} monstruo(s) en la sala. Atacá para el golpe de sorpresa: \"attack\"`.trim()
     : `\n💡 Movete a una sala con enemigos y usá \"attack\" para el golpe de sorpresa.`;
 
-  return { text: `🥷 Entrás en las sombras, volviéndote casi invisible.\n⏳ Sigilo activo por ${stealthSecs} segundos.${darkBonus}${mHint}\n\n✨ Efecto: El primer golpe será un crítico garantizado y el monstruo no podrá responder ese turno.` };
+  return { text: `🥷 Entrás en las sombras, volviéndote casi invisible.\n⏳ Sigilo activo por ${stealthSecs} segundos.${darkBonus}${mHint}\n\n✨ Efecto: El primer golpe será un crítico garantizado (×1.5 vs bosses, ×2 vs normales).\n⚠️ Los bosses avanzados (Campeón Espectral, Eco Viviente, Lich Anciano, Sombra del Vacío) ROMPEN el sigilo — percibirán el ataque y contraatacarán ese mismo turno.` };
 }
 
 /**

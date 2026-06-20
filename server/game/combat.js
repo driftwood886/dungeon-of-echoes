@@ -478,11 +478,17 @@ function attackRound(player, monster) {
   const isCrit = stealthSurprise ? true : Math.random() < critChance;
   // DIS-683: Los bosses son resistentes a emboscadas del Pícaro — multiplicador 1.5x en vez de 2x
   // Los monstruos normales siguen recibiendo el 2x completo (fantasía de clase intacta)
+  // DIS-758: Elemental de Hielo y Krakeling Abismal (mobs de mid-game de zona deep) también tienen
+  // resistencia a emboscada ×1.7 (no tan alta como bosses, pero aguantan más que monstruos normales)
   const isBossForStealth = !!(BOSS_MONSTERS && BOSS_MONSTERS[monster.id]);
+  const isMidBossForStealth = monster.id === 9 || monster.id === 11; // Elemental de Hielo, Krakeling
   let critMultiplier = 2;
   if (stealthSurprise && isBossForStealth) {
     critMultiplier = 1.5;
     lines.push(`🛡️ El boss percibe el sigilo — el multiplicador de emboscada se reduce a ×1.5.`);
+  } else if (stealthSurprise && isMidBossForStealth) {
+    critMultiplier = 1.7;
+    lines.push(`🛡️ El ${monster.name} intuye tu presencia — el multiplicador de emboscada se reduce a ×1.7.`);
   }
   const rawPlayerDmg = isCrit ? playerDmg * critMultiplier : playerDmg;
   // DIS-630: El Gólem de Piedra tiene resistencia física ×0.75 — análoga a resistencia mágica del Guardia Espectral
@@ -948,10 +954,18 @@ function attackRound(player, monster) {
 
   // ── Monstruo contraataca ──────────────────────────────────────────────────
   // DIS-620: Si fue golpe de sorpresa (sigilo), el monstruo no responde este turno
-  if (stealthSurprise && !monsterDead) {
+  // DIS-757: EXCEPCIÓN — bosses avanzados (Campeón, Eco Viviente, Lich, Sombra) rompen el sigilo
+  // y contraatacan en el mismo turno. El multiplicador ya fue reducido a ×1.5 (DIS-683) pero el
+  // stun completo los trivializaba. Ahora esos bosses perciben el ataque y responden igualmente.
+  const STEALTH_RESISTANT_BOSSES = new Set([12, 21, 13, 22]); // Campeón, Eco Viviente, Lich, Sombra
+  const bossBreaksStealth = stealthSurprise && STEALTH_RESISTANT_BOSSES.has(monster.id);
+  if (stealthSurprise && !monsterDead && !bossBreaksStealth) {
     lines.push(`🥷 El ${monster.name} está aturdido por la sorpresa — no puede responder este turno.`);
     db.updatePlayer(player.id, { hp: player.hp });
     return { lines, monsterDead, playerDead, loot, poisonSurvived };
+  }
+  if (bossBreaksStealth && !monsterDead) {
+    lines.push(`⚠️ ¡El ${monster.name} ROMPE EL SIGILO! Un boss de esta magnitud no puede ser sorprendido — contraataca de inmediato.`);
   }
 
   // DIS-729: marcar que la Sombra del Vacío ya actuó (para habilitar Oscuridad Paralizante desde el 2do turno)

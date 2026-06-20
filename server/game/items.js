@@ -112,7 +112,7 @@ const ITEM_CATALOG = {
   'cuchillo envenenado': { type: 'weapon', effect: 'attack_bonus', amount: 3,  on_hit: { type: 'poison', chance: 0.35, damage: 1, turns: 4 }, description: 'Un cuchillo impregnado de veneno de araña. +3 de ataque. 35% de chance de envenenar al objetivo por 4 turnos.' },
   'látigo de garras':    { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'Un látigo improvisado con garras de esqueleto. +4 de ataque.' },
   'red resistente':      { type: 'misc', description: 'Una red de araña y cuerda trenzadas. Casi imposible de romper.' },
-  'collar de garras':    { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Un collar artesanal de dientes de goblin y seda de araña. Emana poder primitivo. +2 de defensa.' },
+  'collar de garras':    { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Un collar artesanal de dientes de goblin y seda de araña. Emana poder primitivo. +2 de defensa. Se equipa como armadura: `wear collar de garras`.' },
   'grimorio del abismo': { type: 'weapon', effect: 'attack_bonus', amount: 10, on_hit: { type: 'shadow_bolt', chance: 0.20, bonus_damage: 8 }, description: 'Un grimorio sellado con poder abismal. +10 de ataque mágico. 20% de chance de lanzar un rayo de sombra (+8 daño extra).' },
 
   // ── DIS-D425: Ítem único de la Prisión Subterránea ───────────────────────
