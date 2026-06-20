@@ -1547,6 +1547,11 @@ function cmdStatus(player) {
     const statLabel = roomEffectStatus.stat === 'attack' ? 'ATK' : roomEffectStatus.stat === 'defense' ? 'DEF' : roomEffectStatus.stat;
     statusLines.push(`${roomEffectStatus.label} — mientras estés en esta sala: ${roomEffectStatus.amount} ${statLabel} efectivo.`);
   }
+  // DIS-772: mostrar nota informativa para efectos de sala tipo 'damage' (calor, vacío, maldición)
+  // No son debuffs persistentes — el daño ya fue aplicado al entrar. Se informa sin confundir.
+  if (roomEffectStatus && roomEffectStatus.type === 'damage') {
+    statusLines.push(`${roomEffectStatus.label} — daño aplicado al entrar (${roomEffectStatus.amount} HP). Sin efecto ATK/DEF activo.`);
+  }
 
   // T153: Buffs de pergaminos activos
   const scrollsFx = JSON.parse(player.active_scrolls || '{}');
@@ -2609,7 +2614,12 @@ function cmdFlee(player, targetQuery) {
       if (typeof v === 'object' && v.key) return false; // bloqueada por llave
       return true;
     });
-    const exitIds = accessibleExits.map(([, v]) => (typeof v === 'object' ? v.room_id : v)).filter(Boolean);
+    // BUG-769: Preferir salidas horizontales sobre 'down' si hay alternativas.
+    // En la Catedral (sala 15), 'down' lleva a la Cripta (sin salida de vuelta directa),
+    // causando que el jugador quede atrapado. Si hay salidas no-'down', usarlas primero.
+    const nonDownExits = accessibleExits.filter(([dir]) => dir !== 'down');
+    const finalExits = nonDownExits.length > 0 ? nonDownExits : accessibleExits;
+    const exitIds = finalExits.map(([, v]) => (typeof v === 'object' ? v.room_id : v)).filter(Boolean);
     const destId = exitIds.length > 0 ? exitIds[Math.floor(Math.random() * exitIds.length)] : null;
     if (destId) {
       db.updatePlayer(player.id, { current_room_id: destId });
