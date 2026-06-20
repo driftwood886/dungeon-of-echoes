@@ -1728,10 +1728,15 @@ function cmdStatus(player) {
       const dodgePct = hasInevBoss ? Math.round(baseDodgePct * 0.5) : baseDodgePct;
       const dodgeNote = hasInevBoss ? ` (⚠️ ↓ boss avanzado)` : '';
       const critNote = stanceName === 'agresivo' ? ' (↓ postura agresiva)' : '';
-      // DIS-620: mostrar sigilo activo si corresponde
+      // DIS-620: mostrar sigilo activo si corresponde; BUG-774: mostrar cooldown si aplica
       const seSt = parseSE(player.status_effects);
       const stealthOn = seSt.stealth_active && new Date(seSt.stealth_active).getTime() > Date.now();
-      const stealthNote = stealthOn ? ` | 🥷 SIGILO ACTIVO (${Math.ceil((new Date(seSt.stealth_active).getTime() - Date.now()) / 1000)}s)` : '';
+      const stealthCdOn = !stealthOn && seSt.stealth_cooldown && new Date(seSt.stealth_cooldown).getTime() > Date.now();
+      const stealthNote = stealthOn
+        ? ` | 🥷 SIGILO ACTIVO (${Math.ceil((new Date(seSt.stealth_active).getTime() - Date.now()) / 1000)}s)`
+        : stealthCdOn
+          ? ` | ⏸️ Sigilo CD (${Math.ceil((new Date(seSt.stealth_cooldown).getTime() - Date.now()) / 1000)}s)`
+          : '';
       return `Especial: 💨 Esquiva: ${dodgePct}%${dodgeNote} | ⚡ Crítico: ${effectiveCrit}%${critNote}${stealthNote}`;
     })(),
     ...(statusLines.length ? ['', ...statusLines] : []),
@@ -12091,7 +12096,14 @@ function cmdSigilo(player) {
   const stealthActive = seSig.stealth_active && new Date(seSig.stealth_active).getTime() > Date.now();
   if (stealthActive) {
     const secsLeft = Math.ceil((new Date(seSig.stealth_active).getTime() - Date.now()) / 1000);
-    return { text: `🥷 Ya estás en sigilo (${secsLeft}s restantes).\n💡 Atacá a un monstruo para ejecutar el golpe de sorpresa: \"attack <monstruo>\"` };
+    return { text: `🥷 Ya estás en sigilo (${secsLeft}s restantes).\n💡 Atacá a un monstruo para ejecutar el golpe de sorpresa: "attack <monstruo>"` };
+  }
+
+  // BUG-774: verificar cooldown de sigilo — no puede reactivarse inmediatamente tras usarlo
+  const stealthCdExpiry = seSig.stealth_cooldown ? new Date(seSig.stealth_cooldown).getTime() : 0;
+  if (stealthCdExpiry > Date.now()) {
+    const cdSecsLeft = Math.ceil((stealthCdExpiry - Date.now()) / 1000);
+    return { text: `🥷 El sigilo está en cooldown — tenés que esperar ${cdSecsLeft}s antes de poder volver a las sombras.\n💡 El sigilo se consume al atacar; es un recurso estratégico, no una habilidad pasiva.` };
   }
 
   // Activar sigilo: expires_at = ahora + 60 segundos
@@ -12110,7 +12122,7 @@ function cmdSigilo(player) {
     ? `\n⚔️ Hay ${mCount} monstruo(s) en la sala. Atacá para el golpe de sorpresa: \"attack\"`.trim()
     : `\n💡 Movete a una sala con enemigos y usá \"attack\" para el golpe de sorpresa.`;
 
-  return { text: `🥷 Entrás en las sombras, volviéndote casi invisible.\n⏳ Sigilo activo por ${stealthSecs} segundos.${darkBonus}${mHint}\n\n✨ Efecto: El primer golpe será un crítico garantizado (×1.5 vs bosses, ×2 vs normales).\n⚠️ Los bosses avanzados (Campeón Espectral, Eco Viviente, Lich Anciano, Sombra del Vacío) ROMPEN el sigilo — percibirán el ataque y contraatacarán ese mismo turno.` };
+  return { text: `🥷 Entrás en las sombras, volviéndote casi invisible.\n⏳ Sigilo activo por ${stealthSecs} segundos.${darkBonus}${mHint}\n\n✨ Efecto: El primer golpe será un crítico garantizado (×1.5 vs bosses, ×2 vs normales).\n⏸️ Cooldown tras usarlo: 75 segundos — el sigilo es un recurso estratégico, no activable en cada combate.\n⚠️ Los bosses avanzados (Campeón Espectral, Eco Viviente, Lich Anciano, Sombra del Vacío) ROMPEN el sigilo — percibirán el ataque y contraatacarán ese mismo turno.` };
 }
 
 /**

@@ -468,9 +468,17 @@ function attackRound(player, monster) {
   let stealthSurprise = false;
   if (stealthReady && clsData && clsData.name === 'Pícaro') {
     stealthSurprise = true;
-    // Limpiar sigilo al atacar
+    // Limpiar sigilo al atacar — BUG-773: limpiar tanto en seStealth (fresh read) como en player.status_effects
+    // (en memoria), para evitar que la escritura final del combate sobreescriba el delete (mismo patrón BUG-671)
     delete seStealth.stealth_active;
+    // BUG-774: agregar cooldown de 75 segundos tras consumir el sigilo — previene activación inmediata post-combate
+    seStealth.stealth_cooldown = new Date(Date.now() + 75000).toISOString();
     db.updatePlayer(player.id, { status_effects: JSON.stringify(seStealth) });
+    // También limpiar en memoria para no sobreescribir en la escritura final (línea ~1178)
+    if (player.status_effects && typeof player.status_effects === 'object') {
+      delete player.status_effects.stealth_active;
+      player.status_effects.stealth_cooldown = seStealth.stealth_cooldown;
+    }
     lines.push(`🥷 [GOLPE DE SORPRESA] Salís de las sombras con un ataque letal...`);
   }
 
