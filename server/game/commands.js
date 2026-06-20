@@ -381,16 +381,20 @@ function parse(input) {
       'desactivar trampa': { cmd: 'disarm', skillId: null },
       'desarmar trampa':   { cmd: 'disarm', skillId: null },
       // DIS-746: "ayuda rapida" / "help basico" → help básico
-      'ayuda rapida':    { cmd: 'help', skillId: null },
-      'ayuda rápida':    { cmd: 'help', skillId: null },
-      'help basico':     { cmd: 'help', skillId: null },
-      'help básico':     { cmd: 'help', skillId: null },
+      'ayuda rapida':    { cmd: 'help', skillId: 'basico' },
+      'ayuda rápida':    { cmd: 'help', skillId: 'basico' },
+      'help basico':     { cmd: 'help', skillId: 'basico' },
+      'help básico':     { cmd: 'help', skillId: 'basico' },
     };
     const mwMatch = MULTI_WORD_ALIASES[twoWord];
     if (mwMatch) {
       // Para useSkill, args[0] debe ser el skillId canónico (como con alias de una palabra)
       if (mwMatch.cmd === 'useSkill' && mwMatch.skillId) {
         return { command: 'useSkill', args: [mwMatch.skillId, ...parts.slice(2)], raw: trimmed };
+      }
+      // BUG-749: para "help basico" y similares, pasar skillId como primer arg si está definido
+      if (mwMatch.skillId) {
+        return { command: mwMatch.cmd, args: [mwMatch.skillId, ...parts.slice(2)], raw: trimmed };
       }
       return { command: mwMatch.cmd, args: parts.slice(2), raw: trimmed };
     }
