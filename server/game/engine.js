@@ -625,22 +625,16 @@ function handleTutorialCommand(player, action, step) {
 function completeTutorial(player) {
   const xp = (player.xp || 0) + 10;
   const level = xpSystem.levelFromXp(xp);
-  // DIS-713: el tiempo de ciclo debe medirse desde que el jugador sale del tutorial.
-  // DIS-728: solo setear cycle_start_at si aún no tiene valor (no sobreescribir ciclo en progreso)
-  // DIS-754: excepción — si el jugador ya mató al Lich al menos una vez, resetear cycle_start_at
-  //          para que el nuevo ciclo se mida desde este tutorial, no desde la última victoria.
-  const existingCycleStart = player.cycle_start_at || null;
-  const lichKillsForCycle = player.lich_kills || 0;
+  // DIS-713: el tiempo de ciclo se mide desde que el jugador sale del tutorial.
+  // DIS-766: cycle_start_at se setea SIEMPRE al completar el tutorial (ya no se setea al crear jugador).
+  //          Esto garantiza que el primer ciclo se mida correctamente desde el tutorial, no desde login.
   const updateData = {
     tutorial_step: 0,
     current_room_id: 1,
     xp,
     level,
+    cycle_start_at: new Date().toISOString(), // siempre resetear al salir del tutorial
   };
-  if (!existingCycleStart || lichKillsForCycle > 0) {
-    // Primer ciclo (sin timestamp previo) o inicio de un nuevo ciclo (lich ya fue matado antes)
-    updateData.cycle_start_at = new Date().toISOString();
-  }
   db.updatePlayer(player.id, updateData);
   // BUG-019: limpiar el suelo de la sala 16 para no acumular loot entre sesiones
   try { db.updateRoomItems(16, []); } catch (e) { /* silencioso */ }
@@ -1461,7 +1455,8 @@ function cmdJunk(player) {
     }
     // Consumibles (pociones, pergaminos, buffs, etc.) → conservar
     if (def && (def.type === 'consumable' || def.type === 'potion' || def.type === 'mana_potion' ||
-                def.type === 'atk_potion' || def.type === 'scroll' || def.type === 'key')) {
+                def.type === 'atk_potion' || def.type === 'scroll' || def.type === 'key' ||
+                def.type === 'blessing_potion')) {  // DIS-763: poción de bendición del Clérigo
       keepItems.push({ item, reason: 'consumible' });
       continue;
     }
@@ -4019,7 +4014,10 @@ function cmdEquip(player, itemQuery) {
     magoHeavyFlavor = `\n✨ (El símbolo responde a tu fe. +${def.cleric_only_bonus || 0} de ataque adicional por ser Clérigo. El cooldown de tus rezos se reduce a 3 minutos.)`;
   } else if (isClerigoEquip && !def.cleric_only_bonus && def.type === 'weapon') {
     // DIS-722: Clérigo con arma no-sagrada recibe penalidad de -10% daño físico
-    magoHeavyFlavor = `\n⚕️ (Arma no-sagrada: el Clérigo inflige ×0.9 de daño físico con esta arma. Considerá usar el símbolo sagrado (30g en Aldric) para eliminar la penalidad y ganar +2 ATK adicional de Clérigo.)`;
+    // DIS-764: mostrar daño efectivo con penalidad para que el jugador pueda comparar
+    const effectiveDmg = Math.round(newAttack * 0.9);
+    const symbolDmg = baseAttackEquip + 4; // símbolo sagrado: +2 ATK base + 2 Clérigo, sin penalidad
+    magoHeavyFlavor = `\n⚕️ (Arma no-sagrada: el Clérigo inflige ×0.9 de daño físico. Daño efectivo: ~${effectiveDmg} (${newAttack} × 0.9). Símbolo sagrado (30g en Aldric): ~${symbolDmg} ATK sin penalidad — comparás tú.)`;
   } else if (clsDataEquip && clsDataEquip.name === 'Pícaro' && foundLower.includes('guantes de cuero fino')) {
     // DIS-615: flavor para Pícaro equipando guantes
     magoHeavyFlavor = `\n🗡️ (Los guantes se ajustan perfectamente. Tus dedos encuentran los puntos débiles con más facilidad. +${def.rogue_only_crit_bonus || 0}% crit adicional como Pícaro.)`;
@@ -7304,10 +7302,11 @@ function getOrCreatePlayer(username) {
   if (!player) {
     player = db.createPlayer(username);
     // Jugador nuevo: iniciar tutorial
+    // DIS-766: NO setear cycle_start_at aquí — se seteará al completar el tutorial
+    // para que el ciclo se mida desde que el jugador sale al dungeon real, no desde la creación.
     db.updatePlayer(player.id, {
       tutorial_step: 1,
       current_room_id: tutorial.TUTORIAL_ROOM_ID,
-      cycle_start_at: new Date().toISOString(), // DIS-691: iniciar ciclo desde creación
     });
     player = db.getPlayer(player.id);
     console.log(`[engine] Nuevo jugador creado: ${username} (${player.id}) — iniciando tutorial en sala 16`);
@@ -10190,8 +10189,9 @@ function cmdUseSkill(player, args, context) {
     const blessMsg = blessedNames.length > 1
       ? `${blessedNames.join(', ')}`
       : (blessedNames[0] || freshClerB.username);
-    const extraShieldNote = blessedNames.length <= 1 ? `\\n   🛡️ Escudo sagrado personal: absorbe 10 HP de daño (activo ${skill.duration_seconds}s)` : '';
-    const textB = `✨ ¡BENDICIÓN! Una barrera sagrada envuelve a ${blessMsg}.\\n   +${skill.def_bonus} DEF por ${skill.duration_seconds}s · -${manaCostB} maná (${newManaB}/${freshClerB.max_mana || 30})${extraShieldNote}\\n   (Cooldown: ${skill.cooldown_seconds}s)`;
+    const extraShieldNote = blessedNames.length <= 1 ? `\n   🛡️ Escudo sagrado personal: absorbe 10 HP de daño (activo ${skill.duration_seconds}s)` : '';
+    const tradeoffNote = `\n   💡 (Reservá maná para heal — Bendición pre-combate + heal en combate es la rotación óptima del Clérigo.)`;
+    const textB = `✨ ¡BENDICIÓN! Una barrera sagrada envuelve a ${blessMsg}.\n   +${skill.def_bonus} DEF por ${skill.duration_seconds}s · -${manaCostB} maná (${newManaB}/${freshClerB.max_mana || 30})${extraShieldNote}${tradeoffNote}\n   (Cooldown: ${skill.cooldown_seconds}s)`;
     if (context && context.broadcastToRoom) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
         `✨ ${freshPlayer.username} invoca una Bendición sobre todos en la sala. (+${skill.def_bonus} DEF)`);

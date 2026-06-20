@@ -136,8 +136,8 @@ const SKILLS = {
     type: 'cleric_buff',
     def_bonus: 2,
     duration_seconds: 60,
-    mana_cost: 6, // DIS-694: reducido de 10→6 para que sea accesible incluso con maná bajo post-combate
-    description: 'Invoca una barrera sagrada: +2 DEF a todos los jugadores en la sala por 60s. Cooldown: 60s. Costo: 6 maná. Solo Clérigo.',
+    mana_cost: 4, // DIS-694: reducido de 10→6, DIS-765/DIS-767: reducido a 4 — Bendición no debe vaciar el maná del Clérigo, que lo necesita para heal
+    description: 'Invoca una barrera sagrada: +2 DEF a todos los jugadores en la sala por 60s. Cooldown: 60s. Costo: 4 maná. Solo Clérigo.',
     combat_only: false,
   },
   resurreccion: {
