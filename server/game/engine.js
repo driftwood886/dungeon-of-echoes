@@ -1540,6 +1540,14 @@ function cmdStatus(player) {
   if (statusFx.blinded) {
     statusLines.push(`🌑 CEGADO — ${statusFx.blinded.turns} turno(s) restante(s) (-${statusFx.blinded.amount} DEF efectiva).`);
   }
+  // BUG-775: mostrar escudo de Bendición (Clérigo) y timer de DEF activo
+  if (statusFx.blessing_shield && statusFx.blessing_shield.amount > 0) {
+    const bsExpiry = new Date(statusFx.blessing_shield.expires_at).getTime();
+    if (bsExpiry > Date.now()) {
+      const bsSecsLeft = Math.ceil((bsExpiry - Date.now()) / 1000);
+      statusLines.push(`🛡️ BENDICIÓN ACTIVA — +2 DEF · Escudo absorbente: ${statusFx.blessing_shield.amount}/10 HP restantes (${bsSecsLeft}s)`);
+    }
+  }
 
   // DIS-710: mostrar debuff de sala activo en status
   const roomEffectStatus = ROOM_EFFECTS[player.current_room_id];
@@ -1559,6 +1567,8 @@ function cmdStatus(player) {
   for (const [effect, data] of Object.entries(scrollsFx)) {
     // BUG-505: last_flee es metadata de rastreo interna, no un buff visible para el jugador
     if (effect === 'last_flee') continue;
+    // BUG-775: cleric_bless ya se muestra en el bloque de blessing_shield con más detalle
+    if (effect === 'cleric_bless') continue;
     if (data.expires_at > now) {
       const secsLeft = Math.ceil((data.expires_at - now) / 1000);
       const parts = [];
@@ -1662,18 +1672,25 @@ function cmdStatus(player) {
       const nowDef = Date.now();
       const STANCE_DEF = { agresivo: -1, defensivo: +2, equilibrado: 0 };
       let defBuffTotal = 0;
-      for (const data of Object.values(scrollsDef)) {
-        if (data.expires_at > nowDef) defBuffTotal += (data.def_bonus || 0);
+      let hasBlessDef = false;
+      for (const [effKey, data] of Object.entries(scrollsDef)) {
+        if (data.expires_at > nowDef) {
+          // BUG-775: cleric_bless ya está baked-in en player.defense — no sumar de nuevo
+          if (effKey === 'cleric_bless') { hasBlessDef = true; continue; }
+          defBuffTotal += (data.def_bonus || 0);
+        }
       }
       const stanceDefMod = STANCE_DEF[player.stance || 'equilibrado'] || 0;
       const totalDefBonus = defBuffTotal + stanceDefMod;
       const effectiveDef = (player.defense || 0) + totalDefBonus;
-      if (totalDefBonus !== 0) {
+      if (totalDefBonus !== 0 || hasBlessDef) {
         const defParts = [];
+        if (hasBlessDef) defParts.push(`+2 🛡️Bendición`);
         if (defBuffTotal > 0) defParts.push(`+${defBuffTotal} 📜buff`);
         if (stanceDefMod > 0) defParts.push(`+${stanceDefMod} postura`);
         else if (stanceDefMod < 0) defParts.push(`${stanceDefMod} postura`);
-        return `Defensa:  ${player.defense} (${defParts.join(', ')} = ${effectiveDef} efectiva)`;
+        const defEffStr = hasBlessDef ? `${effectiveDef} (ya incluido en DEF base)` : `${effectiveDef} efectiva`;
+        return `Defensa:  ${player.defense} (${defParts.join(', ')}${totalDefBonus !== 0 ? ` = ${defEffStr}` : ''})`;
       }
       return `Defensa:  ${player.defense}`;
     })(),
@@ -4474,6 +4491,10 @@ function cmdWear(player, itemQuery) {
 
   const def = items.getItemDef(found);
   if (!def || def.type !== 'armor') {
+    // BUG-776: si es un arma (weapon), redirigir automáticamente a equip en vez de error crudo
+    if (def && def.type === 'weapon') {
+      return cmdEquip(player, found);
+    }
     return { text: `${found} no es una armadura que puedas ponerte. Para armas usá "equip".` };
   }
 
