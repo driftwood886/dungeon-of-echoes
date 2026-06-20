@@ -4007,6 +4007,9 @@ function cmdEquip(player, itemQuery) {
       magoHeavyFlavor = `\n✨ (Tu maná resuena con el arma. Esto sí es lo que estudiaste.)`;
     } else if (isHeavyWeapon) {
       magoHeavyFlavor = `\n💬 (Empuñás esto con ambas manos. No es lo que un mago estudia, pero nadie dijo que no podés.)`;
+    } else if (def.type === 'weapon' && !isMagicWeapon) {
+      // DIS-771: Mago equipando arma física sin bonus mágico — contextualizar sin bloquear
+      magoHeavyFlavor = `\n💬 (Como Mago, tu poder real está en los hechizos. Esta arma da +${def.amount} ATK físico sin bonificación mágica. Si buscás potencia para hechizos, considerá la vara de energía (40g en Aldric: +5 ATK +2 Mago).)`;
     }
   } else if (isGuerreroEquip && isMagicWeapon) {
     // DIS-561: mensajes negativos para Guerrero intentando equipar ítems mágicos
@@ -6986,10 +6989,12 @@ function _cmdDuelMaestro(player) {
   // BUG-564: escalar al nivel del jugador pero ligeramente por DEBAJO en ATK/DEF
   // DIS-704: HP del Maestro escala más agresivo en niveles altos — el duelo no debería
   // terminar en 2 rounds para el Mago de late-game. nivel ≥6 → 60 HP, nivel ≥8 → 80 HP
+  // DIS-770: agregar nivel ≥3 para cubrir Mago nivel 3 que hace ~41 dmg (rayo+bola) vs 40 HP base
   let maestroMaxHp = player.max_hp;
   if (playerLevel >= 8) maestroMaxHp = Math.max(player.max_hp, 80);
   else if (playerLevel >= 6) maestroMaxHp = Math.max(player.max_hp, 60);
   else if (playerLevel >= 4) maestroMaxHp = Math.max(player.max_hp, 45);
+  else if (playerLevel >= 3) maestroMaxHp = Math.max(player.max_hp, 35);
   const maestroAtk = Math.max(3, Math.round((player.attack || 5) * 0.85));
   const maestroDef = Math.max(1, Math.round(playerDef * 0.75));
 
