@@ -723,10 +723,11 @@ function cmdLook(player) {
           if (!bossIsAlive) continue; // boss muerto → sin advertencia
           const playerLevel = player.level || 1;
           // DIS-690: ambas ramas incluyen nivel recomendado para consistencia
+          // BUG-747: ambas ramas muestran "nivel recomendado:" para consistencia
           if (playerLevel < danger.level) {
             dangerLines.push(`${danger.icon} PELIGRO ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}). ¡Preparate antes de entrar!`);
           } else {
-            dangerLines.push(`${danger.icon} ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel ${danger.level}+). El combate no admite escape fácil.`);
+            dangerLines.push(`${danger.icon} ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+). El combate no admite escape fácil.`);
           }
         }
       }

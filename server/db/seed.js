@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateBossHPFullReset };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1635,6 +1635,28 @@ function migrateAbismoLootFix() {
  * Esta migración corre DESPUÉS de todas las demás y garantiza que los bosses vivos
  * inicien con HP completo.
  */
+/**
+ * DIS-748: Restaurar hongo azul en sala 6 (Túnel de los Hongos) si no está en el suelo.
+ * El ítem es necesario para desactivar la trampa de esporas. Si un jugador lo recogió
+ * y nunca lo dejó volver, la trampa queda sin solución. Esta migración garantiza
+ * que al arrancar el servidor siempre haya al menos uno disponible.
+ * Complementa el sistema de buscar (ROOM_FORAGE_BONUS[6]) que ya da 45% de chance al buscar.
+ */
+function migrateHongoAzulSala6() {
+  try {
+    const room6 = db.getRoom(6);
+    if (!room6) return;
+    const items = Array.isArray(room6.items) ? room6.items : [];
+    const hasHongo = items.some(i => i.toLowerCase().includes('hongo azul'));
+    if (!hasHongo) {
+      db.updateRoomItems(6, [...items, 'hongo azul']);
+      console.log('[seed] migrateHongoAzulSala6: DIS-748 — Hongo azul restaurado en Túnel de los Hongos (sala 6). El ítem de desactivación de trampa ya está disponible ✓');
+    }
+  } catch (e) {
+    console.warn('[seed] migrateHongoAzulSala6:', e.message);
+  }
+}
+
 function migrateBossHPFullReset() {
   try {
     // Restaurar todos los monstruos vivos con hp < max_hp a hp máximo
