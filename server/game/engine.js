@@ -627,14 +627,18 @@ function completeTutorial(player) {
   const level = xpSystem.levelFromXp(xp);
   // DIS-713: el tiempo de ciclo debe medirse desde que el jugador sale del tutorial.
   // DIS-728: solo setear cycle_start_at si aún no tiene valor (no sobreescribir ciclo en progreso)
+  // DIS-754: excepción — si el jugador ya mató al Lich al menos una vez, resetear cycle_start_at
+  //          para que el nuevo ciclo se mida desde este tutorial, no desde la última victoria.
   const existingCycleStart = player.cycle_start_at || null;
+  const lichKillsForCycle = player.lich_kills || 0;
   const updateData = {
     tutorial_step: 0,
     current_room_id: 1,
     xp,
     level,
   };
-  if (!existingCycleStart) {
+  if (!existingCycleStart || lichKillsForCycle > 0) {
+    // Primer ciclo (sin timestamp previo) o inicio de un nuevo ciclo (lich ya fue matado antes)
     updateData.cycle_start_at = new Date().toISOString();
   }
   db.updatePlayer(player.id, updateData);
@@ -8035,7 +8039,7 @@ function cmdEchoBowl(player) {
   if (playerClass === 'clerigo') {
     lines.push(`✨ Como Clérigo, el cuenco imbuye una bendición sagrada: los primeros 3 intentos de drenado de maná del Lich serán bloqueados.`);
   }
-  lines.push(`💡 Preparate aquí antes de enfrentar lo que yace al este.`);
+  lines.push(`💡 Preparate aquí antes de enfrentar al Lich Anciano en la Catedral del Lich (al este).`);
 
   return {
     text: lines.join('\n'),
