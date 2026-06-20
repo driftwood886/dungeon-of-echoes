@@ -1310,11 +1310,12 @@ function cmdMove(player, direction) {
         const floorItems = Array.isArray(prevRoomItems.items) ? prevRoomItems.items : [];
         const epicLeft = floorItems.filter(i => {
           const r = items.getItemRarity(i);
-          return r === 'épico' || r === 'legendario';
+          // BUG-751: incluir 'raro' además de 'épico'/'legendario' para capturar tomo sellado, pergaminos, etc.
+          return r === 'épico' || r === 'legendario' || r === 'raro';
         });
         if (epicLeft.length > 0) {
           const names = epicLeft.join(', ');
-          leftEpicMsg = `\n\n⚠️ **Dejaste ítems épicos en ${prevRoomItems.name}:** ${names}. ¡No los olvides!`;
+          leftEpicMsg = `\n\n⚠️ **Dejaste ítems valiosos en ${prevRoomItems.name}:** ${names}. ¡No los olvides!`;
           // Marcar que ya avisamos de esta sala para no repetir en movimientos posteriores
           seForEpic.epic_warn_room = _originRoomId;
           db.updatePlayer(freshForEpic.id, { status_effects: JSON.stringify(seForEpic) });
@@ -3441,7 +3442,9 @@ function cmdExamine(player, query) {
           r.ingredients.some(ing => ing.toLowerCase() === itemLower)
         );
         if (!hasRecipe) {
-          const sellNote = sellLine ? ` Útil para vender a Aldric.` : '';
+          // BUG-750: solo sugerir vender si el ítem SÍ tiene precio (no cuando es "🚫 No vendible")
+          const isSellable = sellLine && sellLine.startsWith('💰');
+          const sellNote = isSellable ? ` Útil para vender a Aldric.` : '';
           recipeLine = `🧪 Sin receta conocida — no es un ingrediente de crafteo.${sellNote}`;
         } else if (recipeAsIngredient.length > 0) {
           const recipesList = recipeAsIngredient.map(r => `${r.ingredients.join(' + ')} → ${r.result}`).join(' | ');
