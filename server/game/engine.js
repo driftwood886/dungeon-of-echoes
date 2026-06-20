@@ -731,7 +731,7 @@ function cmdLook(player) {
           if (playerLevel < danger.level) {
             dangerLines.push(`${danger.icon} PELIGRO ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}). ¡Preparate antes de entrar!`);
           } else {
-            dangerLines.push(`${danger.icon} ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+). El combate no admite escape fácil.`);
+            dangerLines.push(`${danger.icon} ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}). El combate no admite escape fácil.`);
           }
         }
       }
@@ -5016,6 +5016,10 @@ function cmdMap(player) {
         return `  |🔓(abierta)`;
       }
       // DIS-597: hint de llave solo si el jugador ya visitó sala 9 (Trono) o sala 7 (Pozo)
+      // DIS-756: si el jugador ya visitó sala 10 (Santuario), aclarar que la puerta directa sigue cerrada pero la ruta alt. funciona
+      if (visitedRooms.has(10)) {
+        return `  |🔑(puerta cerrada — ya conocés la ruta alternativa: Trono→Santuario)`;
+      }
       return visitedRooms.has(9) || visitedRooms.has(7)
         ? `  |🔑(bloqueado — ruta libre: Capilla→Túnel→Trono→Santuario)`
         : `  |🔑(bloqueado)`;
