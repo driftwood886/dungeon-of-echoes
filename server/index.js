@@ -742,6 +742,35 @@ async function main() {
     }
   }, 60 * 60 * 1000);
 
+  // 16. BUG-804/BUG-805: Respawn de ítems persistentes de sala — bolsa de lona (sala 15) y hongo azul (sala 6)
+  // Estos ítems se pierden si el jugador los recoge y el servidor no se reinicia.
+  // El loop verifica cada 3 minutos y los restaura si faltan (idempotente).
+  setInterval(() => {
+    try {
+      // Restaurar bolsa de lona en Catedral (sala 15) — BUG-804
+      const room15 = db.getRoom(15);
+      if (room15) {
+        const items15 = Array.isArray(room15.items) ? room15.items : [];
+        if (!items15.includes('bolsa de lona')) {
+          db.updateRoomItems(15, [...items15, 'bolsa de lona']);
+          console.log('[itemRespawn] BUG-804 — bolsa de lona restaurada en Catedral (sala 15). ✓');
+        }
+      }
+      // Restaurar hongo azul en Túnel de los Hongos (sala 6) — BUG-805
+      const room6 = db.getRoom(6);
+      if (room6) {
+        const items6 = Array.isArray(room6.items) ? room6.items : [];
+        const hasHongo = items6.some(i => i.toLowerCase().includes('hongo azul'));
+        if (!hasHongo) {
+          db.updateRoomItems(6, [...items6, 'hongo azul']);
+          console.log('[itemRespawn] BUG-805 — hongo azul restaurado en Túnel de los Hongos (sala 6). ✓');
+        }
+      }
+    } catch (e) {
+      console.error('[itemRespawn] Error restaurando ítems persistentes:', e.message);
+    }
+  }, 3 * 60 * 1000);
+
   // 15. T203: Monstruos errantes — el Goblin Merodeador y la Rata Gigante se mueven cada 90 segundos
   setInterval(() => {
     try {
