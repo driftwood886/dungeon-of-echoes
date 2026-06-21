@@ -8751,6 +8751,20 @@ function cmdCast(player, args) {
     };
   }
 
+  // DIS-783: Los Clérigos solo pueden usar hechizos divinos (curación, escudo)
+  // Los hechizos de ataque arcano (bola de fuego, rayo, escarcha) son exclusivos del Mago
+  const MAGO_ONLY_SPELLS = ['bola de fuego', 'rayo', 'escarcha'];
+  if (castClassName === 'Clérigo') {
+    // Resolver el nombre del hechizo antes de verificar restricción
+    const testSpellQuery = args ? args.join(' ').toLowerCase().trim() : '';
+    const testFound = findSpell(testSpellQuery);
+    if (testFound && MAGO_ONLY_SPELLS.includes(testFound.key)) {
+      return {
+        text: `⛪ Los Clérigos no tienen acceso a la magia arcana ofensiva.\n"${testFound.key}" es un hechizo del Mago.\nComo Clérigo, tu magia divina incluye:\n  • \`cast curación\` — restaura 22 HP (15 × 1.5)\n  • \`cast escudo\` — absorbe 5 daño\n  • \`heal\` — curación sagrada potenciada\n  • \`sanacion_mayor\` (Lv3) — curación masiva`,
+      };
+    }
+  }
+
   if (!args || args.length === 0) {
     return {
       text: `🪄 ¿Qué hechizo querés lanzar?\nHechizos disponibles: ${Object.keys(SPELL_CATALOG).join(', ')}.\nUsá "hechizos" para ver el catálogo completo.`,
@@ -9235,8 +9249,14 @@ function cmdSpells(player) {
 
   for (const [name, spell] of Object.entries(SPELL_CATALOG)) {
     const canCast = currentMana >= spell.cost ? '✓' : '✗';
-    lines.push(`  ${canCast} ${spell.icon} ${name.padEnd(16)} — Coste: ${spell.cost} maná — ${spell.description}`);
+    // DIS-783: Para Clérigos, marcar hechizos de Mago como no disponibles por clase
+    if (spellClassName === 'Clérigo' && ['bola de fuego', 'rayo', 'escarcha'].includes(name)) {
+      lines.push(`  🔒 ${spell.icon} ${name.padEnd(16)} — (Arcano — solo Mago)`);
+    } else {
+      lines.push(`  ${canCast} ${spell.icon} ${name.padEnd(16)} — Coste: ${spell.cost} maná — ${spell.description}`);
+    }
   }
+
 
   lines.push(``);
   lines.push(`Uso: cast <hechizo>  (ej: "cast bola de fuego", "cast escudo", "cast curación")`);
@@ -9421,12 +9441,14 @@ function cmdHeal(player, args) {
     }
     // Heal de emergencia: cura 22 HP a costo de 8 HP propios, cooldown 5 min
     const emergHealAmt = Math.round(15 * 1.5); // 22 HP, mismo poder que heal normal
-    const newHp = Math.min(fresh.max_hp, (fresh.hp || 0) + emergHealAmt - emergHpCost);
-    const hpChange = newHp - (fresh.hp || 0);
+    const hpBefore = fresh.hp || 0;
+    const newHp = Math.min(fresh.max_hp, hpBefore + emergHealAmt - emergHpCost);
+    const hpChange = newHp - hpBefore;
     const cdExpiry = new Date(Date.now() + 5 * 60 * 1000).toISOString();
     seEmerg.emergency_heal_cd = cdExpiry;
     db.updatePlayer(fresh.id, { hp: newHp, status_effects: seEmerg });
-    return { text: `⛪ Sin maná, invocás la gracia divina a expensas de tu propia fuerza vital.\n${hpChange >= 0 ? '+' : ''}${hpChange} HP (${newHp}/${fresh.max_hp}) — (Heal de emergencia, cooldown 5 min)` };
+    // BUG-784: mostrar explícitamente +22 HP curado y -8 HP costo vital
+    return { text: `⛪ Sin maná, invocás la gracia divina a expensas de tu propia fuerza vital.\n+${emergHealAmt} HP curado | -${emergHpCost} HP costo vital | neto: ${hpChange >= 0 ? '+' : ''}${hpChange} HP (${newHp}/${fresh.max_hp}) — (Heal de emergencia, cooldown 5 min)` };
   }
 
   const healPower = 1.5; // DIS-496: Clérigo cura 50% más
