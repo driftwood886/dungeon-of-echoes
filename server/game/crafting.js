@@ -172,7 +172,7 @@ const CRAFTED_ITEMS = {
   // DIS-692: reciclaje de capa de araña + hongo azul
   'ungüento de araña':  { type: 'potion', effect: 'defense_bonus', amount: 2, duration: 120, description: 'Una pasta que endurece la piel por 2 minutos. +2 DEF temporal. Consumible.' },
   // Ítems del Dungeon Extendido (T132)
-  'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 8, description: 'Una lanza fantasmal que resuena con voces de los caídos. +8 de ataque. Vibra al contacto con criaturas espectrales.' },
+  'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 10, description: 'Una lanza fantasmal que resuena con voces de los caídos. +10 de ataque. Vibra al contacto con criaturas espectrales.' },
   'lanza espectral reforzada': { type: 'weapon', effect: 'attack_bonus', amount: 9, description: 'La lanza espectral básica reforzada con esencia etérea. La luz negra es más densa, el frío más absoluto. +9 de ataque.' },
   'daga del vacío':     { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una daga que parece absorber la realidad. +12 de ataque. El arma más poderosa forjada en las profundidades del Abismo.' },
   'amuleto del eco':    { type: 'misc', description: 'Un amuleto que pulsa con ecos de memorias antiguas. Los sabios dicen que protege su portador de los efectos de la Cámara del Eco.' },

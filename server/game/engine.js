@@ -5043,17 +5043,17 @@ function cmdMap(player) {
   // DIS-D422: Layout corregido — Corredor(2) NO está conectado a Forja(12).
   //
   // Conexiones reales:
-  //   Corredor(2): sur→Entrada(1), norte→Ecos(3), oeste→Túnel(6)
-  //   Forja(12):   sur→Galería(11), este→Coliseo(14)
-  //   Ruta Corredor↔Forja: Corredor→oeste→Túnel→norte→Trono→este→Santuario→este→Galería→norte→Forja
+  //   Sala 18 (Fuente Eterna): al NORTE de Santuario (sala 10) — DIS-788
+  //   Sala  7 (Pozo): norte (🔑) → sala 10; este → sala 3
+  //   Sala  8 (Prisión): sur → sala 4; este → sala 17
   //
-  // Layout rediseñado:
+  // Layout rediseñado (DIS-788: columna izquierda muestra 18→|→10 claramente):
   //
   // [18:Fuente]
-  //   |        [8:Prisión]
-  //   |        |
+  //   |         [8:Prisión]
+  //   |         |
   // [7:Pozo]─[3:Ecos]─[4:Tesoro]─[17:Sub]
-  //   |🔑
+  //   |🔑 (puerta norte del Pozo, conduce al Santuario)
   // [10:Santuario]─[9:Trono]─[6:Túnel]─[2:Corredor]
   //   |                         |           |
   // [11:Galería]          [5:Capilla]─[1:Entrada]
@@ -5063,6 +5063,10 @@ function cmdMap(player) {
   //   [14:Coliseo]─[19:Cám.Eco]─[15:Catedral]─[22:Cripta]
   //                      |
   //                 [20:Abismo]
+  //
+  // Nota: La sala 18 (Fuente) está al NORTE de sala 10 (Santuario).
+  // La sala 7 (Pozo) tiene salida norte BLOQUEADA hacia sala 10.
+  // El `|` en la columna izquierda representa ambas conexiones verticales con sala 10.
   //
 
   const lines = [
@@ -5079,12 +5083,12 @@ function cmdMap(player) {
       const northExit7 = room7 && room7.exits ? room7.exits['north'] : undefined;
       const isPuertaAbierta = northExit7 !== undefined && northExit7 !== null && typeof northExit7 !== 'object';
       if (isPuertaAbierta) {
-        return `  |🔓(abierta)`;
+        return `  |🔓(Pozo→Santuario abierta)`;
       }
       // DIS-597: hint de llave solo si el jugador ya visitó sala 9 (Trono) o sala 7 (Pozo)
       // DIS-756: si el jugador ya visitó sala 10 (Santuario), aclarar que la puerta directa sigue cerrada pero la ruta alt. funciona
       if (visitedRooms.has(10)) {
-        return `  |🔑(puerta cerrada — ya conocés la ruta alternativa: Trono→Santuario)`;
+        return `  |🔑(puerta Pozo→Santuario — ya conocés la ruta alternativa: Trono→Santuario)`;
       }
       return visitedRooms.has(9) || visitedRooms.has(7)
         ? `  |🔑(bloqueado — ruta libre: Capilla→Túnel→Trono→Santuario)`
@@ -5100,7 +5104,7 @@ function cmdMap(player) {
     `              |`,
     `         ${c(20)}`,
     ``,
-    `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
+    `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})  [18] = Fuente (norte de Santuario)`,
     // DIS-635: solo mencionar sala 8 como fuente de llave si ya fue visitada
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
@@ -7044,11 +7048,12 @@ function _cmdDuelMaestro(player) {
   // DIS-704: HP del Maestro escala más agresivo en niveles altos — el duelo no debería
   // terminar en 2 rounds para el Mago de late-game. nivel ≥6 → 60 HP, nivel ≥8 → 80 HP
   // DIS-770: agregar nivel ≥3 para cubrir Mago nivel 3 que hace ~41 dmg (rayo+bola) vs 40 HP base
+  // DIS-789: nivel 3 → subir a max(player.max_hp * 1.5, 55) para forzar ≥3 rounds vs Mago
   let maestroMaxHp = player.max_hp;
   if (playerLevel >= 8) maestroMaxHp = Math.max(player.max_hp, 80);
   else if (playerLevel >= 6) maestroMaxHp = Math.max(player.max_hp, 60);
   else if (playerLevel >= 4) maestroMaxHp = Math.max(player.max_hp, 45);
-  else if (playerLevel >= 3) maestroMaxHp = Math.max(player.max_hp, 35);
+  else if (playerLevel >= 3) maestroMaxHp = Math.max(Math.round(player.max_hp * 1.5), 55); // DIS-789
   const maestroAtk = Math.max(3, Math.round((player.attack || 5) * 0.85));
   const maestroDef = Math.max(1, Math.round(playerDef * 0.75));
 
@@ -8881,8 +8886,9 @@ function cmdCast(player, args) {
     const hasMagicResist = MAGIC_RESISTANT_MONSTERS.some(n => targetNameLow.includes(n));
     // DIS-598: El Guardia Espectral tiene resistencia ALTA (×0.4) a hechizos de área/poderosos
     // para que no sea mateable con 2 hechizos por Magos de nivel 3
+    // BUG-787: agregar 'escarcha' a la lista — escarcha hacía más dmg efectivo que rayo (×0.65 vs ×0.4)
     const isGuardiaEspectral = targetNameLow.includes('guardia espectral');
-    const isHighImpactSpell = ['rayo', 'bola de fuego', 'fireball', 'lightning'].includes(spellName);
+    const isHighImpactSpell = ['rayo', 'bola de fuego', 'fireball', 'lightning', 'escarcha', 'ice', 'frost'].includes(spellName);
     const magicResist = isGuardiaEspectral && isHighImpactSpell ? 0.4 : (hasMagicResist ? 0.65 : 1.0);
     const finalDmg = Math.max(1, Math.round(dmg * spellPower * magicResist));
     const newHp = Math.max(0, target.hp - finalDmg);
