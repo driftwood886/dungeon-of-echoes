@@ -866,9 +866,10 @@ function cmdMove(player, direction) {
       }
       if (destId) {
         db.updatePlayer(player.id, { current_room_id: destId });
+        // BUG-790: registrar sala visitada en el path de monstruos sin boss (early return)
+        db.trackRoomVisit(player.id, destId);
         const destRoom = db.getRoom(destId);
         const destName = destRoom ? destRoom.name : 'sala desconocida';
-        // BUG-608: el texto anterior decía "¡Huís del combate!" aunque no hubiera combate activo.
         // Cambiamos el mensaje cuando no hay boss: texto neutro de movimiento.
         // DIS-739: El mensaje sobre "los monstruos no te detienen" solo se muestra una vez por sesión
         // para evitar spam visual en cada movimiento cuando hay monstruos vivos en la sala.
@@ -904,6 +905,8 @@ function cmdMove(player, direction) {
       const destId = exitVal ? (typeof exitVal === 'object' ? exitVal.room_id : exitVal) : null;
       if (destId) {
         db.updatePlayer(player.id, { current_room_id: destId });
+        // BUG-790: registrar sala visitada incluso en el path bossAtFullHp (early return)
+        db.trackRoomVisit(player.id, destId);
         const destRoom = db.getRoom(destId);
         const destName = destRoom ? destRoom.name : 'sala desconocida';
         const freshPlayer = db.getPlayer(player.id);
@@ -2646,6 +2649,8 @@ function cmdFlee(player, targetQuery) {
     const destId = exitIds.length > 0 ? exitIds[Math.floor(Math.random() * exitIds.length)] : null;
     if (destId) {
       db.updatePlayer(player.id, { current_room_id: destId });
+      // BUG-790: registrar sala visitada en el path cmdFlee bossAtFullHp (early return)
+      db.trackRoomVisit(player.id, destId);
       const destRoom = db.getRoom(destId);
       const destName = destRoom ? destRoom.name : `sala ${destId}`;
       return {
@@ -4963,7 +4968,10 @@ function cmdMap(player) {
   let visitedRooms;
   try {
     const rawVisited = db.getPlayer(player.id).rooms_visited;
-    visitedRooms = new Set(Array.isArray(rawVisited) ? rawVisited : JSON.parse(rawVisited || '[]'));
+    // BUG-790: normalizar a Number para evitar mismatch string/number en el Set
+    // (los IDs pueden haberse guardado como strings en sesiones antiguas)
+    const rawArr = Array.isArray(rawVisited) ? rawVisited : JSON.parse(rawVisited || '[]');
+    visitedRooms = new Set(rawArr.map(Number));
   } catch (_) {
     visitedRooms = new Set();
   }
@@ -12510,6 +12518,47 @@ function cmdPath(player, args) {
   const dangerSteps = found
     .filter(step => PATH_BOSS_ROOMS[step.toId] && step.toId !== targetRoom.id)
     .map(step => PATH_BOSS_ROOMS[step.toId]);
+
+  // BUG-791: Si la ruta pasa por bosses de nivel inaccesible, intentar ruta alternativa más segura
+  const inaccessibleBossSteps = found
+    .filter(step => PATH_BOSS_ROOMS[step.toId] && step.toId !== targetRoom.id && player.level < PATH_BOSS_ROOMS[step.toId].level);
+  if (inaccessibleBossSteps.length > 0) {
+    // BFS alternativo excluyendo salas de boss con nivel > player.level (excepto destino)
+    const unsafeBossIds = new Set(
+      inaccessibleBossSteps.map(step => step.toId)
+    );
+    const safeGraph = {};
+    for (const room of allRooms) {
+      safeGraph[room.id] = (graph[room.id] || []).filter(edge =>
+        !unsafeBossIds.has(edge.toId) || edge.toId === targetRoom.id
+      );
+    }
+    const safeQueue = [{ id: startId, path: [] }];
+    const safeVisited = new Set([startId]);
+    let altFound = null;
+    while (safeQueue.length > 0) {
+      const { id, path } = safeQueue.shift();
+      if (id === targetRoom.id) {
+        altFound = path;
+        break;
+      }
+      for (const edge of (safeGraph[id] || [])) {
+        if (!safeVisited.has(edge.toId)) {
+          safeVisited.add(edge.toId);
+          safeQueue.push({ id: edge.toId, path: [...path, { dir: edge.dir, toId: edge.toId }] });
+        }
+      }
+    }
+    if (altFound) {
+      const altCmdList = altFound.map(s => `move ${DIR_NAMES[s.dir] || s.dir}`).join('; ');
+      if (altFound.length <= found.length + 3) {
+        lines.push(`💡 Ruta alternativa más segura (${altFound.length} pasos, evita bosses de nivel inaccesible): ${altCmdList}`);
+      } else {
+        lines.push(`💡 Existe una ruta más larga (${altFound.length} pasos) que evita bosses inaccesibles: ${altCmdList}`);
+      }
+    }
+  }
+
   if (dangerSteps.length > 0) {
     lines.push(`⚠️  CUIDADO: la ruta pasa por ${dangerSteps.length} sala${dangerSteps.length > 1 ? 's' : ''} con boss peligroso (nivel insuficiente puede ser fatal):`);
     dangerSteps.forEach(d => {
