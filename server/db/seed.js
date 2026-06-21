@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793 };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1676,6 +1676,23 @@ function migrateLichHPDIS794() {
     const newHp = Math.min(lich.hp, 110);
     db.updateMonster(13, { max_hp: 110, hp: newHp });
     console.log(`[seed] migrateLichHPDIS794: DIS-794 — Lich Anciano HP 90 → 110. HP actual: ${newHp}/110.`);
+  }
+}
+
+/**
+ * DIS-793: El inventario llega al límite exacto (25/25) con loot completo del Lich.
+ * Solución: colocar una "bolsa de lona" pre-placed en la Catedral (sala 15), accesible antes
+ * de la batalla final. El jugador puede recogerla y usarla para ganar +4 slots, permitiendo
+ * recoger todo el loot del Lich sin sacrificar ítems acumulados durante el recorrido.
+ * Tiene sentido narrativo: un aventurero anterior dejó equipo en la sala más profunda del dungeon.
+ */
+function migrateCatedralBagDIS793() {
+  const room15 = db.getRoom(15);
+  if (!room15) return;
+  const items = Array.isArray(room15.items) ? room15.items : [];
+  if (!items.includes('bolsa de lona')) {
+    db.upsertRoom({ ...room15, items: [...items, 'bolsa de lona'] });
+    console.log('[seed] migrateCatedralBagDIS793: DIS-793 — bolsa de lona agregada a la Catedral (sala 15). El jugador puede recogerla antes de enfrentar al Lich para ampliar su mochila. ✓');
   }
 }
 
