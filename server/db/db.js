@@ -1029,9 +1029,11 @@ function trackRoomVisit(playerId, roomId) {
   if (!p) return { visited: [], isNew: false };
   let visited = [];
   try { visited = JSON.parse(p.rooms_visited || '[]'); } catch (_) {}
-  const isNew = !visited.includes(roomId);
+  // DIS-795: normalizar a Number para evitar mismatch string/number
+  const roomIdNum = Number(roomId);
+  const isNew = !visited.some(v => Number(v) === roomIdNum);
   if (isNew) {
-    visited.push(roomId);
+    visited.push(roomIdNum);
     updatePlayer(playerId, { rooms_visited: JSON.stringify(visited) });
   }
   return { visited, isNew };

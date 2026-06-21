@@ -923,6 +923,8 @@ function cmdMove(player, direction) {
     if (fleeResult.playerDied) {
       killStreakMap.set(player.id, 0);
     }
+    // DIS-795: registrar sala de destino como visitada al huir exitosamente desde move
+    if (fleeResult.fled && fleeResult.destRoomId) db.trackRoomVisit(player.id, fleeResult.destRoomId);
     // BUG-459 / BUG-550: aclarar que el movimiento inicia una huida, mostrar resultado después
     // BUG-565: solo mostrar "¡Huís!" si la huida realmente funcionó — si no, solo el mensaje de fallo
     const fleeNote = fleeResult.fled
@@ -2690,6 +2692,8 @@ function cmdFlee(player, targetQuery) {
       if (multiDied) {
         killStreakMap.set(player.id, 0);
       }
+      // DIS-795: registrar sala de destino como visitada al huir exitosamente
+      if (fled && destRoomId) db.trackRoomVisit(player.id, destRoomId);
       const multiMsg = `⚡ Hay ${monsters.length} monstruos (${nameList}). Usá "huir <monstruo>" para huir de uno específico.\n${line}`;
       return {
         text: multiMsg,
@@ -2739,6 +2743,8 @@ function cmdFlee(player, targetQuery) {
   // DIS-479: logro "Supervivencia Táctica" — huir exitosamente 1 vez
   let fleeAchLines = '';
   if (fled) {
+    // DIS-795: registrar sala de destino como visitada al huir exitosamente
+    if (destRoomId) db.trackRoomVisit(player.id, destRoomId);
     const freshForFleeAch = db.getPlayer(player.id);
     const fleeAchs = ach.checkAchievements(freshForFleeAch, { fled: true });
     if (fleeAchs.length > 0) {
