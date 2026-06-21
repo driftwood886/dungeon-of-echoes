@@ -3094,9 +3094,14 @@ function cmdUse(player, itemQuery) {
     const newAttack = baseAttack + def.amount;
 
     const invUse = [...player.inventory];
-    const foundIdxUse = invUse.indexOf(found);
+    // BUG-785: usar findIndex con normalización NFD para que tildes no impidan encontrar el ítem
+    const nfnUse = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const foundIdxUse = invUse.findIndex(i => nfnUse(i) === nfnUse(found));
     if (foundIdxUse !== -1) invUse.splice(foundIdxUse, 1);
-    if (player.equipped_weapon) invUse.push(player.equipped_weapon); // devolver arma anterior
+    // BUG-785: solo devolver el arma anterior si NO ya está en el inventario (previene duplicados)
+    if (player.equipped_weapon && !invUse.some(i => nfnUse(i) === nfnUse(player.equipped_weapon))) {
+      invUse.push(player.equipped_weapon); // devolver arma anterior
+    }
 
     db.updatePlayer(player.id, { attack: newAttack, equipped_weapon: found, inventory: invUse });
 
@@ -4007,9 +4012,15 @@ function cmdEquip(player, itemQuery) {
 
   // BUG-269: remover el arma nueva del inventario, devolver la anterior si había una
   const invEquip = [...player.inventory];
-  const foundIdxEquip = invEquip.indexOf(found);
+  // BUG-785: usar findIndex con normalización NFD (igual que findItem) para que tildes no impidan encontrar el ítem
+  const nfnEquip = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const foundNorm = nfnEquip(found);
+  const foundIdxEquip = invEquip.findIndex(i => nfnEquip(i) === foundNorm);
   if (foundIdxEquip !== -1) invEquip.splice(foundIdxEquip, 1);
-  if (player.equipped_weapon) invEquip.push(player.equipped_weapon); // devolver arma anterior
+  // BUG-785: solo devolver el arma anterior si NO ya está en el inventario (previene duplicados)
+  if (player.equipped_weapon && !invEquip.some(i => nfnEquip(i) === nfnEquip(player.equipped_weapon))) {
+    invEquip.push(player.equipped_weapon); // devolver arma anterior
+  }
 
   db.updatePlayer(player.id, { attack: newAttack, equipped_weapon: found, inventory: invEquip });
 
