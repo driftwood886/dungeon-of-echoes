@@ -167,6 +167,17 @@ function getItemDef(name) {
   // Coincidencia parcial
   const found = Object.keys(ITEM_CATALOG).find(k => nfd(k).includes(key) || key.includes(nfd(k)));
   if (found) return { name: found, ...ITEM_CATALOG[found] };
+  // BUG-796: también buscar en CRAFTED_ITEMS de crafting.js (ítems solo crafteables)
+  // Evitar require circular: solo cargar crafting si no encontramos en items
+  try {
+    const { CRAFTED_ITEMS } = require('./crafting');
+    if (CRAFTED_ITEMS) {
+      const exactCraft = Object.keys(CRAFTED_ITEMS).find(k => nfd(k) === key);
+      if (exactCraft) return { name: exactCraft, ...CRAFTED_ITEMS[exactCraft] };
+      const partialCraft = Object.keys(CRAFTED_ITEMS).find(k => nfd(k).includes(key) || key.includes(nfd(k)));
+      if (partialCraft) return { name: partialCraft, ...CRAFTED_ITEMS[partialCraft] };
+    }
+  } catch (e) { /* evitar crash si hay problema de carga */ }
   return null;
 }
 
