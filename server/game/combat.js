@@ -1110,6 +1110,15 @@ function attackRound(player, monster) {
         blessShield.amount -= blessAbsorb;
         if (blessShield.amount <= 0) delete seBlessShield.blessing_shield;
         db.updatePlayer(player.id, { status_effects: JSON.stringify(seBlessShield) });
+        // BUG-783: también actualizar player.status_effects en memoria para evitar que el save
+        // final de la función sobreescriba la BD con el estado antiguo (mismo patrón BUG-671/773)
+        if (player.status_effects && typeof player.status_effects === 'object') {
+          if (blessShield.amount <= 0) {
+            delete player.status_effects.blessing_shield;
+          } else {
+            player.status_effects.blessing_shield = { ...blessShield };
+          }
+        }
         lines.push(`🛡️ El escudo sagrado de Bendición absorbe ${blessAbsorb} de daño${blessShield.amount > 0 ? ` (${blessShield.amount} HP restantes)` : ' (agotado)'}!`);
       }
     }
