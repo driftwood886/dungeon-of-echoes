@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801 };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1671,11 +1671,12 @@ function migrateBossHPFullReset() {
 function migrateLichHPDIS794() {
   // DIS-794: Lich Anciano demasiado fácil para Guerrero nivel 8 — muerto en 3 turnos con smash.
   // Subir HP de 90 → 110 para garantizar que la Fase 2 (al 50% HP) se active y el combate dure 4-5 turnos.
+  // DIS-797 fix: siempre setear hp=110 (no Math.min(lich.hp, 110)) porque migrateBossHPFullReset
+  // corre antes y deja lich.hp=90 — si no se setea a 110 aquí el Lich queda con 90/110 HP al inicio.
   const lich = db.getMonster(13);
-  if (lich && lich.max_hp === 90) {
-    const newHp = Math.min(lich.hp, 110);
-    db.updateMonster(13, { max_hp: 110, hp: newHp });
-    console.log(`[seed] migrateLichHPDIS794: DIS-794 — Lich Anciano HP 90 → 110. HP actual: ${newHp}/110.`);
+  if (lich && lich.max_hp < 110) {
+    db.updateMonster(13, { max_hp: 110, hp: 110 });
+    console.log(`[seed] migrateLichHPDIS794: DIS-794/DIS-797 — Lich Anciano HP → 110/110 (max_hp anterior: ${lich.max_hp}).`);
   }
 }
 
@@ -1693,6 +1694,34 @@ function migrateCatedralBagDIS793() {
   if (!items.includes('bolsa de lona')) {
     db.upsertRoom({ ...room15, items: [...items, 'bolsa de lona'] });
     console.log('[seed] migrateCatedralBagDIS793: DIS-793 — bolsa de lona agregada a la Catedral (sala 15). El jugador puede recogerla antes de enfrentar al Lich para ampliar su mochila. ✓');
+  }
+}
+
+/**
+ * DIS-801: La Cámara de la Fuente Eterna (sala 18) es un dead-end — solo tiene salida sur (Santuario)
+ * y abajo (Abismo Eterno, boss nivel 7+). Un jugador que la visita en medio del recorrido debe
+ * salir por donde entró. Fix: agregar salida este→Trono (sala 9) y oeste en Trono→Fuente.
+ * Esto crea un bucle suave: Santuario↔Fuente↔Trono que integra mejor la zona en el flujo.
+ */
+function migrateFuenteEternaDIS801() {
+  const room18 = db.getRoom(18);
+  const room9 = db.getRoom(9);
+  if (!room18 || !room9) return;
+  let changed = false;
+  if (!room18.exits || room18.exits['east'] === undefined) {
+    db.upsertRoom({ ...room18, exits: { ...room18.exits, east: 9 } });
+    console.log('[seed] migrateFuenteEternaDIS801: DIS-801 — Fuente Eterna (18) → east → Sala del Trono (9). ✓');
+    changed = true;
+  }
+  // Recargar sala 9 por si cambió (evitar sobreescribir la sala 18 que ya actualizamos)
+  const room9Fresh = db.getRoom(9);
+  if (!room9Fresh.exits || room9Fresh.exits['west'] === undefined) {
+    db.upsertRoom({ ...room9Fresh, exits: { ...room9Fresh.exits, west: 18 } });
+    console.log('[seed] migrateFuenteEternaDIS801: DIS-801 — Sala del Trono (9) → west → Fuente Eterna (18). ✓');
+    changed = true;
+  }
+  if (!changed) {
+    // console.log('[seed] migrateFuenteEternaDIS801: DIS-801 — ya migrado, sin cambios.');
   }
 }
 

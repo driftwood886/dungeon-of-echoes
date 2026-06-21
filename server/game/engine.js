@@ -636,6 +636,9 @@ function completeTutorial(player) {
     cycle_start_at: new Date().toISOString(), // siempre resetear al salir del tutorial
   };
   db.updatePlayer(player.id, updateData);
+  // DIS-799: registrar sala 1 como visitada — completeTutorial setea current_room_id=1 pero
+  // nunca llamaba trackRoomVisit, así que sala 1 aparecía como ?? en el mapa siempre.
+  try { db.trackRoomVisit(player.id, 1); } catch (_) { /* silencioso */ }
   // BUG-019: limpiar el suelo de la sala 16 para no acumular loot entre sesiones
   try { db.updateRoomItems(16, []); } catch (e) { /* silencioso */ }
   // DIS-D278: Leer estado fresco del jugador para saber si ya tiene clase asignada
@@ -2973,6 +2976,27 @@ function cmdPick(player, itemQuery) {
       }
     }
   }
+  // DIS-802: hint al recoger el PRIMER ingrediente de una receta (antes de tener el segundo)
+  // Solo si aún no se ha mostrado el hint completo de esa receta — orienta al Mago/jugador nuevo
+  if (!pickCraftHint) {
+    const freshP802 = db.getPlayer(player.id);
+    const shownH802 = freshP802.status_effects || {};
+    const foundLowerN = found.toLowerCase().trim();
+    for (const recipe of crafting.RECIPES) {
+      const [ingA, ingB] = recipe.ingredients;
+      const hKeyFull = `craft_hint_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
+      const hKeyFirst = `craft_first_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
+      // Si el jugador recién recogió ingA y aún no tiene ingB (ni el hint completo ya fue mostrado)
+      const justGotA = foundLowerN === ingA.toLowerCase().trim() && !invNorm2.includes(ingB.toLowerCase().trim());
+      const justGotB = foundLowerN === ingB.toLowerCase().trim() && !invNorm2.includes(ingA.toLowerCase().trim());
+      if ((justGotA || justGotB) && !shownH802[hKeyFull] && !shownH802[hKeyFirst]) {
+        const otherIng = justGotA ? ingB : ingA;
+        pickCraftHint = `\n✨ Ingrediente de receta: "${found}" + "${otherIng}" → ${recipe.result}.\n   Conseguí "${otherIng}" y usá: \`craft ${ingA} con ${ingB}\``;
+        db.updatePlayer(freshP802.id, { status_effects: JSON.stringify({ ...shownH802, [hKeyFirst]: true }) });
+        break;
+      }
+    }
+  }
 
   // DIS-D327/DIS-D351: hint de quest de Aldric cuando se recoge la carta sellada
   // DIS-D351: variar hint según nivel del jugador (Aldric no activa la quest hasta nivel 5)
@@ -5058,39 +5082,33 @@ function cmdMap(player) {
   //
   // Conexiones reales:
   //   Sala 18 (Fuente Eterna): al NORTE de Santuario (sala 10) — DIS-788
+  //   Sala 18 (Fuente Eterna): al ESTE → Sala del Trono (9) — DIS-801 (nueva conexión)
   //   Sala  7 (Pozo): norte (🔑) → sala 10; este → sala 3
   //   Sala  8 (Prisión): sur → sala 4; este → sala 17
   //
-  // Layout rediseñado (DIS-788: columna izquierda muestra 18→|→10 claramente):
+  // Layout rediseñado (DIS-801: Fuente conectada al Trono):
   //
-  // [18:Fuente]
-  //   |         [8:Prisión]
-  //   |         |
-  // [7:Pozo]─[3:Ecos]─[4:Tesoro]─[17:Sub]
-  //   |🔑 (puerta norte del Pozo, conduce al Santuario)
-  // [10:Santuario]─[9:Trono]─[6:Túnel]─[2:Corredor]
+  // [18:Fuente]---[9:Trono]─[6:Túnel]─[2:Corredor]
   //   |                         |           |
-  // [11:Galería]          [5:Capilla]─[1:Entrada]
-  //   |   \                              ↓(bajar)
-  // [12:Forja] [13:Caverna]         [21:Práctica]─[16:Antesala]
-  //          ↘  ↙
-  //   [14:Coliseo]─[19:Cám.Eco]─[15:Catedral]─[22:Cripta]
-  //                      |
-  //                 [20:Abismo]
+  // [7:Pozo]─[3:Ecos]─[4:Tesoro]─[17:Sub]  ...
+  //   |🔑 (puerta norte del Pozo, conduce al Santuario)
+  // [10:Santuario]
+  //   ...
   //
-  // Nota: La sala 18 (Fuente) está al NORTE de sala 10 (Santuario).
-  // La sala 7 (Pozo) tiene salida norte BLOQUEADA hacia sala 10.
-  // El `|` en la columna izquierda representa ambas conexiones verticales con sala 10.
+  // Nota: La sala 18 (Fuente) está al NORTE de sala 10 (Santuario) y al OESTE de sala 9 (Trono).
+  // La columna izquierda del mapa muestra 18→|→10 (conexión norte-sur).
+  // La sala 18 también tiene salida east → sala 9 (Trono).
   //
 
   const lines = [
     'MAPA DEL DUNGEON',
     timeDecor,
     '',
-    `${c(18)}`,
-    `  |         ${c(8)}`,
+    `${c(18)}---${c(9)}---${c(6)}---${c(2)}`,
+    `  |         |         |         |`,
+    `  |        ${c(10)}  ${c(5)}---${c(1)}`,
     `  |         |`,
-    `${c(7)}---${c(3)}---${c(4)}---${c(17)}`,
+    `${c(7)}---${c(3)}---${c(4)}---${c(8)}---${c(17)}`,
     // BUG-721: verificar si la puerta norte de sala 7 está desbloqueada
     (() => {
       const room7 = db.getRoom(7);
@@ -5108,17 +5126,16 @@ function cmdMap(player) {
         ? `  |🔑(bloqueado — ruta libre: Capilla→Túnel→Trono→Santuario)`
         : `  |🔑(bloqueado)`;
     })(),
-    `${c(10)}---${c(9)}---${c(6)}---${c(2)}`,
-    `  |              |         |`,
-    `${c(11)}    ${c(5)}---${c(1)}`,
-    `  |   \\               ↓ (bajar)`,
-    `${c(12)} ${c(13)}       ${c(21)}---${c(16)}`,
-    `      \\  /`,
+    `  |`,
+    `${c(11)}      ↓ (bajar)`,
+    `  |   \\\\               ${c(21)}---${c(16)}`,
+    `${c(12)} ${c(13)}`,
+    `      \\\\  /`,
     `  ${c(14)}---${c(19)}---${c(15)}---${c(22)}`,
     `              |`,
     `         ${c(20)}`,
     ``,
-    `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})  [18] = Fuente (norte de Santuario)`,
+    `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})  [18] = Fuente (west de Trono, north de Santuario)`,
     // DIS-635: solo mencionar sala 8 como fuente de llave si ya fue visitada
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
@@ -6341,6 +6358,24 @@ function cmdShop(player) {
         lines.push(`${clsShop.emoji} Como ${clsShop.name}, Aldric te recomienda especialmente:`);
         lines.push(recItems.join('  '));
         lines.push('');
+      }
+      // DIS-800: sugerir venta de materiales al Mago que no tiene suficiente oro para la vara de energía
+      if (clsShop.name === 'Mago' && (player.gold || 0) < 40) {
+        const inv = Array.isArray(player.inventory) ? player.inventory : [];
+        const sellableMaterials = inv.filter(item => {
+          const cat = SHOP_CATALOG.find(i => i.name === item && i.sellOnly);
+          return cat && cat.price > 0;
+        });
+        if (sellableMaterials.length > 0) {
+          const totalEstimate = sellableMaterials.reduce((sum, item) => {
+            const cat = SHOP_CATALOG.find(i => i.name === item && i.sellOnly);
+            return sum + (cat ? Math.floor(cat.price * 0.5) : 4);
+          }, 0);
+          const needed = 40 - (player.gold || 0);
+          lines.push(`💡 Aldric nota tus materiales: tenés ${sellableMaterials.length} ítem${sellableMaterials.length > 1 ? 's' : ''} vendibles (~${totalEstimate}g).`);
+          lines.push(`   Te faltan ${needed}g para la vara de energía. Usá: \`vender ${sellableMaterials[0]}\``);
+          lines.push('');
+        }
       }
     }
   }
