@@ -9861,6 +9861,24 @@ function cmdUseSkill(player, args, context) {
           db.logGlobalEvent('achievement', `🏅 ${freshPlayer.username} desbloqueó el logro "${newSmashAchs[0].name}".`);
         }
       }
+      // DIS-792: Incrementar lich_kills si mató al Lich con smash (igual que cmdAttack/cmdCast)
+      if (smashLichKill) {
+        try {
+          const freshForSmashCycle = db.getPlayer(freshPlayer.id);
+          if (freshForSmashCycle) {
+            const prevSmashLichKills = freshForSmashCycle.lich_kills || 0;
+            const newSmashLichKills = prevSmashLichKills + 1;
+            let smashCycleTimeMin = 0;
+            if (freshForSmashCycle.cycle_start_at) {
+              smashCycleTimeMin = Math.floor((Date.now() - new Date(freshForSmashCycle.cycle_start_at).getTime()) / 60000);
+            }
+            const smashUpdateData = { lich_kills: newSmashLichKills, cycle_start_at: new Date().toISOString() };
+            const prevSmashBest = freshForSmashCycle.cycle_best_time;
+            if (!prevSmashBest || smashCycleTimeMin < prevSmashBest) smashUpdateData.cycle_best_time = smashCycleTimeMin;
+            db.updatePlayer(freshPlayer.id, smashUpdateData);
+          }
+        } catch (e) { console.warn('[engine] DIS-792: Error incrementando lich_kills con smash:', e.message); }
+      }
       // BUG-010: registrar progreso de quest al matar con skill
       const freshForSmashQuest = db.getPlayer(freshPlayer.id);
       const qSmashResult = quests.recordProgress(freshForSmashQuest, 'kill', { monsterName: target.name });
@@ -9990,6 +10008,24 @@ function cmdUseSkill(player, args, context) {
         if (newBashAchs && newBashAchs.length > 0) {
           db.logGlobalEvent('achievement', `🏅 ${freshPlayer.username} desbloqueó el logro "${newBashAchs[0].name}".`);
         }
+      }
+      // DIS-792: Incrementar lich_kills si mató al Lich con shield_bash
+      if (bashLichKill) {
+        try {
+          const freshForBashCycle = db.getPlayer(freshPlayer.id);
+          if (freshForBashCycle) {
+            const prevBashLichKills = freshForBashCycle.lich_kills || 0;
+            const newBashLichKills = prevBashLichKills + 1;
+            let bashCycleTimeMin = 0;
+            if (freshForBashCycle.cycle_start_at) {
+              bashCycleTimeMin = Math.floor((Date.now() - new Date(freshForBashCycle.cycle_start_at).getTime()) / 60000);
+            }
+            const bashUpdateData = { lich_kills: newBashLichKills, cycle_start_at: new Date().toISOString() };
+            const prevBashBest = freshForBashCycle.cycle_best_time;
+            if (!prevBashBest || bashCycleTimeMin < prevBashBest) bashUpdateData.cycle_best_time = bashCycleTimeMin;
+            db.updatePlayer(freshPlayer.id, bashUpdateData);
+          }
+        } catch (e) { console.warn('[engine] DIS-792: Error incrementando lich_kills con shield_bash:', e.message); }
       }
       // BUG-010: registrar progreso de quest al matar con shield_bash
       const freshForBashQuest = db.getPlayer(freshPlayer.id);
@@ -10157,6 +10193,24 @@ function cmdUseSkill(player, args, context) {
           db.addJournalEntry(freshPlayer.id, 'boss', `☠️ Derrotaste al ${target.name} con Golpe Sucio.`);
           text += `\n\n╔════════════════════════════════════╗\n║  ☠  ¡${target.name.toUpperCase()} DERROTADO!  ☠  ║\n╚════════════════════════════════════╝\n¡Usá 'loot' para recoger los tesoros!`;
         }
+      }
+      // DIS-792: Incrementar lich_kills si mató al Lich con golpe_sucio
+      if (gsLichKill) {
+        try {
+          const freshForGsCycle = db.getPlayer(freshPlayer.id);
+          if (freshForGsCycle) {
+            const prevGsLichKills = freshForGsCycle.lich_kills || 0;
+            const newGsLichKills = prevGsLichKills + 1;
+            let gsCycleTimeMin = 0;
+            if (freshForGsCycle.cycle_start_at) {
+              gsCycleTimeMin = Math.floor((Date.now() - new Date(freshForGsCycle.cycle_start_at).getTime()) / 60000);
+            }
+            const gsUpdateData = { lich_kills: newGsLichKills, cycle_start_at: new Date().toISOString() };
+            const prevGsBest = freshForGsCycle.cycle_best_time;
+            if (!prevGsBest || gsCycleTimeMin < prevGsBest) gsUpdateData.cycle_best_time = gsCycleTimeMin;
+            db.updatePlayer(freshPlayer.id, gsUpdateData);
+          }
+        } catch (e) { console.warn('[engine] DIS-792: Error incrementando lich_kills con golpe_sucio:', e.message); }
       }
       // Registrar quest/challenge/contract al matar con golpe_sucio
       const freshForGsQuest = db.getPlayer(freshPlayer.id);
@@ -10457,6 +10511,24 @@ function cmdUseSkill(player, args, context) {
           db.addJournalEntry(freshPicSh.id, 'boss', `☠️ Derrotaste al ${target.name} con Golpe en la Sombra.`);
           textSh += `\n\n╔════════════════════════════════════╗\n║  ☠  ¡${target.name.toUpperCase()} DERROTADO!  ☠  ║\n╚════════════════════════════════════╝\n¡Usá 'loot' para recoger los tesoros!`;
         }
+      }
+      // DIS-792: Incrementar lich_kills si mató al Lich con golpe_sombra
+      if (shLichKill) {
+        try {
+          const freshForShCycle = db.getPlayer(freshPicSh.id);
+          if (freshForShCycle) {
+            const prevShLichKills = freshForShCycle.lich_kills || 0;
+            const newShLichKills = prevShLichKills + 1;
+            let shCycleTimeMin = 0;
+            if (freshForShCycle.cycle_start_at) {
+              shCycleTimeMin = Math.floor((Date.now() - new Date(freshForShCycle.cycle_start_at).getTime()) / 60000);
+            }
+            const shUpdateData = { lich_kills: newShLichKills, cycle_start_at: new Date().toISOString() };
+            const prevShBest = freshForShCycle.cycle_best_time;
+            if (!prevShBest || shCycleTimeMin < prevShBest) shUpdateData.cycle_best_time = shCycleTimeMin;
+            db.updatePlayer(freshPicSh.id, shUpdateData);
+          }
+        } catch (e) { console.warn('[engine] DIS-792: Error incrementando lich_kills con golpe_sombra:', e.message); }
       }
       const freshForShQuest = db.getPlayer(freshPicSh.id);
       const qShResult = quests.recordProgress(freshForShQuest, 'kill', { monsterName: target.name });
