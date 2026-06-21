@@ -3510,12 +3510,28 @@ function cmdExamine(player, query) {
     const def = items.getItemDef(itemName);
     if (def) {
       const typeLabel = def.type === 'weapon' ? 'Arma' : def.type === 'potion' ? 'Poción' : def.type === 'armor' ? 'Armadura' : 'Objeto';
+      // DIS-782: precio de venta estimado también para ítems en el suelo (mismo cálculo que inventario)
+      const NO_SELL_ITEMS_FLOOR = new Set(['páginas congeladas', 'paginas congeladas', 'carta sellada', 'carta abierta', 'diario helado', 'corona de hueso', 'piedra negra del lich', 'esencia de kaelthas']);
+      let floorSellLine = '';
+      const floorCatalogEntry = SHOP_CATALOG.find(i => i.name.toLowerCase() === itemName.toLowerCase());
+      if (floorCatalogEntry) {
+        const sellAmt = Math.max(1, Math.floor(floorCatalogEntry.price * SELL_PRICE_RATIO));
+        floorSellLine = `💰 Precio de venta (Aldric): ~${sellAmt}g`;
+      } else if (NO_SELL_ITEMS_FLOOR.has(itemName.toLowerCase())) {
+        floorSellLine = `🚫 No vendible (objeto único o de misión)`;
+      } else if (def.amount !== undefined && (def.effect === 'attack_bonus' || def.effect === 'defense_bonus')) {
+        const rarity = items.getItemRarity(itemName);
+        const rarityMult = rarity === 'épico' ? 5 : rarity === 'raro' ? 4 : 3;
+        const estimatedPrice = Math.max(2, def.amount * rarityMult);
+        floorSellLine = `💰 Precio de venta (Aldric): ~${estimatedPrice}g (estimado)`;
+      }
       return {
         text: [
-          `=== ${itemName.toUpperCase()} ===`,
+          `=== ${itemName.toUpperCase()} (en el suelo) ===`,
           def.description,
           `Tipo: ${typeLabel}`,
           def.amount !== undefined ? `Efecto: ${def.effect || 'daño'} ${def.amount > 0 ? '+' : ''}${def.amount}` : '',
+          floorSellLine,
         ].filter(Boolean).join('\n'),
       };
     }
