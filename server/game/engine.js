@@ -791,7 +791,30 @@ function cmdLook(player) {
     } catch (_) {}
   }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine };
+  // DIS-823/DIS-824: Advertencia de nivel recomendado para bosses IN-SALA
+  // (Eco Viviente sala 19, Campeón Espectral sala 14 — no tienen lichStatusLine propio)
+  let inRoomBossLine = '';
+  try {
+    const IN_ROOM_BOSS_WARN = {
+      19: { monsterId: 21, name: 'el Eco Viviente', level: 6, icon: '🔊' },
+      14: { monsterId: 12, name: 'el Campeón Espectral', level: 6, icon: '🦴' },
+    };
+    const inRoomDanger = IN_ROOM_BOSS_WARN[player.current_room_id];
+    if (inRoomDanger) {
+      const boss = db.getMonster(inRoomDanger.monsterId);
+      const bossAlive = boss && boss.room_id !== null && (boss.hp || 0) > 0;
+      if (bossAlive) {
+        const playerLevel = player.level || 1;
+        if (playerLevel < inRoomDanger.level) {
+          inRoomBossLine = `\n⚠️ ${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. (Tu nivel: ${playerLevel}) ¡Preparate bien antes de atacar!`;
+        } else {
+          inRoomBossLine = `\n${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. El combate no admite escape fácil.`;
+        }
+      }
+    }
+  } catch (_) {}
+
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine };
 }
 
 /**
@@ -1483,8 +1506,24 @@ function cmdMove(player, direction) {
     }
   }
 
+  // DIS-825: Hint para jugadores que bypassean la tienda del Mercader (sala 4)
+  // Si el jugador llega a sala 5 (Capilla) o sala 6 (Túnel) por primera vez SIN haber visitado
+  // la Cámara del Tesoro (sala 4), mostrar un hint suave para que sepa que existe una tienda.
+  let shopHintMsg = '';
+  if (firstVisitEver && (targetId === 5 || targetId === 6)) {
+    try {
+      let visitedRooms825 = [];
+      try { visitedRooms825 = JSON.parse(player.rooms_visited || '[]'); } catch (_) {}
+      const visitedNums = visitedRooms825.map(Number);
+      const hasVisitedShop = visitedNums.includes(4);
+      if (!hasVisitedShop) {
+        shopHintMsg = '\n\n💡 Notás que aún no pasaste por la Cámara del Tesoro (al sur de esta zona). Aldric el Mercader tiene pociones, armas y armaduras — visitarlo antes de avanzar al norte puede salvarte la vida.';
+      }
+    } catch (_) {}
+  }
+
   return {
-    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}${leftEpicMsg}`,
+    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}${leftEpicMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
