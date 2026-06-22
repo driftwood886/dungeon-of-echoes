@@ -6645,7 +6645,9 @@ function cmdBuy(player, itemQuery) {
   // DIS-676: Si el jugador compra un arma y no tiene armadura, Aldric sugiere comprar cuero endurecido
   const boughtWeapon = items.getItemDef(item.name);
   const noArmor = !freshBuyer.equipped_armor || freshBuyer.equipped_armor === 'null';
-  const armorTip = (boughtWeapon && boughtWeapon.type === 'weapon' && noArmor)
+  // DIS-821: no mostrar mensaje si el ítem comprado ya es un accesorio defensivo (guantes con rogue_only_crit_bonus)
+  const isBoughtItemDefensive = boughtWeapon && (boughtWeapon.rogue_only_crit_bonus || boughtWeapon.defense_bonus);
+  const armorTip = (boughtWeapon && boughtWeapon.type === 'weapon' && noArmor && !isBoughtItemDefensive)
     ? '\n"Una espada sin protección es invitación al funeral." Aldric señala el cuero endurecido. "20 monedas — más barato que respawnear."'
     : '';
 
