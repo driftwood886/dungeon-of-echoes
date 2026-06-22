@@ -1376,9 +1376,15 @@ function cmdMove(player, direction) {
     } else if (roomEffect.type === 'debuff') {
       // BUG-339: Si la trampa de esta sala fue esquivada por memoria o mascota,
       // no mostrar el debuff narrativo (el jugador evitó el peligro conscientemente).
-      if (!trapWasAvoided) {
+      // DIS-828: tampoco si el jugador tiene el amuleto del eco (sala 19).
+      const invForDebuff = db.getInventory(player.id);
+      const hasEchoAmuletDebuff = invForDebuff.some(i => i.name === 'amuleto del eco');
+      const echoAmuletCancelsDebuff = hasEchoAmuletDebuff && targetId === 19;
+      if (!trapWasAvoided && !echoAmuletCancelsDebuff) {
         // Debuff temporal narrativo — en futuro se integraría con status_effects
         effectText = `\n\n${roomEffect.msg}`;
+      } else if (echoAmuletCancelsDebuff) {
+        effectText = `\n\n🔊✨ El amuleto del eco pulsa suavemente y absorbe los sonidos enloquecedores. Los Ecos Enloquecedores no te afectan.`;
       }
     }
   }
@@ -1850,8 +1856,11 @@ function cmdStatus(player) {
       const stanceAtkMod = STANCE_ATK[player.stance || 'equilibrado'] || 0;
       const petAtk = player.pet ? 1 : 0;
       // DIS-710: room effect penalty (ej: Ecos Enloquecedores sala 19 = -1 ATK)
+      // DIS-828: el amuleto del eco (crafteable en sala 19) protege de los Ecos Enloquecedores
       const roomEffStatus = ROOM_EFFECTS[player.current_room_id];
-      const roomAtkMod = (roomEffStatus && roomEffStatus.type === 'debuff' && roomEffStatus.stat === 'attack')
+      const hasEchoAmulet = inventory.some(i => i.name === 'amuleto del eco');
+      const echoAmuletCancels = hasEchoAmulet && player.current_room_id === 19;
+      const roomAtkMod = (roomEffStatus && roomEffStatus.type === 'debuff' && roomEffStatus.stat === 'attack' && !echoAmuletCancels)
         ? roomEffStatus.amount : 0;
       const totalBonus = atkBuffTotal + stanceAtkMod + petAtk + roomAtkMod;
       const effectiveAtk = player.attack + totalBonus;
@@ -2142,6 +2151,7 @@ function cmdAttack(player, targetName) {
   // BUG-348: Aplicar debuff de sala en combate (ROOM_EFFECTS de tipo 'debuff').
   // El debuff es real (-1 ATK durante combate en esa sala), EXCEPTO si el jugador
   // esquivó la trampa por memoria (trap_cd_<roomId> en status_effects).
+  // DIS-828: También cancelado si el jugador tiene el amuleto del eco (sala 19).
   const roomEffectForCombat = ROOM_EFFECTS[player.current_room_id];
   if (roomEffectForCombat && roomEffectForCombat.type === 'debuff' && roomEffectForCombat.stat === 'attack') {
     const seForCombat = parseSE(player.status_effects);
@@ -2149,7 +2159,10 @@ function cmdAttack(player, targetName) {
     const trapMemoryActive = seForCombat[trapCdKeyForCombat]
       ? new Date(seForCombat[trapCdKeyForCombat]).getTime() > Date.now()
       : false;
-    if (!trapMemoryActive) {
+    const inventoryForAmulet = db.getInventory(player.id);
+    const hasEchoAmuletCombat = inventoryForAmulet.some(i => i.name === 'amuleto del eco');
+    const echoAmuletCancelsCombat = hasEchoAmuletCombat && player.current_room_id === 19;
+    if (!trapMemoryActive && !echoAmuletCancelsCombat) {
       // Aplicar debuff: reducir attack temporalmente para este combate
       player = { ...player, attack: Math.max(1, (player.attack || 5) + roomEffectForCombat.amount) };
     }

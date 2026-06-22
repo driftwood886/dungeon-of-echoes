@@ -105,7 +105,7 @@ const ITEM_CATALOG = {
   // ── Armas artesanales avanzadas — Dungeon Extendido (T132) ──────────────────
   'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 10, description: 'Versión potenciada de la lanza espectral, forjada con los ecos de los caídos en las profundidades. El arma más poderosa del mid-game. Requiere: cristal resonante (drop del Campeón Espectral) + esencia de eco (drop del Eco Viviente). +10 de ataque.' },
   'daga del vacío':      { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una daga que parece absorber la realidad. +12 de ataque. El arma más poderosa de las profundidades.' },
-  'amuleto del eco':     { type: 'misc', description: 'Un amuleto que pulsa con ecos de memorias antiguas. Protección de la Cámara del Eco.' },
+  'amuleto del eco':     { type: 'misc', description: 'Un amuleto que pulsa con ecos de memorias antiguas. Protección de la Cámara del Eco. 🔊✨ Efecto pasivo: mientras lo llevés en el inventario en la Cámara del Eco (sala 19), cancela los Ecos Enloquecedores (-1 ATK). No necesitás equiparlo — solo tenerlo.' },
 
   // ── Ítems artesanales (resultado de crafteo — T092) ───────────────────────
   'espada envenenada':   { type: 'weapon', effect: 'attack_bonus', amount: 5,  on_hit: { type: 'poison', chance: 0.35, damage: 2, turns: 3 }, description: 'Una espada que supura veneno verde. +5 de ataque. 35% de chance de envenenar al objetivo por 3 turnos.' },
