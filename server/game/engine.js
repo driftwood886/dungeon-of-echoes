@@ -6685,7 +6685,8 @@ function cmdBuy(player, itemQuery) {
   const boughtWeapon = items.getItemDef(item.name);
   const noArmor = !freshBuyer.equipped_armor || freshBuyer.equipped_armor === 'null';
   // DIS-821: no mostrar mensaje si el ítem comprado ya es un accesorio defensivo (guantes con rogue_only_crit_bonus)
-  const isBoughtItemDefensive = boughtWeapon && (boughtWeapon.rogue_only_crit_bonus || boughtWeapon.defense_bonus);
+  // DIS-827: tampoco mostrar si es ítem mágico de clase (vara de energía, pergamino, símbolo sagrado) — un Mago no necesita el tip de armadura
+  const isBoughtItemDefensive = boughtWeapon && (boughtWeapon.rogue_only_crit_bonus || boughtWeapon.defense_bonus || boughtWeapon.mage_only_bonus || boughtWeapon.cleric_only_bonus);
   const armorTip = (boughtWeapon && boughtWeapon.type === 'weapon' && noArmor && !isBoughtItemDefensive)
     ? '\n"Una espada sin protección es invitación al funeral." Aldric señala el cuero endurecido. "20 monedas — más barato que respawnear."'
     : '';
