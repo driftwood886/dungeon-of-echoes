@@ -4266,7 +4266,7 @@ function cmdEquip(player, itemQuery) {
       // Tienen solo escudo roto u otro escudo misc
       return { text: `"${found}" no se puede equipar directamente.\n💡 Los escudos van en el slot de armadura con el comando \`wear\` o \`ponerse\`.\n   Si tenés un escudo crafteado (ej: escudo de madera), usá: wear escudo de madera` };
     }
-    return { text: `${found} no es un arma que puedas equipar.${def && def.type === 'armor' ? ' Usá "wear" para ponerte armaduras.' : ''}` };
+    return { text: `${found} no es un arma que puedas equipar.${def && def.type === 'armor' ? ' Usá "wear" para ponerte armaduras.' : def && def.type === 'misc' && found.toLowerCase().includes('amuleto') ? '\n✨ El amuleto del eco es un ítem pasivo — con solo tenerlo en el inventario activa su efecto.' : ''}` };
   }
 
   const oldAttack = player.attack;
@@ -4807,6 +4807,10 @@ function cmdWear(player, itemQuery) {
     // BUG-776: si es un arma (weapon), redirigir automáticamente a equip en vez de error crudo
     if (def && def.type === 'weapon') {
       return cmdEquip(player, found);
+    }
+    // BUG-845: ítem pasivo (misc) — mensaje específico si el jugador intenta "wear" algo pasivo
+    if (def && def.type === 'misc' && found.toLowerCase().includes('amuleto')) {
+      return { text: `✨ El ${found} es un ítem pasivo — no necesitás ponértelo. Con solo tenerlo en tu inventario activa su efecto. No lo equipés.` };
     }
     return { text: `${found} no es una armadura que puedas ponerte. Para armas usá "equip".` };
   }
@@ -6381,6 +6385,42 @@ const SHOP_CATALOG = [
   { name: 'esencia de sombra',       price: 38,  sellOnly: true, description: 'Esencia de las sombras del dungeon. Material de altísimo nivel.' },
   { name: 'esencia del abismo',      price: 38,  sellOnly: true, description: 'Esencia pura de la Sombra del Vacío. Extremadamente valiosa.' },
   { name: 'fragmento de vacío',      price: 38,  sellOnly: true, description: 'Fragmento del Abismo Eterno. Aldric lo quiere para investigación.' },
+
+  // BUG-843: ítems raros, épicos y legendarios de drop/crafteo — precios diferenciados
+  // Legendarios
+  { name: 'grimorio del abismo',     price: 200, sellOnly: true, description: 'Un grimorio de poder abismal. Aldric lo compra como reliquia mágica.' },
+  { name: 'daga del vacío',          price: 200, sellOnly: true, description: 'Una daga que absorbe la realidad. Pieza de colección incalculable.' },
+  // Épicos
+  { name: 'espada de obsidiana',     price: 150, sellOnly: true, description: 'La espada más poderosa del dungeon. Su valor es enorme.' },
+  { name: 'catalizador mágico',      price: 110, sellOnly: true, description: 'Concentrado de energía arcana. Aldric paga bien por esto.' },
+  { name: 'armadura de placas',      price: 100, sellOnly: true, description: 'La mejor armadura del dungeon. Protección máxima.' },
+  { name: 'lanza espectral del eco', price: 100, sellOnly: true, description: 'Lanza forjada con ecos de los caídos. Arma excepcional.' },
+  { name: 'lanza espectral reforzada', price: 90, sellOnly: true, description: 'Versión reforzada de la lanza espectral.' },
+  { name: 'lanza espectral',         price: 75,  sellOnly: true, description: 'Lanza de luz negra condensada. Arma del más allá.' },
+  { name: 'hacha de guerra',         price: 70,  sellOnly: true, description: 'Un hacha de guerra imponente. Valdrath pagaba bien por estas.' },
+  { name: 'alabarda de huesos',      price: 60,  sellOnly: true, description: 'Alabarda espectral con el sello de Valdrath. Pieza histórica.' },
+  { name: 'espada envenenada',       price: 50,  sellOnly: true, description: 'Espada que supura veneno. Aldric la compra desactivada.' },
+  { name: 'filacteria rota',         price: 50,  sellOnly: true, description: 'La filacteria destruida del Lich. Una reliquia oscura invaluable.' },
+  { name: 'pergamino de velocidad',  price: 30,  sellOnly: true, description: 'Pergamino de energía cinética. Aldric lo colecciona.' },
+  // Raros
+  { name: 'perla negra',             price: 60,  sellOnly: true, description: 'Perla del lago subterráneo. Valor incalculable para coleccionistas.' },
+  { name: 'peto de huesos',          price: 50,  sellOnly: true, description: 'Peto macabro del dungeon profundo. Aldric lo compra para estudio.' },
+  { name: 'tomo sellado',            price: 40,  sellOnly: true, description: 'Tomo con runas que pulsan. Aldric lo quiere para investigación.' },
+  { name: 'veste de sombra',         price: 40,  sellOnly: true, description: 'Veste tejida con esencia de sombra. Pieza mágica de alto valor.' },
+  { name: 'llave maestra',           price: 40,  sellOnly: true, description: 'Una llave que abre muchas cerraduras. Aldric la colecciona.' },
+  { name: 'grimorio élfico',         price: 40,  sellOnly: true, description: 'Grimorio élfico con hechizos olvidados. Muy valioso.' },
+  { name: 'escudo de gladiador',     price: 30,  sellOnly: true, description: 'El escudo de Maximus. Aldric lo quiere como pieza histórica.' },
+  { name: 'collar de garras',        price: 30,  sellOnly: true, description: 'Collar primitivo pero mágico. Artesanía del dungeon.' },
+  { name: 'amuleto del eco',         price: 30,  sellOnly: true, description: 'Amuleto de la Cámara del Eco. Rareza mágica codiciada.' },
+  { name: 'cuchillo envenenado',     price: 30,  sellOnly: true, description: 'Cuchillo impregnado de veneno de araña. Arma especializada.' },
+  { name: 'látigo de garras',        price: 30,  sellOnly: true, description: 'Látigo improvisado con garras. Artesanía del dungeon.' },
+  { name: 'pergamino de furia',      price: 30,  sellOnly: true, description: 'Pergamino que irradia energía roja. Aldric lo colecciona.' },
+  { name: 'pergamino de escudo',     price: 25,  sellOnly: true, description: 'Pergamino de runas protectoras. Aldric lo colecciona.' },
+  { name: 'poción de poder',         price: 30,  sellOnly: true, description: 'Poción de amplificación oscura. Muy demandada en el mercado.' },
+  { name: 'poción de vida',          price: 20,  sellOnly: true, description: 'Poción de curación mejorada. Aldric la compra para reventa.' },
+  { name: 'carta sellada',           price: 20,  sellOnly: true, description: 'Carta con el sello de Valdrath. Valor histórico.' },
+  { name: 'páginas congeladas',      price: 20,  sellOnly: true, description: 'Fragmentos de un diario antiguo. Valor histórico.' },
+  { name: 'corona rota',             price: 20,  sellOnly: true, description: 'Corona de alguien poderoso. Pieza histórica del dungeon.' },
 ];
 
 // Precios de venta al mercader (jugador → mercader) — 40% del valor

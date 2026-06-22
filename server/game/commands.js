@@ -143,7 +143,7 @@ const COMMAND_ALIASES = {
   // news / crónica / historial de eventos globales (T093)
   news: 'news', cronica: 'news', crónica: 'news', noticias: 'news', historial: 'news', diario: 'news',
   // forage / buscar ítems ocultos (T094)
-  forage: 'forage', buscar: 'forage', explorar: 'forage', hurgar: 'forage', rebuscar: 'forage', rastrear: 'forage',
+  forage: 'forage', buscar: 'forage', explorar: 'forage', forajear: 'forage', hurgar: 'forage', rebuscar: 'forage', rastrear: 'forage',
   // survey / sondear (T205)
   survey: 'survey', sondear: 'survey', escanear: 'survey', inspeccionar_sala: 'survey', prospeccionar: 'survey', prospectar: 'survey',
   // pet / mascota (T095)
