@@ -2647,10 +2647,13 @@ function cmdAttack(player, targetName) {
         lines.push('║  con "drop <ítem>", "vault store <ítem>" o "subastar". ║');
       }
       // DIS-656: mostrar progreso de exploración en el panel de victoria
-      const TOTAL_ROOMS = 20;
+      // DIS-808: 20 salas del dungeon real (excl. tutoriales 16 y 21, incl. sala 22 Cripta)
+      const DUNGEON_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18,19,20,22];
+      const TOTAL_ROOMS = DUNGEON_ROOMS.length;
       let visitedRooms = [];
       try { visitedRooms = JSON.parse(freshForInv.rooms_visited || '[]'); } catch (_) {}
-      const visitedCount = visitedRooms.length;
+      // Contar solo salas del dungeon real (excl. tutorial)
+      const visitedCount = DUNGEON_ROOMS.filter(id => visitedRooms.some(v => v == id)).length;
       const roomsRemaining = TOTAL_ROOMS - visitedCount;
       const exploredPct = Math.round((visitedCount / TOTAL_ROOMS) * 100);
       lines.push('╠══════════════════════════════════════════════════════╣');
@@ -2666,11 +2669,11 @@ function cmdAttack(player, targetName) {
             4: 'cámara del tesoro', 5: 'capilla', 6: 'zona del pozo',
             7: 'pozo sin fondo', 8: 'prisión subterránea', 9: 'sala del trono',
             10: 'santuario profano', 11: 'galería de hielo', 12: 'taller de la forja',
-            13: 'cámara de la fuente', 14: 'coliseo espectral', 15: 'catedral de la perdición',
-            16: 'bóveda del destino', 17: 'casa de subastas', 18: 'cripta olvidada',
-            19: 'cámara del eco', 20: 'abismo eterno',
+            13: 'caverna sumergida', 14: 'coliseo de huesos', 15: 'catedral del lich',
+            17: 'casa de subastas', 18: 'fuente eterna', 19: 'cámara del eco',
+            20: 'abismo eterno', 22: 'cripta de los valientes',
           };
-          const allRoomIds = Array.from({ length: TOTAL_ROOMS }, (_, i) => i + 1);
+          const allRoomIds = DUNGEON_ROOMS;
           // DIS-762: usar comparación con == para manejar casos donde IDs sean strings o números
           const unvisited = allRoomIds.filter(id => !visitedRooms.some(v => v == id));
           for (const rid of unvisited) {

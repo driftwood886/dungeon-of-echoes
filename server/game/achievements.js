@@ -142,7 +142,10 @@ const ACHIEVEMENTS = [
       try { visited = JSON.parse(p.rooms_visited || '[]'); } catch (_) {}
       // DIS-781: actualizado para incluir todas las 20 salas del dungeon
       // (salas 1-18 base + sala 19 Cámara del Eco + sala 20 Abismo Eterno)
-      const ALL_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+      // DIS-808: excluir salas de tutorial (16 = Antesala, 21 = Sala de Práctica)
+      // que no son accesibles después de completar el tutorial.
+      // El Cartógrafo requiere explorar el dungeon real (19 salas jugables + sala 22 Cripta)
+      const ALL_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18,19,20,22];
       return ALL_ROOMS.every(id => visited.includes(id) || visited.map(Number).includes(id));
     },
   },
