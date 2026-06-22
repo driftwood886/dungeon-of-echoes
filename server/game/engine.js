@@ -735,6 +735,28 @@ function cmdLook(player) {
       if (dangerLines.length > 0) {
         adjacentDangerLine = '\n⚠️ ' + dangerLines.join('\n⚠️ ');
       }
+      // DIS-811: advertencia de trampa activa en Caverna Sumergida (sala 13) desde sala adyacente
+      // La inundación aplica -7 HP en primera visita sin previo aviso
+      const TRAP_ROOM_DANGER = {
+        13: { icon: '💧', name: 'trampa de inundación', roomName: 'Caverna Sumergida', dmg: 7 },
+      };
+      const trapLines = [];
+      for (const [dir, destId] of Object.entries(curExits)) {
+        const trapRoom = TRAP_ROOM_DANGER[destId];
+        if (trapRoom) {
+          // Solo advertir si el jugador aún no visitó la sala (primera visita es cuando actúa la trampa)
+          let visitedArr = [];
+          try { visitedArr = JSON.parse(player.rooms_visited || '[]'); } catch (_) {}
+          const alreadyVisited = visitedArr.some(v => v == destId);
+          if (!alreadyVisited) {
+            const dirLabel = { north: 'al norte', south: 'al sur', east: 'al este', west: 'al oeste', up: 'arriba', down: 'abajo' }[dir] || dir;
+            trapLines.push(`${trapRoom.icon} ${dirLabel}: ${trapRoom.roomName} — ${trapRoom.name} activa (-${trapRoom.dmg} HP al entrar por primera vez).`);
+          }
+        }
+      }
+      if (trapLines.length > 0) {
+        adjacentDangerLine += '\n⚠️ ' + trapLines.join('\n⚠️ ');
+      }
     }
   } catch (_) { /* no romper look si falla */ }
 
