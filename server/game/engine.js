@@ -3584,6 +3584,15 @@ function cmdExamine(player, query) {
     'arco':          'El arco de entrada de la Cripta está decorado con calaveras de piedra que sujetan antorchas apagadas. La inscripción tallada en el dintel dice: \"Los que caen aquí no mueren dos veces.\"',
   };
   if (player.current_room_id === 22) {
+    // DIS-812: examine tu nombre / examine nombre — detectar si ya mató al Lich
+    if (qLow.includes('nombre') || qLow.includes('placa reciente') || qLow.includes('placa nueva')) {
+      const lichKills = player.lich_kills || 0;
+      if (lichKills > 0) {
+        return { text: `Examinás las placas más recientes... y ahí está. Tu nombre, recién grabado, con el título: "Cazador del Lich Anciano — Ciclo ${lichKills}".\n\nAlguien — o algo — te conmemora mientras aún vivís. No sabés si eso te tranquiliza o te inquieta más.\n\n👑 Tu legado está inscrito en la Cripta de los Valientes.` };
+      } else {
+        return { text: `Buscás tu nombre entre las placas. No está. Todavía.\n\nLas placas más recientes pertenecen a aventureros que cayeron ante el Lich Anciano, la Sombra del Vacío, el Eco Viviente. Los epitafios son cortos: "llegó lejos", "casi lo logra", "el Lich lo recuerda".\n\n💡 Tu nombre estará aquí cuando derrotes al Lich Anciano. Aún no. Pero podría.\n\nEl sistema de legado registra tus victorias. Escribí 'legado' para ver tu estado actual.` };
+      }
+    }
     for (const [key, txt] of Object.entries(CRIPTA_LORE)) {
       if (qLow.includes(key) || key.includes(qLow)) {
         return { text: txt };
