@@ -7639,6 +7639,15 @@ function cmdCraft(player, args) {
     return { text: craftResult.text };
   }
 
+  // DIS-813: Si el jugador ya tiene equipado el arma crafteada, avisar (evita crafteo redundante)
+  if (craftResult.result) {
+    const nfnResult = craftResult.result.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const equippedWpn = (player.equipped_weapon || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (nfnResult === equippedWpn || equippedWpn.includes(nfnResult.split(' ').slice(0, 2).join(' '))) {
+      return { text: `⚠️ Ya tenés «${craftResult.result}» equipada. Craftear una segunda copia no tiene sentido — usá los ingredientes para otra cosa o vendélos a Aldric.` };
+    }
+  }
+
   // Consumir los ítems del inventario
   // BUG-463: normalizar con NFD para que tildes no impidan encontrar el ítem
   const nfn = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
