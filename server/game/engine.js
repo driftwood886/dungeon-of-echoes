@@ -10073,7 +10073,7 @@ function cmdUseSkill(player, args, context) {
         smashUpd.attack = (freshPlayer.attack || 5) + 1;
       }
       db.updatePlayer(freshPlayer.id, smashUpd);
-      text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
+      text += `\n⭐ +${xpGain} XP (kills: ${smashUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       if (levelUp) db.addJournalEntry(freshPlayer.id, 'level', `⬆️ Subiste al nivel ${newLevel} tras el Golpetazo.`);
       // Logros — incluyendo boss_killer
@@ -10222,7 +10222,7 @@ function cmdUseSkill(player, args, context) {
         skillUpd.attack = (freshPlayer.attack || 5) + 1;
       }
       db.updatePlayer(freshPlayer.id, skillUpd);
-      text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
+      text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       // Logros — incluyendo boss_killer
       const bashBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
@@ -10411,7 +10411,7 @@ function cmdUseSkill(player, args, context) {
         skillUpd.attack = (freshPlayer.attack || 5) + 1;
       }
       db.updatePlayer(freshPlayer.id, skillUpd);
-      text += `\n  +${xpGain} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
+      text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       const gsBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
       const gsLichKill = target.id === 13; // solo el Lich Anciano real
@@ -10729,7 +10729,7 @@ function cmdUseSkill(player, args, context) {
         skillUpdSh.attack = (freshPicSh.attack || 5) + 1;
       }
       db.updatePlayer(freshPicSh.id, skillUpdSh);
-      textSh += `\n  +${xpGainSh} XP${levelUpSh ? ` ✨ ¡SUBE AL NIVEL ${newLevelSh}!` : ''}`;
+      textSh += `\n⭐ +${xpGainSh} XP (kills: ${skillUpdSh.kills} | nivel: ${newLevelSh})${levelUpSh ? ` ✨ ¡SUBE AL NIVEL ${newLevelSh}!` : ''}`;
       db.addBestiaryKill(freshPicSh.id, target.name);
       const shBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
       const shLichKill = target.id === 13;
