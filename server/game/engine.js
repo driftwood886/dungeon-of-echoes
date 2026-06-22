@@ -12628,7 +12628,8 @@ function cmdSigilo(player) {
     ? `\n⚔️ Hay ${mCount} monstruo(s) en la sala. Atacá para el golpe de sorpresa: \"attack\"`.trim()
     : `\n💡 Movete a una sala con enemigos y usá \"attack\" para el golpe de sorpresa.`;
 
-  return { text: `🥷 Entrás en las sombras, volviéndote casi invisible.\n⏳ Sigilo activo por ${stealthSecs} segundos.${darkBonus}${mHint}\n\n✨ Efecto según objetivo:\n  • vs monstruos normales: crítico garantizado ×2 + el monstruo queda stuneado (no puede atacar ese turno)\n  • vs el Lich Anciano: crítico ×1.5 garantizado + el Lich NO contraataca ese turno (turno gratuito para conservar HP). Su resistencia reduce el daño del crit. Usalo tácticamente para recuperarte.\n  • vs Campeón Espectral, Eco Viviente, Sombra del Vacío: crítico ×1.5 garantizado — estos bosses PERCIBEN el ataque y contraatacan igualmente. El beneficio es el crit, no el turno libre.\n⏸️ Cooldown tras usarlo: 75 segundos — el sigilo es un recurso estratégico, no activable en cada combate.` };
+  // DIS-840: énfasis en turno libre vs Lich como beneficio principal (no el crit)
+  return { text: `🥷 Entrás en las sombras, volviéndote casi invisible.\n⏳ Sigilo activo por ${stealthSecs} segundos.${darkBonus}${mHint}\n\n✨ Efecto según objetivo:\n  • vs monstruos normales: stuneado (no puede atacar ese turno) + crítico garantizado ×2\n  • vs el Lich Anciano: 🛡️ TURNO LIBRE — el Lich NO contraataca (beneficio principal: conservás HP en lugar de recibirlo). Además, crítico ×1.5 garantizado, aunque su resistencia reduce el daño del crit. Usalo tácticamente para recuperarte o para abrir la pelea sin absorber un golpe.\n  • vs Campeón Espectral, Eco Viviente, Sombra del Vacío: crítico ×1.5 garantizado — estos bosses PERCIBEN el ataque y contraatacan igualmente. El beneficio es el crit, no el turno libre.\n⏸️ Cooldown tras usarlo: 75 segundos — el sigilo es un recurso estratégico, no activable en cada combate.` };
 }
 
 /**
