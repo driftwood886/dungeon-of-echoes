@@ -415,14 +415,16 @@ function attackRound(player, monster) {
     return { lines, monsterDead: false, playerDead: false, loot: [], poisonSurvived: false };
   }
 
-  // DIS-729: Oscuridad Paralizante — la Sombra del Vacío tiene 25% de chance de anular el turno del jugador
-  // Este efecto hace que el combate requiera estrategia variada (no solo ataques físicos en loop)
+  // DIS-729/DIS-807: Oscuridad Paralizante — la Sombra del Vacío anula el turno del jugador
+  // DIS-807: El primer turno es GARANTIZADO (no random) para que sea imposible trivializar en 2-3 turnos
+  // Los siguientes turnos tienen 35% de chance (aumentado de 25%)
   if (monster.name && monster.name.includes('Sombra del Vacío') && !monsterDead) {
     const freshForParalyze = db.getPlayer(player.id);
     const seParalyze = freshForParalyze.status_effects ? (typeof freshForParalyze.status_effects === 'string' ? JSON.parse(freshForParalyze.status_effects) : freshForParalyze.status_effects) : {};
-    // Solo aplica si la Sombra del Vacío ya atacó al menos una vez (no en el primer turno)
+    // DIS-807: Primer turno GARANTIZADO (shadow_attacked no seteado = primer ataque del jugador)
+    // Turnos siguientes: 35% de chance (era 25%)
     const shadowHasActed = seParalyze.shadow_attacked || false;
-    if (shadowHasActed && Math.random() < 0.25) {
+    if (!shadowHasActed || Math.random() < 0.35) {
       lines.push(`🌑 ¡La OSCURIDAD PARALIZANTE te envuelve! No podés atacar este turno.`);
       // El monstruo sí contraataca
       const shadowDmg = calcDamage(monster.attack);
