@@ -1839,7 +1839,12 @@ function cmdStatus(player) {
         // BUG-717: usar getManaRegenRate() centralizado (cubre Mago Y Clérigo a 6/min)
         const regenRate693 = getManaRegenRate(player, cls693);
         const regenNote = isMagicClass ? ` (+${regenRate693}/min)` : '';
-        return `Maná:     ${manaBar} ${mana}/${maxMana}${regenNote}`;
+        // DIS-829: indicador de escarcha de emergencia para Magos con ≤20% maná
+        const isMagoStatus = cls693 && cls693.name === 'Mago';
+        const lowManaThresh = Math.floor((maxMana || 1) * 0.20);
+        const escarchaEmergencyActive = isMagoStatus && mana <= lowManaThresh;
+        const escarchaNote = escarchaEmergencyActive ? ' ❄️ (escarcha emergencia: sin coste)' : '';
+        return `Maná:     ${manaBar} ${mana}/${maxMana}${regenNote}${escarchaNote}`;
       }
       return null;
     })(),
