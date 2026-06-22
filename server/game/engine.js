@@ -15719,7 +15719,9 @@ function cmdLegado(player, context) {
       const bHrs = Math.floor(bestTime / 60);
       const bMins = bestTime % 60;
       const bestStr = bHrs > 0 ? `${bHrs}h ${bMins}min` : `${bMins} minutos`;
-      lines.push(`║  ⏱️  Mejor ciclo: ${bestStr.padEnd(W - 19)}║`);
+      // DIS-815: advertir si el ciclo fue muy corto (posiblemente medido por bot/lag)
+      const speedWarning = bestTime < 5 ? ' ⚠️ (tiempo posiblemente afectado por velocidad de conexión)' : '';
+      lines.push(`║  ⏱️  Mejor ciclo: ${(bestStr + speedWarning).padEnd(W - 19)}║`);
     }
 
     lines.push(`║  📊 Stats: Nv.${level} | ${kills} kills | ${deaths} muertes | ${playtime}min jugados`.padEnd(W + 1) + '║');
