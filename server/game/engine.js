@@ -8966,7 +8966,7 @@ function cmdCast(player, args) {
     const testFound = findSpell(testSpellQuery);
     if (testFound && MAGO_ONLY_SPELLS.includes(testFound.key)) {
       return {
-        text: `⛪ Los Clérigos no tienen acceso a la magia arcana ofensiva.\n"${testFound.key}" es un hechizo del Mago.\nComo Clérigo, tu magia divina incluye:\n  • \`cast curación\` — restaura 22 HP (15 × 1.5)\n  • \`cast escudo\` — absorbe 5 daño\n  • \`heal\` — curación sagrada potenciada\n  • \`sanacion_mayor\` (Lv3) — curación masiva`,
+        text: `⛪ Los Clérigos no tienen acceso a la magia arcana ofensiva.\n"${testFound.key}" es un hechizo del Mago.\nComo Clérigo, tu magia divina incluye:\n  • \`cast curación\` — restaura ~23 HP (15 × 1.5 Clérigo)\n  • \`cast escudo\` — absorbe 5 daño\n  • \`heal\` — curación sagrada potenciada\n  • \`sanacion_mayor\` (Lv3) — curación masiva`,
       };
     }
   }
@@ -9461,7 +9461,14 @@ function cmdSpells(player) {
     if (spellClassName === 'Clérigo' && ['bola de fuego', 'rayo', 'escarcha'].includes(name)) {
       lines.push(`  🔒 ${spell.icon} ${name.padEnd(16)} — (Arcano — solo Mago)`);
     } else {
-      lines.push(`  ${canCast} ${spell.icon} ${name.padEnd(16)} — Coste: ${spell.cost} maná — ${spell.description}`);
+      // BUG-816: Para Clérigos, curación muestra el valor efectivo (×1.5) en vez del base
+      let spellDesc = spell.description;
+      if (spellClassName === 'Clérigo' && name === 'curación' && spell.type === 'heal') {
+        const healPower = (spellClass && spellClass.heal_power) ? spellClass.heal_power : 1.0;
+        const effectiveHp = Math.round((spell.amount || 15) * healPower);
+        spellDesc = `Restaura ${spell.amount || 15} HP base → ~${effectiveHp} HP efectivos (×${healPower} Clérigo).`;
+      }
+      lines.push(`  ${canCast} ${spell.icon} ${name.padEnd(16)} — Coste: ${spell.cost} maná — ${spellDesc}`);
     }
   }
 
@@ -9473,7 +9480,7 @@ function cmdSpells(player) {
   if (player.player_class === 'clerigo') {
     lines.push(``);
     lines.push(`✨ Como Clérigo, también tenés:`);
-    lines.push(`  • \`heal\` (22 HP, 8 maná) — más potente que cast curación gracias a tu heal_power ×1.5`);
+    lines.push(`  • \`heal\` (23 HP, 8 maná) — más potente que cast curación gracias a tu heal_power ×1.5`);
     // DIS-725: mostrar cooldown del heal de emergencia
     const seHealEmerg = parseSE(player.status_effects);
     const emergCdSpells = seHealEmerg.emergency_heal_cd;
@@ -9647,15 +9654,15 @@ function cmdHeal(player, args) {
     if (fresh.hp >= fresh.max_hp) {
       return { text: `✨ Tu HP ya está al máximo. No se activó la curación de emergencia.` };
     }
-    // Heal de emergencia: cura 22 HP a costo de 8 HP propios, cooldown 5 min
-    const emergHealAmt = Math.round(15 * 1.5); // 22 HP, mismo poder que heal normal
+    // Heal de emergencia: cura 23 HP a costo de 8 HP propios, cooldown 5 min
+    const emergHealAmt = Math.round(15 * 1.5); // 23 HP (Math.round(22.5)), mismo poder que heal normal
     const hpBefore = fresh.hp || 0;
     const newHp = Math.min(fresh.max_hp, hpBefore + emergHealAmt - emergHpCost);
     const hpChange = newHp - hpBefore;
     const cdExpiry = new Date(Date.now() + 5 * 60 * 1000).toISOString();
     seEmerg.emergency_heal_cd = cdExpiry;
     db.updatePlayer(fresh.id, { hp: newHp, status_effects: seEmerg });
-    // BUG-784: mostrar explícitamente +22 HP curado y -8 HP costo vital
+    // BUG-784: mostrar explícitamente +23 HP curado y -8 HP costo vital
     return { text: `⛪ Sin maná, invocás la gracia divina a expensas de tu propia fuerza vital.\n+${emergHealAmt} HP curado | -${emergHpCost} HP costo vital | neto: ${hpChange >= 0 ? '+' : ''}${hpChange} HP (${newHp}/${fresh.max_hp}) — (Heal de emergencia, cooldown 5 min)` };
   }
 
@@ -9667,7 +9674,7 @@ function cmdHeal(player, args) {
     if (fresh.hp >= fresh.max_hp) {
       return { text: `✨ Ya estás al máximo de HP (${fresh.max_hp}/${fresh.max_hp}). No gastaste maná.` };
     }
-    // Auto-curación: 15 HP base × 1.5 = 22 HP
+    // Auto-curación: 15 HP base × 1.5 = 23 HP (Math.round(22.5))
     const healBase = 15;
     const healAmt = Math.round(healBase * healPower);
     const newHp = Math.min(fresh.max_hp, (fresh.hp || 0) + healAmt);
