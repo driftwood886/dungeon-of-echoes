@@ -577,7 +577,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820 };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1745,6 +1745,29 @@ function migrateFuenteEternaDIS801() {
   }
   if (!changed) {
     // console.log('[seed] migrateFuenteEternaDIS801: DIS-801 — ya migrado, sin cambios.');
+  }
+}
+
+/**
+ * DIS-820: El Pozo Sin Fondo (sala 7) tiene ítems pre-placed que duplican el loot de la Araña Tejedora
+ * (hilo de seda, veneno concentrado, capa de araña, monedas de plata). Después de matar a la araña,
+ * el jugador con `pick todo` recibe doble de cada material. Fix: limpiar esos ítems del suelo de sala 7,
+ * conservando solo los ítems legítimos (cuerda, gancho de hierro, antídoto).
+ */
+function migratePozo820() {
+  try {
+    const room7 = db.getRoom(7);
+    if (!room7) return;
+    const items = Array.isArray(room7.items) ? room7.items : [];
+    const DROP_DUPLICATES = ['hilo de seda', 'veneno concentrado', 'capa de araña', 'monedas de plata', 'monedas de oro', 'monedas de cobre'];
+    const cleaned = items.filter(i => !DROP_DUPLICATES.some(d => i.toLowerCase() === d.toLowerCase()));
+    if (cleaned.length < items.length) {
+      db.updateRoomItems(7, cleaned);
+      const removed = items.filter(i => DROP_DUPLICATES.some(d => i.toLowerCase() === d.toLowerCase()));
+      console.log(`[seed] migratePozo820: DIS-820 — Ítems que duplican loot de la Araña removidos de sala 7: [${removed.join(', ')}]. Ítems conservados: [${cleaned.join(', ')}]. ✓`);
+    }
+  } catch (e) {
+    console.warn('[seed] migratePozo820:', e.message);
   }
 }
 
