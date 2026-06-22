@@ -9154,7 +9154,8 @@ function cmdCast(player, args) {
     const spellPower = playerCls ? (playerCls.spell_power || 1.0) : 1.0;
     // DIS-562: Resistencia mágica para bosses/élites — reducen el daño mágico al 65%
     // Afecta a criaturas físicas/pétricas que resistirían la magia
-    const MAGIC_RESISTANT_MONSTERS = ['gólem', 'golem', 'guardia espectral', 'elemental', 'lich'];
+    // DIS-826: Eco Viviente agregado — sus ecos amplifican y absorben magia (nivel 6+ no debería caer en 3 hechizos nivel 3)
+    const MAGIC_RESISTANT_MONSTERS = ['gólem', 'golem', 'guardia espectral', 'elemental', 'lich', 'eco viviente'];
     const targetNameLow = target.name.toLowerCase().replace('⭐ ', '');
     const hasMagicResist = MAGIC_RESISTANT_MONSTERS.some(n => targetNameLow.includes(n));
     // DIS-598: El Guardia Espectral tiene resistencia ALTA (×0.4) a hechizos de área/poderosos
