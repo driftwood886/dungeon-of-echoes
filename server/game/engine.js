@@ -5241,6 +5241,14 @@ function cmdMap(player) {
   }
 
   const c = (id) => cell(id);
+  // DIS-818: función especial para salas de tutorial (16, 21) que siempre muestra label fijo
+  // sin importar si fueron visitadas — los slots del tutorial no son "por explorar"
+  function cellTutorial(id) {
+    const label = (NAMES[id] || `Sala${id}`).substring(0, 9).padEnd(9, ' ');
+    const marker = id === here ? '★' : ' ';
+    const sword  = roomsWithMonsters.has(id) ? '⚔' : ' ';
+    return `[${marker}${String(id).padStart(2, ' ')}:${label}${sword}]`;
+  }
   const gap = '       '; // 7 spaces para espaciar columnas
 
   //
@@ -5294,7 +5302,7 @@ function cmdMap(player) {
     })(),
     `  |`,
     `${c(11)}      ↓ (bajar)`,
-    `  |   \\\\               ${c(21)}---${c(16)}`,
+    `  |   \\\\               ${cellTutorial(21)}---${cellTutorial(16)}`,
     `${c(12)} ${c(13)}`,
     `      \\\\  /`,
     `  ${c(14)}---${c(19)}---${c(15)}---${c(22)}`,
@@ -5306,7 +5314,7 @@ function cmdMap(player) {
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
       : `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda del Mercader)`,
-    `[??:?????????] = sala aún no explorada`,
+    `[??:?????????] = sala aún no explorada  [16/21] = salas de tutorial (fuera del conteo de exploración)`,
     // DIS-702: hint de navegación con ruta
     `💡 ¿Perdido? Usá: ruta <sala>  —  Ej: ruta tesoro  /  ruta catedral  /  ruta 4`,
     // DIS-597: la ruta completa al Santuario solo aparece si ya se visitó sala 9 (Trono) o sala 7 (Pozo)
