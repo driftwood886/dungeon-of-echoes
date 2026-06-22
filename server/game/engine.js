@@ -912,10 +912,58 @@ function cmdMove(player, direction) {
         db.trackRoomVisit(player.id, destId);
         const destRoom = db.getRoom(destId);
         const destName = destRoom ? destRoom.name : 'sala desconocida';
+        // BUG-806: aplicar ROOM_EFFECT del destino en el path bossAtFullHp (mismo que el path normal)
+        let bossFullHpEffectText = '';
+        const bossFullHpRoomEffect = ROOM_EFFECTS[destId];
+        if (bossFullHpRoomEffect && bossFullHpRoomEffect.type === 'damage') {
+          const freshForEffect = db.getPlayer(player.id);
+          const FIRST_TIME_DAMAGE_ROOMS_BH = new Set([12, 15]);
+          const heatKeyBH = `heat_room_${destId}`;
+          const knownRoomsDataBH = (() => {
+            try {
+              const raw = freshForEffect.known_traps;
+              if (!raw) return [];
+              if (typeof raw === 'object' && !Array.isArray(raw)) return Object.keys(raw);
+              if (Array.isArray(raw)) return raw;
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) return parsed;
+              if (typeof parsed === 'object' && parsed !== null) return Object.keys(parsed);
+              return [];
+            } catch (_) { return []; }
+          })();
+          const alreadyKnowsHeatBH = FIRST_TIME_DAMAGE_ROOMS_BH.has(destId) && knownRoomsDataBH.includes(heatKeyBH);
+          if (alreadyKnowsHeatBH) {
+            const REVISIT_NO_DAMAGE_BH = new Set([15, 12]);
+            if (!REVISIT_NO_DAMAGE_BH.has(destId)) {
+              db.updatePlayer(freshForEffect.id, { hp: Math.max(1, freshForEffect.hp - 1) });
+            }
+            bossFullHpEffectText = destId === 12
+              ? '\n\n🔥 Ya conocés el calor de la forja y te cubrís la cara al entrar. El calor no te afecta esta vez.'
+              : '\n\n💀 La maldición de la Catedral te roza... pero ya sabés cómo resistirla.';
+          } else {
+            const newHpBH = Math.max(1, freshForEffect.hp - bossFullHpRoomEffect.amount);
+            db.updatePlayer(freshForEffect.id, { hp: newHpBH });
+            bossFullHpEffectText = `\n\n${bossFullHpRoomEffect.msg} (${newHpBH}/${freshForEffect.max_hp} HP)`;
+            if (FIRST_TIME_DAMAGE_ROOMS_BH.has(destId)) {
+              const existingKnownBH = (() => {
+                try {
+                  const parsed = JSON.parse(freshForEffect.known_traps || '{}');
+                  if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+                  if (Array.isArray(parsed)) { const obj = {}; parsed.forEach(k => { obj[k] = true; }); return obj; }
+                  return {};
+                } catch (_) { return {}; }
+              })();
+              db.updatePlayer(freshForEffect.id, { known_traps: JSON.stringify({ ...existingKnownBH, [heatKeyBH]: true }) });
+              bossFullHpEffectText += destId === 12
+                ? '\n🧠 Ahora conocés el calor de la forja — la próxima vez podrás cubrirte mejor.'
+                : '\n🧠 Ahora conocés la maldición de la Catedral — la próxima vez la oscuridad no te alcanza igual.';
+            }
+          }
+        }
         const freshPlayer = db.getPlayer(player.id);
         const lookResult = cmdLook(freshPlayer);
         return {
-          text: `🚶 Pasás cerca del ${bossInRoom.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.\n\n${lookResult.text}`,
+          text: `🚶 Pasás cerca del ${bossInRoom.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.${bossFullHpEffectText}\n\n${lookResult.text}`,
           event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
