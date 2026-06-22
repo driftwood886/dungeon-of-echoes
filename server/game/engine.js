@@ -1377,8 +1377,8 @@ function cmdMove(player, direction) {
       // BUG-339: Si la trampa de esta sala fue esquivada por memoria o mascota,
       // no mostrar el debuff narrativo (el jugador evitó el peligro conscientemente).
       // DIS-828: tampoco si el jugador tiene el amuleto del eco (sala 19).
-      const invForDebuff = db.getInventory(player.id);
-      const hasEchoAmuletDebuff = invForDebuff.some(i => i.name === 'amuleto del eco');
+      const invForDebuff = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+      const hasEchoAmuletDebuff = invForDebuff.some(i => (typeof i === 'string' ? i : (i.name || '')).toLowerCase().includes('amuleto del eco'));
       const echoAmuletCancelsDebuff = hasEchoAmuletDebuff && targetId === 19;
       if (!trapWasAvoided && !echoAmuletCancelsDebuff) {
         // Debuff temporal narrativo — en futuro se integraría con status_effects
@@ -1864,7 +1864,8 @@ function cmdStatus(player) {
       // DIS-710: room effect penalty (ej: Ecos Enloquecedores sala 19 = -1 ATK)
       // DIS-828: el amuleto del eco (crafteable en sala 19) protege de los Ecos Enloquecedores
       const roomEffStatus = ROOM_EFFECTS[player.current_room_id];
-      const hasEchoAmulet = inventory.some(i => i.name === 'amuleto del eco');
+      const _invStatus = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+      const hasEchoAmulet = _invStatus.some(i => (typeof i === 'string' ? i : (i.name || '')).toLowerCase().includes('amuleto del eco'));
       const echoAmuletCancels = hasEchoAmulet && player.current_room_id === 19;
       const roomAtkMod = (roomEffStatus && roomEffStatus.type === 'debuff' && roomEffStatus.stat === 'attack' && !echoAmuletCancels)
         ? roomEffStatus.amount : 0;
@@ -2165,8 +2166,8 @@ function cmdAttack(player, targetName) {
     const trapMemoryActive = seForCombat[trapCdKeyForCombat]
       ? new Date(seForCombat[trapCdKeyForCombat]).getTime() > Date.now()
       : false;
-    const inventoryForAmulet = db.getInventory(player.id);
-    const hasEchoAmuletCombat = inventoryForAmulet.some(i => i.name === 'amuleto del eco');
+    const inventoryForAmulet = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+    const hasEchoAmuletCombat = inventoryForAmulet.some(i => (typeof i === 'string' ? i : (i.name || '')).toLowerCase().includes('amuleto del eco'));
     const echoAmuletCancelsCombat = hasEchoAmuletCombat && player.current_room_id === 19;
     if (!trapMemoryActive && !echoAmuletCancelsCombat) {
       // Aplicar debuff: reducir attack temporalmente para este combate
