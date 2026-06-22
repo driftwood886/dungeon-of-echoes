@@ -533,8 +533,18 @@ function attackRound(player, monster) {
       clericWeaponPenaltyNote.push(`⚕️ (×0.9 — arma no-sagrada: el Clérigo prefiere el símbolo sagrado)`);
     }
   }
+  // DIS-835: Bosses resistentes a críticos — reducen daño de crits para que el build crit del Pícaro
+  // no sea solución trivial contra todos los jefes. El Campeón y el Lich tienen armadura espectral endurecida.
+  const CRIT_RESISTANT_BOSSES = {
+    12: { mult: 0.80, label: '🦴 (escudo espectral: crits ×0.80)' }, // Campeón Espectral
+    13: { mult: 0.75, label: '💀 (resistencia de lich: crits ×0.75)' }, // Lich Anciano
+  };
+  const critResistDef = CRIT_RESISTANT_BOSSES[monster.id];
+
   const dmgAfterPhysResist = Math.round(rawPlayerDmg * physResist * ambushResist * clericWeaponPenalty);
-  const dmgToMonster = Math.max(1, dmgAfterPhysResist - Math.floor(monster.defense || 0));
+  // DIS-835: Si es crit y el boss tiene resistencia a crits, aplicar el multiplicador
+  const critResistMult = (isCrit && critResistDef) ? critResistDef.mult : 1.0;
+  const dmgToMonster = Math.max(1, Math.round(dmgAfterPhysResist * critResistMult) - Math.floor(monster.defense || 0));
   monster.hp = Math.max(0, monster.hp - dmgToMonster);
 
   // T190: mensaje de encantamiento activo en el primer golpe del turno
@@ -546,7 +556,8 @@ function attackRound(player, monster) {
   if (isCrit) {
     const physResistNote = physResist < 1.0 ? ` ${physResistLabel}` : '';
     const clericNote = clericWeaponPenaltyNote.length > 0 ? ' ' + clericWeaponPenaltyNote[0] : '';
-    lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño.${physResistNote}${clericNote} (${monster.hp}/${monster.max_hp} HP)`);
+    const critResistNote = critResistDef ? ` ${critResistDef.label}` : '';
+    lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño.${physResistNote}${critResistNote}${clericNote} (${monster.hp}/${monster.max_hp} HP)`);
   } else {
     // DIS-D426: mostrar indicador de postura activa en el mensaje de ataque
     // DIS-472: cada postura tiene mensajes de ataque diferenciados que refuerzan la fantasía
@@ -593,6 +604,12 @@ function attackRound(player, monster) {
   // Actualizar monstruo en BD
   db.updateMonster(monster.id, { hp: monster.hp });
 
+  // DIS-834: guardar el ATK del monstruo ANTES de activar la Fase 2.
+  // El contraataque del mismo turno debe usar el ATK anterior — no el boost de Fase 2.
+  // Esto evita que el jugador reciba el daño de Fase 2 en el mismo turno que activa la transición.
+  const _atkBeforePhase2 = monster.attack;
+  let _phase2ActivatedThisTurn = false;
+
   // DIS-D423: Fase 2 — activar si el boss llega al 50% HP por primera vez
   if (monster.hp > 0) {
     const bossDefPhase2 = BOSS_MONSTERS[monster.id];
@@ -607,6 +624,7 @@ function attackRound(player, monster) {
         const newAtkP2 = monster.attack + p2.atkBonus;
         const newDefP2 = (monster.defense || 0) + p2.defBonus;
         monster.attack = newAtkP2;
+        _phase2ActivatedThisTurn = true;
         // BUG-687: actualizar status_effects en memoria para que escrituras posteriores
         // (attacked_player_this_turn en contraataque) no sobreescriban phase2_triggered en BD
         monster.status_effects = monsterFxP2;
@@ -988,10 +1006,13 @@ function attackRound(player, monster) {
 
   // ── Monstruo contraataca ──────────────────────────────────────────────────
   // DIS-620: Si fue golpe de sorpresa (sigilo), el monstruo no responde este turno
-  // DIS-757: EXCEPCIÓN — bosses avanzados (Campeón, Eco Viviente, Lich, Sombra) rompen el sigilo
+  // DIS-757: EXCEPCIÓN — bosses avanzados (Campeón, Eco Viviente, Sombra) rompen el sigilo
   // y contraatacan en el mismo turno. El multiplicador ya fue reducido a ×1.5 (DIS-683) pero el
   // stun completo los trivializaba. Ahora esos bosses perciben el ataque y responden igualmente.
-  const STEALTH_RESISTANT_BOSSES = new Set([12, 21, 13, 22]); // Campeón, Eco Viviente, Lich, Sombra
+  // DIS-840: El Lich Anciano NO rompe el sigilo — el turno libre es el principal valor del sigilo
+  // vs el Lich. Sus crits ya tienen resistencia ×0.75 (DIS-835), así que el crit no es trivial.
+  // El jugador debe usar el sigilo tácticamente: recuperar HP en un turno crítico.
+  const STEALTH_RESISTANT_BOSSES = new Set([12, 21, 22]); // Campeón, Eco Viviente, Sombra (no el Lich)
   const bossBreaksStealth = stealthSurprise && STEALTH_RESISTANT_BOSSES.has(monster.id);
   if (stealthSurprise && !monsterDead && !bossBreaksStealth) {
     lines.push(`🥷 El ${monster.name} está aturdido por la sorpresa — no puede responder este turno.`);
@@ -1040,7 +1061,10 @@ function attackRound(player, monster) {
   }
 
 
-  const monsterDmg = calcDamage(monster.attack);
+  // DIS-834: Si la Fase 2 se activó este turno, usar el ATK anterior para el contraataque.
+  // De lo contrario, el jugador recibe el boost de Fase 2 sin poder prepararse.
+  const monsterAtkForCounterattack = _phase2ActivatedThisTurn ? _atkBeforePhase2 : monster.attack;
+  const monsterDmg = calcDamage(monsterAtkForCounterattack);
   // Bonus daño si hay evento luna de sangre o clima lluvia de esporas (T166)
   const activeEvMon = worldEvents.getCurrentEvent();
   const bloodmoonBonus = (activeEvMon && activeEvMon.id === 'bloodmoon') ? 2 : 0;

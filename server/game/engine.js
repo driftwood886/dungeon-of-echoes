@@ -700,7 +700,7 @@ function cmdLook(player) {
   // Sirve para que el jugador pueda PREPARARSE antes de comprometerse a entrar
   // BUG-584: monsterId agregado para verificar si el boss está vivo antes de mostrar la advertencia
   const BOSS_ROOM_DANGER = {
-    15: { name: 'el Lich Anciano',     level: 7, icon: '💀', roomName: 'Catedral de la Oscuridad', monsterId: 13 },
+    15: { name: 'el Lich Anciano',     level: 7, icon: '💀', roomName: 'Catedral de la Oscuridad', monsterId: 13, armorTip: 'Equipá cota de malla o mejor (DEF 6+).' },
     10: { name: 'el Gólem de Piedra',  level: 5, icon: '🪨', roomName: 'Santuario Profano',        monsterId: 5  },
     8:  { name: 'el Guardia Espectral',level: 4, icon: '👻', roomName: 'Prisión Subterránea',       monsterId: 8  },
     20: { name: 'la Sombra del Vacío', level: 7, icon: '🌑', roomName: 'Abismo Eterno',             monsterId: 22 }, // DIS-606
@@ -725,10 +725,11 @@ function cmdLook(player) {
           const playerLevel = player.level || 1;
           // DIS-690: ambas ramas incluyen nivel recomendado para consistencia
           // BUG-747: ambas ramas muestran "nivel recomendado:" para consistencia
+          const armorNote = danger.armorTip ? ` 🛡️ ${danger.armorTip}` : '';
           if (playerLevel < danger.level) {
-            dangerLines.push(`${danger.icon} PELIGRO ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}). ¡Preparate antes de entrar!`);
+            dangerLines.push(`${danger.icon} PELIGRO ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}). ¡Preparate antes de entrar!${armorNote}`);
           } else {
-            dangerLines.push(`${danger.icon} ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}). El combate no admite escape fácil.`);
+            dangerLines.push(`${danger.icon} ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}). El combate no admite escape fácil.${armorNote}`);
           }
         }
       }
@@ -1397,8 +1398,8 @@ function cmdMove(player, direction) {
     10: '🩸 El Santuario Profano te recibe en un silencio que no es ausencia de sonido sino presencia de algo más. La estatua con diez brazos no te mira — te cataloga. Las runas en el suelo forman un nombre que creés poder leer aunque nunca hayas visto ese idioma. El aire sabe a cera quemada y tiempo.',
     11: '❄️ La Galería de Hielo detiene tu respiración. Las paredes de cristal azul reflejan tu imagen distorsionada en docenas de ángulos. En uno de los reflejos, tu imagen te devuelve la mirada... medio segundo antes que vos.',
     12: '🔥 Antes de ver la forja, la sentís. No es solo calor — es algo más persistente, más profundo. Como la respiración de algo que no debería seguir vivo. El fuego en el centro no proyecta sombras normales. Las sombras se mueven solas.\n\n⚠️ Nivel recomendado: 5+. El Golem de Forja que custodia este lugar es un constructo imparable — una vez activado, no cesa.',
-    14: '🦴 El Coliseo de Huesos te recibe con el silencio de mil batallas perdidas. Gradas de huesos apilados se elevan hacia la oscuridad. Podés sentir el peso de todos los gladiadores que murieron aquí — sus espíritus aún esperan un digno rival que los vengue.\n\n⚠️ Nivel recomendado: 6+. El Campeón Espectral que domina esta arena es un guerrero de la muerte — solo los más preparados sobreviven su arena.',
-    15: '⛪ A medida que cruzás el umbral de la Catedral de la Oscuridad, el eco de tus pasos revela la inmensidad del lugar. Las vidrieras rotas dejan entrar rayos de luz violácea. Sentís el peso de siglos de oscuridad posarse sobre tus hombros.',
+    14: '🦴 El Coliseo de Huesos te recibe con el silencio de mil batallas perdidas. Gradas de huesos apilados se elevan hacia la oscuridad. Podés sentir el peso de todos los gladiadores que murieron aquí — sus espíritus aún esperan un digno rival que los vengue.\n\n⚠️ Nivel recomendado: 5+ con buen equipo (6+ recomendado). El Campeón Espectral tiene escudo espectral que reduce crits — no lo matarás solo con golpes afortunados. Necesitás daño sostenido.',
+    15: '⛪ A medida que cruzás el umbral de la Catedral de la Oscuridad, el eco de tus pasos revela la inmensidad del lugar. Las vidrieras rotas dejan entrar rayos de luz violácea. Sentís el peso de siglos de oscuridad posarse sobre tus hombros.\n\n⚠️ Nivel recomendado: 7+. El Lich Anciano es el señor del dungeon.\n🛡️ Armadura recomendada: cota de malla o mejor (DEF 6+). El Lich hace ~13-20 dmg/turno — sin armadura pesada, caerás en 3 golpes.\n💡 La cota de malla (60g) se compra con Aldric (sala 4). Si no tenés suficiente defensa, considerá farmear primero.',
     20: '🕳️ Al asomarte al Abismo Eterno, el vacío te mira de vuelta. No hay fondo visible. Solo oscuridad infinita, y el certero presentimiento de que algo muy antiguo — y muy hambriento — acaba de notar tu presencia.\n\n⚠️ Nivel recomendado: 7+. La Sombra del Vacío que habita aquí no permite huida fácil.',
     22: '🪦 La Cripta de los Valientes te recibe en silencio. Las placas en las paredes murmuran nombres olvidados. Una voz que no existe te susurra: "¿Serás digno de ser recordado aquí, o morirás en el anonimato?"',
     19: '🔊 La Cámara del Eco no te recibe — te absorbe. El sonido de tus pasos no rebota: se multiplica, se distorsiona, regresa transformado en algo que no es exactamente tu pisada sino una versión de ella que tomó otro camino.\n\nEn el centro, los cristales resonantes pulsan con luz tenue. Cada uno guarda un eco atrapado. Algunas frecuencias son voces humanas. El eco más largo, el más persistente, es el nombre de alguien que claramente no quiso que lo recordaran.\n\nEn un rincón hay un cuenco de cristal que palpita con luz azulada. Cualquier aventurero puede usarlo (\"use cuenco\") para recuperar hasta 30% del HP máximo (o lo que falte si falta menos). Los Magos y Clérigos también recuperan hasta 50% del maná máximo. Los Clérigos además reciben una bendición sagrada que protege su maná del drenado del Lich durante 3 turnos.\n\nUna presencia se hace notar. El Eco Viviente.\n\n⚠️ Nivel recomendado: 6+. Este guardián no deja escapar a quien perturba la sala.',
@@ -3813,6 +3814,27 @@ function cmdExamine(player, query) {
 
   // STORY-003/004/005/010/011/012: objetos examinables de lore en salas específicas
   const room2 = db.getRoom(player.current_room_id);
+
+  // DIS-842: examine espada de obsidiana en sala 15 — mostrar comparación con arma equipada
+  const OBSIDIANA_KEYS = new Set(['espada', 'obsidiana', 'espada de obsidiana']);
+  if (player.current_room_id === 15 && OBSIDIANA_KEYS.has(qNorm)) {
+    const obsidianaDef = items.getItemDef('espada de obsidiana');
+    const obsidianaAtk = obsidianaDef ? obsidianaDef.amount : 0; // +10 ATK base
+    const equippedWpn = player.equipped_weapon;
+    let comparisonNote = '';
+    if (equippedWpn && equippedWpn.toLowerCase() !== 'espada de obsidiana') {
+      const equippedDef = items.getItemDef(equippedWpn);
+      const equippedAtk = equippedDef ? (equippedDef.amount || 0) : 0;
+      const delta = obsidianaAtk - equippedAtk;
+      const deltaStr = delta > 0 ? `+${delta}` : `${delta}`;
+      comparisonNote = `\n\n⚖️ Comparación con tu ${equippedWpn} (equipado): espada de obsidiana ${delta >= 0 ? 'gana' : 'pierde'} ${Math.abs(delta)} ATK neto (${deltaStr}).${delta >= 0 ? ' Es un upgrade.' : ' Considerá tu build antes de cambiar.'}\n💡 Para equiparla: primero desequipá tu arma actual con \`unequip\`, luego recogé la espada y hacé \`equip espada de obsidiana\`.`;
+    } else if (!equippedWpn) {
+      comparisonNote = `\n\n💡 No tenés arma equipada. Para equipar la espada: primero recogela con \`pick espada de obsidiana\`, luego \`equip espada de obsidiana\`.`;
+    }
+    const baseObsidianaText = 'La espada de obsidiana es negra de una manera que no es color sino ausencia. Donde debería haber un filo, hay una línea donde la luz simplemente deja de existir —no se refleja, no se dispersa, desaparece.\n\nCuando extendés la mano hacia ella, sentís una resistencia que no es física: es una presión en la mente, un umbral. La hoja no te rechaza. Te evalúa.\n\nLos bordes no tienen marcas de uso, pero tampoco parecen nuevos. Es como si el tiempo no pasara por ella.\n\n⚔️ Nivel requerido para equiparla: 6 (o tomarla del altar: sin restricción de nivel, pero enfrentarás al Lich Anciano —nivel recomendado 7).';
+    return { text: baseObsidianaText + comparisonNote };
+  }
+
   const loreObjects = {
     'pared':           { rooms: [2],  text: 'Las inscripciones son en su mayoría ilegibles, dañadas por siglos de humedad. Pero en la mitad del corredor, casi a la altura de los ojos, una sola línea ha sido protegida por una capa de cera endurecida. Con esfuerzo, podés descifrarla:\n\n  "KAELTHAS — EL QUE NO QUISO MORIR GOBERNÓ DESDE LAS SOMBRAS"\n\nEl nombre está grabado dos veces: una en las runas antiguas del reino, otra —más reciente— en letra cursiva perfecta.' },
     'inscripciones':   { rooms: [2],  text: 'Las inscripciones son en su mayoría ilegibles, dañadas por siglos de humedad. Pero en la mitad del corredor, casi a la altura de los ojos, una sola línea ha sido protegida por una capa de cera endurecida. Con esfuerzo, podés descifrarla:\n\n  "KAELTHAS — EL QUE NO QUISO MORIR GOBERNÓ DESDE LAS SOMBRAS"\n\nEl nombre está grabado dos veces: una en las runas antiguas del reino, otra —más reciente— en letra cursiva perfecta.' },
@@ -4341,6 +4363,9 @@ function cmdEquip(player, itemQuery) {
     const effectiveDmg = Math.round(newAttack * 0.9);
     const symbolDmg = baseAttackEquip + 4; // símbolo sagrado: +2 ATK base + 2 Clérigo, sin penalidad
     magoHeavyFlavor = `\n⚕️ (Arma no-sagrada: el Clérigo inflige ×0.9 de daño físico. Daño efectivo: ~${effectiveDmg} (${newAttack} × 0.9). Símbolo sagrado (30g en Aldric): ~${symbolDmg} ATK sin penalidad — comparás tú.)`;
+  } else if (clsDataEquip && clsDataEquip.name === 'Pícaro' && foundLower.includes('lanza espectral del eco')) {
+    // DIS-836: flavor para Pícaro equipando la lanza espectral del eco
+    magoHeavyFlavor = `\n🗡️ (La lanza vibra con una resonancia que conocés de las profundidades. La recorriste para conseguirla — cada eco, cada corredor, cada boss. Su balance es perfecto para golpes precisos. +${def.amount} ATK. Los puntos débiles de tus enemigos parecen iluminarse.)`;
   } else if (clsDataEquip && clsDataEquip.name === 'Pícaro' && foundLower.includes('guantes de cuero fino')) {
     // DIS-615: flavor para Pícaro equipando guantes
     magoHeavyFlavor = `\n🗡️ (Los guantes se ajustan perfectamente. Tus dedos encuentran los puntos débiles con más facilidad. +${def.rogue_only_crit_bonus || 0}% crit adicional como Pícaro.)`;
@@ -8411,7 +8436,13 @@ function cmdEchoBowl(player) {
   if (playerClass === 'clerigo') {
     lines.push(`✨ Como Clérigo, el cuenco imbuye una bendición sagrada: los primeros 3 intentos de drenado de maná del Lich serán bloqueados.`);
   }
-  lines.push(`💡 Preparate aquí antes de enfrentar al Lich Anciano en la Catedral del Lich (al este).`);
+  // DIS-837: comunicar claramente cuándo estar listo para el Lich
+  const hpPct = Math.round((newHp / maxHp) * 100);
+  const readyStatus = hpPct >= 80
+    ? `✅ Estás en buenas condiciones (${hpPct}% HP).`
+    : `⚠️ Solo tenés ${hpPct}% de HP — considerá esperar a que el cuenco se recargue (5 min) o usar pociones antes de entrar.`;
+  lines.push(`💡 ${readyStatus} Al este: Catedral del Lich. La Capilla (sala 5) también tiene un cuenco de recuperación si el de aquí está en cooldown.`);
+
 
   return {
     text: lines.join('\n'),
@@ -12597,7 +12628,7 @@ function cmdSigilo(player) {
     ? `\n⚔️ Hay ${mCount} monstruo(s) en la sala. Atacá para el golpe de sorpresa: \"attack\"`.trim()
     : `\n💡 Movete a una sala con enemigos y usá \"attack\" para el golpe de sorpresa.`;
 
-  return { text: `🥷 Entrás en las sombras, volviéndote casi invisible.\n⏳ Sigilo activo por ${stealthSecs} segundos.${darkBonus}${mHint}\n\n✨ Efecto: El primer golpe será un crítico garantizado (×1.5 vs bosses, ×2 vs normales).\n⏸️ Cooldown tras usarlo: 75 segundos — el sigilo es un recurso estratégico, no activable en cada combate.\n⚠️ Los bosses avanzados (Campeón Espectral, Eco Viviente, Lich Anciano, Sombra del Vacío) ROMPEN el sigilo — percibirán el ataque y contraatacarán ese mismo turno.` };
+  return { text: `🥷 Entrás en las sombras, volviéndote casi invisible.\n⏳ Sigilo activo por ${stealthSecs} segundos.${darkBonus}${mHint}\n\n✨ Efecto según objetivo:\n  • vs monstruos normales: crítico garantizado ×2 + el monstruo queda stuneado (no puede atacar ese turno)\n  • vs el Lich Anciano: crítico ×1.5 garantizado + el Lich NO contraataca ese turno (turno gratuito para conservar HP). Su resistencia reduce el daño del crit. Usalo tácticamente para recuperarte.\n  • vs Campeón Espectral, Eco Viviente, Sombra del Vacío: crítico ×1.5 garantizado — estos bosses PERCIBEN el ataque y contraatacan igualmente. El beneficio es el crit, no el turno libre.\n⏸️ Cooldown tras usarlo: 75 segundos — el sigilo es un recurso estratégico, no activable en cada combate.` };
 }
 
 /**
@@ -12932,6 +12963,8 @@ function cmdPath(player, args) {
       const levelWarn = player.level < d.level ? ` ⚡ tu nivel ${player.level} < recomendado ${d.level}` : ` (tu nivel ${player.level} OK)`;
       lines.push(`   ${d.icon} ${d.name} — ${d.boss} (nivel ${d.level}+)${levelWarn}`);
     });
+    // DIS-841: agregar recordatorio de la mecánica de paso libre (boss no atacado = libre de peligro)
+    lines.push(`   💡 Si no atacaste al boss de esas salas, podés pasar libremente aunque esté con HP lleno — el peligro solo aplica si vos iniciaste el combate.`);
   }
 
   return { text: lines.join('\n') };
