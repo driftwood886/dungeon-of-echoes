@@ -4200,8 +4200,10 @@ function cmdEquip(player, itemQuery) {
     if (foundLower.includes('grimorio')) {
       magoHeavyFlavor = `\n💬 (Abrís el grimorio. Las páginas están cubiertas de símbolos que no reconocés. Lo empuñás de todas formas — pesa bien, eso sí.)`;
     } else if (foundLower.includes('espectral') || foundLower.includes('del eco')) {
-      // DIS-708: aclarar que el ATK es equivalente a espada de hierro pero útil contra espectrales
-      const atkNote = (def.amount >= 8) ? ` (+${def.amount} ATK — igual a la espada de hierro, pero más efectiva contra espectrales y criaturas mágicas.)` : '';
+      // DIS-708/DIS-809: aclarar ATK comparado con espada de hierro (+8)
+      const atkNote = (def.amount >= 10)
+        ? ` (+${def.amount} ATK — supera a la espada de hierro en +${def.amount - 8} ATK. Más efectiva contra espectrales y criaturas mágicas.)`
+        : (def.amount >= 8) ? ` (+${def.amount} ATK — igual a la espada de hierro, pero más efectiva contra espectrales y criaturas mágicas.)` : '';
       magoHeavyFlavor = `\n💬 (El arma se siente extraña en tu mano — demasiado liviana, demasiado fría. Los guerreros prefieren metal que suene al golpear.${atkNote})`;
     } else if (foundLower.includes('catalizador') || foundLower.includes('vara')) {
       magoHeavyFlavor = `\n💬 (Esto claramente fue hecho para alguien que lee libros. Pero si pega, pega.)`;
