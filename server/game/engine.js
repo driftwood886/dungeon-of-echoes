@@ -1030,10 +1030,44 @@ function cmdMove(player, direction) {
             }
           }
         }
+        // DIS-819: aplicar trampa de sala destino en path bossAtFullHp (igual que el path normal)
+        let bossFullHpTrapText = '';
+        const destRoomForTrap = db.getRoom(destId);
+        if (destRoomForTrap && destRoomForTrap.trap && destRoomForTrap.trap.active) {
+          const bfhTrap = destRoomForTrap.trap;
+          const bfhFresh = db.getPlayer(player.id);
+          const bfhKnownTraps = bfhFresh.known_traps || {};
+          const bfhStatusEff = bfhFresh.status_effects || {};
+          const bfhTrapCdKey = `trap_cd_${destId}`;
+          const bfhTrapCdExpiry = bfhStatusEff[bfhTrapCdKey] ? new Date(bfhStatusEff[bfhTrapCdKey]).getTime() : 0;
+          const bfhTrapKnown = bfhKnownTraps[destId] === true || bfhKnownTraps[String(destId)] === true || bfhTrapCdExpiry > Date.now();
+          if (bfhTrapKnown) {
+            bossFullHpTrapText = `\n\n🧠 Recordás la trampa de esta sala. Con cuidado, la esquivás sin problema.`;
+          } else {
+            const TRAP_ATMOSPHERE_BFH = {
+              6:  '👃 Algo en el aire te hace cosquillear la nariz — un olor acre y punzante, como esporas que no deberían estar aquí en esta concentración.',
+              9:  '🥶 Un frío antinatural te golpea antes de que tus ojos puedan adaptarse a la oscuridad de la sala.',
+              3:  '🦶 El suelo cede levemente bajo tu primer paso — como si algo aguardara la presión exacta.',
+              13: '💧 Un sonido de agua en movimiento llega desde las paredes. Demasiado rápido para ser natural.',
+            };
+            const bfhAtmo = TRAP_ATMOSPHERE_BFH[destId] || null;
+            const bfhVarDmg = Math.max(1, bfhTrap.damage + (Math.random() < 0.33 ? 1 : Math.random() < 0.5 ? -1 : 0));
+            const bfhNewHp = Math.max(0, bfhFresh.hp - bfhVarDmg);
+            const bfhUpdatedKT = { ...(bfhFresh.known_traps || {}), [destId]: true };
+            const bfhUpdatedSE = { ...(bfhFresh.status_effects || {}), [bfhTrapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
+            db.updatePlayer(bfhFresh.id, { hp: bfhNewHp, status_effects: JSON.stringify(bfhUpdatedSE), known_traps: JSON.stringify(bfhUpdatedKT) });
+            const TRAP_DISARM_HINT_BFH = {
+              13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Buscá en esta sala o en los alrededores del Lago.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
+            };
+            const bfhDisarmHint = TRAP_DISARM_HINT_BFH[destId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
+            const bfhAtmoPrefix = bfhAtmo ? `\n\n${bfhAtmo}` : '';
+            bossFullHpTrapText = `${bfhAtmoPrefix}\n\n⚠️  ¡TRAMPA! ${bfhTrap.description}\n💥 Perdés ${bfhVarDmg} HP. (${bfhNewHp}/${bfhFresh.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).\n${bfhDisarmHint}`;
+          }
+        }
         const freshPlayer = db.getPlayer(player.id);
         const lookResult = cmdLook(freshPlayer);
         return {
-          text: `🚶 Pasás cerca del ${bossInRoom.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.${bossFullHpEffectText}\n\n${lookResult.text}`,
+          text: `🚶 Pasás cerca del ${bossInRoom.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.${bossFullHpEffectText}${bossFullHpTrapText}\n\n${lookResult.text}`,
           event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
