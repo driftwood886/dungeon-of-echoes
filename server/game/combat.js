@@ -623,7 +623,8 @@ function attackRound(player, monster) {
   // ── T191: Ataque de mascota ────────────────────────────────────────────────
   // Si el jugador tiene mascota, hay chance de que ataque al monstruo (si sigue vivo)
 
-  // DIS-778: Regeneración del Gólem de Piedra — cada 2 turnos regenera 8 HP
+  // DIS-778/DIS-810: Regeneración del Gólem de Piedra — cada 2 turnos regenera HP
+  // DIS-810: Para jugadores nivel 7+, la regen es 12 HP (antes era 8 HP para todos)
   // Crea presión de tiempo e incentiva el uso de recursos para terminar el combate rápido
   if (monster.hp > 0 && monNameLow.includes('gólem de piedra')) {
     const golemFx = monster.status_effects
@@ -632,8 +633,8 @@ function attackRound(player, monster) {
     const golemTurns = (golemFx.golem_turns || 0) + 1;
     golemFx.golem_turns = golemTurns;
     if (golemTurns % 2 === 0) {
-      // Cada 2 turnos: regeneración
-      const regenAmount = 8;
+      // Cada 2 turnos: regeneración — 12 HP para nivel 7+ (late game), 8 HP para nivel <7
+      const regenAmount = (player.level >= 7) ? 12 : 8;
       const newGolemHp = Math.min(monster.max_hp, monster.hp + regenAmount);
       const actualRegen = newGolemHp - monster.hp;
       if (actualRegen > 0) {

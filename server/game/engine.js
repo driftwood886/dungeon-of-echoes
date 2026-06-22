@@ -9118,7 +9118,8 @@ function cmdCast(player, args) {
         const golemTurnsSpell = (golemFxSpell.golem_turns || 0) + 1;
         golemFxSpell.golem_turns = golemTurnsSpell;
         if (golemTurnsSpell % 2 === 0) {
-          const regenAmountSpell = 8;
+          // DIS-810: 12 HP para nivel 7+ (late game), 8 HP para nivel <7
+          const regenAmountSpell = (player.level >= 7) ? 12 : 8;
           const newGolemHpSpell = Math.min(target.max_hp, newHp + regenAmountSpell);
           const actualRegenSpell = newGolemHpSpell - newHp;
           if (actualRegenSpell > 0) {
