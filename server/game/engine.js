@@ -3094,7 +3094,27 @@ function cmdPick(player, itemQuery) {
     db.updateRoomItems(room.id, notPicked);
     const total = floorItems.length - notPicked.length;
     const goldSuffix = totalGoldConverted > 0 ? ` (monedas convertidas: +${totalGoldConverted}g → ${current.gold}g total)` : '';
-    let resultMsg = `📦 Recogiste ${total} ítem(s) del suelo${goldSuffix}:\n${pickedLines.join('\n')}`;
+    // DIS-864: registrar progreso de quest de oro si se recogieron monedas con "pick todo"
+    let pickAllQuestLine = '';
+    if (totalGoldConverted > 0) {
+      const freshForQuestAll = db.getPlayer(player.id);
+      const qrPickAll = quests.recordProgress(freshForQuestAll, 'gold', { amount: totalGoldConverted });
+      if (qrPickAll) {
+        db.updatePlayer(player.id, { quest_progress: qrPickAll.questProgress });
+        if (qrPickAll.justCompleted && qrPickAll.reward) {
+          const rAll = qrPickAll.reward;
+          const fqAll = db.getPlayer(player.id);
+          db.updatePlayer(player.id, { gold: (fqAll.gold || 0) + rAll.gold, xp: (fqAll.xp || 0) + rAll.xp });
+          pickAllQuestLine = `\n🎉 ¡Quest completada! Recibís ${rAll.gold}g y ${rAll.xp} XP de recompensa.`;
+        } else if (!qrPickAll.justCompleted) {
+          const activeQAll = quests.getActiveQuest();
+          if (activeQAll && activeQAll.questDef && activeQAll.questDef.type === 'gold') {
+            pickAllQuestLine = `\n📜 Quest: ${activeQAll.questDef.title} — ${qrPickAll.newProgress}/${activeQAll.questDef.goal}g`;
+          }
+        }
+      }
+    }
+    let resultMsg = `📦 Recogiste ${total} ítem(s) del suelo${goldSuffix}:\n${pickedLines.join('\n')}${pickAllQuestLine}`;
     // BUG-707: condensar todos los ítems que no cupieron en un único bloque al final
     // BUG-714: no presentar los ítems del suelo como "loot fresco del boss" — son todos los ítems del suelo (pueden ser pre-existentes de sesiones previas)
     if (notPicked.length > 0) {
@@ -4756,6 +4776,17 @@ function cmdLoot(player) {
   if (goldCollected > 0) {
     const freshP = db.getPlayer(player.id);
     db.updatePlayer(player.id, { gold: (freshP.gold || 0) + goldCollected });
+    // DIS-864: registrar progreso de quest de oro al saquear con 'loot'
+    const freshForQuestLoot = db.getPlayer(player.id);
+    const qrLoot = quests.recordProgress(freshForQuestLoot, 'gold', { amount: goldCollected });
+    if (qrLoot) {
+      db.updatePlayer(player.id, { quest_progress: qrLoot.questProgress });
+      if (qrLoot.justCompleted && qrLoot.reward) {
+        const rLoot = qrLoot.reward;
+        const fqLoot = db.getPlayer(player.id);
+        db.updatePlayer(player.id, { gold: (fqLoot.gold || 0) + rLoot.gold, xp: (fqLoot.xp || 0) + rLoot.xp });
+      }
+    }
   }
   // Dejar en el suelo los ítems que no entraron (las monedas ya se procesaron aparte)
   db.updateRoomItems(room.id, itemsLeft);
@@ -6954,8 +6985,26 @@ function cmdSell(player, itemQuery) {
       const aBonus = aDef?.amount || 0;
       db.updatePlayer(player.id, { defense: player.defense - aBonus, equipped_armor: null, gold: newGoldEq });
     }
+    // DIS-864: registrar progreso de quest de oro al vender ítem equipado
+    let sellEqQuestLine = '';
+    const freshForSellEq = db.getPlayer(player.id);
+    const qrSellEq = quests.recordProgress(freshForSellEq, 'gold', { amount: sellPriceEq });
+    if (qrSellEq) {
+      db.updatePlayer(player.id, { quest_progress: qrSellEq.questProgress });
+      if (qrSellEq.justCompleted && qrSellEq.reward) {
+        const rSellEq = qrSellEq.reward;
+        const fqSellEq = db.getPlayer(player.id);
+        db.updatePlayer(player.id, { gold: (fqSellEq.gold || 0) + rSellEq.gold, xp: (fqSellEq.xp || 0) + rSellEq.xp });
+        sellEqQuestLine = `\n🎉 ¡Quest completada! Recibís ${rSellEq.gold}g y ${rSellEq.xp} XP de recompensa.`;
+      } else if (!qrSellEq.justCompleted) {
+        const activeQSellEq = quests.getActiveQuest();
+        if (activeQSellEq && activeQSellEq.questDef && activeQSellEq.questDef.type === 'gold') {
+          sellEqQuestLine = `\n📜 Quest: ${activeQSellEq.questDef.title} — ${qrSellEq.newProgress}/${activeQSellEq.questDef.goal}g`;
+        }
+      }
+    }
     return {
-      text: `🏪 Aldric examina el objeto.\n(Primero lo desequipás.)\n\"Te doy ${sellPriceEq}g por eso.\"\n💰 Vendiste: ${sellQuery} por ${sellPriceEq}g. Total: ${newGoldEq}g.`,
+      text: `🏪 Aldric examina el objeto.\n(Primero lo desequipás.)\n\"Te doy ${sellPriceEq}g por eso.\"\n💰 Vendiste: ${sellQuery} por ${sellPriceEq}g. Total: ${newGoldEq}g.${sellEqQuestLine}`,
       event: `${player.username} vende algo al mercader.`,
       eventRoomId: player.current_room_id,
     };
@@ -6998,8 +7047,27 @@ function cmdSell(player, itemQuery) {
   const isSellOnlyMaterial = catalogItem?.sellOnly;
   const materialFlavorLine = isSellOnlyMaterial ? `\n"${catalogItem.description}"` : '';
 
+  // DIS-864: registrar progreso de quest de oro al vender
+  let sellQuestLine = '';
+  const freshForSellQuest = db.getPlayer(player.id);
+  const qrSell = quests.recordProgress(freshForSellQuest, 'gold', { amount: sellPrice });
+  if (qrSell) {
+    db.updatePlayer(player.id, { quest_progress: qrSell.questProgress });
+    if (qrSell.justCompleted && qrSell.reward) {
+      const rSell = qrSell.reward;
+      const fqSell = db.getPlayer(player.id);
+      db.updatePlayer(player.id, { gold: (fqSell.gold || 0) + rSell.gold, xp: (fqSell.xp || 0) + rSell.xp });
+      sellQuestLine = `\n🎉 ¡Quest completada! Recibís ${rSell.gold}g y ${rSell.xp} XP de recompensa.`;
+    } else if (!qrSell.justCompleted) {
+      const activeQSell = quests.getActiveQuest();
+      if (activeQSell && activeQSell.questDef && activeQSell.questDef.type === 'gold') {
+        sellQuestLine = `\n📜 Quest: ${activeQSell.questDef.title} — ${qrSell.newProgress}/${activeQSell.questDef.goal}g`;
+      }
+    }
+  }
+
   return {
-    text: `🏪 Aldric examina el objeto.${rareFlavorLine}${materialFlavorLine}\n"Te doy ${sellPrice}g por eso."\n💰 Vendiste: ${found} por ${sellPrice}g. Total: ${newGold}g.`,
+    text: `🏪 Aldric examina el objeto.${rareFlavorLine}${materialFlavorLine}\n"Te doy ${sellPrice}g por eso."\n💰 Vendiste: ${found} por ${sellPrice}g. Total: ${newGold}g.${sellQuestLine}`,
     event: `${player.username} vende algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
