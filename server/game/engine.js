@@ -5487,9 +5487,10 @@ function cmdMap(player) {
     // DIS-702: hint de navegación con ruta
     `💡 ¿Perdido? Usá: ruta <sala>  —  Ej: ruta tesoro  /  ruta catedral  /  ruta 4`,
     // DIS-597: la ruta completa al Santuario solo aparece si ya se visitó sala 9 (Trono) o sala 7 (Pozo)
-    ...(visitedRooms.has(9) || visitedRooms.has(7)
+    // DIS-861: no mostrar si el jugador ya visitó sala 10 (Santuario) — ya llegó, la hint es redundante
+    ...(visitedRooms.has(9) || visitedRooms.has(7)) && !visitedRooms.has(10)
       ? [`🗺  Ruta al Santuario sin llave: Entrada → este → Capilla → norte → Túnel → norte → Trono → este → Santuario`]
-      : []),
+      : [],
   ];
 
   return { text: lines.join('\n') };
