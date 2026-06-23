@@ -14333,9 +14333,11 @@ function cmdPray(player, args) {
       `│                                            │`,
       `│ Uso: pray <ítem>  /  rezar <ítem>          │`,
       `│ Ejemplo: pray monedas de oro               │`,
+      `│ Ejemplo: pray 5g  (ofrecer 5 de oro)       │`,
       `│                                            │`,
       `│ Ítems aceptados:                           │`,
       `│  • monedas (cobre/plata/oro) → ATK buff    │`,
+      `│  • oro directo: pray 1-3g / 5-9g / 10+g   │`,
       `│  • pociones → HP extra                     │`,
       `│  • cristal mágico / libro viejo → mana     │`,
       `│  • amuleto oscuro → poder oscuro           │`,
@@ -14347,10 +14349,79 @@ function cmdPray(player, args) {
     return { text: lines.join('\n') };
   }
 
+  // ─── BUG-850: soporte para pray Xg (ofrecer oro directamente) ───────────
+  // pick todo convierte monedas físicas a oro automáticamente (DIS-589),
+  // así que `pray 5g` es la alternativa para quienes no tienen monedas.
+  const goldMatch = offering.match(/^(\d+)\s*g(?:oro?)?$/) ||
+                    offering.match(/^(\d+)\s+(?:de\s+)?(?:oro|gold)$/);
+  if (goldMatch) {
+    const amount = parseInt(goldMatch[1], 10);
+    if (amount <= 0) {
+      return { text: '🙏 Debés ofrecer al menos 1 moneda de oro.' };
+    }
+    if (player.gold < amount) {
+      return { text: `🙏 No tenés suficiente oro. Tenés ${player.gold}g y querés ofrecer ${amount}g.` };
+    }
+    // Determinar efecto según cantidad
+    let goldEffect;
+    let goldLabel;
+    if (amount >= 10) {
+      goldEffect = ALTAR_OFFERINGS['monedas de oro'];   // ≥10g = bendición mayor
+      goldLabel  = `${amount}g de oro`;
+    } else if (amount >= 5) {
+      goldEffect = ALTAR_OFFERINGS['monedas de plata']; // 5-9g = bendición de plata
+      goldLabel  = `${amount}g de oro (ofrenda de plata)`;
+    } else {
+      goldEffect = ALTAR_OFFERINGS['monedas de cobre']; // 1-4g = bendición menor
+      goldLabel  = `${amount}g de oro (ofrenda menor)`;
+    }
+
+    const updatesGold = { gold: player.gold - amount };
+    const resultLinesGold = [goldEffect.msg];
+
+    if (goldEffect.hp && goldEffect.hp > 0) {
+      const newHp = Math.min(player.max_hp, player.hp + goldEffect.hp);
+      updatesGold.hp = newHp;
+      resultLinesGold.push(`❤️  HP: ${player.hp} → ${newHp}/${player.max_hp}`);
+    }
+    if (goldEffect.mana && goldEffect.mana > 0) {
+      const maxMana = player.max_mana || 20;
+      const newMana = Math.min(maxMana, (player.mana || 0) + goldEffect.mana);
+      updatesGold.mana = newMana;
+      resultLinesGold.push(`💧 Maná: +${goldEffect.mana} → ${newMana}/${maxMana}`);
+    }
+    if (goldEffect.duration > 0 && (goldEffect.atk || goldEffect.def)) {
+      const scrollsG = JSON.parse(player.active_scrolls || '{}');
+      scrollsG['altar_blessing'] = {
+        atk_bonus: goldEffect.atk || 0,
+        def_bonus: goldEffect.def || 0,
+        expires_at: Date.now() + goldEffect.duration * 1000,
+        label: goldEffect.label,
+      };
+      updatesGold.active_scrolls = JSON.stringify(scrollsG);
+      const partsG = [];
+      if (goldEffect.atk > 0) partsG.push(`+${goldEffect.atk} ATK`);
+      if (goldEffect.def > 0) partsG.push(`+${goldEffect.def} DEF`);
+      resultLinesGold.push(`⚡ ${goldEffect.label}: ${partsG.join(', ')} por ${goldEffect.duration}s`);
+    }
+    resultLinesGold.push(`💰 Oro restante: ${player.gold - amount}g`);
+
+    db.updatePlayer(player.id, updatesGold);
+    altarCooldowns.set(player.id, Date.now());
+
+    const altarNameGold = roomId === 5 ? 'Capilla Olvidada' : 'Santuario Profano';
+    return {
+      text: `🙏 Ofrecés ${goldLabel} al altar de la ${altarNameGold}.\n\n${resultLinesGold.join('\n')}`,
+      event: `${player.username} reza ante el altar.`,
+      eventRoomId: roomId,
+    };
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Buscar el ítem en el inventario
   const found = items.findItem(player.inventory, offering);
   if (!found) {
-    return { text: `🙏 No tenés ningún "${offering}" en el inventario para ofrecer.` };
+    return { text: `🙏 No tenés ningún "${offering}" en el inventario para ofrecer.\n  💡 Si tenés oro, podés también usar: pray Xg (ej: pray 5g)` };
   }
 
   // Verificar si el ítem tiene efecto en el altar
