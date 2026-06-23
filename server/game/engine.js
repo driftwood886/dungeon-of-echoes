@@ -10625,6 +10625,37 @@ function cmdUseSkill(player, args, context) {
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
 
+    // DIS-847: El robo solo funciona en humanoides — bestias/animales no llevan cartera
+    const BEAST_NAMES = new Set([
+      'rata gigante', 'araña tejedora', 'murciélago vampiro', 'murciélagos vampiro',
+      'elemental de hielo', 'krakeling abismal', 'eco viviente', 'sombra del vacío',
+      'gólem de piedra', 'golem de piedra', 'gólem de forja', 'golem de forja',
+    ]);
+    const targetNameLow = (target.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const isBeast = [...BEAST_NAMES].some(b => {
+      const bNorm = b.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return targetNameLow.includes(bNorm);
+    });
+    if (isBeast) {
+      const beastMessages = {
+        'rata': 'Las ratas no llevan cartera. Aunque esta parece grande, sus bolsillos son inexistentes.',
+        'araña': 'Las arañas tejedoras usan sus hilos para otra cosa. No llevan monedas.',
+        'murciélago': 'Los murciélagos no tienen bolsillos. Solo dientes, y tus dedos están demasiado cerca.',
+        'murcielago': 'Los murciélagos no tienen bolsillos. Solo dientes, y tus dedos están demasiado cerca.',
+        'elemental': 'Un elemental de hielo no lleva nada consigo. Ni siquiera ropa.',
+        'krakeling': 'El Krakeling solo lleva sus tentáculos. Intentar robarle sería una pérdida de tiempo (y dedos).',
+        'eco viviente': 'El Eco Viviente no lleva nada tangible — es un ser de energía pura.',
+        'sombra': 'Intentás buscar bolsillos en la Sombra del Vacío... y tu mano pasa directo a través de ella.',
+        'gólem': '¿Qué esperabas encontrar en un gólem? Piedra. Solo piedra.',
+        'golem': '¿Qué esperabas encontrar en un gólem? Piedra. Solo piedra.',
+      };
+      let beastMsg = `🃏 ${target.name} no tiene bolsillos que robar.`;
+      for (const [key, msg] of Object.entries(beastMessages)) {
+        if (targetNameLow.includes(key)) { beastMsg = `🃏 ${msg}`; break; }
+      }
+      return { text: beastMsg };
+    }
+
     // Probabilidad: 50% base + 15% por cada nivel de ventaja (nivel jugador - nivel monstruo estimado)
     // Nivel de monstruo estimado = max_hp / 8 aproximado
     const monsterEstLevel = Math.max(1, Math.round((target.max_hp || 8) / 8));
