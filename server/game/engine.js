@@ -404,6 +404,23 @@ function execute(playerId, input, context) {
     case 'sigilo':       result = cmdSigilo(player); break;                     // DIS-620
     case 'unfollow':     result = cmdUnfollow(player, context); break;           // T204
     case 'say':
+      // DIS-856: 'say'/'decir' en sala 9 con el nombre de Kaelthas Vorn activa flavor text especial
+      if (action.args && action.args.length > 0) {
+        const sayText = action.args.join(' ').toLowerCase().trim();
+        const isKaelthasVorn = sayText.includes('kaelthas vorn') || sayText === 'vorn' || sayText === 'kaelthas vorn';
+        if (isKaelthasVorn && player.current_room_id === 9) {
+          const freshP = db.getPlayer(player.id);
+          const questDone = freshP && freshP.aldric_quest === 'done';
+          if (questDone) {
+            result = { text: 'Pronunciás el nombre en voz alta:\n\n  — *Kaelthas Vorn.*\n\nEl eco en la Sala del Trono no rebota como debería. El sonido regresa transformado —ligeramente distinto, en un tono más bajo, como si la sala misma lo repitiera.\n\nUna corriente de aire frío cruza la sala aunque no hay ventana. Las antorchas no se mueven. Por un momento, sentís que no estás solo en esta sala —que nunca lo estuviste.\n\nDespués de unos segundos, todo vuelve a la normalidad.\n\n📖 *Diario: Pronuncié el nombre. El dungeon escuchó.*' };
+            db.addJournalEntry(player.id, 'lore', '📖 Pronuncié el nombre verdadero — Kaelthas Vorn — en la Sala del Trono. El dungeon respondió. No sé si eso es bueno.');
+            break;
+          } else {
+            result = { text: 'Pronunciás el nombre, pero no estás seguro de que sea el correcto. El eco de la sala vuelve vacío. Quizás necesitás saber más antes de que esto signifique algo.' };
+            break;
+          }
+        }
+      }
       result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
       break;
     case 'shout':
@@ -4055,6 +4072,35 @@ function cmdExamine(player, query) {
     if (isPuertaAbierta) {
       return { text: 'La puerta al norte del Pozo Sin Fondo está abierta. 🔓\n\nLos goznes de hierro aún están un poco forzados —la llave oxidada hizo su trabajo. El pasillo que se abre al otro lado huele a piedra antigua y algo más difícil de identificar: quizás incienso quemado hace décadas.\n\n  ↑ Al norte: el Santuario Profano te espera.' };
     }
+  }
+
+  // DIS-856: examine trono en sala 9 — mostrar nombre en la base si el jugador conoce a Kaelthas Vorn
+  if (player.current_room_id === 9 && (qNorm === 'trono' || qNorm.includes('trono') || qNorm === 'base' || qNorm === 'base del trono')) {
+    const tronoCuerpo = 'El trono está hecho de huesos ensamblados con precisión quirúrgica —no como un acto de brutalidad, sino como una declaración. Entre los brazos del trono, grabado en el hueso, hay un nombre en cursiva perfecta: KAELTHAS. Notás que el trono no tiene polvo. Lo demás en la sala lleva siglos sin ser tocado. Alguien se sienta aquí regularmente.';
+    const freshP = db.getPlayer(player.id);
+    const questDone = freshP && freshP.aldric_quest === 'done';
+    const cartaLeida = !(freshP && (freshP.inventory || []).some(i => i.toLowerCase().includes('carta sellada')));
+    let baseText = '';
+    if (questDone) {
+      // Jugador completó la quest — conoce el nombre verdadero
+      baseText = '\n\n🔍 Mirás hacia abajo, como decía la carta. En la base del trono, casi ilegible por el tiempo, hay letras grabadas con algo oscuro —no tinta. Un nombre:\n\n  **K A E L T H A S   V O R N**\n\nEl nombre completo. El que todos olvidaron. Lo pronunciás en voz baja y algo en la sala parece escuchar.';
+    } else if (cartaLeida) {
+      // Leyó la carta pero no completó la quest — sabe de la pista
+      baseText = '\n\n🔍 Recordás lo que decía la carta: \"Lo grabé en la base del trono. Mirá abajo, no arriba.\" Agachás la vista hacia la base del trono. Hay letras grabadas con algo oscuro —casi ilegibles— pero podés distinguir un nombre. Necesitás saber más sobre Kaelthas antes de poder leerlo. (Hablar con Aldric en sala 4 podría ayudar.)';
+    } else {
+      // No leyó la carta todavía
+      baseText = '\n\n🔍 En la base del trono, casi invisible por el tiempo y la suciedad, hay letras grabadas con algo oscuro —no tinta. Un nombre, casi ilegible. La curiosidad tira, pero no podés descifrar lo que dice.';
+    }
+    // Rastrear mención Kaelthas
+    const seKae = parseSE(player.status_effects);
+    const kaeKey = `kaelthas_menc_trono_9`;
+    if (!seKae[kaeKey]) {
+      seKae[kaeKey] = true;
+      const kaeCount = (seKae.kaelthas_menciones || 0) + 1;
+      seKae.kaelthas_menciones = kaeCount;
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(seKae) });
+    }
+    return { text: tronoCuerpo + baseText };
   }
 
   for (const [key, val] of Object.entries(loreObjects)) {
