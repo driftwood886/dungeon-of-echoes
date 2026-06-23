@@ -121,6 +121,7 @@ const ITEM_CATALOG = {
 
   // ── Armaduras (T152) ─────────────────────────────────────────────────────
   'cota de malla':       { type: 'armor', effect: 'defense_bonus', amount: 3,  description: 'Una cota de malla de hierro. Pesada pero fiable. +3 de defensa.' },
+  'cota de cuero':       { type: 'armor', effect: 'defense_bonus', amount: 3,  description: 'Cuero grueso endurecido con placas de metal remachadas. Equilibrio entre movilidad y protección. +3 de defensa.' },
   'cuero endurecido':    { type: 'armor', effect: 'defense_bonus', amount: 2,  description: 'Armadura de cuero tratado con resina. Flexible y ligera. +2 de defensa.' },
   'túnica encantada':    { type: 'armor', effect: 'defense_bonus', amount: 4,  description: 'Una túnica de tela mágica que repele golpes. +4 de defensa. Ideal para magos.' },
   'armadura de placas':  { type: 'armor', effect: 'defense_bonus', amount: 5,  description: 'Placas de acero que cubren el cuerpo. La protección más alta del dungeon. +5 de defensa.' },

@@ -6432,6 +6432,8 @@ const SHOP_CATALOG = [
   { name: 'llave oxidada',           price: 20, description: 'Abre cierta puerta al norte del Pozo. El mercader no explica más. (O buscá la Araña Tejedora del Pozo — a veces la lleva consigo.)' },
   // T152: Armaduras
   { name: 'cuero endurecido',        price: 20, description: 'Armadura ligera. +2 defensa.' },  // DIS-676: 30g→20g para incentivar compra temprana
+  // DIS-863: cota de cuero como tier intermedio (35g, +3 DEF) entre cuero endurecido (20g, +2) y cota de malla (60g, +3)
+  { name: 'cota de cuero',           price: 35, description: 'Cuero reforzado con placas de metal. +3 defensa. Tier intermedio — mejor que el cuero endurecido, más accesible que la cota de malla.' },
   { name: 'cota de malla',           price: 60, description: 'Armadura de hierro. +3 defensa.' },
   { name: 'túnica encantada',        price: 80, description: 'Armadura mágica. +4 defensa. Ideal para magos.' },
   // DIS-D27: poción de maná para Magos
