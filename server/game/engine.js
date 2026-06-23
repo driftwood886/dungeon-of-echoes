@@ -1871,6 +1871,8 @@ function cmdStatus(player) {
       const maxMana = player.max_mana || 0;
       const cls693 = classes.getPlayerClass(player);
       const isMagicClass = cls693 && (cls693.name === 'Mago' || cls693.name === 'Clérigo');
+      // DIS-871: para clases no-mágicas con maná base (20), mostrar con nota explicativa
+      const isNonMagicWithMana = !isMagicClass && maxMana >= 20;
       if (maxMana > 20 || isMagicClass) {
         const mana = player.mana || 0;
         const manaBar = buildBar(mana, maxMana || 1, 20);
@@ -1883,6 +1885,13 @@ function cmdStatus(player) {
         const escarchaEmergencyActive = isMagoStatus && mana <= lowManaThresh;
         const escarchaNote = escarchaEmergencyActive ? ' ❄️ (escarcha emergencia: sin coste)' : '';
         return `Maná:     ${manaBar} ${mana}/${maxMana}${regenNote}${escarchaNote}`;
+      }
+      // DIS-871: clases no-mágicas con maná base (20) — mostrar con nota para evitar confusión
+      if (isNonMagicWithMana) {
+        const mana = player.mana || 0;
+        const manaBar = buildBar(mana, maxMana || 1, 20);
+        const className871 = cls693 ? cls693.name : 'tu clase';
+        return `Maná:     ${manaBar} ${mana}/${maxMana} (${className871} no usa maná — reservado)`;
       }
       return null;
     })(),
