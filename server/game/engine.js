@@ -2201,10 +2201,8 @@ function cmdAttack(player, targetName) {
         // El jugador no pierde el turno — se ataca automáticamente al objetivo más débil
         const lowestHp = alive.reduce((prev, cur) => (cur.hp < prev.hp ? cur : prev), alive[0]);
         targetName = lowestHp.name;
-        // Armar hint para mostrar al final del resultado
-        const exampleName = lowestHp.name.replace(/^[\s\p{Emoji_Presentation}\u2B50\u2764\u26A1\u2728\u{1F300}-\u{1FFFF}]+/u, '').trim().split(' ')[0].toLowerCase() || 'monstruo';
-        const list = alive.map((m, i) => `(${i + 1}) ${m.name}`).join(' | ');
-        _autoTargetHint = `\n💡 Auto-ataqué al objetivo más débil. Para elegir: attack 1 / attack ${exampleName} — [${list}]`;
+        // DIS-870: guardar flag para regenerar la lista POST-combate (evita lista desactualizada si el target murió)
+        _autoTargetHint = '__SHOW_TARGET_HINT__';
       }
     } else {
       return { text: '⚔️ No hay monstruos aquí para atacar.' };
@@ -2868,6 +2866,19 @@ function cmdAttack(player, targetName) {
       return '\n\n' + lines.join('\n');
     })()
     : '';
+
+  // DIS-870: Resolver el hint de auto-target POST-combate para mostrar lista actualizada (solo vivos que sobrevivieron)
+  if (_autoTargetHint === '__SHOW_TARGET_HINT__') {
+    const aliveAfter = (db.getMonstersInRoom(player.current_room_id) || []).filter(m => m.hp > 0);
+    if (aliveAfter.length >= 2) {
+      const firstAlive = aliveAfter[0];
+      const exampleNameAfter = firstAlive.name.replace(/^[\s\p{Emoji_Presentation}\u2B50\u2764\u26A1\u2728\u{1F300}-\u{1FFFF}]+/u, '').trim().split(' ')[0].toLowerCase() || 'monstruo';
+      const listAfter = aliveAfter.map((m, i) => `(${i + 1}) ${m.name}`).join(' | ');
+      _autoTargetHint = `\n💡 Auto-ataqué al objetivo más débil. Para elegir tu próximo objetivo: attack 1 / attack ${exampleNameAfter} — [${listAfter}]`;
+    } else {
+      _autoTargetHint = ''; // Solo 1 o 0 vivos — no hay necesidad del hint
+    }
+  }
 
   const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint;
 
