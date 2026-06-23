@@ -3892,7 +3892,7 @@ function cmdExamine(player, query) {
     if (player.current_room_id === 4) {
       return { text: 'Aldric es un hombre de mediana edad con manos de comerciante y ojos de alguien que ha visto demasiado. Lleva un delantal con el símbolo de dos llaves cruzadas —el mismo que está en las paredes de la prisión del nivel inferior.\n\nNunca explica por qué está aquí. Cuando le preguntás, cambia el tema con una eficiencia que sugiere mucha práctica.\n\n"Si vas a comprar, comprá. Si no, las ruinas del fondo son más acogedoras de lo que parecen."' };
     } else {
-      return { text: 'El mercader Aldric está en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este' };
+      return { text: 'El mercader Aldric está en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado. Si querés evitarlos, esperá a que reaparezcan con menos HP o llevá pociones.' };
     }
   }
 
@@ -6698,7 +6698,7 @@ function cmdTalk(player, target) {
   }
 
   if (!inRoom4) {
-    return { text: '🏪 Aldric no está aquí. Está en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este' };
+    return { text: '🏪 Aldric no está aquí. Está en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado.' };
   }
 
   const questState = player.aldric_quest || 'none';
@@ -6764,7 +6764,7 @@ function cmdShop(player) {
   player = db.getPlayer(player.id);
 
   if (player.current_room_id !== MERCHANT_ROOM_ID) {
-    return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este' };
+    return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado.' };
   }
 
   const gold = player.gold || 0;
@@ -6862,7 +6862,7 @@ function cmdBuy(player, itemQuery) {
   player = db.getPlayer(player.id);
 
   if (player.current_room_id !== MERCHANT_ROOM_ID) {
-    return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este' };
+    return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado.' };
   }
 
   const query = itemQuery.trim().toLowerCase()
@@ -6961,7 +6961,7 @@ function cmdSell(player, itemQuery) {
   player = db.getPlayer(player.id);
 
   if (player.current_room_id !== MERCHANT_ROOM_ID) {
-    return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este' };
+    return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado.' };
   }
 
   // BUG-313: si el query es un número, interpretar como índice del inventario (1-based)
