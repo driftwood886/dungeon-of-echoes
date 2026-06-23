@@ -14637,9 +14637,9 @@ function cmdPray(player, args) {
     db.updatePlayer(player.id, updatesGold);
     altarCooldowns.set(player.id, Date.now());
 
-    const altarNameGold = roomId === 5 ? 'Capilla Olvidada' : 'Santuario Profano';
+    const altarNameGold = roomId === 5 ? 'la Capilla Olvidada' : 'el Santuario Profano';
     return {
-      text: `🙏 Ofrecés ${goldLabel} al altar de la ${altarNameGold}.\n\n${resultLinesGold.join('\n')}`,
+      text: `🙏 Ofrecés ${goldLabel} al altar de ${altarNameGold}.\n\n${resultLinesGold.join('\n')}`,
       event: `${player.username} reza ante el altar.`,
       eventRoomId: roomId,
     };
@@ -14704,9 +14704,9 @@ function cmdPray(player, args) {
   db.updatePlayer(player.id, updates);
   altarCooldowns.set(player.id, Date.now());
 
-  const altarName = roomId === 5 ? 'Capilla Olvidada' : 'Santuario Profano';
+  const altarName = roomId === 5 ? 'la Capilla Olvidada' : 'el Santuario Profano';
   return {
-    text: `🙏 Ofrecés ${found} al altar de la ${altarName}.\n\n${resultLines.join('\n')}`,
+    text: `🙏 Ofrecés ${found} al altar de ${altarName}.\n\n${resultLines.join('\n')}`,
     event: `${player.username} reza ante el altar.`,
     eventRoomId: roomId,
   };
