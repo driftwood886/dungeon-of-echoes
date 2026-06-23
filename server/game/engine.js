@@ -5496,7 +5496,9 @@ function cmdMap(player) {
 }
 
 function buildBar(current, max, width) {
-  const filled = Math.round((current / max) * width);
+  const safeMax = Math.max(max, 1);
+  const safeCurrent = Math.max(0, Math.min(current, safeMax));
+  const filled = Math.round((safeCurrent / safeMax) * width);
   const empty  = width - filled;
   return `[${'█'.repeat(filled)}${'░'.repeat(empty)}]`;
 }
