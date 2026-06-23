@@ -1295,7 +1295,7 @@ const WEEKLY_CONTRACT_TARGETS = [
   { target: 'Araña Tejedora',        goal: 5,  reward_xp: 50, reward_gold: 35, reward_item: 'antídoto',                difficulty: '⚔⚔',    desc: 'Limpiar el nido — matar 5 Arañas Tejedoras.' },
   { target: 'Espectro del Corredor', goal: 4,  reward_xp: 55, reward_gold: 38, reward_item: 'pergamino de escudo',     difficulty: '⚔⚔',    desc: 'Purgar 4 Espectros del Corredor del Ala Norte.' },
   { target: 'Murciélago Vampiro',    goal: 6,  reward_xp: 45, reward_gold: 30, reward_item: 'poción de vida',          difficulty: '⚔',     desc: 'Exterminar 6 Murciélagos Vampiro de la Capilla.' },
-  { target: 'Esqueleto Guerrero',    goal: 4,  reward_xp: 55, reward_gold: 35, reward_item: 'pergamino de velocidad',  difficulty: '⚔⚔',    desc: 'Reducir a polvo 4 Esqueletos Guerreros del Tesoro.' },
+  { target: 'Esqueleto Guerrero',    goal: 3,  reward_xp: 55, reward_gold: 35, reward_item: 'pergamino de velocidad',  difficulty: '⚔⚔',    desc: 'Reducir a polvo 3 Esqueletos Guerreros del Tesoro.' },
   { target: 'Campeón Espectral',     goal: 2,  reward_xp: 75, reward_gold: 50, reward_item: 'cota de malla',           difficulty: '⚔⚔⚔⚔', desc: 'Derrotar 2 Campeones Espectrales (zona norte).' },
   { target: 'Sombra del Vacío',      goal: 2,  reward_xp: 80, reward_gold: 55, reward_item: 'tomo sellado',            difficulty: '⚔⚔⚔⚔', desc: 'Erradicar 2 Sombras del Vacío del Abismo Eterno.' },
 ];
