@@ -182,7 +182,9 @@ function describeRoom(roomId, excludePlayerId = null) {
             : 0;
           const mins = Math.floor(secsLeft / 60);
           const secs = secsLeft % 60;
-          const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+          const timeStr = mins > 0
+            ? (secs > 0 ? `${mins}m ${secs}s` : `${mins}min`)
+            : `${secs}s`;
           return `  • ${m.name} (vuelve en ~${timeStr})`;
         }).join('\n');
         lines.push(`\n💀 La sala está vacía — los monstruos volverán:\n${respawnList}`);
