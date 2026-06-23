@@ -13027,11 +13027,19 @@ function cmdPath(player, args) {
     }
     if (altFound) {
       const altCmdList = altFound.map(s => `move ${DIR_NAMES[s.dir] || s.dir}`).join('; ');
+      // DIS-849: si la ruta alternativa es absurdamente más larga, no mostrarla —
+      // solo advertir del boss. Umbral: máximo found.length + 3 pasos de diferencia.
       if (altFound.length <= found.length + 3) {
         lines.push(`💡 Ruta alternativa más segura (${altFound.length} pasos, evita bosses de nivel inaccesible): ${altCmdList}`);
       } else {
-        lines.push(`💡 Existe una ruta más larga (${altFound.length} pasos) que evita bosses inaccesibles: ${altCmdList}`);
+        // DIS-849: ruta alternativa demasiado larga — indicar solo qué boss bloquea
+        const bossNamesBlocked = inaccessibleBossSteps.map(s => PATH_BOSS_ROOMS[s.toId].boss).join(', ');
+        lines.push(`💡 La ruta más corta pasa por ${bossNamesBlocked} (nivel insuficiente). Subí de nivel antes de intentarlo.`);
       }
+    } else {
+      // Sin ruta alternativa viable
+      const bossNamesBlocked = inaccessibleBossSteps.map(s => PATH_BOSS_ROOMS[s.toId].boss).join(', ');
+      lines.push(`⚠️ La única ruta pasa por ${bossNamesBlocked} — nivel insuficiente. Subí de nivel antes de avanzar.`);
     }
   }
 
