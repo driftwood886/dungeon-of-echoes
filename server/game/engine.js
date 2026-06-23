@@ -3111,7 +3111,7 @@ function cmdPick(player, itemQuery) {
   const maxInvSingle = 25 + (player.inventory_bonus || 0); // DIS-595: bolsas de lona
   if (!goldKey && currentInvCount >= maxInvSingle) {
     return {
-      text: `🎒 Tu mochila está llena (${currentInvCount}/${maxInvSingle} ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.\n💡 También podés usar la bóveda (vault) en la Entrada o en la Casa de Subastas.\n💡 Aldric vende bolsas de lona (30g) que amplían tu mochila +4 slots.`,
+      text: `🎒 Tu mochila está llena (${currentInvCount}/${maxInvSingle} ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.\n💡 También podés usar la bóveda (vault) en la Entrada o en la Casa de Subastas.\n💡 Aldric vende bolsas de lona (20g) que amplían tu mochila +4 slots.`,
     };
   }
 
