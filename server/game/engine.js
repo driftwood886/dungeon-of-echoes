@@ -2031,7 +2031,20 @@ function cmdStatus(player) {
   const achIcons = ach.formatAchievementIcons(player);
   const achLine = `Logros:   ${achIcons}`;
 
-  return { text: text + '\n' + achLine };
+  // DIS-865: notificar si la quest rotó desde la última vez que el jugador consultó
+  let questChangeLine = '';
+  const activeQ865s = quests.getActiveQuest();
+  if (activeQ865s) {
+    let qp865s;
+    try { qp865s = JSON.parse(player.quest_progress || '{}'); } catch (_) { qp865s = {}; }
+    const lastSeenId865s = qp865s.lastSeenQuestId;
+    const currentId865s  = activeQ865s.questDef.id;
+    if (lastSeenId865s && lastSeenId865s !== currentId865s) {
+      questChangeLine = `\n🔔 ¡La quest global cambió! Escribí "quest" para ver la nueva misión.`;
+    }
+  }
+
+  return { text: text + '\n' + achLine + questChangeLine };
 }
 
 // T143: IDs de maniquíes de entrenamiento (sala 21)
@@ -7092,6 +7105,34 @@ function cmdAchievements(player) {
 function cmdQuest(player) {
   player = db.getPlayer(player.id);
   const lines = [];
+
+  // DIS-865: detectar si la quest rotó desde la última vez que el jugador la consultó
+  const activeQ865 = quests.getActiveQuest();
+  if (activeQ865) {
+    let qp865;
+    try { qp865 = JSON.parse(player.quest_progress || '{}'); } catch (_) { qp865 = {}; }
+    const lastSeenId = qp865.lastSeenQuestId;
+    const currentId  = activeQ865.questDef.id;
+    if (lastSeenId && lastSeenId !== currentId) {
+      // La quest cambió — notificar al jugador con el nombre anterior si es posible
+      const QUEST_TITLES = {
+        slayer_goblin: '¡Exterminador de Goblins!', slayer_skeleton: 'La Purga de los Esqueletos',
+        slayer_spider: 'La Caza de Arañas', gold_collector: 'Acumulador de Riquezas',
+        slayer_bat: 'Plaga de Murciélagos', boss_slayer: '¡El Exterminador del Lich!',
+      };
+      const prevTitle = QUEST_TITLES[lastSeenId] || lastSeenId;
+      lines.push(`🔔 ¡La quest global cambió! «${prevTitle}» expiró y fue reemplazada por una nueva.`);
+      lines.push('');
+    }
+    // Actualizar lastSeenQuestId para que el próximo status/quest no vuelva a notificar
+    if (lastSeenId !== currentId) {
+      qp865.lastSeenQuestId = currentId;
+      db.updatePlayer(player.id, { quest_progress: JSON.stringify(qp865) });
+    } else if (!lastSeenId) {
+      qp865.lastSeenQuestId = currentId;
+      db.updatePlayer(player.id, { quest_progress: JSON.stringify(qp865) });
+    }
+  }
 
   // Quest global del sistema
   lines.push(quests.formatQuest(player));
