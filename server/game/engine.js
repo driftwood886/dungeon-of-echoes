@@ -6454,6 +6454,10 @@ const SHOP_CATALOG = [
   { name: 'manopla abismal',         price: 30,  sellOnly: true, description: 'Manopla de escamas del Krakeling. Aldric la compra como pieza rara.' },
   { name: 'ungüento de araña',       price: 35,  sellOnly: true, description: 'Pasta que endurece la piel. Aldric la compra para uso propio.' },
   { name: 'lanza espectral reforzada', price: 87, sellOnly: true, description: 'Lanza espectral mejorada con esencia etérea. Muy superior a la base.' },
+  // BUG-854: cristal mágico, capa de araña y escudo roto vendían al fallback de 4g por falta de entrada
+  { name: 'cristal mágico',          price: 25,  sellOnly: true, description: 'Cristal imbuido con energía mágica concentrada. Drop del Gólem de Piedra. También ingrediente de crafteo avanzado.' },
+  { name: 'capa de araña',           price: 10,  sellOnly: true, description: 'Capa tejida con seda de Araña Tejedora. Ligera y resistente (+2 DEF). Aldric la compra para artesanía.' },
+  { name: 'escudo roto',             price: 8,   sellOnly: true, description: 'Escudo partido por la mitad. Inútil por sí solo, pero sirve como ingrediente de crafteo (escudo roto + garra de esqueleto).' },
 ];
 
 // Precios de venta al mercader (jugador → mercader) — 40% del valor
