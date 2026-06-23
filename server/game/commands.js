@@ -10,7 +10,7 @@
  *   inventory / inv / i / inventario
  *   status / stats / estado
  *   attack <monstruo> / atacar <monstruo>
- *   pick <ítem> / tomar <ítem> / recoger <ítem>
+ *   pick <ítem> / tomar <ítem> / recoger <ítem> / coger <ítem>
  *   use <ítem> / usar <ítem>
  *   say <mensaje> / decir <mensaje>
  *   shout <mensaje> / gritar <mensaje>
@@ -36,7 +36,7 @@ const COMMAND_ALIASES = {
   // attack
   attack: 'attack', atacar: 'attack', ataque: 'attack', golpear: 'attack', kill: 'attack',
   // pick
-  pick: 'pick', tomar: 'pick', recoger: 'pick', agarrar: 'pick', get: 'pick', take: 'pick',  // BUG-458: take es alias natural de pick
+  pick: 'pick', tomar: 'pick', recoger: 'pick', agarrar: 'pick', coger: 'pick', get: 'pick', take: 'pick',  // BUG-458: take es alias natural de pick
   // use
   use: 'use', usar: 'use', utilizar: 'use', open: 'use',
   // heal (atajo: usar la primera poción del inventario)
