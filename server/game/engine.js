@@ -12950,10 +12950,11 @@ function cmdStance(player, args) {
 
   // Alias / normalización
   let target = input;
-  if (target === 'ofensivo' || target === 'ofensiva' || target === 'agresiva') target = 'agresivo';
-  if (target === 'defensiva') target = 'defensivo';
+  if (target === 'ofensivo' || target === 'ofensiva' || target === 'agresiva' || target === 'ataque' || target === 'atack') target = 'agresivo';
+  if (target === 'defensiva' || target === 'defensa') target = 'defensivo';
   // DIS-653: aceptar forma femenina "equilibrada" y otros alias
-  if (target === 'balanceado' || target === 'balanceada' || target === 'normal' || target === 'neutro' || target === 'neutral' || target === 'equilibrada') target = 'equilibrado';
+  // DIS-868: alias "equilibrio" para "equilibrado"
+  if (target === 'balanceado' || target === 'balanceada' || target === 'normal' || target === 'neutro' || target === 'neutral' || target === 'equilibrada' || target === 'equilibrio') target = 'equilibrado';
 
   if (!STANCES[target]) {
     return { text: `Postura desconocida: "${args[0]}". Las posturas válidas son: agresivo, defensivo, equilibrado.` };
