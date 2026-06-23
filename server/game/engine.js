@@ -6421,6 +6421,12 @@ const SHOP_CATALOG = [
   { name: 'carta sellada',           price: 20,  sellOnly: true, description: 'Carta con el sello de Valdrath. Valor histórico.' },
   { name: 'páginas congeladas',      price: 20,  sellOnly: true, description: 'Fragmentos de un diario antiguo. Valor histórico.' },
   { name: 'corona rota',             price: 20,  sellOnly: true, description: 'Corona de alguien poderoso. Pieza histórica del dungeon.' },
+  // DIS-848: crafteos artesanales que faltaban (tier 1-4) — precios acordes al tier
+  // Los precios aquí son el "base" — el jugador recibe el 40% al vender
+  { name: 'cuero de criatura',       price: 30,  sellOnly: true, description: 'Cuero curtido con escamas abismales. Aldric lo usa en artesanía de armaduras.' },
+  { name: 'manopla abismal',         price: 30,  sellOnly: true, description: 'Manopla de escamas del Krakeling. Aldric la compra como pieza rara.' },
+  { name: 'ungüento de araña',       price: 35,  sellOnly: true, description: 'Pasta que endurece la piel. Aldric la compra para uso propio.' },
+  { name: 'lanza espectral reforzada', price: 87, sellOnly: true, description: 'Lanza espectral mejorada con esencia etérea. Muy superior a la base.' },
 ];
 
 // Precios de venta al mercader (jugador → mercader) — 40% del valor
