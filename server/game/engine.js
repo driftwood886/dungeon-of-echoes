@@ -815,7 +815,19 @@ function cmdLook(player) {
     }
   } catch (_) {}
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine };
+  // DIS-852: mostrar evento global activo en la descripción de sala
+  let activeEventLine = '';
+  try {
+    const currentEv = worldEvents.getCurrentEvent();
+    if (currentEv) {
+      const evMinLeft = Math.floor(currentEv.remainingMs / 60000);
+      const evSecLeft = Math.floor((currentEv.remainingMs % 60000) / 1000);
+      const evTimeStr = evMinLeft > 0 ? `${evMinLeft}m ${evSecLeft}s` : `${evSecLeft}s`;
+      activeEventLine = `\n${currentEv.name} — ${currentEv.description} (⏱ ${evTimeStr} restantes)`;
+    }
+  } catch (_) { /* no romper look si worldEvents falla */ }
+
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + activeEventLine };
 }
 
 /**
@@ -7298,7 +7310,7 @@ function cmdWorld() {
   const ev = worldEvents.getCurrentEvent();
   if (!ev) {
     const nextText = worldEvents.getNextEventText();
-    return { text: `🌍 El dungeon está en calma.\n${nextText}\n\nEventos posibles: Invasión de los Abismos, Niebla Espesa, Luna de Sangre, Bendición del Santuario, Maldición del Lich.` };
+    return { text: `🌍 El dungeon está en calma.\n${nextText}\n\nEventos posibles: Invasión de los Abismos, Niebla Espesa, 🌑 Luna de Sangre (nivel 3+ +30% ATK/+75% XP), ⚡ Carga Arcana (hechizos +50% daño), Bendición del Santuario, Maldición del Lich.` };
   }
   const minLeft = Math.floor(ev.remainingMs / 60000);
   const secLeft = Math.floor((ev.remainingMs % 60000) / 1000);
@@ -9265,6 +9277,10 @@ function cmdCast(player, args) {
     // T107: Mago tiene spell_power 1.5 (hechizos hacen 50% más daño)
     const playerCls = classes.getPlayerClass(player);
     const spellPower = playerCls ? (playerCls.spell_power || 1.0) : 1.0;
+    // DIS-852: ARCANE_SURGE — hechizos +50% daño durante el evento
+    const activeEvCast = worldEvents.getCurrentEvent();
+    const arcaneSurgeBonus = (activeEvCast && activeEvCast.id === 'arcane_surge') ? (activeEvCast.spellBonus || 0.50) : 0;
+    const arcaneSurgeMult = 1 + arcaneSurgeBonus;
     // DIS-562: Resistencia mágica para bosses/élites — reducen el daño mágico al 65%
     // Afecta a criaturas físicas/pétricas que resistirían la magia
     // DIS-826: Eco Viviente agregado — sus ecos amplifican y absorben magia (nivel 6+ no debería caer en 3 hechizos nivel 3)
@@ -9277,7 +9293,7 @@ function cmdCast(player, args) {
     const isGuardiaEspectral = targetNameLow.includes('guardia espectral');
     const isHighImpactSpell = ['rayo', 'bola de fuego', 'fireball', 'lightning', 'escarcha', 'ice', 'frost'].includes(spellName);
     const magicResist = isGuardiaEspectral && isHighImpactSpell ? 0.4 : (hasMagicResist ? 0.65 : 1.0);
-    const finalDmg = Math.max(1, Math.round(dmg * spellPower * magicResist));
+    const finalDmg = Math.max(1, Math.round(dmg * spellPower * magicResist * arcaneSurgeMult));
     const newHp = Math.max(0, target.hp - finalDmg);
     db.updatePlayer(player.id, { mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
 
@@ -9293,7 +9309,8 @@ function cmdCast(player, args) {
 
     lines.push(`🪄 Lanzás ${spell.icon} **${spellName}** sobre ${target.name}!`);
     const magicResistNote = hasMagicResist ? ` 🛡️ (resistencia mágica: ×${magicResist})` : '';
-    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote})` : magicResistNote;
+    const arcaneSurgeNote = arcaneSurgeBonus > 0 ? ` ⚡(+${Math.round(arcaneSurgeBonus * 100)}% Carga Arcana)` : '';
+    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${arcaneSurgeNote})` : (magicResistNote + arcaneSurgeNote) || '';
     lines.push(`   ${target.name} recibe ${finalDmg} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
 
     // T214: stun_chance — hechizos que pueden aturdir al monstruo (ej: rayo)

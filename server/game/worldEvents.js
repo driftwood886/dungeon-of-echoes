@@ -6,17 +6,25 @@
  * (DIS-480: antes era 20min/5min — demasiado raro para una sesión de 30-40 min)
  *
  * Eventos disponibles:
- *  - 'invasion'    → Los monstruos sueltan +50% XP
- *  - 'mist'        → Niebla espesa (el minimapa no muestra nombres de salas)
- *  - 'bloodmoon'   → Luna de sangre (+2 daño a monstruos)
- *  - 'blessing'    → Bendición del santuario (+2 HP de regeneración al entrar en salas sagradas)
- *  - 'curse'       → Maldición del Lich (todos reciben -1 HP por sala que cambian)
+ *  - 'invasion'     → Los monstruos sueltan +50% XP
+ *  - 'mist'         → Niebla espesa (el minimapa no muestra nombres de salas)
+ *  - 'bloodmoon'    → Luna de Sangre: monstruos nivel 3+ ganan +30% ATK y +75% XP
+ *                     (DIS-852: rediseñado — antes era +2 daño flat, ahora % proporcional solo nivel 3+)
+ *  - 'arcane_surge' → Carga Arcana: hechizos +50% daño, cooldown -1 turno (DIS-852)
+ *  - 'blessing'     → Bendición del santuario (+2 HP de regeneración al entrar en salas sagradas)
+ *  - 'curse'        → Maldición del Lich (todos reciben -1 HP por sala que cambian)
  */
 
 'use strict';
 
 const EVENT_INTERVAL_MS  = 12 * 60 * 1000; // 12 minutos entre eventos (DIS-480: era 20min, demasiado raro en sesión casual)
 const EVENT_DURATION_MS  =  8 * 60 * 1000; // 8 minutos de duración (DIS-480: era 5min)
+
+// DIS-852: IDs de monstruos considerados "nivel 3+" para el evento BLOOD_MOON
+// Solo monstruos de mid/late game se ven afectados — los básicos del early game quedan normales
+// Incluye: Espectro, Elemental, Krakeling, Gólem de Piedra, Guardia Espectral, Golem de Forja,
+//          Campeón Espectral, Eco Viviente, Sombra del Vacío, Esqueleto Guerrero
+const BLOOD_MOON_MONSTER_IDS = new Set([2, 4, 5, 8, 9, 10, 11, 12, 13, 21, 22]);
 
 const EVENT_CATALOG = [
   {
@@ -35,10 +43,24 @@ const EVENT_CATALOG = [
   },
   {
     id: 'bloodmoon',
-    name: '🩸 Luna de Sangre',
-    description: 'La luna roja tiñe el dungeon. Los monstruos atacan con mayor ferocidad (+2 daño por ataque).',
-    announceStart: '🩸 ¡La Luna de Sangre ha salido! Los monstruos están enfurecidos y hacen +2 de daño por los próximos 5 minutos. ¡Tened cuidado!',
-    announceEnd: '🌙 La Luna de Sangre se oculta. Los monstruos recuperan su ferocidad normal.',
+    name: '🌑 Luna de Sangre',
+    // DIS-852: rediseñado — monstruos nivel 3+ ganan +30% ATK y +75% XP, básicos no se afectan
+    description: 'La Luna de Sangre tiñe el dungeon de rojo. Las criaturas del abismo despiertan con furia renovada — los monstruos de mid/late game son más peligrosos, pero sus almas brillan con recompensas.',
+    announceStart: '🌑 ¡La Luna de Sangre tiñe el dungeon! Los monstruos del abismo se despiertan — los enemigos de nivel 3+ ganan +30% ATK pero otorgan +75% XP. Los básicos (Goblin, Murciélago, Rata, Araña) no se afectan. ¡Las recompensas valen la sangre!',
+    announceEnd: '🌙 La Luna de Sangre se oculta. Los monstruos vuelven a su ferocidad habitual.',
+    // Flags para que combat.js sepa cómo aplicar el efecto
+    atkBonus: 0.30,   // +30% ATK proporcional (se aplica en combat.js)
+    xpBonus: 0.75,    // +75% XP adicional (se acumula con invasion si ambos activos)
+    affectedIds: BLOOD_MOON_MONSTER_IDS,
+  },
+  {
+    id: 'arcane_surge',
+    name: '⚡ Carga Arcana',
+    // DIS-852: nuevo evento — hechizos +50% daño
+    description: 'Una onda arcana recorre el dungeon. Los hechizos vibran con energía extra — Magos y Clérigos activos verán sus poderes amplificados.',
+    announceStart: '⚡ ¡Una onda arcana recorre el dungeon! Los hechizos de Magos y Clérigos hacen +50% de daño por los próximos 8 minutos. ¡El momento de la magia ha llegado!',
+    announceEnd: '✨ La onda arcana se disipa. Los hechizos vuelven a su potencia normal.',
+    spellBonus: 0.50, // +50% daño de hechizos
   },
   {
     id: 'blessing',
@@ -144,4 +166,4 @@ function getNextEventText() {
   return `Próximo evento en: ${formatRemaining(remaining)}`;
 }
 
-module.exports = { getCurrentEvent, tick, getNextEventText, EVENT_CATALOG };
+module.exports = { getCurrentEvent, tick, getNextEventText, EVENT_CATALOG, BLOOD_MOON_MONSTER_IDS };

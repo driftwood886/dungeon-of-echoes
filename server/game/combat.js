@@ -332,7 +332,9 @@ function attackRound(player, monster) {
     // Ir directo a la fase de ataque del monstruo (sin retornar)
     const monsterDmgW = calcDamage(monster.attack);
     const activeEvW = worldEvents.getCurrentEvent();
-    const bloodmoonBonusW = (activeEvW && activeEvW.id === 'bloodmoon') ? 2 : 0;
+    // DIS-852: bloodmoon rediseñado — +30% ATK proporcional para monstruos nivel 3+ (no flat +2)
+    const bloodmoonAffectsW = (activeEvW && activeEvW.id === 'bloodmoon' && activeEvW.affectedIds && activeEvW.affectedIds.has(monster.id));
+    const bloodmoonBonusW = bloodmoonAffectsW ? Math.floor(monster.attack * (activeEvW.atkBonus || 0.30)) : 0;
     const dodgeChanceW = 0.08 + (classes.getPlayerClass(player) ? (classes.getPlayerClass(player).dodge_bonus || 0) / 100 : 0);
     if (Math.random() < dodgeChanceW) {
       lines.push(`💨 ¡Incluso atrapado, esquivás el ataque del ${monster.name}!`);
@@ -429,7 +431,9 @@ function attackRound(player, monster) {
       // El monstruo sí contraataca
       const shadowDmg = calcDamage(monster.attack);
       const evParalyze = worldEvents.getCurrentEvent();
-      const bmBonusP = (evParalyze && evParalyze.id === 'bloodmoon') ? 2 : 0;
+      // DIS-852: bloodmoon rediseñado — +30% ATK proporcional para monstruos nivel 3+
+      const bmAffectsP = (evParalyze && evParalyze.id === 'bloodmoon' && evParalyze.affectedIds && evParalyze.affectedIds.has(monster.id));
+      const bmBonusP = bmAffectsP ? Math.floor(monster.attack * (evParalyze.atkBonus || 0.30)) : 0;
       const freshBlindParalyze = freshForParalyze;
       const blindFxP = freshBlindParalyze.status_effects ? (typeof freshBlindParalyze.status_effects === 'string' ? JSON.parse(freshBlindParalyze.status_effects) : freshBlindParalyze.status_effects) : {};
       const blindDefP = blindFxP.blinded ? (blindFxP.blinded.amount || 0) : 0;
@@ -715,7 +719,11 @@ function attackRound(player, monster) {
           else lines.push(`El ${monster.name} no deja nada.`);
           const xpBasePet = Math.max(5, Math.floor(monster.max_hp * 2));
           const activeEvPet = worldEvents.getCurrentEvent();
-          const xpGainPet = activeEvPet && activeEvPet.id === 'invasion' ? Math.floor(xpBasePet * 1.5) : xpBasePet;
+          const invasionMultPet = (activeEvPet && activeEvPet.id === 'invasion') ? 1.5 : 1.0;
+          // DIS-852: bloodmoon +75% XP para monstruos nivel 3+ afectados
+          const bloodmoonXpPet = (activeEvPet && activeEvPet.id === 'bloodmoon' && activeEvPet.affectedIds && activeEvPet.affectedIds.has(monster.id))
+            ? (1 + (activeEvPet.xpBonus || 0.75)) : 1.0;
+          const xpGainPet = Math.floor(xpBasePet * invasionMultPet * bloodmoonXpPet);
           const freshPPet = db.getPlayer(player.id);
           const newKillsPet = (freshPPet.kills || 0) + 1;
           const newXpPet = (freshPPet.xp || 0) + xpGainPet;
@@ -845,7 +853,11 @@ function attackRound(player, monster) {
         else lines.push(`El ${monster.name} no deja nada.`);
         const xpBase3 = Math.max(5, Math.floor(monster.max_hp * 2));
         const activeEv3 = worldEvents.getCurrentEvent();
-        const xpGain3 = activeEv3 && activeEv3.id === 'invasion' ? Math.floor(xpBase3 * 1.5) : xpBase3;
+        const invasionMult3 = (activeEv3 && activeEv3.id === 'invasion') ? 1.5 : 1.0;
+        // DIS-852: bloodmoon +75% XP para monstruos nivel 3+ afectados
+        const bloodmoonXp3 = (activeEv3 && activeEv3.id === 'bloodmoon' && activeEv3.affectedIds && activeEv3.affectedIds.has(monster.id))
+          ? (1 + (activeEv3.xpBonus || 0.75)) : 1.0;
+        const xpGain3 = Math.floor(xpBase3 * invasionMult3 * bloodmoonXp3);
         const freshPl3 = db.getPlayer(player.id);
         const newKills3 = (freshPl3.kills || 0) + 1;
         const newXp3    = (freshPl3.xp    || 0) + xpGain3;
@@ -899,11 +911,14 @@ function attackRound(player, monster) {
     }
     const eliteXpMult = isEliteMonster ? 1.75 : 1.0;
     const xpBase = Math.max(5, Math.floor(monster.max_hp * 2));
-    // Bonus de XP si hay evento invasión o clima de calma arcana (T166)
+    // Bonus de XP si hay evento invasión o luna de sangre (DIS-852) o clima de calma arcana (T166)
     const activeEv = worldEvents.getCurrentEvent();
     const invasionMult = (activeEv && activeEv.id === 'invasion') ? 1.5 : 1.0;
+    // DIS-852: bloodmoon da +75% XP solo para monstruos nivel 3+ afectados
+    const bloodmoonXpMult = (activeEv && activeEv.id === 'bloodmoon' && activeEv.affectedIds && activeEv.affectedIds.has(monster.id))
+      ? (1 + (activeEv.xpBonus || 0.75)) : 1.0;
     const weatherXpMult = weather.getXpMultiplier(); // 1.1 si calma arcana, 1.0 si no
-    const xpGain = Math.floor(xpBase * invasionMult * weatherXpMult * eliteXpMult);
+    const xpGain = Math.floor(xpBase * invasionMult * bloodmoonXpMult * weatherXpMult * eliteXpMult);
     const freshPlayer = db.getPlayer(player.id);
     const newKills = (freshPlayer.kills || 0) + 1;
     const newXp    = (freshPlayer.xp    || 0) + xpGain;
@@ -1065,9 +1080,10 @@ function attackRound(player, monster) {
   // De lo contrario, el jugador recibe el boost de Fase 2 sin poder prepararse.
   const monsterAtkForCounterattack = _phase2ActivatedThisTurn ? _atkBeforePhase2 : monster.attack;
   const monsterDmg = calcDamage(monsterAtkForCounterattack);
-  // Bonus daño si hay evento luna de sangre o clima lluvia de esporas (T166)
+  // DIS-852: bloodmoon rediseñado — +30% ATK proporcional para monstruos nivel 3+ (no flat +2)
   const activeEvMon = worldEvents.getCurrentEvent();
-  const bloodmoonBonus = (activeEvMon && activeEvMon.id === 'bloodmoon') ? 2 : 0;
+  const bloodmoonAffects = (activeEvMon && activeEvMon.id === 'bloodmoon' && activeEvMon.affectedIds && activeEvMon.affectedIds.has(monster.id));
+  const bloodmoonBonus = bloodmoonAffects ? Math.floor(monsterAtkForCounterattack * (activeEvMon.atkBonus || 0.30)) : 0;
   const weatherDmgBonus = weather.getMonsterDamageBonus(); // +1 si spore_rain
 
   // T101: 8% de esquiva — el jugador evita el daño por completo
@@ -1152,7 +1168,7 @@ function attackRound(player, monster) {
 
     player.hp = Math.max(0, player.hp - dmgToPlayer);
 
-    const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🩸(+${bloodmoonBonus} Luna de Sangre)` : '';
+    const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🌑(+${bloodmoonBonus} Luna de Sangre)` : '';
     const weatherDmgSuffix = weatherDmgBonus > 0 ? ` 🍄(+${weatherDmgBonus} Esporas)` : '';
     lines.push(`🩸 El ${monster.name} te golpea y causa ${dmgToPlayer} de daño.${bloodmoonSuffix}${weatherDmgSuffix} (${player.hp}/${player.max_hp} HP)`);
 
