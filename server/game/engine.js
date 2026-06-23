@@ -3861,7 +3861,7 @@ function cmdExamine(player, query) {
 
   // DIS-842: examine espada de obsidiana en sala 15 — mostrar comparación con arma equipada
   const OBSIDIANA_KEYS = new Set(['espada', 'obsidiana', 'espada de obsidiana']);
-  if (player.current_room_id === 15 && OBSIDIANA_KEYS.has(qNorm)) {
+  if (player.current_room_id === 15 && OBSIDIANA_KEYS.has(qLow)) {
     const obsidianaDef = items.getItemDef('espada de obsidiana');
     const obsidianaAtk = obsidianaDef ? obsidianaDef.amount : 0; // +10 ATK base
     const equippedWpn = player.equipped_weapon;
