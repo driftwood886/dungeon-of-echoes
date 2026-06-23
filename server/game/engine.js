@@ -4420,7 +4420,7 @@ function cmdEquip(player, itemQuery) {
 
   const change = newAttack - oldAttack;
   const changeStr = change >= 0 ? `+${change}` : `${change}`;
-  const swapMsg = player.equipped_weapon ? ` (reemplaza ${player.equipped_weapon} → vuelve a tu mochila)` : '';
+  const swapMsg = player.equipped_weapon ? `\n🔄 (Desequipás ${player.equipped_weapon} — vuelve a tu mochila.)` : '';
 
   // DIS-478: flavor narrativo cuando un mago equipa arma de guerrero (sin penalidad — libertad de builds)
   // DIS-494: armas mágicas (espectral, del eco, arcana) tienen su propio flavor para el Mago
@@ -4493,7 +4493,7 @@ function cmdEquip(player, itemQuery) {
     : ` (bono del arma: +${def.amount} ATK${mageOnlyBonusStr}${clericOnlyBonusStr})`;
 
   return {
-    text: `Empuñás ${found}${swapMsg}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.\n${def.description}${magoHeavyFlavor}`,
+    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.\n${def.description}${magoHeavyFlavor}${swapMsg}`,
     event: `${player.username} empuña ${found}.`,
     eventRoomId: player.current_room_id,
   };
