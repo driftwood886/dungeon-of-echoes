@@ -1890,10 +1890,18 @@ function cmdStatus(player) {
       const STANCE_DEF = { agresivo: -1, defensivo: +2, equilibrado: 0 };
       let defBuffTotal = 0;
       let hasBlessDef = false;
+      let blessSecsLeft = 0;
+      let blessBonusDef = 0;
       for (const [effKey, data] of Object.entries(scrollsDef)) {
         if (data.expires_at > nowDef) {
-          // BUG-775: cleric_bless ya está baked-in en player.defense — no sumar de nuevo
-          if (effKey === 'cleric_bless') { hasBlessDef = true; continue; }
+          // BUG-775/BUG-851: cleric_bless ya está baked-in en player.defense — no sumar de nuevo
+          // BUG-851: guardar el tiempo restante y el bonus para mostrarlo en Defensa
+          if (effKey === 'cleric_bless') {
+            hasBlessDef = true;
+            blessSecsLeft = Math.ceil((data.expires_at - nowDef) / 1000);
+            blessBonusDef = data.def_bonus || 2;
+            continue;
+          }
           defBuffTotal += (data.def_bonus || 0);
         }
       }
@@ -1902,11 +1910,18 @@ function cmdStatus(player) {
       const effectiveDef = (player.defense || 0) + totalDefBonus;
       if (totalDefBonus !== 0 || hasBlessDef) {
         const defParts = [];
-        if (hasBlessDef) defParts.push(`+2 🛡️Bendición`);
+        // BUG-851: mostrar base DEF sin el bless + el bonus bless explícito + tiempo restante
+        if (hasBlessDef) {
+          const blessMin = Math.floor(blessSecsLeft / 60);
+          const blessSec = blessSecsLeft % 60;
+          const blessTimer = blessMin > 0 ? `${blessMin}m ${blessSec}s` : `${blessSec}s`;
+          const baseDefWithoutBless = (player.defense || 0) - blessBonusDef;
+          defParts.push(`base ${baseDefWithoutBless} + ${blessBonusDef} 🛡️Bendición (${blessTimer})`);
+        }
         if (defBuffTotal > 0) defParts.push(`+${defBuffTotal} 📜buff`);
         if (stanceDefMod > 0) defParts.push(`+${stanceDefMod} postura`);
         else if (stanceDefMod < 0) defParts.push(`${stanceDefMod} postura`);
-        const defEffStr = hasBlessDef ? `${effectiveDef} (ya incluido en DEF base)` : `${effectiveDef} efectiva`;
+        const defEffStr = hasBlessDef ? `${player.defense} total` : `${effectiveDef} efectiva`;
         return `Defensa:  ${player.defense} (${defParts.join(', ')}${totalDefBonus !== 0 ? ` = ${defEffStr}` : ''})`;
       }
       return `Defensa:  ${player.defense}`;
