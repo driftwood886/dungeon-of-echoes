@@ -1790,7 +1790,14 @@ function cmdStatus(player) {
   const roomEffectStatus = ROOM_EFFECTS[player.current_room_id];
   if (roomEffectStatus && roomEffectStatus.type === 'debuff') {
     const statLabel = roomEffectStatus.stat === 'attack' ? 'ATK' : roomEffectStatus.stat === 'defense' ? 'DEF' : roomEffectStatus.stat;
-    statusLines.push(`${roomEffectStatus.label} — mientras estés en esta sala: ${roomEffectStatus.amount} ${statLabel} efectivo.`);
+    // DIS-859: si el jugador tiene el amuleto del eco en sala 19, mostrar como cancelado en lugar de activo
+    const invForStatusDebuff = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+    const hasEchoAmuletStatus = invForStatusDebuff.some(i => (typeof i === 'string' ? i : (i.name || '')).toLowerCase().includes('amuleto del eco'));
+    if (hasEchoAmuletStatus && player.current_room_id === 19) {
+      statusLines.push(`${roomEffectStatus.label} — 🛡️ cancelado por el amuleto del eco (sin efecto).`);
+    } else {
+      statusLines.push(`${roomEffectStatus.label} — mientras estés en esta sala: ${roomEffectStatus.amount} ${statLabel} efectivo.`);
+    }
   }
   // DIS-772: mostrar nota informativa para efectos de sala tipo 'damage' (calor, vacío, maldición)
   // No son debuffs persistentes — el daño ya fue aplicado al entrar. Se informa sin confundir.
