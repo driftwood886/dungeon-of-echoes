@@ -1297,7 +1297,7 @@ function cmdMove(player, direction) {
       // DIS-451/452: tip personalizado según la trampa — indica dónde obtener el ítem de desactivación
       const TRAP_DISARM_HINT = {
         6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa al norte, podés escribir "desactivar trampa norte" antes de entrar.',
-        9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
+        9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de dos formas: (1) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (2) buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
         3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).\n🧠 Próxima vez que veas el hint de trampa al oeste, podés escribir "desactivar trampa oeste" antes de entrar.',
         13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Buscá en esta sala o en los alrededores del Lago.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
       };
@@ -4311,7 +4311,7 @@ function cmdLore(query) {
   // DIS-D23: fuentes de ítems de desactivación de trampas
   const TRAP_ITEM_SOURCES = {
     'hongo azul':  '🍄 Se encuentra en el suelo del Túnel de los Hongos (sala 6) — forage con alta prob.',
-    'corona rota': '👑 Se encuentra en el suelo de la Sala del Trono (sala 9), también como forage en esa sala.',
+    'corona rota': '👑 La dropea el Espectro del Corredor en Sala del Trono (sala 9). También: forage en esa sala.',
     'cuerda':      '🛒 Disponible en la tienda del Mercader Aldric (Sala 4). También aparece como forage.',
     'red de pesca':'🐟 Se puede encontrar con forage en la Caverna Sumergida (sala 13).',
   };

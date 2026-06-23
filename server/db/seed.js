@@ -184,6 +184,7 @@ function seedIfEmpty() {
     migrateTraps();
     migrateAntidotes();
     migrateSanctuaryEastHint();
+    migrateEspectroCoronaLoot();
     return;
   }
 
@@ -204,6 +205,7 @@ function seedIfEmpty() {
   migrateTraps();
   migrateAntidotes();
   migrateSanctuaryEastHint();
+  migrateEspectroCoronaLoot();
 }
 
 /**
@@ -1768,6 +1770,28 @@ function migratePozo820() {
     }
   } catch (e) {
     console.warn('[seed] migratePozo820:', e.message);
+  }
+}
+
+/**
+ * DIS-872: El Espectro del Corredor (sala 9) no dropeaba corona rota, pero el hint de la trampa
+ * decía "buscá en esta sala". Ahora también droppea corona rota con 50% de probabilidad,
+ * dando al jugador una alternativa clara al forage cuando el Espectro muere.
+ */
+function migrateEspectroCoronaLoot() {
+  try {
+    const espectro = db.getMonster(4); // Espectro del Corredor
+    if (!espectro) return;
+    const loot = Array.isArray(espectro.loot) ? espectro.loot : JSON.parse(espectro.loot || '[]');
+    if (loot.includes('corona rota')) {
+      console.log('[seed] migrateEspectroCoronaLoot: DIS-872 — corona rota ya en loot del Espectro. ✓');
+      return;
+    }
+    const newLoot = [...loot, 'corona rota'];
+    db.updateMonster(4, { loot: JSON.stringify(newLoot) });
+    console.log('[seed] migrateEspectroCoronaLoot: DIS-872 — corona rota agregada al loot del Espectro del Corredor (id 4). Loot: ' + newLoot.join(', ') + '. ✓');
+  } catch (e) {
+    console.warn('[seed] migrateEspectroCoronaLoot:', e.message);
   }
 }
 
