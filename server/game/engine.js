@@ -6366,6 +6366,8 @@ const SHOP_CATALOG = [
   { name: 'antídoto',                price: 20, description: 'Cura el veneno al instante.' },
   { name: 'espada de hierro',        price: 30, description: 'Arma sólida. Daño base +8.' },
   { name: 'daga envenenada',         price: 45, description: 'Daño +4, aplica veneno al enemigo.' },
+  // DIS-855: espada de acero para level 6-8 (gap entre espada de hierro +8 y armas épicas crafteable)
+  { name: 'espada de acero',         price: 70, description: 'Acero templado. +10 de ataque. La mejor opción de compra para aventureros de élite (nivel 6+).' },
   { name: 'escudo de madera',        price: 25, description: 'Defensa +2. No es glamoroso, pero funciona.' },
   { name: 'antorcha',                price: 5,  description: 'Ilumina pasillos oscuros. Dura varias horas.' },
   { name: 'cuerda',                  price: 10, description: 'Desactiva trampas de pinchos. 15m de largo.' },
@@ -6431,7 +6433,8 @@ const SHOP_CATALOG = [
   { name: 'pergamino de velocidad',  price: 30,  sellOnly: true, description: 'Pergamino de energía cinética. Aldric lo colecciona.' },
   // Raros
   { name: 'perla negra',             price: 60,  sellOnly: true, description: 'Perla del lago subterráneo. Valor incalculable para coleccionistas.' },
-  { name: 'peto de huesos',          price: 50,  sellOnly: true, description: 'Peto macabro del dungeon profundo. Aldric lo compra para estudio.' },
+  // DIS-855: peto de huesos también disponible para comprar — armadura +4 DEF para nivel 6-8
+  { name: 'peto de huesos',          price: 65,  description: 'Peto forjado con huesos del dungeon. Macabro pero efectivo. +4 de defensa. También lo podés vender si ya tenés mejor.' },
   { name: 'tomo sellado',            price: 40,  sellOnly: true, description: 'Tomo con runas que pulsan. Aldric lo quiere para investigación.' },
   { name: 'veste de sombra',         price: 40,  sellOnly: true, description: 'Veste tejida con esencia de sombra. Pieza mágica de alto valor.' },
   { name: 'llave maestra',           price: 40,  sellOnly: true, description: 'Una llave que abre muchas cerraduras. Aldric la colecciona.' },
