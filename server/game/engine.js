@@ -5584,8 +5584,9 @@ function cmdMap(player) {
     `              |         |`,
     `            ${c(5)}---${c(1)}`,
     ``,
-    `── ZONA PROFUNDA (acceso desde Galería [11] ↓) ──────────────`,
-    `            ${c(11)}`,
+    // BUG-900: no repetir sala 11 — ya aparece en la fila superior. Solo mostrar flecha de descenso.
+    `── ZONA PROFUNDA (entrada: Galería [11] → bajar ↓) ──────────`,
+    `            ↓ (desde [11:Galería] — ver fila superior)`,
     `              |   \\               ${cellTutorial(21)}---${cellTutorial(16)}`,
     `            ${c(12)} ${c(13)}`,
     `                  \\  /`,
@@ -5595,7 +5596,7 @@ function cmdMap(player) {
     ``,
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
     `[18] = Fuente Eterna — oeste del Trono (18→east→9) y norte del Santuario (18→south→10)`,
-    `↓  = zona profunda (desde Galería [11])  ╎ = separación visual (sin conexión directa)`,
+    `↓  = zona profunda (bajar desde Galería [11], ya visible arriba)  ╎ = separación visual (sin conexión directa)`,
     // DIS-635: solo mencionar sala 8 como fuente de llave si ya fue visitada
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
