@@ -1890,7 +1890,10 @@ function cmdStatus(player) {
         const lowManaThresh = Math.floor((maxMana || 1) * 0.20);
         const escarchaEmergencyActive = isMagoStatus && mana <= lowManaThresh;
         const escarchaNote = escarchaEmergencyActive ? ' ❄️ (escarcha emergencia: sin coste)' : '';
-        return `Maná:     ${manaBar} ${mana}/${maxMana}${regenNote}${escarchaNote}`;
+        // DIS-879: Canalización — Mago nivel 3+ activa descuento de -1 maná cuando ≤20%
+        const hasCanalizacionStatus = isMagoStatus && (player.level || 1) >= 3 && mana <= lowManaThresh;
+        const canalizacionNote = (hasCanalizacionStatus && !escarchaEmergencyActive) ? ' 🔮 (Canalización: -1 coste)' : '';
+        return `Maná:     ${manaBar} ${mana}/${maxMana}${regenNote}${escarchaNote}${canalizacionNote}`;
       }
       // DIS-871: clases no-mágicas con maná base (20) — mostrar con nota para evitar confusión
       if (isNonMagicWithMana) {
@@ -9426,7 +9429,12 @@ function cmdCast(player, args) {
   const isEscarcha = spellName === 'escarcha';
   const lowManaThreshold = Math.floor(maxMana * 0.20);
   const escarchaEmergency = isMago && isEscarcha && currentMana <= lowManaThreshold;
-  const effectiveCost = escarchaEmergency ? 0 : spell.cost;
+  // DIS-879: Canalización — Mago nivel 3+ reduce costo de hechizos en 1 cuando maná ≤ 20%
+  // Pasivo automático: simula que el Mago canaliza el poder residual del ambiente arcano.
+  // No aplica a escarcha de emergencia (ya es gratis) ni a hechizos con free_spell.
+  const hasCanalizacion = isMago && (player.level || 1) >= 3 && currentMana <= lowManaThreshold && !escarchaEmergency;
+  const canalizacionDiscount = hasCanalizacion ? 1 : 0;
+  const effectiveCost = escarchaEmergency ? 0 : Math.max(1, spell.cost - canalizacionDiscount);
   // DIS-558: Si tiene free_spell activo, no verificar ni cobrar maná
   const freshForFreeSp = db.getPlayer(player.id);
   const seForFreeSp = parseSE(freshForFreeSp.status_effects);
@@ -9444,6 +9452,9 @@ function cmdCast(player, args) {
   let newMana = hasFreeSpell ? currentMana : currentMana - effectiveCost;
   if (escarchaEmergency && !hasFreeSpell) {
     lines.push('❄️ (Escarcha de emergencia — sin coste de maná con maná bajo)');
+  }
+  if (hasCanalizacion && !hasFreeSpell && !escarchaEmergency) {
+    lines.push(`🔮 (Canalización — maná crítico: -1 coste de maná [${spell.cost} → ${effectiveCost}])`);
   }
   if (hasFreeSpell) {
     const seFS = parseSE(freshForFreeSp.status_effects);
@@ -9890,6 +9901,19 @@ function cmdSpells(player) {
 
   lines.push(``);
   lines.push(`Uso: cast <hechizo>  (ej: "cast bola de fuego", "cast escudo", "cast curación")`);
+
+  // DIS-879: Canalización — pasivo del Mago nivel 3+ cuando maná ≤ 20%
+  if (spellClassName === 'Mago' && (player.level || 1) >= 3) {
+    const lowManaForSpells = Math.floor((maxMana || 1) * 0.20);
+    if (currentMana <= lowManaForSpells) {
+      lines.push(``);
+      lines.push(`🔮 **Canalización activa** — Con maná crítico (≤20%), tus hechizos cuestan 1 maná menos.`);
+      lines.push(`   (Pasivo del Mago nivel 3+. Excepto escarcha que sigue siendo gratuita de emergencia.)`);
+    } else {
+      lines.push(``);
+      lines.push(`🔮 Pasivo: **Canalización** (nivel 3+) — Se activa cuando maná ≤ ${lowManaForSpells}/${maxMana}: hechizos -1 coste.`);
+    }
+  }
 
   // DIS-614: nota para Clérigo sobre heal como alternativa diferenciadora
   if (player.player_class === 'clerigo') {
