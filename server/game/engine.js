@@ -3953,7 +3953,7 @@ function cmdExamine(player, query) {
     'inscripciones':   { rooms: [2],  text: 'Las inscripciones son en su mayoría ilegibles, dañadas por siglos de humedad. Pero en la mitad del corredor, casi a la altura de los ojos, una sola línea ha sido protegida por una capa de cera endurecida. Con esfuerzo, podés descifrarla:\n\n  "KAELTHAS — EL QUE NO QUISO MORIR GOBERNÓ DESDE LAS SOMBRAS"\n\nEl nombre está grabado dos veces: una en las runas antiguas del reino, otra —más reciente— en letra cursiva perfecta.' },
     // STORY-013: Goblin contextualizado en sala 2
     'goblin':          { rooms: [2],  text: 'El goblin no tiene interés en las inscripciones —de hecho, ha rayado algunas con un cuchillo sin entender lo que borra. Ha estado viviendo aquí el tiempo suficiente para acumular basura en un rincón: huesos de rata, piedras brillantes, un trozo de tela. Vino de fuera, siguiendo el olor al tesoro. Se quedó por las mismas razones que todos.' },
-    'altar':           { rooms: [5],  text: 'El altar de piedra negra tiene marcas de uso continuo a lo largo de siglos, pero lo que llama tu atención está en la base: hay cera derretida fresca. Reciente. Las llamas de las velas se apagaron hace siglos —¿quién estuvo aquí, y cuándo? El resto del dungeon no tiene respuestas. Pero alguien las tiene.' },
+    'altar':           { rooms: [5, 10], text: '__ALTAR_DYNAMIC__' },
     'trono':           { rooms: [9],  text: 'El trono está hecho de huesos ensamblados con precisión quirúrgica —no como un acto de brutalidad, sino como una declaración. Entre los brazos del trono, grabado en el hueso, hay un nombre en cursiva perfecta: KAELTHAS. Notás que el trono no tiene polvo. Lo demás en la sala lleva siglos sin ser tocado. Alguien se sienta aquí regularmente.' },
     'escudos':         { rooms: [9],  text: 'Los escudos de los reinos extintos están todos ligeramente opacos de polvo... excepto uno. El más oscuro, sin emblema, brilla como si acabara de ser pulido. No tiene insignia. Solo una fecha grabada en el borde inferior: el año en que cayó el Reino de Valdrath.' },
     'cuerda':          { rooms: [7],  text: 'La cuerda está atada en lo alto a un gancho de hierro de manufactura antigua. Intentás tirar de ella para saber qué hay abajo. El frío que sube desde las profundidades te hace soltar de inmediato —no es temperatura, es algo más. Un rechazo activo, deliberado. Mirás más de cerca los nudos: la cuerda tiene marcas de haber sido cortada desde abajo. Alguien —o algo— no quería que nadie bajara.' },
@@ -4207,6 +4207,14 @@ function cmdExamine(player, query) {
             return '  ' + (i + 1) + '. ' + a.item_name + ' — ' + soldFor + ' ' + soldTo + '  [vendedor: ' + a.seller_name + ']';
           });
           return { text: '📋 **Tablero de historial de subastas**\n\nÚltimos remates cerrados:\n\n' + rows.join('\n') + '\n\n  *(El escriba actualiza el tablero después de cada remate.)*\n\nPara ver subastas activas: subastas   |   Para crear una: subastar <ítem> <precio>' };
+        }
+        // DIS-878: altar dinámico — sala 5 (Capilla) vs sala 10 (Santuario Profano)
+        if (val.text === '__ALTAR_DYNAMIC__') {
+          if (player.current_room_id === 10) {
+            return { text: 'La estatua monstruosa que domina el Santuario Profano es más altar que escultura. Está tallada en piedra oscura y tiene una postura que sugiere expectativa —como si estuviera esperando que alguien venga a ofrendar.\n\nLas runas grabadas en la base son antiguas: en el idioma del reino caído, describen un pacto de protección a cambio de devoción. El altar responde a ofrendas de oro directas.\n\n💡 Rezá en este altar con: `pray Xg` (ej: `pray 5g`) — 1-4g para Bendición Menor, 5-9g para Bendición de Plata, 10+g para Bendición Mayor.\n\n(También podés usar monedas físicas con `pray <moneda>` si las tenés en el inventario.)' };
+          }
+          // Sala 5 — Capilla Olvidada
+          return { text: 'El altar de piedra negra tiene marcas de uso continuo a lo largo de siglos, pero lo que llama tu atención está en la base: hay cera derretida fresca. Reciente. Las llamas de las velas se apagaron hace siglos —¿quién estuvo aquí, y cuándo? El resto del dungeon no tiene respuestas. Pero alguien las tiene.' };
         }
         // BUG-555: carta sellada — si el jugador ya la abrió (no está en inventario), mostrar descripción post-apertura
         if ((key === 'carta' || key === 'carta sellada') && player.current_room_id === 8) {
