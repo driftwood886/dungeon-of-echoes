@@ -5568,7 +5568,7 @@ function cmdMap(player) {
     '',
     // BUG-881: Santuario (10) al ESTE del Trono (9) — conexión east/west correcta
     `${c(18)}---${c(9)}---${c(10)}---${c(11)}`,
-    `              |         |         ↓ (bajar)`,
+    `              |         |         ↓ (zona profunda)`,
     // Túnel (6) sur de Trono, Corredor (2) este de Túnel; Pozo (7) sur de Santuario
     (() => {
       // BUG-721: estado de la puerta norte del Pozo (→Santuario)
@@ -5578,22 +5578,24 @@ function cmdMap(player) {
       // BUG-894: lockMark debe ser CORTO para no romper el formato ASCII de la grilla
       // El texto explicativo se agrega como nota al pie del mapa (ver lockHint abajo)
       const lockMark = isPuertaAbierta ? '🔓' : '🔑';
-      return `            ${c(6)}---${c(2)}   ${c(7)}${lockMark}---${c(3)}---${c(4)}---${c(8)}---${c(17)}`;
+      // DIS-898: separar la fila densa en dos grupos visuales con separador ---
+      return `            ${c(6)}---${c(2)}  ╎  ${c(7)}${lockMark}---${c(3)}---${c(4)}---${c(8)}---${c(17)}`;
     })(),
     `              |         |`,
     `            ${c(5)}---${c(1)}`,
     ``,
-    `(zona profunda — acceso desde Galería [11]:)`,
-    `            ${c(11)}      ↓ (bajar)`,
-    `              |   \\\\               ${cellTutorial(21)}---${cellTutorial(16)}`,
+    `── ZONA PROFUNDA (acceso desde Galería [11] ↓) ──────────────`,
+    `            ${c(11)}`,
+    `              |   \\               ${cellTutorial(21)}---${cellTutorial(16)}`,
     `            ${c(12)} ${c(13)}`,
-    `                  \\\\  /`,
+    `                  \\  /`,
     `              ${c(14)}---${c(19)}---${c(15)}---${c(22)}`,
     `                          |`,
     `                     ${c(20)}`,
     ``,
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
     `[18] = Fuente Eterna — oeste del Trono (18→east→9) y norte del Santuario (18→south→10)`,
+    `↓  = zona profunda (desde Galería [11])  ╎ = separación visual (sin conexión directa)`,
     // DIS-635: solo mencionar sala 8 como fuente de llave si ya fue visitada
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
