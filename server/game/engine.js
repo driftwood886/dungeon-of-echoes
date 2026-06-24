@@ -3921,7 +3921,14 @@ function cmdExamine(player, query) {
     if (player.current_room_id === 4) {
       return { text: 'Aldric es un hombre de mediana edad con manos de comerciante y ojos de alguien que ha visto demasiado. Lleva un delantal con el símbolo de dos llaves cruzadas —el mismo que está en las paredes de la prisión del nivel inferior.\n\nNunca explica por qué está aquí. Cuando le preguntás, cambia el tema con una eficiencia que sugiere mucha práctica.\n\n"Si vas a comprar, comprá. Si no, las ruinas del fondo son más acogedoras de lo que parecen."' };
     } else {
-      return { text: 'El mercader Aldric está en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado. Si querés evitarlos, esperá a que reaparezcan con menos HP o llevá pociones.' };
+      // DIS-877: ruta dinámica según sala actual del jugador
+      const fromRoom = db.getRoom(player.current_room_id);
+      const fromName = fromRoom ? fromRoom.name : `sala ${player.current_room_id}`;
+      // Ruta hardcodeada solo si el jugador está en sala 1 (Entrada)
+      const routeNote = player.current_room_id === 1
+        ? '\n  💡 Ruta desde aquí: norte → norte → este'
+        : `\n  💡 Usá \`ruta tesoro\` para que el sistema calcule la ruta óptima desde donde estás (${fromName}).`;
+      return { text: `El mercader Aldric está en la Cámara del Tesoro (sala 4).${routeNote}\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado. Si querés evitarlos, esperá a que reaparezcan con menos HP o llevá pociones.` };
     }
   }
 
