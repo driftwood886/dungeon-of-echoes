@@ -3108,8 +3108,9 @@ function cmdPick(player, itemQuery) {
     let totalGoldConverted = 0;
     for (const item of floorItems) {
       // DIS-589: monedas se auto-convierten a oro sin ocupar inventario
+      // BUG-880: usar comparación exacta para evitar falsos positivos (ej: 'corona rota'.includes('oro'))
       const itemLower = item.toLowerCase();
-      const goldKey = Object.keys(GOLD_ITEMS_ALL).find(k => itemLower.includes(k) || k.includes(itemLower));
+      const goldKey = Object.keys(GOLD_ITEMS_ALL).find(k => itemLower === k);
       if (goldKey) {
         const amount = GOLD_ITEMS_ALL[goldKey];
         current = db.getPlayer(current.id);
