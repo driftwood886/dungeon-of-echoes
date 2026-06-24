@@ -898,8 +898,15 @@ function attackRound(player, monster) {
     if (isEliteMonster) {
       lines.push(`🌟 ¡Era un monstruo ÉLITE! Recompensa mejorada.`);
       // Agregar loot extra: siempre monedas de oro + posible ítem de la tabla
-      loot.push('monedas de oro');
-      if (Math.random() < 0.5) loot.push('monedas de oro');
+      const eliteGoldLoot = ['monedas de oro'];
+      if (Math.random() < 0.5) eliteGoldLoot.push('monedas de oro');
+      loot.push(...eliteGoldLoot);
+      // BUG-887: Depositar las monedas de oro del élite en el suelo de la sala
+      // Antes solo se agregaban al array local 'loot' (para el mensaje) pero no al suelo
+      const eliteRoom = db.getRoom(player.current_room_id);
+      if (eliteRoom) {
+        db.updateRoomItems(player.current_room_id, [...eliteRoom.items, ...eliteGoldLoot]);
+      }
       if (loot.length > 0) {
         // Actualizar el mensaje de loot si ya lo pusimos
         // BUG-624: deduplicar el display del loot para evitar "monedas de oro, monedas de oro"
