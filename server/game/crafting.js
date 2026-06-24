@@ -294,7 +294,8 @@ function craft(player, itemA, itemB) {
   const idxA = inv.findIndex(i => normalize(i) === na);
   if (idxA === -1) {
     if (na === equippedWeapon || na === equippedArmor) {
-      return { ok: false, text: `«${itemA}» está equipado — desequipalo con \`unequip\` antes de craftear.` };
+      // DIS-889: mostrar flujo completo unequip → craft → equip
+      return { ok: false, text: `«${itemA}» está equipado — no podés usarlo como ingrediente mientras lo tenés puesto.\n💡 Flujo: \`unequip\` → \`craft ${itemA} con ${itemB}\` → \`equip ${recipe ? recipe.result : 'resultado'}\`` };
     }
     return { ok: false, text: `No tenés "${itemA}" en el inventario. Si lo usaste antes, ya no está disponible.` };
   }
@@ -303,7 +304,8 @@ function craft(player, itemA, itemB) {
   const idxB = inv.findIndex(i => normalize(i) === nb);
   if (idxB === -1) {
     if (nb === equippedWeapon || nb === equippedArmor) {
-      return { ok: false, text: `«${itemB}» está equipado — desequipalo con \`unequip\` antes de craftear.` };
+      // DIS-889: mostrar flujo completo unequip → craft → equip
+      return { ok: false, text: `«${itemB}» está equipado — no podés usarlo como ingrediente mientras lo tenés puesto.\n💡 Flujo: \`unequip\` → \`craft ${itemA} con ${itemB}\` → \`equip ${recipe ? recipe.result : 'resultado'}\`` };
     }
     return { ok: false, text: `No tenés "${itemB}" en el inventario. Si lo usaste antes, ya no está disponible.` };
   }

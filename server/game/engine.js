@@ -3293,6 +3293,12 @@ function cmdPick(player, itemQuery) {
   const freshP2 = db.getPlayer(player.id);
   const shownH2 = freshP2.status_effects || {};
   const invNorm2 = newInventory.map(i => i.toLowerCase().trim());
+  // DIS-889: también considerar el arma/armadura equipada en el chequeo de ingredientes
+  const equippedWpnNorm = (freshP2.equipped_weapon && freshP2.equipped_weapon !== 'null') ? freshP2.equipped_weapon.toLowerCase().trim() : null;
+  const equippedArmNorm = (freshP2.equipped_armor && freshP2.equipped_armor !== 'null') ? freshP2.equipped_armor.toLowerCase().trim() : null;
+  const invWithEquipped = [...invNorm2];
+  if (equippedWpnNorm) invWithEquipped.push(equippedWpnNorm);
+  if (equippedArmNorm) invWithEquipped.push(equippedArmNorm);
   let pickCraftHint = '';
   for (const recipe of crafting.RECIPES) {
     const [ingA, ingB] = recipe.ingredients;
@@ -3300,6 +3306,15 @@ function cmdPick(player, itemQuery) {
       const hKey = `craft_hint_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
       if (!shownH2[hKey]) {
         pickCraftHint = `\n💡 ¡Tip de crafteo! Tenés "${ingA}" y "${ingB}" — combiná con:\n   craftear ${ingA} con ${ingB}`;
+        db.updatePlayer(freshP2.id, { status_effects: JSON.stringify({ ...shownH2, [hKey]: true }) });
+        break;
+      }
+    } else if (invWithEquipped.includes(ingA.toLowerCase().trim()) && invWithEquipped.includes(ingB.toLowerCase().trim())) {
+      // DIS-889: uno de los ingredientes está EQUIPADO — hint especial con el flujo unequip → craft → equip
+      const hKey = `craft_hint_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
+      if (!shownH2[hKey]) {
+        const equippedIng = invNorm2.includes(ingA.toLowerCase().trim()) ? ingB : ingA;
+        pickCraftHint = `\n💡 ¡Podés craftear ${recipe.result}! Tenés todos los ingredientes, pero «${equippedIng}» está equipado.\n   Flujo: \`unequip\` → \`craft ${ingA} con ${ingB}\` → \`equip ${recipe.result}\``;
         db.updatePlayer(freshP2.id, { status_effects: JSON.stringify({ ...shownH2, [hKey]: true }) });
         break;
       }
@@ -3316,8 +3331,8 @@ function cmdPick(player, itemQuery) {
       const hKeyFull = `craft_hint_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
       const hKeyFirst = `craft_first_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
       // Si el jugador recién recogió ingA y aún no tiene ingB (ni el hint completo ya fue mostrado)
-      const justGotA = foundLowerN === ingA.toLowerCase().trim() && !invNorm2.includes(ingB.toLowerCase().trim());
-      const justGotB = foundLowerN === ingB.toLowerCase().trim() && !invNorm2.includes(ingA.toLowerCase().trim());
+      const justGotA = foundLowerN === ingA.toLowerCase().trim() && !invWithEquipped.includes(ingB.toLowerCase().trim());
+      const justGotB = foundLowerN === ingB.toLowerCase().trim() && !invWithEquipped.includes(ingA.toLowerCase().trim());
       if ((justGotA || justGotB) && !shownH802[hKeyFull] && !shownH802[hKeyFirst]) {
         const otherIng = justGotA ? ingB : ingA;
         pickCraftHint = `\n✨ Ingrediente de receta: "${found}" + "${otherIng}" → ${recipe.result}.\n   Conseguí "${otherIng}" y usá: \`craft ${ingA} con ${ingB}\``;
