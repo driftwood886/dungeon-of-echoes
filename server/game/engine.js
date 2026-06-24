@@ -12199,6 +12199,18 @@ function cmdContract(player) {
   const msInWeek = 7 * 24 * 60 * 60 * 1000;
   const weekStart = Math.floor(Date.now() / msInWeek) * msInWeek;
   const daysLeft = Math.ceil((weekStart + msInWeek - Date.now()) / (24 * 60 * 60 * 1000));
+  // DIS-893: ubicación de la criatura objetivo
+  const CONTRACT_LOCATIONS = {
+    'Guardia Espectral':     '📍 Se encuentran en: Prisión Subterránea (sala 8)',
+    'Gólem de Piedra':       '📍 Se encuentran en: Santuario Profano (sala 10)',
+    'Araña Tejedora':        '📍 Se encuentran en: Pozo Sin Fondo (sala 7)',
+    'Espectro del Corredor': '📍 Se encuentran en: Sala del Trono (sala 9)',
+    'Murciélago Vampiro':    '📍 Se encuentran en: Capilla Olvidada (sala 5)',
+    'Esqueleto Guerrero':    '📍 Se encuentran en: Cámara del Tesoro (sala 3)',
+    'Campeón Espectral':     '📍 Se encuentran en: Coliseo de Huesos (sala 14)',
+    'Sombra del Vacío':      '📍 Se encuentran en: Abismo Eterno (sala 20)',
+  };
+  const locationLine = CONTRACT_LOCATIONS[ct.target] ? `  ${CONTRACT_LOCATIONS[ct.target]}` : '';
   const lines = [
     '',
     '╔' + '═'.repeat(50) + '╗',
@@ -12206,6 +12218,7 @@ function cmdContract(player) {
     '╟' + '─'.repeat(50) + '╢',
     `  Objetivo: ${ct.target}`,
     `  ${ct.desc}`,
+    ...(locationLine ? [locationLine] : []),
     `  Dificultad: ${ct.difficulty}`,
     '╟' + '─'.repeat(50) + '╢',
     `  Progreso: [${bar}] ${status}`,
