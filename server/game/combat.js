@@ -541,7 +541,7 @@ function attackRound(player, monster) {
         : {};
       if (!seForNonsacred.shown_nonsacred_hint) {
         // Primera vez en esta sesión: hint completo con sugerencia de compra
-        clericWeaponPenaltyNote.push(`⚕️ (×0.9 — arma no-sagrada: el Clérigo prefiere el símbolo sagrado. Aldric lo vende a 30g)`);
+        clericWeaponPenaltyNote.push(`⚕️ (×0.9 — arma no-sagrada: el Clérigo prefiere el símbolo sagrado. Aldric lo vende a 20g)`);
         const newSeNonsacred = { ...seForNonsacred, shown_nonsacred_hint: true };
         db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeNonsacred) });
         player.status_effects = newSeNonsacred;

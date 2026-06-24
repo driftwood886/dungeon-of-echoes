@@ -233,7 +233,7 @@ function execute(playerId, input, context) {
     case 'flee':      result = cmdFlee(player, action.args ? action.args.join(' ') : ''); break;
     case 'pick':      result = cmdPick(player, action.args.join(' ')); break;
     case 'use':       result = cmdUse(player, action.args.join(' ')); break;
-    case 'heal':      result = cmdHeal(player); break;
+    case 'heal':      result = cmdHeal(player, action.args); break;
     case 'drop':      result = cmdDrop(player, action.args.join(' ')); break;
     case 'examine':   result = cmdExamine(player, action.args.join(' ')); break;
     case 'equip':     result = cmdEquip(player, action.args.join(' ')); break;
@@ -759,9 +759,9 @@ function cmdLook(player) {
         adjacentDangerLine = '\n⚠️ ' + dangerLines.join('\n⚠️ ');
       }
       // DIS-811: advertencia de trampa activa en Caverna Sumergida (sala 13) desde sala adyacente
-      // La inundación aplica -7 HP en primera visita sin previo aviso
+      // La inundación aplica ~7 HP (con varianza ±1) en primera visita sin previo aviso
       const TRAP_ROOM_DANGER = {
-        13: { icon: '💧', name: 'trampa de inundación', roomName: 'Caverna Sumergida', dmg: 7 },
+        13: { icon: '💧', name: 'trampa de inundación', roomName: 'Caverna Sumergida', dmg: 7, dmgRange: '6-8' },
       };
       const trapLines = [];
       for (const [dir, destId] of Object.entries(curExits)) {
@@ -773,7 +773,9 @@ function cmdLook(player) {
           const alreadyVisited = visitedArr.some(v => v == destId);
           if (!alreadyVisited) {
             const dirLabel = { north: 'al norte', south: 'al sur', east: 'al este', west: 'al oeste', up: 'arriba', down: 'abajo' }[dir] || dir;
-            trapLines.push(`${trapRoom.icon} ${dirLabel}: ${trapRoom.roomName} — ${trapRoom.name} activa (-${trapRoom.dmg} HP al entrar por primera vez).`);
+            // BUG-902: usar rango "~Xg HP" en lugar de valor exacto para reflejar varianza ±1
+            const dmgStr = trapRoom.dmgRange ? `~${trapRoom.dmg} HP (${trapRoom.dmgRange})` : `-${trapRoom.dmg} HP`;
+            trapLines.push(`${trapRoom.icon} ${dirLabel}: ${trapRoom.roomName} — ${trapRoom.name} activa (${dmgStr} al entrar por primera vez).`);
           }
         }
       }
@@ -4581,7 +4583,7 @@ function cmdEquip(player, itemQuery) {
     // DIS-764: mostrar daño efectivo con penalidad para que el jugador pueda comparar
     const effectiveDmg = Math.round(newAttack * 0.9);
     const symbolDmg = baseAttackEquip + 4; // símbolo sagrado: +2 ATK base + 2 Clérigo, sin penalidad
-    magoHeavyFlavor = `\n⚕️ (Arma no-sagrada: el Clérigo inflige ×0.9 de daño físico. Daño efectivo: ~${effectiveDmg} (${newAttack} × 0.9). Símbolo sagrado (30g en Aldric): ~${symbolDmg} ATK sin penalidad — comparás tú.)`;
+    magoHeavyFlavor = `\n⚕️ (Arma no-sagrada: el Clérigo inflige ×0.9 de daño físico. Daño efectivo: ~${effectiveDmg} (${newAttack} × 0.9). Símbolo sagrado (20g en Aldric): ~${symbolDmg} ATK sin penalidad — comparás tú.)`;
   } else if (clsDataEquip && clsDataEquip.name === 'Pícaro' && foundLower.includes('lanza espectral del eco')) {
     // DIS-836: flavor para Pícaro equipando la lanza espectral del eco
     magoHeavyFlavor = `\n🗡️ (La lanza vibra con una resonancia que conocés de las profundidades. La recorriste para conseguirla — cada eco, cada corredor, cada boss. Su balance es perfecto para golpes precisos. +${def.amount} ATK. Los puntos débiles de tus enemigos parecen iluminarse.)`;
@@ -6609,7 +6611,7 @@ const SHOP_CATALOG = [
   { name: 'vara de energía',         price: 40, description: '🔮 (Mago) Una vara canalizada con energía arcana. Amplifica los hechizos del portador. +5 ataque mágico. Bonus especial para Magos.' },
   { name: 'pergamino de hechizo',    price: 25, description: '🔮 (Mago) Un pergamino consumible que otorga un lanzamiento de hechizo gratuito — no consume maná. Útil cuando estás al límite.' },
   // DIS-610: ítems específicos de clase Clérigo
-  { name: 'símbolo sagrado',         price: 30, description: '✨ (Clérigo) Un símbolo sagrado de madera bendecida. +2 ataque. Clérigos reciben +2 ATK adicional y reducen el cooldown de pray a 3 min.' },
+  { name: 'símbolo sagrado',         price: 20, description: '✨ (Clérigo) Un símbolo sagrado de madera bendecida. +2 ataque. Clérigos reciben +2 ATK adicional y reducen el cooldown de pray a 3 min.' },
   { name: 'poción de bendición',     price: 12, description: '✨ (Clérigo) Poción clerical dorada. Restaura 20 maná y otorga +1 ATK por 2 minutos. Perfecta para sostener la cadena de curación.' },
   // DIS-615: ítems específicos de clase Pícaro
   { name: 'guantes de cuero fino',   price: 25, description: '🗡️ (Pícaro) Guantes de cuero fino. +1 ataque. Los Pícaros reciben +10% de probabilidad de crítico adicional — ideal para build de golpes críticos.' },
