@@ -4468,6 +4468,14 @@ function cmdEquip(player, itemQuery) {
   const changeStr = change >= 0 ? `+${change}` : `${change}`;
   const swapMsg = player.equipped_weapon ? `\n🔄 (Desequipás ${player.equipped_weapon} — vuelve a tu mochila.)` : '';
 
+  // DIS-885: advertir si el arma anterior tenía bonus de crit y el nuevo no (o tiene menos)
+  const prevCritBonus = prevWeaponDef ? (prevWeaponDef.rogue_only_crit_bonus || 0) : 0;
+  const newCritBonus  = def.rogue_only_crit_bonus || 0;
+  const critLossDelta = prevCritBonus - newCritBonus;
+  const critWarnMsg   = critLossDelta > 0
+    ? `\n⚠️ Perdés ${critLossDelta}% de crítico con este cambio (tenías +${prevCritBonus}%, ahora +${newCritBonus}%).`
+    : '';
+
   // DIS-478: flavor narrativo cuando un mago equipa arma de guerrero (sin penalidad — libertad de builds)
   // DIS-494: armas mágicas (espectral, del eco, arcana) tienen su propio flavor para el Mago
   // DIS-558: vara de energía y catalizador mágico también tienen flavor específico
@@ -4539,7 +4547,7 @@ function cmdEquip(player, itemQuery) {
     : ` (bono del arma: +${def.amount} ATK${mageOnlyBonusStr}${clericOnlyBonusStr})`;
 
   return {
-    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.\n${def.description}${magoHeavyFlavor}${swapMsg}`,
+    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.\n${def.description}${magoHeavyFlavor}${critWarnMsg}${swapMsg}`,
     event: `${player.username} empuña ${found}.`,
     eventRoomId: player.current_room_id,
   };
