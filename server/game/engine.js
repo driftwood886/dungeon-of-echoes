@@ -717,6 +717,7 @@ function cmdLook(player) {
   // Sirve para que el jugador pueda PREPARARSE antes de comprometerse a entrar
   // BUG-584: monsterId agregado para verificar si el boss está vivo antes de mostrar la advertencia
   const BOSS_ROOM_DANGER = {
+    9:  { name: 'el Espectro del Corredor', level: 3, icon: '👻', roomName: 'Sala del Trono', monsterId: 4 }, // DIS-890: advertir desde Túnel de los Hongos
     15: { name: 'el Lich Anciano',     level: 7, icon: '💀', roomName: 'Catedral de la Oscuridad', monsterId: 13, armorTip: 'Equipá cota de malla o mejor (DEF 6+).' },
     10: { name: 'el Gólem de Piedra',  level: 5, icon: '🪨', roomName: 'Santuario Profano',        monsterId: 5  },
     8:  { name: 'el Guardia Espectral',level: 4, icon: '👻', roomName: 'Prisión Subterránea',       monsterId: 8  },
@@ -13298,6 +13299,7 @@ function cmdPath(player, args) {
     12: { name: 'Taller de la Forja',       boss: 'Golem de Forja',     level: 5, icon: '🔥' },
     19: { name: 'Cámara del Eco',           boss: 'Eco Viviente',       level: 6, icon: '🔊' },
     14: { name: 'Coliseo de Huesos',        boss: 'Campeón Espectral',  level: 5, icon: '⚔️' }, // DIS-886: faltaba
+    9:  { name: 'Sala del Trono',           boss: 'Espectro del Corredor', level: 3, icon: '👻' }, // DIS-890
   };
   const dangerSteps = found
     .filter(step => PATH_BOSS_ROOMS[step.toId] && step.toId !== targetRoom.id)
