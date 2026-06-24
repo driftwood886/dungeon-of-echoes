@@ -1337,7 +1337,32 @@ function cmdMove(player, direction) {
       // En visitas posteriores, el jugador ya "sabe" protegerse y solo recibe un recordatorio.
       // DIS-509: Para sala 15 (Catedral Maldita), el daño solo se aplica 1 vez por sesión.
       // El jugador que vuelve para loot del Lich no debería ser penalizado en bucle.
+      // BUG-901: Para sala 20 (Abismo Eterno), cooldown de 60s — protege contra loops accidentales.
       const FIRST_TIME_DAMAGE_ROOMS = new Set([12, 15]); // rooms donde el daño es solo primera vez
+      // BUG-901: Sala 20 — cooldown de 60s en status_effects (void_cd)
+      if (targetId === 20) {
+        const seForVoid = parseSE(player.status_effects);
+        const voidCdExpiry = seForVoid.void_cd ? new Date(seForVoid.void_cd).getTime() : 0;
+        const voidOnCooldown = voidCdExpiry > Date.now();
+        if (voidOnCooldown) {
+          // Cooldown activo: el vacío te roza pero no drena energía
+          effectText = `\n\n🌑 El vacío te roza... pero ya pasaste por aquí hace poco. Tu fuerza de voluntad resiste el drenaje.`;
+        } else {
+          // Primera vez o cooldown expirado: daño completo
+          const newHpVoid = Math.max(1, player.hp - roomEffect.amount);
+          db.updatePlayer(player.id, { hp: newHpVoid });
+          // Registrar cooldown de 60s
+          const seVoidUpdated = { ...seForVoid, void_cd: new Date(Date.now() + 60_000).toISOString() };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(seVoidUpdated) });
+          const isFirstVoid = !seForVoid.known_abismo;
+          const seVoidWithKnown = { ...seVoidUpdated, known_abismo: true };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(seVoidWithKnown) });
+          effectText = `\n\n${roomEffect.msg} (${newHpVoid}/${player.max_hp} HP)`;
+          if (isFirstVoid) {
+            effectText += `\n🧠 El Abismo drena tu energía vital cada vez que lo visités. Volvé pronto y el vacío ya no podrá alcanzarte (cooldown: 60s).`;
+          }
+        }
+      } else {
       // BUG-486/BUG-502: known_traps puede ser array (sistema de calor) u objeto (sistema de trampas).
       // NOTA: db.getPlayer() ya parsea known_traps a objeto JS, por lo que player.known_traps NO es string.
       // Normalizar siempre a array de strings para hacer el check con includes().
@@ -1400,6 +1425,7 @@ function cmdMove(player, direction) {
           effectText += learnMsgs[targetId] || `\n🧠 Recordás este lugar. La próxima vez estarás mejor preparado.`;
         }
       }
+      } // cierre del else { // (sala !== 20) — BUG-901
     } else if (roomEffect.type === 'heal') {
       const newHp = Math.min(player.max_hp, player.hp + roomEffect.amount);
       db.updatePlayer(player.id, { hp: newHp });
