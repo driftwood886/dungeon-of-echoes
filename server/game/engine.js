@@ -1544,17 +1544,23 @@ function cmdMove(player, direction) {
   }
 
   // DIS-825: Hint para jugadores que bypassean la tienda del Mercader (sala 4)
-  // Si el jugador llega a sala 5 (Capilla) o sala 6 (Túnel) por primera vez SIN haber visitado
-  // la Cámara del Tesoro (sala 4), mostrar un hint suave para que sepa que existe una tienda.
+  // Si el jugador llega a sala 5 (Capilla) o sala 6 (Túnel) SIN haber visitado sala 4,
+  // mostrar un hint suave una sola vez por sesión (DIS-876: flag shown_merchant_hint).
   let shopHintMsg = '';
-  if (firstVisitEver && (targetId === 5 || targetId === 6)) {
+  if (targetId === 5 || targetId === 6) {
     try {
       let visitedRooms825 = [];
       try { visitedRooms825 = JSON.parse(player.rooms_visited || '[]'); } catch (_) {}
       const visitedNums = visitedRooms825.map(Number);
       const hasVisitedShop = visitedNums.includes(4);
       if (!hasVisitedShop) {
-        shopHintMsg = '\n\n💡 Notás que aún no pasaste por la Cámara del Tesoro (al sur de esta zona). Aldric el Mercader tiene pociones, armas y armaduras — visitarlo antes de avanzar al norte puede salvarte la vida.';
+        // DIS-876: solo mostrar UNA VEZ por sesión usando flag en status_effects
+        const seMerchant = parseSE(player.status_effects);
+        if (!seMerchant.shown_merchant_hint) {
+          shopHintMsg = '\n\n💡 Notás que aún no pasaste por la Cámara del Tesoro (al sur de esta zona). Aldric el Mercader tiene pociones, armas y armaduras — visitarlo antes de avanzar al norte puede salvarte la vida.';
+          const newSeMerchant = { ...seMerchant, shown_merchant_hint: true };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeMerchant) });
+        }
       }
     } catch (_) {}
   }
