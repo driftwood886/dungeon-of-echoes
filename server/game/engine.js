@@ -1408,12 +1408,17 @@ function cmdMove(player, direction) {
       // BUG-339: Si la trampa de esta sala fue esquivada por memoria o mascota,
       // no mostrar el debuff narrativo (el jugador evitó el peligro conscientemente).
       // DIS-828: tampoco si el jugador tiene el amuleto del eco (sala 19).
+      // DIS-896: en revisitas, no mostrar el debuff inline al entrar — ya lo muestra
+      // el bloque 🌐 de `look`. Solo mostrarlo la primera vez para orientar al jugador.
       const invForDebuff = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
       const hasEchoAmuletDebuff = invForDebuff.some(i => (typeof i === 'string' ? i : (i.name || '')).toLowerCase().includes('amuleto del eco'));
       const echoAmuletCancelsDebuff = hasEchoAmuletDebuff && targetId === 19;
       if (!trapWasAvoided && !echoAmuletCancelsDebuff) {
-        // Debuff temporal narrativo — en futuro se integraría con status_effects
-        effectText = `\n\n${roomEffect.msg}`;
+        // Debuff temporal narrativo — solo en primera visita (en revisitas lo muestra look)
+        if (firstVisitEver) {
+          effectText = `\n\n${roomEffect.msg}`;
+        }
+        // En revisitas: silencioso. El bloque 🌐 de `look` ya informa el efecto activo.
       } else if (echoAmuletCancelsDebuff) {
         effectText = `\n\n🔊✨ El amuleto del eco pulsa suavemente y absorbe los sonidos enloquecedores. Los Ecos Enloquecedores no te afectan.`;
       }
