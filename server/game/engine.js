@@ -8990,16 +8990,20 @@ function cmdAuction(player, args) {
   }
 
   const itemName = args.slice(0, -1).join(' ').toLowerCase().trim();
+  const nfnAuction = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const itemNameNFD = nfnAuction(itemName);
   const inventory = player.inventory || [];
-  let itemIndex = inventory.findIndex(i => i.toLowerCase() === itemName);
+  let itemIndex = inventory.findIndex(i => nfnAuction(i) === itemNameNFD);
 
   // DIS-D359: si no está en inventario, verificar si está equipado
   let unequipMsg = '';
+  let realItemName = itemIndex >= 0 ? inventory[itemIndex] : null; // nombre real del ítem (con tildes)
   if (itemIndex === -1) {
-    const isWeapon = player.equipped_weapon && player.equipped_weapon.toLowerCase() === itemName;
-    const isArmor  = player.equipped_armor  && player.equipped_armor.toLowerCase()  === itemName;
+    const isWeapon = player.equipped_weapon && nfnAuction(player.equipped_weapon) === itemNameNFD;
+    const isArmor  = player.equipped_armor  && nfnAuction(player.equipped_armor)  === itemNameNFD;
     if (isWeapon) {
       // Des-equipar arma
+      realItemName = player.equipped_weapon;
       const updates = { equipped_weapon: null };
       const defWeapon = items.getItemDef(player.equipped_weapon);
       if (defWeapon) {
@@ -9008,11 +9012,12 @@ function cmdAuction(player, args) {
       }
       player.equipped_weapon = null;
       db.updatePlayer(player.id, updates);
-      inventory.push(itemName);
+      inventory.push(realItemName);
       itemIndex = inventory.length - 1;
-      unequipMsg = `\n⚠️ Se desequipó \"${itemName}\" automáticamente para subastarla.`;
+      unequipMsg = `\n⚠️ Se desequipó \"${realItemName}\" automáticamente para subastarla.`;
     } else if (isArmor) {
       // Des-equipar armadura
+      realItemName = player.equipped_armor;
       const updates = { equipped_armor: null };
       const defArmor = items.getItemDef(player.equipped_armor);
       if (defArmor) {
@@ -9021,9 +9026,9 @@ function cmdAuction(player, args) {
       }
       player.equipped_armor = null;
       db.updatePlayer(player.id, updates);
-      inventory.push(itemName);
+      inventory.push(realItemName);
       itemIndex = inventory.length - 1;
-      unequipMsg = `\n⚠️ Se quitó \"${itemName}\" automáticamente para subastarla.`;
+      unequipMsg = `\n⚠️ Se quitó \"${realItemName}\" automáticamente para subastarla.`;
     } else {
       return { text: `No tenés "${itemName}" en el inventario.\nUsá "inventario" para ver tus ítems.` };
     }
@@ -9031,7 +9036,7 @@ function cmdAuction(player, args) {
 
   // Verificar que no tenga otra subasta activa con el mismo ítem
   const activeAuctions = db.getActiveAuctions();
-  const alreadyAuctioning = activeAuctions.find(a => a.seller_id === player.id && a.item_name.toLowerCase() === itemName);
+  const alreadyAuctioning = activeAuctions.find(a => a.seller_id === player.id && nfnAuction(a.item_name) === itemNameNFD);
   if (alreadyAuctioning) {
     return { text: `Ya tenés "${itemName}" en subasta (ID #${alreadyAuctioning.id}). Esperá a que cierre primero.` };
   }
@@ -9040,12 +9045,12 @@ function cmdAuction(player, args) {
   inventory.splice(itemIndex, 1);
   db.updatePlayer(player.id, { inventory: JSON.stringify(inventory) });
 
-  // Crear subasta
-  const auction = db.createAuction(player.id, player.username, itemName, minPrice);
+  // Crear subasta (usar realItemName para preservar tildes/mayúsculas del ítem original)
+  const auction = db.createAuction(player.id, player.username, realItemName, minPrice);
 
   return {
-    text: `🔨 ¡Subasta iniciada!${unequipMsg}\n  Ítem: ${itemName}\n  Precio mínimo: ${minPrice}g\n  ID de subasta: #${auction.id}\n  Cierra en: 5 minutos\n\nOtros jugadores pueden pujar con: pujar ${auction.id} <monto>`,
-    globalEvent: `📣 ¡SUBASTA! ${player.username} pone "${itemName}" a la venta. Precio mínimo: ${minPrice}g. (ID #${auction.id}) — Usá: pujar ${auction.id} <monto>`,
+    text: `🔨 ¡Subasta iniciada!${unequipMsg}\n  Ítem: ${realItemName}\n  Precio mínimo: ${minPrice}g\n  ID de subasta: #${auction.id}\n  Cierra en: 5 minutos\n\nOtros jugadores pueden pujar con: pujar ${auction.id} <monto>`,
+    globalEvent: `📣 ¡SUBASTA! ${player.username} pone "${realItemName}" a la venta. Precio mínimo: ${minPrice}g. (ID #${auction.id}) — Usá: pujar ${auction.id} <monto>`,
   };
 }
 
