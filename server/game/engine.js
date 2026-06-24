@@ -507,6 +507,10 @@ Para todos los comandos: help
           skills: 'skills', habilidades: 'skills', habilidad: 'skills', poderes: 'skills',
           smash: 'smash', golpetazo: 'smash',
           shield_bash: 'shield_bash', escudo_bash: 'shield_bash',
+          // DIS-903: aliases para skills del Clérigo en help
+          sanacion_mayor: 'sanacion_mayor', 'sanación_mayor': 'sanacion_mayor', gran_curacion: 'sanacion_mayor', big_heal: 'sanacion_mayor',
+          bendicion: 'bendicion', 'bendición': 'bendicion', bless: 'bendicion',
+          resurreccion: 'resurreccion', 'resurrección': 'resurreccion', resurrect: 'resurreccion',
           cast: 'cast', lanzar: 'cast', hechizar: 'cast',
           vault: 'vault', boveda: 'vault', bóveda: 'vault', cofre: 'vault',
           enchant: 'enchant', encantar: 'enchant', encantamiento: 'enchant',
@@ -10448,8 +10452,17 @@ function cmdSkills(player) {
       const status = remaining > 0 ? `⏳ ${remaining}s cooldown` : '✅ Lista';
       lines.push(`  ⚡ ${sk.name} [${sk.aliases[0]}]`);
       lines.push(`     ${sk.description}`);
+      // DIS-903: mostrar el comando exacto para usar la habilidad
+      lines.push(`     Comando: escribí \`${sk.aliases[0]}\``);
       lines.push(`     Estado: ${status}`);
     }
+  }
+
+  // DIS-903: nota general al pie sobre cómo invocar habilidades
+  if (unlocked.length > 0) {
+    lines.push('─'.repeat(40));
+    lines.push('💡 Usá el nombre de la habilidad directamente como comando.');
+    lines.push('   Ej: sanacion_mayor, heal, bendicion, smash, golpe_sucio');
   }
 
   // Habilidades aún bloqueadas (filtrar por clase)
