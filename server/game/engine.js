@@ -5508,66 +5508,69 @@ function cmdMap(player) {
     return `[${marker}${String(id).padStart(2, ' ')}:${label}${sword}]`;
   }
   const gap = '       '; // 7 spaces para espaciar columnas
+  void gap; // no usado en el layout BUG-881
 
   //
-  // DIS-D422: Layout corregido — Corredor(2) NO está conectado a Forja(12).
+  // BUG-881 / DIS-D422: Layout corregido.
   //
-  // Conexiones reales:
-  //   Sala 18 (Fuente Eterna): al NORTE de Santuario (sala 10) — DIS-788
-  //   Sala 18 (Fuente Eterna): al ESTE → Sala del Trono (9) — DIS-801 (nueva conexión)
-  //   Sala  7 (Pozo): norte (🔑) → sala 10; este → sala 3
-  //   Sala  8 (Prisión): sur → sala 4; este → sala 17
+  // Conexiones reales relevantes:
+  //   Sala  9 (Trono):    south → 6 (Túnel), east → 10 (Santuario), west → 18 (Fuente)
+  //   Sala 10 (Santuario): west → 9,  south → 7 (Pozo), east → 11 (Galería), north → 18
+  //   Sala 18 (Fuente):   east  → 9,  south → 10, down → 20
+  //   Sala  6 (Túnel):    north → 9,  south → 5 (Capilla), east → 2 (Corredor)
+  //   Sala  7 (Pozo):     north → 10 (🔑), east → 3 (Ecos)
+  //   Sala  8 (Prisión):  south → 4,  east → 17
   //
-  // Layout rediseñado (DIS-801: Fuente conectada al Trono):
+  // Layout (BUG-881: Santuario (10) al ESTE del Trono, no al sur):
   //
-  // [18:Fuente]---[9:Trono]─[6:Túnel]─[2:Corredor]
-  //   |                         |           |
-  // [7:Pozo]─[3:Ecos]─[4:Tesoro]─[17:Sub]  ...
-  //   |🔑 (puerta norte del Pozo, conduce al Santuario)
-  // [10:Santuario]
-  //   ...
+  // [18:Fuente]---[9:Trono]---[10:Santuario]---[11:Galería]
+  //                   |              |               ↓ (bajar)
+  //              [6:Túnel]---[2:Corr] [7:Pozo]🔑---[3:Ecos]---[4:Tesoro]---[8:Prisión]---[17:Sub]
+  //                   |          |
+  //              [5:Cap]---[1:Entr]
   //
-  // Nota: La sala 18 (Fuente) está al NORTE de sala 10 (Santuario) y al OESTE de sala 9 (Trono).
-  // La columna izquierda del mapa muestra 18→|→10 (conexión norte-sur).
-  // La sala 18 también tiene salida east → sala 9 (Trono).
+  // Nota: La sala 18 (Fuente) conecta tanto al este (→9 Trono) como al sur (→10 Santuario).
   //
 
   const lines = [
     'MAPA DEL DUNGEON',
     timeDecor,
     '',
-    `${c(18)}---${c(9)}---${c(6)}---${c(2)}`,
-    `  |         |         |         |`,
-    `  |        ${c(10)}  ${c(5)}---${c(1)}`,
-    `  |         |`,
-    `${c(7)}---${c(3)}---${c(4)}---${c(8)}---${c(17)}`,
-    // BUG-721: verificar si la puerta norte de sala 7 está desbloqueada
+    // BUG-881: Santuario (10) al ESTE del Trono (9) — conexión east/west correcta
+    `${c(18)}---${c(9)}---${c(10)}---${c(11)}`,
+    `              |         |         ↓ (bajar)`,
+    // Túnel (6) sur de Trono, Corredor (2) este de Túnel; Pozo (7) sur de Santuario
     (() => {
+      // BUG-721: estado de la puerta norte del Pozo (→Santuario)
       const room7 = db.getRoom(7);
       const northExit7 = room7 && room7.exits ? room7.exits['north'] : undefined;
       const isPuertaAbierta = northExit7 !== undefined && northExit7 !== null && typeof northExit7 !== 'object';
+      let lockMark;
       if (isPuertaAbierta) {
-        return `  |🔓(Pozo→Santuario abierta)`;
+        lockMark = '🔓';
+      } else if (visitedRooms.has(10)) {
+        lockMark = '🔑(ruta alt: Trono→east→Santuario)';
+      } else if (visitedRooms.has(9) || visitedRooms.has(7)) {
+        lockMark = '🔑(bloqueado — ruta: Túnel→Trono→Santuario)';
+      } else {
+        lockMark = '🔑';
       }
-      // DIS-597: hint de llave solo si el jugador ya visitó sala 9 (Trono) o sala 7 (Pozo)
-      // DIS-756: si el jugador ya visitó sala 10 (Santuario), aclarar que la puerta directa sigue cerrada pero la ruta alt. funciona
-      if (visitedRooms.has(10)) {
-        return `  |🔑(puerta Pozo→Santuario — ya conocés la ruta alternativa: Trono→Santuario)`;
-      }
-      return visitedRooms.has(9) || visitedRooms.has(7)
-        ? `  |🔑(bloqueado — ruta libre: Capilla→Túnel→Trono→Santuario)`
-        : `  |🔑(bloqueado)`;
+      return `            ${c(6)}---${c(2)}   ${c(7)}${lockMark}---${c(3)}---${c(4)}---${c(8)}---${c(17)}`;
     })(),
-    `  |`,
-    `${c(11)}      ↓ (bajar)`,
-    `  |   \\\\               ${cellTutorial(21)}---${cellTutorial(16)}`,
-    `${c(12)} ${c(13)}`,
-    `      \\\\  /`,
-    `  ${c(14)}---${c(19)}---${c(15)}---${c(22)}`,
-    `              |`,
-    `         ${c(20)}`,
+    `              |         |`,
+    `            ${c(5)}---${c(1)}`,
     ``,
-    `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})  [18] = Fuente (west de Trono, north de Santuario)`,
+    `(zona profunda — acceso desde Galería [11]:)`,
+    `            ${c(11)}      ↓ (bajar)`,
+    `              |   \\\\               ${cellTutorial(21)}---${cellTutorial(16)}`,
+    `            ${c(12)} ${c(13)}`,
+    `                  \\\\  /`,
+    `              ${c(14)}---${c(19)}---${c(15)}---${c(22)}`,
+    `                          |`,
+    `                     ${c(20)}`,
+    ``,
+    `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
+    `[18] = Fuente Eterna — oeste del Trono (18→east→9) y norte del Santuario (18→south→10)`,
     // DIS-635: solo mencionar sala 8 como fuente de llave si ya fue visitada
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
