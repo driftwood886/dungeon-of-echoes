@@ -8596,7 +8596,7 @@ function cmdDrink(player) {
   const hpBar = buildBar(player.max_hp, player.max_hp, 20);
 
   return {
-    text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! +${restored} HP.\n${hpBar} ${player.max_hp}/${player.max_hp} HP\n\n⏳ La fuente empieza a atenuarse... necesitará 10 minutos para recargarse.`,
+    text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! +${restored} HP.\n${hpBar} ${player.max_hp}/${player.max_hp} HP\n\n⏳ La fuente empieza a atenuarse... necesitará 10 minutos para recargarse.\n\n⚠️ Esta sala tiene salidas peligrosas: el Gólem de Piedra (sur, nivel 5+) y la Sombra del Vacío (abajo, nivel 7+). Revisá tu equipo antes de avanzar.`,
     event: `${player.username} bebe de la Fuente Eterna. Un resplandor plateado llena la sala.`,
     eventRoomId: FOUNTAIN_ROOM_ID,
   };
