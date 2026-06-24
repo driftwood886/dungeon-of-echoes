@@ -527,6 +527,7 @@ function attackRound(player, monster) {
   // DIS-722: Clérigo con arma no-sagrada (sin cleric_only_bonus) recibe -10% de daño físico
   // Narrativa: el Clérigo canaliza su poder a través de la fe, no de la fuerza bruta
   // Usar el símbolo sagrado (+cleric_only_bonus) evita la penalidad y refleja la fantasía de clase
+  // DIS-899: el hint completo solo se muestra una vez por sesión (flag shown_nonsacred_hint)
   let clericWeaponPenalty = 1.0;
   const clericWeaponPenaltyNote = [];
   if (clsData && clsData.name === 'Clérigo') {
@@ -534,7 +535,20 @@ function attackRound(player, monster) {
     const hasSacredBonus = equippedWpnDef && equippedWpnDef.cleric_only_bonus;
     if (!hasSacredBonus) {
       clericWeaponPenalty = 0.90;
-      clericWeaponPenaltyNote.push(`⚕️ (×0.9 — arma no-sagrada: el Clérigo prefiere el símbolo sagrado)`);
+      // DIS-899: leer flag para decidir si mostrar hint completo o solo el multiplicador
+      const seForNonsacred = player.status_effects
+        ? (typeof player.status_effects === 'string' ? JSON.parse(player.status_effects) : player.status_effects)
+        : {};
+      if (!seForNonsacred.shown_nonsacred_hint) {
+        // Primera vez en esta sesión: hint completo con sugerencia de compra
+        clericWeaponPenaltyNote.push(`⚕️ (×0.9 — arma no-sagrada: el Clérigo prefiere el símbolo sagrado. Aldric lo vende a 30g)`);
+        const newSeNonsacred = { ...seForNonsacred, shown_nonsacred_hint: true };
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeNonsacred) });
+        player.status_effects = newSeNonsacred;
+      } else {
+        // Ya se mostró antes: solo el multiplicador, sin ruido
+        clericWeaponPenaltyNote.push(`⚕️ (×0.9)`);
+      }
     }
   }
   // DIS-835: Bosses resistentes a críticos — reducen daño de crits para que el build crit del Pícaro
