@@ -13263,12 +13263,13 @@ function cmdPath(player, args) {
 
   // DIS-706: Advertir si la ruta pasa por salas con boss de alto nivel para el jugador actual
   const PATH_BOSS_ROOMS = {
-    15: { name: 'Catedral de la Oscuridad', boss: 'Lich Anciano',     level: 7, icon: '💀' },
-    10: { name: 'Santuario Profano',        boss: 'Gólem de Piedra',  level: 5, icon: '🪨' },
-    8:  { name: 'Prisión Subterránea',      boss: 'Guardia Espectral',level: 4, icon: '👻' },
-    20: { name: 'Abismo Eterno',            boss: 'Sombra del Vacío', level: 7, icon: '🌑' },
-    12: { name: 'Taller de la Forja',       boss: 'Golem de Forja',   level: 5, icon: '🔥' },
-    19: { name: 'Cámara del Eco',           boss: 'Eco Viviente',     level: 6, icon: '🔊' },
+    15: { name: 'Catedral de la Oscuridad', boss: 'Lich Anciano',       level: 7, icon: '💀' },
+    10: { name: 'Santuario Profano',        boss: 'Gólem de Piedra',    level: 5, icon: '🪨' },
+    8:  { name: 'Prisión Subterránea',      boss: 'Guardia Espectral',  level: 4, icon: '👻' },
+    20: { name: 'Abismo Eterno',            boss: 'Sombra del Vacío',   level: 7, icon: '🌑' },
+    12: { name: 'Taller de la Forja',       boss: 'Golem de Forja',     level: 5, icon: '🔥' },
+    19: { name: 'Cámara del Eco',           boss: 'Eco Viviente',       level: 6, icon: '🔊' },
+    14: { name: 'Coliseo de Huesos',        boss: 'Campeón Espectral',  level: 5, icon: '⚔️' }, // DIS-886: faltaba
   };
   const dangerSteps = found
     .filter(step => PATH_BOSS_ROOMS[step.toId] && step.toId !== targetRoom.id)
