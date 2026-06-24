@@ -5570,16 +5570,9 @@ function cmdMap(player) {
       const room7 = db.getRoom(7);
       const northExit7 = room7 && room7.exits ? room7.exits['north'] : undefined;
       const isPuertaAbierta = northExit7 !== undefined && northExit7 !== null && typeof northExit7 !== 'object';
-      let lockMark;
-      if (isPuertaAbierta) {
-        lockMark = '🔓';
-      } else if (visitedRooms.has(10)) {
-        lockMark = '🔑(ruta alt: Trono→east→Santuario)';
-      } else if (visitedRooms.has(9) || visitedRooms.has(7)) {
-        lockMark = '🔑(bloqueado — ruta: Túnel→Trono→Santuario)';
-      } else {
-        lockMark = '🔑';
-      }
+      // BUG-894: lockMark debe ser CORTO para no romper el formato ASCII de la grilla
+      // El texto explicativo se agrega como nota al pie del mapa (ver lockHint abajo)
+      const lockMark = isPuertaAbierta ? '🔓' : '🔑';
       return `            ${c(6)}---${c(2)}   ${c(7)}${lockMark}---${c(3)}---${c(4)}---${c(8)}---${c(17)}`;
     })(),
     `              |         |`,
@@ -5603,6 +5596,19 @@ function cmdMap(player) {
     `[??:?????????] = sala aún no explorada  [16/21] = salas de tutorial (fuera del conteo de exploración)`,
     // DIS-702: hint de navegación con ruta
     `💡 ¿Perdido? Usá: ruta <sala>  —  Ej: ruta tesoro  /  ruta catedral  /  ruta 4`,
+    // BUG-894: nota explicativa de la puerta 🔑 del Pozo (sala 7) — va al pie, no inline en la grilla
+    ...(() => {
+      const room7 = db.getRoom(7);
+      const northExit7 = room7 && room7.exits ? room7.exits['north'] : undefined;
+      const isPuertaAbierta = northExit7 !== undefined && northExit7 !== null && typeof northExit7 !== 'object';
+      if (isPuertaAbierta) return [];
+      if (visitedRooms.has(10)) {
+        return [`🔑 Sala 7 (Pozo) — puerta norte bloqueada. Ruta alt. al Santuario: Trono → east`];
+      } else if (visitedRooms.has(9) || visitedRooms.has(7)) {
+        return [`🔑 Sala 7 (Pozo) — puerta norte bloqueada. Ruta sin llave: Túnel → Trono → east → Santuario`];
+      }
+      return [];
+    })(),
     // DIS-597: la ruta completa al Santuario solo aparece si ya se visitó sala 9 (Trono) o sala 7 (Pozo)
     // DIS-861: no mostrar si el jugador ya visitó sala 10 (Santuario) — ya llegó, la hint es redundante
     ...(visitedRooms.has(9) || visitedRooms.has(7)) && !visitedRooms.has(10)
@@ -13204,6 +13210,18 @@ function cmdPath(player, args) {
     `╠═══════════════════════════════════════════════╣`,
   ];
 
+  // BUG-895: definir PATH_BOSS_ROOMS aquí para poder usar advertencias inline en pasos
+  const PATH_BOSS_ROOMS = {
+    15: { name: 'Catedral de la Oscuridad', boss: 'Lich Anciano',       level: 7, icon: '💀' },
+    10: { name: 'Santuario Profano',        boss: 'Gólem de Piedra',    level: 5, icon: '🪨' },
+    8:  { name: 'Prisión Subterránea',      boss: 'Guardia Espectral',  level: 4, icon: '👻' },
+    20: { name: 'Abismo Eterno',            boss: 'Sombra del Vacío',   level: 7, icon: '🌑' },
+    12: { name: 'Taller de la Forja',       boss: 'Golem de Forja',     level: 5, icon: '🔥' },
+    19: { name: 'Cámara del Eco',           boss: 'Eco Viviente',       level: 6, icon: '🔊' },
+    14: { name: 'Coliseo de Huesos',        boss: 'Campeón Espectral',  level: 5, icon: '⚔️' }, // DIS-886: faltaba
+    9:  { name: 'Sala del Trono',           boss: 'Espectro del Corredor', level: 3, icon: '👻' }, // DIS-890
+  };
+
   // DIS-D14: Advertir sobre trampas activas en el camino
   const trappedRooms = [];
   found.forEach((step) => {
@@ -13222,7 +13240,21 @@ function cmdPath(player, args) {
     const room = allRooms.find(r => r.id === step.toId);
     const roomName = room ? room.name.substring(0, 22) : `Sala ${step.toId}`;
     const dirText = (DIR_NAMES[step.dir] || step.dir).padEnd(6);
-    lines.push(`║  ${String(i + 1).padStart(2)}. move ${dirText}  →  ${roomName.padEnd(22)} ║`);
+    // BUG-895: advertencia de boss inline en el paso, no en bloque separado al final
+    const bossInfo = PATH_BOSS_ROOMS[step.toId] && step.toId !== targetRoom.id
+      ? PATH_BOSS_ROOMS[step.toId]
+      : null;
+    const bossWarn = bossInfo
+      ? (player.level < bossInfo.level
+          ? ` ⚠️ ${bossInfo.icon}${bossInfo.boss} (lvl ${bossInfo.level}+, tu nivel ${player.level})`
+          : ` ${bossInfo.icon}${bossInfo.boss} (OK)`)
+      : '';
+    if (bossWarn) {
+      lines.push(`║  ${String(i + 1).padStart(2)}. move ${dirText}  →  ${roomName.padEnd(22)} ║`);
+      lines.push(`║     ${bossWarn.substring(0, 43).padEnd(43)} ║`);
+    } else {
+      lines.push(`║  ${String(i + 1).padStart(2)}. move ${dirText}  →  ${roomName.padEnd(22)} ║`);
+    }
   });
 
   lines.push(`╠═══════════════════════════════════════════════╣`);
@@ -13304,16 +13336,7 @@ function cmdPath(player, args) {
   }
 
   // DIS-706: Advertir si la ruta pasa por salas con boss de alto nivel para el jugador actual
-  const PATH_BOSS_ROOMS = {
-    15: { name: 'Catedral de la Oscuridad', boss: 'Lich Anciano',       level: 7, icon: '💀' },
-    10: { name: 'Santuario Profano',        boss: 'Gólem de Piedra',    level: 5, icon: '🪨' },
-    8:  { name: 'Prisión Subterránea',      boss: 'Guardia Espectral',  level: 4, icon: '👻' },
-    20: { name: 'Abismo Eterno',            boss: 'Sombra del Vacío',   level: 7, icon: '🌑' },
-    12: { name: 'Taller de la Forja',       boss: 'Golem de Forja',     level: 5, icon: '🔥' },
-    19: { name: 'Cámara del Eco',           boss: 'Eco Viviente',       level: 6, icon: '🔊' },
-    14: { name: 'Coliseo de Huesos',        boss: 'Campeón Espectral',  level: 5, icon: '⚔️' }, // DIS-886: faltaba
-    9:  { name: 'Sala del Trono',           boss: 'Espectro del Corredor', level: 3, icon: '👻' }, // DIS-890
-  };
+  // (PATH_BOSS_ROOMS ya definido arriba para uso inline — BUG-895)
   const dangerSteps = found
     .filter(step => PATH_BOSS_ROOMS[step.toId] && step.toId !== targetRoom.id)
     .map(step => PATH_BOSS_ROOMS[step.toId]);
@@ -13366,13 +13389,9 @@ function cmdPath(player, args) {
     }
   }
 
+  // BUG-895: advertencias de boss ahora son inline en cada paso (ver bucle found.forEach arriba)
+  // Conservamos solo el recordatorio de mecánica de paso libre si hay algún boss en la ruta
   if (dangerSteps.length > 0) {
-    lines.push(`⚠️  CUIDADO: la ruta pasa por ${dangerSteps.length} sala${dangerSteps.length > 1 ? 's' : ''} con boss peligroso (nivel insuficiente puede ser fatal):`);
-    dangerSteps.forEach(d => {
-      const levelWarn = player.level < d.level ? ` ⚡ tu nivel ${player.level} < recomendado ${d.level}` : ` (tu nivel ${player.level} OK)`;
-      lines.push(`   ${d.icon} ${d.name} — ${d.boss} (nivel ${d.level}+)${levelWarn}`);
-    });
-    // DIS-841: agregar recordatorio de la mecánica de paso libre (boss no atacado = libre de peligro)
     lines.push(`   💡 Si no atacaste al boss de esas salas, podés pasar libremente aunque esté con HP lleno — el peligro solo aplica si vos iniciaste el combate.`);
   }
 
