@@ -3635,7 +3635,10 @@ function cmdUse(player, itemQuery) {
     if (foundLow.includes('carta sellada') || foundLow === 'carta') {
       // Abrir la carta sellada — narrativa de lore, consumir el ítem
       const newInvC = removeFirst(player.inventory, found);
-      db.updatePlayer(player.id, { inventory: newInvC });
+      // DIS-913: marcar por jugador que este personaje leyó la carta
+      const seC = parseSE(player.status_effects);
+      seC.carta_sellada_leida = true;
+      db.updatePlayer(player.id, { inventory: newInvC, status_effects: JSON.stringify(seC) });
       resultText = `Con cuidado, rompés el sello de cera negra. El papel cruje levemente al desplegarse.\n\nLa letra es precisa, casi formal:\n\n  \"Si leés esto, llegaste más lejos de lo que esperaba cualquiera.\n  Kaelthas no puede morir — no de la manera que conocemos.\n  Encontró una forma de atar su esencia al dungeon mismo.\n  El único modo de terminar con esto es llegar al Trono del Vacío\n  y pronunciar su nombre completo en voz alta: no el que conocés.\n  El verdadero.\n\n  Lo grabé en la base del trono. Mirá abajo, no arriba.\n\n  Perdoname por no haberlo hecho yo mismo.\"\n\n  Sin firma. Solo el símbolo de dos llaves cruzadas.\n\n🔍 La carta sellada se deshace en polvo antiguo una vez que la leés.`;
     } else if (foundLow.includes('tomo sellado') || foundLow.includes('tomo')) {
       // DIS-D363: el tomo sellado tiene una condición real: necesitás el amuleto oscuro
@@ -4294,12 +4297,18 @@ function cmdExamine(player, query) {
           // Sala 5 — Capilla Olvidada
           return { text: 'El altar de piedra negra tiene marcas de uso continuo a lo largo de siglos, pero lo que llama tu atención está en la base: hay cera derretida fresca. Reciente. Las llamas de las velas se apagaron hace siglos —¿quién estuvo aquí, y cuándo? El resto del dungeon no tiene respuestas. Pero alguien las tiene.' };
         }
-        // BUG-555: carta sellada — si el jugador ya la abrió (no está en inventario), mostrar descripción post-apertura
+        // BUG-555 / DIS-913: carta sellada — si el jugador ya la abrió (flag por jugador), mostrar descripción post-apertura
         if ((key === 'carta' || key === 'carta sellada') && player.current_room_id === 8) {
-          const hasCartaInInv = (player.inventory || []).some(i => i.toLowerCase().includes('carta sellada') || i.toLowerCase() === 'carta');
-          if (!hasCartaInInv) {
-            // La carta ya fue abierta (consumida del inventario)
+          const seExamine = parseSE(player.status_effects);
+          if (seExamine.carta_sellada_leida) {
+            // Este personaje ya leyó la carta — descripción post-apertura
             return { text: 'Buscás el sobre con cera negra, pero ya no está. Lo abriste: los restos del sobre rasgado quedaron en el suelo, la cera negra partida en dos. El papel que contenía ya lo leíste.\n\nLo que decía no se puede desaprender.' };
+          }
+          const hasCartaInInv = (player.inventory || []).some(i => i.toLowerCase().includes('carta sellada') || i.toLowerCase() === 'carta');
+          if (!hasCartaInInv && seExamine.carta_sellada_leida === undefined) {
+            // La carta no está en inventario pero este personaje nunca la abrió — mostrar descripción neutral
+            // (puede que no haya completado el buscar aún, o quest inactiva)
+            // No retornar "ya la abriste" — continuar al texto loreObject normal
           }
         }
         return { text: val.text };

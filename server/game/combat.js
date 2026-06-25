@@ -58,8 +58,10 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
     // MUERTE HARDCORE — marcar como fallen
     const gen = freshP.hardcore_generation || 1;
     // DIS-D324: preservar trap_cd_* incluso en muerte hardcore
+    // DIS-913: preservar carta_sellada_leida — lore leído no se olvida al morir
     const prevSeHc = freshP.status_effects ? (typeof freshP.status_effects === 'string' ? JSON.parse(freshP.status_effects) : freshP.status_effects) : {};
-    const trapMemoriesHc = Object.fromEntries(Object.entries(prevSeHc).filter(([k]) => k.startsWith('trap_cd_')));
+    const PRESERVE_KEYS_HC = (k) => k.startsWith('trap_cd_') || k === 'carta_sellada_leida';
+    const trapMemoriesHc = Object.fromEntries(Object.entries(prevSeHc).filter(([k]) => PRESERVE_KEYS_HC(k)));
     const newSeHc = Object.keys(trapMemoriesHc).length > 0 ? JSON.stringify(trapMemoriesHc) : '{}';
     db.updatePlayer(playerId, {
       hp: 1, // HP fantasma
@@ -84,8 +86,10 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
     // Muerte normal — DIS-D41: respawn con 25% del max_hp (mín 5)
     const respawnHp = Math.max(5, Math.floor((freshP.max_hp || 20) * 0.25));
     // DIS-D324: preservar trap_cd_* al morir — el jugador recuerda trampas entre muertes
+    // DIS-913: preservar carta_sellada_leida — lore leído no se olvida al morir
     const prevSe = freshP.status_effects ? (typeof freshP.status_effects === 'string' ? JSON.parse(freshP.status_effects) : freshP.status_effects) : {};
-    const trapMemories = Object.fromEntries(Object.entries(prevSe).filter(([k]) => k.startsWith('trap_cd_')));
+    const PRESERVE_KEYS = (k) => k.startsWith('trap_cd_') || k === 'carta_sellada_leida';
+    const trapMemories = Object.fromEntries(Object.entries(prevSe).filter(([k]) => PRESERVE_KEYS(k)));
     const newSe = Object.keys(trapMemories).length > 0 ? JSON.stringify(trapMemories) : '{}';
     db.updatePlayer(playerId, { hp: respawnHp, current_room_id: 1, deaths, status_effects: newSe });
     // BUG-697: Si el jugador murió con un boss vivo pero dañado en su sala,
