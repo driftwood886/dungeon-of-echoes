@@ -4604,6 +4604,10 @@ function cmdEquip(player, itemQuery) {
       magoHeavyFlavor = `\n✨ (El catalizador amplifica tu conexión arcana. +${def.mage_only_bonus || 0} de ataque adicional por ser Mago.)`;
     } else if (foundLower.includes('lanza espectral del eco')) {
       magoHeavyFlavor = `\n✨ (Los ecos de los caídos susurran en sintonía con tu maná. Esta arma fue hecha para alguien como vos.)`;
+    } else if (foundLower.includes('lanza espectral')) {
+      // BUG-924: flavor específico para Mago equipando lanza espectral / reforzada
+      // Es un arma de daño físico con aura espectral — inusual para un Mago pero no sin potencial
+      magoHeavyFlavor = `\n✨ (La luz negra de la lanza resuena de forma extraña con tu campo arcano. No es lo que un mago estudia — pero hay algo aquí, algo que late entre el metal y la magia. +${def.amount} ATK. Sin bonus de maná, pero el aura espectral complementa tus hechizos contra no-muertos.)`;
     } else if (foundLower.includes('grimorio del abismo')) {
       magoHeavyFlavor = `\n✨ (El grimorio te reconoce. Las páginas se abren solas ante tu presencia. Esto es lo que debería ser la magia.)`;
     } else if (foundLower.includes('cristal mágico')) {
@@ -6977,6 +6981,21 @@ function cmdTalk(player, target) {
   }
 
   // Trigger: desbloquear la quest
+  // BUG-925: verificar carta_sellada_leida ANTES de disparar la quest
+  // Si el jugador ya leyó la carta (flag activo), Aldric lo reconoce y completa la quest directamente
+  const seTrigger = parseSE(player.status_effects);
+  if (seTrigger.carta_sellada_leida) {
+    const freshPTrig = db.getPlayer(player.id);
+    db.updatePlayer(player.id, {
+      xp: (freshPTrig.xp || 0) + 50,
+      gold: (freshPTrig.gold || 0) + 25,
+      aldric_quest: 'done',
+    });
+    db.addJournalEntry(player.id, 'quest', '📜 Aldric el Mercader vio en mis ojos que ya leí la carta. Kaelthas Vorn. Guardián del reino. El dungeon fue su archivo.');
+    db.logGlobalEvent('quest', `📜 ${player.username} completó la quest de Aldric (ya había leído la carta antes de conocerlo).`);
+    return { text: 'Aldric te mira durante más tiempo del necesario cuando te acercás.\n\n"Pasaste ya por los niveles inferiores," dice. No lo pregunta.\n\nSu mirada recorre tu cara —algo en ella detiene el inicio del discurso que tenía preparado.\n\n"Veo en tus ojos que ya la leíste," dice al fin, en voz baja. "La carta del sello. Las dos llaves cruzadas."\n\nNo hay reproche. Solo algo parecido a resignación, o quizás a alivio.\n\n"Kaelthas Vorn. El guardián. Las llaves no eran del castillo —eran del pacto que mantenía unido al reino. Él las cargaba. Y cuando lo mataron, el pacto se rompió."\n\nSaca algo de debajo del mostrador. "La carta ya hizo su trabajo a través de vos. Las palabras llegaron aunque no era el camino que yo esperaba."\n\n"Tomá esto de todas formas."\n\n🎉 Quest completada: El Sello de las Dos Llaves. (+50 XP · +25g)\n📜 El lore de Kaelthas Vorn está ahora completo.\n📖 Diario actualizado.' };
+  }
+
   db.updatePlayer(player.id, { aldric_quest: 'active' });
   db.addJournalEntry(player.id, 'quest', '📜 Aldric me habló del sello. Quiere que le traiga una carta de sala 8.');
   return { text: 'Aldric te mira durante más tiempo del necesario cuando te acercás.\n\n"Pasaste ya por los niveles inferiores," dice. No lo pregunta.\n\nGuarda el libro de cuentas debajo del mostrador. Cuando vuelve a mirarte, tiene una expresión diferente: menos mercader, más algo que no sabés nombrar.\n\n"Hay algo en la prisión del nivel inferior. Sala 8." Baja la voz. "Una carta con el sello de las dos llaves cruzadas. Si la encontrás, traémela. Sin abrirla."\n\n"¿Por qué?" preguntás.\n\n"Porque era del reino. Y yo era del reino."\n\nVuelve a sacar el libro de cuentas. La conversación terminó, aunque él todavía no se fue.\n\n📜 Nueva quest: El Sello de las Dos Llaves — Encontrá la carta sellada en sala 8 y traésela a Aldric.' };
