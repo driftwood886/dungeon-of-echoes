@@ -1599,12 +1599,22 @@ function dropLoot(monster, roomId) {
 
   // DIS-D421: Aplicar probabilidades por ítem (si existen para este monstruo)
   const chances = LOOT_CHANCES[monster.id];
-  const allLoot = chances
+  let allLoot = chances
     ? baseAllLoot.filter(item => {
         const chance = chances[item];
         return chance === undefined ? true : Math.random() < chance;
       })
     : baseAllLoot;
+
+  // BUG-908: El Espectro del Corredor (id=4) no debería dropear 'corona rota' si la trampa
+  // de sala 9 ya fue desactivada (trap.active === false). El ítem pierde utilidad y acumula basura.
+  if (monster.id === 4 && allLoot.includes('corona rota')) {
+    const throne = db.getRoom(9);
+    const trapDesactivada = throne && throne.trap && throne.trap.active === false;
+    if (trapDesactivada) {
+      allLoot = allLoot.filter(i => i !== 'corona rota');
+    }
+  }
 
   if (allLoot.length > 0) {
     // Agregar ítems a la habitación
