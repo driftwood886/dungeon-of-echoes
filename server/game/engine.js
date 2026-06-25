@@ -1857,6 +1857,7 @@ function cmdStatus(player) {
   // T153: Buffs de pergaminos activos
   const scrollsFx = JSON.parse(player.active_scrolls || '{}');
   const now = Date.now();
+  const activeBuffLines = [];
   for (const [effect, data] of Object.entries(scrollsFx)) {
     // BUG-505: last_flee es metadata de rastreo interna, no un buff visible para el jugador
     if (effect === 'last_flee') continue;
@@ -1864,6 +1865,10 @@ function cmdStatus(player) {
     if (effect === 'cleric_bless') continue;
     if (data.expires_at > now) {
       const secsLeft = Math.ceil((data.expires_at - now) / 1000);
+      // DIS-929: mostrar tiempo en formato legible (Xm Ys en lugar de solo Xs)
+      const timeLeftStr = secsLeft >= 60
+        ? `${Math.floor(secsLeft / 60)}m ${secsLeft % 60}s`
+        : `${secsLeft}s`;
       const parts = [];
       if (data.atk_bonus > 0) parts.push(`+${data.atk_bonus} ATK`);
       if (data.def_bonus > 0) parts.push(`+${data.def_bonus} DEF`);
@@ -1894,8 +1899,13 @@ function cmdStatus(player) {
         effectLabel = effectNames[effect] || (data.label ? `✨ ${data.label}` : '📜 BUFF');
       }
       const partsStr = parts.length > 0 ? ` — ${parts.join(', ')}` : '';
-      statusLines.push(`${effectLabel}${partsStr} por ${secsLeft}s más.`);
+      activeBuffLines.push(`  ${effectLabel}${partsStr} (${timeLeftStr} restantes)`);
     }
+  }
+  // DIS-929: mostrar sección "Efectos activos" solo si hay buffs activos
+  if (activeBuffLines.length > 0) {
+    statusLines.push(`✨ Efectos activos:`);
+    for (const bl of activeBuffLines) statusLines.push(bl);
   }
 
   // DIS-D383: recordatorio de clase si nivel >= 3 y sin clase elegida
@@ -3412,6 +3422,10 @@ function cmdPick(player, itemQuery) {
     } else if (questState === 'active') {
       cartaHint = '\n\n📜 ¡La carta de la quest de Aldric! Llevásela al mercader en sala 4 ("hablar aldric").';
     }
+  }
+  // DIS-930: hint al recoger páginas congeladas — el jugador no sabe qué es ni para qué sirve
+  if (found.toLowerCase().includes('páginas congeladas') || found.toLowerCase().includes('paginas congeladas')) {
+    cartaHint += `\n\n📖 Las páginas están soldadas por el hielo — un diario parcial de alguien que llegó aquí antes que vos. Usá \`use páginas congeladas\` o \`examine páginas congeladas\` para leerlas. No tienen uso de combate pero revelan algo sobre el dungeon.`;
   }
 
   return {
@@ -10009,7 +10023,16 @@ function cmdCast(player, args) {
     // BUG-462: el monstruo contraataca si sigue vivo tras el hechizo
     if (newHp > 0 && !castStunAppliedThisTurn) {
       const freshPlayerCast = db.getPlayer(player.id);
-      const monsterDmgCast = Math.max(1, (target.attack || 2) - Math.floor(freshPlayerCast.defense || 0));
+      const baseMonsterAtkCast = target.attack || 2;
+      // DIS-928 Opción C: el Mago provoca una reacción instintiva al lanzar hechizos —
+      // el monstruo contraataca con +20% de daño cuando recibe magia ofensiva.
+      // Crea decisión táctica: castear hace más daño pero el contragolpe duele más.
+      const castPlayerClsForCounter = classes.getPlayerClass(freshPlayerCast);
+      const isMagoForCounter = castPlayerClsForCounter && castPlayerClsForCounter.name === 'Mago';
+      const spellTypeIsOffensive = spell && spell.type === 'damage';
+      const magoReactionMult = (isMagoForCounter && spellTypeIsOffensive) ? 1.20 : 1.0;
+      const monsterDmgCast = Math.max(1, Math.round(baseMonsterAtkCast * magoReactionMult) - Math.floor(freshPlayerCast.defense || 0));
+      const magoReactionNote = (isMagoForCounter && spellTypeIsOffensive) ? ` ⚡ (reacción mágica: ×1.2)` : '';
       const shieldActiveCast = freshPlayerCast.shield_active || 0;
       let dmgToCast = monsterDmgCast;
       if (shieldActiveCast) {
@@ -10022,7 +10045,7 @@ function cmdCast(player, args) {
       const newHpAfterHit = Math.max(0, freshHpAfterHit - dmgToCast);
       db.updatePlayer(player.id, { hp: newHpAfterHit });
       const freshMaxHpCast = freshPlayerCast.max_hp || 30;
-      lines.push(`   🩸 ${target.name} contraataca: ${dmgToCast} de daño. (${newHpAfterHit}/${freshMaxHpCast} HP)`);
+      lines.push(`   🩸 ${target.name} contraataca: ${dmgToCast} de daño.${magoReactionNote} (${newHpAfterHit}/${freshMaxHpCast} HP)`);
       if (newHpAfterHit <= 0) {
         combat.handlePlayerDeath(player.id, lines, target.name);
       }
