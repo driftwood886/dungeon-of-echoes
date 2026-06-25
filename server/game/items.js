@@ -51,7 +51,7 @@ const ITEM_CATALOG = {
   'espada de obsidiana': { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una espada de obsidiana pura que absorbe la luz —la luz literalmente desaparece al acercarse a la hoja. El molde para esta espada existe en la Forja de la sala 12, pero nunca fue terminado por manos humanas. Alguien —o algo— la completó a su manera. +12 de ataque. El arma más poderosa del dungeon.' },
   'lanza espectral':     { type: 'weapon', effect: 'attack_bonus', amount: 8,  description: 'Una lanza hecha de luz negra condensada, fría al tacto como el mármol pero sin peso. El arma crafteada más poderosa del early game — supera a la vara de energía básica. Potenciable con materiales de las profundidades. +8 de ataque.' },
   'lanza espectral reforzada': { type: 'weapon', effect: 'attack_bonus', amount: 9,  description: 'La lanza espectral básica ha sido reforzada con esencia de espectro de las profundidades. La luz negra es más densa, el frío más absoluto. Un arma formidable para los valientes que llegan al corazón del dungeon. +9 de ataque.' },
-  'alabarda de huesos':  { type: 'weapon', effect: 'attack_bonus', amount: 6,  description: 'La alabarda de un guardia espectral, forjada mientras el portador aún estaba vivo. Ligera a pesar de estar hecha de hueso comprimido. Los bordes están marcados con el símbolo del Reino de Valdrath —el mismo de los escudos de la Sala del Trono. +6 de ataque.' },
+  'alabarda de huesos':  { type: 'weapon', effect: 'attack_bonus', amount: 10, description: 'La alabarda de un guardia espectral, forjada mientras el portador aún estaba vivo. Ligera a pesar de estar hecha de hueso comprimido. Los bordes están marcados con el símbolo del Reino de Valdrath —el mismo de los escudos de la Sala del Trono. Un arma de boss que supera ampliamente lo que se consigue en tienda. +10 de ataque.' },
   'martillo de forja':   { type: 'weapon', effect: 'attack_bonus', amount: 7,  description: 'Un martillo colosal de las forjas. Aplastante y pesado. +7 de ataque.' },
 
   // ── Misc / coleccionables (dungeon base) ─────────────────────────────────
@@ -222,7 +222,7 @@ const ITEM_RARITY = {
   'lanza espectral del eco':  'épico',
   'filacteria rota':          'épico',
   'espada envenenada':        'épico',
-  'alabarda de huesos':       'raro',    // DIS-675: rareza bajada de épico a raro — +6 ATK vs espada de hierro +8 ATK
+  'alabarda de huesos':       'épico',   // BUG-906: subida a +10 ATK (antes raro/+6, inferior a espada de hierro +8)
   'hacha de guerra':          'épico',
   // ── Raro ──────────────────────────────────────────────────────────────────
   'cuchillo envenenado':      'raro',
