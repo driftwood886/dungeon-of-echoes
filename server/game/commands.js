@@ -205,6 +205,10 @@ const COMMAND_ALIASES = {
   sanacion_mayor: 'useSkill', 'sanación_mayor': 'useSkill', big_heal: 'useSkill', gran_curacion: 'useSkill', gran_curación: 'useSkill', curar_mayor: 'useSkill',
   bendicion: 'useSkill', bendición: 'useSkill', bless: 'useSkill', benedicion: 'useSkill', barrera_sagrada: 'useSkill',
   resurreccion: 'useSkill', resurrección: 'useSkill', revivir: 'useSkill', resurrect: 'useSkill', rezar_revival: 'useSkill',
+  // Habilidades de Especializaciones (BUG-915 / DIS-914)
+  imposition: 'useSkill', imposicion: 'useSkill', imposición: 'useSkill', fe_sagrada: 'useSkill', luz_sagrada: 'useSkill',
+  emboscar: 'useSkill', emboscada: 'useSkill', ataque_sorpresa: 'useSkill', surprise_attack: 'useSkill',
+  chain_heal: 'useSkill', cadena_curacion: 'useSkill', cadena_curación: 'useSkill', curacion_grupal: 'useSkill', curación_grupal: 'useSkill', aura_sanadora: 'useSkill',
   // DIS-620: Sigilo del Pícaro (nivel 1)
   sigilo: 'sigilo', hide: 'sigilo', stealth: 'sigilo', ocultarse: 'sigilo', esconderse: 'sigilo', sombras: 'sigilo',
   // note / apunte (T116)

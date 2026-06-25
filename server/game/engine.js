@@ -512,6 +512,10 @@ Para todos los comandos: help
           sanacion_mayor: 'sanacion_mayor', 'sanación_mayor': 'sanacion_mayor', gran_curacion: 'sanacion_mayor', big_heal: 'sanacion_mayor',
           bendicion: 'bendicion', 'bendición': 'bendicion', bless: 'bendicion',
           resurreccion: 'resurreccion', 'resurrección': 'resurreccion', resurrect: 'resurreccion',
+          // DIS-914: Especializaciones
+          imposition: 'imposition', imposicion: 'imposition', imposición: 'imposition',
+          emboscar: 'emboscar', emboscada: 'emboscar',
+          chain_heal: 'chain_heal', cadena_curacion: 'chain_heal', cadena_curación: 'chain_heal',
           cast: 'cast', lanzar: 'cast', hechizar: 'cast',
           vault: 'vault', boveda: 'vault', bóveda: 'vault', cofre: 'vault',
           enchant: 'enchant', encantar: 'enchant', encantamiento: 'enchant',
@@ -11527,6 +11531,251 @@ function cmdUseSkill(player, args, context) {
         `🌑 ${freshPlayer.username} emerge de las sombras y golpea al ${target.name}! (-${finalDmgSh} HP)`);
     }
     return { text: textSh };
+  }
+
+  // ── Imposición de Fe (imposition) — Paladín Lv5 ─────────────────────────
+  if (skillId === 'imposition') {
+    const monsters = db.getMonstersInRoom(freshPlayer.current_room_id);
+    const alive = monsters.filter(m => m.hp > 0);
+    const targetName = args.slice(1).join(' ').trim();
+    if (alive.length === 0) {
+      if (targetName) return { text: `🛡️ No hay ningún "${targetName}" aquí para imponerle tu fe.` };
+      return { text: '🛡️ No hay monstruos aquí para usar Imposición de Fe.' };
+    }
+    let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
+    if (!target) target = alive[0];
+    const freshPal = db.getPlayer(freshPlayer.id);
+    const baseDmgPal = freshPal.attack || 5;
+    const rawDmgPal = Math.max(1, Math.floor(baseDmgPal * skill.dmg_multiplier));
+    const variationPal = Math.floor(rawDmgPal * 0.15);
+    const dmgPal = rawDmgPal + Math.floor(Math.random() * (variationPal * 2 + 1)) - variationPal;
+    const finalDmgPal = Math.max(1, dmgPal - Math.floor(target.defense || 0));
+    const newHpPal = Math.max(0, target.hp - finalDmgPal);
+    db.updateMonster(target.id, { hp: newHpPal });
+    // Aplicar debuff de ATK al monstruo por 3 turnos
+    const monSePal = target.status_effects ? JSON.parse(target.status_effects || '{}') : {};
+    const debuffExpiresPal = new Date(Date.now() + (skill.debuff_turns || 3) * 30 * 1000).toISOString(); // ~3 turnos (30s cada uno)
+    monSePal.atk_debuffed = { amount: skill.debuff_atk || 2, expires_at: debuffExpiresPal };
+    db.updateMonster(target.id, { status_effects: JSON.stringify(monSePal) });
+    const newCDsPal = skills.applyCooldown(freshPal, 'imposition');
+    db.updatePlayer(freshPal.id, { skill_cooldowns: newCDsPal });
+    const deadPal = newHpPal <= 0;
+    let textPal = `🛡️ ¡IMPOSICIÓN DE FE! Tu golpe sagrado impacta al ${target.name} — ×${skill.dmg_multiplier} — ¡${finalDmgPal} de daño!`;
+    textPal += `\n   ✨ La luz sagrada debilita al ${target.name}: -${skill.debuff_atk} ATK por ${skill.debuff_turns} turnos.`;
+    if (deadPal) {
+      textPal += `\n💀 El ${target.name} cae bajo el peso de tu fe.`;
+      const { droppedLoot: palLoot, globalEvent: palGlobalEvent } = combat.dropLoot(target, freshPal.current_room_id);
+      if (palLoot && palLoot.length > 0) textPal += `\n💰 El ${target.name} suelta: ${palLoot.join(', ')}.`;
+      if (palGlobalEvent) {
+        db.logGlobalEvent('boss', palGlobalEvent);
+        if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: palGlobalEvent });
+      }
+      const xpGainPal = Math.max(5, Math.floor(target.max_hp * 2));
+      const newXpPal = (freshPal.xp || 0) + xpGainPal;
+      const newLevelPal = xpSystem.levelFromXp(newXpPal);
+      const levelUpPal = newLevelPal > (freshPal.level || 1);
+      const updPal = { xp: newXpPal, level: newLevelPal, kills: (freshPal.kills || 0) + 1 };
+      if (levelUpPal) {
+        updPal.max_hp = (freshPal.max_hp || 30) + 5;
+        updPal.hp = Math.min(updPal.max_hp, (freshPal.hp || 1) + Math.ceil(updPal.max_hp * 0.20));
+        updPal.attack = (freshPal.attack || 5) + 1;
+      }
+      db.updatePlayer(freshPal.id, updPal);
+      textPal += `\n⭐ +${xpGainPal} XP (kills: ${updPal.kills} | nivel: ${newLevelPal})${levelUpPal ? ` ✨ ¡SUBE AL NIVEL ${newLevelPal}!` : ''}`;
+      db.addBestiaryKill(freshPal.id, target.name);
+      const freshForPalAch = db.getPlayer(freshPal.id);
+      if (freshForPalAch) {
+        const palBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+        const palLichKill = target.id === 13;
+        const newPalAchs = ach.checkAchievements(freshForPalAch, { bossKill: palLichKill });
+        const palAchLines = ach.formatNewAchievements(newPalAchs);
+        if (palAchLines) textPal += '\n' + palAchLines;
+        if (palBossKill) {
+          db.logGlobalEvent('boss', `⚔️ ${freshPal.username} derrotó al ${target.name} con Imposición de Fe.`);
+          db.addJournalEntry(freshPal.id, 'boss', `☠️ Derrotaste al ${target.name} con Imposición de Fe.`);
+          textPal += `\n\n╔════════════════════════════════════╗\n║  ☠  ¡${target.name.toUpperCase()} DERROTADO!  ☠  ║\n╚════════════════════════════════════╝\n¡Usá 'loot' para recoger los tesoros!`;
+        }
+        if (palLichKill) {
+          try {
+            const freshPalCycle = db.getPlayer(freshPal.id);
+            if (freshPalCycle) {
+              const newLichKills = (freshPalCycle.lich_kills || 0) + 1;
+              const cycleTimeMin = freshPalCycle.cycle_start_at ? Math.floor((Date.now() - new Date(freshPalCycle.cycle_start_at).getTime()) / 60000) : 0;
+              const palCycleUpd = { lich_kills: newLichKills, cycle_start_at: new Date().toISOString() };
+              if (!freshPalCycle.cycle_best_time || cycleTimeMin < freshPalCycle.cycle_best_time) palCycleUpd.cycle_best_time = cycleTimeMin;
+              db.updatePlayer(freshPal.id, palCycleUpd);
+            }
+          } catch (e) { console.warn('[engine] imposition: Error en lich_kills:', e.message); }
+        }
+      }
+      const freshForPalQuest = db.getPlayer(freshPal.id);
+      const qPalResult = quests.recordProgress(freshForPalQuest, 'kill', { monsterName: target.name });
+      const crPal = db.updateDailyChallengeProgress(freshPal.id, 'kill', target.name);
+      const wcrPal = db.updateWeeklyContractProgress(freshPal.id, target.name);
+      if (wcrPal && wcrPal.reward) textPal += `\n📜 ¡CONTRATO COMPLETADO! +${wcrPal.reward.xp} XP · +${wcrPal.reward.gold}g`;
+      if (crPal && crPal.reward) textPal += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙`;
+      if (qPalResult) {
+        db.updatePlayer(freshPal.id, { quest_progress: qPalResult.questProgress });
+        if (qPalResult.justCompleted && qPalResult.reward) {
+          const freshQ3 = db.getPlayer(freshPal.id);
+          const questNewXpPal = (freshQ3.xp || 0) + qPalResult.reward.xp;
+          const questNewLvlPal = xpSystem.levelFromXp(questNewXpPal);
+          const questLvlUpPal = questNewLvlPal > (freshQ3.level || 1);
+          db.updatePlayer(freshPal.id, { gold: (freshQ3.gold || 0) + qPalResult.reward.gold, xp: questNewXpPal, level: questNewLvlPal });
+          textPal += `\n🎉 ¡Quest completada! Recibís ${qPalResult.reward.gold}g y ${qPalResult.reward.xp} XP.${questLvlUpPal ? ` ✨ ¡SUBÍS AL NIVEL ${questNewLvlPal}!` : ''}`;
+        }
+      }
+    } else {
+      textPal += `\n  El ${target.name} tiene ${newHpPal}/${target.max_hp} HP.`;
+      textPal += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+    }
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `🛡️ ${freshPlayer.username} impone su fe sobre el ${target.name}! (-${finalDmgPal} HP)`);
+    }
+    return { text: textPal };
+  }
+
+  // ── Emboscada (emboscar) — Asesino Lv5 ───────────────────────────────────
+  if (skillId === 'emboscar') {
+    const monsters = db.getMonstersInRoom(freshPlayer.current_room_id);
+    const alive = monsters.filter(m => m.hp > 0);
+    const targetName = args.slice(1).join(' ').trim();
+    if (alive.length === 0) {
+      if (targetName) return { text: `🗡️ No hay ningún "${targetName}" aquí para emboscar.` };
+      return { text: '🗡️ No hay monstruos aquí para emboscar.' };
+    }
+    let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
+    if (!target) target = alive[0];
+    const freshAse = db.getPlayer(freshPlayer.id);
+    const baseDmgAse = freshAse.attack || 5;
+    const rawDmgAse = Math.max(1, Math.floor(baseDmgAse * skill.dmg_multiplier));
+    const variationAse = Math.floor(rawDmgAse * 0.15);
+    const dmgAse = rawDmgAse + Math.floor(Math.random() * (variationAse * 2 + 1)) - variationAse;
+    const finalDmgAse = Math.max(1, dmgAse - Math.floor(target.defense || 0));
+    const newHpAse = Math.max(0, target.hp - finalDmgAse);
+    db.updateMonster(target.id, { hp: newHpAse });
+    // Aplicar veneno intensificado al monstruo (4 dmg × 3 turnos)
+    const monSeAse = target.status_effects ? JSON.parse(target.status_effects || '{}') : {};
+    const poisonDuration = (skill.poison_turns || 3) * 30 * 1000;
+    const poisonExpiresAse = new Date(Date.now() + poisonDuration).toISOString();
+    monSeAse.poisoned = { damage: skill.poison_damage || 4, expires_at: poisonExpiresAse, applied_by: freshAse.id };
+    db.updateMonster(target.id, { status_effects: JSON.stringify(monSeAse) });
+    const newCDsAse = skills.applyCooldown(freshAse, 'emboscar');
+    db.updatePlayer(freshAse.id, { skill_cooldowns: newCDsAse });
+    const deadAse = newHpAse <= 0;
+    let textAse = `🗡️ ¡EMBOSCADA! Golpe crítico garantizado sobre el ${target.name} — ×${skill.dmg_multiplier} — ¡${finalDmgAse} de daño!`;
+    textAse += `\n   ☠️ Veneno intensificado: ${skill.poison_damage} dmg por ${skill.poison_turns} turnos.`;
+    if (deadAse) {
+      textAse += `\n💀 El ${target.name} cae envenenado.`;
+      const { droppedLoot: aseLoot, globalEvent: aseGlobalEvent } = combat.dropLoot(target, freshAse.current_room_id);
+      if (aseLoot && aseLoot.length > 0) textAse += `\n💰 El ${target.name} suelta: ${aseLoot.join(', ')}.`;
+      if (aseGlobalEvent) {
+        db.logGlobalEvent('boss', aseGlobalEvent);
+        if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: aseGlobalEvent });
+      }
+      const xpGainAse = Math.max(5, Math.floor(target.max_hp * 2));
+      const newXpAse = (freshAse.xp || 0) + xpGainAse;
+      const newLevelAse = xpSystem.levelFromXp(newXpAse);
+      const levelUpAse = newLevelAse > (freshAse.level || 1);
+      const updAse = { xp: newXpAse, level: newLevelAse, kills: (freshAse.kills || 0) + 1 };
+      if (levelUpAse) {
+        updAse.max_hp = (freshAse.max_hp || 30) + 5;
+        updAse.hp = Math.min(updAse.max_hp, (freshAse.hp || 1) + Math.ceil(updAse.max_hp * 0.20));
+        updAse.attack = (freshAse.attack || 5) + 1;
+      }
+      db.updatePlayer(freshAse.id, updAse);
+      textAse += `\n⭐ +${xpGainAse} XP (kills: ${updAse.kills} | nivel: ${newLevelAse})${levelUpAse ? ` ✨ ¡SUBE AL NIVEL ${newLevelAse}!` : ''}`;
+      db.addBestiaryKill(freshAse.id, target.name);
+      const freshForAseAch = db.getPlayer(freshAse.id);
+      if (freshForAseAch) {
+        const aseBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+        const aseLichKill = target.id === 13;
+        const newAseAchs = ach.checkAchievements(freshForAseAch, { bossKill: aseLichKill });
+        const aseAchLines = ach.formatNewAchievements(newAseAchs);
+        if (aseAchLines) textAse += '\n' + aseAchLines;
+        if (aseBossKill) {
+          db.logGlobalEvent('boss', `⚔️ ${freshAse.username} derrotó al ${target.name} con Emboscada.`);
+          db.addJournalEntry(freshAse.id, 'boss', `☠️ Derrotaste al ${target.name} con Emboscada.`);
+          textAse += `\n\n╔════════════════════════════════════╗\n║  ☠  ¡${target.name.toUpperCase()} DERROTADO!  ☠  ║\n╚════════════════════════════════════╝\n¡Usá 'loot' para recoger los tesoros!`;
+        }
+        if (aseLichKill) {
+          try {
+            const freshAseCycle = db.getPlayer(freshAse.id);
+            if (freshAseCycle) {
+              const newLichKillsAse = (freshAseCycle.lich_kills || 0) + 1;
+              const cycleTimeMinAse = freshAseCycle.cycle_start_at ? Math.floor((Date.now() - new Date(freshAseCycle.cycle_start_at).getTime()) / 60000) : 0;
+              const aseCycleUpd = { lich_kills: newLichKillsAse, cycle_start_at: new Date().toISOString() };
+              if (!freshAseCycle.cycle_best_time || cycleTimeMinAse < freshAseCycle.cycle_best_time) aseCycleUpd.cycle_best_time = cycleTimeMinAse;
+              db.updatePlayer(freshAse.id, aseCycleUpd);
+            }
+          } catch (e) { console.warn('[engine] emboscar: Error en lich_kills:', e.message); }
+        }
+      }
+      const freshForAseQuest = db.getPlayer(freshAse.id);
+      const qAseResult = quests.recordProgress(freshForAseQuest, 'kill', { monsterName: target.name });
+      const crAse = db.updateDailyChallengeProgress(freshAse.id, 'kill', target.name);
+      const wcrAse = db.updateWeeklyContractProgress(freshAse.id, target.name);
+      if (wcrAse && wcrAse.reward) textAse += `\n📜 ¡CONTRATO COMPLETADO! +${wcrAse.reward.xp} XP · +${wcrAse.reward.gold}g`;
+      if (crAse && crAse.reward) textAse += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙`;
+      if (qAseResult) {
+        db.updatePlayer(freshAse.id, { quest_progress: qAseResult.questProgress });
+        if (qAseResult.justCompleted && qAseResult.reward) {
+          const freshQ4 = db.getPlayer(freshAse.id);
+          const questNewXpAse = (freshQ4.xp || 0) + qAseResult.reward.xp;
+          const questNewLvlAse = xpSystem.levelFromXp(questNewXpAse);
+          const questLvlUpAse = questNewLvlAse > (freshQ4.level || 1);
+          db.updatePlayer(freshAse.id, { gold: (freshQ4.gold || 0) + qAseResult.reward.gold, xp: questNewXpAse, level: questNewLvlAse });
+          textAse += `\n🎉 ¡Quest completada! Recibís ${qAseResult.reward.gold}g y ${qAseResult.reward.xp} XP.${questLvlUpAse ? ` ✨ ¡SUBÍS AL NIVEL ${questNewLvlAse}!` : ''}`;
+        }
+      }
+    } else {
+      textAse += `\n  El ${target.name} tiene ${newHpAse}/${target.max_hp} HP.`;
+      textAse += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+    }
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `🗡️ ${freshPlayer.username} embosca al ${target.name}! (-${finalDmgAse} HP)`);
+    }
+    return { text: textAse };
+  }
+
+  // ── Cadena de Curación (chain_heal) — Sanador Lv5 ─────────────────────────
+  if (skillId === 'chain_heal') {
+    const freshSan = db.getPlayer(freshPlayer.id);
+    const manaCostCh = skill.mana_cost || 15;
+    const currManaCh = freshSan.mana != null ? freshSan.mana : 0;
+    if (currManaCh < manaCostCh) {
+      return { text: `💚 No tenés suficiente maná para Cadena de Curación. Necesitás ${manaCostCh} maná (tenés ${currManaCh}).` };
+    }
+    const healAmtCh = skill.heal_amount || 12;
+    const playersInRoomCh = db.getPlayersInRoom(freshSan.current_room_id);
+    const healLines = [];
+    let selfHealed = 0;
+    for (const mp of playersInRoomCh) {
+      const mFreshCh = db.getPlayer(mp.id);
+      if (!mFreshCh || mFreshCh.hp <= 0) continue;
+      if (mFreshCh.hp >= mFreshCh.max_hp) {
+        if (mFreshCh.id === freshSan.id) selfHealed = 0;
+        healLines.push(`  ${mFreshCh.username}: HP lleno (sin cambio)`);
+        continue;
+      }
+      const newHpCh = Math.min(mFreshCh.max_hp, mFreshCh.hp + healAmtCh);
+      const healedCh = newHpCh - mFreshCh.hp;
+      db.updatePlayer(mFreshCh.id, { hp: newHpCh });
+      if (mFreshCh.id === freshSan.id) selfHealed = healedCh;
+      healLines.push(`  ${mFreshCh.username}: +${healedCh} HP (${mFreshCh.hp} → ${newHpCh}/${mFreshCh.max_hp})`);
+    }
+    const newManaCh = currManaCh - manaCostCh;
+    const newCDsCh = skills.applyCooldown(freshSan, 'chain_heal');
+    const freshSanAfter = db.getPlayer(freshSan.id);
+    db.updatePlayer(freshSan.id, { mana: newManaCh, skill_cooldowns: newCDsCh });
+    const textCh = `💚 ¡CADENA DE CURACIÓN! Una ola de luz sagrada se expande por la sala.\n${healLines.join('\n')}\n   -${manaCostCh} maná (${newManaCh}/${freshSan.max_mana || 30}) · Cooldown: ${skill.cooldown_seconds}s`;
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `💚 ${freshPlayer.username} lanza Cadena de Curación — ¡+${healAmtCh} HP para todos en la sala!`);
+    }
+    return { text: textCh };
   }
 
   return { text: `Habilidad "${skillId}" no implementada aún.` };

@@ -152,6 +152,51 @@ const SKILLS = {
     description: 'Reza por el alma de un aliado caído en la misma sala y lo revive al 50% de HP. Una vez por sesión. Solo Clérigo.',
     combat_only: false,
   },
+  // ── Habilidades exclusivas de Especializaciones (DIS-914) ─────────────────
+  imposition: {
+    id: 'imposition',
+    name: 'Imposición de Fe',
+    aliases: ['imposition', 'imposicion', 'imposición', 'fe_sagrada', 'luz_sagrada'],
+    required_level: 5,
+    required_class: 'guerrero',
+    required_specialization: 'paladin',
+    cooldown_seconds: 60,
+    type: 'paladin_debuff',
+    dmg_multiplier: 1.4,
+    debuff_atk: 2,
+    debuff_turns: 3,
+    description: 'Golpe sagrado: ×1.4 daño + debilita al monstruo (-2 ATK por 3 turnos). Solo Paladín (nivel 5+). Cooldown: 60s.',
+    combat_only: true,
+  },
+  emboscar: {
+    id: 'emboscar',
+    name: 'Emboscada',
+    aliases: ['emboscar', 'emboscada', 'emboscar', 'ataque_sorpresa', 'surprise_attack'],
+    required_level: 5,
+    required_class: 'picaro',
+    required_specialization: 'asesino',
+    cooldown_seconds: 45,
+    type: 'asesino_ambush',
+    dmg_multiplier: 1.6,
+    poison_damage: 4,
+    poison_turns: 3,
+    description: 'Crítico garantizado + veneno intensificado (4 dmg × 3 turnos). Solo Asesino (nivel 5+). Cooldown: 45s.',
+    combat_only: true,
+  },
+  chain_heal: {
+    id: 'chain_heal',
+    name: 'Cadena de Curación',
+    aliases: ['chain_heal', 'cadena_curacion', 'cadena_curación', 'curación_grupal', 'curacion_grupal', 'aura_sanadora'],
+    required_level: 5,
+    required_class: 'clerigo',
+    required_specialization: 'sanador',
+    cooldown_seconds: 90,
+    type: 'sanador_chain',
+    heal_amount: 12,
+    mana_cost: 15,
+    description: 'Cura 12 HP a todos los jugadores en la sala (incluido vos). Solo Sanador (nivel 5+). Cooldown: 90s. Costo: 15 maná.',
+    combat_only: false,
+  },
 };
 
 /**
@@ -217,9 +262,22 @@ function canUseSkill(player, skillId) {
   if (skill.required_class) {
     const playerClass = player.player_class || player.class || null;
     if (playerClass !== skill.required_class) {
-      const classNames = { picaro: 'Pícaro', mago: 'Mago', guerrero: 'Guerrero' };
+      const classNames = { picaro: 'Pícaro', mago: 'Mago', guerrero: 'Guerrero', clerigo: 'Clérigo' };
       const requiredName = classNames[skill.required_class] || skill.required_class;
       return { ok: false, error: `${skill.name} es una habilidad exclusiva del ${requiredName}.` };
+    }
+  }
+
+  // Verificar especialización requerida (DIS-914)
+  if (skill.required_specialization) {
+    const playerSpec = player.specialization || null;
+    if (playerSpec !== skill.required_specialization) {
+      const specNames = { paladin: 'Paladín', evoker: 'Evoker', asesino: 'Asesino', sanador: 'Sanador' };
+      const requiredName = specNames[skill.required_specialization] || skill.required_specialization;
+      if (!playerSpec) {
+        return { ok: false, error: `${skill.name} requiere la especialización ${requiredName}. Elegí tu especialización con "especializar" al nivel 5.` };
+      }
+      return { ok: false, error: `${skill.name} es exclusivo del ${requiredName}. Tu especialización es ${specNames[playerSpec] || playerSpec}.` };
     }
   }
 
