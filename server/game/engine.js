@@ -5134,8 +5134,18 @@ function cmdWear(player, itemQuery) {
     defMsg = `Defensa: ${oldDefense} → ${newDefense} (+${def.amount} del ${found})`;
   }
 
+  // DIS-917: si el jugador es Paladín, agregar nota del bonus de DEF de especialización
+  let specDefNote = '';
+  if (player.specialization === 'paladin') {
+    const { getSpec: getSpecD917 } = require('./specializations');
+    const palDefBonus = (getSpecD917('paladin').combat_modifiers || {}).def_bonus || 0;
+    if (palDefBonus > 0) {
+      specDefNote = `\n   🛡️ Paladín: +${palDefBonus} DEF ya incluidos en tu total (especialización permanente).`;
+    }
+  }
+
   return {
-    text: `Te ponés ${found}${swapMsg}. ${defMsg}.\n${def.description}`,
+    text: `Te ponés ${found}${swapMsg}. ${defMsg}.${specDefNote}\n${def.description}`,
     event: `${player.username} se pone ${found}.`,
     eventRoomId: player.current_room_id,
   };
