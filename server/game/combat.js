@@ -759,10 +759,11 @@ function attackRound(player, monster) {
         if (monster.hp <= 0 && !monsterDead) {
           monsterDead = true;
           lines.push(`💀 ¡El ${monster.name} cae derrotado por tu mascota!`);
-          const { droppedLoot: petLoot, globalEvent: petGlobalEvent } = dropLoot(monster, player.current_room_id);
+          const { droppedLoot: petLoot, globalEvent: petGlobalEvent, lootNote: petLootNote } = dropLoot(monster, player.current_room_id);
           loot = petLoot;
           if (loot.length > 0) lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
           else lines.push(`El ${monster.name} no deja nada.`);
+          if (petLootNote) lines.push(petLootNote);
           const xpBasePet = Math.max(5, Math.floor(monster.max_hp * 2));
           const activeEvPet = worldEvents.getCurrentEvent();
           const invasionMultPet = (activeEvPet && activeEvPet.id === 'invasion') ? 1.5 : 1.0;
@@ -818,9 +819,10 @@ function attackRound(player, monster) {
             if (monster.hp <= 0) {
               monsterDead = true;
               lines.push(`💀 ¡El ${monster.name} cae derrotado por las sombras!`);
-              const { droppedLoot, globalEvent } = dropLoot(monster, player.current_room_id);
+              const { droppedLoot, globalEvent, lootNote: ln821 } = dropLoot(monster, player.current_room_id);
               loot = droppedLoot;
               if (loot.length > 0) lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
+              if (ln821) lines.push(ln821);
               else lines.push(`El ${monster.name} no deja nada.`);
               const xpBase2 = Math.max(5, Math.floor(monster.max_hp * 2));
               const activeEv2 = worldEvents.getCurrentEvent();
@@ -893,10 +895,11 @@ function attackRound(player, monster) {
       if (monster.hp <= 0) {
         monsterDead = true;
         lines.push(`💀 ¡El ${monster.name} cae derrotado por el veneno!`);
-        const { droppedLoot, globalEvent } = dropLoot(monster, player.current_room_id);
+        const { droppedLoot, globalEvent, lootNote: ln898 } = dropLoot(monster, player.current_room_id);
         loot = droppedLoot;
         if (loot.length > 0) lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
         else lines.push(`El ${monster.name} no deja nada.`);
+        if (ln898) lines.push(ln898);
         const xpBase3 = Math.max(5, Math.floor(monster.max_hp * 2));
         const activeEv3 = worldEvents.getCurrentEvent();
         const invasionMult3 = (activeEv3 && activeEv3.id === 'invasion') ? 1.5 : 1.0;
@@ -930,13 +933,14 @@ function attackRound(player, monster) {
     lines.push(`💀 ¡El ${monster.name} cae derrotado!`);
 
     // Soltar loot en la habitación
-    const { droppedLoot, globalEvent } = dropLoot(monster, player.current_room_id);
+    const { droppedLoot, globalEvent, lootNote: ln936 } = dropLoot(monster, player.current_room_id);
     loot = droppedLoot;
     if (loot.length > 0) {
       lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
     } else {
       lines.push(`El ${monster.name} no deja nada.`);
     }
+    if (ln936) lines.push(ln936);
 
     // Actualizar kills y XP del jugador
     // T221: Bonus élite — +75% XP y loot extra si el monstruo es élite
@@ -1713,7 +1717,13 @@ function dropLoot(monster, roomId) {
 
   const globalEvent = bossDef ? bossDef.deathAnnouncement : null;
 
-  return { droppedLoot: allLoot, globalEvent };
+  // DIS-922: flavor text si la Araña Tejedora (id=7) dropea la llave oxidada
+  let lootNote = null;
+  if (monster.id === 7 && allLoot.includes('llave oxidada')) {
+    lootNote = '🕷 La llave estaba envuelta en seda, como si la araña la hubiera tomado de un aventurero anterior atrapado en su red.';
+  }
+
+  return { droppedLoot: allLoot, globalEvent, lootNote };
 }
 
 /**

@@ -2068,10 +2068,16 @@ function cmdStatus(player) {
       const equippedWpnStatus = player.equipped_weapon ? items.getItemDef(player.equipped_weapon) : null;
       const glovesCritBonus = (equippedWpnStatus && equippedWpnStatus.rogue_only_crit_bonus)
         ? equippedWpnStatus.rogue_only_crit_bonus / 100 : 0;
+      // DIS-918: bonus crit de especialización (ej: Asesino +10%)
+      const { getSpec: getSpecCrit } = require('./specializations');
+      const specCritBonus = player.specialization
+        ? ((getSpecCrit(player.specialization) || {}).combat_modifiers || {}).crit_bonus || 0
+        : 0;
+      const specCritBonusFrac = specCritBonus / 100;
       // DIS-619: penalización de crit en postura agresiva
       // DIS-715: reducido de -5% a -2%
       const critPenalty = stanceName === 'agresivo' ? -0.02 : 0;
-      const effectiveCrit = Math.round((baseCrit + glovesCritBonus + critPenalty) * 100);
+      const effectiveCrit = Math.round((baseCrit + glovesCritBonus + specCritBonusFrac + critPenalty) * 100);
       const baseDodgePct = Math.round((0.08 + (clsStatus.dodge_bonus || 0) / 100) * 100);
       // DIS-712: mostrar reducción de esquiva vs bosses avanzados
       const INEV_BOSS_IDS = new Set([12, 13, 21, 22]);
@@ -3899,7 +3905,7 @@ function cmdExamine(player, query) {
     'estrado', 'candelabros', 'escriba', // sala 17 (Casa de Subastas)
     'runas', 'runa',                   // sala 10 (Santuario)
     'huesos',                          // sala 3 (Sala de los Ecos) — BUG-419
-    'forja',                           // sala 12 (Forja Espectral)
+    'forja', 'yunque',                // sala 12 (Forja Espectral) — DIS-920
     'fuente', 'pozo',                  // salas 18, 7
   ]);
   const invForExamine = player.inventory || [];
@@ -4059,6 +4065,8 @@ function cmdExamine(player, query) {
     'escudos':         { rooms: [9],  text: 'Los escudos de los reinos extintos están todos ligeramente opacos de polvo... excepto uno. El más oscuro, sin emblema, brilla como si acabara de ser pulido. No tiene insignia. Solo una fecha grabada en el borde inferior: el año en que cayó el Reino de Valdrath.' },
     'cuerda':          { rooms: [7],  text: 'La cuerda está atada en lo alto a un gancho de hierro de manufactura antigua. Intentás tirar de ella para saber qué hay abajo. El frío que sube desde las profundidades te hace soltar de inmediato —no es temperatura, es algo más. Un rechazo activo, deliberado. Mirás más de cerca los nudos: la cuerda tiene marcas de haber sido cortada desde abajo. Alguien —o algo— no quería que nadie bajara.' },
     'forja':           { rooms: [12], text: 'El fuego de la forja lleva ardiendo más tiempo del que nadie recuerda, sin carbón ni madera visible. Sobre el yunque hay un molde para una espada que nunca se terminó —los bordes muestran marcas de garras, no de herramientas. Algo o alguien intentó completar la obra sin los conocimientos necesarios.\n\nLo más inquietante: el fuego es perfecto, uniforme, constante. Como una respiración.' },
+    // DIS-920: yunque como loreObject separado en sala 12
+    'yunque':          { rooms: [12], text: 'El yunque es de hierro oscuro, casi negro, con una superficie que debería estar rallada y marcada por años de golpes. En cambio, la superficie superior es casi perfecta —excepto por una serie de marcas en los bordes que no parecen de herramienta. Son demasiado irregulares para un cincel. Demasiado precisas para ser accidentales.\n\nEl molde de espada que descansa sobre él tiene el contorno de una hoja que nunca existió en ningún catálogo de armas conocido. No es de origen humano. No completamente.' },
     'runas':           { rooms: [10], text: 'Las runas con sangre seca forman un patrón que tardás un momento en ver completo: es un círculo, y en su centro hay un nombre escrito en un idioma que nadie habla hace doscientos años. No sabés cómo, pero lo podés leer: K-A-E-L-T-H-A-S. El patrón de las runas forma un nombre. No querés saber cómo lo sabés.' },
     'runa':            { rooms: [10], text: 'Las runas con sangre seca forman un patrón que tardás un momento en ver completo: es un círculo, y en su centro hay un nombre escrito en un idioma que nadie habla hace doscientos años. No sabés cómo, pero lo podés leer: K-A-E-L-T-H-A-S. El patrón de las runas forma un nombre. No querés saber cómo lo sabés.' },
     'estatua':         { rooms: [10], text: 'La estatua con diez brazos no corresponde a ningún dios que conozcas. Cada brazo sostiene algo distinto: un escudo, una espada, un libro, una llave, una copa, una antorcha... Los últimos tres brazos están vacíos. La placa en la base está en blanco, raspada hasta la piedra. Alguien borró el nombre deliberadamente.' },
@@ -5698,6 +5706,13 @@ function cmdMap(player) {
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
       : `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda del Mercader)`,
     `[??:?????????] = sala aún no explorada  [16/21] = salas de tutorial (fuera del conteo de exploración)`,
+    // DIS-921: conteo de salas exploradas al pie del mapa
+    (() => {
+      const MAP_DUNGEON_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18,19,20,22];
+      const discovered = MAP_DUNGEON_ROOMS.filter(id => visitedRooms.has(id)).length;
+      const total = MAP_DUNGEON_ROOMS.length;
+      return `🗺️ Exploración: ${discovered}/${total} salas descubiertas`;
+    })(),
     // DIS-702: hint de navegación con ruta
     `💡 ¿Perdido? Usá: ruta <sala>  —  Ej: ruta tesoro  /  ruta catedral  /  ruta 4`,
     // BUG-894: nota explicativa de la puerta 🔑 del Pozo (sala 7) — va al pie, no inline en la grilla
@@ -6656,7 +6671,7 @@ const SHOP_CATALOG = [
   { name: 'antorcha',                price: 5,  description: 'Ilumina pasillos oscuros. Dura varias horas.' },
   { name: 'cuerda',                  price: 10, description: 'Desactiva trampas de pinchos. 15m de largo.' },
   { name: 'espada oxidada',          price: 15, description: 'Una espada vieja pero funcional. +3 ataque. Ingrediente para craftear espada de obsidiana.' },
-  { name: 'llave oxidada',           price: 20, description: 'Abre cierta puerta al norte del Pozo. El mercader no explica más. (O buscá la Araña Tejedora del Pozo — a veces la lleva consigo.)' },
+  { name: 'llave oxidada',           price: 20, description: 'Abre la puerta al norte del Pozo Sin Fondo. El hierro está gastado por años de uso —quizás décadas. Algunos aventureros la encontraron en el suelo del Pozo, envuelta en seda: la Araña Tejedora la tomó de alguien que no salió. No sabés si ese alguien llegó más lejos que vos.' },
   // T152: Armaduras
   { name: 'cuero endurecido',        price: 20, description: 'Armadura ligera. +2 defensa.' },  // DIS-676: 30g→20g para incentivar compra temprana
   // DIS-863: cota de cuero como tier intermedio (35g, +3 DEF) entre cuero endurecido (20g, +2) y cota de malla (60g, +3)
@@ -6930,6 +6945,20 @@ function cmdTalk(player, target) {
       db.logGlobalEvent('quest', `📜 ${player.username} descubrió el secreto de Aldric el Mercader.`);
       return { text: 'Aldric toma la carta con manos que no tiemblan, pero que deberían.\n\nEl sello de las dos llaves cruzadas. Lo mira durante un momento demasiado largo.\n\n"Fue el guardián del sello del reino," dice al fin, en voz tan baja que casi no lo escuchás. "No el rey. El guardián. Los que guardaban las llaves eran los que realmente mantenían el reino unido."\n\nPausa. "Kaelthas Vorn. Ese era su nombre completo. El que todos olvidaron —o fingieron olvidar— cuando el reino cayó."\n\n"El dungeon no fue siempre esto. Era su biblioteca. Su archivo. Cuando murió —cuando lo mataron— su alma no pudo irse porque tenía demasiadas deudas con el mundo. Quedó atada aquí. A las piedras. A los nombres grabados en los corredores."\n\nSe inclina hacia vos. "Si alguna vez llegás a la Sala del Trono y sentís que algo te observa desde el vacío... es él. Sigue aquí. Esperando que alguien entienda qué pasó."\n\nDobla la carta sin abrirla y la guarda debajo del mostrador.\n\n"Tomá esto. Y si algún día pronunciás su nombre completo en el lugar correcto, vas a entender por qué todavía importa."\n\n"Ah, y si explorás el dungeon con otros aventureros — las hermandades tienen misiones propias. guild create sombra_de_hierro, por ejemplo. Las podés completar incluso en solitario."\n\n🎉 Quest completada: El Sello de las Dos Llaves. (+50 XP · +25g)\n📜 El lore de Kaelthas Vorn está ahora completo — su presencia en el dungeon tiene sentido.\n📖 Diario actualizado: "Kaelthas Vorn fue el guardián. El dungeon fue su archivo. Su alma quedó atada aquí."' };
     } else {
+      // DIS-919: si el jugador ya leyó la carta (se destruyó al abrirla), quest no es completable de forma normal
+      const seActive = parseSE(player.status_effects);
+      if (seActive.carta_sellada_leida) {
+        // La carta fue leída — completar la quest de forma alternativa
+        const freshPAlt = db.getPlayer(player.id);
+        db.updatePlayer(player.id, {
+          xp: (freshPAlt.xp || 0) + 50,
+          gold: (freshPAlt.gold || 0) + 25,
+          aldric_quest: 'done',
+        });
+        db.addJournalEntry(player.id, 'quest', '📜 Aldric el Mercader reconoció que ya leí la carta. Kaelthas Vorn. Guardián del reino. El dungeon fue su archivo.');
+        db.logGlobalEvent('quest', `📜 ${player.username} completó la quest de Aldric (había leído la carta antes).`);
+        return { text: 'Aldric te mira con ojos que calculan más de lo que dicen.\n\n"No la traés," dice. Una afirmación, no una pregunta.\n\nParece esperar algo más. Vos no hablás.\n\n"La abriste," dice al fin. "Leíste las palabras."\n\nNo hay reproche en su voz —solo algo parecido al alivio.\n\n"Entonces ya sabés." Se inclina sobre el mostrador. "El nombre. Kaelthas Vorn. El guardián. Las dos llaves no eran del castillo —eran del pacto que mantenía unido al reino. Él las cargaba. Y cuando lo mataron, el pacto se rompió."\n\nPausa. "La carta ya hizo su trabajo. Lo hizo a través de vos."\n\n"Tomá esto de todas formas. El mensaje llegó aunque por un camino diferente."\n\n🎉 Quest completada: El Sello de las Dos Llaves. (+50 XP · +25g)\n📜 El lore de Kaelthas Vorn está ahora completo.\n📖 Diario actualizado.' };
+      }
       return { text: 'Aldric asiente levemente cuando te ve.\n\n"¿La encontraste ya?"\n\nSu expresión no cambia, pero algo en sus ojos dice que sí le importa.\n\n"Sala 8. La prisión del nivel inferior. Buscá la carta con el sello de las dos llaves cruzadas. Traémela."\n\nVuelve a sus cuentas. La conversación terminó.' };
     }
   }
