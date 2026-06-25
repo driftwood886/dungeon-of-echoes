@@ -1733,6 +1733,10 @@ function dropLoot(monster, roomId) {
   if (monster.id === 7 && allLoot.includes('llave oxidada')) {
     lootNote = '🕷 La llave estaba envuelta en seda, como si la araña la hubiera tomado de un aventurero anterior atrapado en su red.';
   }
+  // DIS-932: flavor text para la piedra de poder del Gólem de Piedra (id=5)
+  if (monster.id === 5 && allLoot.includes('piedra de poder')) {
+    lootNote = '🪨 Al arrancarlo del pecho del Gólem, el constructo se desplomó en una lluvia de cascotes. El núcleo de energía pulsa en tu mano con calor telúrico.';
+  }
 
   return { droppedLoot: allLoot, globalEvent, lootNote };
 }

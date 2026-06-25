@@ -122,7 +122,7 @@ function exitsText(room) {
  * @param {number} roomId
  * @param {string|null} excludePlayerId — no listar este jugador (el observador)
  */
-function describeRoom(roomId, excludePlayerId = null) {
+function describeRoom(roomId, excludePlayerId = null, player = null) {
   const data = getRoomFull(roomId);
   if (!data) return 'Esa habitación no existe.';
 
@@ -216,12 +216,23 @@ function describeRoom(roomId, excludePlayerId = null) {
   lines.push(`\nSalidas: ${exitsText(room)}`);
 
   // DIS-D38: si alguna salida da a una sala con trampa activa, mostrar aviso preventivo
+  // BUG-931: si el jugador ya conoce la trampa (known_traps), omitir el hint
+  const knownTraps = (() => {
+    if (!player) return {};
+    try {
+      return typeof player.known_traps === 'string'
+        ? JSON.parse(player.known_traps || '{}')
+        : (player.known_traps || {});
+    } catch (_) { return {}; }
+  })();
   const trapHints = [];
   for (const [dir, exitVal] of Object.entries(room.exits || {})) {
     const adjId = typeof exitVal === 'object' && exitVal !== null ? exitVal.room_id : exitVal;
     if (!adjId) continue;
     const adjRoom = db.getRoom(adjId);
     if (adjRoom && adjRoom.trap && adjRoom.trap.active) {
+      // Si el jugador ya conoce esta trampa, no mostrar el hint (ya sabe de qué se trata)
+      if (knownTraps[String(adjId)] === true) continue;
       trapHints.push(`${DIR_NAMES[dir] || dir}: marcas de mecanismo sospechosas en el umbral (podés escribir "desactivar trampa ${DIR_NAMES[dir] || dir}" para neutralizarla sin entrar)`);
     }
   }

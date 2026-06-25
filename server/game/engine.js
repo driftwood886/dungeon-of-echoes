@@ -688,7 +688,7 @@ function cmdLook(player) {
     combat.checkRespawns(() => {}, () => {});
   } catch (_) { /* no romper look si checkRespawns falla */ }
 
-  const text = dungeon.describeRoom(player.current_room_id, player.id);
+  const text = dungeon.describeRoom(player.current_room_id, player.id, player);
   // Mostrar efecto de sala si existe
   const roomEffect = ROOM_EFFECTS[player.current_room_id];
   const effectLine = roomEffect ? `\n🌐 Efecto de sala: ${roomEffect.label}` : '';
@@ -1256,7 +1256,7 @@ function cmdMove(player, direction) {
 
   // Construir respuesta
   const moveText = `Vas hacia el ${dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction}.`;
-  const roomDesc = dungeon.describeRoom(targetId, player.id);
+  const roomDesc = dungeon.describeRoom(targetId, player.id, player);
 
   // ── Verificar trampa en la sala destino ─────────────────────────────────
   let trapText = '';
