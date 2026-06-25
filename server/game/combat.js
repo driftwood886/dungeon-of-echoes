@@ -911,9 +911,29 @@ function attackRound(player, monster) {
     const isEliteMonster = monster.name.startsWith('⭐ ');
     if (isEliteMonster) {
       lines.push(`🌟 ¡Era un monstruo ÉLITE! Recompensa mejorada.`);
-      // Agregar loot extra: siempre monedas de oro + posible ítem de la tabla
+      // BUG-907: Loot diferenciado por tipo de élite — cada mob tiene su ítem exclusivo
+      const ELITE_EXCLUSIVE_LOOT = {
+        'Goblin Merodeador':    { item: 'gema de goblin',       chance: 0.60 },
+        'Rata Gigante':         { item: 'pelaje lustroso',       chance: 0.70 },
+        'Araña Tejedora':       { item: 'seda de élite',         chance: 0.65 },
+        'Espectro del Corredor':{ item: 'fragmento espectral',   chance: 0.60 },
+        'Murciélago Vampiro':   { item: 'colmillo vampírico',    chance: 0.55 },
+        'Esqueleto Guerrero':   { item: 'hueso reforzado',       chance: 0.60 },
+        'Gólem de Piedra':      { item: 'cristal de élite',      chance: 0.50 },
+        'Elemental de Hielo':   { item: 'núcleo gélido',         chance: 0.50 },
+        'Krakeling':            { item: 'tinta de abismo',       chance: 0.55 },
+      };
+      // Extraer nombre base (sin el ⭐ y el espacio)
+      const eliteBaseName = monster.name.slice(2);
+      const exclusiveLootEntry = ELITE_EXCLUSIVE_LOOT[eliteBaseName];
+
+      // Agregar loot extra: siempre monedas de oro extra + posible ítem exclusivo
       const eliteGoldLoot = ['monedas de oro'];
       if (Math.random() < 0.5) eliteGoldLoot.push('monedas de oro');
+      // Ítem exclusivo con chance según la tabla
+      if (exclusiveLootEntry && Math.random() < exclusiveLootEntry.chance) {
+        eliteGoldLoot.push(exclusiveLootEntry.item);
+      }
       loot.push(...eliteGoldLoot);
       // BUG-887: Depositar las monedas de oro del élite en el suelo de la sala
       // Antes solo se agregaban al array local 'loot' (para el mensaje) pero no al suelo

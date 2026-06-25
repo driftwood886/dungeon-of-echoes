@@ -94,6 +94,17 @@ const ITEM_CATALOG = {
   'filacteria rota':     { type: 'misc', description: 'La filacteria del Lich Anciano, destruida. Sin ella, el Lich no puede regresar... ¿verdad?' },
   'esencia de sombra':   { type: 'misc', description: 'La esencia condensada de las sombras del dungeon. Vibra en la oscuridad.' },
 
+  // ── Ítems exclusivos de monstruos ÉLITE (BUG-907) ───────────────────────
+  'gema de goblin':      { type: 'misc', description: 'Una gema tosca y verde que solo los goblins élite portan. Brilla con una luz extraña. Material de lujo para los coleccionistas del dungeon.' },
+  'pelaje lustroso':     { type: 'misc', description: 'El pelaje de una Rata Gigante élite — suave, sin marcas de combate. Mucho más valioso que el pelaje áspero común.' },
+  'seda de élite':       { type: 'misc', description: 'Seda producida por una Araña Tejedora élite. Más resistente y fina que la seda normal. Un material de crafting excepcional.' },
+  'fragmento espectral': { type: 'misc', description: 'Un fragmento de energía espectral condensada de un Espectro del Corredor élite. Pulsa con luz azul pálida. Material artesanal raro.' },
+  'colmillo vampírico':  { type: 'misc', description: 'El colmillo de un Murciélago Vampiro élite — más largo y afilado que el normal. Retiene energía vital absorbida.' },
+  'hueso reforzado':     { type: 'misc', description: 'Hueso de un Esqueleto Guerrero élite, endurecido por años de combate y magia oscura. Material de artesanía resistente.' },
+  'cristal de élite':    { type: 'misc', description: 'Un cristal mágico de mayor pureza, extraído de un Gólem de Piedra élite. Concentra más poder que el cristal mágico común.' },
+  'núcleo gélido':       { type: 'misc', description: 'El núcleo de un Elemental de Hielo élite — frío absoluto concentrado. Mucho más potente que el cristal helado común.' },
+  'tinta de abismo':     { type: 'misc', description: 'Tinta negra de un Krakeling élite. Más densa y cargada de energía abismal que la tinta de kraken ordinaria.' },
+
   // ── Ítems del Dungeon Extendido — Cámara del Eco y Abismo Eterno (T132) ────
   'cristal resonante':   { type: 'misc', description: 'Un cristal que vibra con el eco de los muertos. Emite un suave hum que aumenta con la luna. 🔧 Pista: combinalo con esencia de eco o polvo de eco para craftear armas espectrales.' },
   'polvo de eco':        { type: 'misc', description: 'Polvo que cayó de las paredes de la Cámara del Eco. Brilla con luz tenue al agitarlo. 🔧 Pista: ingrediente artesanal — combinalo con cristal resonante.' },

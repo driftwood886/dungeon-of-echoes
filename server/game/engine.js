@@ -6636,6 +6636,16 @@ const SHOP_CATALOG = [
   { name: 'esencia de sombra',       price: 38,  sellOnly: true, description: 'Esencia de las sombras del dungeon. Material de altísimo nivel.' },
   { name: 'esencia del abismo',      price: 38,  sellOnly: true, description: 'Esencia pura de la Sombra del Vacío. Extremadamente valiosa.' },
   { name: 'fragmento de vacío',      price: 38,  sellOnly: true, description: 'Fragmento del Abismo Eterno. Aldric lo quiere para investigación.' },
+  // BUG-907: Ítems exclusivos de monstruos élite
+  { name: 'gema de goblin',          price: 20,  sellOnly: true, description: 'Gema de un goblin élite. Rara y brillante.' },
+  { name: 'pelaje lustroso',         price: 18,  sellOnly: true, description: 'Pelaje de rata élite, suave y sin marcas. Vale más que el normal.' },
+  { name: 'seda de élite',           price: 22,  sellOnly: true, description: 'Seda de araña élite, más fina y resistente.' },
+  { name: 'fragmento espectral',     price: 25,  sellOnly: true, description: 'Fragmento de un espectro élite. Pulsa con luz azul.' },
+  { name: 'colmillo vampírico',      price: 18,  sellOnly: true, description: 'Colmillo de murciélago élite, mayor y afilado.' },
+  { name: 'hueso reforzado',         price: 20,  sellOnly: true, description: 'Hueso de esqueleto élite, endurecido por magia.' },
+  { name: 'cristal de élite',        price: 30,  sellOnly: true, description: 'Cristal mágico de mayor pureza. Valioso.' },
+  { name: 'núcleo gélido',           price: 32,  sellOnly: true, description: 'Núcleo de elemental élite, frío absoluto concentrado.' },
+  { name: 'tinta de abismo',         price: 30,  sellOnly: true, description: 'Tinta de krakeling élite, más densa y arcana.' },
 
   // BUG-843: ítems raros, épicos y legendarios de drop/crafteo — precios diferenciados
   // Legendarios
