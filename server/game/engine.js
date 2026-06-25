@@ -327,6 +327,7 @@ function execute(playerId, input, context) {
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
     case 'clase':        result = cmdClase(player, action.args); break;
+    case 'especializar': result = cmdSpecialize(player, action.args); break;
     case 'bestiary':     result = cmdBestiary(player); break;
     case 'profile':      result = cmdProfile(player); break;
     case 'journal':      result = cmdJournal(player); break;
@@ -1904,7 +1905,13 @@ function cmdStatus(player) {
     player.nickname ? `Apodo:    "${player.nickname}"` : null,
     `Título:   ${getTitle(kills).full}`,
     player.player_class && player.player_class !== 'sin_clase'
-      ? `Clase:    ${(classes.getPlayerClass(player) || {}).emoji || ''} ${(classes.getPlayerClass(player) || {}).name || player.player_class}`
+      ? (() => {
+          const clsObj = classes.getPlayerClass(player) || {};
+          const specLine = player.specialization
+            ? ` [${(require('./specializations').getSpec(player.specialization) || {}).name || player.specialization}]`
+            : ((player.level || 1) >= 5 ? ' — ⚠️ elegí especialización: escribe "especializar"' : '');
+          return `Clase:    ${clsObj.emoji || ''} ${clsObj.name || player.player_class}${specLine}`;
+        })()
       : `Clase:    (sin clase — usá "clase" para elegir)`,
     `Nivel:    ${level}  (${xp} XP total | kills: ${kills} | muertes: ${deaths})`,
     `XP sig.:  ${xpBar} ${xpSystem.xpIntoLevel(xp, level)}/${xpSystem.xpForNextLevel(level)}`,
@@ -9632,6 +9639,10 @@ function cmdCast(player, args) {
     const activeEvCast = worldEvents.getCurrentEvent();
     const arcaneSurgeBonus = (activeEvCast && activeEvCast.id === 'arcane_surge') ? (activeEvCast.spellBonus || 0.50) : 0;
     const arcaneSurgeMult = 1 + arcaneSurgeBonus;
+    // DIS-914: Evoker — hechizos de daño directo (rayo, bola de fuego, escarcha) +25%
+    const EVOKER_DIRECT_DAMAGE_SPELLS = ['rayo', 'bola de fuego', 'fireball', 'lightning', 'escarcha', 'ice', 'frost', 'meteoro'];
+    const evokerBonus = (player.specialization === 'evoker' && EVOKER_DIRECT_DAMAGE_SPELLS.includes(spellName)) ? 0.25 : 0;
+    const evokerMult = 1 + evokerBonus;
     // DIS-562: Resistencia mágica para bosses/élites — reducen el daño mágico al 65%
     // Afecta a criaturas físicas/pétricas que resistirían la magia
     // DIS-826: Eco Viviente agregado — sus ecos amplifican y absorben magia (nivel 6+ no debería caer en 3 hechizos nivel 3)
@@ -9644,7 +9655,7 @@ function cmdCast(player, args) {
     const isGuardiaEspectral = targetNameLow.includes('guardia espectral');
     const isHighImpactSpell = ['rayo', 'bola de fuego', 'fireball', 'lightning', 'escarcha', 'ice', 'frost'].includes(spellName);
     const magicResist = isGuardiaEspectral && isHighImpactSpell ? 0.4 : (hasMagicResist ? 0.65 : 1.0);
-    const finalDmg = Math.max(1, Math.round(dmg * spellPower * magicResist * arcaneSurgeMult));
+    const finalDmg = Math.max(1, Math.round(dmg * spellPower * magicResist * arcaneSurgeMult * evokerMult));
     const newHp = Math.max(0, target.hp - finalDmg);
     db.updatePlayer(player.id, { mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
 
@@ -9661,7 +9672,8 @@ function cmdCast(player, args) {
     lines.push(`🪄 Lanzás ${spell.icon} **${spellName}** sobre ${target.name}!`);
     const magicResistNote = hasMagicResist ? ` 🛡️ (resistencia mágica: ×${magicResist})` : '';
     const arcaneSurgeNote = arcaneSurgeBonus > 0 ? ` ⚡(+${Math.round(arcaneSurgeBonus * 100)}% Carga Arcana)` : '';
-    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${arcaneSurgeNote})` : (magicResistNote + arcaneSurgeNote) || '';
+    const evokerNote = evokerBonus > 0 ? ` ⚡[Evoker +25%]` : '';
+    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${arcaneSurgeNote}${evokerNote})` : (magicResistNote + arcaneSurgeNote + evokerNote) || '';
     lines.push(`   ${target.name} recibe ${finalDmg} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
 
     // T214: stun_chance — hechizos que pueden aturdir al monstruo (ej: rayo)
@@ -9790,6 +9802,13 @@ function cmdCast(player, args) {
         lines.push(`✨ ¡Subiste al nivel ${newLevel}! +5 HP máx, +1 ataque, +${healCast} HP restaurado.`);
       }
       db.updatePlayer(player.id, castUpd);
+      // DIS-914: Evoker — resonancia mágica: 20% chance de recuperar 2 maná al matar con hechizo
+      if (player.specialization === 'evoker' && Math.random() < 0.20) {
+        const freshForReson = db.getPlayer(player.id);
+        const resonMana = Math.min(freshForReson.max_mana || 35, (freshForReson.mana || 0) + 2);
+        db.updatePlayer(player.id, { mana: resonMana });
+        lines.push(`⚡ [Evoker] ¡Resonancia mágica! La muerte de ${target.name} te devuelve 2 maná. (${resonMana}/${freshForReson.max_mana || 35})`);
+      }
       lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})`);
       broadcastEvent = `🔥 ¡${player.username} incineró a ${target.name} con ${spellName}!`;
       // Bestiario
@@ -10510,6 +10529,30 @@ function cmdSkills(player) {
     lines.push('   Ej: sanacion_mayor, heal, bendicion, smash, golpe_sucio');
   }
 
+  // DIS-914: mostrar especialización si existe, o prompt si nivel >= 5
+  const { getSpec: getSpecInfo, getSpecsForClass } = require('./specializations');
+  if (fresh.specialization) {
+    const specObj = getSpecInfo(fresh.specialization);
+    if (specObj) {
+      lines.push('─'.repeat(40));
+      lines.push(`🌟 ESPECIALIZACIÓN: ${specObj.emoji} ${specObj.name}`);
+      lines.push(`   "${specObj.description}"`);
+      lines.push('   Bonuses pasivos:');
+      for (const p of specObj.passives) lines.push(`     • ${p}`);
+      lines.push('   Comandos nuevos desbloqueados:');
+      for (const cmd of specObj.new_commands) lines.push(`     • ${cmd}`);
+    }
+  } else if (level >= 5 && fresh.player_class && fresh.player_class !== 'sin_clase') {
+    const availableSpecs = getSpecsForClass(fresh.player_class);
+    lines.push('─'.repeat(40));
+    lines.push('🌟 ¡Podés especializarte! Alcanzaste el nivel 5.');
+    lines.push('   Escribí "especializar" para ver las opciones y elegir tu camino.');
+    if (availableSpecs.length > 0) {
+      lines.push('   Opciones disponibles:');
+      for (const sp of availableSpecs) lines.push(`     • ${sp.emoji} ${sp.name} — ${sp.description}`);
+    }
+  }
+
   // Habilidades aún bloqueadas (filtrar por clase)
   const locked = skills.ALL_SKILLS.filter(sk => {
     if (level >= sk.required_level) return false;
@@ -10525,6 +10568,118 @@ function cmdSkills(player) {
       lines.push(`  🔒 ${sk.name} (Nivel ${sk.required_level}) — ${sk.description}`);
     }
   }
+
+  return { text: lines.join('\n') };
+}
+
+/**
+ * DIS-914: cmdSpecialize — Elegir especialización de clase al nivel 5.
+ * Sin args: muestra opciones disponibles para la clase del jugador.
+ * Con arg:  confirma la elección.
+ */
+function cmdSpecialize(player, args) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: 'Error al leer tu perfil.' };
+
+  const level = fresh.level || 1;
+  const playerClass = fresh.player_class || 'sin_clase';
+
+  // Sin clase elegida aún
+  if (!playerClass || playerClass === 'sin_clase') {
+    return { text: '⚔️ Primero elegí una clase con "clase". La especialización se desbloquea al nivel 5.' };
+  }
+
+  // Nivel mínimo 5
+  if (level < 5) {
+    return { text: `🔒 La especialización se desbloquea al nivel 5. Ahora estás en nivel ${level}.\n\nSeguí combatiendo — vas a ver las opciones disponibles en "skills" cuando llegues.` };
+  }
+
+  // Ya eligió especialización
+  if (fresh.specialization) {
+    const existingSpec = require('./specializations').getSpec(fresh.specialization);
+    const specName = existingSpec ? `${existingSpec.emoji} ${existingSpec.name}` : fresh.specialization;
+    return { text: `🌟 Ya elegiste tu especialización: ${specName}.\n\nLa especialización es permanente para este personaje. Si querés explorar el otro camino, creá un nuevo personaje.` };
+  }
+
+  const { getSpecsForClass, resolveSpec, getSpec } = require('./specializations');
+  const available = getSpecsForClass(playerClass);
+
+  if (available.length === 0) {
+    return { text: `⚠️ No hay especializaciones disponibles aún para tu clase. Seguí atento a las actualizaciones del dungeon.` };
+  }
+
+  // Sin argumento: mostrar opciones
+  if (!args || args.length === 0) {
+    const clsObj = classes.getPlayerClass(fresh) || {};
+    const lines = [
+      `🌟 ESPECIALIZACIÓN — ${clsObj.emoji || ''} ${clsObj.name || playerClass}`,
+      '─'.repeat(50),
+      'Has alcanzado el nivel 5. Es hora de elegir tu camino.',
+      'Esta decisión es PERMANENTE para este personaje.',
+      '',
+    ];
+    for (const sp of available) {
+      lines.push(`${sp.emoji} ${sp.name.toUpperCase()}  →  especializar ${sp.id}`);
+      lines.push(`   "${sp.description}"`);
+      lines.push('   Bonuses:');
+      for (const p of sp.passives) lines.push(`     • ${p}`);
+      lines.push(`   Nuevos comandos: ${sp.new_commands.join(', ')}`);
+      lines.push('');
+    }
+    lines.push('─'.repeat(50));
+    lines.push('💡 Para elegir: especializar <nombre>');
+    lines.push(`   Ej: especializar ${available[0].id}`);
+    return { text: lines.join('\n') };
+  }
+
+  // Con argumento: intentar confirmar elección
+  const specId = resolveSpec(args.join(' '));
+  if (!specId) {
+    const names = available.map(s => s.id).join(' | ');
+    return { text: `⚠️ Especialización no reconocida. Opciones para tu clase: ${names}\n\nEjemplo: especializar ${available[0].id}` };
+  }
+
+  const specObj = getSpec(specId);
+  if (!specObj) {
+    return { text: '⚠️ Error al cargar la especialización. Intentá de nuevo.' };
+  }
+
+  // Verificar que la especialización sea de la clase correcta
+  if (specObj.class !== playerClass) {
+    return { text: `⚠️ La especialización "${specObj.name}" es para ${specObj.class}, no para tu clase.` };
+  }
+
+  // ¡Confirmar elección!
+  db.updatePlayer(fresh.id, { specialization: specId });
+
+  // Bonus pasivos que se aplican inmediatamente
+  const mods = specObj.combat_modifiers || {};
+
+  // Paladín: +2 DEF permanente
+  if (specId === 'paladin' && mods.def_bonus) {
+    const freshForDef = db.getPlayer(fresh.id);
+    db.updatePlayer(fresh.id, { defense: (freshForDef.defense || 2) + mods.def_bonus });
+  }
+  // Asesino: +10% crit → se aplica como bonus en status_effects
+  if (specId === 'asesino' && mods.crit_bonus) {
+    const freshForSE = db.getPlayer(fresh.id);
+    const currentSE = freshForSE.status_effects || {};
+    currentSE.spec_crit_bonus = mods.crit_bonus;
+    db.updatePlayer(fresh.id, { status_effects: currentSE });
+  }
+
+  const lines = [
+    `${specObj.flavor}`,
+    '',
+    `✅ Especialización confirmada: ${specObj.emoji} ${specObj.name}`,
+    '',
+    'Bonuses activos desde ahora:',
+  ];
+  for (const p of specObj.passives) lines.push(`  • ${p}`);
+  lines.push('');
+  lines.push(`Nuevos comandos desbloqueados: ${specObj.new_commands.join(', ')}`);
+  lines.push('');
+  lines.push('💡 Usá "skills" para ver tu especialización en detalle.');
 
   return { text: lines.join('\n') };
 }
@@ -10696,6 +10851,13 @@ function cmdUseSkill(player, args, context) {
     } else {
       text += `\n  El ${target.name} tiene ${newHp}/${target.max_hp} HP.`;
       text += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+      // DIS-914: Paladín — smash aplica Aturdido con 25% de chance si el monstruo sobrevive
+      if (freshPlayer.specialization === 'paladin' && Math.random() < 0.25) {
+        const mFxPaladin = target.status_effects ? (typeof target.status_effects === 'string' ? JSON.parse(target.status_effects) : target.status_effects) : {};
+        mFxPaladin.stunned = { turns: 1 };
+        db.updateMonster(target.id, { status_effects: JSON.stringify(mFxPaladin) });
+        text += `\n🛡️ [Paladín] ¡El golpe divino aturde al ${target.name}! Perderá 1 turno.`;
+      }
     }
 
     // Broadcast a la sala
@@ -11116,7 +11278,7 @@ function cmdUseSkill(player, args, context) {
     if (freshCler.hp >= freshCler.max_hp) {
       return { text: `✨ Ya tenés el HP al máximo. Maná no consumido.` };
     }
-    const healAmt = Math.round((skill.heal_amount || 30) * 1.5); // Clérigo tiene heal_power 1.5
+    const healAmt = Math.round((skill.heal_amount || 30) * (freshCler.specialization === 'sanador' ? 2.0 : 1.5)); // Clérigo: ×1.5; Sanador: ×2.0 (DIS-914)
     const newHpSM = Math.min(freshCler.max_hp, freshCler.hp + healAmt);
     const healedSM = newHpSM - freshCler.hp;
     const newManaSM = currManaSM - manaCostSM;

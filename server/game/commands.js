@@ -179,6 +179,8 @@ const COMMAND_ALIASES = {
   spells: 'spells', hechizos: 'spells', magia: 'spells', conjuros: 'spells', grimorios: 'spells',
   // clase / class (T107)
   clase: 'clase', class: 'clase', profesion: 'clase', profesión: 'clase', vocacion: 'clase', vocación: 'clase', oficio: 'clase',
+  // especializar (DIS-914)
+  especializar: 'especializar', especializarse: 'especializar', subclase: 'especializar', especializacion: 'especializar', especialización: 'especializar', spec: 'especializar',
   // bestiary (T108)
   bestiary: 'bestiary', bestiario: 'bestiary', monstruos: 'bestiary', cazados: 'bestiary', bitacora: 'bestiary', bitácora: 'bestiary',
   // profile (T109)
@@ -505,6 +507,7 @@ Comandos disponibles:
   cast <hechizo>        — Lanzar un hechizo (bola de fuego, escudo, curación). Requiere maná
   hechizos / spells     — Ver tus hechizos disponibles y el maná actual
   clase                 — Ver o elegir tu clase de personaje (guerrero/mago/pícaro)
+  especializar          — Al nivel 5: elegir tu especialización de clase (subclase permanente)
   bestiario             — Ver tu registro de monstruos cazados con estadísticas
   perfil / profile      — Tarjeta de aventurero completa con todos los stats en formato visual
   diario / journal      — Ver tu diario personal: logros, subidas de nivel, muertes y boss derrotados

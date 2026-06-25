@@ -34,6 +34,19 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
   if (!freshP) return {};
   const deaths = (freshP.deaths || 0) + 1;
 
+  // DIS-914: Sanador — resurrección automática con 20% chance al morir en PvE (nivel 5+)
+  if (!freshP.is_hardcore && freshP.specialization === 'sanador') {
+    const prevSeSanador = freshP.status_effects ? (typeof freshP.status_effects === 'string' ? JSON.parse(freshP.status_effects) : freshP.status_effects) : {};
+    if (!prevSeSanador.sanador_milagro_used && Math.random() < 0.20) {
+      prevSeSanador.sanador_milagro_used = true;
+      db.updatePlayer(playerId, { hp: 5, status_effects: JSON.stringify(prevSeSanador) });
+      lines.push(`💚 ¡MILAGRO DEL SANADOR! Un destello de luz divina te arranca de la muerte.`);
+      lines.push(`   Resuicás con 5 HP. (Solo ocurre una vez por sesión.)`);
+      db.addJournalEntry(playerId, 'special', `💚 El milagro del Sanador te salvó de la muerte en ${causeDescription}.`);
+      return { autoResurrected: true };
+    }
+  }
+
   // DIS-726: Autoresurrección del Clérigo nivel 10 (singleplayer fallback)
   // Si el Clérigo tiene resurreccion desbloqueada y no la usó esta sesión, se salva de la muerte
   if (!freshP.is_hardcore && freshP.player_class === 'clerigo' && (freshP.level || 1) >= 10) {
@@ -492,8 +505,21 @@ function attackRound(player, monster) {
     lines.push(`🥷 [GOLPE DE SORPRESA] Salís de las sombras con un ataque letal...`);
   }
 
-  const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0) + enchantCritBonus + rogueCritBonusGloves + stanceCritPenalty;
-  const isCrit = stealthSurprise ? true : Math.random() < critChance;
+  const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0) + enchantCritBonus + rogueCritBonusGloves + stanceCritPenalty
+    // DIS-914: bonus crit del Asesino (+10%)
+    + (player.specialization === 'asesino' ? 0.10 : 0);
+  // DIS-914: Asesino — primer ataque en sala nueva es siempre crítico (ambush)
+  const seForAmbush = typeof player.status_effects === 'object' ? player.status_effects : {};
+  const ambushReady = player.specialization === 'asesino' && seForAmbush.asesino_ambush_room !== player.current_room_id;
+  const isCrit = stealthSurprise || ambushReady ? true : Math.random() < critChance;
+  // Marcar sala de ambush para no repetir en esta sala
+  if (ambushReady && !stealthSurprise) {
+    const seForAmbushWrite = typeof player.status_effects === 'object' ? { ...player.status_effects } : {};
+    seForAmbushWrite.asesino_ambush_room = player.current_room_id;
+    db.updatePlayer(player.id, { status_effects: JSON.stringify(seForAmbushWrite) });
+    if (typeof player.status_effects === 'object') player.status_effects.asesino_ambush_room = player.current_room_id;
+    lines.push(`🗡️ [EMBOSCADA] Tu primer golpe en esta sala es siempre un crítico.`);
+  }
   // DIS-683: Los bosses son resistentes a emboscadas del Pícaro — multiplicador 1.5x en vez de 2x
   // Los monstruos normales siguen recibiendo el 2x completo (fantasía de clase intacta)
   // DIS-758: Elemental de Hielo y Krakeling Abismal (mobs de mid-game de zona deep) también tienen
@@ -532,12 +558,14 @@ function attackRound(player, monster) {
   // Narrativa: el Clérigo canaliza su poder a través de la fe, no de la fuerza bruta
   // Usar el símbolo sagrado (+cleric_only_bonus) evita la penalidad y refleja la fantasía de clase
   // DIS-899: el hint completo solo se muestra una vez por sesión (flag shown_nonsacred_hint)
+  // DIS-914: Sanador (especialización) anula la penalidad de arma no-sagrada permanentemente
   let clericWeaponPenalty = 1.0;
   const clericWeaponPenaltyNote = [];
   if (clsData && clsData.name === 'Clérigo') {
     const equippedWpnDef = player.equipped_weapon ? items.getItemDef(player.equipped_weapon) : null;
     const hasSacredBonus = equippedWpnDef && equippedWpnDef.cleric_only_bonus;
-    if (!hasSacredBonus) {
+    const isSanadorSpec = player.specialization === 'sanador'; // DIS-914: Sanador no tiene penalidad
+    if (!hasSacredBonus && !isSanadorSpec) {
       clericWeaponPenalty = 0.90;
       // DIS-899: leer flag para decidir si mostrar hint completo o solo el multiplicador
       const seForNonsacred = player.status_effects
@@ -978,6 +1006,12 @@ function attackRound(player, monster) {
       updates.hp     = Math.min(updates.max_hp, (freshPlayer.hp || 1) + healOnLevelUp);
       updates.attack = (freshPlayer.attack || 5) + 1;
       lines.push(`✨ ¡Subiste al nivel ${newLevel}! +5 HP máx, +1 ataque, +${healOnLevelUp} HP restaurado.`);
+      // DIS-914: Prompt de especialización al llegar al nivel 5
+      if (newLevel === 5 && freshPlayer.player_class && freshPlayer.player_class !== 'sin_clase' && !freshPlayer.specialization) {
+        lines.push(`\n🌟 ¡Nivel 5 alcanzado! Es hora de elegir tu ESPECIALIZACIÓN.`);
+        lines.push(`   Escribí "especializar" para ver las opciones y escoger tu camino.`);
+        lines.push(`   Esta decisión es permanente — define quién sos en el dungeon.`);
+      }
     }
     lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})`);
     // T190: Encantamiento de luz — +3 HP al matar
@@ -990,6 +1024,17 @@ function attackRound(player, monster) {
       updates.hp = newHpLuz;
     }
     db.updatePlayer(player.id, updates);
+
+    // DIS-914: Asesino — al matar con crítico, 15% chance de loot doble
+    if (player.specialization === 'asesino' && isCrit && loot.length > 0 && Math.random() < 0.15) {
+      const bonusLoot = [...loot];
+      const roomForDouble = db.getRoom(player.current_room_id);
+      if (roomForDouble) {
+        db.updateRoomItems(player.current_room_id, [...roomForDouble.items, ...bonusLoot]);
+      }
+      loot.push(...bonusLoot);
+      lines.push(`🗡️ [Asesino] ¡Kill crítico! El loot se duplica (×2): ${[...new Set(loot)].join(', ')}.`);
+    }
 
     // DIS-497: Bonus de asistencia — otros jugadores activos en la misma sala reciben +25% XP
     // Esto hace que cooperar tenga valor concreto: estar en la misma sala que otro jugador

@@ -183,6 +183,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN inventory_bonus INTEGER NOT NULL DEFAULT 0`,         // DIS-595: slots extra de inventario (bolsa de lona: +4 por bolsa, máx 2)
     `ALTER TABLE monsters ADD COLUMN defense INTEGER NOT NULL DEFAULT 0`,                // BUG-462: columna defense faltante en monsters (crash en Fase 2 de bosses)
     `ALTER TABLE players ADD COLUMN cycle_start_at TEXT`,                                // DIS-691: timestamp de inicio del ciclo actual (para calcular tiempo de ciclo)
+    `ALTER TABLE players ADD COLUMN specialization TEXT`,                                 // DIS-914: especialización de clase (Paladín, Evoker, Asesino, Sanador…)
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
