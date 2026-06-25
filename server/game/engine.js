@@ -3227,7 +3227,7 @@ function cmdPick(player, itemQuery) {
     'cofre de oro': 50,
   };
   const foundLower = found.toLowerCase();
-  const goldKey = Object.keys(GOLD_ITEMS).find(k => foundLower.includes(k) || k.includes(foundLower));
+  const goldKey = Object.keys(GOLD_ITEMS).find(k => foundLower === k);
 
   // DIS-D385: Chequear capacidad de inventario antes de recoger (solo para ítems no-moneda)
   // BUG-489: contar también ítems equipados (no están en player.inventory pero ocupan slot visual)
@@ -4868,9 +4868,7 @@ function cmdLoot(player) {
   const nonGoldItems = [];
   const openedContainers = []; // DIS-D361: rastrear cofres abiertos para mensaje narrativo
   for (const item of floorItems) {
-    const gKey = Object.keys(GOLD_ITEMS_LOOT).find(k =>
-      item.toLowerCase().includes(k) || k.includes(item.toLowerCase())
-    );
+    const gKey = Object.keys(GOLD_ITEMS_LOOT).find(k => item.toLowerCase() === k);
     if (gKey) {
       const amount = GOLD_ITEMS_LOOT[gKey];
       goldCollected += amount;
