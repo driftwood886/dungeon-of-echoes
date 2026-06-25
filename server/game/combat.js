@@ -997,6 +997,17 @@ function attackRound(player, monster) {
     const weatherXpMult = weather.getXpMultiplier(); // 1.1 si calma arcana, 1.0 si no
     const xpGain = Math.floor(xpBase * invasionMult * bloodmoonXpMult * weatherXpMult * eliteXpMult);
     const freshPlayer = db.getPlayer(player.id);
+
+    // BUG-927: El Goblin de Práctica (id=20) no debe dar XP ni kills una vez completado el tutorial.
+    // completeTutorial() tiene su propio path de XP. Post-tutorial, si el jugador vuelve a golpearlo
+    // (posible antes de que respawnee lejos), no debe recibir recompensa.
+    const PRACTICE_GOBLIN_ID_MAIN = 20;
+    const isTutorialGoblinPostTutorial = monster.id === PRACTICE_GOBLIN_ID_MAIN && freshPlayer.tutorial_complete;
+    if (isTutorialGoblinPostTutorial) {
+      lines.push(`   (El Goblin de Práctica no da XP ni kills — el tutorial ya terminó.)`);
+      return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
+    }
+
     const newKills = (freshPlayer.kills || 0) + 1;
     const newXp    = (freshPlayer.xp    || 0) + xpGain;
     const oldLevel = freshPlayer.level || 1;
