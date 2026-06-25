@@ -4636,12 +4636,16 @@ function cmdEquip(player, itemQuery) {
   } else if (isClerigoEquip && foundLower.includes('símbolo sagrado')) {
     // DIS-610: flavor para Clérigo equipando símbolo sagrado
     magoHeavyFlavor = `\n✨ (El símbolo responde a tu fe. +${def.cleric_only_bonus || 0} de ataque adicional por ser Clérigo. El cooldown de tus rezos se reduce a 3 minutos.)`;
-  } else if (isClerigoEquip && !def.cleric_only_bonus && def.type === 'weapon') {
+  } else if (isClerigoEquip && !def.cleric_only_bonus && def.type === 'weapon' && player.specialization !== 'sanador') {
     // DIS-722: Clérigo con arma no-sagrada recibe penalidad de -10% daño físico
     // DIS-764: mostrar daño efectivo con penalidad para que el jugador pueda comparar
+    // BUG-926: Sanador (especialización) NO tiene penalidad de arma no-sagrada — no mostrar este mensaje
     const effectiveDmg = Math.round(newAttack * 0.9);
     const symbolDmg = baseAttackEquip + 4; // símbolo sagrado: +2 ATK base + 2 Clérigo, sin penalidad
     magoHeavyFlavor = `\n⚕️ (Arma no-sagrada: el Clérigo inflige ×0.9 de daño físico. Daño efectivo: ~${effectiveDmg} (${newAttack} × 0.9). Símbolo sagrado (20g en Aldric): ~${symbolDmg} ATK sin penalidad — comparás tú.)`;
+  } else if (isClerigoEquip && !def.cleric_only_bonus && def.type === 'weapon' && player.specialization === 'sanador') {
+    // BUG-926: Sanador no tiene penalidad — dar flavor positivo en lugar del warning
+    magoHeavyFlavor = `\n💚 (Como Sanador, tu fe anula la penalidad de arma no-sagrada. Tu daño físico es completo con cualquier arma.)`;
   } else if (clsDataEquip && clsDataEquip.name === 'Pícaro' && foundLower.includes('lanza espectral del eco')) {
     // DIS-836: flavor para Pícaro equipando la lanza espectral del eco
     magoHeavyFlavor = `\n🗡️ (La lanza vibra con una resonancia que conocés de las profundidades. La recorriste para conseguirla — cada eco, cada corredor, cada boss. Su balance es perfecto para golpes precisos. +${def.amount} ATK. Los puntos débiles de tus enemigos parecen iluminarse.)`;
