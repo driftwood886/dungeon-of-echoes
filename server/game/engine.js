@@ -3864,9 +3864,25 @@ function cmdExamine(player, query) {
   // DIS-511: Primero chequear si el ítem está específicamente en el inventario del jugador.
   // Esto evita que lore objects de sala roben la búsqueda cuando el jugador quiere examinar
   // algo que ya tiene en la mochila (ej: "examine carta sellada" con la carta en inventario).
+  // BUG-910: Excepción — palabras de lore de sala específica deben ganar sobre inventario.
+  // Ej: "examine hielo" en sala 11 no debe mostrar "esencia de hielo" del inventario.
+  // LORE_PRIORITY_WORDS ya excluía monsters y room items; este set añade la misma lógica para inventario.
+  const LORE_OVER_INV_WORDS = new Set([
+    'hielo', 'columnas', 'figuras',   // sala 11 (Galería de Hielo) — BUG-910
+    'cofres', 'estantes',              // sala 4 (Cámara del Tesoro)
+    'velas', 'cera',                   // sala 5 (Capilla Olvidada)
+    'trono',                           // sala 9 (Sala del Trono)
+    'estrado', 'candelabros', 'escriba', // sala 17 (Casa de Subastas)
+    'runas', 'runa',                   // sala 10 (Santuario)
+    'huesos',                          // sala 3 (Sala de los Ecos) — BUG-419
+    'forja',                           // sala 12 (Forja Espectral)
+    'fuente', 'pozo',                  // salas 18, 7
+  ]);
   const invForExamine = player.inventory || [];
   const equippedForExamine = [player.equipped_weapon, player.equipped_armor].filter(Boolean);
-  const invItemName = items.findItem([...invForExamine, ...equippedForExamine], query.trim());
+  const invItemName = !LORE_OVER_INV_WORDS.has(qLow)
+    ? items.findItem([...invForExamine, ...equippedForExamine], query.trim())
+    : null;
   if (invItemName) {
     const def = items.getItemDef(invItemName);
     const isEquipped = equippedForExamine.includes(invItemName);
