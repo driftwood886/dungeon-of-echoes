@@ -4624,8 +4624,18 @@ function cmdEquip(player, itemQuery) {
     ? ` (bono base del arma: +${def.amount} ATK${mageOnlyBonusStr}${clericOnlyBonusStr}; ${changeStr} neto vs ${player.equipped_weapon})`
     : ` (bono del arma: +${def.amount} ATK${mageOnlyBonusStr}${clericOnlyBonusStr})`;
 
+  // DIS-912: advertir si el Mago pierde bono de regen de maná al cambiar de arma mágica a física
+  let manaRegenWarnMsg = '';
+  if (isMagoEquip && player.equipped_weapon) {
+    const prevRegenBonus = player.equipped_weapon === 'vara de energía' ? 2 : 0;
+    const newRegenBonus  = found === 'vara de energía' ? 2 : 0;
+    if (prevRegenBonus > newRegenBonus) {
+      manaRegenWarnMsg = `\n⚠️ Perdés el bono de regen de maná de ${player.equipped_weapon} (-${prevRegenBonus} maná/min). Regenerarás ${6} maná/min en lugar de ${6 + prevRegenBonus}.`;
+    }
+  }
+
   return {
-    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.\n${def.description}${magoHeavyFlavor}${critWarnMsg}${swapMsg}`,
+    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.\n${def.description}${magoHeavyFlavor}${critWarnMsg}${manaRegenWarnMsg}${swapMsg}`,
     event: `${player.username} empuña ${found}.`,
     eventRoomId: player.current_room_id,
   };
