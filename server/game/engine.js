@@ -3466,14 +3466,24 @@ function cmdUse(player, itemQuery) {
     if (player.hp >= maxHp) {
       return { text: `Ya estás al máximo de HP (${player.hp}/${maxHp}). Guardás la ${found}.` };
     }
-    const newHp = Math.min(maxHp, player.hp + def.amount);
+    // BUG-916: aplicar bonus de curación del Paladín (+5 HP por poción)
+    let healAmount = def.amount;
+    if (player.specialization === 'paladin') {
+      const { getSpec } = require('./specializations.js');
+      const palSpec = getSpec('paladin');
+      if (palSpec && palSpec.combat_modifiers && palSpec.combat_modifiers.potion_heal_bonus) {
+        healAmount += palSpec.combat_modifiers.potion_heal_bonus;
+      }
+    }
+    const newHp = Math.min(maxHp, player.hp + healAmount);
     db.updatePlayer(player.id, { hp: newHp });
 
     // Consumir el ítem
     const newInv = removeFirst(player.inventory, found);
     db.updatePlayer(player.id, { inventory: newInv });
 
-    resultText = `Bebés la ${found}. Recuperás ${newHp - oldHp} HP. (${newHp}/${maxHp} HP)`;
+    const palBonus = healAmount > def.amount ? ` (+${healAmount - def.amount} 🛡️ Paladín)` : '';
+    resultText = `Bebés la ${found}. Recuperás ${newHp - oldHp} HP${palBonus}. (${newHp}/${maxHp} HP)`;
 
   } else if (def.type === 'mana_potion' && def.effect === 'restore_mana') {
     // T104: Pociones de maná
