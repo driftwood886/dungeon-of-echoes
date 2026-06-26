@@ -1845,7 +1845,7 @@ function getWorldGoalsDisplay() {
  * resetea el contador primero. Retorna el nuevo conteo.
  */
 function incrementHourlyKills(playerId) {
-  const player = db.prepare('SELECT hourly_kills, hourly_kills_reset FROM players WHERE id = ?').get(playerId);
+  const player = one('SELECT hourly_kills, hourly_kills_reset FROM players WHERE id = ?', [playerId]);
   if (!player) return 0;
 
   const now = new Date();
@@ -1856,10 +1856,10 @@ function incrementHourlyKills(playerId) {
   if (lastReset !== thisHour) {
     // Nueva hora: resetear
     newCount = 1;
-    db.prepare('UPDATE players SET hourly_kills = 1, hourly_kills_reset = ? WHERE id = ?').run(thisHour, playerId);
+    run('UPDATE players SET hourly_kills = 1, hourly_kills_reset = ? WHERE id = ?', [thisHour, playerId]);
   } else {
     newCount = (player.hourly_kills || 0) + 1;
-    db.prepare('UPDATE players SET hourly_kills = ? WHERE id = ?').run(newCount, playerId);
+    run('UPDATE players SET hourly_kills = ? WHERE id = ?', [newCount, playerId]);
   }
   return newCount;
 }
@@ -1870,11 +1870,12 @@ function incrementHourlyKills(playerId) {
 function getHourlyChampion() {
   const now = new Date();
   const thisHour = `${now.getUTCFullYear()}-${now.getUTCMonth()}-${now.getUTCDate()}-${now.getUTCHours()}`;
-  const row = db.prepare(
+  const row = one(
     `SELECT id, username, hourly_kills, level FROM players
      WHERE hourly_kills_reset = ? AND hourly_kills > 0
-     ORDER BY hourly_kills DESC LIMIT 1`
-  ).get(thisHour);
+     ORDER BY hourly_kills DESC LIMIT 1`,
+    [thisHour]
+  );
   return row || null;
 }
 
