@@ -3,6 +3,7 @@
  *
  * Al nivel 5, el jugador elige una especialización permanente para su personaje.
  * Fase 1: 1 especialización por clase (Paladín, Evoker, Asesino, Sanador).
+ * DIS-947: Fase 2 — segunda especialización para el Pícaro: Ladrón de Sombras.
  *
  * Estructura de cada especialización:
  *   id            — identificador interno (sin tildes)
@@ -91,6 +92,32 @@ const SPECIALIZATIONS = {
     },
   },
 
+  // DIS-947: segunda especialización para el Pícaro
+  ladron: {
+    id: 'ladron',
+    class: 'picaro',
+    name: 'Ladrón de Sombras',
+    emoji: '🎭',
+    description: 'El arte de tomar lo que no es tuyo. El Ladrón de Sombras acumula riqueza y desaparece sin dejar rastro. Sigilo mejorado, robo garantizado, ventas ventajosas.',
+    flavor: '🎭 Tus dedos saben lo que hacen. Sos un Ladrón de Sombras — el oro de los otros siempre fue tuyo.',
+    passives: [
+      'Robar tiene 75% de chance de éxito (era 50%)',
+      'Al matar un monstruo humanoide: 25% chance de obtener 3-8g adicional',
+      'Vendés ítems a Aldric al 60% de su valor (era 40%)',
+      'Sigilo dura 90 segundos (era 60s) y cooldown reducido a 45s (era 75s)',
+    ],
+    new_commands: ['desaparecer'],
+    combat_modifiers: {
+      rob_chance_bonus: 0.25,        // robar: 50% + 25% = 75% chance
+      kill_gold_chance: 0.25,        // 25% chance de +3-8g al matar humanoides
+      kill_gold_min: 3,
+      kill_gold_max: 8,
+      sell_bonus_ratio: 0.20,        // venta al 60% (SELL_PRICE_RATIO 0.4 + 0.2 = 0.6)
+      sigilo_duration_bonus: 30,     // sigilo dura 30s extra (60→90s)
+      sigilo_cooldown_reduction: 30, // cooldown 30s menos (75→45s)
+    },
+  },
+
   // ─── CLÉRIGO ─────────────────────────────────────────────────────────────────
 
   sanador: {
@@ -131,6 +158,12 @@ const SPEC_ALIASES = {
   assassin:   'asesino',
   sanador:    'sanador',
   healer:     'sanador',
+  ladron:     'ladron',
+  ladrón:     'ladron',
+  'ladron de sombras': 'ladron',
+  'ladrón de sombras': 'ladron',
+  shadowthief: 'ladron',
+  shadow:     'ladron',
 };
 
 /**

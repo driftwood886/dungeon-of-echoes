@@ -495,7 +495,9 @@ function attackRound(player, monster) {
     // (en memoria), para evitar que la escritura final del combate sobreescriba el delete (mismo patrón BUG-671)
     delete seStealth.stealth_active;
     // BUG-774: agregar cooldown de 75 segundos tras consumir el sigilo — previene activación inmediata post-combate
-    seStealth.stealth_cooldown = new Date(Date.now() + 75000).toISOString();
+    // DIS-947: Ladrón de Sombras tiene cooldown reducido a 45s
+    const stealthCdMs = player.specialization === 'ladron' ? 45000 : 75000;
+    seStealth.stealth_cooldown = new Date(Date.now() + stealthCdMs).toISOString();
     db.updatePlayer(player.id, { status_effects: JSON.stringify(seStealth) });
     // También limpiar en memoria para no sobreescribir en la escritura final (línea ~1178)
     if (player.status_effects && typeof player.status_effects === 'object') {
@@ -1062,6 +1064,19 @@ function attackRound(player, monster) {
       }
       loot.push(...bonusLoot);
       lines.push(`🗡️ [Asesino] ¡Kill crítico! El loot se duplica (×2): ${[...new Set(loot)].join(', ')}.`);
+    }
+
+    // DIS-947: Ladrón de Sombras — al matar humanoides, 25% chance de +3-8g bonus
+    if (player.specialization === 'ladron' && Math.random() < 0.25) {
+      const HUMANOID_NAMES = ['goblin', 'esqueleto', 'bandido', 'espectro', 'lich', 'mago liche', 'campeón espectral', 'eco viviente'];
+      const monNameNorm = (monster.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const isHumanoid = HUMANOID_NAMES.some(h => monNameNorm.includes(h.normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
+      if (isHumanoid) {
+        const bonusGold = Math.floor(Math.random() * 6) + 3; // 3-8g
+        const freshForLadron = db.getPlayer(player.id);
+        db.updatePlayer(player.id, { gold: (freshForLadron.gold || 0) + bonusGold });
+        lines.push(`🎭 [Ladrón de Sombras] Tus dedos ágiles encuentran ${bonusGold}g escondidos mientras el ${monster.name} cae.`);
+      }
     }
 
     // DIS-497: Bonus de asistencia — otros jugadores activos en la misma sala reciben +25% XP

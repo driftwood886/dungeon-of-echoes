@@ -403,6 +403,7 @@ function execute(playerId, input, context) {
     case 'epitaph':      result = cmdEpitaph(player, action.args); break;       // T201
     case 'follow':       result = cmdFollow(player, action.args, context); break; // T204
     case 'sigilo':       result = cmdSigilo(player); break;                     // DIS-620
+    case 'desaparecer':  result = cmdSigilo(player); break;                     // DIS-947: alias Ladrón de Sombras
     case 'unfollow':     result = cmdUnfollow(player, context); break;           // T204
     case 'say':
       // DIS-856: 'say'/'decir' en sala 9 con el nombre de Kaelthas Vorn activa flavor text especial
@@ -516,6 +517,8 @@ Para todos los comandos: help
           imposition: 'imposition', imposicion: 'imposition', imposición: 'imposition',
           emboscar: 'emboscar', emboscada: 'emboscar',
           chain_heal: 'chain_heal', cadena_curacion: 'chain_heal', cadena_curación: 'chain_heal',
+          // DIS-947: Ladrón de Sombras
+          desaparecer: 'desaparecer', vanish: 'desaparecer', esconder: 'desaparecer',
           cast: 'cast', lanzar: 'cast', hechizar: 'cast',
           vault: 'vault', boveda: 'vault', bóveda: 'vault', cofre: 'vault',
           enchant: 'enchant', encantar: 'enchant', encantamiento: 'enchant',
@@ -7322,7 +7325,9 @@ function cmdSell(player, itemQuery) {
     const sellQuery = matchEquipped;
     const catalogItemEq = SHOP_CATALOG.find(i => i.name.toLowerCase() === sellQuery.toLowerCase());
     const basePriceEq = catalogItemEq ? catalogItemEq.price : 10;
-    const sellPriceEq = Math.max(1, Math.floor(basePriceEq * SELL_PRICE_RATIO));
+    // DIS-947: Ladrón de Sombras vende al 60% en lugar del 40% base
+    const ladronSellBonusEq = player.specialization === 'ladron' ? 0.20 : 0;
+    const sellPriceEq = Math.max(1, Math.floor(basePriceEq * (SELL_PRICE_RATIO + ladronSellBonusEq)));
     const newGoldEq = (player.gold || 0) + sellPriceEq;
     // Desequipar y actualizar stats
     if (sellQuery === eqWeapon) {
@@ -7360,9 +7365,11 @@ function cmdSell(player, itemQuery) {
   }
 
   // Determinar precio de venta — buscar en catálogo, si no usar precio genérico
+  // DIS-947: Ladrón de Sombras vende al 60% en lugar del 40% base
   const catalogItem = SHOP_CATALOG.find(i => i.name.toLowerCase() === found.toLowerCase());
   const basePrice = catalogItem ? catalogItem.price : 10;
-  const sellPrice = Math.max(1, Math.floor(basePrice * SELL_PRICE_RATIO));
+  const ladronSellBonus = player.specialization === 'ladron' ? 0.20 : 0;
+  const sellPrice = Math.max(1, Math.floor(basePrice * (SELL_PRICE_RATIO + ladronSellBonus)));
 
   // Realizar la venta
   const newInventory = removeFirst(player.inventory, found);
@@ -11500,9 +11507,11 @@ function cmdUseSkill(player, args, context) {
 
     // Probabilidad: 50% base + 15% por cada nivel de ventaja (nivel jugador - nivel monstruo estimado)
     // Nivel de monstruo estimado = max_hp / 8 aproximado
+    // DIS-947: Ladrón de Sombras tiene +25% de chance de robo
     const monsterEstLevel = Math.max(1, Math.round((target.max_hp || 8) / 8));
     const levelAdvantage = Math.max(0, (freshPlayer.level || 1) - monsterEstLevel);
-    const chance = Math.min(0.90, 0.50 + levelAdvantage * 0.15);
+    const ladronBonus = freshPlayer.specialization === 'ladron' ? 0.25 : 0;
+    const chance = Math.min(0.95, 0.50 + levelAdvantage * 0.15 + ladronBonus);
     const success = Math.random() < chance;
 
     const newCooldowns = skills.applyCooldown(freshPlayer, 'robar');
@@ -13791,22 +13800,27 @@ function cmdSigilo(player) {
 
   // Activar sigilo: expires_at = ahora + 60 segundos
   // DIS-655: En salas de oscuridad/sombra (Abismo Eterno, sala 20), +30s de duración extra
+  // DIS-947: Ladrón de Sombras tiene +30s de duración y cooldown reducido a 45s
   const DARK_ROOMS = [20]; // Abismo Eterno — sala de oscuridad pura narrativa
   const inDarkRoom = DARK_ROOMS.includes(player.current_room_id);
-  const stealthDuration = inDarkRoom ? 90000 : 60000; // 90s o 60s
+  const isLadron = freshSig.specialization === 'ladron';
+  const baseStealthDuration = isLadron ? 90000 : 60000; // Ladrón: 90s base; otros: 60s
+  const stealthDuration = inDarkRoom ? baseStealthDuration + 30000 : baseStealthDuration;
   const stealthExpiry = new Date(Date.now() + stealthDuration).toISOString();
   const stealthSecs = stealthDuration / 1000;
   const newSe = { ...seSig, stealth_active: stealthExpiry };
   db.updatePlayer(freshSig.id, { status_effects: JSON.stringify(newSe) });
 
   const darkBonus = inDarkRoom ? '\n🌑 La oscuridad del Abismo te envuelve perfectamente — +30s de duración extra.' : '';
+  const ladronBonus = isLadron ? '\n🎭 Tu especialización extiende el sigilo — 90 segundos base y cooldown de 45s.' : '';
   const mCount = monstersInRoomSig ? monstersInRoomSig.filter(m => m.hp > 0).length : 0;
   const mHint = mCount > 0
     ? `\n⚔️ Hay ${mCount} monstruo(s) en la sala. Atacá para el golpe de sorpresa: \"attack\"`.trim()
     : `\n💡 Movete a una sala con enemigos y usá \"attack\" para el golpe de sorpresa.`;
+  const cooldownNote = isLadron ? '45' : '75';
 
   // DIS-840: énfasis en turno libre vs Lich como beneficio principal (no el crit)
-  return { text: `🥷 Entrás en las sombras, volviéndote casi invisible.\n⏳ Sigilo activo por ${stealthSecs} segundos.${darkBonus}${mHint}\n\n✨ Efecto según objetivo:\n  • vs monstruos normales: stuneado (no puede atacar ese turno) + crítico garantizado ×2\n  • vs el Lich Anciano: 🛡️ TURNO LIBRE — el Lich NO contraataca (beneficio principal: conservás HP en lugar de recibirlo). Además, crítico ×1.5 garantizado, aunque su resistencia reduce el daño del crit. Usalo tácticamente para recuperarte o para abrir la pelea sin absorber un golpe.\n  • vs Campeón Espectral, Eco Viviente, Sombra del Vacío: crítico ×1.5 garantizado — estos bosses PERCIBEN el ataque y contraatacan igualmente. El beneficio es el crit, no el turno libre.\n⏸️ Cooldown tras usarlo: 75 segundos — el sigilo es un recurso estratégico, no activable en cada combate.` };
+  return { text: `🥷 Entrás en las sombras, volviéndote casi invisible.\n⏳ Sigilo activo por ${stealthSecs} segundos.${darkBonus}${ladronBonus}${mHint}\n\n✨ Efecto según objetivo:\n  • vs monstruos normales: stuneado (no puede atacar ese turno) + crítico garantizado ×2\n  • vs el Lich Anciano: 🛡️ TURNO LIBRE — el Lich NO contraataca (beneficio principal: conservás HP en lugar de recibirlo). Además, crítico ×1.5 garantizado, aunque su resistencia reduce el daño del crit. Usalo tácticamente para recuperarte o para abrir la pelea sin absorber un golpe.\n  • vs Campeón Espectral, Eco Viviente, Sombra del Vacío: crítico ×1.5 garantizado — estos bosses PERCIBEN el ataque y contraatacan igualmente. El beneficio es el crit, no el turno libre.\n⏸️ Cooldown tras usarlo: ${cooldownNote} segundos — el sigilo es un recurso estratégico, no activable en cada combate.` };
 }
 
 /**
