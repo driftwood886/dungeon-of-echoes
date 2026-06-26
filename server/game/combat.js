@@ -419,15 +419,15 @@ function attackRound(player, monster) {
 
   // Miss extra por postura agresiva
   if (stanceMods.extraMiss > 0 && Math.random() < stanceMods.extraMiss) {
-    lines.push(`⚔️ [Postura agresiva] El ataque salvaje falla el blanco!`);
+    lines.push(`⚔️ [Postura ofensiva] El ataque salvaje falla el blanco!`);
     // turno del monstruo igualmente
     const rawMissReturn = Math.max(1, calcDamage(monster.attack) - Math.floor(effectiveDef));
     player.hp = Math.max(0, player.hp - rawMissReturn);
     db.updatePlayer(player.id, { hp: player.hp });
     if (player.hp <= 0) {
       lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon con 25% HP...`);
-      db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name} (golpe tras postura agresiva fallida).`);
-      const hcResultM = handlePlayerDeath(player.id, lines, 'postura agresiva');
+      db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name} (golpe tras postura ofensiva fallida).`);
+      const hcResultM = handlePlayerDeath(player.id, lines, 'postura ofensiva');
       return { lines, monsterDead: false, playerDead: true, loot: [], poisonSurvived: false, ...(hcResultM.globalEvent ? { globalEvent: hcResultM.globalEvent } : {}) };
     }
     lines.push(`⚡ El ${monster.name} contraataca: ${rawMissReturn} de daño. (Tus HP: ${player.hp}/${player.max_hp})`);
@@ -627,7 +627,7 @@ function attackRound(player, monster) {
       equilibrado: null, // usa mensaje genérico
     };
     const stanceIcons = {
-      agresivo:    '⚡[agresivo] ',
+      agresivo:    '⚡[ofensivo] ',
       defensivo:   '🛡[defensivo] ',
       equilibrado: '',
     };

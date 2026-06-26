@@ -133,9 +133,9 @@ const TITLES = [
 
 // ── Posturas de combate (T161) ────────────────────────────────────────────────
 const STANCES = {
-  agresivo:    { icon: '⚔️',  atkMod: +2, defMod: -1, extraMiss: 0.05, desc: 'Atacás más fuerte pero quedás más expuesto. +2 ATK / -1 DEF / 5% más chance de fallar. (Pícaro: -2% crit — tradeoff mínimo, +2 ATK casi siempre compensa)' },
-  defensivo:   { icon: '🛡️',  atkMod: -1, defMod: +2, extraMiss: 0,    desc: 'Priorizás la defensa. -1 ATK / +2 DEF.' },
-  equilibrado: { icon: '⚖️',  atkMod:  0, defMod:  0, extraMiss: 0,    desc: 'Postura estándar, sin modificadores.' },
+  agresivo:    { icon: '⚔️',  label: 'ofensivo', atkMod: +2, defMod: -1, extraMiss: 0.05, desc: 'Atacás más fuerte pero quedás más expuesto. +2 ATK / -1 DEF / 5% más chance de fallar. (Pícaro: -2% crit — tradeoff mínimo, +2 ATK casi siempre compensa)' },
+  defensivo:   { icon: '🛡️',  label: 'defensivo', atkMod: -1, defMod: +2, extraMiss: 0,    desc: 'Priorizás la defensa. -1 ATK / +2 DEF.' },
+  equilibrado: { icon: '⚖️',  label: 'equilibrado', atkMod:  0, defMod:  0, extraMiss: 0,    desc: 'Postura estándar, sin modificadores.' },
 };
 
 /**
@@ -2047,7 +2047,7 @@ function cmdStatus(player) {
     (() => {
       const stanceName = player.stance || 'equilibrado';
       const st = (typeof STANCES !== 'undefined' ? STANCES : {})[stanceName];
-      return st ? `Postura:  ${st.icon} ${stanceName}` : null;
+      return st ? `Postura:  ${st.icon} ${st.label || stanceName}` : null;
     })(),
     duelWins === 0 && duelLosses === 0
       ? `Duelos:   ⚔️ 0 ganados / 0 perdidos  (💡 usá "duel <nombre>" para retar a alguien en tu sala)`
@@ -2095,7 +2095,7 @@ function cmdStatus(player) {
       const hasInevBoss = roomMonsters && roomMonsters.some(m => INEV_BOSS_IDS.has(m.id) && m.room_id !== null);
       const dodgePct = hasInevBoss ? Math.round(baseDodgePct * 0.5) : baseDodgePct;
       const dodgeNote = hasInevBoss ? ` (⚠️ ↓ boss avanzado)` : '';
-      const critNote = stanceName === 'agresivo' ? ' (↓ postura agresiva)' : '';
+      const critNote = stanceName === 'agresivo' ? ' (↓ postura ofensiva)' : '';
       // DIS-620: mostrar sigilo activo si corresponde; BUG-774: mostrar cooldown si aplica
       const seSt = parseSE(player.status_effects);
       const stealthOn = seSt.stealth_active && new Date(seSt.stealth_active).getTime() > Date.now();
@@ -13689,7 +13689,7 @@ function cmdStance(player, args) {
       lines.push(`║ ${data.icon} ${name.padEnd(12)}  ATK${data.atkMod >= 0 ? '+' : ''}${data.atkMod} DEF${data.defMod >= 0 ? '+' : ''}${data.defMod}${active.padEnd(2)} ║`);
     }
     lines.push(`╠════════════════════════════════════════╣`);
-    lines.push(`║ Cambiá con: stance agresivo/defensivo  ║`);
+    lines.push(`║ Cambiá con: stance ofensivo/defensivo  ║`);
     lines.push(`║            stance equilibrado          ║`);
     lines.push(`╚════════════════════════════════════════╝`);
     return { text: lines.join('\n') };
@@ -13704,11 +13704,11 @@ function cmdStance(player, args) {
   if (target === 'balanceado' || target === 'balanceada' || target === 'normal' || target === 'neutro' || target === 'neutral' || target === 'equilibrada' || target === 'equilibrio') target = 'equilibrado';
 
   if (!STANCES[target]) {
-    return { text: `Postura desconocida: "${args[0]}". Las posturas válidas son: agresivo, defensivo, equilibrado.` };
+    return { text: `Postura desconocida: "${args[0]}". Las posturas válidas son: ofensivo, defensivo, equilibrado.` };
   }
 
   if (target === currentStance) {
-    return { text: `Ya estás en postura ${STANCES[target].icon} ${target}.` };
+    return { text: `Ya estás en postura ${STANCES[target].icon} ${STANCES[target].label || target}.` };
   }
 
   db.updatePlayer(player.id, { stance: target });
@@ -13722,10 +13722,10 @@ function cmdStance(player, args) {
     const glovesCrit = (equippedWpn && equippedWpn.rogue_only_crit_bonus) ? equippedWpn.rogue_only_crit_bonus : 0;
     const baseCrit = 25 + glovesCrit; // crit en equilibrado
     const agresivoCrit = baseCrit - 2; // DIS-715: penalidad de -2%
-    stanceDesc += `\n\n💡 Con tus stats actuales: crit ${baseCrit}% → ${agresivoCrit}% en agresivo. El +2 ATK fijo generalmente supera perder 2% de crit.`;
+    stanceDesc += `\n\n💡 Con tus stats actuales: crit ${baseCrit}% → ${agresivoCrit}% en postura ofensiva. El +2 ATK fijo generalmente supera perder 2% de crit.`;
   }
   return {
-    text: `${s.icon} Adoptás la postura **${target}**.\n${stanceDesc}`,
+    text: `${s.icon} Adoptás la postura **${s.label || target}**.\n${stanceDesc}`,
     event: 'stance_change',
   };
 }
@@ -14416,7 +14416,7 @@ function cmdGuide(args) {
       '  rally / arenga (Lv10)   — +2 ATK a todo el grupo',
       '',
       'POSTURAS (comando stance):',
-      '  agresivo  — +2 ATK, -1 DEF, 5% extra de fallo',
+      '  ofensivo  — +2 ATK, -1 DEF, 5% extra de fallo',
       '  defensivo — -1 ATK, +2 DEF',
       '  equilibrado — stats normales (por defecto)',
       '',
@@ -14462,7 +14462,7 @@ function cmdGuide(args) {
       '⚔  GUERRERO',
       '  HP: 35 | ATK: 6 | Maná: 10',
       '  Ventaja: más HP y daño base. Ideal para principiantes.',
-      '  Consejo: usá stance agresivo para maximizar daño.',
+      '  Consejo: usá stance ofensivo para maximizar daño.',
       '',
       '🔮 MAGO',
       '  HP: 22 | ATK: 4 | Maná: 35',
@@ -16663,7 +16663,7 @@ function cmdWeekly(player) {
 function cmdTips(args) {
   const TIPS = {
     combate: [
-      '⚔️  Elegí tu postura (stance) según la situación: agresivo para matar rápido, defensivo para survivir.',
+      '⚔️  Elegí tu postura (stance) según la situación: ofensivo para matar rápido, defensivo para survivir.',
       '💥 Los combos de ataque dan hasta +4 dmg extra al 5x — no cambies de objetivo si tenés un combo alto.',
       '🔮 Usá hechizos: bola-de-fuego hace 10 dmg fijos, útil contra monstruos con mucha defensa.',
       '⚡ Con nivel 3+ tenés smash (×1.8 daño). Con nivel 6+ tenés shield_bash (stun). ¡Úsalos!',
@@ -16687,7 +16687,7 @@ function cmdTips(args) {
       '🔮 Mago: maná alto y hechizos ×1.5. Regen de maná doble. Mejor daño mágico del juego.',
       '🗡️  Pícaro: 25% de crítico y 20% de esquiva. Excelente para grinding rápido y duelos PvP.',
       '🔄 Podés cambiar de clase libremente hasta 5 kills totales. Después es permanente.',
-      '📊 El Pícaro + postura agresiva + combo máximo puede hacer hasta 18+ daño en un golpe.',
+      '📊 El Pícaro + postura ofensiva + combo máximo puede hacer hasta 18+ daño en un golpe.',
       '🧙 El Mago + hechizo escudo (+5 DEF) + postura defensiva = tanque mágico sorprendente.',
       '💀 El boss Lich Anciano drena maná — el Guerrero no se ve afectado tanto como el Mago.',
     ],
