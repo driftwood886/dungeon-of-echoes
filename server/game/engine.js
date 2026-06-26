@@ -385,7 +385,7 @@ function execute(playerId, input, context) {
     case 'sessions':     result = cmdSessions(player); break;
     case 'weekly':       result = cmdWeekly(player); break;         // T208
     case 'tips':         result = cmdTips(action.args); break;       // T209
-    case 'goals':        result = cmdGoals(player); break;           // T210
+    case 'goals':        result = cmdGoals(player, context); break;           // T210
     case 'legado':       result = cmdLegado(player, context); break;          // DIS-D291: legado post-boss
     case 'battlecry':    result = cmdBattlecry(player, action.args); break; // T211
     case 'champion':     result = cmdChampion(); break;                      // T212
@@ -16801,7 +16801,7 @@ function cmdTips(args) {
 // T210: cmdGoals — Objetivos personales calculados on-the-fly
 // Muestra qué cosas el jugador está cerca de lograr.
 // ══════════════════════════════════════════════════════════════════════════════
-function cmdGoals(player) {
+function cmdGoals(player, context) {
   const fresh = db.getPlayer(player.id);
   if (!fresh) return { text: '❌ Error al cargar tu personaje.' };
 
