@@ -16979,12 +16979,32 @@ function cmdGoals(player, context) {
   }
 
   // ─── Habilidades por nivel ─────────────────────────────────────────────────
-  if (level < 3) {
-    goals.push(`⚡ Desbloquear habilidad SMASH: llegá al nivel 3 (nivel actual: ${level})`);
-  } else if (level < 6) {
-    goals.push(`🛡️  Desbloquear SHIELD_BASH: llegá al nivel 6 (nivel actual: ${level})`);
-  } else if (level < 10) {
-    goals.push(`📣 Desbloquear RALLY (buff de grupo): llegá al nivel 10 (nivel actual: ${level})`);
+  const playerClass = (fresh.player_class || fresh.class || 'guerrero').toLowerCase();
+  // Habilidades base por clase (nivel 3, 6, 10)
+  const CLASS_SKILL_TREES = {
+    guerrero: [
+      { level: 3,  name: 'SMASH (Golpetazo)', emoji: '⚡', desc: 'ataque ×1.8 daño' },
+      { level: 6,  name: 'SHIELD_BASH (Golpe de Escudo)', emoji: '🛡️', desc: 'daño + aturde al monstruo 1 turno' },
+      { level: 10, name: 'RALLY (Arenga)', emoji: '📣', desc: 'buff +2 ATK a todos en sala por 60s' },
+    ],
+    clerigo: [
+      { level: 3,  name: 'SANACION_MAYOR', emoji: '💚', desc: 'cura 45 HP, cooldown 60s' },
+      { level: 6,  name: 'BENDICION', emoji: '✨', desc: 'buff +2 DEF a todos en sala, cooldown 60s' },
+      { level: 10, name: 'RESURRECCION', emoji: '🙏', desc: 'revive a un aliado caído al 50% HP, una vez por sesión' },
+    ],
+    picaro: [
+      { level: 3,  name: 'GOLPE_SUCIO', emoji: '🗡️', desc: 'ataque ×1.5 + veneno (3dmg×3 turnos)' },
+      { level: 6,  name: 'EVASION', emoji: '💨', desc: 'esquiva garantizada el próximo ataque recibido' },
+      { level: 10, name: 'GOLPE_SOMBRA', emoji: '🌑', desc: 'ataque ×2.5 si el monstruo no atacó este turno' },
+    ],
+    mago: [], // El Mago usa hechizos — sin habilidades activas de clase
+  };
+  const skillTree = CLASS_SKILL_TREES[playerClass] || CLASS_SKILL_TREES['guerrero'];
+  for (const sk of skillTree) {
+    if (level < sk.level) {
+      goals.push(`${sk.emoji}  Desbloquear ${sk.name}: llegá al nivel ${sk.level} (${sk.desc}) — nivel actual: ${level}`);
+      break; // Solo mostrar el próximo desbloqueo, no todos los futuros
+    }
   }
 
   // ─── Reputación ───────────────────────────────────────────────────────────
