@@ -993,7 +993,10 @@ function closeExpiredAuctions() {
  */
 function createPassiveAuction(sellerId, sellerName, itemName, minPrice) {
   const PASSIVE_DURATION_MS = 30 * 60 * 1000; // 30 minutos
-  const endsAt = new Date(Date.now() + PASSIVE_DURATION_MS).toISOString().replace('T', ' ').replace(/\\.\\d{3}Z$/, '');
+  // BUG-946: la regex estaba escapada doble (/\\\\.\\\\d{3}Z$/) y no removía el sufijo ".000Z"
+  // Esto causaba que las subastas pasivas nunca expiraran (la fecha con ".000Z" es mayor que
+  // cualquier fecha sin sufijo en comparación de strings SQLite).
+  const endsAt = new Date(Date.now() + PASSIVE_DURATION_MS).toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ''); // BUG-946 fix: era /\\\\.\\\\d{3}Z$/ (doble escape) → nunca removía .000Z
   run(
     `INSERT INTO auctions (seller_id, seller_name, item_name, min_price, current_bid, ends_at, is_passive)
      VALUES (?, ?, ?, ?, 0, ?, 1)`,

@@ -579,7 +579,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1792,6 +1792,59 @@ function migrateEspectroCoronaLoot() {
     console.log('[seed] migrateEspectroCoronaLoot: DIS-872 — corona rota agregada al loot del Espectro del Corredor (id 4). Loot: ' + newLoot.join(', ') + '. ✓');
   } catch (e) {
     console.warn('[seed] migrateEspectroCoronaLoot:', e.message);
+  }
+}
+
+/**
+ * BUG-946: Fix de subastas pasivas stuck por regex de fecha incorrecta (DIS-535).
+ * Antes del fix, createPassiveAuction() usaba /\\\\.\\\\d{3}Z$/ en lugar de /\\.\\d{3}Z$/,
+ * dejando el sufijo ".000Z" en el campo ends_at. Eso hacía que nunca expiraran
+ * (string ".000Z" > cualquier fecha normal → siempre parecía "en el futuro" en SQLite).
+ * Esta migración cierra las subastas pasivas stuck y paga al vendedor el precio del Mercader (50%).
+ */
+function migrateFixStuckPassiveAuctions() {
+  try {
+    const rawDb = db.raw(); // instancia sql.js
+    // Buscar subastas pasivas abiertas con fecha que contenga ".000Z" (síntoma del bug)
+    const results = rawDb.exec(
+      `SELECT id, seller_id, seller_name, item_name, min_price FROM auctions WHERE closed = 0 AND is_passive = 1 AND ends_at LIKE '%.000Z'`
+    );
+    if (!results.length || !results[0].values.length) {
+      console.log('[seed] migrateFixStuckPassiveAuctions: sin subastas stuck. BUG-946 ✓');
+      return;
+    }
+    const cols = results[0].columns;
+    const stuck = results[0].values.map(row => Object.fromEntries(cols.map((c, i) => [c, row[i]])));
+    for (const auction of stuck) {
+      // Cerrar la subasta
+      rawDb.run(`UPDATE auctions SET closed = 1 WHERE id = ?`, [auction.id]);
+      // Dar oro al vendedor (precio del Mercader: 50% del precio mínimo)
+      const merchantPrice = Math.max(1, Math.floor((auction.min_price || 1) * 0.5));
+      rawDb.run(`UPDATE players SET gold = gold + ? WHERE id = ?`, [merchantPrice, auction.seller_id]);
+      // Agregar entrada al journal del vendedor
+      try {
+        const sellerRow = (() => {
+          const s = rawDb.prepare(`SELECT journal FROM players WHERE id = ?`);
+          s.bind([auction.seller_id]);
+          const r = s.step() ? s.getAsObject() : null;
+          s.free();
+          return r;
+        })();
+        if (sellerRow) {
+          const journal = sellerRow.journal ? JSON.parse(sellerRow.journal) : [];
+          journal.push({
+            type: 'system',
+            timestamp: new Date().toISOString(),
+            message: `🔧 [BUG-946 fix] La subasta pasiva de "${auction.item_name}" estaba atascada. El Mercader te pagó ${merchantPrice}g (50% de ${auction.min_price}g).`,
+          });
+          rawDb.run(`UPDATE players SET journal = ? WHERE id = ?`, [JSON.stringify(journal), auction.seller_id]);
+        }
+      } catch (_) { /* journal no crítico */ }
+      console.log(`[seed] migrateFixStuckPassiveAuctions: cerrada subasta #${auction.id} ("${auction.item_name}" de ${auction.seller_name}) → ${merchantPrice}g al vendedor. BUG-946 ✓`);
+    }
+    console.log(`[seed] migrateFixStuckPassiveAuctions: ${stuck.length} subastas pasivas stuck corregidas. BUG-946 ✓`);
+  } catch (e) {
+    console.warn('[seed] migrateFixStuckPassiveAuctions:', e.message);
   }
 }
 
