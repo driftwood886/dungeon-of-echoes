@@ -133,9 +133,9 @@ const TITLES = [
 
 // ── Posturas de combate (T161) ────────────────────────────────────────────────
 const STANCES = {
-  agresivo:    { icon: '⚔️',  label: 'ofensivo', atkMod: +2, defMod: -1, extraMiss: 0.05, desc: 'Atacás más fuerte pero quedás más expuesto. +2 ATK / -1 DEF / 5% más chance de fallar. (Pícaro: -2% crit — tradeoff mínimo, +2 ATK casi siempre compensa)' },
-  defensivo:   { icon: '🛡️',  label: 'defensivo', atkMod: -1, defMod: +2, extraMiss: 0,    desc: 'Priorizás la defensa. -1 ATK / +2 DEF.' },
-  equilibrado: { icon: '⚖️',  label: 'equilibrado', atkMod:  0, defMod:  0, extraMiss: 0,    desc: 'Postura estándar, sin modificadores.' },
+  agresivo:    { icon: '⚔️',  label: 'ofensivo', atkMod: +2, defMod: -1, extraMiss: 0.05, desc: 'Atacás con todo — más daño, más riesgo.' },
+  defensivo:   { icon: '🛡️',  label: 'defensivo', atkMod: -1, defMod: +2, extraMiss: 0,    desc: 'Te cubrís — menos daño, más aguante.' },
+  equilibrado: { icon: '⚖️',  label: 'equilibrado', atkMod:  0, defMod:  0, extraMiss: 0,    desc: 'Sin modificadores — postura estándar.' },
 };
 
 /**
@@ -3421,8 +3421,12 @@ function cmdPick(player, itemQuery) {
   if (equippedWpnNorm) invWithEquipped.push(equippedWpnNorm);
   if (equippedArmNorm) invWithEquipped.push(equippedArmNorm);
   let pickCraftHint = '';
+  const foundNormPick = found.toLowerCase().trim();
   for (const recipe of crafting.RECIPES) {
     const [ingA, ingB] = recipe.ingredients;
+    // DIS-950: solo mostrar hint si el ítem recogido es ingrediente de esta receta
+    const foundIsIngredient = foundNormPick === ingA.toLowerCase().trim() || foundNormPick === ingB.toLowerCase().trim();
+    if (!foundIsIngredient) continue;
     if (invNorm2.includes(ingA.toLowerCase().trim()) && invNorm2.includes(ingB.toLowerCase().trim())) {
       const hKey = `craft_hint_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
       if (!shownH2[hKey]) {
