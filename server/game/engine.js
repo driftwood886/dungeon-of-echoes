@@ -17035,7 +17035,7 @@ function cmdGoals(player, context) {
       { level: 10, name: 'RESURRECCION', emoji: '🙏', desc: 'revive a un aliado caído al 50% HP, una vez por sesión' },
     ],
     picaro: [
-      { level: 3,  name: 'GOLPE_SUCIO', emoji: '🗡️', desc: 'ataque ×1.5 + veneno (3dmg×3 turnos)' },
+      { level: 3,  name: 'GOLPE_SUCIO', emoji: '🗡️', desc: 'ataque ×1.3 + veneno (3dmg×3 turnos)' },
       { level: 6,  name: 'EVASION', emoji: '💨', desc: 'esquiva garantizada el próximo ataque recibido' },
       { level: 10, name: 'GOLPE_SOMBRA', emoji: '🌑', desc: 'ataque ×2.5 si el monstruo no atacó este turno' },
     ],

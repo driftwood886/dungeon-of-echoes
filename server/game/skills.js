@@ -15,7 +15,7 @@
  *   - resurreccion       (nivel 10): Revive a jugador muerto en la sala al 50% HP, una vez por sesión
  *
  * Habilidades de Pícaro (DIS-616):
- *   - golpe_sucio        (nivel 3): ×1.5 daño + veneno (3dmg×3 turnos), cooldown 50s
+ *   - golpe_sucio        (nivel 3): ×1.3 daño + veneno (3dmg×3 turnos), cooldown 50s
  *   - evasion            (nivel 6): Esquiva garantizada 1 turno, cooldown 90s
  *   - golpe_sombra       (nivel 10): ×2.5 daño si el monstruo no atacó este turno, cooldown 90s
  */
@@ -82,10 +82,10 @@ const SKILLS = {
     required_class: 'picaro',
     cooldown_seconds: 50,
     type: 'poison_attack',
-    dmg_multiplier: 1.5,
+    dmg_multiplier: 1.3,
     poison_damage: 3,
     poison_turns: 3,
-    description: 'Ataque traicionero: ×1.5 daño + veneno al monstruo (3 dmg × 3 turnos). Cooldown: 50s. Solo pícaro.',
+    description: 'Ataque traicionero: ×1.3 daño + veneno al monstruo (3 dmg × 3 turnos). Cooldown: 50s. Solo pícaro.',
     combat_only: true,
   },
   // ── Habilidades exclusivas del Pícaro nivel 6 y 10 (DIS-616) ─────────────
