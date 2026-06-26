@@ -9476,6 +9476,16 @@ const SPELL_CATALOG = {
     icon: '❄️',
     slow_chance: 0.20,  // 20% de chance de ralentizar (skip turno del monstruo)
   },
+  // BUG-933: meteoro — hechizo exclusivo del Evoker. Proyectil arcano devastador de alta energía.
+  'meteoro': {
+    cost: 18,
+    type: 'damage',
+    amount: 25,
+    description: 'Invoca un meteoro de energía pura que aplasta al objetivo. 25 de daño. Solo disponible con especialización Evoker.',
+    aliases: ['meteor', 'meteorito', 'piedra del cielo', 'roca arcana'],
+    icon: '☄️',
+    required_specialization: 'evoker',
+  },
 };
 
 /**
@@ -9658,6 +9668,24 @@ function cmdCast(player, args) {
 
   const { key: spellName, spell } = found;
 
+  // BUG-933: Verificar especialización requerida para hechizos exclusivos (ej: meteoro → evoker)
+  if (spell.required_specialization) {
+    const playerSpec = player.specialization || null;
+    if (playerSpec !== spell.required_specialization) {
+      const specNames = { evoker: 'Evoker', paladin: 'Paladín', asesino: 'Asesino', sanador: 'Sanador' };
+      const specName = specNames[spell.required_specialization] || spell.required_specialization;
+      if (!playerSpec) {
+        return {
+          text: `🪄 ${spell.icon} ${spellName} es un hechizo exclusivo de la especialización **${specName}**.\nElegí tu especialización con "especializar" al nivel 5.`,
+        };
+      }
+      const playerSpecName = specNames[playerSpec] || playerSpec;
+      return {
+        text: `🪄 ${spell.icon} ${spellName} es exclusivo del ${specName}. Tu especialización es ${playerSpecName}.`,
+      };
+    }
+  }
+
   // DIS-599: Escarcha cuesta 0 maná para Magos con ≤20% de maná total (recurso de emergencia)
   // Así el Mago no queda completamente inútil cuando se queda sin maná.
   const playerClass = classes.getPlayerClass(player);
@@ -9708,16 +9736,18 @@ function cmdCast(player, args) {
       };
     }
 
-    // Si hay argumento de objetivo, buscar monstruo específico
+    // BUG-934: Si hay argumento de objetivo, buscar monstruo específico
+    // Normalizar tildes para que "murcielago" matchee "murciélago vampiro"
+    const normalizeTarget = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     let target = monsters[0]; // por defecto el primero
     if (args.length > targetArgIndex) {
-      const targetQuery = args.slice(targetArgIndex).join(' ').toLowerCase();
-      const matched = monsters.find(m => m.name.toLowerCase().includes(targetQuery));
+      const targetQuery = normalizeTarget(args.slice(targetArgIndex).join(' '));
+      const matched = monsters.find(m => normalizeTarget(m.name).includes(targetQuery));
       if (matched) target = matched;
     } else if (args.length > 1) {
-      // Fallback para compatibilidad
-      const targetQuery = args.slice(1).join(' ').toLowerCase();
-      const matched = monsters.find(m => m.name.toLowerCase().includes(targetQuery));
+      // Fallback para compatibilidad: si el hechizo es una sola palabra y hay args extra
+      const targetQuery = normalizeTarget(args.slice(1).join(' '));
+      const matched = monsters.find(m => normalizeTarget(m.name).includes(targetQuery));
       if (matched) target = matched;
     }
 
