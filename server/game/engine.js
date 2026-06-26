@@ -9833,7 +9833,46 @@ function cmdCast(player, args) {
     const isGuardiaEspectral = targetNameLow.includes('guardia espectral');
     const isHighImpactSpell = ['rayo', 'bola de fuego', 'fireball', 'lightning', 'escarcha', 'ice', 'frost'].includes(spellName);
     const magicResist = isGuardiaEspectral && isHighImpactSpell ? 0.4 : (hasMagicResist ? 0.65 : 1.0);
-    const finalDmg = Math.max(1, Math.round(dmg * spellPower * magicResist * arcaneSurgeMult * evokerMult));
+    // DIS-941: Afinidades elementales — fuego vs Elemental de Hielo/Gólem de Hielo, etc.
+    // ELEMENTAL_AFFINITY_MAP: nombre de monstruo → elemento del monstruo
+    const ELEMENTAL_AFFINITY_MAP = {
+      'elemental de hielo': 'hielo',
+      'gólem de hielo': 'hielo',
+      'golem de hielo': 'hielo',
+      'elemental de fuego': 'fuego',
+      'krakeling abismal': 'agua',
+      'krakeling': 'agua',
+    };
+    // SPELL_ELEMENT_MAP: nombre de hechizo → elemento del hechizo
+    const SPELL_ELEMENT_MAP = {
+      'bola de fuego': 'fuego',
+      'fireball': 'fuego',
+      'meteoro': 'fuego',
+      'escarcha': 'hielo',
+      'ice': 'hielo',
+      'frost': 'hielo',
+      'rayo': 'rayo',
+      'lightning': 'rayo',
+    };
+    // ELEMENTAL_AFFINITY_TABLE: elemento del hechizo → { elemento del monstruo → multiplicador }
+    const ELEMENTAL_AFFINITY_TABLE = {
+      'fuego': { 'hielo': 1.5, 'fuego': 0.0 },  // fuego vs hielo: ×1.5; fuego vs fuego: inmune (ya cubierto por magicResist)
+      'hielo': { 'fuego': 1.5, 'hielo': 0.0 },
+      'rayo':  { 'agua': 1.5 },
+    };
+    const monsterElement = ELEMENTAL_AFFINITY_MAP[targetNameLow] || null;
+    const spellElement = SPELL_ELEMENT_MAP[spellName] || null;
+    let elementalMult = 1.0;
+    let elementalNote = '';
+    if (monsterElement && spellElement && ELEMENTAL_AFFINITY_TABLE[spellElement]) {
+      const mult = ELEMENTAL_AFFINITY_TABLE[spellElement][monsterElement];
+      if (mult !== undefined) {
+        elementalMult = mult;
+        if (mult > 1.0) elementalNote = ` ⭐Ventaja elemental ×${mult}`;
+        else if (mult === 0.0) elementalNote = ` 🚫 Inmune al ${spellElement}`;
+      }
+    }
+    const finalDmg = Math.max(1, Math.round(dmg * spellPower * magicResist * arcaneSurgeMult * evokerMult * elementalMult));
     const newHp = Math.max(0, target.hp - finalDmg);
     db.updatePlayer(player.id, { mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
 
@@ -9851,7 +9890,7 @@ function cmdCast(player, args) {
     const magicResistNote = hasMagicResist ? ` 🛡️ (resistencia mágica: ×${magicResist})` : '';
     const arcaneSurgeNote = arcaneSurgeBonus > 0 ? ` ⚡(+${Math.round(arcaneSurgeBonus * 100)}% Carga Arcana)` : '';
     const evokerNote = evokerBonus > 0 ? ` ⚡[Evoker +25%]` : '';
-    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${arcaneSurgeNote}${evokerNote})` : (magicResistNote + arcaneSurgeNote + evokerNote) || '';
+    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${arcaneSurgeNote}${evokerNote}${elementalNote})` : (magicResistNote + arcaneSurgeNote + evokerNote + elementalNote) || '';
     lines.push(`   ${target.name} recibe ${finalDmg} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
 
     // T214: stun_chance — hechizos que pueden aturdir al monstruo (ej: rayo)
@@ -10257,6 +10296,34 @@ function cmdSpells(player) {
     } else {
       lines.push(``);
       lines.push(`🔮 Pasivo: **Canalización** (nivel 3+) — Se activa cuando maná ≤ ${lowManaForSpells}/${maxMana}: hechizos -1 coste.`);
+    }
+  }
+
+  // DIS-940: nota para Mago sobre sistema de especialización
+  if (spellClassName === 'Mago') {
+    const playerLevel = player.level || 1;
+    if (player.specialization) {
+      // Ya tiene especialización — mostrar qué desbloquea
+      const specNames = { evoker: 'Evoker', paladin: 'Paladín', asesino: 'Asesino', sanador: 'Sanador' };
+      const mySpecName = specNames[player.specialization] || player.specialization;
+      lines.push(``);
+      lines.push(`🌟 Especialización: **${mySpecName}** (activa)`);
+      if (player.specialization === 'evoker') {
+        lines.push(`   • Hechizos de daño +25%, canalización ≤30% maná, meteoro desbloqueado.`);
+      }
+    } else if (playerLevel >= 5) {
+      // Nivel 5+ sin especializar — prompt urgente
+      lines.push(``);
+      lines.push(`🌟 **¡Podés elegir tu especialización!** (nivel ${playerLevel})`);
+      lines.push(`   Evoker: hechizos de daño +25%, resistencia de bosses -15%, desbloquea \`cast meteoro\`.`);
+      lines.push(`   ✨ Escribí \`especializar\` para ver todas las opciones y confirmar.`);
+    } else {
+      // Por debajo de nivel 5 — preview
+      const lvlFalta = 5 - playerLevel;
+      lines.push(``);
+      lines.push(`🔮 Especializaciones (se desbloquean al nivel 5, faltan ${lvlFalta} nivel${lvlFalta !== 1 ? 'es' : ''}):`);
+      lines.push(`   ⚡ Evoker — hechizos de daño +25%, meteoro (25 dmg), resonancia mágica al matar.`);
+      lines.push(`   Cuando llegues al nivel 5 escribí \`especializar\` para elegir tu camino.`);
     }
   }
 
