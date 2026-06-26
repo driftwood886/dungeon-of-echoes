@@ -1010,8 +1010,12 @@ function attackRound(player, monster) {
     // BUG-927: El Goblin de Práctica (id=20) no debe dar XP ni kills una vez completado el tutorial.
     // completeTutorial() tiene su propio path de XP. Post-tutorial, si el jugador vuelve a golpearlo
     // (posible antes de que respawnee lejos), no debe recibir recompensa.
+    // BUG-942 fix: tutorial_complete no existe — la propiedad correcta es tutorial_step.
+    //   Durante tutorial: tutorial_step > 0. Post-tutorial: tutorial_step === 0.
+    //   Si tutorial_step es null/undefined = jugador creado sin tutorial → ya está en dungeon real → no dar XP.
     const PRACTICE_GOBLIN_ID_MAIN = 20;
-    const isTutorialGoblinPostTutorial = monster.id === PRACTICE_GOBLIN_ID_MAIN && freshPlayer.tutorial_complete;
+    const inActiveTutorial = freshPlayer.tutorial_step != null && freshPlayer.tutorial_step > 0;
+    const isTutorialGoblinPostTutorial = monster.id === PRACTICE_GOBLIN_ID_MAIN && !inActiveTutorial;
     if (isTutorialGoblinPostTutorial) {
       lines.push(`   (El Goblin de Práctica no da XP ni kills — el tutorial ya terminó.)`);
       return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
