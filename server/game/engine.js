@@ -1019,8 +1019,61 @@ function cmdMove(player, direction) {
             }
           }
         }
+        // DIS-939: aplicar trampa del destino en path sin-boss (mismo que path normal y bossAtFullHp).
+        // Si no se verifica aquí, el jugador que pasa por salas con monstruos normales nunca activa
+        // la trampa del destino, y tampoco aprende known_traps → segunda visita (path normal) la activa.
+        let noBossTrapText = '';
+        const destRoomForTrapNB = db.getRoom(destId);
+        if (destRoomForTrapNB && destRoomForTrapNB.trap && destRoomForTrapNB.trap.active) {
+          const nbTrap = destRoomForTrapNB.trap;
+          const nbFresh = db.getPlayer(player.id);
+          const nbKnownTraps = nbFresh.known_traps || {};
+          const nbStatusEff = nbFresh.status_effects || {};
+          const nbTrapCdKey = `trap_cd_${destId}`;
+          const nbTrapCdExpiry = nbStatusEff[nbTrapCdKey] ? new Date(nbStatusEff[nbTrapCdKey]).getTime() : 0;
+          const nbTrapKnown = nbKnownTraps[destId] === true || nbKnownTraps[String(destId)] === true || nbTrapCdExpiry > Date.now();
+          if (nbTrapKnown) {
+            // DIS-D307: trampa conocida → esquiva sin daño
+            noBossTrapText = `\n\n🧠 Recordás la trampa de esta sala. Con cuidado, la esquivás sin problema.`;
+          } else {
+            // Primera vez: activar trampa, guardar conocimiento
+            const TRAP_ATMOSPHERE_NB = {
+              6:  '👃 Algo en el aire te hace cosquillear la nariz — un olor acre y punzante, como esporas que no deberían estar aquí en esta concentración.',
+              9:  '🥶 Un frío antinatural te golpea antes de que tus ojos puedan adaptarse a la oscuridad de la sala.',
+              3:  '🦶 El suelo cede levemente bajo tu primer paso — como si algo aguardara la presión exacta.',
+              13: '💧 Un sonido de agua en movimiento llega desde las paredes. Demasiado rápido para ser natural.',
+            };
+            const nbAtmo = TRAP_ATMOSPHERE_NB[destId] || null;
+            const nbVarDmg = Math.max(1, nbTrap.damage + (Math.random() < 0.33 ? 1 : Math.random() < 0.5 ? -1 : 0));
+            const nbNewHp = Math.max(0, nbFresh.hp - nbVarDmg);
+            const nbUpdatedKT = { ...nbKnownTraps, [destId]: true };
+            const nbUpdatedSE = { ...nbStatusEff, [nbTrapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
+            db.updatePlayer(nbFresh.id, { hp: nbNewHp, status_effects: JSON.stringify(nbUpdatedSE), known_traps: JSON.stringify(nbUpdatedKT) });
+            const TRAP_DISARM_HINT_NB = {
+              6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa al norte, podés escribir "desactivar trampa norte" antes de entrar.',
+              9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de dos formas: (1) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (2) buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
+              3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).\n🧠 Próxima vez que veas el hint de trampa al oeste, podés escribir "desactivar trampa oeste" antes de entrar.',
+              13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Buscá en esta sala o en los alrededores del Lago.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
+            };
+            const nbDisarmHint = TRAP_DISARM_HINT_NB[destId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
+            const nbAtmoPrefix = nbAtmo ? `\n\n${nbAtmo}` : '';
+            noBossTrapText = `${nbAtmoPrefix}\n\n⚠️  ¡TRAMPA! ${nbTrap.description}\n💥 Perdés ${nbVarDmg} HP. (${nbNewHp}/${nbFresh.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).\n${nbDisarmHint}`;
+            if (nbNewHp === 0) {
+              const trapDeathNBLines = [];
+              const trapDeathNBResult = combat.handlePlayerDeath(nbFresh.id, trapDeathNBLines, `trampa en sala ${destId}`);
+              if (!trapDeathNBResult.autoResurrected) {
+                const afterDeathNB = db.getPlayer(nbFresh.id);
+                if (afterDeathNB && afterDeathNB.fallen !== 1 && afterDeathNB.current_room_id !== 1) {
+                  db.updatePlayer(nbFresh.id, { hp: afterDeathNB.max_hp || 30, current_room_id: 1 });
+                }
+                noBossTrapText += '\n☠️  Has muerto a causa de la trampa. Renacés en la Entrada.';
+              }
+              if (trapDeathNBLines.length > 0) noBossTrapText += '\n' + trapDeathNBLines.join('\n');
+            }
+          }
+        }
         return {
-          text: `🚶 Te movés a «${destName}».${moveHintText}${noBossEffectText}`,
+          text: `🚶 Te movés a «${destName}».${moveHintText}${noBossEffectText}${noBossTrapText}`,
           event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
