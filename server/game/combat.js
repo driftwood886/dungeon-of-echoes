@@ -547,6 +547,13 @@ function attackRound(player, monster) {
   const physResistLabel = PHYS_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? '🪨 (resistencia física: ×0.75)'
     : FIRE_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? '🔥 (resistencia de fuego: ×0.80)'
     : '';
+  // DIS-936: La lanza espectral y sus variantes tienen bono real contra espectrales y criaturas mágicas
+  // spectral_bonus en items.js define el ATK extra (+2 para base/reforzada, +3 para del eco)
+  const SPECTRAL_MONSTER_NAMES = ['espectro', 'guardia espectral', 'campeón espectral', 'lich', 'eco viviente', 'sombra del vacío', 'fantasma', 'elemental'];
+  const isSpectralMonster = SPECTRAL_MONSTER_NAMES.some(n => monNameLow.includes(n));
+  const spectralBonusDmg = (equippedWeaponDef && equippedWeaponDef.spectral_bonus && isSpectralMonster)
+    ? equippedWeaponDef.spectral_bonus : 0;
+
   // DIS-657: La Sombra del Vacío tiene resistencia a emboscada — reduce el daño de golpe de sorpresa al 70%
   // Narrativa: la criatura de oscuridad "espera" el ataque del Pícaro — no puede ser sorprendida en su propio dominio
   let ambushResist = 1.0;
@@ -594,7 +601,8 @@ function attackRound(player, monster) {
   const dmgAfterPhysResist = Math.round(rawPlayerDmg * physResist * ambushResist * clericWeaponPenalty);
   // DIS-835: Si es crit y el boss tiene resistencia a crits, aplicar el multiplicador
   const critResistMult = (isCrit && critResistDef) ? critResistDef.mult : 1.0;
-  const dmgToMonster = Math.max(1, Math.round(dmgAfterPhysResist * critResistMult) - Math.floor(monster.defense || 0));
+  // DIS-936: bono espectral se agrega DESPUÉS de resistencias (daño plano, no multiplicativo)
+  const dmgToMonster = Math.max(1, Math.round(dmgAfterPhysResist * critResistMult) - Math.floor(monster.defense || 0) + spectralBonusDmg);
   monster.hp = Math.max(0, monster.hp - dmgToMonster);
 
   // T190: mensaje de encantamiento activo en el primer golpe del turno
@@ -607,7 +615,8 @@ function attackRound(player, monster) {
     const physResistNote = physResist < 1.0 ? ` ${physResistLabel}` : '';
     const clericNote = clericWeaponPenaltyNote.length > 0 ? ' ' + clericWeaponPenaltyNote[0] : '';
     const critResistNote = critResistDef ? ` ${critResistDef.label}` : '';
-    lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño.${physResistNote}${critResistNote}${clericNote} (${monster.hp}/${monster.max_hp} HP)`);
+    const spectralNote = spectralBonusDmg > 0 ? ` 👻 (+${spectralBonusDmg} espectral)` : '';
+    lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño.${physResistNote}${critResistNote}${clericNote}${spectralNote} (${monster.hp}/${monster.max_hp} HP)`);
   } else {
     // DIS-D426: mostrar indicador de postura activa en el mensaje de ataque
     // DIS-472: cada postura tiene mensajes de ataque diferenciados que refuerzan la fantasía
@@ -648,7 +657,7 @@ function attackRound(player, monster) {
     const magoFlavor = isMagoSinMana
       ? `[sin maná — ${magoMsgs[Math.floor(Math.random() * magoMsgs.length)]}] `
       : '';
-    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño.${physResist < 1.0 ? ` ${physResistLabel}` : ''}${clericWeaponPenaltyNote.length > 0 ? ' ' + clericWeaponPenaltyNote[0] : ''} (${monster.hp}/${monster.max_hp} HP)`);
+    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño.${physResist < 1.0 ? ` ${physResistLabel}` : ''}${spectralBonusDmg > 0 ? ` 👻 (+${spectralBonusDmg} espectral)` : ''}${clericWeaponPenaltyNote.length > 0 ? ' ' + clericWeaponPenaltyNote[0] : ''} (${monster.hp}/${monster.max_hp} HP)`);
   }
 
   // Actualizar monstruo en BD

@@ -4620,8 +4620,10 @@ function cmdEquip(player, itemQuery) {
       magoHeavyFlavor = `\n✨ (Los ecos de los caídos susurran en sintonía con tu maná. Esta arma fue hecha para alguien como vos.)`;
     } else if (foundLower.includes('lanza espectral')) {
       // BUG-924: flavor específico para Mago equipando lanza espectral / reforzada
+      // DIS-936: ahora tiene bono real (+2 ATK) contra espectrales
+      const spectralInfo = def.spectral_bonus ? ` +${def.spectral_bonus} ATK adicional contra espectrales y criaturas mágicas.` : '';
       // Es un arma de daño físico con aura espectral — inusual para un Mago pero no sin potencial
-      magoHeavyFlavor = `\n✨ (La luz negra de la lanza resuena de forma extraña con tu campo arcano. No es lo que un mago estudia — pero hay algo aquí, algo que late entre el metal y la magia. +${def.amount} ATK. Sin bonus de maná, pero el aura espectral complementa tus hechizos contra no-muertos.)`;
+      magoHeavyFlavor = `\n✨ (La luz negra de la lanza resuena de forma extraña con tu campo arcano. No es lo que un mago estudia — pero hay algo aquí, algo que late entre el metal y la magia. +${def.amount} ATK.${spectralInfo})`;
     } else if (foundLower.includes('grimorio del abismo')) {
       magoHeavyFlavor = `\n✨ (El grimorio te reconoce. Las páginas se abren solas ante tu presencia. Esto es lo que debería ser la magia.)`;
     } else if (foundLower.includes('cristal mágico')) {
@@ -4640,9 +4642,11 @@ function cmdEquip(player, itemQuery) {
       magoHeavyFlavor = `\n💬 (Abrís el grimorio. Las páginas están cubiertas de símbolos que no reconocés. Lo empuñás de todas formas — pesa bien, eso sí.)`;
     } else if (foundLower.includes('espectral') || foundLower.includes('del eco')) {
       // DIS-708/DIS-809: aclarar ATK comparado con espada de hierro (+8)
+      // DIS-936: el bono espectral ahora es real (+2 o +3 ATK contra espectrales/mágicos)
+      const spectralBonusInfo = def.spectral_bonus ? ` +${def.spectral_bonus} ATK adicional contra espectrales y criaturas mágicas (bono real).` : '';
       const atkNote = (def.amount >= 10)
-        ? ` (+${def.amount} ATK — supera a la espada de hierro en +${def.amount - 8} ATK. Más efectiva contra espectrales y criaturas mágicas.)`
-        : (def.amount >= 8) ? ` (+${def.amount} ATK — igual a la espada de hierro, pero más efectiva contra espectrales y criaturas mágicas.)` : '';
+        ? ` (+${def.amount} ATK — supera a la espada de hierro en +${def.amount - 8} ATK.${spectralBonusInfo})`
+        : (def.amount >= 8) ? ` (+${def.amount} ATK — igual a la espada de hierro.${spectralBonusInfo})` : '';
       magoHeavyFlavor = `\n💬 (El arma se siente extraña en tu mano — demasiado liviana, demasiado fría. Los guerreros prefieren metal que suene al golpear.${atkNote})`;
     } else if (foundLower.includes('catalizador') || foundLower.includes('vara')) {
       magoHeavyFlavor = `\n💬 (Esto claramente fue hecho para alguien que lee libros. Pero si pega, pega.)`;
@@ -4671,9 +4675,10 @@ function cmdEquip(player, itemQuery) {
   // DIS-520: mostrar tanto el bono absoluto del arma como el delta neto para evitar confusión
   const mageOnlyBonusStr = (isMagoPrev && mageOnlyBonus > 0) ? ` +${mageOnlyBonus} Mago` : '';
   const clericOnlyBonusStr = (isClericoPrev && clericOnlyBonus > 0) ? ` +${clericOnlyBonus} Clérigo` : '';
+  const spectralBonusStr = def.spectral_bonus ? ` 👻+${def.spectral_bonus} vs espectrales` : '';
   const baseStr = player.equipped_weapon
-    ? ` (bono base del arma: +${def.amount} ATK${mageOnlyBonusStr}${clericOnlyBonusStr}; ${changeStr} neto vs ${player.equipped_weapon})`
-    : ` (bono del arma: +${def.amount} ATK${mageOnlyBonusStr}${clericOnlyBonusStr})`;
+    ? ` (bono base del arma: +${def.amount} ATK${mageOnlyBonusStr}${clericOnlyBonusStr}${spectralBonusStr}; ${changeStr} neto vs ${player.equipped_weapon})`
+    : ` (bono del arma: +${def.amount} ATK${mageOnlyBonusStr}${clericOnlyBonusStr}${spectralBonusStr})`;
 
   // DIS-912: advertir si el Mago pierde bono de regen de maná al cambiar de arma mágica a física
   let manaRegenWarnMsg = '';
@@ -6756,9 +6761,9 @@ const SHOP_CATALOG = [
   { name: 'espada de obsidiana',     price: 150, sellOnly: true, description: 'La espada más poderosa del dungeon. Su valor es enorme.' },
   { name: 'catalizador mágico',      price: 110, sellOnly: true, description: 'Concentrado de energía arcana. Aldric paga bien por esto.' },
   { name: 'armadura de placas',      price: 100, sellOnly: true, description: 'La mejor armadura del dungeon. Protección máxima.' },
-  { name: 'lanza espectral del eco', price: 100, sellOnly: true, description: 'Lanza forjada con ecos de los caídos. Arma excepcional.' },
-  { name: 'lanza espectral reforzada', price: 90, sellOnly: true, description: 'Versión reforzada de la lanza espectral.' },
-  { name: 'lanza espectral',         price: 75,  sellOnly: true, description: 'Lanza de luz negra condensada. Arma del más allá.' },
+  { name: 'lanza espectral del eco', price: 110, sellOnly: true, description: 'Lanza forjada con ecos de los caídos. Arma excepcional (+12 ATK, +3 vs espectrales).' },
+  { name: 'lanza espectral reforzada', price: 95, sellOnly: true, description: 'Versión reforzada de la lanza espectral (+11 ATK, +2 vs espectrales).' },
+  { name: 'lanza espectral',         price: 80,  sellOnly: true, description: 'Lanza de luz negra condensada (+10 ATK, +2 vs espectrales/mágicos).' },
   { name: 'hacha de guerra',         price: 70,  sellOnly: true, description: 'Un hacha de guerra imponente. Valdrath pagaba bien por estas.' },
   { name: 'alabarda de huesos',      price: 90,  sellOnly: true, description: 'Alabarda espectral con el sello de Valdrath. Pieza histórica. (+10 ATK)' },
   { name: 'espada envenenada',       price: 50,  sellOnly: true, description: 'Espada que supura veneno. Aldric la compra desactivada.' },
@@ -6789,7 +6794,7 @@ const SHOP_CATALOG = [
   { name: 'cuero de criatura',       price: 30,  sellOnly: true, description: 'Cuero curtido con escamas abismales. Aldric lo usa en artesanía de armaduras.' },
   { name: 'manopla abismal',         price: 30,  sellOnly: true, description: 'Manopla de escamas del Krakeling. Aldric la compra como pieza rara.' },
   { name: 'ungüento de araña',       price: 35,  sellOnly: true, description: 'Pasta que endurece la piel. Aldric la compra para uso propio.' },
-  { name: 'lanza espectral reforzada', price: 87, sellOnly: true, description: 'Lanza espectral mejorada con esencia etérea. Muy superior a la base.' },
+  { name: 'lanza espectral reforzada', price: 95, sellOnly: true, description: 'Lanza espectral mejorada con esencia etérea. +11 ATK, +2 vs espectrales/mágicos.' },
   // BUG-854: cristal mágico, capa de araña y escudo roto vendían al fallback de 4g por falta de entrada
   { name: 'cristal mágico',          price: 25,  sellOnly: true, description: 'Cristal imbuido con energía mágica concentrada. Drop del Gólem de Piedra. También ingrediente de crafteo avanzado.' },
   { name: 'capa de araña',           price: 10,  sellOnly: true, description: 'Capa tejida con seda de Araña Tejedora. Ligera y resistente (+2 DEF). Aldric la compra para artesanía.' },
