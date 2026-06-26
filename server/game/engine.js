@@ -9872,7 +9872,9 @@ function cmdCast(player, args) {
         else if (mult === 0.0) elementalNote = ` 🚫 Inmune al ${spellElement}`;
       }
     }
-    const finalDmg = Math.max(1, Math.round(dmg * spellPower * magicResist * arcaneSurgeMult * evokerMult * elementalMult));
+    // BUG-943: elementalMult=0 (inmune) debería causar 0 daño, no el mínimo de 1
+    const rawDmg = Math.round(dmg * spellPower * magicResist * arcaneSurgeMult * evokerMult * elementalMult);
+    const finalDmg = elementalMult === 0.0 ? 0 : Math.max(1, rawDmg);
     const newHp = Math.max(0, target.hp - finalDmg);
     db.updatePlayer(player.id, { mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
 
