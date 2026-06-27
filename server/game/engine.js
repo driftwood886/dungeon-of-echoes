@@ -11838,6 +11838,13 @@ function cmdUseSkill(player, args, context) {
         text += `\n  Tu HP: ${newHp}/${freshPlayer.max_hp}.`;
       }
       text += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+      // DIS-978: en el primer fallo de robar, mostrar consejo sobre el riesgo
+      const seRobar = (typeof freshPlayer.status_effects === 'object' ? freshPlayer.status_effects : {});
+      if (!seRobar.robar_fallo_hint_shown) {
+        text += `\n💡 Consejo: \`robar\` tiene ${Math.round(chance * 100)}% de probabilidad de éxito. Si falla, el monstruo contraataca. Debilitalo con \`attack\` primero para mejorar tus chances.`;
+        const seRobarNew = { ...seRobar, robar_fallo_hint_shown: true };
+        db.updatePlayer(freshPlayer.id, { status_effects: JSON.stringify(seRobarNew) });
+      }
       return { text };
     }
   }

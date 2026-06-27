@@ -311,11 +311,22 @@ function craft(player, itemA, itemB) {
   }
 
   const resultDef = CRAFTED_ITEMS[recipe.result] || {};
-  const equipHint = resultDef.type === 'armor'
+  let equipHint = resultDef.type === 'armor'
     ? `\n💡 Es una armadura — equipala con: \`wear ${recipe.result}\``
     : resultDef.type === 'weapon'
     ? `\n💡 Es un arma — equipala con: \`equip ${recipe.result}\``
     : '';
+  // DIS-979: si el ítem crafteado es un arma y es mejor que la equipada, agregar nota de comparación
+  if (resultDef.type === 'weapon' && player.equipped_weapon && player.equipped_weapon !== 'null') {
+    const equippedAtk = (() => {
+      const eqDef = CRAFTED_ITEMS[player.equipped_weapon];
+      return eqDef && eqDef.attack ? eqDef.attack : null;
+    })();
+    const newAtk = resultDef.attack || null;
+    if (equippedAtk !== null && newAtk !== null && newAtk > equippedAtk) {
+      equipHint += ` ⬆️ (${newAtk} ATK vs ${equippedAtk} ATK del ${player.equipped_weapon} — ¡es mejor!)`;
+    }
+  }
 
   return {
     ok: true,
