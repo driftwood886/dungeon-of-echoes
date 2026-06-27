@@ -282,6 +282,7 @@ function execute(playerId, input, context) {
     case 'rank':         result = cmdRank(player, action.args.join(' ')); break;    // T176
     case 'hardcore':     result = cmdHardcore(player, action.args); break;          // T175
     case 'memorial':     result = cmdMemorial(); break;                              // T178
+    case 'salon':        result = cmdSalon(player, action.args); break;              // EPIC-965
     case 'world':        result = cmdWorld(); break;
     case 'weather':      result = cmdWeather(); break;
     case 'recent':       result = cmdRecent(action.args); break;
@@ -17664,6 +17665,84 @@ function cmdPronunciar(player, nameInput) {
     const safeName = nameInput.trim().slice(0, 40);
     return { text: `Pronunciás "${safeName}" en voz alta. El dungeon no reacciona.\n\n💡 Si tenés lore sobre un nombre especial, pronunciarlo en el lugar correcto podría tener efecto.` };
   }
+}
+
+// ─── EPIC-965: cmdSalon — Salón de los Caídos ─────────────────────────────────
+function cmdSalon(player, args) {
+  const legacies = db.getAllLegacies(50);
+
+  if (!legacies || legacies.length === 0) {
+    return {
+      text: [
+        ``,
+        `╔══════════════════════════════════════════════════════╗`,
+        `║          🏛️  SALÓN DE LOS CAÍDOS  🏛️               ║`,
+        `╚══════════════════════════════════════════════════════╝`,
+        ``,
+        `El salón está vacío. Nadie ha ascendido aún.`,
+        ``,
+        `Sé el primero: derrota al Lich Anciano y escribe \`ascender\`.`,
+      ].join('\n')
+    };
+  }
+
+  // Paginación: 10 por página
+  const pageArg = args && args[0] ? parseInt(args[0]) : 1;
+  const page = isNaN(pageArg) || pageArg < 1 ? 1 : pageArg;
+  const perPage = 10;
+  const total = legacies.length;
+  const totalPages = Math.ceil(total / perPage);
+  const start = (page - 1) * perPage;
+  const pageItems = legacies.slice(start, start + perPage);
+
+  const LEGACY_NAMES = {
+    llama_persistente: '🔥 Llama Persistente',
+    herencia: '💰 Herencia',
+    memoria_combate: '🗡️ Memoria de Combate',
+    vinculo_animal: '🐾 Vínculo Animal',
+    sabio: '📜 Sabio',
+    explorador: '🔑 Explorador',
+    arcano: '⚡ Arcano',
+    marca_lich: '💀 Marca del Lich',
+    reputado: '🏆 Reputado',
+    guardian: '🕯️ Guardián',
+    alquimista: '🧪 Alquimista',
+    veterano_silencioso: '🌙 Veterano Silencioso',
+  };
+
+  const lines = [
+    ``,
+    `╔══════════════════════════════════════════════════════╗`,
+    `║          🏛️  SALÓN DE LOS CAÍDOS  🏛️               ║`,
+    `║   Los que completaron su ciclo y dejaron su legado  ║`,
+    `╚══════════════════════════════════════════════════════╝`,
+    ``,
+  ];
+
+  pageItems.forEach((leg, idx) => {
+    const n = start + idx + 1;
+    const clase = leg.character_class || 'sin_clase';
+    const spec = leg.specialization ? ` [${leg.specialization}]` : '';
+    const fecha = leg.ascended_at ? leg.ascended_at.slice(0, 10) : '???';
+    const legadoNombre = LEGACY_NAMES[leg.legacy_type] || leg.legacy_type;
+    const epitafio = leg.epitaph ? `\n   ✍️  "${leg.epitaph}"` : '';
+
+    lines.push(`  ${n}. ${leg.character_name}`);
+    lines.push(`     ${clase}${spec} · Nivel ${leg.level_reached} · ${fecha}`);
+    lines.push(`     Legado: ${legadoNombre}${epitafio}`);
+    lines.push(``);
+  });
+
+  if (totalPages > 1) {
+    lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    lines.push(`Página ${page}/${totalPages} · ${total} ascendidos en total`);
+    if (page < totalPages) lines.push(`Usá \`salon ${page + 1}\` para ver más.`);
+  } else {
+    lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    lines.push(`${total} ascendido${total !== 1 ? 's' : ''} en total.`);
+  }
+
+  return { text: lines.join('\n') };
 }
 
 // ─── EPIC-963: cmdAscend — Sistema de Ascensión (implementación completa) ────

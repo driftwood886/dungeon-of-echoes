@@ -64,6 +64,8 @@ const COMMAND_ALIASES = {
   // T175: hardcore mode
   hardcore: 'hardcore', 'modo-hardcore': 'hardcore', permadeath: 'hardcore',
   memorial: 'memorial', muro: 'memorial', homenaje: 'memorial', fallen: 'memorial', caidos: 'memorial',
+  // EPIC-965: salon de los caidos (legados de ascensión)
+  salon: 'salon', 'salón': 'salon', 'salon_caidos': 'salon', legados: 'salon', ascendidos: 'salon',
   // give / dar
   give: 'give', dar: 'give', entregar: 'give', pasar: 'give', ofrecer: 'give',
   // pay / pagar / transferir oro
