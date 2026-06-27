@@ -569,7 +569,7 @@ Para todos los comandos: help
 
   // EPIC-966: Agregar recordatorio de ascensión pendiente a respuestas de comandos activos
   if (hasAscensionPending && !ASCENSION_REMINDER_EXCLUDED.has(action.command)) {
-    result = { ...result, text: result.text + '\n\n⚠️ Podés ascender antes de continuar. Escribí `ascender` para ver tus opciones de legado.' };
+    result = { ...result, text: result.text + '\n\n⚡ El Lich cayó. Tu legado te espera — `ascender` para elegirlo.' };
   }
 
   return result;
@@ -2943,15 +2943,30 @@ function cmdAttack(player, targetName) {
       ];
 
       if (isFirstKill) {
-        lines.push('║  🌟 ¡Primera victoria épica!                         ║');
-        lines.push('║  El dungeon ha sido conquistado... por ahora.        ║');
-        lines.push('╠══════════════════════════════════════════════════════╣');
+        lines.push('╚══════════════════════════════════════════════════════╝');
+        lines.push('');
+        const pname = (freshVictory && freshVictory.username) || player.username || 'Aventurero';
+        lines.push(`${pname} permanece de pie.`);
+        lines.push('');
+        lines.push('La corona de hueso rueda por el piso de la Catedral y');
+        lines.push('se parte en dos. Un silencio que no habías escuchado');
+        lines.push('antes llena el lugar. El dungeon contiene el aliento.');
+        lines.push('');
+        lines.push('Podés seguir. El dungeon sigue aquí. Pero ahora tenés');
+        lines.push('otra opción.');
+        lines.push('');
+        lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        lines.push('⚡ ASCENSIÓN DISPONIBLE — escribí `ascender`');
+        lines.push('   Tu aventura puede terminar aquí, y comenzar de nuevo.');
+        lines.push('   (O continuá explorando — podés ascender cuando quieras.)');
+        lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        lines.push('');
+        lines.push('╔══════════════════════════════════════════════════════╗');
         lines.push('║  🔄 El Lich regresará en 30 minutos. Mientras tanto: ║');
         lines.push('║  → Explorar salas que no visitaste                   ║');
-        lines.push('║  → Completar el bestiario (comando \"bestiary\")       ║');
-        lines.push('║  → Crafting avanzado (\"recetas\")                    ║');
+        lines.push('║  → Completar el bestiario (comando "bestiary")       ║');
+        lines.push('║  → Crafting avanzado ("recetas")                    ║');
         lines.push('║  → Desafío: matar al Lich con menos tiempo           ║');
-        lines.push('║  → Escribí \"legado\" para ver tus estadísticas       ║');
       } else {
         lines.push(`║  ${(cycleMedal + ' Ciclo #' + lichKills + ' completado!').padEnd(52)}║`);
         if (bestTime !== undefined && bestTime !== null) {
@@ -17849,22 +17864,23 @@ function cmdAscend(player, args, context) {
   // Sin argumento — mostrar pantalla de opciones
   if (!match) {
     const charName = fresh.username;
+    const lichKillsCount = fresh.lich_kills || 0;
+    const ascCount = fresh.ascension_count || 0;
     const lines = [
       ``,
       `╔══════════════════════════════════════════════════════╗`,
-      `║           ⚡  EL CICLO HA TERMINADO  ⚡              ║`,
-      `╠══════════════════════════════════════════════════════╣`,
-      `║  ${charName.padEnd(52)}║`,
-      `║  Nivel ${String(fresh.level || 1).padEnd(48)}║`,
-      `║  Lich kills: ${String(lichKills).padEnd(42)}║`,
+      `║  ⚡  ${(charName + '  —  FIN DE UN CICLO').substring(0, 48).padEnd(48)}║`,
       `╚══════════════════════════════════════════════════════╝`,
       ``,
-      `El Lich Anciano ha caído. Tu ciclo en el dungeon está`,
-      `completo. Podés ascender y legar tu poder al sucesor,`,
-      `o continuar explorando como eres.`,
+      `${charName} llegó lejos. Nivel ${fresh.level || 1}. El Lich cayó por`,
+      `${lichKillsCount === 1 ? 'primera vez.' : lichKillsCount + ' vez.'}`,
+      ``,
+      `Ascender es dejar ir a este personaje. Su nombre quedará`,
+      `grabado en el Salón de los Caídos. Pero algo de él`,
+      `persistirá — en el próximo aventurero de esta cuenta.`,
       ``,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `🌟  ELIGE TU LEGADO  (solo podés elegir uno)`,
+      `  ¿QUÉ PARTE DE ${charName.toUpperCase()} QUERÉS QUE PERDURE?`,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       ``,
     ];
@@ -17878,9 +17894,13 @@ function cmdAscend(player, args, context) {
     });
 
     lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    lines.push(`Para ascender: \`ascender 1\`, \`ascender 2\` o \`ascender 3\``);
-    lines.push(`Podés agregar un epitafio: \`ascender 1 Que el eco de mis pasos perdure\``);
-    lines.push(`O continuar sin ascender — tu personaje sigue activo.`);
+    lines.push(`Para ascender:  \`ascender 1\`, \`ascender 2\` o \`ascender 3\``);
+    lines.push(`Con epitafio:   \`ascender 1 Que el eco de mis pasos perdure\``);
+    lines.push(`                (El epitafio queda grabado en el Salón.)`);
+    lines.push(``);
+    lines.push(`Si no querés ascender: tu personaje sigue activo.`);
+    lines.push(`El dungeon no tiene prisa. Pero el Lich volverá.`);
+    lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 
     return { text: lines.join('\n') };
   }
@@ -17945,33 +17965,54 @@ function cmdAscend(player, args, context) {
     // ─── Mensaje dramático de confirmación ──────────────────────────────
     const charNameFmt = archiveName;
     const legDesc = legadoElegido.desc.replace('[nombre]', username);
+    const isFirstAscension = ascensionCount === 1;
     const lines = [
       ``,
       `╔══════════════════════════════════════════════════════╗`,
-      `║         ✨  LA ASCENSIÓN HA COMENZADO  ✨            ║`,
+      isFirstAscension
+        ? `║  ✨  ${(username + ' ASCIENDE').substring(0, 48).padEnd(48)}║`
+        : `║  ✨  ${(username + ' ASCIENDE — LEGADO #' + ascensionCount).substring(0, 48).padEnd(48)}║`,
       `╚══════════════════════════════════════════════════════╝`,
       ``,
-      `${username} ha pasado a los anales del dungeon.`,
-      `Su nombre quedará grabado en el Salón de los Caídos`,
-      `como "${charNameFmt}" — ${fresh.player_class || 'aventurero'} nivel ${fresh.level || 1}.`,
+      isFirstAscension
+        ? `La decisión está tomada.`
+        : `Otra vez. El dungeon conoce tu nombre.`,
       ``,
-      `Legado elegido: ${legadoElegido.emoji} ${legadoElegido.nombre}`,
-      `"${legDesc}"`,
+      `${username} — ${fresh.player_class || 'aventurero'}, nivel ${fresh.level || 1} — pasa`,
+      `a los anales del dungeon como "${charNameFmt}".`,
+      ``,
+      `Lo que ${username} deja atrás:`,
+      ``,
+      `  ${legadoElegido.emoji} ${legadoElegido.nombre}`,
+      `  "${legDesc}"`,
+      ``,
+      `  Tu sucesor lo recibirá desde el primer momento.`,
+      `  Invisible. Pero real.`,
     ];
 
     if (epitaph) {
       lines.push(``);
-      lines.push(`Epitafio: "${epitaph}"`);
+      lines.push(`Tu última palabra, grabada en el Salón:`);
+      lines.push(`  ❝ ${epitaph.substring(0, 80)} ❞`);
+    } else {
+      lines.push(``);
+      lines.push(`No dejaste epitafio. A veces el silencio es suficiente.`);
+    }
+
+    if (ascensionCount >= 4) {
+      lines.push(``);
+      lines.push(`(A partir del cuarto legado, el bono de stats ya no escala.`);
+      lines.push(` Pero tu historia en el Salón crece. Eso tiene su peso.)`);
     }
 
     lines.push(``);
-    lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    lines.push(`Un nuevo ciclo comienza. El dungeon te recibe de nuevo.`);
-    lines.push(`Tu sucesor hereda el legado de ${username}.`);
-    lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    lines.push(``);
-    lines.push(`↻ Tu sesión se reinicia. Escribí cualquier comando para empezar.`);
-    lines.push(`💡 Usá \`salon\` para ver el Salón de los Caídos.`);
+    lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    lines.push(isFirstAscension
+      ? `Un nuevo aventurero lleva tu nombre. El dungeon lo espera.`
+      : `El dungeon tiene memoria. Vos también.`);
+    lines.push(`Escribí cualquier comando para comenzar.`);
+    lines.push(`💡 \`salon\` para ver el Salón de los Caídos.`);
+    lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 
     console.log(`[ASCENSIÓN] ${username} ascendió → ${archiveName} (legado: ${legadoElegido.id}, ascensión #${ascensionCount})`);
 
