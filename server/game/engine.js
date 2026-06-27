@@ -152,6 +152,23 @@ function parseSE(se) {
 }
 
 /**
+ * BUG-971: Marca el flag `boss_attacked_<roomId>` en status_effects del jugador.
+ * Llamar desde cualquier skill que cause daño a un boss.
+ * @param {object} player - objeto jugador con id y current_room_id
+ * @param {number} roomId - ID de la sala actual
+ */
+function markBossAttacked(player, roomId) {
+  try {
+    const seForMark = parseSE(db.getPlayer(player.id).status_effects);
+    const bossKey = `boss_attacked_${roomId}`;
+    if (!seForMark[bossKey]) {
+      seForMark[bossKey] = true;
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(seForMark) });
+    }
+  } catch (e) { console.warn('[engine] BUG-971: Error marcando boss_attacked:', e.message); }
+}
+
+/**
  * Devuelve el título del jugador basado en sus kills.
  * @param {number} kills
  * @returns {{ label: string, icon: string, full: string }}
@@ -11205,6 +11222,8 @@ function cmdUseSkill(player, args, context) {
     const finalDmg = Math.max(1, dmgAfterSmashResist - Math.floor(target.defense || 0));
     const newHp = Math.max(0, target.hp - finalDmg);
     db.updateMonster(target.id, { hp: newHp });
+    // BUG-971: marcar boss atacado si el target es un boss
+    if (combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]) markBossAttacked(freshPlayer, freshPlayer.current_room_id);
     // Aplicar cooldown
     const newCooldowns = skills.applyCooldown(freshPlayer, 'smash');
     db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldowns });
@@ -11362,6 +11381,8 @@ function cmdUseSkill(player, args, context) {
     const monsterEffects = target.status_effects ? JSON.parse(target.status_effects || '{}') : {};
     monsterEffects.stunned = { turns: 1 };
     db.updateMonster(target.id, { hp: newHp, status_effects: JSON.stringify(monsterEffects) });
+    // BUG-971: marcar boss atacado si el target es un boss
+    if (combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]) markBossAttacked(freshPlayer, freshPlayer.current_room_id);
     // Cooldown
     const newCooldowns = skills.applyCooldown(freshPlayer, 'shield_bash');
     db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldowns });
@@ -11553,6 +11574,8 @@ function cmdUseSkill(player, args, context) {
     const monsterFx = target.status_effects ? JSON.parse(target.status_effects || '{}') : {};
     monsterFx.poisoned = { damage: skill.poison_damage, turns: skill.poison_turns };
     db.updateMonster(target.id, { hp: newHp, status_effects: JSON.stringify(monsterFx) });
+    // BUG-971: marcar boss atacado si el target es un boss
+    if (combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]) markBossAttacked(freshPlayer, freshPlayer.current_room_id);
 
     const newCooldowns = skills.applyCooldown(freshPlayer, 'golpe_sucio');
     db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldowns });
@@ -11896,6 +11919,8 @@ function cmdUseSkill(player, args, context) {
     const newHpSh = Math.max(0, target.hp - finalDmgSh);
 
     db.updateMonster(target.id, { hp: newHpSh });
+    // BUG-971: marcar boss atacado si el target es un boss
+    if (combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]) markBossAttacked(freshPicSh, freshPicSh.current_room_id);
     const newCDsSh = skills.applyCooldown(freshPicSh, 'golpe_sombra');
     db.updatePlayer(freshPicSh.id, { skill_cooldowns: newCDsSh });
 
@@ -12011,6 +12036,8 @@ function cmdUseSkill(player, args, context) {
     const finalDmgPal = Math.max(1, dmgPal - Math.floor(target.defense || 0));
     const newHpPal = Math.max(0, target.hp - finalDmgPal);
     db.updateMonster(target.id, { hp: newHpPal });
+    // BUG-971: marcar boss atacado si el target es un boss
+    if (combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]) markBossAttacked(freshPal, freshPal.current_room_id);
     // Aplicar debuff de ATK al monstruo por 3 turnos
     const monSePal = target.status_effects ? JSON.parse(target.status_effects || '{}') : {};
     const debuffExpiresPal = new Date(Date.now() + (skill.debuff_turns || 3) * 30 * 1000).toISOString(); // ~3 turnos (30s cada uno)
@@ -12114,6 +12141,8 @@ function cmdUseSkill(player, args, context) {
     const finalDmgAse = Math.max(1, dmgAse - Math.floor(target.defense || 0));
     const newHpAse = Math.max(0, target.hp - finalDmgAse);
     db.updateMonster(target.id, { hp: newHpAse });
+    // BUG-971: marcar boss atacado si el target es un boss
+    if (combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]) markBossAttacked(freshAse, freshAse.current_room_id);
     // Aplicar veneno intensificado al monstruo (4 dmg × 3 turnos)
     const monSeAse = target.status_effects ? JSON.parse(target.status_effects || '{}') : {};
     const poisonDuration = (skill.poison_turns || 3) * 30 * 1000;
