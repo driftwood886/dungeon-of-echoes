@@ -223,6 +223,13 @@ function execute(playerId, input, context) {
     return { text: `✝ Tu personaje cayó en modo Hardcore. Solo podés usar comandos pasivos.\n  (look, status, who, score, map, etc.)\n  Escribí "hardcore" para ver tu estado.` };
   }
 
+  // ── EPIC-966: Recordatorio de ascensión pendiente ──────────────────────────
+  // Si el jugador tiene ascension_pending=true, agregar recordatorio a la respuesta.
+  // Solo se muestra en comandos "activos" (no en comandos de info pura).
+  const ASCENSION_REMINDER_EXCLUDED = new Set(['look', 'status', 'who', 'score', 'profile', 'bestiary', 'journal', 'news', 'dungeon', 'history', 'help', 'changelog', 'server', 'time', 'enemies', 'compare', 'reputation', 'path', 'guide', 'find', 'runas', 'map', 'inventory', 'junk', 'ascender', 'legado', 'memorial', 'rank', 'read', 'lore', 'weather', 'world', 'challenge', 'recent', 'records', 'worldgoals']);
+  const playerSe = player.status_effects ? (typeof player.status_effects === 'string' ? JSON.parse(player.status_effects) : player.status_effects) : {};
+  const hasAscensionPending = playerSe.ascension_pending === true;
+
   switch (action.command) {
     case 'look':      result = cmdLook(player); break;
     case 'move':      result = cmdMove(player, action.args[0]); break;
@@ -387,6 +394,7 @@ function execute(playerId, input, context) {
     case 'tips':         result = cmdTips(action.args); break;       // T209
     case 'goals':        result = cmdGoals(player, context); break;           // T210
     case 'legado':       result = cmdLegado(player, context); break;          // DIS-D291: legado post-boss
+    case 'ascender':     result = cmdAscend(player, action.args, context); break; // EPIC-963: Sistema de Ascensión
     case 'battlecry':    result = cmdBattlecry(player, action.args); break; // T211
     case 'champion':     result = cmdChampion(); break;                      // T212
     case 'gamble':       result = cmdGamble(player, action.args); break;     // T217
@@ -557,6 +565,11 @@ Para todos los comandos: help
 
   // Loguear el evento
   db.logEvent(playerId, player.current_room_id, input, result.text.slice(0, 200));
+
+  // EPIC-966: Agregar recordatorio de ascensión pendiente a respuestas de comandos activos
+  if (hasAscensionPending && !ASCENSION_REMINDER_EXCLUDED.has(action.command)) {
+    result = { ...result, text: result.text + '\n\n⚠️ Podés ascender antes de continuar. Escribí `ascender` para ver tus opciones de legado.' };
+  }
 
   return result;
 }
@@ -2656,6 +2669,13 @@ function cmdAttack(player, targetName) {
           updateData.cycle_best_time = cycleTimeMin;
         }
         db.updatePlayer(player.id, updateData);
+        // EPIC-966: marcar ascension_pending en status_effects
+        const freshAfterCycle = db.getPlayer(player.id);
+        if (freshAfterCycle) {
+          const seFresh = freshAfterCycle.status_effects ? (typeof freshAfterCycle.status_effects === 'string' ? JSON.parse(freshAfterCycle.status_effects) : freshAfterCycle.status_effects) : {};
+          seFresh.ascension_pending = true;
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(seFresh) });
+        }
       }
     }
     // Logros nuevos → registrar el primero en la crónica
@@ -17553,6 +17573,47 @@ function cmdPronunciar(player, nameInput) {
     const safeName = nameInput.trim().slice(0, 40);
     return { text: `Pronunciás "${safeName}" en voz alta. El dungeon no reacciona.\n\n💡 Si tenés lore sobre un nombre especial, pronunciarlo en el lugar correcto podría tener efecto.` };
   }
+}
+
+// ─── EPIC-963/966: cmdAscend — Sistema de Ascensión ─────────────────────────
+// Stub funcional: permite al jugador ver sus opciones de legado.
+// La implementación completa del flujo (renombrado + nuevo personaje) va en EPIC-963.
+function cmdAscend(player, args, context) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: '❌ Error al cargar tu personaje.' };
+
+  const se = fresh.status_effects ? (typeof fresh.status_effects === 'string' ? JSON.parse(fresh.status_effects) : fresh.status_effects) : {};
+
+  // Si el jugador no mató al Lich, el comando no está disponible
+  const lichKills = fresh.lich_kills || 0;
+  if (lichKills === 0 && !se.ascension_pending) {
+    return { text: '💀 Solo podés ascender después de derrotar al Lich Anciano.\n\nEl Sistema de Ascensión estará disponible cuando completes tu primer ciclo.' };
+  }
+
+  // Si no tiene ascension_pending activo, informar que ya puede ascender pero debe matar al Lich primero en este ciclo
+  if (!se.ascension_pending) {
+    return { text: `⚡ Ya ascendiste antes (${lichKills} vez/veces), pero el Sistema de Ascensión solo se activa inmediatamente después de derrotar al Lich.\n\nDerrota al Lich Anciano nuevamente para acceder a las opciones de legado.` };
+  }
+
+  // Mostrar las opciones de legado — implementación completa de EPIC-963 pendiente
+  const lines = [
+    `╔══════════════════════════════════════════════╗`,
+    `║        ⚡ SISTEMA DE ASCENSIÓN ⚡             ║`,
+    `╠══════════════════════════════════════════════╣`,
+    `║  El Lich ha caído. Tu ciclo está completo.   ║`,
+    `║  Podés ascender y legar tu poder.            ║`,
+    `╚══════════════════════════════════════════════╝`,
+    ``,
+    `📜 El Sistema de Ascensión completo estará disponible próximamente.`,
+    `   (Implementación en progreso — EPIC-963)`,
+    ``,
+    `Por ahora podés continuar jugando normalmente.`,
+    `Tu personaje actual sigue activo — la ascensión es opcional.`,
+    ``,
+    `💡 Escribí \`legado\` para ver tu historial de ciclos.`,
+  ];
+
+  return { text: lines.join('\n') };
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, cmdContract, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals, checkAndSetRecords };

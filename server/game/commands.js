@@ -283,6 +283,8 @@ const COMMAND_ALIASES = {
   goals: 'goals', objetivos: 'goals', metas: 'goals', misiones_personales: 'goals', proximos: 'goals', 'qué-hacer': 'goals',  // T210
   // legado / historial épico del héroe (DIS-D291)
   legado: 'legado', leyenda: 'legado', historia: 'legado', ciclos: 'legado', 'mis-ciclos': 'legado', endgame: 'legado',
+  // ascender / Sistema de Ascensión (EPIC-963/966)
+  ascender: 'ascender', ascend: 'ascender', 'ascension': 'ascender', ascensión: 'ascender', renacimiento: 'ascender', renacer: 'ascender', legado_nuevo: 'ascender',
   // battlecry / grito de batalla (T211)
   battlecry: 'battlecry', 'grito-de-batalla': 'battlecry', grito: 'battlecry', 'grito-guerra': 'battlecry', gritoguerra: 'battlecry',
   // champion / campeón de la hora (T212)
