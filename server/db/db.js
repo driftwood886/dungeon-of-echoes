@@ -184,6 +184,10 @@ async function init() {
     `ALTER TABLE monsters ADD COLUMN defense INTEGER NOT NULL DEFAULT 0`,                // BUG-462: columna defense faltante en monsters (crash en Fase 2 de bosses)
     `ALTER TABLE players ADD COLUMN cycle_start_at TEXT`,                                // DIS-691: timestamp de inicio del ciclo actual (para calcular tiempo de ciclo)
     `ALTER TABLE players ADD COLUMN specialization TEXT`,                                 // DIS-914: especialización de clase (Paladín, Evoker, Asesino, Sanador…)
+    `ALTER TABLE players ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`,              // EPIC-962: personaje archivado por ascensión
+    `ALTER TABLE players ADD COLUMN account_username TEXT`,                               // EPIC-962: username original de la cuenta
+    `ALTER TABLE players ADD COLUMN ascension_count INTEGER NOT NULL DEFAULT 0`,          // EPIC-962: número de ascensiones de esta cuenta
+    `ALTER TABLE players ADD COLUMN legacy_bonus TEXT NOT NULL DEFAULT '{}'`,             // EPIC-962: JSON del bonus de legado a aplicar al siguiente personaje
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -290,6 +294,25 @@ async function init() {
       holder_name  TEXT,
       achieved_at  TEXT NOT NULL DEFAULT (datetime('now')),
       description  TEXT
+    )
+  `);
+
+  // EPIC-962: Tabla de legados (Salón de los Caídos — historial de ascensiones)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS legacies (
+      id                TEXT    PRIMARY KEY,
+      account_username  TEXT    NOT NULL,
+      character_name    TEXT    NOT NULL,
+      character_class   TEXT    NOT NULL DEFAULT 'sin_clase',
+      specialization    TEXT,
+      level_reached     INTEGER NOT NULL DEFAULT 1,
+      lich_kills        INTEGER NOT NULL DEFAULT 0,
+      legacy_type       TEXT    NOT NULL,
+      epitaph           TEXT,
+      item_left         TEXT,
+      item_room_id      INTEGER,
+      ascended_at       TEXT    NOT NULL DEFAULT (datetime('now')),
+      ascension_number  INTEGER NOT NULL DEFAULT 1
     )
   `);
 
@@ -503,8 +526,9 @@ function addJournalEntry(playerId, type, message) {
 
 function getPlayersInRoom(roomId) {
   // Fix DIS-P07: solo mostrar jugadores activos en los últimos 15 minutos para evitar fantasmas
+  // EPIC-962: excluir personajes archivados (ascendidos)
   const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-  return all('SELECT * FROM players WHERE current_room_id = ? AND last_seen > ?', [roomId, cutoff])
+  return all('SELECT * FROM players WHERE current_room_id = ? AND last_seen > ? AND is_archived = 0', [roomId, cutoff])
     .map(p => ({ ...p, inventory: JSON.parse(p.inventory), status_effects: p.status_effects ? JSON.parse(p.status_effects) : {} }));
 }
 
@@ -677,11 +701,12 @@ function getRecentEvents(roomId, limit = 5) {
 }
 
 function getActivePlayers(cutoff) {
+  // EPIC-962: excluir personajes archivados (ascendidos)
   return all(
     `SELECT p.*, r.name AS room_name
      FROM players p
      LEFT JOIN rooms r ON r.id = p.current_room_id
-     WHERE p.last_seen >= ?
+     WHERE p.last_seen >= ? AND p.is_archived = 0
      ORDER BY p.last_seen DESC`,
     [cutoff]
   ).map(p => ({
@@ -691,9 +716,11 @@ function getActivePlayers(cutoff) {
 }
 
 function getLeaderboard(limit = 10) {
+  // EPIC-962: excluir personajes archivados
   return all(
     `SELECT username, level, xp, kills, hp, max_hp, deaths, gold, duel_wins, is_hardcore, fallen
      FROM players
+     WHERE is_archived = 0
      ORDER BY kills DESC, xp DESC, level DESC
      LIMIT ?`,
     [limit]
@@ -705,6 +732,7 @@ function getLeaderboardByGold(limit = 10) {
   return all(
     `SELECT username, level, gold, kills
      FROM players
+     WHERE is_archived = 0
      ORDER BY gold DESC, level DESC
      LIMIT ?`,
     [limit]
@@ -715,6 +743,7 @@ function getLeaderboardByDuels(limit = 10) {
   return all(
     `SELECT username, level, duel_wins, duel_losses, kills
      FROM players
+     WHERE is_archived = 0
      ORDER BY duel_wins DESC, level DESC
      LIMIT ?`,
     [limit]
@@ -725,6 +754,7 @@ function getLeaderboardByReputation(limit = 10) {
   return all(
     `SELECT username, level, reputation, kills
      FROM players
+     WHERE is_archived = 0
      ORDER BY reputation DESC, level DESC
      LIMIT ?`,
     [limit]
@@ -736,6 +766,7 @@ function getLeaderboardByCrafts(limit = 10) {
   return all(
     `SELECT username, level, crafts_count, kills
      FROM players
+     WHERE is_archived = 0
      ORDER BY crafts_count DESC, level DESC
      LIMIT ?`,
     [limit]
@@ -1595,6 +1626,7 @@ function getLeaderboardByPlaytime(limit = 10) {
   return all(
     `SELECT username, level, playtime_minutes, kills
      FROM players
+     WHERE is_archived = 0
      ORDER BY playtime_minutes DESC, level DESC
      LIMIT ?`,
     [limit]
@@ -1937,6 +1969,71 @@ function processLoginStreak(playerId) {
   };
 }
 
+// ─── EPIC-962: Legados (Sistema de Ascensión) ────────────────────────────────
+
+/**
+ * Registra una entrada en la tabla `legacies` al ascender.
+ * @param {object} data
+ * @param {string} data.id               - UUID único
+ * @param {string} data.account_username - username original de la cuenta
+ * @param {string} data.character_name   - nombre del personaje archivado (ej: 'kaelthas#1')
+ * @param {string} data.character_class  - clase del personaje
+ * @param {string} [data.specialization] - especialización (puede ser null)
+ * @param {number} data.level_reached    - nivel al momento de ascender
+ * @param {number} data.lich_kills       - ciclos completados
+ * @param {string} data.legacy_type      - ID del legado elegido
+ * @param {string} [data.epitaph]        - frase del jugador
+ * @param {string} [data.item_left]      - JSON del ítem enterrado
+ * @param {number} [data.item_room_id]   - sala del ítem enterrado
+ * @param {number} data.ascension_number - número de ascensión
+ */
+function createLegacyEntry(data) {
+  run(
+    `INSERT INTO legacies
+      (id, account_username, character_name, character_class, specialization,
+       level_reached, lich_kills, legacy_type, epitaph, item_left, item_room_id, ascension_number)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      data.id,
+      data.account_username,
+      data.character_name,
+      data.character_class || 'sin_clase',
+      data.specialization || null,
+      data.level_reached || 1,
+      data.lich_kills || 0,
+      data.legacy_type,
+      data.epitaph || null,
+      data.item_left || null,
+      data.item_room_id || null,
+      data.ascension_number || 1,
+    ]
+  );
+}
+
+/**
+ * Obtiene todos los legados de una cuenta, ordenados por fecha desc.
+ * @param {string} accountUsername
+ * @returns {object[]}
+ */
+function getLegaciesByAccount(accountUsername) {
+  return all(
+    `SELECT * FROM legacies WHERE account_username = ? ORDER BY ascended_at DESC`,
+    [accountUsername]
+  );
+}
+
+/**
+ * Obtiene todos los legados del servidor (para el Salón de los Caídos), ordenados por fecha desc.
+ * @param {number} [limit=50]
+ * @returns {object[]}
+ */
+function getAllLegacies(limit = 50) {
+  return all(
+    `SELECT * FROM legacies ORDER BY ascended_at DESC LIMIT ?`,
+    [limit]
+  );
+}
+
 
 module.exports = {
   init, persist,
@@ -1994,4 +2091,6 @@ module.exports = {
   incrementHourlyKills, getHourlyChampion,
    // T219: racha de login diario
    processLoginStreak,
+  // EPIC-962: legados (Sistema de Ascensión)
+  createLegacyEntry, getLegaciesByAccount, getAllLegacies,
   };
