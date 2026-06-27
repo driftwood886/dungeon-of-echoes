@@ -7313,7 +7313,11 @@ function cmdSell(player, itemQuery) {
   player = db.getPlayer(player.id);
 
   if (player.current_room_id !== MERCHANT_ROOM_ID) {
-    return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado.' };
+    // DIS-954: ruta dinámica según posición del jugador (igual que cmdTalk/examine aldric)
+    const sellRouteHint = player.current_room_id === 1
+      ? '💡 Ruta desde la Entrada: norte → norte → este'
+      : '💡 Usá `ruta tesoro` para obtener el camino desde tu posición actual.';
+    return { text: `🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).\n  ${sellRouteHint}\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado.` };
   }
 
   // BUG-313: si el query es un número, interpretar como índice del inventario (1-based)
