@@ -188,6 +188,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN account_username TEXT`,                               // EPIC-962: username original de la cuenta
     `ALTER TABLE players ADD COLUMN ascension_count INTEGER NOT NULL DEFAULT 0`,          // EPIC-962: número de ascensiones de esta cuenta
     `ALTER TABLE players ADD COLUMN legacy_bonus TEXT NOT NULL DEFAULT '{}'`,             // EPIC-962: JSON del bonus de legado a aplicar al siguiente personaje
+    `ALTER TABLE legacies ADD COLUMN item_claimed INTEGER NOT NULL DEFAULT 0`,            // T970: ítem heredado reclamado por el sucesor
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -2034,6 +2035,38 @@ function getAllLegacies(limit = 50) {
   );
 }
 
+/**
+ * T970: Obtiene el ítem heredado más reciente no reclamado para una cuenta.
+ * @param {string} accountUsername
+ * @returns {object|null} — fila de legacies con item_left, item_room_id, character_name; o null
+ */
+function getUnclaimedLegacyItem(accountUsername) {
+  return one(
+    `SELECT * FROM legacies
+     WHERE account_username = ? AND item_left IS NOT NULL AND item_claimed = 0
+     ORDER BY ascension_number DESC LIMIT 1`,
+    [accountUsername]
+  ) || null;
+}
+
+/**
+ * T970: Marca el ítem heredado de un legado como reclamado.
+ * @param {string} legacyId — id de la fila en legacies
+ */
+function claimLegacyItem(legacyId) {
+  run(`UPDATE legacies SET item_claimed = 1 WHERE id = ?`, [legacyId]);
+}
+
+/**
+ * T967: Registra un ítem enterrado en un legado existente.
+ * @param {string} legacyId
+ * @param {string} itemName
+ * @param {number} roomId
+ */
+function setLegacyItem(legacyId, itemName, roomId) {
+  run(`UPDATE legacies SET item_left = ?, item_room_id = ? WHERE id = ?`, [itemName, roomId, legacyId]);
+}
+
 
 module.exports = {
   init, persist,
@@ -2092,5 +2125,5 @@ module.exports = {
    // T219: racha de login diario
    processLoginStreak,
   // EPIC-962: legados (Sistema de Ascensión)
-  createLegacyEntry, getLegaciesByAccount, getAllLegacies,
+  createLegacyEntry, getLegaciesByAccount, getAllLegacies, getUnclaimedLegacyItem, claimLegacyItem, setLegacyItem,
   };
