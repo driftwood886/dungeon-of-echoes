@@ -1555,15 +1555,19 @@ function cmdMove(player, direction) {
     // El blizzard causa mensaje de ralentización
     extremeWeatherMsg = '\n\n🌨️ ¡El BLIZZARD ralentiza tus movimientos! Te abrís paso con dificultad entre la nieve sobrenatural.';
   } else if (weather.isSporeStorm()) {
-    // La tormenta de esporas envenena al moverse en salas "dungeon" (no sagradas/especiales)
+    // BUG-953: La tormenta de esporas envenena al moverse en salas "dungeon" (no sagradas/especiales).
+    // FIX: usar status_effects.poisoned (patrón estándar) en vez de is_poisoned (columna inexistente en BD).
     const SAFE_ROOMS = new Set([1, 4, 16, 17, 18, 21, 22]); // salas relativamente seguras
     if (!SAFE_ROOMS.has(targetId)) {
       const freshPForStorm = db.getPlayer(player.id);
+      const stormFx = freshPForStorm ? (freshPForStorm.status_effects || {}) : {};
       // 40% de chance de envenenarse al entrar a una sala peligrosa
-      if (Math.random() < 0.40 && freshPForStorm && !freshPForStorm.is_poisoned) {
-        db.updatePlayer(player.id, { is_poisoned: 1 });
-        extremeWeatherMsg = '\n\n☠️ Las esporas tóxicas te envuelven al moverte. ¡Estás ENVENENADO! Buscá un antídoto.';
-      } else if (freshPForStorm && freshPForStorm.is_poisoned) {
+      if (Math.random() < 0.40 && freshPForStorm && !stormFx.poisoned) {
+        // Envenenar al jugador: 3 dmg × 4 turnos (curable con antídoto)
+        const newStormFx = { ...stormFx, poisoned: { turns: 4, damage: 3 } };
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(newStormFx) });
+        extremeWeatherMsg = '\n\n☠️ Las esporas tóxicas te envuelven al moverte. ¡Estás ENVENENADO (3 dmg × 4 turnos)! Buscá un antídoto.';
+      } else if (freshPForStorm && stormFx.poisoned) {
         extremeWeatherMsg = '\n\n☠️ Las esporas agravan tu veneno. Los corredores están saturados de toxinas.';
       } else {
         extremeWeatherMsg = '\n\n☠️ Las esporas tóxicas flotan en el aire — tenés suerte de no haberte envenenado esta vez.';
