@@ -9517,7 +9517,13 @@ function cmdAuction(player, args) {
   }
 
   // El último argumento es el precio, el resto es el nombre del ítem
-  const priceArg = args[args.length - 1];
+  // BUG-981: soportar formato "subasta <ítem> por <precio>" además de "subasta <ítem> <precio>"
+  let priceArg = args[args.length - 1];
+  let itemArgs = args.slice(0, -1);
+  // Si el penúltimo arg es "por" (español natural), ignorarlo
+  if (itemArgs.length > 0 && itemArgs[itemArgs.length - 1].toLowerCase() === 'por') {
+    itemArgs = itemArgs.slice(0, -1);
+  }
   const minPrice = parseInt(priceArg, 10);
   if (isNaN(minPrice) || minPrice < 1) {
     // DIS-D379: si el último argumento no es un número, el jugador probablemente
@@ -9528,7 +9534,7 @@ function cmdAuction(player, args) {
     return { text: `Precio inválido: "${priceArg}". Debe ser un número mayor a 0.\nEjemplo: subasta "poción de salud" 15` };
   }
 
-  const itemName = args.slice(0, -1).join(' ').toLowerCase().trim();
+  const itemName = itemArgs.join(' ').toLowerCase().trim();
   const nfnAuction = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const itemNameNFD = nfnAuction(itemName);
   const inventory = player.inventory || [];
