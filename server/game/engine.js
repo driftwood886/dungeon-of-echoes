@@ -8343,7 +8343,98 @@ function getOrCreatePlayer(username) {
     });
     player = db.getPlayer(player.id);
   }
+
+  // EPIC-964: Aplicar bonus de legado si hay uno pendiente (applied === false)
+  // Esto ocurre cuando el personaje fue creado por una ascensión previa.
+  try {
+    const rawBonus = player.legacy_bonus;
+    if (rawBonus && rawBonus !== '{}') {
+      const legacyBonus = typeof rawBonus === 'string' ? JSON.parse(rawBonus) : rawBonus;
+      if (legacyBonus && legacyBonus.type && legacyBonus.applied === false && legacyBonus.effects) {
+        applyLegacyBonus(player, legacyBonus);
+        player = db.getPlayer(player.id); // refrescar después de aplicar
+      }
+    }
+  } catch (e) {
+    console.error('[getOrCreatePlayer] Error al aplicar legacy_bonus:', e);
+  }
+
   return player;
+}
+
+/**
+ * EPIC-964: Aplica el bonus del legado al nuevo personaje.
+ * Solo aplica si ascension_count <= 3 (cap de bonuses acumulativos).
+ * @param {object} player - objeto del jugador fresco de la BD
+ * @param {object} legacyBonus - { type, applied, effects }
+ */
+function applyLegacyBonus(player, legacyBonus) {
+  const effects = legacyBonus.effects || {};
+  const ascCount = player.ascension_count || 0;
+  const updates = {};
+
+  // Cap: solo bonuses de stat para legados 1-3 (ascension_count <= 3)
+  const statCap = ascCount <= 3;
+
+  if (statCap) {
+    // Efectos de stat directo
+    if (effects.attack) updates.attack = (player.attack || 3) + effects.attack;
+    if (effects.gold) updates.gold = (player.gold || 0) + effects.gold;
+    if (effects.reputation) updates.reputation = effects.reputation;
+
+    // Legado 'arcano': bonus por clase
+    if (effects.class_stat_bonus) {
+      const cls = (player.player_class || '').toLowerCase();
+      const clsBonus = effects.class_stat_bonus[cls];
+      if (clsBonus) {
+        if (clsBonus.max_mana) updates.max_mana = (player.max_mana || 20) + clsBonus.max_mana;
+        if (clsBonus.attack) updates.attack = (player.attack || 3) + clsBonus.attack;
+        if (clsBonus.max_hp) updates.max_hp = (player.max_hp || 30) + clsBonus.max_hp;
+      }
+    }
+
+    // Legado 'alquimista': dar ítems al inventario
+    if (effects.grant_items && Array.isArray(effects.grant_items)) {
+      try {
+        const inv = player.inventory ? (typeof player.inventory === 'string' ? JSON.parse(player.inventory) : player.inventory) : [];
+        const newInv = [...inv, ...effects.grant_items];
+        updates.inventory = JSON.stringify(newInv);
+      } catch (e) { /* skip */ }
+    }
+
+    // Legado 'explorador': known_traps
+    if (effects.known_traps) {
+      try {
+        const kt = player.known_traps ? (typeof player.known_traps === 'string' ? JSON.parse(player.known_traps) : player.known_traps) : {};
+        const merged = { ...kt, ...effects.known_traps };
+        updates.known_traps = JSON.stringify(merged);
+      } catch (e) { /* skip */ }
+    }
+
+    // Legado 'sabio': recetas conocidas (en forage_data o status_effects)
+    if (effects.known_recipes && Array.isArray(effects.known_recipes)) {
+      try {
+        const se = player.status_effects ? (typeof player.status_effects === 'string' ? JSON.parse(player.status_effects) : player.status_effects) : {};
+        const existingRecipes = se.known_recipes || [];
+        se.known_recipes = [...new Set([...existingRecipes, ...effects.known_recipes])];
+        updates.status_effects = JSON.stringify(se);
+      } catch (e) { /* skip */ }
+    }
+  }
+
+  // Legados persistentes (no limitados por cap — son banderas en legacy_bonus para ser leídas en runtime)
+  // 'marca_lich', 'vinculo_animal', 'pet_discount', 'skill_discount', 'rest_free_until_tutorial',
+  // 'levelup1_bonus', 'boss_damage_bonus' — estos se leen directamente de legacy_bonus en los handlers
+  // relevantes, no requieren update de stats ahora.
+
+  // Marcar como aplicado
+  updates.legacy_bonus = JSON.stringify({ ...legacyBonus, applied: true });
+
+  if (Object.keys(updates).length > 0) {
+    db.updatePlayer(player.id, updates);
+  }
+
+  console.log(`[EPIC-964] Legacy bonus aplicado a ${player.username}: ${legacyBonus.type} (ascensión #${ascCount})`);
 }
 
 // T107: Recordatorio de clase al terminar el tutorial (usado en handlers.js)
