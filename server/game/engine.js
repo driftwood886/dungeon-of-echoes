@@ -9558,6 +9558,12 @@ function cmdAuction(player, args) {
     }
   }
 
+  // DIS-974: bloquear subasta de carta sellada si la quest de Aldric está activa
+  // (si alguien la compra, la quest queda irresolvible — la sala 8 no regenera otra carta)
+  if (nfnAuction(realItemName || itemName).includes('carta sellada') && player.aldric_quest === 'active') {
+    return { text: `🔒 No podés subastar la carta sellada mientras tenés la misión de Aldric activa.\n  La carta es el objetivo de la quest — si alguien la compra, no podrás completarla.\n\n💡 Primero entregá la carta a Aldric (sala 4) para completar la quest.\n   Después podés hacer lo que quieras con los ítems que te recompense.` };
+  }
+
   // Verificar que no tenga otra subasta activa con el mismo ítem
   const activeAuctions = db.getActiveAuctions();
   const alreadyAuctioning = activeAuctions.find(a => a.seller_id === player.id && nfnAuction(a.item_name) === itemNameNFD);
