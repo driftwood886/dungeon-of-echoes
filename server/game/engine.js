@@ -2808,6 +2808,24 @@ function cmdAttack(player, targetName) {
       }
       db.updatePlayer(player.id, questUpd);
       questLines = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.${questLevelUp ? ` ✨ ¡SUBÍS AL NIVEL ${questNewLevel}!` : ''}`;
+      // DIS-982: si el quest reward causó un level-up, chequear logros de nivel ahora
+      // (el checkAchievements anterior fue antes de actualizar el nivel, por lo que
+      // logros basados en nivel (ej: nivel_5, nivel_10) no habrían disparado si el
+      // level-up fue por XP de quest — no por el kill directamente)
+      if (questLevelUp) {
+        const freshAfterQuestLevel = db.getPlayer(player.id);
+        if (freshAfterQuestLevel) {
+          const questLevelAchs = ach.checkAchievements(freshAfterQuestLevel, {});
+          if (questLevelAchs && questLevelAchs.length > 0) {
+            questLines += ach.formatNewAchievements(questLevelAchs);
+            // Registrar en crónica y diario
+            for (const a of questLevelAchs) {
+              db.logGlobalEvent('achievement', `🏅 ${player.username} desbloqueó el logro "${a.name}".`);
+              db.addJournalEntry(player.id, 'achievement', `🏅 Logro desbloqueado: "${a.name}".`);
+            }
+          }
+        }
+      }
       // T125: reputación por quest completada (+5)
       const repQuest = db.addReputation(player.id, 5);
       if (repQuest.leveledUp) {
