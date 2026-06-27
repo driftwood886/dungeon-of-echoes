@@ -4253,8 +4253,8 @@ function cmdExamine(player, query) {
     'forja':           { rooms: [12], text: 'El fuego de la forja lleva ardiendo más tiempo del que nadie recuerda, sin carbón ni madera visible. Sobre el yunque hay un molde para una espada que nunca se terminó —los bordes muestran marcas de garras, no de herramientas. Algo o alguien intentó completar la obra sin los conocimientos necesarios.\n\nLo más inquietante: el fuego es perfecto, uniforme, constante. Como una respiración.' },
     // DIS-920: yunque como loreObject separado en sala 12
     'yunque':          { rooms: [12], text: 'El yunque es de hierro oscuro, casi negro, con una superficie que debería estar rallada y marcada por años de golpes. En cambio, la superficie superior es casi perfecta —excepto por una serie de marcas en los bordes que no parecen de herramienta. Son demasiado irregulares para un cincel. Demasiado precisas para ser accidentales.\n\nEl molde de espada que descansa sobre él tiene el contorno de una hoja que nunca existió en ningún catálogo de armas conocido. No es de origen humano. No completamente.' },
-    'runas':           { rooms: [10], text: 'Las runas con sangre seca forman un patrón que tardás un momento en ver completo: es un círculo, y en su centro hay un nombre escrito en un idioma que nadie habla hace doscientos años. No sabés cómo, pero lo podés leer: K-A-E-L-T-H-A-S. El patrón de las runas forma un nombre. No querés saber cómo lo sabés.' },
-    'runa':            { rooms: [10], text: 'Las runas con sangre seca forman un patrón que tardás un momento en ver completo: es un círculo, y en su centro hay un nombre escrito en un idioma que nadie habla hace doscientos años. No sabés cómo, pero lo podés leer: K-A-E-L-T-H-A-S. El patrón de las runas forma un nombre. No querés saber cómo lo sabés.' },
+    'runas':           { rooms: [10, 18], text: '__RUNAS_DYNAMIC__' },
+    'runa':            { rooms: [10, 18], text: '__RUNAS_DYNAMIC__' },
     'estatua':         { rooms: [10], text: 'La estatua con diez brazos no corresponde a ningún dios que conozcas. Cada brazo sostiene algo distinto: un escudo, una espada, un libro, una llave, una copa, una antorcha... Los últimos tres brazos están vacíos. La placa en la base está en blanco, raspada hasta la piedra. Alguien borró el nombre deliberadamente.' },
     'brazos':          { rooms: [10], text: 'Siete de los diez brazos de la estatua sostienen objetos: un escudo, una espada, un libro, una llave, una copa, una antorcha y algo que no reconocés —una esfera de obsidiana perfecta. Los otros tres brazos están extendidos y vacíos, con las palmas hacia arriba, como esperando ofrendas. El polvo de siglos ha respetado los huecos.' },
     'placa':           { rooms: [10], text: 'La placa de piedra en la base de la estatua fue raspada con deliberación, no por el tiempo. Podés ver las marcas de una herramienta afilada —alguien borró el nombre con cuidado. Aun así, quedan trazos. Con luz y paciencia, podés adivinar tres letras: K, A, E. El resto desapareció para siempre.' },
@@ -4492,7 +4492,14 @@ function cmdExamine(player, query) {
               seKae.kaelthas_nota_diario = true;
               db.updatePlayer(player.id, { status_effects: JSON.stringify(seKae) });
               db.addJournalEntry(player.id, 'lore', '🔍 Ese nombre — Kaelthas — aparece en varios lugares del dungeon. No es coincidencia. Alguien quiere que se recuerde, o que se olvide.');
-              return { text: val.text + '\n\n📖 *Nuevo apunte en tu diario: el nombre Kaelthas aparece en varios lugares del dungeon.*' };
+              // DIS-977: resolver texto dinámico antes de usar val.text en el sufijo del diario
+              let resolvedKaeText = val.text;
+              if (val.text === '__RUNAS_DYNAMIC__') {
+                resolvedKaeText = player.current_room_id === 18
+                  ? 'Las runas en las paredes de la Cámara de la Fuente son diferentes a las del Santuario — estas son concéntricas, como capas de una cebolla. La runa interior, grabada sobre la fuente, significa "permanecer".'
+                  : 'Las runas con sangre seca forman un patrón que tardás un momento en ver completo: es un círculo, y en su centro hay un nombre escrito en un idioma que nadie habla hace doscientos años. No sabés cómo, pero lo podés leer: K-A-E-L-T-H-A-S. El patrón de las runas forma un nombre. No querés saber cómo lo sabés.';
+              }
+              return { text: resolvedKaeText + '\n\n📖 *Nuevo apunte en tu diario: el nombre Kaelthas aparece en varios lugares del dungeon.*' };
             }
           }
         }
@@ -4516,6 +4523,14 @@ function cmdExamine(player, query) {
           }
           // Sala 5 — Capilla Olvidada
           return { text: 'El altar de piedra negra tiene marcas de uso continuo a lo largo de siglos, pero lo que llama tu atención está en la base: hay cera derretida fresca. Reciente. Las llamas de las velas se apagaron hace siglos —¿quién estuvo aquí, y cuándo? El resto del dungeon no tiene respuestas. Pero alguien las tiene.' };
+        }
+        // DIS-977: runas dinámicas — sala 10 (Santuario) vs sala 18 (Fuente Eterna)
+        if (val.text === '__RUNAS_DYNAMIC__') {
+          if (player.current_room_id === 18) {
+            return { text: 'Las runas en las paredes de la Cámara de la Fuente son diferentes a las del Santuario — mientras aquellas forman patrones de invocación con sangre, estas son concéntricas, como capas de una cebolla, cada círculo más pequeño hacia el centro.\n\nEl círculo exterior recorre toda la circunferencia de la sala. El intermedio pasa justo por encima de la fuente. El interior es tan pequeño que casi no se ve — pero está grabado en el mármol directamente encima del agua: una sola runa, diferente a todas las demás.\n\nNo la reconocés, pero entendés su función intuitivamente. Significa "permanecer".\n\n🔍 Las runas del Santuario (sala 10) forman el nombre KAELTHAS. Las de aquí no nombran a nadie — parecen haber sido talladas para que algo dure para siempre. El agua plateada lleva brillando así desde antes de que el dungeon existiera.' };
+          }
+          // Sala 10 — Santuario Profano
+          return { text: 'Las runas con sangre seca forman un patrón que tardás un momento en ver completo: es un círculo, y en su centro hay un nombre escrito en un idioma que nadie habla hace doscientos años. No sabés cómo, pero lo podés leer: K-A-E-L-T-H-A-S. El patrón de las runas forma un nombre. No querés saber cómo lo sabés.' };
         }
         // BUG-555 / DIS-913: carta sellada — si el jugador ya la abrió (flag por jugador), mostrar descripción post-apertura
         if ((key === 'carta' || key === 'carta sellada') && player.current_room_id === 8) {
