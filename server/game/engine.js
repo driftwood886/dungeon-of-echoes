@@ -17575,45 +17575,242 @@ function cmdPronunciar(player, nameInput) {
   }
 }
 
-// ─── EPIC-963/966: cmdAscend — Sistema de Ascensión ─────────────────────────
-// Stub funcional: permite al jugador ver sus opciones de legado.
-// La implementación completa del flujo (renombrado + nuevo personaje) va en EPIC-963.
+// ─── EPIC-963: cmdAscend — Sistema de Ascensión (implementación completa) ────
+
+// Pool de los 12 legados disponibles
+const LEGACY_POOL = [
+  { id: 'llama_persistente', emoji: '🔥', nombre: 'Llama Persistente',
+    desc: 'El fuego que ardió en [nombre] nunca se apaga del todo.',
+    efecto: 'El próximo personaje empieza con +1 ATK permanente.',
+    effects: { attack: 1 } },
+  { id: 'herencia', emoji: '💰', nombre: 'Herencia',
+    desc: 'El oro que [nombre] nunca pudo gastar espera en el banco.',
+    efecto: 'El próximo personaje empieza con +20 monedas de oro.',
+    effects: { gold: 20 } },
+  { id: 'memoria_combate', emoji: '🗡️', nombre: 'Memoria de Combate',
+    desc: 'Los reflejos de [nombre] se transmiten a quien le sigue.',
+    efecto: 'La primera habilidad de clase se desbloquea al nivel 2 en vez de 3.',
+    effects: { skill_discount: 1 } },
+  { id: 'vinculo_animal', emoji: '🐾', nombre: 'Vínculo Animal',
+    desc: 'Las criaturas del dungeon recuerdan el olor de [nombre].',
+    efecto: 'Las mascotas se adoptan con 20% de descuento.',
+    effects: { pet_discount: 0.20 } },
+  { id: 'sabio', emoji: '📜', nombre: 'Sabio',
+    desc: '[nombre] dejó sus notas de alquimia para quien viniera después.',
+    efecto: 'El próximo personaje conoce 3 recetas de crafteo desde el inicio.',
+    effects: { known_recipes: ['pocion_de_salud', 'antidoto', 'esencia_de_luz'] } },
+  { id: 'explorador', emoji: '🔑', nombre: 'Explorador',
+    desc: 'Los mapas mentales de [nombre] guían tus primeros pasos.',
+    efecto: 'El próximo personaje ya conoce las 3 primeras trampas del dungeon.',
+    effects: { known_traps: { '5': true, '6': true, '13': true } } },
+  { id: 'arcano', emoji: '⚡', nombre: 'Arcano',
+    desc: 'El maná de [nombre] impregna el aire que su sucesor respira.',
+    efecto: 'Mago: +5 MP máximo. Otros: +1 ATK o +5 HP según clase.',
+    effects: { class_stat_bonus: { mago: { max_mana: 5 }, guerrero: { attack: 1 }, picaro: { attack: 1 }, clerigo: { max_hp: 5 } } } },
+  { id: 'marca_lich', emoji: '💀', nombre: 'Marca del Lich',
+    desc: 'El Lich recordará a [nombre]. Y temerá al que sigue.',
+    efecto: 'Los bosses reciben 5% más daño del próximo personaje.',
+    effects: { boss_damage_bonus: 0.05 } },
+  { id: 'reputado', emoji: '🏆', nombre: 'Reputado',
+    desc: 'El nombre de [nombre] abrió puertas que siguen abiertas.',
+    efecto: 'El próximo personaje empieza con 15 puntos de reputación.',
+    effects: { reputation: 15 } },
+  { id: 'guardian', emoji: '🕯️', nombre: 'Guardián',
+    desc: 'El descanso de [nombre] prepara el camino para el siguiente.',
+    efecto: 'Podés usar `rest` sin cooldown durante los primeros 5 minutos de juego.',
+    effects: { rest_free_until_tutorial: true } },
+  { id: 'alquimista', emoji: '🧪', nombre: 'Alquimista',
+    desc: '[nombre] dejó guardada una poción en algún lugar del dungeon.',
+    efecto: 'El próximo personaje hereda 1 poción de vida.',
+    effects: { grant_items: ['pocion de salud'] } },
+  { id: 'veterano_silencioso', emoji: '🌙', nombre: 'Veterano Silencioso',
+    desc: '[nombre] deja atrás algo invisible pero real.',
+    efecto: '+1 stat extra al primer level up (elegís vos: ATK, DEF o HP).',
+    effects: { levelup1_bonus: true } },
+];
+
+/**
+ * Genera 3 legados pseudoaleatorios basados en el player.id como seed.
+ * Devuelve siempre el mismo set para el mismo jugador (reproducibilidad).
+ */
+function getRandomLegacies(playerId) {
+  // seed simple con el id del jugador
+  const seed = playerId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const shuffled = [...LEGACY_POOL];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = (seed * (i + 7) * 31337) % (i + 1);
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, 3);
+}
+
 function cmdAscend(player, args, context) {
   const fresh = db.getPlayer(player.id);
   if (!fresh) return { text: '❌ Error al cargar tu personaje.' };
 
   const se = fresh.status_effects ? (typeof fresh.status_effects === 'string' ? JSON.parse(fresh.status_effects) : fresh.status_effects) : {};
-
-  // Si el jugador no mató al Lich, el comando no está disponible
   const lichKills = fresh.lich_kills || 0;
+
+  // Verificar que el jugador mató al Lich
   if (lichKills === 0 && !se.ascension_pending) {
     return { text: '💀 Solo podés ascender después de derrotar al Lich Anciano.\n\nEl Sistema de Ascensión estará disponible cuando completes tu primer ciclo.' };
   }
 
-  // Si no tiene ascension_pending activo, informar que ya puede ascender pero debe matar al Lich primero en este ciclo
+  // Verificar ascension_pending activo
   if (!se.ascension_pending) {
     return { text: `⚡ Ya ascendiste antes (${lichKills} vez/veces), pero el Sistema de Ascensión solo se activa inmediatamente después de derrotar al Lich.\n\nDerrota al Lich Anciano nuevamente para acceder a las opciones de legado.` };
   }
 
-  // Mostrar las opciones de legado — implementación completa de EPIC-963 pendiente
-  const lines = [
-    `╔══════════════════════════════════════════════╗`,
-    `║        ⚡ SISTEMA DE ASCENSIÓN ⚡             ║`,
-    `╠══════════════════════════════════════════════╣`,
-    `║  El Lich ha caído. Tu ciclo está completo.   ║`,
-    `║  Podés ascender y legar tu poder.            ║`,
-    `╚══════════════════════════════════════════════╝`,
-    ``,
-    `📜 El Sistema de Ascensión completo estará disponible próximamente.`,
-    `   (Implementación en progreso — EPIC-963)`,
-    ``,
-    `Por ahora podés continuar jugando normalmente.`,
-    `Tu personaje actual sigue activo — la ascensión es opcional.`,
-    ``,
-    `💡 Escribí \`legado\` para ver tu historial de ciclos.`,
-  ];
+  // Obtener (o generar y guardar) las 3 opciones de legado para este jugador
+  let choices;
+  if (se.ascension_choices && Array.isArray(se.ascension_choices) && se.ascension_choices.length === 3) {
+    choices = se.ascension_choices.map(id => LEGACY_POOL.find(l => l.id === id)).filter(Boolean);
+  }
+  if (!choices || choices.length !== 3) {
+    choices = getRandomLegacies(fresh.id);
+    const seUpd = { ...se, ascension_choices: choices.map(c => c.id) };
+    db.updatePlayer(fresh.id, { status_effects: JSON.stringify(seUpd) });
+  }
 
-  return { text: lines.join('\n') };
+  // Parsear argumentos: "ascender 1|2|3 [epitafio]"
+  const argStr = args ? args.join(' ').trim() : '';
+  const match = argStr.match(/^([123])\s*(.*)?$/);
+
+  // Sin argumento — mostrar pantalla de opciones
+  if (!match) {
+    const charName = fresh.username;
+    const lines = [
+      ``,
+      `╔══════════════════════════════════════════════════════╗`,
+      `║           ⚡  EL CICLO HA TERMINADO  ⚡              ║`,
+      `╠══════════════════════════════════════════════════════╣`,
+      `║  ${charName.padEnd(52)}║`,
+      `║  Nivel ${String(fresh.level || 1).padEnd(48)}║`,
+      `║  Lich kills: ${String(lichKills).padEnd(42)}║`,
+      `╚══════════════════════════════════════════════════════╝`,
+      ``,
+      `El Lich Anciano ha caído. Tu ciclo en el dungeon está`,
+      `completo. Podés ascender y legar tu poder al sucesor,`,
+      `o continuar explorando como eres.`,
+      ``,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `🌟  ELIGE TU LEGADO  (solo podés elegir uno)`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      ``,
+    ];
+
+    choices.forEach((leg, i) => {
+      const descParsed = leg.desc.replace('[nombre]', charName);
+      lines.push(`  ${i + 1}. ${leg.emoji} ${leg.nombre}`);
+      lines.push(`     "${descParsed}"`);
+      lines.push(`     → ${leg.efecto}`);
+      lines.push(``);
+    });
+
+    lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    lines.push(`Para ascender: \`ascender 1\`, \`ascender 2\` o \`ascender 3\``);
+    lines.push(`Podés agregar un epitafio: \`ascender 1 Que el eco de mis pasos perdure\``);
+    lines.push(`O continuar sin ascender — tu personaje sigue activo.`);
+
+    return { text: lines.join('\n') };
+  }
+
+  // El jugador eligió un legado — ejecutar la ascensión
+  const choiceIdx = parseInt(match[1]) - 1;
+  const epitaph = match[2] ? match[2].trim() : null;
+  const legadoElegido = choices[choiceIdx];
+
+  if (!legadoElegido) {
+    return { text: '❌ Opción inválida. Elegí 1, 2 o 3.' };
+  }
+
+  // ─── Ejecutar la ascensión ───────────────────────────────────────────────
+  try {
+    const username = fresh.username;
+    const ascensionCount = (fresh.ascension_count || 0) + 1;
+    const archiveName = `${username}#${ascensionCount}`;
+
+    // a) Renombrar personaje activo a username#N y archivarlo
+    db.updatePlayer(fresh.id, {
+      username: archiveName,
+      is_archived: 1,
+      account_username: username,
+    });
+
+    // b) Insertar en tabla legacies
+    const { randomUUID } = require('crypto');
+    db.createLegacyEntry({
+      id: randomUUID(),
+      account_username: username,
+      character_name: archiveName,
+      character_class: fresh.player_class || 'sin_clase',
+      specialization: fresh.specialization || null,
+      level_reached: fresh.level || 1,
+      lich_kills: lichKills,
+      legacy_type: legadoElegido.id,
+      epitaph: epitaph || null,
+      item_left: null,
+      item_room_id: null,
+      ascension_number: ascensionCount,
+    });
+
+    // c) Crear nuevo personaje con username original
+    const newPlayer = db.createPlayer(username);
+
+    // d) Transferir ascension_count, account_username y legacy_bonus al nuevo personaje
+    const legacyBonus = {
+      type: legadoElegido.id,
+      applied: false,
+      effects: legadoElegido.effects,
+    };
+
+    db.updatePlayer(newPlayer.id, {
+      ascension_count: ascensionCount,
+      account_username: username,
+      legacy_bonus: JSON.stringify(legacyBonus),
+      tutorial_step: 1,
+      current_room_id: 16, // tutorial
+    });
+
+    // ─── Mensaje dramático de confirmación ──────────────────────────────
+    const charNameFmt = archiveName;
+    const legDesc = legadoElegido.desc.replace('[nombre]', username);
+    const lines = [
+      ``,
+      `╔══════════════════════════════════════════════════════╗`,
+      `║         ✨  LA ASCENSIÓN HA COMENZADO  ✨            ║`,
+      `╚══════════════════════════════════════════════════════╝`,
+      ``,
+      `${username} ha pasado a los anales del dungeon.`,
+      `Su nombre quedará grabado en el Salón de los Caídos`,
+      `como "${charNameFmt}" — ${fresh.player_class || 'aventurero'} nivel ${fresh.level || 1}.`,
+      ``,
+      `Legado elegido: ${legadoElegido.emoji} ${legadoElegido.nombre}`,
+      `"${legDesc}"`,
+    ];
+
+    if (epitaph) {
+      lines.push(``);
+      lines.push(`Epitafio: "${epitaph}"`);
+    }
+
+    lines.push(``);
+    lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    lines.push(`Un nuevo ciclo comienza. El dungeon te recibe de nuevo.`);
+    lines.push(`Tu sucesor hereda el legado de ${username}.`);
+    lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    lines.push(``);
+    lines.push(`↻ Tu sesión se reinicia. Escribí cualquier comando para empezar.`);
+    lines.push(`💡 Usá \`salon\` para ver el Salón de los Caídos.`);
+
+    console.log(`[ASCENSIÓN] ${username} ascendió → ${archiveName} (legado: ${legadoElegido.id}, ascensión #${ascensionCount})`);
+
+    return { text: lines.join('\n'), ascension: true, newUsername: username };
+
+  } catch (err) {
+    console.error('[cmdAscend] Error durante la ascensión:', err);
+    return { text: `❌ Error durante la ascensión: ${err.message}\n\nTu personaje no fue modificado. Intentá de nuevo o contactá al admin.` };
+  }
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, cmdContract, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals, checkAndSetRecords };
