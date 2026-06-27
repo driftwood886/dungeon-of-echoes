@@ -330,12 +330,19 @@ function execute(playerId, input, context) {
       if (action.args && action.args.length > 0) {
         const freshP = db.getPlayer(player.id);
         const query = action.args.join(' ');
-        const invItem = freshP && freshP.inventory ? items.findItem(freshP.inventory, query) : null;
-        if (invItem) {
-          result = cmdUse(player, query);  // BUG-338: pasar string, no array
+        // BUG-972: si el jugador está en sala 18 y el arg refiere a la fuente, activar directamente
+        const queryLow972 = query.toLowerCase().trim();
+        const FOUNTAIN_ALIASES_972 = ['fuente', 'fountain', 'agua', 'agua plateada', 'source', 'beber fuente', 'fuente eterna'];
+        if (player.current_room_id === FOUNTAIN_ROOM_ID && FOUNTAIN_ALIASES_972.includes(queryLow972)) {
+          result = cmdDrink(player);
         } else {
-          // No hay ítem con ese nombre — mostrar mensaje útil
-          result = { text: `🍶 No tenés ningún "${query}" en el inventario.\n💡 Para beber de la Fuente Eterna usá solo "beber" (sin argumentos). Para consumir una poción: "usar <pocion>".` };
+          const invItem = freshP && freshP.inventory ? items.findItem(freshP.inventory, query) : null;
+          if (invItem) {
+            result = cmdUse(player, query);  // BUG-338: pasar string, no array
+          } else {
+            // No hay ítem con ese nombre — mostrar mensaje útil
+            result = { text: `🍶 No tenés ningún "${query}" en el inventario.\n💡 Para beber de la Fuente Eterna usá solo "beber" (sin argumentos). Para consumir una poción: "usar <pocion>".` };
+          }
         }
       } else {
         result = cmdDrink(player);
