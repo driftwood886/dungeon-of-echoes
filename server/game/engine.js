@@ -9721,6 +9721,26 @@ function resolveExpiredAuctions(broadcastFn) {
     } else if (auction.is_passive) {
       // DIS-535: Subasta PASIVA expirada sin postor → El Mercader la compra garantizado al 50%
       const seller = db.getPlayer(auction.seller_id);
+
+      // DIS-975: La carta sellada nunca debe ser comprada por el Mercader si el vendedor tiene la quest de Aldric activa.
+      // Caso: el jugador subastó la carta ANTES de tener la quest, luego activó la quest, y ahora la carta está en mercado pasivo.
+      // Fix: devolver la carta al inventario del vendedor en lugar de que el Mercader la compre.
+      if (auction.item_name === 'carta sellada' && seller) {
+        const freshSeller = db.getPlayer(auction.seller_id);
+        const sellerSe = parseSE(freshSeller.status_effects);
+        if (sellerSe.aldric_quest === 'active') {
+          // Devolver la carta al inventario del vendedor
+          const sellerInv = Array.isArray(freshSeller.inventory) ? freshSeller.inventory : JSON.parse(freshSeller.inventory || '[]');
+          sellerInv.push('carta sellada');
+          db.updatePlayer(freshSeller.id, { inventory: JSON.stringify(sellerInv) });
+          db.addJournalEntry(freshSeller.id, 'system', `📜 La carta sellada que tenías en el mercado pasivo fue devuelta a tu inventario — Aldric la necesita para completar tu misión. El Mercader no pudo comprársela al destino.`);
+          const msgDis975 = `📜 La carta sellada de ${auction.seller_name} volvió a su dueño — el Mercader reconoció el sello de Aldric.`;
+          messages.push(msgDis975);
+          if (broadcastFn) broadcastFn(msgDis975);
+          continue; // No procesar como venta al Mercader
+        }
+      }
+
       const merchantPrice = Math.max(1, Math.floor(auction.min_price * 0.5));
       if (seller) {
         db.updatePlayer(seller.id, { gold: (seller.gold || 0) + merchantPrice });
