@@ -1303,7 +1303,10 @@ function attackRound(player, monster) {
 
     const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🌑(+${bloodmoonBonus} Luna de Sangre)` : '';
     const weatherDmgSuffix = weatherDmgBonus > 0 ? ` 🍄(+${weatherDmgBonus} Esporas)` : '';
-    lines.push(`🩸 El ${monster.name} te golpea y causa ${dmgToPlayer} de daño.${bloodmoonSuffix}${weatherDmgSuffix} (${player.hp}/${player.max_hp} HP)`);
+    // DIS-976: feedback visual de postura defensiva — mostrar que la postura absorbió daño
+    const defensiveSuffix = (stanceName === 'defensivo' && stanceMods.defMod > 0)
+      ? ` 🛡️ [defensivo +${stanceMods.defMod} DEF]` : '';
+    lines.push(`🩸 El ${monster.name} te golpea y causa ${dmgToPlayer} de daño.${bloodmoonSuffix}${weatherDmgSuffix}${defensiveSuffix} (${player.hp}/${player.max_hp} HP)`);
 
     // DIS-616: marcar que el monstruo atacó este turno (para golpe_sombra)
     try {

@@ -10450,8 +10450,14 @@ function cmdCast(player, args) {
       const isMagoForCounter = castPlayerClsForCounter && castPlayerClsForCounter.name === 'Mago';
       const spellTypeIsOffensive = spell && spell.type === 'damage';
       const magoReactionMult = (isMagoForCounter && spellTypeIsOffensive) ? 1.20 : 1.0;
-      const monsterDmgCast = Math.max(1, Math.round(baseMonsterAtkCast * magoReactionMult) - Math.floor(freshPlayerCast.defense || 0));
+      // DIS-976: postura defensiva reduce daño recibido en cmdCast también
+      const STANCE_DEF_CAST = { agresivo: -1, defensivo: +2, equilibrado: 0 };
+      const stanceNameCast = freshPlayerCast.stance || 'equilibrado';
+      const stanceDefModCast = STANCE_DEF_CAST[stanceNameCast] || 0;
+      const effectiveDefCast = (freshPlayerCast.defense || 0) + stanceDefModCast;
+      const monsterDmgCast = Math.max(1, Math.round(baseMonsterAtkCast * magoReactionMult) - Math.floor(effectiveDefCast));
       const magoReactionNote = (isMagoForCounter && spellTypeIsOffensive) ? ` ⚡ (reacción mágica: ×1.2)` : '';
+      const defensiveSuffixCast = (stanceNameCast === 'defensivo' && stanceDefModCast > 0) ? ` 🛡️ [defensivo +${stanceDefModCast} DEF]` : '';
       const shieldActiveCast = freshPlayerCast.shield_active || 0;
       let dmgToCast = monsterDmgCast;
       if (shieldActiveCast) {
@@ -10464,7 +10470,7 @@ function cmdCast(player, args) {
       const newHpAfterHit = Math.max(0, freshHpAfterHit - dmgToCast);
       db.updatePlayer(player.id, { hp: newHpAfterHit });
       const freshMaxHpCast = freshPlayerCast.max_hp || 30;
-      lines.push(`   🩸 ${target.name} contraataca: ${dmgToCast} de daño.${magoReactionNote} (${newHpAfterHit}/${freshMaxHpCast} HP)`);
+      lines.push(`   🩸 ${target.name} contraataca: ${dmgToCast} de daño.${magoReactionNote}${defensiveSuffixCast} (${newHpAfterHit}/${freshMaxHpCast} HP)`);
       if (newHpAfterHit <= 0) {
         combat.handlePlayerDeath(player.id, lines, target.name);
       }
