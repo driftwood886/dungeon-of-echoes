@@ -396,6 +396,9 @@ function execute(playerId, input, context) {
     case 'goals':        result = cmdGoals(player, context); break;           // T210
     case 'legado':       result = cmdLegado(player, context); break;          // DIS-D291: legado post-boss
     case 'ascender':     result = cmdAscend(player, action.args, context); break; // EPIC-963: Sistema de Ascensión
+    case 'enterrar':     result = cmdBury(player, action.args, context); break;   // T967: Ítem Heredado
+    case 'desenterrar':  result = cmdUnbury(player, action.args, context); break; // T967: Ítem Heredado
+    case 'excavar':      result = cmdDig(player, action.args, context); break;    // T968: Ítem Heredado
     case 'battlecry':    result = cmdBattlecry(player, action.args); break; // T211
     case 'champion':     result = cmdChampion(); break;                      // T212
     case 'gamble':       result = cmdGamble(player, action.args); break;     // T217
@@ -2341,6 +2344,7 @@ function _cmdTrainingFight(player, monster) {
 
 function cmdAttack(player, targetName) {
   let _autoTargetHint = ''; // DIS-741: se llena cuando hay múltiples enemigos y se auto-selecciona
+  let _inheritedItemMsg969 = ''; // T969: notificación de ítem heredado al llegar a nivel 3
   if (!targetName || !targetName.trim()) {
     // DIS-D303: Si hay exactamente 1 monstruo en la sala, auto-apuntar a él
     const monstersInRoom = db.getMonstersInRoom(player.current_room_id);
@@ -2706,6 +2710,25 @@ function cmdAttack(player, targetName) {
           ? `⬆️ Subiste al nivel ${newLevel}. Sentís que el dungeon te está cambiando. No estás seguro de que sea para bien.`
           : `⬆️ Subiste al nivel ${newLevel}.`;
         db.addJournalEntry(player.id, 'level', levelMsg);
+
+        // T969: notificación de ítem heredado al llegar a nivel 3
+        if (newLevel === 3) {
+          const freshFor969 = db.getPlayer(player.id);
+          const se969 = freshFor969.status_effects ? (typeof freshFor969.status_effects === 'string' ? JSON.parse(freshFor969.status_effects) : freshFor969.status_effects) : {};
+          if (se969.inherited_item_notified === false) {
+            const accountName969 = freshFor969.account_username || freshFor969.username;
+            const legacyItem969 = db.getUnclaimedLegacyItem(accountName969);
+            if (legacyItem969 && legacyItem969.item_left) {
+              const itemRoom969 = db.getRoom(legacyItem969.item_room_id);
+              const itemRoomName969 = itemRoom969 ? itemRoom969.name : `sala ${legacyItem969.item_room_id}`;
+              // Marcar que la notificación fue enviada
+              const se969Upd = { ...se969, inherited_item_notified: true };
+              db.updatePlayer(freshFor969.id, { status_effects: JSON.stringify(se969Upd) });
+              // Agregar al texto del combate — se usa levelUpNotif969 abajo
+              _inheritedItemMsg969 = `\n\n⚡ Algo stirred en tu memoria heredada. Tu predecesor dejó algo enterrado en ${itemRoomName969}. Llegaste al nivel 3 — ahora podés recuperarlo. Usá \`excavar\` allí.`;
+            }
+          }
+        }
       }
     }
   }
@@ -3059,7 +3082,7 @@ function cmdAttack(player, targetName) {
     }
   }
 
-  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint;
+  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '');
 
   if (tutorialCompletionResult) {
     return {
@@ -17927,8 +17950,10 @@ function cmdAscend(player, args, context) {
       account_username: username,
     });
 
-    // b) Insertar en tabla legacies
+    // b) Insertar en tabla legacies (T967: incluir ítem enterrado si lo dejó)
     const { randomUUID } = require('crypto');
+    const pendingBuryItem   = se.pending_bury_item   || null;
+    const pendingBuryRoomId = se.pending_bury_room_id || null;
     db.createLegacyEntry({
       id: randomUUID(),
       account_username: username,
@@ -17939,8 +17964,8 @@ function cmdAscend(player, args, context) {
       lich_kills: lichKills,
       legacy_type: legadoElegido.id,
       epitaph: epitaph || null,
-      item_left: null,
-      item_room_id: null,
+      item_left: pendingBuryItem,
+      item_room_id: pendingBuryRoomId ? parseInt(pendingBuryRoomId, 10) : null,
       ascension_number: ascensionCount,
     });
 
@@ -17954,10 +17979,14 @@ function cmdAscend(player, args, context) {
       effects: legadoElegido.effects,
     };
 
+    // T967/T969: si dejó ítem enterrado, setear inherited_item_notified = false en el nuevo personaje
+    const newPlayerSE = pendingBuryItem ? { inherited_item_notified: false } : {};
+
     db.updatePlayer(newPlayer.id, {
       ascension_count: ascensionCount,
       account_username: username,
       legacy_bonus: JSON.stringify(legacyBonus),
+      status_effects: JSON.stringify(newPlayerSE),
       tutorial_step: 1,
       current_room_id: 16, // tutorial
     });
@@ -18022,6 +18051,172 @@ function cmdAscend(player, args, context) {
     console.error('[cmdAscend] Error durante la ascensión:', err);
     return { text: `❌ Error durante la ascensión: ${err.message}\n\nTu personaje no fue modificado. Intentá de nuevo o contactá al admin.` };
   }
+}
+
+// ─── T967: cmdBury — comando `enterrar` ──────────────────────────────────────
+
+function cmdBury(player, args, context) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: '❌ Error al cargar tu personaje.' };
+
+  const se = fresh.status_effects ? (typeof fresh.status_effects === 'string' ? JSON.parse(fresh.status_effects) : fresh.status_effects) : {};
+
+  // Solo disponible con ascension_pending === true
+  if (!se.ascension_pending) {
+    return { text: 'Solo podés enterrar un ítem justo antes de ascender.\nDerrota al Lich Anciano para activar el modo de ascensión.' };
+  }
+
+  const itemQuery = args ? args.join(' ').trim() : '';
+
+  // Comando `desenterrar` — cancelar el ítem enterrado previamente
+  if (!itemQuery || itemQuery === 'desenterrar' || itemQuery === 'cancelar') {
+    // Esto no se llamará desde aquí pero por claridad:
+    return { text: 'Usá `desenterrar` para recuperar el ítem ya enterrado.' };
+  }
+
+  // Verificar si ya hay un ítem pendiente
+  if (se.pending_bury_item) {
+    const roomData = db.getRoom(se.pending_bury_room_id);
+    const roomName = roomData ? roomData.name : `sala ${se.pending_bury_room_id}`;
+    return {
+      text: `Ya dejaste **${se.pending_bury_item}** enterrado en ${roomName}. Solo podés dejar uno por ascensión.\nUsá \`desenterrar\` para cambiar de decisión.`,
+    };
+  }
+
+  // Buscar el ítem en el inventario
+  const inv = Array.isArray(fresh.inventory) ? fresh.inventory : JSON.parse(fresh.inventory || '[]');
+  const items = require('./items');
+  const found = items.findItem(inv, itemQuery);
+
+  if (!found) {
+    return { text: `No tenés ningún «${itemQuery}» en el inventario.\nEscribí \`inv\` para ver tus ítems.` };
+  }
+
+  // No se puede enterrar oro (string que sea moneda)
+  const GOLD_KEYWORDS = ['monedas de oro', 'monedas de plata', 'oro', 'plata'];
+  if (GOLD_KEYWORDS.some(k => found.toLowerCase().includes(k))) {
+    return { text: 'No podés enterrar monedas — no tienen forma física que persista. Enterrá un ítem del inventario.' };
+  }
+
+  // Sala restringida: sala 16 (tutorial)
+  if (fresh.current_room_id === 16) {
+    return { text: 'No podés enterrar ítems en el Área de Entrenamiento. Salí al dungeon primero.' };
+  }
+
+  // Quitar del inventario
+  const newInv = removeFirst(inv, found);
+  const roomData = db.getRoom(fresh.current_room_id);
+  const roomName = roomData ? roomData.name : `sala ${fresh.current_room_id}`;
+
+  // Guardar en status_effects
+  const seUpd = { ...se, pending_bury_item: found, pending_bury_room_id: fresh.current_room_id };
+  db.updatePlayer(fresh.id, {
+    inventory: newInv,
+    status_effects: JSON.stringify(seUpd),
+  });
+
+  return {
+    text: [
+      ``,
+      `Cavás un hueco poco profundo con los dedos. La tierra de la`,
+      `${roomName} cede fácilmente — como si hubiera esperado esto.`,
+      ``,
+      `**${found}** descansa bajo la piedra oscura.`,
+      `Tu próximo personaje sabrá que hay algo aquí — si llega al nivel 3.`,
+      ``,
+      `💡 Usá \`ascender\` para confirmar tu ascensión.`,
+      `   Usá \`desenterrar\` si cambiás de idea.`,
+    ].join('\n'),
+  };
+}
+
+// ─── T967: cmdUnbury — comando `desenterrar` ─────────────────────────────────
+
+function cmdUnbury(player, args, context) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: '❌ Error al cargar tu personaje.' };
+
+  const se = fresh.status_effects ? (typeof fresh.status_effects === 'string' ? JSON.parse(fresh.status_effects) : fresh.status_effects) : {};
+
+  if (!se.ascension_pending) {
+    return { text: 'No estás en modo de ascensión. Este comando solo está disponible después de derrotar al Lich.' };
+  }
+
+  if (!se.pending_bury_item) {
+    return { text: 'No dejaste ningún ítem enterrado. Usá `enterrar <ítem>` primero.' };
+  }
+
+  const recoveredItem = se.pending_bury_item;
+  const inv = Array.isArray(fresh.inventory) ? fresh.inventory : JSON.parse(fresh.inventory || '[]');
+  const newInv = [...inv, recoveredItem];
+  const seUpd = { ...se };
+  delete seUpd.pending_bury_item;
+  delete seUpd.pending_bury_room_id;
+
+  db.updatePlayer(fresh.id, {
+    inventory: newInv,
+    status_effects: JSON.stringify(seUpd),
+  });
+
+  return { text: `Desenterrás **${recoveredItem}** y lo guardás de vuelta en tu mochila.\nPodés elegir otro ítem con \`enterrar <ítem>\` o ascender sin dejar nada.` };
+}
+
+// ─── T968: cmdDig — comando `excavar` ────────────────────────────────────────
+
+function cmdDig(player, args, context) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: '❌ Error al cargar tu personaje.' };
+
+  const playerLevel = fresh.level || 1;
+
+  // Solo disponible nivel 3+
+  if (playerLevel < 3) {
+    return {
+      text: [
+        `Algo en vos sabe que hay un recuerdo enterrado aquí.`,
+        `Pero aún no estás listo para recibirlo. Volvé al nivel 3.`,
+      ].join('\n'),
+    };
+  }
+
+  // Buscar ítem heredado del account
+  const accountUsername = fresh.account_username || fresh.username;
+  const legacyRow = db.getUnclaimedLegacyItem(accountUsername);
+
+  if (!legacyRow || !legacyRow.item_left) {
+    return { text: 'Removés tierra y piedra. No hay nada aquí.\n(No tenés ningún ítem heredado pendiente de recuperar.)' };
+  }
+
+  // Verificar que el jugador está en la sala correcta
+  if (fresh.current_room_id !== legacyRow.item_room_id) {
+    const roomData = db.getRoom(legacyRow.item_room_id);
+    const roomName = roomData ? roomData.name : `sala ${legacyRow.item_room_id}`;
+    return { text: `Removés tierra y piedra. No hay nada aquí.\n(El ítem heredado está en otra sala — en ${roomName}.)` };
+  }
+
+  // Reclamar el ítem
+  db.claimLegacyItem(legacyRow.id);
+
+  // Agregar al inventario
+  const inv = Array.isArray(fresh.inventory) ? fresh.inventory : JSON.parse(fresh.inventory || '[]');
+  const newInv = [...inv, legacyRow.item_left];
+  db.updatePlayer(fresh.id, { inventory: newInv });
+
+  // Nombre del personaje anterior (sin el sufijo #N para display limpio)
+  const predecessorName = legacyRow.character_name || 'tu predecesor';
+
+  return {
+    text: [
+      ``,
+      `Tus manos encuentran algo. Una capa fina de tierra, casi`,
+      `simbólica — no es que alguien lo escondiera para que nadie`,
+      `lo viera. Era para que lo vieras VOS.`,
+      ``,
+      `Recuperaste: **${legacyRow.item_left}**`,
+      ``,
+      `"${predecessorName} lo dejó aquí para vos."`,
+    ].join('\n'),
+  };
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, cmdContract, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals, checkAndSetRecords };

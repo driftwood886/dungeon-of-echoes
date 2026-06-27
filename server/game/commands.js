@@ -287,6 +287,10 @@ const COMMAND_ALIASES = {
   legado: 'legado', leyenda: 'legado', historia: 'legado', ciclos: 'legado', 'mis-ciclos': 'legado', endgame: 'legado',
   // ascender / Sistema de Ascensión (EPIC-963/966)
   ascender: 'ascender', ascend: 'ascender', 'ascension': 'ascender', ascensión: 'ascender', renacimiento: 'ascender', renacer: 'ascender', legado_nuevo: 'ascender',
+  // enterrar / desenterrar / excavar — Sistema de Ítem Heredado (T967/T968)
+  enterrar: 'enterrar', bury: 'enterrar', 'dejar-objeto': 'enterrar',
+  desenterrar: 'desenterrar', unbury: 'desenterrar', 'recuperar-objeto': 'desenterrar',
+  excavar: 'excavar', dig: 'excavar', cavar: 'excavar', buscar_legado: 'excavar',
   // battlecry / grito de batalla (T211)
   battlecry: 'battlecry', 'grito-de-batalla': 'battlecry', grito: 'battlecry', 'grito-guerra': 'battlecry', gritoguerra: 'battlecry',
   // champion / campeón de la hora (T212)
