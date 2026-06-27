@@ -7002,7 +7002,11 @@ function cmdTalk(player, target) {
   }
 
   if (!inRoom4) {
-    return { text: '🏪 Aldric no está aquí. Está en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado.' };
+    // BUG-955: ruta dinámica según posición (mismo patrón que DIS-954 en cmdSell)
+    const talkRouteHint = player.current_room_id === 1
+      ? '💡 Ruta desde la Entrada: norte → norte → este'
+      : '💡 Usá `ruta tesoro` para obtener el camino desde tu posición actual.';
+    return { text: `🏪 Aldric no está aquí. Está en la Cámara del Tesoro (sala 4).\n  ${talkRouteHint}\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado.` };
   }
 
   const questState = player.aldric_quest || 'none';
@@ -7116,7 +7120,11 @@ function cmdShop(player) {
   player = db.getPlayer(player.id);
 
   if (player.current_room_id !== MERCHANT_ROOM_ID) {
-    return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado.' };
+    // BUG-955: ruta dinámica según posición (mismo patrón que DIS-954 en cmdSell)
+    const shopRouteHint = player.current_room_id === 1
+      ? '💡 Ruta desde la Entrada: norte → norte → este'
+      : '💡 Usá `ruta tesoro` para obtener el camino desde tu posición actual.';
+    return { text: `🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).\n  ${shopRouteHint}\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado.` };
   }
 
   const gold = player.gold || 0;
@@ -7214,7 +7222,11 @@ function cmdBuy(player, itemQuery) {
   player = db.getPlayer(player.id);
 
   if (player.current_room_id !== MERCHANT_ROOM_ID) {
-    return { text: '🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).\n  💡 Ruta desde la Entrada: norte → norte → este\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado.' };
+    // BUG-955: ruta dinámica según posición (mismo patrón que DIS-954 en cmdSell)
+    const buyRouteHint = player.current_room_id === 1
+      ? '💡 Ruta desde la Entrada: norte → norte → este'
+      : '💡 Usá `ruta tesoro` para obtener el camino desde tu posición actual.';
+    return { text: `🏪 No hay ningún mercader aquí. El mercader vive en la Cámara del Tesoro (sala 4).\n  ${buyRouteHint}\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado.` };
   }
 
   const query = itemQuery.trim().toLowerCase()
