@@ -7098,7 +7098,7 @@ function cmdTalk(player, target) {
     return { text: 'Extendés la carta hacia Aldric cuando te acercás. Él la reconoce antes de que puedas decir una sola palabra.\n\nEl sello de las dos llaves cruzadas. Lo mira durante un momento demasiado largo.\n\n"Fue el guardián del sello del reino," dice al fin, en voz tan baja que casi no lo escuchás. "No el rey. El guardián. Los que guardaban las llaves eran los que realmente mantenían el reino unido."\n\nPausa. "Kaelthas Vorn. Ese era su nombre completo. El que todos olvidaron —o fingieron olvidar— cuando el reino cayó."\n\nDobla la carta sin abrirla y la guarda debajo del mostrador.\n\n"Tomá esto. Y si algún día pronunciás su nombre completo en el lugar correcto, vas a entender por qué todavía importa."\n\n🎉 Quest completada: El Sello de las Dos Llaves. (+50 XP · +25g)\n📜 El lore de Kaelthas Vorn está ahora completo.\n📖 Diario actualizado.' };
   }
 
-  const seTrigger = parseSE(player.status_effects);
+  const seTrigger = parseSE(db.getPlayer(player.id).status_effects);
   if (seTrigger.carta_sellada_leida) {
     const freshPTrig = db.getPlayer(player.id);
     db.updatePlayer(player.id, {
