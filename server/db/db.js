@@ -1289,14 +1289,29 @@ function getDailyChallenge(player) {
 function updateDailyChallengeProgress(playerId, type, target, amount = 1) {
   const player = getPlayer(playerId);
   if (!player) return null;
-  const ch = getDailyChallenge(player);
+  let ch = getDailyChallenge(player);
   if (ch.done) return null;
   const today = new Date().toISOString().slice(0, 10);
   if (ch.date !== today) return null;
   if (ch.type !== type) return null;
   // Strip ⭐ elite prefix from monster name before comparing (T221 elites should count)
-  const targetBaseName = (target && target.startsWith('⭐ ')) ? target.slice(2) : target;
+  const targetBaseName = (target && typeof target === 'string' && target.startsWith('⭐ ')) ? target.slice(2) : target;
   if (type === 'kill' && targetBaseName && ch.target && ch.target.toLowerCase() !== targetBaseName.toLowerCase()) return null;
+
+  // BUG-999: Para desafíos de tipo 'rooms', usar rooms_today (salas visitadas hoy)
+  // en lugar del amount externo (que antes dependía de visitResult.isNew — sala nunca visitada en toda la vida).
+  // Ahora target es el roomId visitado; solo suma si esa sala no fue visitada en la sesión de hoy.
+  if (type === 'rooms') {
+    const roomsToday = Array.isArray(ch.rooms_today) ? ch.rooms_today : [];
+    const roomKey = String(targetBaseName); // targetBaseName aquí es el roomId (number o string)
+    if (roomsToday.includes(roomKey)) {
+      // Ya visitada hoy — no sumar
+      return null;
+    }
+    roomsToday.push(roomKey);
+    ch.rooms_today = roomsToday;
+    amount = 1;
+  }
   ch.progress = (ch.progress || 0) + amount;
   let reward = null;
   if (ch.progress >= ch.goal) {

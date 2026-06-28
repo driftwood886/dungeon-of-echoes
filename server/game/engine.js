@@ -1354,10 +1354,10 @@ function cmdMove(player, direction) {
   const firstVisitEver = visitResult.isNew;
 
   // T141: Desafío diario de salas visitadas
-  // Fix BUG-039: usar visitResult.isNew en lugar de roomsVisited.includes(targetId)
-  // porque trackRoomVisit ya agregó la sala antes de este check → includes() siempre era true → amount siempre 0
-  const roomsCr = db.updateDailyChallengeProgress(player.id, 'rooms', null, visitResult.isNew ? 1 : 0);
-  // (Solo suma si es una sala nueva en esta sesión; el progreso se acumula naturalmente)
+  // Fix BUG-999: pasar targetId para que updateDailyChallengeProgress use rooms_today (salas visitadas hoy),
+  // en vez de visitResult.isNew (sala nunca visitada en toda la vida del personaje).
+  // Jugadores avanzados que ya exploraron todo el dungeon ahora pueden completar el desafío normalmente.
+  const roomsCr = db.updateDailyChallengeProgress(player.id, 'rooms', targetId);
 
   // ── T160/DIS-D372: XP por exploración permanente ──────────────────────────
   // +2 XP la primera vez que se visita una sala (permanente, no por sesión)
