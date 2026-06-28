@@ -145,6 +145,20 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
       roomDesc = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, la puerta de hierro macizo está abierta 🔓 —la llave oxidada hizo su trabajo. El Santuario Profano te espera al otro lado.';
     }
   }
+  // DIS-1002: Salas con boss — omitir mención del boss en la descripción si ya está muerto
+  // Mapa: sala → monsterId del boss que describe la sala
+  const BOSS_ROOM_BOSS = { 8: 8 }; // sala 8 → Guardia Espectral (id 8)
+  if (BOSS_ROOM_BOSS[room.id] !== undefined) {
+    try {
+      const bossId = BOSS_ROOM_BOSS[room.id];
+      const bossMonster = db.getMonster(bossId);
+      const bossIsDead = !bossMonster || bossMonster.hp <= 0 || bossMonster.room_id === null;
+      if (bossIsDead && room.id === 8) {
+        // Descripción alternativa cuando el Guardia ya fue derrotado
+        roomDesc = 'Celdas de hierro corroído bordean las paredes. Las rejas están abiertas — algo estuvo aquí encerrado por mucho tiempo, y finalmente salió. El aire huele a miedo viejo. El guardia ya no está. Las sombras están quietas por primera vez en quien sabe cuánto tiempo. (Podés usar examine celdas para más detalles.)';
+      }
+    } catch (_) { /* no romper describeRoom si falla */ }
+  }
   lines.push(roomDesc);
 
   // Texto ambiental dinámico (T096)
