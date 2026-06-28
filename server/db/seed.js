@@ -579,7 +579,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985 };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1792,6 +1792,34 @@ function migrateEspectroCoronaLoot() {
     console.log('[seed] migrateEspectroCoronaLoot: DIS-872 — corona rota agregada al loot del Espectro del Corredor (id 4). Loot: ' + newLoot.join(', ') + '. ✓');
   } catch (e) {
     console.warn('[seed] migrateEspectroCoronaLoot:', e.message);
+  }
+}
+
+/**
+ * DIS-985: Trampa inevitable en Sala del Trono (sala 9).
+ * La corona rota (ítem de desactivación) solo se obtenía DENTRO de la sala trampeada:
+ * dropeada por el Espectro del Corredor (sala 9) o por forage en sala 9.
+ * Esto obliga al jugador a recibir daño en la primera visita sin posibilidad de evitarlo.
+ *
+ * Solución: agregar 'corona rota' como ítem pre-placed en la Prisión Subterránea (sala 8).
+ * Justificación lore: un aventurero anterior fue encerrado allí camino al Trono;
+ * dejó la corona en su celda, una reliquia del palacio del norte que nunca llegó a usar.
+ * Así el jugador que explore la Prisión puede desactivar la trampa del Trono desde el umbral.
+ */
+function migrateCoronaRotaPrison985() {
+  try {
+    const room8 = db.getRoom(8);
+    if (!room8) return;
+    const items = Array.isArray(room8.items) ? room8.items : (room8.items ? JSON.parse(room8.items) : []);
+    if (items.some(i => typeof i === 'string' && i.toLowerCase().includes('corona rota'))) {
+      console.log('[seed] migrateCoronaRotaPrison985: corona rota ya en sala 8. DIS-985 ✓');
+      return;
+    }
+    const newItems = [...items, 'corona rota'];
+    db.upsertRoom({ ...room8, items: newItems });
+    console.log('[seed] migrateCoronaRotaPrison985: corona rota agregada a Prisión Subterránea (sala 8). DIS-985 ✓');
+  } catch (e) {
+    console.warn('[seed] migrateCoronaRotaPrison985:', e.message);
   }
 }
 
