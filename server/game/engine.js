@@ -940,7 +940,10 @@ function cmdMove(player, direction) {
 
   // Fix DIS-P05 + BUG-012: decrementar/limpiar debuffs por turno al moverse fuera de combate
   try {
-    const fx = player.status_effects || {};
+    // BUG-983 fix: usar parseSE para garantizar que status_effects sea un objeto,
+    // no un string JSON. Si se hace spread de un string, se genera un objeto con
+    // índices numéricos (char por char), perdiendo todos los flags del jugador.
+    const fx = parseSE(player.status_effects);
     const newFx = { ...fx };
     let fxChanged = false;
 
@@ -1425,7 +1428,8 @@ function cmdMove(player, direction) {
       // DIS-D370: guardar en known_traps (permanente) para que persista entre sesiones
       const updatedKnownTraps = { ...(player.known_traps || {}), [targetId]: true };
       // También mantener cooldown legacy por compatibilidad (30 min)
-      const updatedSE = { ...(player.status_effects || {}), [trapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
+      // BUG-983 fix: usar parseSE para evitar spread de string JSON (causa corrupción)
+      const updatedSE = { ...parseSE(player.status_effects), [trapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
       db.updatePlayer(player.id, { hp: newHp, status_effects: JSON.stringify(updatedSE), known_traps: JSON.stringify(updatedKnownTraps) });
 
       // DIS-451/452: tip personalizado según la trampa — indica dónde obtener el ítem de desactivación
@@ -3713,7 +3717,8 @@ function cmdUse(player, itemQuery) {
     resultText = `💧 Bebés la ${found}. Recuperás ${restored} maná. (${newMana}/${maxMana} maná)`;
 
   } else if (def.type === 'antidote' && def.effect === 'cure_poison') {
-    const statusFx = player.status_effects || {};
+    // BUG-983 fix: usar parseSE para garantizar objeto, no string JSON
+    const statusFx = parseSE(player.status_effects);
     if (statusFx.poisoned) {
       // Curar veneno (uso principal) — consumir la hierba
       const newInv2 = removeFirst(player.inventory, found);
