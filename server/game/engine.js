@@ -1818,9 +1818,12 @@ function cmdInventory(player) {
   const invBonus = player.inventory_bonus || 0;
   const maxSlots = 25 + invBonus;
   const usedSlots = allItems.length;  // solo ítems en mochila, no equipados
-  const slotHint = invBonus < 8
-    ? ` · Ampliá con bolsa de lona (+4 slots, 20g en tienda de Aldric)`
-    : '';
+  let slotHint = '';
+  if (invBonus === 0) {
+    slotHint = ` · Ampliá con bolsa de lona (+4 slots, 20g en tienda de Aldric — hacé "use bolsa de lona" al comprarla)`;
+  } else if (invBonus < 8) {
+    slotHint = ` · Podés comprar una 2da bolsa de lona (+4 slots más, 20g en tienda de Aldric)`;
+  }
   const rareCount = allItems.filter(i => items.getItemRarity(i) !== 'común').length
     + equippedItems.filter(e => items.getItemRarity(e.name) !== 'común').length;
   const summary = rareCount > 0
@@ -6096,7 +6099,9 @@ function cmdDisarm(player, args) {
   player = db.getPlayer(player.id);
 
   // DIS-525: soporte para desactivar trampa de sala adyacente antes de entrar
-  if (args && args.length > 0) {
+  // BUG-995: si args[0] no es una dirección válida (ej: "desactivar trampa corona rota"),
+  //          ignorar los args y tratar como disarm de sala actual.
+  if (args && args.length > 0 && dungeon.normalizeDirection(args[0])) {
     const dirArg = args[0];
     const room = db.getRoom(player.current_room_id);
     if (!room) return { text: 'Error: tu habitación actual no existe en la BD.' };
@@ -8661,7 +8666,9 @@ function cmdCraft(player, args) {
   if (craftResult.result) {
     const nfnResult = craftResult.result.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const equippedWpn = (player.equipped_weapon || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (nfnResult === equippedWpn || equippedWpn.includes(nfnResult.split(' ').slice(0, 2).join(' '))) {
+    // BUG-997: comparación exacta — no usar includes() con prefijo, genera falsos positivos
+    // (ej: "lanza espectral reforzada" no debe bloquear cuando está equipada "lanza espectral del eco")
+    if (nfnResult === equippedWpn) {
       return { text: `⚠️ Ya tenés «${craftResult.result}» equipada. Craftear una segunda copia no tiene sentido — usá los ingredientes para otra cosa o vendélos a Aldric.` };
     }
   }
