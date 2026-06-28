@@ -836,8 +836,10 @@ function cmdLook(player) {
       }
       // DIS-811: advertencia de trampa activa en Caverna Sumergida (sala 13) desde sala adyacente
       // La inundación aplica ~7 HP (con varianza ±1) en primera visita sin previo aviso
+      // DIS-990: también agregar Túnel de Hongos (sala 6) — trampa de esporas activa sin aviso previo
       const TRAP_ROOM_DANGER = {
         13: { icon: '💧', name: 'trampa de inundación', roomName: 'Caverna Sumergida', dmg: 7, dmgRange: '6-8' },
+        6:  { icon: '👃', name: 'trampa de esporas',    roomName: 'Túnel de los Hongos', dmg: 6, dmgRange: '5-7' },
       };
       const trapLines = [];
       for (const [dir, destId] of Object.entries(curExits)) {
