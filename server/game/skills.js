@@ -237,12 +237,14 @@ function resolveSkillAlias(alias) {
  * @param {string} [playerClass] — 'picaro', 'mago', 'guerrero', etc.
  * @returns {object[]}
  */
-function getUnlockedSkills(level, playerClass) {
+function getUnlockedSkills(level, playerClass, playerSpecialization) {
   return ALL_SKILLS.filter(sk => {
     if (level < sk.required_level) return false;
     if (sk.required_class && playerClass !== sk.required_class) return false;
     // DIS-D304: excluir skills que no aplican a la clase
     if (sk.excluded_classes && sk.excluded_classes.includes(playerClass)) return false;
+    // BUG-998: excluir skills de especialización que no coincidan con la del jugador
+    if (sk.required_specialization && playerSpecialization !== sk.required_specialization) return false;
     return true;
   });
 }

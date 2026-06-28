@@ -2993,7 +2993,7 @@ function cmdAttack(player, targetName) {
   if (!monsterDead && !playerDead) {
     const freshForSkills = db.getPlayer(player.id);
     if (freshForSkills) {
-      const unlockedSkills = skills.getUnlockedSkills(freshForSkills.level || 1, freshForSkills.player_class);
+      const unlockedSkills = skills.getUnlockedSkills(freshForSkills.level || 1, freshForSkills.player_class, freshForSkills.specialization);
       if (unlockedSkills.length > 0) {
         const cooldowns = freshForSkills.skill_cooldowns
           ? (typeof freshForSkills.skill_cooldowns === 'string' ? JSON.parse(freshForSkills.skill_cooldowns) : freshForSkills.skill_cooldowns)
@@ -11114,7 +11114,7 @@ function cmdSkills(player) {
   if (!fresh) return { text: 'Error al leer tus habilidades.' };
 
   const level = fresh.level || 1;
-  const unlocked = skills.getUnlockedSkills(level, fresh.player_class);
+  const unlocked = skills.getUnlockedSkills(level, fresh.player_class, fresh.specialization);
   const cooldowns = skills.getCooldowns(fresh);
   const now = Date.now();
 
