@@ -10493,14 +10493,17 @@ function cmdCast(player, args) {
       const castPlayerClsForCounter = classes.getPlayerClass(freshPlayerCast);
       const isMagoForCounter = castPlayerClsForCounter && castPlayerClsForCounter.name === 'Mago';
       const spellTypeIsOffensive = spell && spell.type === 'damage';
-      const magoReactionMult = (isMagoForCounter && spellTypeIsOffensive) ? 1.20 : 1.0;
+      // DIS-984 fix: solo aplicar reacción mágica si el hechizo infligió daño real (finalDmg > 0).
+      // Si el enemigo era inmune (elementalMult=0) o el hechizo fue absorbido, no hay "reacción" lógica.
+      const spellDealtDamage = finalDmg > 0;
+      const magoReactionMult = (isMagoForCounter && spellTypeIsOffensive && spellDealtDamage) ? 1.20 : 1.0;
       // DIS-976: postura defensiva reduce daño recibido en cmdCast también
       const STANCE_DEF_CAST = { agresivo: -1, defensivo: +2, equilibrado: 0 };
       const stanceNameCast = freshPlayerCast.stance || 'equilibrado';
       const stanceDefModCast = STANCE_DEF_CAST[stanceNameCast] || 0;
       const effectiveDefCast = (freshPlayerCast.defense || 0) + stanceDefModCast;
       const monsterDmgCast = Math.max(1, Math.round(baseMonsterAtkCast * magoReactionMult) - Math.floor(effectiveDefCast));
-      const magoReactionNote = (isMagoForCounter && spellTypeIsOffensive) ? ` ⚡ (reacción mágica: ×1.2)` : '';
+      const magoReactionNote = (isMagoForCounter && spellTypeIsOffensive && spellDealtDamage) ? ` ⚡ (reacción mágica: ×1.2)` : '';
       const defensiveSuffixCast = (stanceNameCast === 'defensivo' && stanceDefModCast > 0) ? ` 🛡️ [defensivo +${stanceDefModCast} DEF]` : '';
       const shieldActiveCast = freshPlayerCast.shield_active || 0;
       let dmgToCast = monsterDmgCast;
