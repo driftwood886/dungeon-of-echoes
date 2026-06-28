@@ -241,7 +241,7 @@ function execute(playerId, input, context) {
   const tutorialStep = player.tutorial_step;
   if (tutorialStep && tutorialStep > 0 && player.current_room_id === tutorial.TUTORIAL_ROOM_ID) {
     // T175: Permitir el comando hardcore durante el tutorial (se puede activar antes del primer kill)
-    if (action.command !== 'hardcore') {
+    if (action.command !== 'hardcore' && action.command !== 'logout') {
       const tutResult = handleTutorialCommand(player, action, tutorialStep);
       if (tutResult) {
         db.logEvent(playerId, player.current_room_id, input, tutResult.text.slice(0, 200));
@@ -409,6 +409,7 @@ function execute(playerId, input, context) {
     case 'contract':     result = cmdContract(player); break;
     case 'macro':        result = cmdMacro(player, action.args, context); break;
     case 'afk':          result = cmdAfk(player, action.args); break;
+    case 'logout':       result = { text: '🚪 Para salir del juego, cerrá la pestaña del navegador o hacé clic en el botón "Salir" de la interfaz.\n\n💡 Tu progreso se guarda automáticamente — podés volver cuando quieras.' }; break; // DIS-1003
     case 'write':        result = cmdWrite(player, action.args); break;
     case 'read': {
       // BUG-267: si hay args, intentar examinar el ítem del inventario primero
@@ -585,6 +586,8 @@ Para todos los comandos: help
           cast: 'cast', lanzar: 'cast', hechizar: 'cast',
           vault: 'vault', boveda: 'vault', bóveda: 'vault', cofre: 'vault',
           enchant: 'enchant', encantar: 'enchant', encantamiento: 'enchant',
+          // DIS-1003: alias de logout/salir
+          logout: 'logout', salir: 'logout', exit: 'logout', quit: 'logout', bye: 'logout', chau: 'logout',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];

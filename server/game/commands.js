@@ -252,6 +252,8 @@ const COMMAND_ALIASES = {
   // macro (T142)
   macro: 'macro', macros: 'macro', '!': 'macro',
   afk: 'afk', ausente: 'afk', ocupado: 'afk', away: 'afk',
+  // logout / salir (DIS-1003): el juego es web-based, no hay un quit real
+  logout: 'logout', salir: 'logout', exit: 'logout', quit: 'logout', bye: 'logout', chau: 'logout', desconectar: 'logout', cerrar: 'logout',
   // write / grabar mensaje en la pared
   write: 'write', escribir: 'write', grabar: 'write', inscribir: 'write',
   // read / leer mensajes de la pared
