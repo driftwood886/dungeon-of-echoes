@@ -537,6 +537,17 @@ function attackRound(player, monster) {
     lines.push(`🛡️ El ${monster.name} intuye tu presencia — el multiplicador de emboscada se reduce a ×1.7.`);
   }
   const rawPlayerDmg = isCrit ? playerDmg * critMultiplier : playerDmg;
+
+  // DIS-986: Furia del Berserker — multiplicar daño si berserker_rage activo
+  let rageMultiplier = 1.0;
+  let rageLabel = '';
+  if (scrolls['berserker_rage'] && scrolls['berserker_rage'].expires_at > Date.now()) {
+    rageMultiplier = scrolls['berserker_rage'].dmg_multiplier || 1.5;
+    rageLabel = ` 🪓 [FURIA ×${rageMultiplier}]`;
+    // Consumir el buff (one-shot)
+    delete scrolls['berserker_rage'];
+    db.updatePlayer(player.id, { active_scrolls: JSON.stringify(scrolls) });
+  }
   // DIS-630: El Gólem de Piedra tiene resistencia física ×0.75 — análoga a resistencia mágica del Guardia Espectral
   // Es un constructo pétrico: los golpes físicos se amortiguan en su cuerpo de piedra
   // DIS-688: El Golem de Forja tiene resistencia de fuego ×0.80 — constructo de metal candente
@@ -600,7 +611,7 @@ function attackRound(player, monster) {
   };
   const critResistDef = CRIT_RESISTANT_BOSSES[monster.id];
 
-  const dmgAfterPhysResist = Math.round(rawPlayerDmg * physResist * ambushResist * clericWeaponPenalty);
+  const dmgAfterPhysResist = Math.round(rawPlayerDmg * rageMultiplier * physResist * ambushResist * clericWeaponPenalty);
   // DIS-835: Si es crit y el boss tiene resistencia a crits, aplicar el multiplicador
   const critResistMult = (isCrit && critResistDef) ? critResistDef.mult : 1.0;
   // DIS-936: bono espectral se agrega DESPUÉS de resistencias (daño plano, no multiplicativo)
@@ -618,7 +629,7 @@ function attackRound(player, monster) {
     const clericNote = clericWeaponPenaltyNote.length > 0 ? ' ' + clericWeaponPenaltyNote[0] : '';
     const critResistNote = critResistDef ? ` ${critResistDef.label}` : '';
     const spectralNote = spectralBonusDmg > 0 ? ` 👻 (+${spectralBonusDmg} espectral)` : '';
-    lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño.${physResistNote}${critResistNote}${clericNote}${spectralNote} (${monster.hp}/${monster.max_hp} HP)`);
+    lines.push(`💥 ¡GOLPE CRÍTICO! Atacás al ${monster.name} con fuerza devastadora: ${dmgToMonster} de daño.${physResistNote}${critResistNote}${clericNote}${spectralNote}${rageLabel} (${monster.hp}/${monster.max_hp} HP)`);
   } else {
     // DIS-D426: mostrar indicador de postura activa en el mensaje de ataque
     // DIS-472: cada postura tiene mensajes de ataque diferenciados que refuerzan la fantasía
@@ -659,7 +670,7 @@ function attackRound(player, monster) {
     const magoFlavor = isMagoSinMana
       ? `[sin maná — ${magoMsgs[Math.floor(Math.random() * magoMsgs.length)]}] `
       : '';
-    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño.${physResist < 1.0 ? ` ${physResistLabel}` : ''}${spectralBonusDmg > 0 ? ` 👻 (+${spectralBonusDmg} espectral)` : ''}${clericWeaponPenaltyNote.length > 0 ? ' ' + clericWeaponPenaltyNote[0] : ''} (${monster.hp}/${monster.max_hp} HP)`);
+    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño.${physResist < 1.0 ? ` ${physResistLabel}` : ''}${spectralBonusDmg > 0 ? ` 👻 (+${spectralBonusDmg} espectral)` : ''}${clericWeaponPenaltyNote.length > 0 ? ' ' + clericWeaponPenaltyNote[0] : ''}${rageLabel} (${monster.hp}/${monster.max_hp} HP)`);
   }
 
   // Actualizar monstruo en BD

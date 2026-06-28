@@ -578,6 +578,8 @@ Para todos los comandos: help
           imposition: 'imposition', imposicion: 'imposition', imposición: 'imposition',
           emboscar: 'emboscar', emboscada: 'emboscar',
           chain_heal: 'chain_heal', cadena_curacion: 'chain_heal', cadena_curación: 'chain_heal',
+          // DIS-986: Berserker
+          furia: 'furia', berserk: 'furia', rage: 'furia', arrebato: 'furia',
           // DIS-947: Ladrón de Sombras
           desaparecer: 'desaparecer', vanish: 'desaparecer', esconder: 'desaparecer',
           cast: 'cast', lanzar: 'cast', hechizar: 'cast',
@@ -3681,12 +3683,19 @@ function cmdUse(player, itemQuery) {
       return { text: `Ya estás al máximo de HP (${player.hp}/${maxHp}). Guardás la ${found}.` };
     }
     // BUG-916: aplicar bonus de curación del Paladín (+5 HP por poción)
+    // DIS-986: aplicar penalidad de curación del Berserker (−5 HP por poción)
     let healAmount = def.amount;
     if (player.specialization === 'paladin') {
       const { getSpec } = require('./specializations.js');
       const palSpec = getSpec('paladin');
       if (palSpec && palSpec.combat_modifiers && palSpec.combat_modifiers.potion_heal_bonus) {
         healAmount += palSpec.combat_modifiers.potion_heal_bonus;
+      }
+    } else if (player.specialization === 'berserker') {
+      const { getSpec } = require('./specializations.js');
+      const bsSpec = getSpec('berserker');
+      if (bsSpec && bsSpec.combat_modifiers && bsSpec.combat_modifiers.potion_heal_penalty) {
+        healAmount = Math.max(1, healAmount - bsSpec.combat_modifiers.potion_heal_penalty);
       }
     }
     const newHp = Math.min(maxHp, player.hp + healAmount);
@@ -3696,8 +3705,9 @@ function cmdUse(player, itemQuery) {
     const newInv = removeFirst(player.inventory, found);
     db.updatePlayer(player.id, { inventory: newInv });
 
-    const palBonus = healAmount > def.amount ? ` (+${healAmount - def.amount} 🛡️ Paladín)` : '';
-    resultText = `Bebés la ${found}. Recuperás ${newHp - oldHp} HP${palBonus}. (${newHp}/${maxHp} HP)`;
+    const palBonus = (player.specialization === 'paladin' && healAmount > def.amount) ? ` (+${healAmount - def.amount} 🛡️ Paladín)` : '';
+    const bsPenalty = (player.specialization === 'berserker' && healAmount < def.amount) ? ` (−${def.amount - healAmount} 🪓 Berserker)` : '';
+    resultText = `Bebés la ${found}. Recuperás ${newHp - oldHp} HP${palBonus}${bsPenalty}. (${newHp}/${maxHp} HP)`;
 
   } else if (def.type === 'mana_potion' && def.effect === 'restore_mana') {
     // T104: Pociones de maná
@@ -6907,7 +6917,7 @@ const SHOP_CATALOG = [
   { name: 'poción de salud',         price: 15, description: 'Recupera 15 HP. Esencial para aventureros.' },
   { name: 'poción mayor de salud',   price: 35, description: 'Recupera 50 HP. Para las situaciones desesperadas.' },
   { name: 'antídoto',                price: 20, description: 'Cura el veneno al instante.' },
-  { name: 'espada de hierro',        price: 30, description: 'Arma sólida. Daño base +8.' },
+  { name: 'espada de hierro',        price: 20, description: 'Arma sólida. Daño base +8.' },
   { name: 'daga envenenada',         price: 45, description: 'Daño +4, aplica veneno al enemigo.' },
   // DIS-855: espada de acero para level 6-8 (gap entre espada de hierro +8 y armas épicas crafteable)
   { name: 'espada de acero',         price: 70, description: 'Acero templado. +10 de ataque. La mejor opción de compra para aventureros de élite (nivel 6+).' },
@@ -11259,6 +11269,13 @@ function cmdSpecialize(player, args) {
     const freshForDef = db.getPlayer(fresh.id);
     db.updatePlayer(fresh.id, { defense: (freshForDef.defense || 2) + mods.def_bonus });
   }
+  // Berserker: +3 ATK permanente, −1 DEF permanente (DIS-986)
+  if (specId === 'berserker') {
+    const freshForBs = db.getPlayer(fresh.id);
+    const newAtk = (freshForBs.attack || 5) + (mods.atk_bonus || 3);
+    const newDef = Math.max(0, (freshForBs.defense || 2) - (mods.def_penalty || 1));
+    db.updatePlayer(fresh.id, { attack: newAtk, defense: newDef });
+  }
   // Asesino: +10% crit → se aplica como bonus en status_effects
   if (specId === 'asesino' && mods.crit_bonus) {
     const freshForSE = db.getPlayer(fresh.id);
@@ -11289,7 +11306,7 @@ function cmdSpecialize(player, args) {
  */
 function cmdUseSkill(player, args, context) {
   if (!args || args.length === 0) {
-    return { text: 'Uso: smash | escudo_bash | arenga | sanacion_mayor | bendicion | resurreccion | golpe_sucio | robar | evasion | golpe_sombra. Ver habilidades disponibles con "skills".' };
+    return { text: 'Uso: smash | escudo_bash | arenga | sanacion_mayor | bendicion | resurreccion | golpe_sucio | robar | evasion | golpe_sombra | furia. Ver habilidades disponibles con "skills".' };
   }
 
   const freshPlayer = db.getPlayer(player.id);
@@ -11465,6 +11482,42 @@ function cmdUseSkill(player, args, context) {
     if (context && context.broadcastToRoom) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
         `⚡ ${freshPlayer.username} usa Golpetazo sobre el ${target.name}! (-${finalDmg} HP)`);
+    }
+    return { text };
+  }
+
+  // ── Furia (furia) — Berserker Lv5 ─────────────────────────────────────────
+  if (skillId === 'furia') {
+    const freshBs = db.getPlayer(freshPlayer.id);
+    // Verificar que hay monstruos (solo usable en combate)
+    const monstersForRage = db.getMonstersInRoom(freshBs.current_room_id);
+    const aliveForRage = monstersForRage.filter(m => m.hp > 0);
+    if (aliveForRage.length === 0) {
+      return { text: '🪓 ¡La Furia solo puede desatarse en combate! No hay enemigos aquí.' };
+    }
+    const currentMana = freshBs.mana != null ? freshBs.mana : 0;
+    // Gastar todo el maná (mínimo 0)
+    const manaSpent = currentMana;
+    // Guardar buff berserker_rage en active_scrolls — se consume en el próximo ataque
+    const scrollsBs = JSON.parse(freshBs.active_scrolls || '{}');
+    // Expiración: 5 minutos (tiempo suficiente para 1 ataque; se consume antes)
+    scrollsBs['berserker_rage'] = {
+      dmg_multiplier: skill.dmg_multiplier || 1.5,
+      consume_on_attack: true,
+      expires_at: Date.now() + 5 * 60 * 1000,
+    };
+    // Aplicar cooldown
+    const newCDsBs = skills.applyCooldown(freshBs, 'furia');
+    db.updatePlayer(freshBs.id, {
+      mana: 0,
+      skill_cooldowns: newCDsBs,
+      active_scrolls: JSON.stringify(scrollsBs),
+    });
+    const manaText = manaSpent > 0 ? `Gastás todo tu maná (${manaSpent} → 0).` : 'No tenías maná, pero la rabia ya es suficiente.';
+    const text = `🪓 ¡FURIA! La rabia te consume. ${manaText}\n   ✨ Tu próximo ataque causa ×${skill.dmg_multiplier || 1.5} de daño. (Cooldown: ${skill.cooldown_seconds}s)`;
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshBs.current_room_id, freshBs.id,
+        `🪓 ${freshBs.username} entra en FURIA — su próximo ataque será devastador!`);
     }
     return { text };
   }

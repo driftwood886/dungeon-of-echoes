@@ -43,6 +43,29 @@ const SPECIALIZATIONS = {
     },
   },
 
+  // DIS-986: segunda especialización para el Guerrero
+  berserker: {
+    id: 'berserker',
+    class: 'guerrero',
+    name: 'Berserker',
+    emoji: '🪓',
+    description: 'Furia pura. El Berserker sacrifica defensa y autocuidado por daño devastador. Alto riesgo, alto rendimiento.',
+    flavor: '🪓 La rabia te consume. Ya no sos un guerrero — sos una tormenta. Sos un Berserker.',
+    passives: [
+      '+3 ATK permanente, −1 DEF permanente',
+      'Las pociones de salud curan −5 HP (el berserk descuida la autosanación)',
+      'Habilidad `furia`: gasta todo el maná para multiplicar daño ×1.5 en el próximo ataque (cooldown 3 turnos)',
+      'La reputación sube un 20% más lento (reputación de bruto)',
+    ],
+    new_commands: ['furia'],
+    combat_modifiers: {
+      atk_bonus: 3,
+      def_penalty: 1,
+      potion_heal_penalty: 5,
+      rep_multiplier: 0.8,
+    },
+  },
+
   // ─── MAGO ────────────────────────────────────────────────────────────────────
 
   evoker: {
@@ -152,6 +175,9 @@ const SPECIALIZATIONS = {
 const SPEC_ALIASES = {
   paladin:    'paladin',
   paladín:    'paladin',
+  berserker:  'berserker',
+  berserk:    'berserker',
+  furia:      'berserker',
   evoker:     'evoker',
   evocador:   'evoker',
   asesino:    'asesino',

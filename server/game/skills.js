@@ -168,6 +168,20 @@ const SKILLS = {
     description: 'Golpe sagrado: ×1.4 daño + debilita al monstruo (-2 ATK por 3 turnos). Solo Paladín (nivel 5+). Cooldown: 60s.',
     combat_only: true,
   },
+  // DIS-986: Furia del Berserker
+  furia: {
+    id: 'furia',
+    name: 'Furia',
+    aliases: ['furia', 'berserk', 'rage', 'arrebato', 'berserkear'],
+    required_level: 5,
+    required_class: 'guerrero',
+    required_specialization: 'berserker',
+    cooldown_seconds: 90,
+    type: 'berserker_rage',
+    dmg_multiplier: 1.5,
+    description: 'Gasta todo tu maná para hacer ×1.5 daño en el próximo ataque. Solo Berserker (nivel 5+). Cooldown: 90s.',
+    combat_only: true,
+  },
   emboscar: {
     id: 'emboscar',
     name: 'Emboscada',
@@ -272,7 +286,7 @@ function canUseSkill(player, skillId) {
   if (skill.required_specialization) {
     const playerSpec = player.specialization || null;
     if (playerSpec !== skill.required_specialization) {
-      const specNames = { paladin: 'Paladín', evoker: 'Evoker', asesino: 'Asesino', sanador: 'Sanador' };
+      const specNames = { paladin: 'Paladín', evoker: 'Evoker', asesino: 'Asesino', sanador: 'Sanador', berserker: 'Berserker', ladron: 'Ladrón de Sombras' };
       const requiredName = specNames[skill.required_specialization] || skill.required_specialization;
       if (!playerSpec) {
         return { ok: false, error: `${skill.name} requiere la especialización ${requiredName}. Elegí tu especialización con "especializar" al nivel 5.` };
