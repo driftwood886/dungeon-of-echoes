@@ -101,14 +101,20 @@ function normalizeDirection(direction) {
  * @param {object} room
  * @returns {string}
  */
-function exitsText(room) {
+function exitsText(room, player = null) {
   const dirs = Object.keys(room.exits);
   if (dirs.length === 0) return 'ninguna';
+  // BUG-1001: si el jugador ya tiene la llave requerida, mostrar 🔓 en vez de 🔒
+  const playerInventory = player
+    ? (Array.isArray(player.inventory) ? player.inventory : (() => { try { return JSON.parse(player.inventory || '[]'); } catch(_) { return []; } })())
+    : [];
   return dirs.map(d => {
     const exitVal = room.exits[d];
-    const isLocked = typeof exitVal === 'object' && exitVal !== null && exitVal.key;
+    const requiredKey = (typeof exitVal === 'object' && exitVal !== null) ? exitVal.key : null;
     const label = DIR_NAMES[d] || d;
-    return isLocked ? `${label} 🔒` : label;
+    if (!requiredKey) return label;
+    const hasKey = playerInventory.some(item => item.toLowerCase() === requiredKey.toLowerCase());
+    return hasKey ? `${label} 🔓` : `${label} 🔒`;
   }).join(', ');
 }
 
@@ -213,7 +219,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
     lines.push(`\nJugadores aquí:\n${playerList}`);
   }
 
-  lines.push(`\nSalidas: ${exitsText(room)}`);
+  lines.push(`\nSalidas: ${exitsText(room, player)}`);
 
   // DIS-D38: si alguna salida da a una sala con trampa activa, mostrar aviso preventivo
   // BUG-931: si el jugador ya conoce la trampa (known_traps), omitir el hint

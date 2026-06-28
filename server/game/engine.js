@@ -993,7 +993,7 @@ function cmdMove(player, direction) {
   const exitCheck = dungeon.resolveExit(room, direction);
   if (exitCheck === null) {
     const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
-    return { text: `No hay salida hacia el ${dirName}. Salidas disponibles: ${dungeon.exitsText(room)}.` };
+    return { text: `No hay salida hacia el ${dirName}. Salidas disponibles: ${dungeon.exitsText(room, player)}.` };
   }
 
   // BUG-285: Si hay monstruos vivos en la sala actual, mover es huida — aplicar tryFlee
