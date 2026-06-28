@@ -267,6 +267,18 @@ const MONSTER_SPECIALS = {
     turns: 2,
     msg: '👻 ¡El Guardia Espectral te infunde entumecimiento espectral! (-{amount} ATK por {turns} turnos)',
   },
+  // DIS-988: habilidades especiales para ÉLITE de sala 3
+  '⭐ Goblin Merodeador': {
+    chance: 0.20,
+    type: 'item_steal',
+    msg: '🖐 ¡El ⭐ Goblin Merodeador te roba un ítem con sus dedos ágiles!',
+  },
+  '⭐ Esqueleto Guerrero': {
+    chance: 0.30,
+    type: 'armor_pierce',
+    amount: 2,
+    msg: '💀 ¡El ⭐ Esqueleto Guerrero ejecuta un golpe perforante que ignora {amount} DEF!',
+  },
 };
 
 
@@ -1399,6 +1411,47 @@ function attackRound(player, monster) {
           spFx.atk_debuffed = { amount: specialDef.amount, turns: specialDef.turns };
           player.status_effects = spFx;
           lines.push(rawMsg);
+        }
+      } else if (specialDef.type === 'item_steal') {
+        // DIS-988: Goblin ÉLITE roba un ítem del inventario del jugador
+        const freshForSteal = db.getPlayer(player.id);
+        const stealInv = Array.isArray(freshForSteal.inventory) ? freshForSteal.inventory : [];
+        // Solo robar ítems no-monedas, no-equipados
+        const stealable = stealInv.filter(i =>
+          i !== (freshForSteal.equipped_weapon || '') &&
+          !i.toLowerCase().includes('monedas') &&
+          !i.toLowerCase().includes('llave') // no robar llaves de quest
+        );
+        if (stealable.length > 0) {
+          const stolen = stealable[Math.floor(Math.random() * stealable.length)];
+          // Filtrar solo la primera ocurrencia del ítem robado
+          let removed = false;
+          const newInvClean = stealInv.filter(i => {
+            if (!removed && i === stolen) { removed = true; return false; }
+            return true;
+          });
+          db.updatePlayer(player.id, { inventory: newInvClean });
+          // Tirar el ítem al suelo de la sala actual
+          try {
+            const stealRoom = db.getRoom(player.current_room_id);
+            if (stealRoom) {
+              db.updateRoomItems(player.current_room_id, [...stealRoom.items, stolen]);
+            }
+          } catch (_) {}
+          lines.push(`${rawMsg} ¡Te robó: ${stolen}! (cayó al suelo de la sala)`);
+        } else {
+          lines.push(`🖐 El ⭐ Goblin Merodeador hurga en tu bolsa… pero no encuentra nada de valor.`);
+        }
+      } else if (specialDef.type === 'armor_pierce') {
+        // DIS-988: Esqueleto ÉLITE ignora N DEF del jugador — daño extra por encima del ya aplicado
+        const pierceAmount = specialDef.amount || 2;
+        const extraPierceDmg = Math.min(pierceAmount, (effectiveDef || player.defense || 0)); // daño recuperado de la DEF ignorada
+        if (extraPierceDmg > 0) {
+          player.hp = Math.max(0, player.hp - extraPierceDmg);
+          db.updatePlayer(player.id, { hp: player.hp });
+          lines.push(`${rawMsg} (+${extraPierceDmg} daño perforante) (${player.hp}/${player.max_hp} HP)`);
+        } else {
+          lines.push(`💀 ¡Golpe perforante del ⭐ Esqueleto Guerrero! (sin DEF extra que ignorar)`);
         }
       }
     }
