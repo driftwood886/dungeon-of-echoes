@@ -1814,18 +1814,28 @@ function cmdInventory(player) {
 
   // Resumen al final
   const totalVisible = lines.length;
+  // DIS-994: Mostrar slots usados/totales del inventario
+  const invBonus = player.inventory_bonus || 0;
+  const maxSlots = 25 + invBonus;
+  const usedSlots = allItems.length;  // solo ítems en mochila, no equipados
+  const slotHint = invBonus < 8
+    ? ` · Ampliá con bolsa de lona (+4 slots, 20g en tienda de Aldric)`
+    : '';
   const rareCount = allItems.filter(i => items.getItemRarity(i) !== 'común').length
     + equippedItems.filter(e => items.getItemRarity(e.name) !== 'común').length;
   const summary = rareCount > 0
     ? `─ ${totalVisible} ítem${totalVisible !== 1 ? 's' : ''} (${rareCount} no común${rareCount !== 1 ? 'es' : ''})`
     : `─ ${totalVisible} ítem${totalVisible !== 1 ? 's' : ''}`;
 
+  // DIS-994: línea de slots de mochila
+  const slotLine = `📦 Mochila: ${usedSlots}/${maxSlots} slots${slotHint}`;
+
   // Nota de recetas viables si hay alguna
   const viableNote = viableRecipeItems.size > 0
     ? `\n✨ = tenés ingredientes para craftear algo con ese ítem — probá 'recetas'`
     : '';
 
-  return { text: `Inventario:\n${lines.join('\n')}\n${summary}${viableNote}` };
+  return { text: `Inventario:\n${lines.join('\n')}\n${summary}\n${slotLine}${viableNote}` };
 }
 
 /**
@@ -10777,9 +10787,9 @@ function cmdClase(player, args) {
   const newMaxMana = Math.max(clsStats.max_mana,  freshForClass.max_mana || 20);
   const newHp      = Math.min(freshForClass.hp || newMaxHp, newMaxHp);
   const newMana    = Math.min(freshForClass.mana || newMaxMana, newMaxMana);
-  // DIS-491: Dar 10g de inicio al elegir clase por primera vez
+  // DIS-491: Dar 25g de inicio al elegir clase por primera vez (DIS-993: subido de 10 a 25)
   const isFirstClass = currentClass === 'sin_clase';
-  const startingGold = isFirstClass ? (freshForClass.gold || 0) + 10 : (freshForClass.gold || 0);
+  const startingGold = isFirstClass ? (freshForClass.gold || 0) + 25 : (freshForClass.gold || 0);
 
   db.updatePlayer(player.id, {
     player_class: className,
@@ -10818,7 +10828,7 @@ function cmdClase(player, args) {
 
   // DIS-491: Mostrar oro inicial si es la primera clase
   if (isFirstClass) {
-    lines.push(``, `🪙 Monedero inicial: +10 🪙 (suficiente para la primera poción de salud).`);
+    lines.push(``, `🪙 Monedero inicial: +25 🪙 (suficiente para comprarte un arma en la tienda de Aldric).`);
   }
 
   return { text: lines.join('\n') };
