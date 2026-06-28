@@ -399,6 +399,14 @@ function parse(input) {
       'ayuda rápida':    { cmd: 'help', skillId: 'basico' },
       'help basico':     { cmd: 'help', skillId: 'basico' },
       'help básico':     { cmd: 'help', skillId: 'basico' },
+      // BUG-989: "crear guild X" → guild (sin esto, "crear" se mapea a craft y da error confuso)
+      // Los args quedan como ['create', <nombre>] para que cmdGuild lo entienda correctamente
+      'crear guild':     { cmd: 'guild', skillId: 'create' },
+      'crear hermandad': { cmd: 'guild', skillId: 'create' },
+      'crear gremio':    { cmd: 'guild', skillId: 'create' },
+      'crear clan':      { cmd: 'guild', skillId: 'create' },
+      'crear faccion':   { cmd: 'guild', skillId: 'create' },
+      'crear facción':   { cmd: 'guild', skillId: 'create' },
     };
     const mwMatch = MULTI_WORD_ALIASES[twoWord];
     if (mwMatch) {
