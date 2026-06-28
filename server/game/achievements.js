@@ -172,7 +172,7 @@ const ACHIEVEMENTS = [
     id: 'conquistador_dungeon',
     icon: '📖👑',
     name: 'Conquistador del Dungeon',
-    desc: 'Registrar los 14 tipos de monstruo del dungeon en el bestiario',
+    desc: 'Registrar los 15 tipos de monstruo del dungeon en el bestiario',
     flavor: 'Cada criatura de estas mazmorras conoce tu nombre. Algunas con terror. Otras ya no pueden recordar nada.',
     secret: false,
     check: (p, _ctx) => {
@@ -181,7 +181,7 @@ const ACHIEVEMENTS = [
         // BUG-051: filtrar el Goblin de Práctica (monstruo de tutorial, no cuenta para el logro)
         // igual que en cmdBestiary y cmdGoals
         const types = Object.keys(bestiary).filter(k => k !== 'Goblin de Práctica').length;
-        return types >= 14;
+        return types >= 15; // BUG-1000: hay 15 tipos reales (antes era 14 — desactualizado)
       } catch (_) { return false; }
     },
   },

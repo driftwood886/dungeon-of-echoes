@@ -11005,7 +11005,7 @@ function cmdBestiary(player) {
   }
   // Reemplazar la última separación por el cierre
   lines[lines.length - 1] = `╚════════════════════════════════════════╝`;
-  const TOTAL_TYPES = 14;
+  const TOTAL_TYPES = 15; // BUG-1000: hay 15 tipos de monstruo (sin Goblin de Práctica)
   const entryCount = entries.filter(e => e.name !== 'Goblin de Práctica').length;
   // DIS-D294: verificar también si el logro ya fue desbloqueado (override si hay desincronización)
   const achList = JSON.parse(fresh.achievements || '[]');
@@ -17623,7 +17623,7 @@ function cmdLegado(player, context) {
     if (lichKills >= 5) {
       const hasConquistador = achievements.includes('conquistador_dungeon');
       const conquStatus = hasConquistador ? '✅' : '⬜';
-      lines.push(`║  ${conquStatus} Conquistador: registrar los 14 tipos de monstruo`.padEnd(W + 1) + '║');
+      lines.push(`║  ${conquStatus} Conquistador: registrar los 15 tipos de monstruo`.padEnd(W + 1) + '║');
     }
 
     // Logros secretos sin desbloquear (sin revelar cuáles)
