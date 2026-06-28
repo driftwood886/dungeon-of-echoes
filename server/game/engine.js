@@ -14336,12 +14336,40 @@ function cmdPath(player, args) {
   // Si no, buscar por nombre (parcial, case-insensitive, sin tildes)
   if (!targetRoom) {
     const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    // Palabras vacías en español (artículos, preposiciones comunes)
+    const STOP_WORDS = new Set(['de', 'del', 'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
+                                'en', 'al', 'a', 'y', 'o', 'e', 'ni', 'con', 'sin', 'por', 'para']);
+    const stripStop = words => words.filter(w => w.length > 0 && !STOP_WORDS.has(w));
     const normQuery = norm(query);
-    // Búsqueda exacta primero
+    const queryWords = stripStop(normQuery.split(/\s+/));
+
+    // 1) Búsqueda exacta normalizada
     targetRoom = allRooms.find(r => norm(r.name) === normQuery);
-    // Luego parcial
+    // 2) Substring continuo (ej: "ecos" en "sala de los ecos")
     if (!targetRoom) {
       targetRoom = allRooms.find(r => norm(r.name).includes(normQuery));
+    }
+    // 3) Matching por palabras clave (DIS-1006): todas las palabras de la query
+    //    (sin stop words) deben aparecer como words en el nombre normalizado.
+    //    Ej: "sala ecos" → ["sala","ecos"] → busca sala que tenga ambas palabras.
+    if (!targetRoom && queryWords.length >= 1) {
+      const matches = allRooms.filter(r => {
+        const roomWords = norm(r.name).split(/\s+/);
+        return queryWords.every(qw => roomWords.some(rw => rw.includes(qw)));
+      });
+      if (matches.length === 1) {
+        targetRoom = matches[0];
+      } else if (matches.length > 1) {
+        // Múltiples resultados: elegir el que más palabras comparte
+        matches.sort((a, b) => {
+          const aWords = norm(a.name).split(/\s+/);
+          const bWords = norm(b.name).split(/\s+/);
+          const aScore = queryWords.filter(qw => aWords.some(rw => rw.includes(qw))).length;
+          const bScore = queryWords.filter(qw => bWords.some(rw => rw.includes(qw))).length;
+          return bScore - aScore;
+        });
+        targetRoom = matches[0];
+      }
     }
   }
 
