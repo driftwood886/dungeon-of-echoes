@@ -579,7 +579,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992 };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1873,6 +1873,44 @@ function migrateFixStuckPassiveAuctions() {
     console.log(`[seed] migrateFixStuckPassiveAuctions: ${stuck.length} subastas pasivas stuck corregidas. BUG-946 ✓`);
   } catch (e) {
     console.warn('[seed] migrateFixStuckPassiveAuctions:', e.message);
+  }
+}
+
+/**
+ * BUG-992: Limpiar status_effects corruptos (contienen el objeto jugador completo).
+ * Causa: parseSE(freshForEpic) en engine.js recibía el jugador completo en vez de freshForEpic.status_effects.
+ * Este bug ocurría al mover a una sala dejando ítems épicos/raros atrás.
+ * Solución: detectar status_effects que tengan clave 'id' (propia de jugadores) y limpiarlos,
+ * preservando los campos legítimos de status_effects que puedan estar anidados dentro.
+ */
+function migrateFixCorruptStatusEffects992() {
+  try {
+    const rawDb = db.raw();
+    const stmt = rawDb.prepare('SELECT id, username, status_effects FROM players');
+    const rows = [];
+    while (stmt.step()) { rows.push(stmt.getAsObject()); }
+    stmt.free();
+    let fixed = 0;
+    for (const row of rows) {
+      if (!row.status_effects) continue;
+      let se;
+      try { se = JSON.parse(row.status_effects); } catch (_) { continue; }
+      if (typeof se !== 'object' || se === null) continue;
+      // Si tiene 'id' y 'username', es el jugador completo guardado por error
+      if (se.id && se.username && se.status_effects !== undefined) {
+        // Rescatar los status_effects anidados si existen
+        const innerSe = se.status_effects;
+        const cleanSe = (innerSe && typeof innerSe === 'object') ? innerSe : {};
+        rawDb.run('UPDATE players SET status_effects = ? WHERE id = ?', [JSON.stringify(cleanSe), row.id]);
+        console.log(`[seed] BUG-992: status_effects corruptos limpiados para jugador ${row.username} (${row.id})`);
+        fixed++;
+      }
+    }
+    if (fixed > 0) {
+      console.log(`[seed] migrateFixCorruptStatusEffects992: ${fixed} jugadores corregidos. BUG-992 ✓`);
+    }
+  } catch (e) {
+    console.warn('[seed] migrateFixCorruptStatusEffects992:', e.message);
   }
 }
 

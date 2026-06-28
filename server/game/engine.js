@@ -1698,7 +1698,7 @@ function cmdMove(player, direction) {
   let leftEpicMsg = '';
   {
     const freshForEpic = db.getPlayer(player.id) || player;
-    const seForEpic = parseSE(freshForEpic);
+    const seForEpic = parseSE(freshForEpic.status_effects); // BUG-992: era parseSE(freshForEpic) — guardaba el jugador completo como status_effects
     const alreadyWarnedRoom = seForEpic.epic_warn_room;
     if (alreadyWarnedRoom !== _originRoomId) {
       const prevRoomItems = db.getRoom(_originRoomId);
