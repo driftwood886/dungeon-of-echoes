@@ -11433,6 +11433,11 @@ function cmdUseSkill(player, args, context) {
     if (!target) target = alive[0];
     const baseDmg = freshPlayer.attack || 5;
     // DIS-679: aplicar entumecimiento espectral (atk_debuffed) igual que en combat.js
+    // BUG-1020: si está en Sala de Práctica atacando un maniquí, redirigir a _cmdTrainingFight (sin XP/kills)
+    if (freshPlayer.current_room_id === TRAINING_ROOM_ID && TRAINING_DUMMY_IDS.has(target.id)) {
+      skills.applyCooldown(freshPlayer, 'smash'); // consumir cooldown igual
+      return _cmdTrainingFight(freshPlayer, target);
+    }
     const smashAtkFx = freshPlayer.status_effects
       ? (typeof freshPlayer.status_effects === 'string' ? JSON.parse(freshPlayer.status_effects) : freshPlayer.status_effects)
       : {};
@@ -11639,6 +11644,11 @@ function cmdUseSkill(player, args, context) {
     // BUG-658: aplicar resistencia física igual que combat.js (×0.75 para el Gólem de Piedra)
     // DIS-688: Golem de Forja tiene resistencia de fuego ×0.80
     // DIS-1015: Elemental de Hielo tiene resistencia física ×0.80
+    // BUG-1020: si está en Sala de Práctica atacando un maniquí, redirigir a _cmdTrainingFight (sin XP/kills)
+    if (freshPlayer.current_room_id === TRAINING_ROOM_ID && TRAINING_DUMMY_IDS.has(target.id)) {
+      skills.applyCooldown(freshPlayer, 'shield_bash');
+      return _cmdTrainingFight(freshPlayer, target);
+    }
     const BASH_PHYS_RESISTANT = ['gólem de piedra', 'elemental de hielo'];
     const BASH_FIRE_RESISTANT = ['golem de forja'];
     const bashMonNameLow = target.name.toLowerCase().replace('⭐ ', '');
@@ -11838,6 +11848,12 @@ function cmdUseSkill(player, args, context) {
     }
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
+
+    // BUG-1020: si está en Sala de Práctica atacando un maniquí, redirigir a _cmdTrainingFight (sin XP/kills)
+    if (freshPlayer.current_room_id === TRAINING_ROOM_ID && TRAINING_DUMMY_IDS.has(target.id)) {
+      skills.applyCooldown(freshPlayer, 'golpe_sucio');
+      return _cmdTrainingFight(freshPlayer, target);
+    }
 
     const baseDmg = freshPlayer.attack || 5;
     const rawDmg = Math.max(1, Math.floor(baseDmg * skill.dmg_multiplier));
@@ -12178,6 +12194,12 @@ function cmdUseSkill(player, args, context) {
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
 
+    // BUG-1020: si está en Sala de Práctica atacando un maniquí, redirigir a _cmdTrainingFight (sin XP/kills)
+    if (freshPlayer.current_room_id === TRAINING_ROOM_ID && TRAINING_DUMMY_IDS.has(target.id)) {
+      skills.applyCooldown(freshPlayer, 'golpe_sombra');
+      return _cmdTrainingFight(freshPlayer, target);
+    }
+
     // Verificar si el monstruo ya atacó al jugador este turno
     // Se detecta por si tiene hp_last_hit en sus efectos (registro de último turno)
     // Fallback: si el jugador tiene `last_hit_by` reciente del mismo monstruo → monstruo ya atacó
@@ -12311,6 +12333,11 @@ function cmdUseSkill(player, args, context) {
     }
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
+    // BUG-1020: si está en Sala de Práctica atacando un maniquí, redirigir a _cmdTrainingFight (sin XP/kills)
+    if (freshPlayer.current_room_id === TRAINING_ROOM_ID && TRAINING_DUMMY_IDS.has(target.id)) {
+      skills.applyCooldown(freshPlayer, 'imposition');
+      return _cmdTrainingFight(freshPlayer, target);
+    }
     const freshPal = db.getPlayer(freshPlayer.id);
     const baseDmgPal = freshPal.attack || 5;
     const rawDmgPal = Math.max(1, Math.floor(baseDmgPal * skill.dmg_multiplier));
@@ -12416,6 +12443,11 @@ function cmdUseSkill(player, args, context) {
     }
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
+    // BUG-1020: si está en Sala de Práctica atacando un maniquí, redirigir a _cmdTrainingFight (sin XP/kills)
+    if (freshPlayer.current_room_id === TRAINING_ROOM_ID && TRAINING_DUMMY_IDS.has(target.id)) {
+      skills.applyCooldown(freshPlayer, 'emboscar');
+      return _cmdTrainingFight(freshPlayer, target);
+    }
     const freshAse = db.getPlayer(freshPlayer.id);
     const baseDmgAse = freshAse.attack || 5;
     const rawDmgAse = Math.max(1, Math.floor(baseDmgAse * skill.dmg_multiplier));
