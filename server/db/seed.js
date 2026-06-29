@@ -579,7 +579,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007 };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1914,3 +1914,27 @@ function migrateFixCorruptStatusEffects992() {
   }
 }
 
+/**
+ * DIS-1007: Limpiar ítems épicos del Guardia Espectral del suelo de la Prisión (sala 8).
+ * La alabarda de huesos y peto de huesos ahora se entregan directamente al inventario
+ * del jugador al matar al boss (via BOSS_DIRECT_LOOT en combat.js). Si quedaron en el suelo
+ * de una sesión anterior, esta migración los elimina.
+ */
+function migrateCleanPrisonEpicLoot1007() {
+  try {
+    const room8 = db.getRoom(8);
+    if (!room8) return;
+    const items = Array.isArray(room8.items) ? room8.items : (room8.items ? JSON.parse(room8.items) : []);
+    const EPIC_ITEMS = new Set(['alabarda de huesos', 'peto de huesos']);
+    const cleanItems = items.filter(i => !EPIC_ITEMS.has(i));
+    if (cleanItems.length !== items.length) {
+      db.upsertRoom({ ...room8, items: cleanItems });
+      const removed = items.filter(i => EPIC_ITEMS.has(i));
+      console.log(`[seed] migrateCleanPrisonEpicLoot1007: removidos del suelo de sala 8: ${removed.join(', ')}. DIS-1007 ✓`);
+    } else {
+      console.log('[seed] migrateCleanPrisonEpicLoot1007: sala 8 limpia. DIS-1007 ✓');
+    }
+  } catch (e) {
+    console.warn('[seed] migrateCleanPrisonEpicLoot1007:', e.message);
+  }
+}

@@ -967,11 +967,21 @@ function attackRound(player, monster) {
     lines.push(`💀 ¡El ${monster.name} cae derrotado!`);
 
     // Soltar loot en la habitación
-    const { droppedLoot, globalEvent, lootNote: ln936 } = dropLoot(monster, player.current_room_id);
+    const { droppedLoot, directLoot: directLootItems, globalEvent, lootNote: ln936 } = dropLoot(monster, player.current_room_id);
     loot = droppedLoot;
+
+    // DIS-1007: ítems directos van al inventario del jugador sin pasar por el suelo
+    if (directLootItems && directLootItems.length > 0) {
+      const freshPlayer2 = db.getPlayer(player.id);
+      const inv2 = Array.isArray(freshPlayer2.inventory) ? freshPlayer2.inventory : JSON.parse(freshPlayer2.inventory || '[]');
+      const newInv2 = [...inv2, ...directLootItems];
+      db.updatePlayer(player.id, { inventory: JSON.stringify(newInv2) });
+      lines.push(`⚔️ El ${monster.name} suelta directamente: **${directLootItems.join(', ')}** (ya en tu inventario).`);
+    }
+
     if (loot.length > 0) {
       lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
-    } else {
+    } else if (!directLootItems || directLootItems.length === 0) {
       lines.push(`El ${monster.name} no deja nada.`);
     }
     if (ln936) lines.push(ln936);
@@ -1749,6 +1759,12 @@ const LOOT_CHANCES = {
   27: { 'diente afilado': 0.25 }, // Murciélago Vampiro (Túnel de Hongos, sala 6) — antes: 100%
 };
 
+// DIS-1007: Ítems que se entregan directamente al inventario del jugador al matar el boss,
+// en lugar de quedar en el suelo de la sala. Evita que otro jugador los recoja sin combatir.
+const BOSS_DIRECT_LOOT = {
+  8: ['alabarda de huesos', 'peto de huesos'], // Guardia Espectral — ítems épicos de progresión
+};
+
 function dropLoot(monster, roomId) {
   const loot = monster.loot || [];
   const bossDef = BOSS_MONSTERS[monster.id];
@@ -1776,22 +1792,41 @@ function dropLoot(monster, roomId) {
   }
 
   if (allLoot.length > 0) {
-    // Agregar ítems a la habitación
-    const room = db.getRoom(roomId);
-    if (room) {
-      // BUG-334: Antes de agregar nuevo loot, eliminar TODAS las copias previas de esos
-      // mismos ítems del suelo. Evita acumulación cuando el jugador no recoge el loot
-      // entre cycles de kill/respawn del mismo monstruo.
-      const lootSet = new Set(baseAllLoot); // limpiar basado en la lista completa (no filtrada)
-      const floorWithoutOldLoot = room.items.filter(i => !lootSet.has(i));
-      // BUG-566: No dropear ítems que YA están en el suelo (ítems pre-placed de la sala)
-      // para evitar duplicados cuando el loot_table del boss coincide con objetos del mapa
-      const floorItemsSet = new Set(floorWithoutOldLoot);
-      const dedupedLoot = allLoot.filter(item => !floorItemsSet.has(item));
-      const newItems = [...floorWithoutOldLoot, ...dedupedLoot];
-      db.updateRoomItems(roomId, newItems);
+    // DIS-1007: Separar ítems directos (van al inventario del jugador) del loot de suelo.
+    const directItemsForMonster = BOSS_DIRECT_LOOT[monster.id] || [];
+    const directLootSet = new Set(directItemsForMonster);
+    const floorLoot = allLoot.filter(i => !directLootSet.has(i));
+    const directLoot = allLoot.filter(i => directLootSet.has(i));
+
+    // Agregar al suelo solo el loot no-directo
+    if (floorLoot.length > 0) {
+      const room = db.getRoom(roomId);
+      if (room) {
+        // BUG-334: Antes de agregar nuevo loot, eliminar TODAS las copias previas de esos
+        // mismos ítems del suelo. Evita acumulación cuando el jugador no recoge el loot
+        // entre cycles de kill/respawn del mismo monstruo.
+        const lootSet = new Set(baseAllLoot); // limpiar basado en la lista completa (no filtrada)
+        const floorWithoutOldLoot = room.items.filter(i => !lootSet.has(i));
+        // BUG-566: No dropear ítems que YA están en el suelo (ítems pre-placed de la sala)
+        // para evitar duplicados cuando el loot_table del boss coincide con objetos del mapa
+        const floorItemsSet = new Set(floorWithoutOldLoot);
+        const dedupedLoot = floorLoot.filter(item => !floorItemsSet.has(item));
+        const newItems = [...floorWithoutOldLoot, ...dedupedLoot];
+        db.updateRoomItems(roomId, newItems);
+      }
     }
+
+    // DIS-1007: Guardar directLoot para que attackRound lo entregue al jugador
+    if (directLoot.length > 0) {
+      allLoot._directLoot = directLoot; // se procesa en attackRound
+    }
+  } else {
+    var directLoot = []; // eslint-disable-line
   }
+
+  // floorLoot = los ítems que realmente cayeron al suelo (sin los directos)
+  const finalFloorLoot = allLoot.filter ? allLoot.filter(i => !(BOSS_DIRECT_LOOT[monster.id] || []).includes(i)) : allLoot;
+  const finalDirectLoot = allLoot.filter ? allLoot.filter(i => (BOSS_DIRECT_LOOT[monster.id] || []).includes(i)) : [];
 
   // Tiempo de respawn: boss = 30 min, goblin de práctica = 30s, normal = 5 min
   // Fix DIS-004: el goblin de práctica (id=20) respawnea rápido para no bloquear el tutorial
@@ -1833,7 +1868,7 @@ function dropLoot(monster, roomId) {
     lootNote = '🪨 Al arrancarlo del pecho del Gólem, el constructo se desplomó en una lluvia de cascotes. El núcleo de energía pulsa en tu mano con calor telúrico.';
   }
 
-  return { droppedLoot: allLoot, globalEvent, lootNote };
+  return { droppedLoot: finalFloorLoot, directLoot: finalDirectLoot, globalEvent, lootNote };
 }
 
 /**
