@@ -772,6 +772,7 @@ function handleTutorialCommand(player, action, step) {
 function completeTutorial(player) {
   const xp = (player.xp || 0) + 10;
   const level = xpSystem.levelFromXp(xp);
+  const oldLevel = player.level || 1;
   // DIS-713: el tiempo de ciclo se mide desde que el jugador sale del tutorial.
   // DIS-766: cycle_start_at se setea SIEMPRE al completar el tutorial (ya no se setea al crear jugador).
   //          Esto garantiza que el primer ciclo se mida correctamente desde el tutorial, no desde login.
@@ -782,6 +783,14 @@ function completeTutorial(player) {
     level,
     cycle_start_at: new Date().toISOString(), // siempre resetear al salir del tutorial
   };
+  // DIS-1019: si el bonus de +10 XP provocara un level-up (actualmente raro pero posible con
+  // legacy_bonus u otras fuentes), actualizar max_hp y hp para que el estado sea coherente.
+  if (level > oldLevel) {
+    const newMaxHp = (player.max_hp || 30) + 5 * (level - oldLevel);
+    const heal = Math.ceil(newMaxHp * 0.20);
+    updateData.max_hp = newMaxHp;
+    updateData.hp = Math.min(newMaxHp, (player.hp || 30) + heal);
+  }
   db.updatePlayer(player.id, updateData);
   // DIS-799: registrar sala 1 como visitada — completeTutorial setea current_room_id=1 pero
   // nunca llamaba trackRoomVisit, así que sala 1 aparecía como ?? en el mapa siempre.
