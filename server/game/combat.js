@@ -457,6 +457,13 @@ function attackRound(player, monster) {
     const shadowHasActed = seParalyze.shadow_attacked || false;
     if (!shadowHasActed || Math.random() < 0.35) {
       lines.push(`🌑 ¡La OSCURIDAD PARALIZANTE te envuelve! No podés atacar este turno.`);
+      // BUG-1013: setear shadow_attacked AQUÍ para que el flag quede guardado incluso cuando
+      // la función retorna temprano (antes de llegar al bloque de línea ~1211).
+      // Sin este fix, el flag nunca se seteaba y la paralización ocurría el 100% de los turnos.
+      if (!shadowHasActed) {
+        seParalyze.shadow_attacked = true;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(seParalyze) });
+      }
       // El monstruo sí contraataca
       const shadowDmg = calcDamage(monster.attack);
       const evParalyze = worldEvents.getCurrentEvent();
