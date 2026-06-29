@@ -10145,11 +10145,20 @@ function cmdCast(player, args) {
   const playerClass = classes.getPlayerClass(player);
   const isMago = playerClass && playerClass.name === 'Mago';
   const isEscarcha = spellName === 'escarcha';
-  const lowManaThreshold = Math.floor(maxMana * 0.20);
-  const escarchaEmergency = isMago && isEscarcha && currentMana <= lowManaThreshold;
-  // DIS-879: Canalización — Mago nivel 3+ reduce costo de hechizos en 1 cuando maná ≤ 20%
+  // BUG-1011: Evoker tiene threshold de canalización ampliado a 30% (vs 20% base).
+  // Leer channeling_threshold de la especialización si existe.
+  const playerSpec = player.specialization
+    ? (require('./specializations').getSpec(player.specialization) || null)
+    : null;
+  const channelingThresholdPct = (playerSpec && playerSpec.combat_modifiers && playerSpec.combat_modifiers.channeling_threshold)
+    ? playerSpec.combat_modifiers.channeling_threshold
+    : 0.20;
+  const lowManaThreshold = Math.floor(maxMana * channelingThresholdPct);
+  const escarchaEmergency = isMago && isEscarcha && currentMana <= Math.floor(maxMana * 0.20);
+  // DIS-879: Canalización — Mago nivel 3+ reduce costo de hechizos en 1 cuando maná ≤ threshold
   // Pasivo automático: simula que el Mago canaliza el poder residual del ambiente arcano.
   // No aplica a escarcha de emergencia (ya es gratis) ni a hechizos con free_spell.
+  // BUG-1011: Evoker usa lowManaThreshold=30%, todos los demás Magos usan 20%.
   const hasCanalizacion = isMago && (player.level || 1) >= 3 && currentMana <= lowManaThreshold && !escarchaEmergency;
   const canalizacionDiscount = hasCanalizacion ? 1 : 0;
   const effectiveCost = escarchaEmergency ? 0 : Math.max(1, spell.cost - canalizacionDiscount);
@@ -10160,7 +10169,7 @@ function cmdCast(player, args) {
 
   if (!hasFreeSpell && currentMana < effectiveCost) {
     return {
-      text: `🪄 No tenés maná suficiente para ${spell.icon} ${spellName}.\n   Necesitás ${spell.cost} maná, tenés ${currentMana}/${maxMana}.\n   Esperá que se recargue (${getManaRegenRate(player)}\u00a0maná/minuto) o usá una poción de maná.`,
+      text: `🪄 No tenés maná suficiente para ${spell.icon} ${spellName}.\n   Necesitás ${effectiveCost} maná, tenés ${currentMana}/${maxMana}.\n   Esperá que se recargue (${getManaRegenRate(player)}\u00a0maná/minuto) o usá una poción de maná.`,
     };
   }
 
