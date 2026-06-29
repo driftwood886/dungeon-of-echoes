@@ -15038,6 +15038,8 @@ function cmdGuide(args) {
       '  💨 Esquiva       — 8% de chance (evita daño)',
       '  ☠  Veneno        — Araña/Vampiro pueden envenenarate',
       '  🐾 Huida enemigo — Monstruo con <25% HP puede escapar',
+      '  ⚡ COMBO         — Matás N monstruos seguidos sin morir:',
+      '    cada kill suma +1 daño. El combo se reinicia si morís.',
       '',
       'HABILIDADES (al subir niveles):',
       '  smash / golpetazo (Lv3) — ×1.8 daño, CD 45s',
