@@ -579,7 +579,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005 };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1936,5 +1936,42 @@ function migrateCleanPrisonEpicLoot1007() {
     }
   } catch (e) {
     console.warn('[seed] migrateCleanPrisonEpicLoot1007:', e.message);
+  }
+}
+
+/**
+ * DIS-1005: Mejorar pistas de navegación hacia Aldric el Mercader.
+ * - Sala 3 (Sala de los Ecos): agregar mención de que al este está la Cámara del Tesoro con el mercader.
+ * - Sala 4 (Cámara del Tesoro): actualizar descripción para que quede claro que Aldric está ahí.
+ */
+function migrateMerchantHintDIS1005() {
+  try {
+    // Sala 3: Sala de los Ecos — agregar hint de Aldric al este
+    const room3 = db.getRoom(3);
+    if (room3) {
+      const OLD_DESC3 = 'Una cámara circular donde cada sonido rebota mil veces. El suelo está cubierto de huesos viejos y polvo.';
+      const NEW_DESC3 = 'Una cámara circular donde cada sonido rebota mil veces. El suelo está cubierto de huesos viejos y polvo. Al este, una luz tenue escapa por el umbral: la Cámara del Tesoro, donde Aldric el Mercader tiene su puesto de comercio.';
+      if (room3.description === OLD_DESC3 || room3.description === NEW_DESC3.replace(' Al este, una luz tenue escapa por el umbral: la Cámara del Tesoro, donde Aldric el Mercader tiene su puesto de comercio.', '')) {
+        db.upsertRoom({ ...room3, description: NEW_DESC3 });
+        console.log('[seed] migrateMerchantHintDIS1005: sala 3 descripción actualizada con hint de Aldric. DIS-1005 ✓');
+      } else {
+        console.log('[seed] migrateMerchantHintDIS1005: sala 3 tiene descripción custom — sin cambios.');
+      }
+    }
+
+    // Sala 4: Cámara del Tesoro — hacer más obvio que hay un mercader
+    const room4 = db.getRoom(4);
+    if (room4) {
+      const OLD_DESC4 = 'Estantes de madera podrida sostienen cofres semiabiertos. Algo valioso estuvo aquí alguna vez. Un olor metálico impregna el ambiente.';
+      const NEW_DESC4 = 'Estantes de madera podrida sostienen cofres semiabiertos. Un mostrador desgastado ocupa el centro de la sala — Aldric el Mercader acomoda sus mercancías con cuidado meticuloso. Un olor metálico impregna el ambiente.';
+      if (room4.description === OLD_DESC4) {
+        db.upsertRoom({ ...room4, description: NEW_DESC4 });
+        console.log('[seed] migrateMerchantHintDIS1005: sala 4 descripción actualizada con Aldric visible. DIS-1005 ✓');
+      } else {
+        console.log('[seed] migrateMerchantHintDIS1005: sala 4 tiene descripción custom — sin cambios.');
+      }
+    }
+  } catch (e) {
+    console.warn('[seed] migrateMerchantHintDIS1005:', e.message);
   }
 }
