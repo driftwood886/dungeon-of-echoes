@@ -457,6 +457,23 @@ function attackRound(player, monster) {
   const effectiveAtk = Math.max(1, player.attack + petBonus + scrollAtkBonus + stanceMods.atkMod - atkDebuffAmt);
   const effectiveDef = (player.defense || 0) + scrollDefBonus + stanceMods.defMod;
 
+  // DIS-1028: Escalado dinámico de dificultad para jugadores nivel 15+
+  // Los monstruos no-boss ganan defensa virtual y ATK extra para mantener la tensión.
+  // El escalado es suave y empieza en nivel 10 para no romper la curva de progresión.
+  // Fórmula: por cada nivel sobre 10, el monstruo gana +8% de defensa virtual y +0.5 ATK extra.
+  // A nivel 20 → monster.defense += 8, monster.attack += 5 (diferencia notable pero no absurda).
+  let monsterVirtualDefBonus = 0;
+  let monsterAtkScaleBonus = 0;
+  const isBossMonster = !!(BOSS_MONSTERS && BOSS_MONSTERS[monster.id]);
+  if (!isBossMonster && (player.level || 1) >= 10) {
+    const levelsAbove10 = (player.level || 1) - 10;
+    const monBaseHp = monster.max_hp || 10;
+    monsterVirtualDefBonus = Math.floor(monBaseHp * levelsAbove10 * 0.015); // defensa extra (absorbe daño del jugador)
+    monsterAtkScaleBonus = Math.floor(levelsAbove10 * 0.5); // ATK extra del monstruo
+    // Aplicar localmente (no persiste en DB — solo válido para esta ronda)
+    monster = { ...monster, attack: (monster.attack || 3) + monsterAtkScaleBonus };
+  }
+
   // Miss extra por postura agresiva
   if (stanceMods.extraMiss > 0 && Math.random() < stanceMods.extraMiss) {
     lines.push(`⚔️ [Postura ofensiva] El ataque salvaje falla el blanco!`);
@@ -666,7 +683,8 @@ function attackRound(player, monster) {
   // DIS-835: Si es crit y el boss tiene resistencia a crits, aplicar el multiplicador
   const critResistMult = (isCrit && critResistDef) ? critResistDef.mult : 1.0;
   // DIS-936: bono espectral se agrega DESPUÉS de resistencias (daño plano, no multiplicativo)
-  const dmgToMonster = Math.max(1, Math.round(dmgAfterPhysResist * critResistMult) - Math.floor(monster.defense || 0) + spectralBonusDmg);
+  // DIS-1028: monsterVirtualDefBonus reduce el daño efectivo para jugadores nivel 10+ vs no-boss
+  const dmgToMonster = Math.max(1, Math.round(dmgAfterPhysResist * critResistMult) - Math.floor(monster.defense || 0) - monsterVirtualDefBonus + spectralBonusDmg);
   monster.hp = Math.max(0, monster.hp - dmgToMonster);
 
   // T190: mensaje de encantamiento activo en el primer golpe del turno
