@@ -147,6 +147,16 @@ async function main() {
       sessData.commands++;
       if (result.sessionKill) sessData.kills++;
     }
+    // BUG-1022: Si el resultado es una ascensión, buscar el nuevo personaje
+    // y devolver su player_id al cliente para que pueda re-autenticarse.
+    if (result.ascension === true && result.newUsername) {
+      const newPlayer = db.getPlayerByUsername(result.newUsername);
+      return res.json({
+        result: result.text,
+        ascension: true,
+        new_player_id: newPlayer ? newPlayer.id : null,
+      });
+    }
     res.json({ result: result.text });
   });
 

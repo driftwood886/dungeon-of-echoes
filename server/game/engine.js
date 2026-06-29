@@ -238,6 +238,12 @@ function execute(playerId, input, context) {
     return { text: 'Error: jugador no encontrado.' };
   }
 
+  // BUG-1021: Rechazar comandos de personajes archivados (ascendidos).
+  // El personaje viejo sigue en BD con is_archived=1; no debe poder actuar.
+  if (player.is_archived === 1) {
+    return { text: '⚡ Este personaje ya ascendió y está archivado. Hacé login de nuevo para jugar con tu sucesor.' };
+  }
+
   db.touchPlayer(playerId);
 
   // DIS-D326: Regeneración pasiva de HP (1 HP/minuto fuera de combate)
