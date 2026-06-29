@@ -8892,7 +8892,7 @@ function cmdForage(player) {
   const monsters = db.getMonstersInRoom(player.current_room_id);
   if (monsters.length > 0) {
     const names = monsters.map(m => m.name).join(', ');
-    return { text: `No podés buscar con calma mientras hay monstruos aquí: ${names}.` };
+    return { text: `⚠️ No podés buscar mientras hay monstruos en la sala (${names}). Derrotalos o huí primero.` };
   }
 
   // DIS-634: Verificar capacidad de inventario antes de agregar cualquier ítem
@@ -13203,7 +13203,12 @@ function cmdPeek(player, args) {
 
   if (!exit) {
     const dirName = dirArg;
-    return { text: `No hay salida hacia el ${dirName}.` };
+    // DIS-1010: mostrar las salidas disponibles para orientar al jugador
+    const availableExits = Object.keys(room.exits || {});
+    const DIR_NAMES_ES_PEEK = { north: 'norte', south: 'sur', east: 'este', west: 'oeste', up: 'arriba', down: 'abajo' };
+    const exitList = availableExits.map(d => DIR_NAMES_ES_PEEK[d] || d).join(', ');
+    const exitHint = exitList ? `\nSalidas disponibles: ${exitList}.` : '\nNo hay salidas en esta sala.';
+    return { text: `No hay salida hacia el ${dirName}.${exitHint}` };
   }
 
   // Si la salida requiere llave → no se puede espiar (está bloqueada)
