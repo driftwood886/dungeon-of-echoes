@@ -2639,12 +2639,15 @@ function cmdAttack(player, targetName) {
     comboMap.delete(player.id); // reset al morir
   } else if (monsterDead) {
     comboMap.delete(player.id); // reset al matar
+  } else if (combatResult.paralyzed) {
+    // BUG-1026: no avanzar combo en turnos de parálisis (Sombra del Vacío)
+    // El jugador no atacó, así que el combo no debe crecer
   } else {
     comboMap.set(player.id, { monsterId: monster.id, count: comboCount });
   }
   // Agregar mensaje de combo si aplica
   let comboMsg = '';
-  if (!playerDead && comboCount >= 2) {
+  if (!playerDead && !combatResult.paralyzed && comboCount >= 2) {
     comboMsg = '\n' + (COMBO_MSGS[comboCount] || `⚡ ¡COMBO x${comboCount}!`) + ` (+${comboBonusDmg} dmg)`;
   }
 

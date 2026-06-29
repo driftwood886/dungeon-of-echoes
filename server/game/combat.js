@@ -511,7 +511,8 @@ function attackRound(player, monster) {
           return { lines, monsterDead: false, playerDead: true, loot: [], poisonSurvived: false };
         }
       }
-      return { lines, monsterDead: false, playerDead: false, loot: [], poisonSurvived: false };
+      // BUG-1026: retornar paralyzed:true para que engine.js NO avance el combo
+      return { lines, monsterDead: false, playerDead: false, loot: [], poisonSurvived: false, paralyzed: true };
     }
   }
 
@@ -1080,17 +1081,21 @@ function attackRound(player, monster) {
     const xpGain = Math.floor(xpBase * invasionMult * bloodmoonXpMult * weatherXpMult * eliteXpMult);
     const freshPlayer = db.getPlayer(player.id);
 
-    // BUG-927: El Goblin de Práctica (id=20) no debe dar XP ni kills una vez completado el tutorial.
-    // completeTutorial() tiene su propio path de XP. Post-tutorial, si el jugador vuelve a golpearlo
-    // (posible antes de que respawnee lejos), no debe recibir recompensa.
-    // BUG-942 fix: tutorial_complete no existe — la propiedad correcta es tutorial_step.
-    //   Durante tutorial: tutorial_step > 0. Post-tutorial: tutorial_step === 0.
-    //   Si tutorial_step es null/undefined = jugador creado sin tutorial → ya está en dungeon real → no dar XP.
+    // DIS-1019 / BUG-927: El Goblin de Práctica (id=20) no da XP ni kills en ningún caso.
+    // - Durante el tutorial (tutorial_step > 0): es una pelea pedagógica. La recompensa de salir
+    //   del tutorial ya está en completeTutorial() (+10 XP). Si el goblin también diera XP, el
+    //   jugador podría subir al nivel 2 durante la Antesala (dos fights = 32 XP + 10 = 42, muy
+    //   cerca del umbral de nivel 2 en 50 XP, y con más hits queda arriba).
+    // - Post-tutorial (tutorial_step === 0): si el jugador vuelve antes del respawn, tampoco da recompensa.
+    // - Sin tutorial (tutorial_step null/undefined): jugador antiguo ya en dungeon real → sin XP.
+    // En todos los casos: saltar el bloque de XP/kills.
     const PRACTICE_GOBLIN_ID_MAIN = 20;
-    const inActiveTutorial = freshPlayer.tutorial_step != null && freshPlayer.tutorial_step > 0;
-    const isTutorialGoblinPostTutorial = monster.id === PRACTICE_GOBLIN_ID_MAIN && !inActiveTutorial;
-    if (isTutorialGoblinPostTutorial) {
-      lines.push(`   (El Goblin de Práctica no da XP ni kills — el tutorial ya terminó.)`);
+    if (monster.id === PRACTICE_GOBLIN_ID_MAIN) {
+      const inActiveTutorial = freshPlayer.tutorial_step != null && freshPlayer.tutorial_step > 0;
+      const reason = inActiveTutorial
+        ? '(el Goblin de Práctica no da XP durante el tutorial — la recompensa es completarlo)'
+        : '(el Goblin de Práctica no da XP ni kills — es un mob de entrenamiento)';
+      lines.push(`   ${reason}`);
       return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
     }
 
