@@ -8975,6 +8975,11 @@ function cmdForage(player) {
     const invForBonus = Array.isArray(player.inventory)
       ? player.inventory
       : JSON.parse(player.inventory || '[]');
+    // DIS-1018: no dar corona rota extra si el jugador ya tiene una en inventario
+    if (bonusItem === 'corona rota' && invForBonus.includes('corona rota')) {
+      // Ya tiene una — dar mensaje específico y continuar al forage normal (no bloquear, no dar extra)
+      // No retornar acá: el roll cae hacia el forage normal debajo
+    } else {
     const inv2 = [...invForBonus, bonusItem];
     db.updatePlayer(player.id, { inventory: JSON.stringify(inv2) });
     const bonusCr = db.updateDailyChallengeProgress(player.id, 'forage', null);
@@ -8994,6 +8999,7 @@ function cmdForage(player) {
       text: `${forageIntroMsg}\n🌿 ¡Encontrás: ${bonusItem}! (Ítem para desactivar la trampa de esta sala.) Se agrega a tu inventario.${bonusChalMsg}`,
       event: null,
     };
+    } // end else (DIS-1018)
   }
 
   let found = null;

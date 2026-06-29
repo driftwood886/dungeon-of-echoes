@@ -831,7 +831,7 @@ function attackRound(player, monster) {
         if (monster.hp <= 0 && !monsterDead) {
           monsterDead = true;
           lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} por tu mascota!`);
-          const { droppedLoot: petLoot, globalEvent: petGlobalEvent, lootNote: petLootNote } = dropLoot(monster, player.current_room_id);
+          const { droppedLoot: petLoot, globalEvent: petGlobalEvent, lootNote: petLootNote } = dropLoot(monster, player.current_room_id, player);
           loot = petLoot;
           if (loot.length > 0) lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
           else lines.push(`${articuloMonstruo(monster.name)} ${monster.name} no deja nada.`);
@@ -891,7 +891,7 @@ function attackRound(player, monster) {
             if (monster.hp <= 0) {
               monsterDead = true;
               lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} por las sombras!`);
-              const { droppedLoot, globalEvent, lootNote: ln821 } = dropLoot(monster, player.current_room_id);
+              const { droppedLoot, globalEvent, lootNote: ln821 } = dropLoot(monster, player.current_room_id, player);
               loot = droppedLoot;
               if (loot.length > 0) lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
               if (ln821) lines.push(ln821);
@@ -967,7 +967,7 @@ function attackRound(player, monster) {
       if (monster.hp <= 0) {
         monsterDead = true;
         lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} por el veneno!`);
-        const { droppedLoot, globalEvent, lootNote: ln898 } = dropLoot(monster, player.current_room_id);
+        const { droppedLoot, globalEvent, lootNote: ln898 } = dropLoot(monster, player.current_room_id, player);
         loot = droppedLoot;
         if (loot.length > 0) lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
         else lines.push(`${articuloMonstruo(monster.name)} ${monster.name} no deja nada.`);
@@ -1005,7 +1005,7 @@ function attackRound(player, monster) {
     lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)}!`);
 
     // Soltar loot en la habitación
-    const { droppedLoot, directLoot: directLootItems, globalEvent, lootNote: ln936 } = dropLoot(monster, player.current_room_id);
+    const { droppedLoot, directLoot: directLootItems, globalEvent, lootNote: ln936 } = dropLoot(monster, player.current_room_id, player);
     loot = droppedLoot;
 
     // DIS-1007: ítems directos van al inventario del jugador sin pasar por el suelo
@@ -1803,7 +1803,7 @@ const BOSS_DIRECT_LOOT = {
   8: ['alabarda de huesos', 'peto de huesos'], // Guardia Espectral — ítems épicos de progresión
 };
 
-function dropLoot(monster, roomId) {
+function dropLoot(monster, roomId, player) {
   const loot = monster.loot || [];
   const bossDef = BOSS_MONSTERS[monster.id];
 
@@ -1825,6 +1825,17 @@ function dropLoot(monster, roomId) {
     const throne = db.getRoom(9);
     const trapDesactivada = throne && throne.trap && throne.trap.active === false;
     if (trapDesactivada) {
+      allLoot = allLoot.filter(i => i !== 'corona rota');
+    }
+  }
+
+  // DIS-1018: El Espectro del Corredor (id=4) no debería dropear 'corona rota' si el jugador
+  // ya tiene una en el inventario (evita acumulación — la corona es ítem único por run).
+  if (monster.id === 4 && allLoot.includes('corona rota') && player) {
+    const playerInv = Array.isArray(player.inventory)
+      ? player.inventory
+      : JSON.parse(player.inventory || '[]');
+    if (playerInv.includes('corona rota')) {
       allLoot = allLoot.filter(i => i !== 'corona rota');
     }
   }
