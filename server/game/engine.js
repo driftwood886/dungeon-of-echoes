@@ -679,8 +679,21 @@ Comandos más usados:
   db.logEvent(playerId, player.current_room_id, input, result.text.slice(0, 200));
 
   // EPIC-966: Agregar recordatorio de ascensión pendiente a respuestas de comandos activos
+  // DIS-1027: Limitar a 1 recordatorio cada 15 acciones (evitar spam)
   if (hasAscensionPending && !ASCENSION_REMINDER_EXCLUDED.has(action.command)) {
-    result = { ...result, text: result.text + '\n\n⚡ El Lich cayó. Tu legado te espera — `ascender` para elegirlo.' };
+    const reminderTick = playerSe.ascension_reminder_tick != null ? playerSe.ascension_reminder_tick : 0;
+    if (reminderTick === 0) {
+      result = { ...result, text: result.text + '\n\n⚡ El Lich cayó. Tu legado te espera — `ascender` para elegirlo.' };
+      // Resetear tick a 15 (próximo recordatorio en 15 acciones)
+      const freshSeForTick = db.getPlayer(playerId);
+      const seForTick = freshSeForTick.status_effects ? (typeof freshSeForTick.status_effects === 'string' ? JSON.parse(freshSeForTick.status_effects) : freshSeForTick.status_effects) : {};
+      db.updatePlayer(playerId, { status_effects: JSON.stringify({ ...seForTick, ascension_reminder_tick: 15 }) });
+    } else {
+      // Decrementar tick
+      const freshSeForTick = db.getPlayer(playerId);
+      const seForTick = freshSeForTick.status_effects ? (typeof freshSeForTick.status_effects === 'string' ? JSON.parse(freshSeForTick.status_effects) : freshSeForTick.status_effects) : {};
+      db.updatePlayer(playerId, { status_effects: JSON.stringify({ ...seForTick, ascension_reminder_tick: reminderTick - 1 }) });
+    }
   }
 
   return result;
