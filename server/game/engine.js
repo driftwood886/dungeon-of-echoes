@@ -11586,6 +11586,25 @@ function cmdUseSkill(player, args, context) {
         db.updateMonster(target.id, { status_effects: JSON.stringify(mFxPaladin) });
         text += `\n🛡️ [Paladín] ¡El golpe divino aturde al ${target.name}! Perderá 1 turno.`;
       }
+      // BUG-1023: Fase 2 del boss — activar si smash lo deja en ≤50% HP por primera vez
+      if (newHp > 0 && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id] && combat.BOSS_MONSTERS[target.id].phase2) {
+        const smashFxP2 = target.status_effects
+          ? (typeof target.status_effects === 'string' ? JSON.parse(target.status_effects) : target.status_effects)
+          : {};
+        const smashHalfHp = Math.floor(target.max_hp / 2);
+        if (!smashFxP2.phase2_triggered && newHp <= smashHalfHp) {
+          smashFxP2.phase2_triggered = true;
+          const p2Smash = combat.BOSS_MONSTERS[target.id].phase2;
+          const newAtkP2Smash = (target.attack || 0) + p2Smash.atkBonus;
+          const newDefP2Smash = (target.defense || 0) + p2Smash.defBonus;
+          db.updateMonster(target.id, {
+            attack: newAtkP2Smash,
+            defense: newDefP2Smash,
+            status_effects: JSON.stringify(smashFxP2),
+          });
+          text += `\n${p2Smash.message}`;
+        }
+      }
     }
 
     // Broadcast a la sala
@@ -11780,6 +11799,23 @@ function cmdUseSkill(player, args, context) {
     } else {
       text += `\n  El ${target.name} está aturdido (no ataca el próximo turno). HP: ${newHp}/${target.max_hp}.`;
       text += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+      // BUG-1023: Fase 2 del boss — activar si shield_bash lo deja en ≤50% HP por primera vez
+      if (newHp > 0 && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id] && combat.BOSS_MONSTERS[target.id].phase2) {
+        const bashFxP2 = monsterEffects; // ya parseado arriba (para stun)
+        const bashHalfHp = Math.floor(target.max_hp / 2);
+        if (!bashFxP2.phase2_triggered && newHp <= bashHalfHp) {
+          bashFxP2.phase2_triggered = true;
+          const p2Bash = combat.BOSS_MONSTERS[target.id].phase2;
+          const newAtkP2Bash = (target.attack || 0) + p2Bash.atkBonus;
+          const newDefP2Bash = (target.defense || 0) + p2Bash.defBonus;
+          db.updateMonster(target.id, {
+            attack: newAtkP2Bash,
+            defense: newDefP2Bash,
+            status_effects: JSON.stringify(bashFxP2),
+          });
+          text += `\n${p2Bash.message}`;
+        }
+      }
     }
     if (context && context.broadcastToRoom) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
@@ -11955,6 +11991,23 @@ function cmdUseSkill(player, args, context) {
     } else {
       text += `\n  El ${target.name} tiene ${newHp}/${target.max_hp} HP y está envenenado.`;
       text += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+      // BUG-1023: Fase 2 del boss — activar si golpe_sucio lo deja en ≤50% HP por primera vez
+      if (newHp > 0 && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id] && combat.BOSS_MONSTERS[target.id].phase2) {
+        const gsFxP2 = monsterFx; // ya parseado arriba (para veneno)
+        const gsHalfHp = Math.floor(target.max_hp / 2);
+        if (!gsFxP2.phase2_triggered && newHp <= gsHalfHp) {
+          gsFxP2.phase2_triggered = true;
+          const p2Gs = combat.BOSS_MONSTERS[target.id].phase2;
+          const newAtkP2Gs = (target.attack || 0) + p2Gs.atkBonus;
+          const newDefP2Gs = (target.defense || 0) + p2Gs.defBonus;
+          db.updateMonster(target.id, {
+            attack: newAtkP2Gs,
+            defense: newDefP2Gs,
+            status_effects: JSON.stringify(gsFxP2),
+          });
+          text += `\n${p2Gs.message}`;
+        }
+      }
     }
     if (context && context.broadcastToRoom) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
@@ -12320,6 +12373,25 @@ function cmdUseSkill(player, args, context) {
     } else {
       textSh += `\n  El ${target.name} tiene ${newHpSh}/${target.max_hp} HP.`;
       textSh += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+      // BUG-1023: Fase 2 del boss — activar si golpe_sombra lo deja en ≤50% HP por primera vez
+      if (newHpSh > 0 && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id] && combat.BOSS_MONSTERS[target.id].phase2) {
+        const shFxP2 = target.status_effects
+          ? (typeof target.status_effects === 'string' ? JSON.parse(target.status_effects) : target.status_effects)
+          : {};
+        const shHalfHp = Math.floor(target.max_hp / 2);
+        if (!shFxP2.phase2_triggered && newHpSh <= shHalfHp) {
+          shFxP2.phase2_triggered = true;
+          const p2Sh = combat.BOSS_MONSTERS[target.id].phase2;
+          const newAtkP2Sh = (target.attack || 0) + p2Sh.atkBonus;
+          const newDefP2Sh = (target.defense || 0) + p2Sh.defBonus;
+          db.updateMonster(target.id, {
+            attack: newAtkP2Sh,
+            defense: newDefP2Sh,
+            status_effects: JSON.stringify(shFxP2),
+          });
+          textSh += `\n${p2Sh.message}`;
+        }
+      }
     }
     if (context && context.broadcastToRoom) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
@@ -12430,6 +12502,23 @@ function cmdUseSkill(player, args, context) {
     } else {
       textPal += `\n  El ${target.name} tiene ${newHpPal}/${target.max_hp} HP.`;
       textPal += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+      // BUG-1023: Fase 2 del boss — activar si imposition lo deja en ≤50% HP por primera vez
+      if (newHpPal > 0 && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id] && combat.BOSS_MONSTERS[target.id].phase2) {
+        const palFxP2 = monSePal; // ya parseado arriba (para debuff ATK)
+        const palHalfHp = Math.floor(target.max_hp / 2);
+        if (!palFxP2.phase2_triggered && newHpPal <= palHalfHp) {
+          palFxP2.phase2_triggered = true;
+          const p2Pal = combat.BOSS_MONSTERS[target.id].phase2;
+          const newAtkP2Pal = (target.attack || 0) + p2Pal.atkBonus;
+          const newDefP2Pal = (target.defense || 0) + p2Pal.defBonus;
+          db.updateMonster(target.id, {
+            attack: newAtkP2Pal,
+            defense: newDefP2Pal,
+            status_effects: JSON.stringify(palFxP2),
+          });
+          textPal += `\n${p2Pal.message}`;
+        }
+      }
     }
     if (context && context.broadcastToRoom) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
@@ -12541,6 +12630,23 @@ function cmdUseSkill(player, args, context) {
     } else {
       textAse += `\n  El ${target.name} tiene ${newHpAse}/${target.max_hp} HP.`;
       textAse += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+      // BUG-1023: Fase 2 del boss — activar si emboscar lo deja en ≤50% HP por primera vez
+      if (newHpAse > 0 && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id] && combat.BOSS_MONSTERS[target.id].phase2) {
+        const aseFxP2 = monSeAse; // ya parseado arriba (para veneno)
+        const aseHalfHp = Math.floor(target.max_hp / 2);
+        if (!aseFxP2.phase2_triggered && newHpAse <= aseHalfHp) {
+          aseFxP2.phase2_triggered = true;
+          const p2Ase = combat.BOSS_MONSTERS[target.id].phase2;
+          const newAtkP2Ase = (target.attack || 0) + p2Ase.atkBonus;
+          const newDefP2Ase = (target.defense || 0) + p2Ase.defBonus;
+          db.updateMonster(target.id, {
+            attack: newAtkP2Ase,
+            defense: newDefP2Ase,
+            status_effects: JSON.stringify(aseFxP2),
+          });
+          textAse += `\n${p2Ase.message}`;
+        }
+      }
     }
     if (context && context.broadcastToRoom) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
