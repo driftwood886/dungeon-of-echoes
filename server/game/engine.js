@@ -11858,7 +11858,7 @@ function cmdUseSkill(player, args, context) {
       const soloBuffBonus = 1; // mitad del bonus de grupo
       const soloBuffDuration = 30 * 1000;
       const soloBuffExpiresAt = new Date(Date.now() + soloBuffDuration).toISOString();
-      const soloEffects = freshPlayer.status_effects ? JSON.parse(freshPlayer.status_effects || '{}') : {};
+      const soloEffects = freshPlayer.status_effects ? (typeof freshPlayer.status_effects === 'string' ? JSON.parse(freshPlayer.status_effects) : freshPlayer.status_effects) : {};
       soloEffects.rally = { atk_bonus: soloBuffBonus, expires_at: soloBuffExpiresAt };
       const soloNewAtk = (freshPlayer.attack || 5) + soloBuffBonus;
       db.updatePlayer(freshPlayer.id, { attack: soloNewAtk, status_effects: JSON.stringify(soloEffects) });
