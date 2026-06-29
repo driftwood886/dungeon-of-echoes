@@ -570,13 +570,16 @@ function attackRound(player, monster) {
   // DIS-630: El Gólem de Piedra tiene resistencia física ×0.75 — análoga a resistencia mágica del Guardia Espectral
   // Es un constructo pétrico: los golpes físicos se amortiguan en su cuerpo de piedra
   // DIS-688: El Golem de Forja tiene resistencia de fuego ×0.80 — constructo de metal candente
-  const PHYS_RESISTANT_MONSTERS = ['gólem de piedra'];
+  // DIS-1015: El Elemental de Hielo tiene resistencia física ×0.80 — criatura inmaterial
+  const PHYS_RESISTANT_MONSTERS = ['gólem de piedra', 'elemental de hielo'];
   const FIRE_RESISTANT_MONSTERS  = ['golem de forja'];
   const monNameLow = monster.name.toLowerCase().replace('⭐ ', '');
-  const physResist = PHYS_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? 0.75
+  const physResist = monNameLow.includes('gólem de piedra') ? 0.75
+    : monNameLow.includes('elemental de hielo') ? 0.80
     : FIRE_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? 0.80
     : 1.0;
-  const physResistLabel = PHYS_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? '🪨 (resistencia física: ×0.75)'
+  const physResistLabel = monNameLow.includes('gólem de piedra') ? '🪨 (resistencia física: ×0.75)'
+    : monNameLow.includes('elemental de hielo') ? '🧊 (resistencia física: ×0.80)'
     : FIRE_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? '🔥 (resistencia de fuego: ×0.80)'
     : '';
   // DIS-936: La lanza espectral y sus variantes tienen bono real contra espectrales y criaturas mágicas

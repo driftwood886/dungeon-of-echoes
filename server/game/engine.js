@@ -8947,8 +8947,11 @@ function cmdForage(player) {
   if (surveyed) roll = Math.min(roll + 0.20, 0.99);
 
   // DIS-D23: salas con trampa tienen bonus de forage del ítem desactivador
+  // BUG-1014: no dar el ítem si la trampa ya está desactivada
   const roomBonus = ROOM_FORAGE_BONUS[player.current_room_id];
-  if (roomBonus && roll < roomBonus.prob) {
+  const roomForTrap = db.getRoom(player.current_room_id);
+  const trapActive = roomForTrap && roomForTrap.trap ? roomForTrap.trap.active : true;
+  if (roomBonus && trapActive && roll < roomBonus.prob) {
     // Alta prob de encontrar el ítem de trampa en la sala correspondiente
     const bonusItem = roomBonus.item;
     // BUG-340: parsear inventory correctamente (puede ser string JSON o array)
@@ -11408,13 +11411,16 @@ function cmdUseSkill(player, args, context) {
     const dmg = rawDmg + Math.floor(Math.random() * (variation * 2 + 1)) - variation;
     // BUG-658: aplicar resistencia física igual que combat.js (×0.75 para el Gólem de Piedra)
     // DIS-688: Golem de Forja tiene resistencia de fuego ×0.80
-    const SMASH_PHYS_RESISTANT = ['gólem de piedra'];
+    // DIS-1015: Elemental de Hielo tiene resistencia física ×0.80
+    const SMASH_PHYS_RESISTANT = ['gólem de piedra', 'elemental de hielo'];
     const SMASH_FIRE_RESISTANT = ['golem de forja'];
     const smashMonNameLow = target.name.toLowerCase().replace('⭐ ', '');
-    const smashPhysResist = SMASH_PHYS_RESISTANT.some(n => smashMonNameLow.includes(n)) ? 0.75
+    const smashPhysResist = smashMonNameLow.includes('gólem de piedra') ? 0.75
+      : smashMonNameLow.includes('elemental de hielo') ? 0.80
       : SMASH_FIRE_RESISTANT.some(n => smashMonNameLow.includes(n)) ? 0.80
       : 1.0;
-    const smashResistLabel = SMASH_PHYS_RESISTANT.some(n => smashMonNameLow.includes(n)) ? '🪨 (resistencia física: ×0.75)'
+    const smashResistLabel = smashMonNameLow.includes('gólem de piedra') ? '🪨 (resistencia física: ×0.75)'
+      : smashMonNameLow.includes('elemental de hielo') ? '🧊 (resistencia física: ×0.80)'
       : SMASH_FIRE_RESISTANT.some(n => smashMonNameLow.includes(n)) ? '🔥 (resistencia de fuego: ×0.80)'
       : '';
     const dmgAfterSmashResist = Math.round(dmg * smashPhysResist);
@@ -11600,13 +11606,16 @@ function cmdUseSkill(player, args, context) {
     const rawDmg = baseDmg + Math.floor(Math.random() * (variation * 2 + 1)) - variation;
     // BUG-658: aplicar resistencia física igual que combat.js (×0.75 para el Gólem de Piedra)
     // DIS-688: Golem de Forja tiene resistencia de fuego ×0.80
-    const BASH_PHYS_RESISTANT = ['gólem de piedra'];
+    // DIS-1015: Elemental de Hielo tiene resistencia física ×0.80
+    const BASH_PHYS_RESISTANT = ['gólem de piedra', 'elemental de hielo'];
     const BASH_FIRE_RESISTANT = ['golem de forja'];
     const bashMonNameLow = target.name.toLowerCase().replace('⭐ ', '');
-    const bashPhysResist = BASH_PHYS_RESISTANT.some(n => bashMonNameLow.includes(n)) ? 0.75
+    const bashPhysResist = bashMonNameLow.includes('gólem de piedra') ? 0.75
+      : bashMonNameLow.includes('elemental de hielo') ? 0.80
       : BASH_FIRE_RESISTANT.some(n => bashMonNameLow.includes(n)) ? 0.80
       : 1.0;
-    const bashResistLabel = BASH_PHYS_RESISTANT.some(n => bashMonNameLow.includes(n)) ? '🪨 (resistencia física: ×0.75)'
+    const bashResistLabel = bashMonNameLow.includes('gólem de piedra') ? '🪨 (resistencia física: ×0.75)'
+      : bashMonNameLow.includes('elemental de hielo') ? '🧊 (resistencia física: ×0.80)'
       : BASH_FIRE_RESISTANT.some(n => bashMonNameLow.includes(n)) ? '🔥 (resistencia de fuego: ×0.80)'
       : '';
     const dmgAfterBashResist = Math.round(rawDmg * bashPhysResist);
@@ -13870,7 +13879,7 @@ const MONSTER_LORE = {
   'Sombra del Vacío':     { tipo: 'sombra', debil: ['luz', 'magia'], resiste: ['físico', 'frío', 'veneno'], nota: 'Puede cegarme (-DEF). El Pícaro con su esquiva natural (20%) aguanta mejor.' },
   'Goblin de Práctica':   { tipo: 'humanoide', debil: ['todo'], resiste: [], nota: 'Goblin de entrenamiento. No sueltan loot real ni cuentan como kills.' },
   // DIS-D22: lore para monstruos del dungeon expandido
-  'Elemental de Hielo':   { tipo: 'elemental', debil: ['fuego', 'físico'], resiste: ['frío', 'agua', 'veneno'], nota: 'Muy resistente al frío. Bola de fuego es aquí tu mejor aliado. Puede huir cuando está debilitado.' },
+  'Elemental de Hielo':   { tipo: 'elemental', debil: ['fuego'], resiste: ['frío', 'agua', 'veneno', 'físico'], nota: 'Muy resistente al frío. Bola de fuego es aquí tu mejor aliado. Como criatura inmaterial, tiene resistencia física ×0.80. Puede huir cuando está debilitado.' },
   'Golem de Forja':       { tipo: 'constructo', debil: ['agua', 'frío'], resiste: ['fuego', 'físico', 'veneno'], nota: 'Creado en las llamas eternas de la forja. Resiste el fuego y los golpes físicos. Usa magia de agua o frío.' },
   'Campeón Espectral':    { tipo: 'no-muerto', debil: ['luz', 'sagrado'], resiste: ['físico', 'veneno', 'frío'], nota: 'El guerrero más poderoso del coliseo. Alto HP y defensa. Shield_bash para aturdirlo antes de atacar.' },
   'Krakeling Abismal':    { tipo: 'bestia', debil: ['fuego', 'electricidad'], resiste: ['agua', 'frío', 'físico'], nota: 'Criatura de las profundidades. Resistente a ataques físicos. El rayo (cast rayo) es especialmente efectivo.' },
