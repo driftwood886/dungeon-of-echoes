@@ -232,6 +232,34 @@ const MONSTER_BASE_STATS = {
   27: { name: 'Murciélago Vampiro',    max_hp: 12, attack: 3  }, // sala 6 (Túnel de Hongos)
 };
 
+// BUG-1016: Mapa de géneros femeninos para artículos correctos.
+// Por defecto todos los monstruos usan "El"; los listados aquí usan "La".
+const MONSTER_GENERO_FEMENINO = new Set([
+  'Araña Tejedora',
+  'Rata Gigante',
+  'Sombra del Vacío',
+  'Guardia Espectral', // "La Guardia" es femenino
+]);
+
+/**
+ * BUG-1016: Devuelve el artículo correcto (El/La) para un monstruo.
+ * Maneja el prefijo ⭐ de monstruos élite (ej: "⭐ Araña Tejedora").
+ * @param {string} name — nombre del monstruo (puede tener prefijo ⭐)
+ * @returns {string} — "El" o "La"
+ */
+function articuloMonstruo(name) {
+  const baseName = name.startsWith('⭐') ? name.slice(2).trim() : name;
+  return MONSTER_GENERO_FEMENINO.has(baseName) ? 'La' : 'El';
+}
+
+/**
+ * BUG-1016: Devuelve "derrotada" o "derrotado" según el género del monstruo.
+ */
+function derrotadoMonstruo(name) {
+  const baseName = name.startsWith('⭐') ? name.slice(2).trim() : name;
+  return MONSTER_GENERO_FEMENINO.has(baseName) ? 'derrotada' : 'derrotado';
+}
+
 const MONSTER_SPECIALS = {
   'Lich Anciano': {
     chance: 0.20,
@@ -378,7 +406,7 @@ function attackRound(player, monster) {
         lines.push(`🛡️ ¡Tu escudo mágico absorbe algo de daño! (→ ${dmgToPlayerW})`);
       }
       player.hp = Math.max(0, player.hp - dmgToPlayerW);
-      lines.push(`🩸 El ${monster.name} aprovecha que estás enredado y te golpea por ${dmgToPlayerW} de daño. (${player.hp}/${player.max_hp} HP)`);
+      lines.push(`🩸 ${articuloMonstruo(monster.name)} ${monster.name} aprovecha que estás enredado y te golpea por ${dmgToPlayerW} de daño. (${player.hp}/${player.max_hp} HP)`);
     }
     db.updatePlayer(player.id, { hp: player.hp });
     if (player.hp <= 0) {
@@ -442,7 +470,7 @@ function attackRound(player, monster) {
       const hcResultM = handlePlayerDeath(player.id, lines, 'postura ofensiva');
       return { lines, monsterDead: false, playerDead: true, loot: [], poisonSurvived: false, ...(hcResultM.globalEvent ? { globalEvent: hcResultM.globalEvent } : {}) };
     }
-    lines.push(`⚡ El ${monster.name} contraataca: ${rawMissReturn} de daño. (Tus HP: ${player.hp}/${player.max_hp})`);
+    lines.push(`⚡ ${articuloMonstruo(monster.name)} ${monster.name} contraataca: ${rawMissReturn} de daño. (Tus HP: ${player.hp}/${player.max_hp})`);
     return { lines, monsterDead: false, playerDead: false, loot: [], poisonSurvived: false };
   }
 
@@ -553,7 +581,7 @@ function attackRound(player, monster) {
     lines.push(`🛡️ El boss percibe el sigilo — el multiplicador de emboscada se reduce a ×1.5.`);
   } else if (stealthSurprise && isMidBossForStealth) {
     critMultiplier = 1.7;
-    lines.push(`🛡️ El ${monster.name} intuye tu presencia — el multiplicador de emboscada se reduce a ×1.7.`);
+    lines.push(`🛡️ ${articuloMonstruo(monster.name)} ${monster.name} intuye tu presencia — el multiplicador de emboscada se reduce a ×1.7.`);
   }
   const rawPlayerDmg = isCrit ? playerDmg * critMultiplier : playerDmg;
 
@@ -802,11 +830,11 @@ function attackRound(player, monster) {
         // Verificar si el monstruo muere por el ataque de la mascota
         if (monster.hp <= 0 && !monsterDead) {
           monsterDead = true;
-          lines.push(`💀 ¡El ${monster.name} cae derrotado por tu mascota!`);
+          lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} por tu mascota!`);
           const { droppedLoot: petLoot, globalEvent: petGlobalEvent, lootNote: petLootNote } = dropLoot(monster, player.current_room_id);
           loot = petLoot;
-          if (loot.length > 0) lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
-          else lines.push(`El ${monster.name} no deja nada.`);
+          if (loot.length > 0) lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
+          else lines.push(`${articuloMonstruo(monster.name)} ${monster.name} no deja nada.`);
           if (petLootNote) lines.push(petLootNote);
           const xpBasePet = Math.max(5, Math.floor(monster.max_hp * 2));
           const activeEvPet = worldEvents.getCurrentEvent();
@@ -862,12 +890,12 @@ function attackRound(player, monster) {
             lines.push(`🌑 ¡El grimorio libera un RAYO DE SOMBRA! ${shadowDmg} daño extra al ${monster.name}. (${monster.hp}/${monster.max_hp} HP)`);
             if (monster.hp <= 0) {
               monsterDead = true;
-              lines.push(`💀 ¡El ${monster.name} cae derrotado por las sombras!`);
+              lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} por las sombras!`);
               const { droppedLoot, globalEvent, lootNote: ln821 } = dropLoot(monster, player.current_room_id);
               loot = droppedLoot;
-              if (loot.length > 0) lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
+              if (loot.length > 0) lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
               if (ln821) lines.push(ln821);
-              else lines.push(`El ${monster.name} no deja nada.`);
+              else lines.push(`${articuloMonstruo(monster.name)} ${monster.name} no deja nada.`);
               const xpBase2 = Math.max(5, Math.floor(monster.max_hp * 2));
               const activeEv2 = worldEvents.getCurrentEvent();
               const xpGain2 = activeEv2 && activeEv2.id === 'invasion' ? Math.floor(xpBase2 * 1.5) : xpBase2;
@@ -938,11 +966,11 @@ function attackRound(player, monster) {
       db.updateMonster(monster.id, { hp: monster.hp, status_effects: JSON.stringify(mFx) });
       if (monster.hp <= 0) {
         monsterDead = true;
-        lines.push(`💀 ¡El ${monster.name} cae derrotado por el veneno!`);
+        lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} por el veneno!`);
         const { droppedLoot, globalEvent, lootNote: ln898 } = dropLoot(monster, player.current_room_id);
         loot = droppedLoot;
-        if (loot.length > 0) lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
-        else lines.push(`El ${monster.name} no deja nada.`);
+        if (loot.length > 0) lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
+        else lines.push(`${articuloMonstruo(monster.name)} ${monster.name} no deja nada.`);
         if (ln898) lines.push(ln898);
         const xpBase3 = Math.max(5, Math.floor(monster.max_hp * 2));
         const activeEv3 = worldEvents.getCurrentEvent();
@@ -974,7 +1002,7 @@ function attackRound(player, monster) {
 
   if (monster.hp <= 0) {
     monsterDead = true;
-    lines.push(`💀 ¡El ${monster.name} cae derrotado!`);
+    lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)}!`);
 
     // Soltar loot en la habitación
     const { droppedLoot, directLoot: directLootItems, globalEvent, lootNote: ln936 } = dropLoot(monster, player.current_room_id);
@@ -986,13 +1014,13 @@ function attackRound(player, monster) {
       const inv2 = Array.isArray(freshPlayer2.inventory) ? freshPlayer2.inventory : JSON.parse(freshPlayer2.inventory || '[]');
       const newInv2 = [...inv2, ...directLootItems];
       db.updatePlayer(player.id, { inventory: JSON.stringify(newInv2) });
-      lines.push(`⚔️ El ${monster.name} suelta directamente: **${directLootItems.join(', ')}** (ya en tu inventario).`);
+      lines.push(`⚔️ ${articuloMonstruo(monster.name)} ${monster.name} suelta directamente: **${directLootItems.join(', ')}** (ya en tu inventario).`);
     }
 
     if (loot.length > 0) {
-      lines.push(`💰 El ${monster.name} suelta: ${loot.join(', ')}.`);
+      lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
     } else if (!directLootItems || directLootItems.length === 0) {
-      lines.push(`El ${monster.name} no deja nada.`);
+      lines.push(`${articuloMonstruo(monster.name)} ${monster.name} no deja nada.`);
     }
     if (ln936) lines.push(ln936);
 
@@ -1037,7 +1065,7 @@ function attackRound(player, monster) {
         // (el loot real en la sala ya está deduplicado por dropLoot, pero el array local acumula duplicados)
         const lootDisplay = [...new Set(loot)];
         const lootIdx = lines.findLastIndex(l => l.includes('suelta:') || l.includes('no deja nada'));
-        if (lootIdx >= 0) lines[lootIdx] = `💰 El ${monster.name} suelta: ${lootDisplay.join(', ')}.`;
+        if (lootIdx >= 0) lines[lootIdx] = `💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${lootDisplay.join(', ')}.`;
       }
     }
     const eliteXpMult = isEliteMonster ? 1.75 : 1.0;
@@ -1165,19 +1193,19 @@ function attackRound(player, monster) {
       monsterFxForStun.stunned.turns -= 1;
       if (monsterFxForStun.stunned.turns <= 0) {
         delete monsterFxForStun.stunned;
-        lines.push(`😵 El ${monster.name} se recupera del aturdimiento.`);
+        lines.push(`😵 ${articuloMonstruo(monster.name)} ${monster.name} se recupera del aturdimiento.`);
       } else {
-        lines.push(`😵 El ${monster.name} está aturdido y no puede atacar este turno.`);
+        lines.push(`😵 ${articuloMonstruo(monster.name)} ${monster.name} está aturdido y no puede atacar este turno.`);
       }
     } else if (typeof stunnedVal === 'number' && stunnedVal > 0) {
       // Formato T214 — número de turnos restantes
       const remaining = stunnedVal - 1;
       if (remaining <= 0) {
         delete monsterFxForStun.stunned;
-        lines.push(`😵 El ${monster.name} se recupera del aturdimiento eléctrico.`);
+        lines.push(`😵 ${articuloMonstruo(monster.name)} ${monster.name} se recupera del aturdimiento eléctrico.`);
       } else {
         monsterFxForStun.stunned = remaining;
-        lines.push(`⚡ El ${monster.name} sigue aturdido por el rayo y no puede atacar.`);
+        lines.push(`⚡ ${articuloMonstruo(monster.name)} ${monster.name} sigue aturdido por el rayo y no puede atacar.`);
       }
     } else {
       delete monsterFxForStun.stunned;
@@ -1206,12 +1234,12 @@ function attackRound(player, monster) {
   const STEALTH_RESISTANT_BOSSES = new Set([12, 21, 22]); // Campeón, Eco Viviente, Sombra (no el Lich)
   const bossBreaksStealth = stealthSurprise && STEALTH_RESISTANT_BOSSES.has(monster.id);
   if (stealthSurprise && !monsterDead && !bossBreaksStealth) {
-    lines.push(`🥷 El ${monster.name} está aturdido por la sorpresa — no puede responder este turno.`);
+    lines.push(`🥷 ${articuloMonstruo(monster.name)} ${monster.name} está aturdido por la sorpresa — no puede responder este turno.`);
     db.updatePlayer(player.id, { hp: player.hp });
     return { lines, monsterDead, playerDead, loot, poisonSurvived };
   }
   if (bossBreaksStealth && !monsterDead) {
-    lines.push(`⚠️ ¡El ${monster.name} ROMPE EL SIGILO! Un boss de esta magnitud no puede ser sorprendido — contraataca de inmediato.`);
+    lines.push(`⚠️ ¡${articuloMonstruo(monster.name)} ${monster.name} ROMPE EL SIGILO! Un boss de esta magnitud no puede ser sorprendido — contraataca de inmediato.`);
   }
 
   // DIS-729: marcar que la Sombra del Vacío ya actuó (para habilitar Oscuridad Paralizante desde el 2do turno)
@@ -1349,7 +1377,7 @@ function attackRound(player, monster) {
     // DIS-976: feedback visual de postura defensiva — mostrar que la postura absorbió daño
     const defensiveSuffix = (stanceName === 'defensivo' && stanceMods.defMod > 0)
       ? ` 🛡️ [defensivo +${stanceMods.defMod} DEF]` : '';
-    lines.push(`🩸 El ${monster.name} te golpea y causa ${dmgToPlayer} de daño.${bloodmoonSuffix}${weatherDmgSuffix}${defensiveSuffix} (${player.hp}/${player.max_hp} HP)`);
+    lines.push(`🩸 ${articuloMonstruo(monster.name)} ${monster.name} te golpea y causa ${dmgToPlayer} de daño.${bloodmoonSuffix}${weatherDmgSuffix}${defensiveSuffix} (${player.hp}/${player.max_hp} HP)`);
 
     // DIS-616: marcar que el monstruo atacó este turno (para golpe_sombra)
     try {
@@ -1365,7 +1393,7 @@ function attackRound(player, monster) {
       if (!currentFx.poisoned) {
         currentFx.poisoned = { damage: poisonerDef.damage, turns: poisonerDef.turns };
         player.status_effects = currentFx;
-        lines.push(`🕷 ¡El ${monster.name} te envenenó! Perderás ${poisonerDef.damage} HP por turno durante ${poisonerDef.turns} turnos. (Usá \"use antídoto\" para curarte)`);
+        lines.push(`🕷 ¡${articuloMonstruo(monster.name)} ${monster.name} te envenenó! Perderás ${poisonerDef.damage} HP por turno durante ${poisonerDef.turns} turnos. (Usá \"use antídoto\" para curarte)`);
       }
     }
 
@@ -1553,7 +1581,7 @@ function attackRound(player, monster) {
             : {};
           mFxFlee.fled_from = player.current_room_id;
           db.updateMonster(monster.id, { room_id: escapeRoom, status_effects: JSON.stringify(mFxFlee) });
-          lines.push(`🏃 ¡El ${monster.name} huye despavorido ${dirHint}! (HP: ${monster.hp}/${monster.max_hp})`);
+          lines.push(`🏃 ¡${articuloMonstruo(monster.name)} ${monster.name} huye despavorido ${dirHint}! (HP: ${monster.hp}/${monster.max_hp})`);
           lines.push(`   💨 Escapó sin dejar botín. Usá "perseguir" o movete ${dirHint} para seguirlo.`);
           lines.push(`   🔄 (Los monstruos que huyen pueden volver a su sala original al regenerarse)`);
           // DIS-D355: guardar dirección de huida del monstruo para comando "perseguir"
@@ -1689,8 +1717,8 @@ function tryFlee(player, monster, room, preferredDirection = null) {
       : `${monster.name} te corta el paso. Un boss no deja que te vayas tan fácil.`;
   } else {
     fleeNarrative = wasClose
-      ? `El ${monster.name} casi te deja ir — por poco.`
-      : `El ${monster.name} te bloqueó sin esfuerzo.`;
+      ? `${articuloMonstruo(monster.name)} ${monster.name} casi te deja ir — por poco.`
+      : `${articuloMonstruo(monster.name)} ${monster.name} te bloqueó sin esfuerzo.`;
   }
 
   let line = `🏃 Intentás huir pero ${fleeNarrative} Te golpea (${dmgToPlayer} dmg). Tu HP: ${player.hp}/${player.max_hp}.`;

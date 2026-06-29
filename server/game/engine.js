@@ -50,6 +50,23 @@ const ROOM_EFFECTS = {
 // lastWhisperSender.get(playerId) → { id, username } del último que les escribió
 const lastWhisperSender = new Map();
 
+// BUG-1017: Mapa de artículos masculinos para ítems consumibles.
+// Por defecto los consumibles usan "la" (la poción, la hierba, etc.);
+// los listados aquí usan "el".
+const ITEM_ARTICULO_MASCULINO = new Set([
+  'antídoto',
+]);
+
+/**
+ * BUG-1017: Devuelve el artículo correcto (la/el) para un ítem consumible.
+ * @param {string} itemName — nombre del ítem
+ * @returns {string} — "el" o "la"
+ */
+function articuloItem(itemName) {
+  return ITEM_ARTICULO_MASCULINO.has(itemName) ? 'el' : 'la';
+}
+
+
 // ── Sistema de duelos PvP (T089) ──────────────────────────────────────────────
 // pendingDuels.get(targetPlayerId) → { challengerId, challengerUsername, roomId, expiresAt }
 const pendingDuels = new Map();
@@ -3755,7 +3772,7 @@ function cmdUse(player, itemQuery) {
 
     const palBonus = (player.specialization === 'paladin' && healAmount > def.amount) ? ` (+${healAmount - def.amount} 🛡️ Paladín)` : '';
     const bsPenalty = (player.specialization === 'berserker' && healAmount < def.amount) ? ` (−${def.amount - healAmount} 🪓 Berserker)` : '';
-    resultText = `Bebés la ${found}. Recuperás ${newHp - oldHp} HP${palBonus}${bsPenalty}. (${newHp}/${maxHp} HP)`;
+    resultText = `Bebés ${articuloItem(found)} ${found}. Recuperás ${newHp - oldHp} HP${palBonus}${bsPenalty}. (${newHp}/${maxHp} HP)`;
 
   } else if (def.type === 'mana_potion' && def.effect === 'restore_mana') {
     // T104: Pociones de maná
@@ -3772,7 +3789,7 @@ function cmdUse(player, itemQuery) {
     const newInvM = removeFirst(player.inventory, found);
     db.updatePlayer(player.id, { inventory: newInvM, mana: newMana, last_mana_regen: new Date().toISOString() });
 
-    resultText = `💧 Bebés la ${found}. Recuperás ${restored} maná. (${newMana}/${maxMana} maná)`;
+    resultText = `💧 Bebés ${articuloItem(found)} ${found}. Recuperás ${restored} maná. (${newMana}/${maxMana} maná)`;
 
   } else if (def.type === 'antidote' && def.effect === 'cure_poison') {
     // BUG-983 fix: usar parseSE para garantizar objeto, no string JSON
@@ -3782,14 +3799,14 @@ function cmdUse(player, itemQuery) {
       const newInv2 = removeFirst(player.inventory, found);
       delete statusFx.poisoned;
       db.updatePlayer(player.id, { inventory: newInv2, status_effects: JSON.stringify(statusFx) });
-      resultText = `✅ Bebés la ${found}. El veneno se neutraliza de inmediato. Te sentís mejor.`;
+      resultText = `✅ Bebés ${articuloItem(found)} ${found}. El veneno se neutraliza de inmediato. Te sentís mejor.`;
     } else {
       // BUG-289: sin veneno, cura 12 HP en su lugar
       // BUG-310: no consumir si HP ya está al máximo
       const HERB_HEAL = 12;
       const maxHp = player.max_hp || 100;
       if (player.hp >= maxHp) {
-        return { text: `🌿 Ya estás al máximo de HP (${player.hp}/${maxHp}). Guardás la ${found}.` };
+        return { text: `🌿 Ya estás al máximo de HP (${player.hp}/${maxHp}). Guardás ${articuloItem(found)} ${found}.` };
       }
       const newInv2 = removeFirst(player.inventory, found);
       const newHp = Math.min(player.hp + HERB_HEAL, maxHp);
@@ -3832,7 +3849,7 @@ function cmdUse(player, itemQuery) {
     const newInvPow = removeFirst(player.inventory, found);
     db.updatePlayer(player.id, { inventory: newInvPow, active_scrolls: JSON.stringify(scrolls) });
 
-    resultText = `⚡ Bebés la ${found}. Una energía oscura recorre tus músculos. (+${def.atk_bonus} ATK por ${def.duration}s)`;
+    resultText = `⚡ Bebés ${articuloItem(found)} ${found}. Una energía oscura recorre tus músculos. (+${def.atk_bonus} ATK por ${def.duration}s)`;
 
   } else if (def.type === 'spell_scroll') {
     // DIS-558: Pergamino de hechizo — próximo hechizo gratis (sin coste de maná)
