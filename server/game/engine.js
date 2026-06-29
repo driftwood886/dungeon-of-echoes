@@ -15290,7 +15290,7 @@ function cmdGuide(args) {
       'HABILIDADES (al subir niveles):',
       '  smash / golpetazo (Lv3) — ×1.8 daño, CD 45s',
       '  shield_bash (Lv6)       — Stun + daño',
-      '  rally / arenga (Lv10)   — +2 ATK a todo el grupo',
+      '  rally / arenga (Lv10)   — +2 ATK a todo el grupo (o +1 ATK solo si no hay aliados)',
       '',
       'POSTURAS (comando stance):',
       '  ofensivo  — +2 ATK, -1 DEF, 5% extra de fallo',
