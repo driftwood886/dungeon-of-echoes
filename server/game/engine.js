@@ -11854,7 +11854,30 @@ function cmdUseSkill(player, args, context) {
     const sameRoom = party.filter(m => m.id !== freshPlayer.id && m.current_room_id === freshPlayer.current_room_id);
 
     if (sameRoom.length === 0) {
-      return { text: '⚡ No hay compañeros de grupo en tu sala para arenga. Formá un grupo primero (party).' };
+      // DIS-1030: Sin compañeros, dar buff personal reducido (+1 ATK, 30s) como "motivación propia"
+      const soloBuffBonus = 1; // mitad del bonus de grupo
+      const soloBuffDuration = 30 * 1000;
+      const soloBuffExpiresAt = new Date(Date.now() + soloBuffDuration).toISOString();
+      const soloEffects = freshPlayer.status_effects ? JSON.parse(freshPlayer.status_effects || '{}') : {};
+      soloEffects.rally = { atk_bonus: soloBuffBonus, expires_at: soloBuffExpiresAt };
+      const soloNewAtk = (freshPlayer.attack || 5) + soloBuffBonus;
+      db.updatePlayer(freshPlayer.id, { attack: soloNewAtk, status_effects: JSON.stringify(soloEffects) });
+      const newCooldownsSolo = skills.applyCooldown(freshPlayer, 'rally');
+      db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldownsSolo });
+      // Revertir buff tras 30s
+      setTimeout(() => {
+        try {
+          const mFreshSolo = db.getPlayer(freshPlayer.id);
+          if (!mFreshSolo) return;
+          const effSolo = mFreshSolo.status_effects ? JSON.parse(mFreshSolo.status_effects || '{}') : {};
+          if (effSolo.rally) {
+            delete effSolo.rally;
+            const revertAtkSolo = Math.max(1, (mFreshSolo.attack || 5) - soloBuffBonus);
+            db.updatePlayer(freshPlayer.id, { attack: revertAtkSolo, status_effects: JSON.stringify(effSolo) });
+          }
+        } catch (_) {}
+      }, soloBuffDuration);
+      return { text: `⚡ Tu arenga resuena... pero no hay aliados en la sala. Solo escuchas tu propio grito.\n  (+${soloBuffBonus} ATK para vos mismo por 30s. Cooldown: ${skill.cooldown_seconds}s)\n  💡 Usá "party <jugador>" para arengarlo a un compañero por el doble de efecto.` };
     }
 
     // Aplicar buff ATK temporal a todos en la sala (incluido el jugador)
