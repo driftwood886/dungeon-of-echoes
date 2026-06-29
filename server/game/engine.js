@@ -521,9 +521,14 @@ Comandos útiles en combate:
 
 Para más detalle: help <comando>  (ej: help attack)
 Para ayuda de clase: guide
-Para todos los comandos: help
+Para todos los comandos: help todo
 ═══════════════════════════════════════`,
           };
+          break;
+        }
+        // DIS-1004: "help todo" / "help avanzado" / "help all" → lista completa
+        if (['todo', 'todos', 'all', 'avanzado', 'avanzada', 'completo', 'completa', 'full', 'lista', 'comandos'].includes(cmdKey)) {
+          result = { text: HELP_TEXT };
           break;
         }
         // Buscar el comando canónico
@@ -595,9 +600,34 @@ Para todos los comandos: help
         const detailText = detail ? detail.replace(/\\n/g, '\n') : null;
         result = detailText
           ? { text: detailText }
-          : { text: `No hay ayuda detallada para "${cmdKey}". Escribí "help" para ver todos los comandos.` };
+          : { text: `No hay ayuda detallada para "${cmdKey}". Escribí "help todo" para ver todos los comandos.` };
       } else {
-        result = { text: HELP_TEXT };
+        // DIS-1004: help sin args → lista compacta de comandos frecuentes
+        result = { text: `═══════════════════════════════════════
+📖  AYUDA — Dungeon of Echoes
+═══════════════════════════════════════
+Comandos más usados:
+
+  look / mirar          — Ver la sala actual y sus salidas
+  n / s / e / o         — Moverse (norte/sur/este/oeste)
+  attack <monstruo>     — Atacar a un monstruo
+  flee / huir           — Huir del combate
+  status / estado       — Ver HP, ATK, DEF y clase
+  inv / inventario      — Ver tu mochila
+  pick <ítem>           — Recoger del suelo (pick todo = todo)
+  use <ítem>            — Usar ítem (poción = curar, arma = equipar)
+  equip <arma>          — Equipar arma; wear <armadura> para armadura
+  rest / descansar      — Recuperar HP (sin monstruos, cooldown 60s)
+  map / mapa            — Mapa del dungeon (salas visitadas)
+  ruta <sala>           — Ruta más corta a una sala
+  who / jugadores       — Ver aventureros activos
+  guide [sección]       — Guía de inicio rápido (ej: guide 2)
+  help <comando>        — Ayuda detallada de un comando específico
+
+── Más opciones ─────────────────────────
+  help basico    — Solo los comandos para empezar
+  help todo      — Lista completa de todos los comandos (~80)
+═══════════════════════════════════════` };
       }
       break;
     case 'pronunciar':   result = cmdPronunciar(player, action.args.join(' ')); break; // DIS-487
@@ -615,7 +645,7 @@ Para todos los comandos: help
           break;
         }
       }
-      result = { text: `Comando desconocido: "${action.input}". Escribí "help" para ver los comandos.` };
+      result = { text: `Comando desconocido: "${action.input}". Escribí "help" para los comandos más frecuentes, o "help todo" para la lista completa.` };
       break;
     default:
       result = { text: `Comando "${action.command}" aún no implementado.` };

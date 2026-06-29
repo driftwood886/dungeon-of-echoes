@@ -576,6 +576,7 @@ Comandos disponibles:
   heal [jugador]       — (Solo Clérigo) Curás HP propio o de un aliado en la sala. Cuesta 8 maná.
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
+Esta es la lista completa. Para empezar: help basico  |  Para ayuda de un comando: help <cmd>
 `.trim();
 
 /**
