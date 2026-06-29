@@ -293,7 +293,8 @@ function execute(playerId, input, context) {
   // Solo se muestra en comandos "activos" (no en comandos de info pura).
   const ASCENSION_REMINDER_EXCLUDED = new Set(['look', 'status', 'who', 'score', 'profile', 'bestiary', 'journal', 'news', 'dungeon', 'history', 'help', 'changelog', 'server', 'time', 'enemies', 'compare', 'reputation', 'path', 'guide', 'find', 'runas', 'map', 'inventory', 'junk', 'ascender', 'legado', 'memorial', 'rank', 'read', 'lore', 'weather', 'world', 'challenge', 'recent', 'records', 'worldgoals']);
   const playerSe = player.status_effects ? (typeof player.status_effects === 'string' ? JSON.parse(player.status_effects) : player.status_effects) : {};
-  const hasAscensionPending = playerSe.ascension_pending === true;
+  // BUG-1024: No mostrar recordatorio si el jugador ya vio la pantalla de ascenso (ascension_screen_shown=true)
+  const hasAscensionPending = playerSe.ascension_pending === true && !playerSe.ascension_screen_shown;
 
   switch (action.command) {
     case 'look':      result = cmdLook(player); break;
@@ -18415,6 +18416,12 @@ function cmdAscend(player, args, context) {
     lines.push(`Si no querés ascender: tu personaje sigue activo.`);
     lines.push(`El dungeon no tiene prisa. Pero el Lich volverá.`);
     lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+
+    // BUG-1024: Marcar que el jugador ya vio la pantalla de ascenso para suprimir el recordatorio reiterativo
+    if (!se.ascension_screen_shown) {
+      const seUpd = { ...se, ascension_choices: choices.map(c => c.id), ascension_screen_shown: true };
+      db.updatePlayer(fresh.id, { status_effects: JSON.stringify(seUpd) });
+    }
 
     return { text: lines.join('\n') };
   }
