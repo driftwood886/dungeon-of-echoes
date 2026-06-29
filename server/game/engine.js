@@ -3485,7 +3485,8 @@ function cmdPick(player, itemQuery) {
         if (qrPickAll.justCompleted && qrPickAll.reward) {
           const rAll = qrPickAll.reward;
           const fqAll = db.getPlayer(player.id);
-          db.updatePlayer(player.id, { gold: (fqAll.gold || 0) + rAll.gold, xp: (fqAll.xp || 0) + rAll.xp });
+          const pickAllNewXp = (fqAll.xp || 0) + rAll.xp;
+          db.updatePlayer(player.id, { gold: (fqAll.gold || 0) + rAll.gold, xp: pickAllNewXp, level: xpSystem.levelFromXp(pickAllNewXp) });
           pickAllQuestLine = `\n🎉 ¡Quest completada! Recibís ${rAll.gold}g y ${rAll.xp} XP de recompensa.`;
         } else if (!qrPickAll.justCompleted) {
           const activeQAll = quests.getActiveQuest();
@@ -3560,7 +3561,8 @@ function cmdPick(player, itemQuery) {
       if (qrGold.justCompleted && qrGold.reward) {
         const r = qrGold.reward;
         const fq2 = db.getPlayer(player.id);
-        db.updatePlayer(player.id, { gold: (fq2.gold || 0) + r.gold, xp: (fq2.xp || 0) + r.xp });
+        const goldDepNewXp = (fq2.xp || 0) + r.xp;
+        db.updatePlayer(player.id, { gold: (fq2.gold || 0) + r.gold, xp: goldDepNewXp, level: xpSystem.levelFromXp(goldDepNewXp) });
         goldQuestLine = `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
       } else if (!qrGold.justCompleted) {
         // DIS-D328: mostrar progreso actualizado de quest de oro activa
@@ -3594,7 +3596,8 @@ function cmdPick(player, itemQuery) {
             for (const m of members) {
               const mFresh = db.getPlayer(m.id);
               if (mFresh) {
-                db.updatePlayer(m.id, { xp: (mFresh.xp || 0) + 50, gold: (mFresh.gold || 0) + 30 });
+                const gqGoldNewXp = (mFresh.xp || 0) + 50;
+                db.updatePlayer(m.id, { xp: gqGoldNewXp, level: xpSystem.levelFromXp(gqGoldNewXp), gold: (mFresh.gold || 0) + 30 });
                 db.addReputation(m.id, 10);
               }
             }
@@ -5299,7 +5302,8 @@ function cmdLoot(player) {
       if (qrLoot.justCompleted && qrLoot.reward) {
         const rLoot = qrLoot.reward;
         const fqLoot = db.getPlayer(player.id);
-        db.updatePlayer(player.id, { gold: (fqLoot.gold || 0) + rLoot.gold, xp: (fqLoot.xp || 0) + rLoot.xp });
+        const lootNewXp = (fqLoot.xp || 0) + rLoot.xp;
+        db.updatePlayer(player.id, { gold: (fqLoot.gold || 0) + rLoot.gold, xp: lootNewXp, level: xpSystem.levelFromXp(lootNewXp) });
       }
     }
   }
@@ -7626,7 +7630,8 @@ function cmdSell(player, itemQuery) {
       if (qrSellEq.justCompleted && qrSellEq.reward) {
         const rSellEq = qrSellEq.reward;
         const fqSellEq = db.getPlayer(player.id);
-        db.updatePlayer(player.id, { gold: (fqSellEq.gold || 0) + rSellEq.gold, xp: (fqSellEq.xp || 0) + rSellEq.xp });
+        const sellEqNewXp = (fqSellEq.xp || 0) + rSellEq.xp;
+        db.updatePlayer(player.id, { gold: (fqSellEq.gold || 0) + rSellEq.gold, xp: sellEqNewXp, level: xpSystem.levelFromXp(sellEqNewXp) });
         sellEqQuestLine = `\n🎉 ¡Quest completada! Recibís ${rSellEq.gold}g y ${rSellEq.xp} XP de recompensa.`;
       } else if (!qrSellEq.justCompleted) {
         const activeQSellEq = quests.getActiveQuest();
@@ -7690,7 +7695,8 @@ function cmdSell(player, itemQuery) {
     if (qrSell.justCompleted && qrSell.reward) {
       const rSell = qrSell.reward;
       const fqSell = db.getPlayer(player.id);
-      db.updatePlayer(player.id, { gold: (fqSell.gold || 0) + rSell.gold, xp: (fqSell.xp || 0) + rSell.xp });
+      const sellNewXp = (fqSell.xp || 0) + rSell.xp;
+      db.updatePlayer(player.id, { gold: (fqSell.gold || 0) + rSell.gold, xp: sellNewXp, level: xpSystem.levelFromXp(sellNewXp) });
       sellQuestLine = `\n🎉 ¡Quest completada! Recibís ${rSell.gold}g y ${rSell.xp} XP de recompensa.`;
     } else if (!qrSell.justCompleted) {
       const activeQSell = quests.getActiveQuest();
@@ -8795,7 +8801,8 @@ function cmdCraft(player, args) {
           for (const m of members) {
             const mFresh = db.getPlayer(m.id);
             if (mFresh) {
-              db.updatePlayer(m.id, { xp: (mFresh.xp || 0) + 50, gold: (mFresh.gold || 0) + 30 });
+              const gqCraftNewXp = (mFresh.xp || 0) + 50;
+              db.updatePlayer(m.id, { xp: gqCraftNewXp, level: xpSystem.levelFromXp(gqCraftNewXp), gold: (mFresh.gold || 0) + 30 });
               db.addReputation(m.id, 10);
             }
           }
@@ -18160,7 +18167,7 @@ function cmdPronunciar(player, nameInput) {
     // ── EL EASTER EGG REAL ────────────────────────────────────────────────────
     const xpGained = 150;
     const newXp = (fresh.xp || 0) + xpGained;
-    db.updatePlayer(player.id, { xp: newXp });
+    db.updatePlayer(player.id, { xp: newXp, level: xpSystem.levelFromXp(newXp) });
     db.addJournalEntry(player.id, 'lore', '✨ Pronuncié el nombre verdadero de Kaelthas en el lugar correcto. El dungeon lo escuchó. Algo se desplazó, levemente, como si un peso muy antiguo cambiara de posición.');
 
     let roomText = '';
