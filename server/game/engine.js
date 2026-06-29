@@ -858,7 +858,7 @@ function cmdLook(player) {
         const questTarget = norm(activeQ.questDef.target);
         const hasTarget = monsters.some(m => norm(m.name).includes(questTarget));
         if (hasTarget) {
-          const progress = (() => { try { const p = JSON.parse(playerQ.quest_progress || '{}'); return p.progress || 0; } catch(_) { return 0; } })();
+          const progress = (() => { try { const p = JSON.parse(playerQ.quest_progress || '{}'); return (p.questId === activeQ.questDef.id) ? (p.progress || 0) : 0; } catch(_) { return 0; } })();
           const goal = activeQ.questDef.goal;
           questHintLine = `\n📜 Objetivo de quest aquí: ${activeQ.questDef.target} (${progress}/${goal} eliminados)`;
         }
