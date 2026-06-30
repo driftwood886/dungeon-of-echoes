@@ -596,6 +596,8 @@ async function main() {
   const io = new Server(server, {
     cors: { origin: '*' },
   });
+  // DIS-1039: Registrar io en el singleton para que say/shout funcionen vía REST
+  require('./ioRef').set(io);
   registerHandlers(io);
 
   // 7. Arrancar servidor

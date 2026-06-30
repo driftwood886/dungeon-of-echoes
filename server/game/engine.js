@@ -509,10 +509,35 @@ function execute(playerId, input, context) {
           }
         }
       }
-      result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
+      // DIS-1039: Si io está disponible (ioRef singleton), emitir el say a la sala aunque llegue por REST
+      {
+        const _ioSay = (() => { try { return require('../ioRef').get(); } catch(e) { return null; } })();
+        const sayMsg2 = action.args && action.args.length > 0 ? action.args.join(' ').trim().slice(0, 200) : '';
+        if (!sayMsg2) {
+          result = { text: '¿Qué querés decir? Usá: say <mensaje>' };
+        } else if (_ioSay) {
+          _ioSay.to(`room_${player.current_room_id}`).emit('say', { username: player.username, name_color: player.name_color || null, message: sayMsg2 });
+          if (global.pushRecentChat) global.pushRecentChat('say', player.username, sayMsg2);
+          result = { text: `Decís: "${sayMsg2}"` };
+        } else {
+          result = { text: 'El chat (say) requiere conexión vía Socket.io (browser). Conectate desde el browser para chatear.' };
+        }
+      }
       break;
     case 'shout':
-      result = { text: 'El chat (say/shout) solo funciona por Socket.io. Conectate desde el browser para chatear.' };
+      // DIS-1039: Si io está disponible (singleton ioRef), emitir el mensaje globalmente aunque llegue por REST
+      const _ioShout = (() => { try { return require('../ioRef').get(); } catch(e) { return null; } })();
+      const shoutArgs = action.args && action.args.length > 0 ? action.args.join(' ').trim() : '';
+      if (!shoutArgs) {
+        result = { text: '¿Qué querés gritar? Usá: shout <mensaje>' };
+      } else if (_ioShout) {
+        const shoutMsg = shoutArgs.slice(0, 200);
+        _ioShout.emit('shout', { username: player.username, name_color: player.name_color || null, message: shoutMsg });
+        if (global.pushRecentChat) global.pushRecentChat('shout', player.username, shoutMsg);
+        result = { text: `Gritás: "${shoutMsg}"` };
+      } else {
+        result = { text: 'El chat (shout) requiere conexión vía Socket.io (browser). Conectate desde el browser para chatear.' };
+      }
       break;
     case 'help':
       if (action.args && action.args.length > 0) {
