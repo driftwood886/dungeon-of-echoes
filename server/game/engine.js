@@ -3386,6 +3386,24 @@ function cmdFlee(player, targetQuery) {
     return { text: `No hay ningún combate activo del que huir. El ${bossFleeInRoom.name} no te atacó todavía.` };
   }
 
+  // BUG-1053: Si no hay boss en la sala y todos los monstruos normales están a HP lleno,
+  // el jugador nunca inició combate → flee no tiene sentido. Los monstruos normales no
+  // bloquean el movimiento (BUG-603), así que el jugador puede moverse libremente.
+  const hasBossInRoom = monsters.some(m => combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[m.id]);
+  if (!hasBossInRoom) {
+    const allAtFullHp = monsters.every(m => m.hp >= m.max_hp);
+    if (allAtFullHp) {
+      const exits = room ? (room.exits || {}) : {};
+      const exitDirs = Object.keys(exits);
+      const moveSuggestion = exitDirs.length > 0
+        ? `Usá "move <dirección>" para moverte (ej: "move ${exitDirs[0]}").\nSalidas disponibles: ${exitDirs.join(', ')}.`
+        : 'No hay salidas disponibles en esta sala.';
+      return {
+        text: `🤔 No estás en combate activo — ${monsters.map(m => m.name).join(', ')} no te atacó.\nLos monstruos normales no bloquean el movimiento.\n${moveSuggestion}`,
+      };
+    }
+  }
+
   let monster;
   // Si se indica un monstruo específico, buscarlo
   // BUG-594: si el argumento es una dirección cardinal, ignorarlo (flee south → flee sin dirección)
