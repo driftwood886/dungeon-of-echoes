@@ -2086,28 +2086,29 @@ function migratePracticaHintDIS1041() {
  * BUG-1047: Limpiar duplicados de pista de ruta alternativa en sala 7 (Pozo Sin Fondo).
  * El bug en migratePistaSantuario() causó que la pista se appendeara 5+ veces.
  * Esta migración deja exactamente una copia de la pista correcta (DIS-1038).
+ *
+ * NOTA BUG-1048: El fix original de BUG-1047 usaba regex [^)]+ que falla cuando la pista
+ * contiene paréntesis internos como "(norte)" o "(este)". Por eso la corrupción persistía.
+ * Esta versión reescritura usa la descripción base hardcodeada para garantizar idempotencia.
  */
 function migrateCleanPistaSantuarioBUG1047() {
   try {
     const room7 = db.getRoom(7);
     if (!room7) return;
-    const pistaNueva = '(💡 Si no tenés la llave, hay otra ruta al Santuario: Entrada → Capilla (este) → Túnel de Hongos (norte) → Sala del Trono (norte) → Santuario. ⚠️ Ojo: esa ruta tiene una trampa de esporas en los Hongos y una trampa de frío en el Trono — ambas activas en la primera visita.)';
-    // Contar cuántas veces aparece la pista (nueva o versión parcial)
-    const pistaPattern = /\(💡 Si no tenés la llave, hay otra ruta al Santuario:[^)]+\)/g;
-    const matches = room7.description.match(pistaPattern);
-    if (matches && matches.length > 1) {
-      // Remover TODAS las copias y dejar una sola al final
-      const baseDesc = room7.description.replace(pistaPattern, '').replace(/\s{2,}/g, ' ').trimEnd();
-      const newDesc = baseDesc + ' ' + pistaNueva;
-      db.upsertRoom({ ...room7, description: newDesc });
+    // Descripción base canónica (sin ninguna pista de ruta al Santuario)
+    const descBase = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario.';
+    // Pista correcta final (DIS-1038)
+    const pistaNueva = ' (💡 Si no tenés la llave, hay otra ruta al Santuario: Entrada → Capilla (este) → Túnel de Hongos (norte) → Sala del Trono (norte) → Santuario. ⚠️ Ojo: esa ruta tiene una trampa de esporas en los Hongos y una trampa de frío en el Trono — ambas activas en la primera visita.)';
+    const descCorrecta = descBase + pistaNueva;
+    // Si la descripción ya es exactamente la correcta, nada que hacer
+    if (room7.description === descCorrecta) return;
+    // Detectar si la descripción está corrupta (contiene duplicados)
+    const pistaAntiguaMarker = '→ Túnel de Hongos (norte) → Sala del Trono (norte) → Santuario';
+    const hasCorruption = (room7.description.match(new RegExp(pistaAntiguaMarker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length > 1;
+    if (hasCorruption || room7.description !== descCorrecta) {
+      db.upsertRoom({ ...room7, description: descCorrecta });
       db.persist();
-      console.log(`[seed] migrateCleanPistaSantuarioBUG1047: ${matches.length} copias encontradas, limpiadas a 1. BUG-1047 ✓`);
-    } else if (matches && matches.length === 1 && !room7.description.includes(pistaNueva)) {
-      // Hay una copia pero es la versión vieja — actualizarla
-      const newDesc = room7.description.replace(pistaPattern, pistaNueva);
-      db.upsertRoom({ ...room7, description: newDesc });
-      db.persist();
-      console.log('[seed] migrateCleanPistaSantuarioBUG1047: versión vieja actualizada a DIS-1038. BUG-1047 ✓');
+      console.log('[seed] migrateCleanPistaSantuarioBUG1047: descripción de sala 7 restaurada a versión canónica (BUG-1047+BUG-1048). ✓');
     }
   } catch (e) {
     console.warn('[seed] migrateCleanPistaSantuarioBUG1047:', e.message);

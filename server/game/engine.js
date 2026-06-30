@@ -150,7 +150,7 @@ const TITLES = [
 
 // ── Posturas de combate (T161) ────────────────────────────────────────────────
 const STANCES = {
-  agresivo:    { icon: '⚔️',  label: 'ofensivo', atkMod: +2, defMod: -1, extraMiss: 0.05, desc: 'Atacás con todo — más daño, más riesgo.' },
+  agresivo:    { icon: '⚔️',  label: 'agresivo', atkMod: +2, defMod: -1, extraMiss: 0.05, desc: 'Atacás con todo — más daño, más riesgo.' }, // DIS-1056: alias corregido (era 'ofensivo')
   defensivo:   { icon: '🛡️',  label: 'defensivo', atkMod: -1, defMod: +2, extraMiss: 0,    desc: 'Te cubrís — menos daño, más aguante.' },
   equilibrado: { icon: '⚖️',  label: 'equilibrado', atkMod:  0, defMod:  0, extraMiss: 0,    desc: 'Sin modificadores — postura estándar.' },
 };
@@ -1037,7 +1037,7 @@ function cmdLook(player) {
     const stance = player.stance || 'equilibrado';
     // Mostrar hint si el jugador está en postura por defecto (nunca la cambió)
     if (stance === 'equilibrado') {
-      practicaPosturaHint = `\n\n⚔️ Consejo del entrenador: Los guerreros experimentados ajustan su postura de combate.\n  · postura ofensivo  → +2 ATK, -2 DEF (atacás con más fuerza)\n  · postura defensivo → -2 ATK, +2 DEF (aguantás más golpes)\n  · postura equilibrado → sin modificadores (postura actual)\nProbá cambiar de postura aquí con los maniquíes — sin riesgo.`;
+      practicaPosturaHint = `\n\n⚔️ Consejo del entrenador: Los guerreros experimentados ajustan su postura de combate.\n  · postura agresivo   → +2 ATK, -2 DEF (atacás con más fuerza)\n  · postura defensivo  → -2 ATK, +2 DEF (aguantás más golpes)\n  · postura equilibrado → sin modificadores (postura actual)\nProbá cambiar de postura aquí con los maniquíes — sin riesgo.`; // DIS-1056
     }
   }
 
@@ -6071,8 +6071,10 @@ function cmdMap(player) {
     // DIS-580: salas no visitadas aparecen como neblina
     // DIS-1040: reemplazar "[ ??:?????????]" (15 chars, ruidoso) por "[ ············ ]"
     // (16 chars, limpio). También corrige el bug de desalineación de 1 char.
+    // DIS-1055: mostrar ID de sala aunque no esté visitada, para que el jugador
+    // pueda hacer "ruta NN" hacia ella. Formato: [?NN:··········] (16 chars fijo).
     if (!visitedRooms.has(id)) {
-      return `[ ············ ]`;
+      return `[?${String(id).padStart(2, ' ')}:··········]`;
     }
     const label = (NAMES[id] || `Sala${id}`).substring(0, 9).padEnd(9, ' ');
     const marker = id === here ? '★' : ' ';
@@ -6153,7 +6155,7 @@ function cmdMap(player) {
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
       : `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda del Mercader)`,
-    `[ ············ ] = sala aún no explorada  [16/21] = salas de tutorial (fuera del conteo de exploración)`,
+    `[?NN:··········] = sala aún no explorada (usá "ruta NN" para llegar)  [16/21] = salas de tutorial (fuera del conteo de exploración)`,
     // DIS-921: conteo de salas exploradas al pie del mapa
     (() => {
       const MAP_DUNGEON_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18,19,20,22];
@@ -14634,7 +14636,7 @@ function cmdStance(player, args) {
       lines.push(`║ ${data.icon} ${name.padEnd(12)}  ATK${data.atkMod >= 0 ? '+' : ''}${data.atkMod} DEF${data.defMod >= 0 ? '+' : ''}${data.defMod}${active.padEnd(2)} ║`);
     }
     lines.push(`╠════════════════════════════════════════╣`);
-    lines.push(`║ Cambiá con: stance ofensivo/defensivo  ║`);
+    lines.push(`║ Cambiá con: stance agresivo/defensivo  ║`); // DIS-1056
     lines.push(`║            stance equilibrado          ║`);
     lines.push(`╚════════════════════════════════════════╝`);
     return { text: lines.join('\n') };
@@ -14649,7 +14651,7 @@ function cmdStance(player, args) {
   if (target === 'balanceado' || target === 'balanceada' || target === 'normal' || target === 'neutro' || target === 'neutral' || target === 'equilibrada' || target === 'equilibrio') target = 'equilibrado';
 
   if (!STANCES[target]) {
-    return { text: `Postura desconocida: "${args[0]}". Las posturas válidas son: ofensivo, defensivo, equilibrado.` };
+    return { text: `Postura desconocida: "${args[0]}". Las posturas válidas son: agresivo, defensivo, equilibrado.` }; // DIS-1056
   }
 
   if (target === currentStance) {
@@ -15391,7 +15393,7 @@ function cmdGuide(args) {
       '  rally / arenga (Lv10)   — +2 ATK a todo el grupo (o +1 ATK solo si no hay aliados)',
       '',
       'POSTURAS (comando stance):',
-      '  ofensivo  — +2 ATK, -1 DEF, 5% extra de fallo',
+      '  agresivo  — +2 ATK, -1 DEF, 5% extra de fallo', // DIS-1056
       '  defensivo — -1 ATK, +2 DEF',
       '  equilibrado — stats normales (por defecto)',
       '',
@@ -15437,7 +15439,7 @@ function cmdGuide(args) {
       '⚔  GUERRERO',
       '  HP: 35 | ATK: 6 | Maná: 10',
       '  Ventaja: más HP y daño base. Ideal para principiantes.',
-      '  Consejo: usá stance ofensivo para maximizar daño.',
+      '  Consejo: usá stance agresivo para maximizar daño.', // DIS-1056
       '',
       '🔮 MAGO',
       '  HP: 22 | ATK: 4 | Maná: 35',
@@ -17638,7 +17640,7 @@ function cmdWeekly(player) {
 function cmdTips(args) {
   const TIPS = {
     combate: [
-      '⚔️  Elegí tu postura (stance) según la situación: ofensivo para matar rápido, defensivo para survivir.',
+      '⚔️  Elegí tu postura (stance) según la situación: agresivo para matar rápido, defensivo para survivir.', // DIS-1056
       '💥 Los combos de ataque dan hasta +4 dmg extra al 5x — no cambies de objetivo si tenés un combo alto.',
       '🔮 Usá hechizos: bola-de-fuego hace 10 dmg fijos, útil contra monstruos con mucha defensa.',
       '⚡ Con nivel 3+ tenés smash (×1.8 daño). Con nivel 6+ tenés shield_bash (stun). ¡Úsalos!',
@@ -17662,7 +17664,7 @@ function cmdTips(args) {
       '🔮 Mago: maná alto y hechizos ×1.5. Regen de maná doble. Mejor daño mágico del juego.',
       '🗡️  Pícaro: 25% de crítico y 20% de esquiva. Excelente para grinding rápido y duelos PvP.',
       '🔄 Podés cambiar de clase libremente hasta 5 kills totales. Después es permanente.',
-      '📊 El Pícaro + postura ofensiva + combo máximo puede hacer hasta 18+ daño en un golpe.',
+      '📊 El Pícaro + postura agresiva + combo máximo puede hacer hasta 18+ daño en un golpe.', // DIS-1056
       '🧙 El Mago + hechizo escudo (+5 DEF) + postura defensiva = tanque mágico sorprendente.',
       '💀 El boss Lich Anciano drena maná — el Guerrero no se ve afectado tanto como el Mago.',
     ],
