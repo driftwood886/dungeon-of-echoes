@@ -918,7 +918,7 @@ function cmdLook(player) {
       // DIS-990: también agregar Túnel de Hongos (sala 6) — trampa de esporas activa sin aviso previo
       const TRAP_ROOM_DANGER = {
         13: { icon: '💧', name: 'trampa de inundación', roomName: 'Caverna Sumergida', dmg: 7, dmgRange: '6-8' },
-        6:  { icon: '👃', name: 'trampa de esporas',    roomName: 'Túnel de los Hongos', dmg: 6, dmgRange: '5-7' },
+        6:  { icon: '👃', name: 'trampa de esporas',    roomName: 'Túnel de los Hongos', dmg: 5, dmgRange: '4-6' },
       };
       const trapLines = [];
       for (const [dir, destId] of Object.entries(curExits)) {
@@ -1205,7 +1205,7 @@ function cmdMove(player, direction) {
             const nbUpdatedSE = { ...nbStatusEff, [nbTrapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
             db.updatePlayer(nbFresh.id, { hp: nbNewHp, status_effects: JSON.stringify(nbUpdatedSE), known_traps: JSON.stringify(nbUpdatedKT) });
             const TRAP_DISARM_HINT_NB = {
-              6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa al norte, podés escribir "desactivar trampa norte" antes de entrar.',
+              6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa al norte, podés escribir "desactivar trampa norte" antes de entrar.\n⚠️  Al norte de aquí está la Sala del Trono — también tiene una trampa de frío (primera visita). Si pasás por la Prisión (sala 8, volviendo al Pozo), hay una "corona rota" abandonada en las celdas que la desactiva. DIS-1033',
               9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de tres formas: (1) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, (2) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (3) buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
               3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).\n🧠 Próxima vez que veas el hint de trampa al oeste, podés escribir "desactivar trampa oeste" antes de entrar.',
               13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Buscá en esta sala o en los alrededores del Lago.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
@@ -1517,7 +1517,7 @@ function cmdMove(player, direction) {
 
       // DIS-451/452: tip personalizado según la trampa — indica dónde obtener el ítem de desactivación
       const TRAP_DISARM_HINT = {
-        6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa al norte, podés escribir "desactivar trampa norte" antes de entrar.',
+        6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa al norte, podés escribir "desactivar trampa norte" antes de entrar.\n⚠️  Al norte de aquí está la Sala del Trono — también tiene una trampa de frío (primera visita). Si pasás por la Prisión (sala 8, volviendo al Pozo), hay una "corona rota" abandonada en las celdas que la desactiva. DIS-1033',
         9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de tres formas: (1) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, (2) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (3) buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
         3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).\n🧠 Próxima vez que veas el hint de trampa al oeste, podés escribir "desactivar trampa oeste" antes de entrar.',
         13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Buscá en esta sala o en los alrededores del Lago.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
@@ -2887,7 +2887,11 @@ function cmdAttack(player, targetName) {
 
   // ── Progreso de quest ────────────────────────────────────────────────────
   let questLines = '';
-  if (monsterDead) {
+  // DIS-1032: el Goblin de Práctica (id=20) no debe contar para quests de kill —
+  // igual que no da XP ni kills, evitamos que el quest counter avance durante el tutorial
+  // y luego aparezca desincronizado con el mensaje de "¡TUTORIAL COMPLETADO!".
+  const isQuestExcludedMob = monster.id === 20;
+  if (monsterDead && !isQuestExcludedMob) {
     const freshForQuest = db.getPlayer(player.id);
     const qResult = quests.recordProgress(freshForQuest, 'kill', { monsterName: monster.name });
     if (qResult) {
