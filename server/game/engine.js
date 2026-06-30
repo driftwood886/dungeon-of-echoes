@@ -668,7 +668,7 @@ Comandos más usados:
   equip <arma>          — Equipar arma; wear <armadura> para armadura
   rest / descansar      — Recuperar HP (sin monstruos, cooldown 60s)
   map / mapa            — Mapa del dungeon (salas visitadas)
-  ruta <sala>           — Ruta más corta a una sala
+  ruta <sala>           — Ruta más corta (acepta alias: mercader, tienda, jefe, catedral...)
   who / jugadores       — Ver aventureros activos
   guide [sección]       — Guía de inicio rápido (ej: guide 2)
   help <comando>        — Ayuda detallada de un comando específico
@@ -6168,7 +6168,7 @@ function cmdMap(player) {
       return `🗺️ Exploración: ${discovered}/${total} salas descubiertas`;
     })(),
     // DIS-702: hint de navegación con ruta
-    `💡 ¿Perdido? Usá: ruta <sala>  —  Ej: ruta tesoro  /  ruta catedral  /  ruta 4`,
+    `💡 ¿Perdido? Usá: ruta <sala>  —  Ej: ruta mercader  /  ruta tienda  /  ruta catedral  /  ruta jefe  /  ruta 4`,
     // BUG-894: nota explicativa de la puerta 🔑 del Pozo (sala 7) — va al pie, no inline en la grilla
     ...(() => {
       const room7 = db.getRoom(7);
@@ -14706,6 +14706,82 @@ function cmdPath(player, args) {
 
   const query = args.join(' ').trim().toLowerCase();
   const allRooms = db.getAllRooms();
+
+  // DIS-1057: alias comunes para facilitar la navegación sin saber el ID de sala
+  const ROOM_ALIASES = {
+    // Cámara del Tesoro (sala 4) — donde está el mercader Aldric y la tienda
+    'mercader': 4, 'aldric': 4, 'tienda': 4, 'shop': 4, 'tesoro': 4,
+    // Casa de Subastas (sala 17)
+    'subastas': 17, 'subasta': 17, 'auction': 17, 'escriba': 17,
+    // Entrada (sala 1)
+    'entrada': 1, 'inicio': 1, 'start': 1,
+    // Sala del Trono (sala 9) — boss Espectro del Corredor
+    'trono': 9,
+    // Santuario Profano (sala 10) — boss Gólem de Piedra
+    'santuario': 10,
+    // Catedral de la Oscuridad (sala 15) — Lich Anciano (final boss)
+    'lich': 15, 'catedral': 15, 'final': 15,
+    // Forja (sala 12)
+    'forja': 12,
+    // Abismo Eterno (sala 20)
+    'abismo': 20,
+    // Coliseo de Huesos (sala 14)
+    'coliseo': 14,
+    // Cámara del Eco (sala 19)
+    'eco': 19,
+    // Fuente Eterna (sala 18)
+    'fuente': 18,
+    // Pozo Sin Fondo (sala 7)
+    'pozo': 7,
+    // Prisión Subterránea (sala 8)
+    'prision': 8, 'prisión': 8, 'carcel': 8, 'cárcel': 8,
+    // boss dinámico: "jefe" → sala donde está el boss activo (más cercano)
+  };
+  // Alias dinámico "jefe": sala del boss más cercano que esté vivo
+  const BOSS_ROOM_IDS = [8, 9, 10, 12, 14, 15, 19, 20];
+  if (query === 'jefe' || query === 'boss') {
+    // Buscar el boss vivo más cercano via BFS desde sala actual
+    const playerInv = player.inventory || [];
+    const graphTemp = {};
+    for (const room of allRooms) {
+      graphTemp[room.id] = [];
+      const exits = room.exits || {};
+      for (const [dir, dest] of Object.entries(exits)) {
+        if (typeof dest === 'object' && dest.key) {
+          const hasK = playerInv.some(item => item.toLowerCase() === dest.key.toLowerCase());
+          if (!hasK) continue;
+          if (dest.room_id) graphTemp[room.id].push(dest.room_id);
+        } else {
+          const dId = typeof dest === 'object' ? dest.room_id : dest;
+          if (dId) graphTemp[room.id].push(dId);
+        }
+      }
+    }
+    const bfsQueue = [player.current_room_id];
+    const bfsVisited = new Set([player.current_room_id]);
+    let foundBossRoom = null;
+    outer: while (bfsQueue.length > 0) {
+      const cur = bfsQueue.shift();
+      if (BOSS_ROOM_IDS.includes(cur) && cur !== player.current_room_id) {
+        try {
+          const bossRoom = allRooms.find(r => r.id === cur);
+          if (bossRoom) { foundBossRoom = bossRoom; break outer; }
+        } catch (_) {}
+      }
+      for (const next of (graphTemp[cur] || [])) {
+        if (!bfsVisited.has(next)) { bfsVisited.add(next); bfsQueue.push(next); }
+      }
+    }
+    if (foundBossRoom) {
+      return cmdPath(player, [String(foundBossRoom.id)]);
+    }
+    return { text: '🗺 No encontré ningún boss accesible desde tu posición actual.' };
+  }
+  // Resolver alias simples
+  const aliasId = ROOM_ALIASES[query] || ROOM_ALIASES[query.normalize('NFD').replace(/[\u0300-\u036f]/g, '')];
+  if (aliasId) {
+    return cmdPath(player, [String(aliasId)]);
+  }
 
   // Intentar por ID numérico primero
   let targetRoom = null;
