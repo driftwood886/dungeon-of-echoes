@@ -32,7 +32,7 @@ const SKILLS = {
     cooldown_seconds: 45,
     type: 'attack',
     dmg_multiplier: 1.8,
-    description: 'Un golpe devastador que hace ×1.8 del daño normal. Cooldown: 45s.',
+    description: 'Un golpe devastador que hace ×1.8 del daño normal. Cooldown: 45s. No disponible contra enemigos con muy poco HP.',
     combat_only: true,
     excluded_classes: ['mago', 'clerigo', 'picaro'],  // DIS-D304: Mago usa hechizos; DIS-612: Clérigo tiene habilidades propias; DIS-616: Pícaro tiene habilidades propias
   },

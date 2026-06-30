@@ -11601,6 +11601,14 @@ function cmdUseSkill(player, args, context) {
     // Buscar monstruo por nombre si se especificó, si no usar el primero
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
+
+    // DIS-1062: smash no está disponible contra enemigos demasiado débiles (HP ≤ 20% del max HP del jugador)
+    // Evita que en niveles altos el guerrero oneshot enemigos tier 1-2 quitando toda tensión
+    const smashThreshold = Math.ceil((freshPlayer.max_hp || 30) * 0.20);
+    if (target.hp <= smashThreshold && target.hp <= 20) {
+      return { text: `⚡ ${target.name} tiene ${target.hp} HP — es demasiado débil para merecer tu Golpetazo. Usá \`attack\` para terminarlo.\n💡 El Golpetazo solo está disponible contra enemigos que representan una amenaza real.` };
+    }
+
     const baseDmg = freshPlayer.attack || 5;
     // DIS-679: aplicar entumecimiento espectral (atk_debuffed) igual que en combat.js
     // BUG-1020: si está en Sala de Práctica atacando un maniquí, redirigir a _cmdTrainingFight (sin XP/kills)
