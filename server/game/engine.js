@@ -3909,6 +3909,7 @@ function cmdUse(player, itemQuery) {
 
   } else if (def.type === 'weapon') {
     // BUG-274: remover el arma nueva del inventario, devolver la anterior si había una
+    // BUG-1049: mantener funcionalidad pero indicar el comando correcto
     const prevWeaponBonus = player.equipped_weapon ? (items.getItemDef(player.equipped_weapon)?.amount || 0) : 0;
     const baseAttack = player.attack - prevWeaponBonus;
     const newAttack = baseAttack + def.amount;
@@ -3926,7 +3927,7 @@ function cmdUse(player, itemQuery) {
     db.updatePlayer(player.id, { attack: newAttack, equipped_weapon: found, inventory: invUse });
 
     const swapMsgUse = player.equipped_weapon ? ` (reemplaza ${player.equipped_weapon} → vuelve a tu mochila)` : '';
-    resultText = `Equipás ${found}${swapMsgUse}. Tu ataque sube a ${newAttack}.`;
+    resultText = `Equipás ${found}${swapMsgUse}. Tu ataque sube a ${newAttack}.\n💡 Tip: para equipar armas usá el comando "equip ${found}" directamente.`;
 
   } else if (def.type === 'atk_potion' && def.effect === 'power') {
     // DIS-D382: poción de poder — buff temporal de ATK (similar a pergaminos)
@@ -4016,8 +4017,13 @@ function cmdUse(player, itemQuery) {
     resultText = `🧪 Frotás el veneno de contacto en tu arma. La hoja queda impregnada de toxina aceitosa.\n🗡️ Los próximos ${def.charges || 3} ataques tienen 40% de envenenar al objetivo. (Las cargas se consumen en cada golpe.)`;
 
   } else if (def.type === 'armor') {
-    // BUG-429: 'use <armadura>' debe equipar la armadura, no solo describir
-    return cmdWear(player, found);
+    // BUG-1049: 'use <armadura>' redirige al jugador al comando correcto 'equip'
+    // (mantiene retrocompatibilidad con BUG-429 pero ahora avisa del comando correcto)
+    const wearResult = cmdWear(player, found);
+    if (wearResult && wearResult.text) {
+      wearResult.text = `${wearResult.text}\n💡 Tip: para equipar armaduras usá el comando "equip ${found}" directamente.`;
+    }
+    return wearResult;
 
   } else if (def.type === 'bag') {
     // DIS-595: bolsa de lona — expande inventario en +slots (máx 2 bolsas = +8 slots)
