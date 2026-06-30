@@ -1013,6 +1013,10 @@ function cmdLook(player) {
     const IN_ROOM_BOSS_WARN = {
       19: { monsterId: 21, name: 'el Eco Viviente', level: 6, icon: '🔊' },
       14: { monsterId: 12, name: 'el Campeón Espectral', level: 6, icon: '🦴' },
+      // DIS-1059: Guardia Espectral en Prisión Subterránea — el jugador puede entrar
+      // directamente desde la Casa de Subastas (este→norte) sin ver el aviso previo
+      // de la Cámara del Tesoro. Mostrar aviso in-sala para ambas rutas de acceso.
+      8:  { monsterId: 8,  name: 'el Guardia Espectral', level: 4, icon: '👻' },
     };
     const inRoomDanger = IN_ROOM_BOSS_WARN[player.current_room_id];
     if (inRoomDanger) {
