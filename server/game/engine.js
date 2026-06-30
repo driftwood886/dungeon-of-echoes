@@ -4129,6 +4129,16 @@ function cmdDrop(player, itemQuery) {
 
   const found = items.findItem(player.inventory, itemQuery.trim());
   if (!found) {
+    // BUG-1050: verificar si el ítem está equipado en vez de dar error genérico
+    const qNorm = itemQuery.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const equippedWeaponNorm = player.equipped_weapon ? player.equipped_weapon.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : null;
+    const equippedArmorNorm  = player.equipped_armor  ? player.equipped_armor.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')  : null;
+    if (equippedWeaponNorm && (equippedWeaponNorm.includes(qNorm) || qNorm.includes(equippedWeaponNorm))) {
+      return { text: `⚔️ "${player.equipped_weapon}" está equipada como arma. Desequipala primero con:\n  unequip ${player.equipped_weapon}\nDespués podés tirarla con drop.` };
+    }
+    if (equippedArmorNorm && (equippedArmorNorm.includes(qNorm) || qNorm.includes(equippedArmorNorm))) {
+      return { text: `🛡️ "${player.equipped_armor}" está equipada como armadura. Desequipala primero con:\n  unequip ${player.equipped_armor}\nDespués podés tirarla con drop.` };
+    }
     return { text: `No tenés ningún "${itemQuery}" en el inventario.` };
   }
 
