@@ -207,7 +207,7 @@ function calcLevelUp(freshPlayer, xpGain) {
     }
     fields.attack = (freshPlayer.attack || 5) + 1;
   }
-  return { fields, levelUpMsg: levelUp ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}!` : '' };
+  return { fields, levelUpMsg: levelUp ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}!${newLevel === 5 && !freshPlayer.specialization ? '\n   🌟 ¡Desbloqueaste especializaciones! Escribí "especializar" para elegir una.' : ''}` : '' };
 }
 
 /**
@@ -1029,6 +1029,18 @@ function cmdLook(player) {
     }
   } catch (_) {}
 
+  // DIS-1042: hint de posturas en la Sala de Práctica (sala 21)
+  // Los jugadores nuevos no descubren el sistema de posturas hasta mucho más tarde.
+  // Solo mostrarlo si el jugador aún no usa posturas (nivel < 5 o no ha cambiado postura antes).
+  let practicaPosturaHint = '';
+  if (player.current_room_id === 21) {
+    const stance = player.stance || 'equilibrado';
+    // Mostrar hint si el jugador está en postura por defecto (nunca la cambió)
+    if (stance === 'equilibrado') {
+      practicaPosturaHint = `\n\n⚔️ Consejo del entrenador: Los guerreros experimentados ajustan su postura de combate.\n  · postura ofensivo  → +2 ATK, -2 DEF (atacás con más fuerza)\n  · postura defensivo → -2 ATK, +2 DEF (aguantás más golpes)\n  · postura equilibrado → sin modificadores (postura actual)\nProbá cambiar de postura aquí con los maniquíes — sin riesgo.`;
+    }
+  }
+
   // DIS-852: mostrar evento global activo en la descripción de sala
   let activeEventLine = '';
   try {
@@ -1041,7 +1053,7 @@ function cmdLook(player) {
     }
   } catch (_) { /* no romper look si worldEvents falla */ }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + activeEventLine };
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + practicaPosturaHint + activeEventLine };
 }
 
 /**
@@ -1807,25 +1819,32 @@ function cmdMove(player, direction) {
   // DIS-639: Advertencia si el jugador deja ítems épicos/raros en el suelo de la sala de origen
   // BUG-645 fix: usar _originRoomId (capturado antes del updatePlayer) para verificar sala correcta
   // BUG-727 fix: solo avisar UNA VEZ por sala — guardar epic_warn_room en status_effects para no repetir
+  // DIS-1044 fix: comparar también los ítems advertidos; si el jugador vuelve a la sala y los
+  // ítems siguen ahí, se advierte al salir en cualquier dirección (no solo la primera vez)
   let leftEpicMsg = '';
   {
     const freshForEpic = db.getPlayer(player.id) || player;
     const seForEpic = parseSE(freshForEpic.status_effects); // BUG-992: era parseSE(freshForEpic) — guardaba el jugador completo como status_effects
     const alreadyWarnedRoom = seForEpic.epic_warn_room;
-    if (alreadyWarnedRoom !== _originRoomId) {
-      const prevRoomItems = db.getRoom(_originRoomId);
-      if (prevRoomItems) {
-        const floorItems = Array.isArray(prevRoomItems.items) ? prevRoomItems.items : [];
-        const epicLeft = floorItems.filter(i => {
-          const r = items.getItemRarity(i);
-          // BUG-751: incluir 'raro' además de 'épico'/'legendario' para capturar tomo sellado, pergaminos, etc.
-          return r === 'épico' || r === 'legendario' || r === 'raro';
-        });
-        if (epicLeft.length > 0) {
+    const alreadyWarnedItems = seForEpic.epic_warn_items || ''; // DIS-1044: lista de ítems advertidos
+    const prevRoomItems = db.getRoom(_originRoomId);
+    if (prevRoomItems) {
+      const floorItems = Array.isArray(prevRoomItems.items) ? prevRoomItems.items : [];
+      const epicLeft = floorItems.filter(i => {
+        const r = items.getItemRarity(i);
+        // BUG-751: incluir 'raro' además de 'épico'/'legendario' para capturar tomo sellado, pergaminos, etc.
+        return r === 'épico' || r === 'legendario' || r === 'raro';
+      });
+      if (epicLeft.length > 0) {
+        const currentItemsKey = epicLeft.slice().sort().join(',');
+        // DIS-1044: mostrar advertencia si: (a) sala nueva, o (b) misma sala pero ítems distintos a los ya advertidos
+        const shouldWarn = alreadyWarnedRoom !== _originRoomId || alreadyWarnedItems !== currentItemsKey;
+        if (shouldWarn) {
           const names = epicLeft.join(', ');
           leftEpicMsg = `\n\n⚠️ **Dejaste ítems valiosos en ${prevRoomItems.name}:** ${names}. ¡No los olvides!`;
-          // Marcar que ya avisamos de esta sala para no repetir en movimientos posteriores
+          // Marcar que ya avisamos de esta sala (y qué ítems) para no repetir en movimientos posteriores
           seForEpic.epic_warn_room = _originRoomId;
+          seForEpic.epic_warn_items = currentItemsKey;
           db.updatePlayer(freshForEpic.id, { status_effects: JSON.stringify(seForEpic) });
         }
       }
@@ -6016,8 +6035,10 @@ function cmdMap(player) {
   // Cada celda es [NN:Nombre] de ancho fijo, sin emojis que rompan alineación
   function cell(id) {
     // DIS-580: salas no visitadas aparecen como neblina
+    // DIS-1040: reemplazar "[ ??:?????????]" (15 chars, ruidoso) por "[ ············ ]"
+    // (16 chars, limpio). También corrige el bug de desalineación de 1 char.
     if (!visitedRooms.has(id)) {
-      return `[ ??:?????????]`;
+      return `[ ············ ]`;
     }
     const label = (NAMES[id] || `Sala${id}`).substring(0, 9).padEnd(9, ' ');
     const marker = id === here ? '★' : ' ';
@@ -6098,7 +6119,7 @@ function cmdMap(player) {
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
       : `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda del Mercader)`,
-    `[??:?????????] = sala aún no explorada  [16/21] = salas de tutorial (fuera del conteo de exploración)`,
+    `[ ············ ] = sala aún no explorada  [16/21] = salas de tutorial (fuera del conteo de exploración)`,
     // DIS-921: conteo de salas exploradas al pie del mapa
     (() => {
       const MAP_DUNGEON_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18,19,20,22];
