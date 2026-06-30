@@ -10,7 +10,7 @@ const http    = require('http');
 const path    = require('path');
 
 const db                     = require('./db/db');
-const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005 } = require('./db/seed');
+const { seedIfEmpty, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038 } = require('./db/seed');
 const { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions } = require('./game/engine');
 const { checkRespawns, wanderMonsters } = require('./game/combat');
 const quests                 = require('./game/quests');
@@ -76,6 +76,8 @@ async function main() {
   migrateFixCorruptStatusEffects992(); // BUG-992: limpiar status_effects corruptos (contenían objeto jugador completo)
   migrateCleanPrisonEpicLoot1007(); // DIS-1007: limpiar ítems épicos pre-placed en Prisión (sala 8) — ahora se dropean directo al matar boss
   migrateMerchantHintDIS1005(); // DIS-1005: mejorar descripción de sala 3 y 4 para que quede claro que Aldric está en la Cámara del Tesoro
+  migrateGaleriaHieloCuracionDIS1035(); // DIS-1035: agregar hierba curativa en Galería de Hielo (sala 11) como curación intermedia antes del Golem de Forja
+  migratePistaSantuarioTrapasDIS1038(); // DIS-1038: actualizar pista de ruta alternativa al Santuario con advertencia de trampas
 
   // 2. Crear app Express
   const app = express();
@@ -782,6 +784,15 @@ async function main() {
         if (!hasHongo) {
           db.updateRoomItems(6, [...items6, 'hongo azul']);
           console.log('[itemRespawn] BUG-805 — hongo azul restaurado en Túnel de los Hongos (sala 6). ✓');
+        }
+      }
+      // Restaurar hierba curativa en Galería de Hielo (sala 11) — DIS-1035
+      const room11 = db.getRoom(11);
+      if (room11) {
+        const items11 = Array.isArray(room11.items) ? room11.items : [];
+        if (!items11.includes('hierba curativa')) {
+          db.updateRoomItems(11, [...items11, 'hierba curativa']);
+          console.log('[itemRespawn] DIS-1035 — hierba curativa restaurada en Galería de Hielo (sala 11). ✓');
         }
       }
     } catch (e) {

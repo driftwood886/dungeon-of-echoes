@@ -164,7 +164,7 @@ const CRAFTED_ITEMS = {
   'cuchillo envenenado': { type: 'weapon', effect: 'attack_bonus', amount: 3, description: 'Un cuchillo impregnado de veneno. +3 de ataque. Los golpes tienen 25% de envenenar al objetivo.' },
   'látigo de garras':   { type: 'weapon', effect: 'attack_bonus', amount: 4, description: 'Un látigo improvisado con garras de esqueleto. Largo alcance. +4 de ataque.' },
   'red resistente':     { type: 'misc', description: 'Una red de araña y cuerda trenzadas. Casi imposible de romper. Podría usarse para atrapar cosas.' },
-  'collar de garras':   { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Un collar artesanal de dientes de goblin y seda de araña. Emana poder primitivo. +2 de defensa. Se equipa como armadura: `wear collar de garras`.' },
+  'collar de garras':   { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Un collar artesanal de colmillos de murciélago vampiro y seda de araña. Emana poder primitivo. +2 de defensa. Se equipa como armadura: `wear collar de garras`.' },
   'grimorio del abismo':{ type: 'weapon', effect: 'attack_bonus', amount: 10, description: 'Un grimorio sellado con el poder de la perla negra abismal. +10 de ataque mágico.' },
   // DIS-492: ítems de reciclaje de loot basura
   'cuero de criatura':  { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Cuero curtido con escamas abismales. Áspero pero funcional. +2 de defensa.' },

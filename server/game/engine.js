@@ -1897,10 +1897,11 @@ function cmdInventory(player) {
   const invBonus = player.inventory_bonus || 0;
   const maxSlots = 25 + invBonus;
   const usedSlots = allItems.length;  // solo ítems en mochila, no equipados
+  // DIS-1037: solo mostrar hint de bolsa de lona cuando el inventario está casi lleno (>18/25 slots usados)
   let slotHint = '';
-  if (invBonus === 0) {
+  if (invBonus === 0 && usedSlots > 18) {
     slotHint = ` · Ampliá con bolsa de lona (+4 slots, 20g en tienda de Aldric — hacé "use bolsa de lona" al comprarla)`;
-  } else if (invBonus < 8) {
+  } else if (invBonus < 8 && usedSlots > (18 + invBonus)) {
     slotHint = ` · Podés comprar una 2da bolsa de lona (+4 slots más, 20g en tienda de Aldric)`;
   }
   const rareCount = allItems.filter(i => items.getItemRarity(i) !== 'común').length

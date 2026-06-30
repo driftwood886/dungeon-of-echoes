@@ -579,7 +579,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038 };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1973,5 +1973,51 @@ function migrateMerchantHintDIS1005() {
     }
   } catch (e) {
     console.warn('[seed] migrateMerchantHintDIS1005:', e.message);
+  }
+}
+
+/**
+ * DIS-1035: Agregar hierba curativa en la Galería de Hielo (sala 11).
+ * La ruta natural desde el Santuario Profano hasta el Taller de la Forja no ofrece
+ * curación intermedia. El jugador llega al Golem de Forja (nivel 5+) con HP bajo
+ * si no pasa por la Fuente Eterna primero. Solución: colocar una hierba curativa
+ * persistente en la Galería de Hielo — narrativamente plausible (plantas resistentes al frío).
+ */
+function migrateGaleriaHieloCuracionDIS1035() {
+  try {
+    const room11 = db.getRoom(11);
+    if (!room11) return;
+    const items11 = Array.isArray(room11.items) ? room11.items : [];
+    if (!items11.includes('hierba curativa')) {
+      db.upsertRoom({ ...room11, items: [...items11, 'hierba curativa'] });
+      console.log('[seed] migrateGaleriaHieloCuracionDIS1035: hierba curativa agregada a Galería de Hielo (sala 11). DIS-1035 ✓');
+    }
+  } catch (e) {
+    console.warn('[seed] migrateGaleriaHieloCuracionDIS1035:', e.message);
+  }
+}
+
+/**
+ * DIS-1038: Actualizar la pista de ruta alternativa al Santuario (sala 7, Pozo Sin Fondo).
+ * La descripción original decía que la ruta "Capilla → Hongos → Trono → Santuario"
+ * era una alternativa sin mencionar que incluye trampas. Actualizar para advertir
+ * sobre las trampas de esporas (Hongos) y frío (Trono) en esa ruta.
+ */
+function migratePistaSantuarioTrapasDIS1038() {
+  try {
+    const room7 = db.getRoom(7);
+    if (!room7) return;
+    // Buscar la pista antigua (con o sin la advertencia de trampas)
+    const pistaAntigua = '(💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)';
+    const pistaNueva = '(💡 Si no tenés la llave, hay otra ruta al Santuario: Entrada → Capilla (este) → Túnel de Hongos (norte) → Sala del Trono (norte) → Santuario. ⚠️ Ojo: esa ruta tiene una trampa de esporas en los Hongos y una trampa de frío en el Trono — ambas activas en la primera visita.)';
+    if (room7.description.includes(pistaAntigua)) {
+      const newDesc = room7.description.replace(pistaAntigua, pistaNueva);
+      db.upsertRoom({ ...room7, description: newDesc });
+      console.log('[seed] migratePistaSantuarioTrapasDIS1038: pista de ruta alternativa actualizada con advertencia de trampas. DIS-1038 ✓');
+    } else if (!room7.description.includes(pistaNueva)) {
+      console.log('[seed] migratePistaSantuarioTrapasDIS1038: descripción de sala 7 no contiene la pista esperada — sin cambios.');
+    }
+  } catch (e) {
+    console.warn('[seed] migratePistaSantuarioTrapasDIS1038:', e.message);
   }
 }

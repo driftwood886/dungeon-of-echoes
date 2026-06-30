@@ -42,7 +42,7 @@ const ITEM_CATALOG = {
   'espada larga':        { type: 'weapon', effect: 'attack_bonus', amount: 5,  description: 'Una espada bien balanceada. +5 de ataque.' },
   'cristal mágico':      { type: 'weapon', effect: 'attack_bonus', amount: 7,  description: 'Un cristal que amplifica la fuerza. +7 de ataque.' },
   'piedra de poder':     { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'El núcleo de energía que alimentaba los brazos del Gólem de Piedra. Al arrancarlo, el constructo se desplomó. Pulsa con magia telúrica contenida. +4 de ataque.' },
-  'diente afilado':      { type: 'weapon', effect: 'attack_bonus', amount: 2,  description: 'Un colmillo de murciélago vampiro, afilado como una aguja. +2 de ataque.' },
+  'diente afilado':      { type: 'weapon', effect: 'attack_bonus', amount: 2,  description: 'Un colmillo de murciélago vampiro, afilado como una aguja. +2 de ataque. También se usa como ingrediente para craftear el collar de garras (junto con hilo de seda).' },
   'garra de esqueleto':  { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'La garra de un esqueleto endurecida por la magia oscura. +3 de ataque.' },
   'hacha rústica':       { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'Un hacha de mano, tosca pero funcional. +4 de ataque.' },
 
@@ -124,7 +124,7 @@ const ITEM_CATALOG = {
   'cuchillo envenenado': { type: 'weapon', effect: 'attack_bonus', amount: 3,  on_hit: { type: 'poison', chance: 0.35, damage: 1, turns: 4 }, description: 'Un cuchillo impregnado de veneno de araña. +3 de ataque. 35% de chance de envenenar al objetivo por 4 turnos.' },
   'látigo de garras':    { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'Un látigo improvisado con garras de esqueleto. +4 de ataque.' },
   'red resistente':      { type: 'misc', description: 'Una red de araña y cuerda trenzadas. Casi imposible de romper.' },
-  'collar de garras':    { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Un collar artesanal de dientes de goblin y seda de araña. Emana poder primitivo. +2 de defensa. Se equipa como armadura: `wear collar de garras`.' },
+  'collar de garras':    { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Un collar artesanal de colmillos de murciélago vampiro y seda de araña. Emana poder primitivo. +2 de defensa. Se equipa como armadura: `wear collar de garras`.' },
   'grimorio del abismo': { type: 'weapon', effect: 'attack_bonus', amount: 10, on_hit: { type: 'shadow_bolt', chance: 0.20, bonus_damage: 8 }, description: 'Un grimorio sellado con poder abismal. +10 de ataque mágico. 20% de chance de lanzar un rayo de sombra (+8 daño extra).' },
 
   // ── DIS-D425: Ítem único de la Prisión Subterránea ───────────────────────
