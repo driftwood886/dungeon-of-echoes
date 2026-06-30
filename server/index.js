@@ -200,13 +200,16 @@ async function main() {
       });
     }
 
+    // BUG-1048b: alias 'creatures' para compatibilidad con clientes que usen ese nombre
+    const monsterList = monsters.map(m => ({ name: m.name, hp: m.hp, max_hp: m.max_hp }));
     res.json({
       room: {
         id: room.id,
         name: room.name,
         description: room.description,
         exits: Object.keys(room.exits),
-        monsters: monsters.map(m => ({ name: m.name, hp: m.hp, max_hp: m.max_hp })),
+        monsters: monsterList,
+        creatures: monsterList, // alias de monsters — ambos son equivalentes
         items: room.items,
         trap: room.trap ? { active: room.trap.active, type: room.trap.type } : null,
         room_effect: ROOM_EFFECTS[room.id] ? { label: ROOM_EFFECTS[room.id].label, type: ROOM_EFFECTS[room.id].type } : null,
@@ -541,6 +544,8 @@ async function main() {
     const events   = db.getRecentEvents(player.current_room_id, 5)
                        .map(e => e.result);
 
+    // BUG-1048b: alias 'creatures' igual que en /api/state
+    const actionMonsterList = monsters.map(m => ({ name: m.name, hp: m.hp, max_hp: m.max_hp }));
     res.json({
       result: resultText,
       state: {
@@ -549,7 +554,8 @@ async function main() {
           name: room.name,
           description: room.description,
           exits: Object.keys(room.exits),
-          monsters: monsters.map(m => ({ name: m.name, hp: m.hp, max_hp: m.max_hp })),
+          monsters: actionMonsterList,
+          creatures: actionMonsterList, // alias de monsters
           items: room.items,
           trap: room.trap ? { active: room.trap.active, type: room.trap.type } : null,
           room_effect: ROOM_EFFECTS[room.id] ? { label: ROOM_EFFECTS[room.id].label, type: ROOM_EFFECTS[room.id].type } : null,

@@ -101,6 +101,9 @@ Devuelve el estado completo del juego como JSON estructurado.
     "monsters": [
       { "name": "Goblin Merodeador", "hp": 15, "max_hp": 15 }
     ],
+    "creatures": [
+      { "name": "Goblin Merodeador", "hp": 15, "max_hp": 15 }
+    ],
     "items": ["espada oxidada"]
   },
   "player": {
