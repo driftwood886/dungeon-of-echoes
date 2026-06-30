@@ -9781,14 +9781,19 @@ function cmdAuction(player, args) {
   const nfnAuction = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const itemNameNFD = nfnAuction(itemName);
   const inventory = player.inventory || [];
+  // BUG-1054: soportar match parcial igual que el resto del sistema.
+  // Primero intentar match exacto; si falla, intentar match parcial (incluye).
   let itemIndex = inventory.findIndex(i => nfnAuction(i) === itemNameNFD);
+  if (itemIndex === -1) {
+    itemIndex = inventory.findIndex(i => nfnAuction(i).includes(itemNameNFD) || itemNameNFD.includes(nfnAuction(i)));
+  }
 
   // DIS-D359: si no está en inventario, verificar si está equipado
   let unequipMsg = '';
   let realItemName = itemIndex >= 0 ? inventory[itemIndex] : null; // nombre real del ítem (con tildes)
   if (itemIndex === -1) {
-    const isWeapon = player.equipped_weapon && nfnAuction(player.equipped_weapon) === itemNameNFD;
-    const isArmor  = player.equipped_armor  && nfnAuction(player.equipped_armor)  === itemNameNFD;
+    const isWeapon = player.equipped_weapon && (nfnAuction(player.equipped_weapon) === itemNameNFD || nfnAuction(player.equipped_weapon).includes(itemNameNFD) || itemNameNFD.includes(nfnAuction(player.equipped_weapon)));
+    const isArmor  = player.equipped_armor  && (nfnAuction(player.equipped_armor)  === itemNameNFD || nfnAuction(player.equipped_armor).includes(itemNameNFD)  || itemNameNFD.includes(nfnAuction(player.equipped_armor)));
     if (isWeapon) {
       // Des-equipar arma
       realItemName = player.equipped_weapon;
