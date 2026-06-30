@@ -207,7 +207,7 @@ function calcLevelUp(freshPlayer, xpGain) {
     }
     fields.attack = (freshPlayer.attack || 5) + 1;
   }
-  return { fields, levelUpMsg: levelUp ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}!${newLevel === 5 && !freshPlayer.specialization ? '\n   🌟 ¡Desbloqueaste especializaciones! Escribí "especializar" para elegir una.' : ''}` : '' };
+  return { fields, levelUpMsg: levelUp ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}! +5 HP máx, +1 ataque${fields.hp ? `, +${fields.hp - (freshPlayer.hp || 1)} HP restaurado (${fields.hp}/${fields.max_hp} HP)` : ''}${newLevel === 5 && !freshPlayer.specialization ? '\n   🌟 ¡Desbloqueaste especializaciones! Escribí "especializar" para elegir una.' : ''}` : '' };
 }
 
 /**
