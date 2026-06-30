@@ -7881,7 +7881,7 @@ function cmdInspect(player, targetName) {
  * guild <subcomando> [args] — Gestionar hermandades/guilds.
  *
  * Subcomandos:
- *   create <nombre>  — Crear una nueva hermandad (cuesta 50 oro)
+ *   create <nombre>  — Crear una nueva hermandad (cuesta 20 oro)
  *   join <nombre>    — Unirse a una hermandad existente
  *   leave            — Abandonar la hermandad actual
  *   info             — Ver info de tu hermandad (miembros, líder)
@@ -8020,10 +8020,10 @@ function cmdGuild(player, args) {
       return { text: `Ya pertenecés a la hermandad [${player.guild}]. Salí primero con "guild leave".` };
     }
 
-    // Costo de fundación: 30 oro (DIS-523: reducido de 50 para bajar la barrera de entrada)
+    // Costo de fundación: 20 oro (DIS-1043: reducido de 30 para mejorar economía de early game)
     const gold = player.gold || 0;
-    if (gold < 30) {
-      return { text: `Fundar una hermandad cuesta 30 de oro. Tenés ${gold}g. ¡Conseguí más monedas y volvé!` };
+    if (gold < 20) {
+      return { text: `Fundar una hermandad cuesta 20 de oro. Tenés ${gold}g. ¡Conseguí más monedas y volvé!` };
     }
 
     // Verificar si ya existe
@@ -8037,10 +8037,10 @@ function cmdGuild(player, args) {
     const guildId = randomUUID();
     db.createGuild(guildId, guildArg, player.id);
     db.setPlayerGuild(player.id, guildArg);
-    db.updatePlayer(player.id, { gold: gold - 30 });
+    db.updatePlayer(player.id, { gold: gold - 20 });
 
     return {
-      text: `⚔ ¡Hermandad [${guildArg}] fundada! Te costó 30 de oro. Sos el líder 👑.\nInvitá jugadores diciéndoles que usen "guild join ${guildArg}". Chateá con "gc <mensaje>".\n\n💡 Las hermandades tienen misiones colectivas activas siempre — "guild quest" para ver la actual. ¡Las podés completar vos solo también!`,
+      text: `⚔ ¡Hermandad [${guildArg}] fundada! Te costó 20 de oro. Sos el líder 👑.\nInvitá jugadores diciéndoles que usen "guild join ${guildArg}". Chateá con "gc <mensaje>".\n\n💡 Las hermandades tienen misiones colectivas activas siempre — "guild quest" para ver la actual. ¡Las podés completar vos solo también!`,
       event: `⚔ ¡${player.username} fundó la hermandad [${guildArg}]!`,
       eventRoomId: player.current_room_id,
     };

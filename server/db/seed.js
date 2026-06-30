@@ -579,7 +579,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043 };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -2019,5 +2019,41 @@ function migratePistaSantuarioTrapasDIS1038() {
     }
   } catch (e) {
     console.warn('[seed] migratePistaSantuarioTrapasDIS1038:', e.message);
+  }
+}
+
+/**
+ * DIS-1043: Rebalanceo económico de early game.
+ * - Rata Gigante (id=3): monedas de cobre (1g) → monedas de plata (5g)
+ * - Murciélago Vampiro (id=6): monedas de cobre (1g) → monedas de plata (5g)
+ * - Guardia Espectral (id=8): agregar monedas de oro (10g) al loot
+ * El costo de hermandad se redujo de 30 a 20g en engine.js.
+ */
+function migrateEconomyRebalanceDIS1043() {
+  try {
+    // Rata Gigante: monedas de cobre → monedas de plata
+    const rat = db.getMonster(3);
+    if (rat && rat.loot.includes('monedas de cobre') && !rat.loot.includes('monedas de plata')) {
+      const newLoot = rat.loot.map(i => i === 'monedas de cobre' ? 'monedas de plata' : i);
+      db.upsertMonster({ ...rat, loot: newLoot });
+      console.log('[seed] migrateEconomyRebalanceDIS1043: Rata Gigante → monedas de plata (5g). ✓');
+    }
+
+    // Murciélago Vampiro (sala 5, id=6): monedas de cobre → monedas de plata
+    const bat = db.getMonster(6);
+    if (bat && bat.loot.includes('monedas de cobre') && !bat.loot.includes('monedas de plata')) {
+      const newLoot = bat.loot.map(i => i === 'monedas de cobre' ? 'monedas de plata' : i);
+      db.upsertMonster({ ...bat, loot: newLoot });
+      console.log('[seed] migrateEconomyRebalanceDIS1043: Murciélago Vampiro → monedas de plata (5g). ✓');
+    }
+
+    // Guardia Espectral (id=8): agregar monedas de oro si no las tiene
+    const guardia = db.getMonster(8);
+    if (guardia && !guardia.loot.includes('monedas de oro')) {
+      db.upsertMonster({ ...guardia, loot: [...guardia.loot, 'monedas de oro'] });
+      console.log('[seed] migrateEconomyRebalanceDIS1043: Guardia Espectral → +monedas de oro (10g). ✓');
+    }
+  } catch (e) {
+    console.warn('[seed] migrateEconomyRebalanceDIS1043:', e.message);
   }
 }
