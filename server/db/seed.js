@@ -579,7 +579,7 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047 };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.
@@ -1082,14 +1082,18 @@ function migrateIceFragmentLoot() {
 function migratePistaSantuario() {
   const room7 = db.getRoom(7);
   if (!room7) return;
-  const pista = '(💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)';
-  if (!room7.description.includes(pista)) {
-    const newDesc = room7.description.replace(
-      /\s*\(💡[^)]+\)\s*$/, ''  // eliminar pista vieja si existiera
-    ).trimEnd() + ' ' + pista;
-    db.upsertRoom({ ...room7, description: newDesc });
-    console.log('[seed] migratePistaSantuario: pista de ruta alternativa agregada en Sala 7 (Pozo Sin Fondo). DIS-D42 ✓');
+  const pistaVieja = '(💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)';
+  // BUG-1047: también considerar la pista actualizada por DIS-1038 como "ya presente"
+  const pistaNueva = '(💡 Si no tenés la llave, hay otra ruta al Santuario: Entrada → Capilla (este) → Túnel de Hongos (norte) → Sala del Trono (norte) → Santuario.';
+  if (room7.description.includes(pistaVieja) || room7.description.includes(pistaNueva)) {
+    // Pista ya presente (en alguna versión) — no agregar otra copia
+    return;
   }
+  const newDesc = room7.description.replace(
+    /\s*\(💡[^)]+\)\s*$/, ''  // eliminar pista vieja si existiera
+  ).trimEnd() + ' ' + pistaVieja;
+  db.upsertRoom({ ...room7, description: newDesc });
+  console.log('[seed] migratePistaSantuario: pista de ruta alternativa agregada en Sala 7 (Pozo Sin Fondo). DIS-D42 ✓');
 }
 
 /**
@@ -2075,5 +2079,37 @@ function migratePracticaHintDIS1041() {
     }
   } catch (e) {
     console.warn('[seed] migratePracticaHintDIS1041:', e.message);
+  }
+}
+
+/**
+ * BUG-1047: Limpiar duplicados de pista de ruta alternativa en sala 7 (Pozo Sin Fondo).
+ * El bug en migratePistaSantuario() causó que la pista se appendeara 5+ veces.
+ * Esta migración deja exactamente una copia de la pista correcta (DIS-1038).
+ */
+function migrateCleanPistaSantuarioBUG1047() {
+  try {
+    const room7 = db.getRoom(7);
+    if (!room7) return;
+    const pistaNueva = '(💡 Si no tenés la llave, hay otra ruta al Santuario: Entrada → Capilla (este) → Túnel de Hongos (norte) → Sala del Trono (norte) → Santuario. ⚠️ Ojo: esa ruta tiene una trampa de esporas en los Hongos y una trampa de frío en el Trono — ambas activas en la primera visita.)';
+    // Contar cuántas veces aparece la pista (nueva o versión parcial)
+    const pistaPattern = /\(💡 Si no tenés la llave, hay otra ruta al Santuario:[^)]+\)/g;
+    const matches = room7.description.match(pistaPattern);
+    if (matches && matches.length > 1) {
+      // Remover TODAS las copias y dejar una sola al final
+      const baseDesc = room7.description.replace(pistaPattern, '').replace(/\s{2,}/g, ' ').trimEnd();
+      const newDesc = baseDesc + ' ' + pistaNueva;
+      db.upsertRoom({ ...room7, description: newDesc });
+      db.persist();
+      console.log(`[seed] migrateCleanPistaSantuarioBUG1047: ${matches.length} copias encontradas, limpiadas a 1. BUG-1047 ✓`);
+    } else if (matches && matches.length === 1 && !room7.description.includes(pistaNueva)) {
+      // Hay una copia pero es la versión vieja — actualizarla
+      const newDesc = room7.description.replace(pistaPattern, pistaNueva);
+      db.upsertRoom({ ...room7, description: newDesc });
+      db.persist();
+      console.log('[seed] migrateCleanPistaSantuarioBUG1047: versión vieja actualizada a DIS-1038. BUG-1047 ✓');
+    }
+  } catch (e) {
+    console.warn('[seed] migrateCleanPistaSantuarioBUG1047:', e.message);
   }
 }
