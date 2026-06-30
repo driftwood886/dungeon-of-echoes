@@ -275,10 +275,17 @@ async function main() {
    * GET /api/leaderboard
    * Devuelve la tabla de líderes global (top 10 por kills, luego XP).
    * Útil para que clientes externos y LLMs consulten el ranking.
+   * BUG-1052: ahora filtra bots de playtest igual que el comando in-game 'score'.
+   *   Pasar ?bots=true para incluirlos.
    */
   app.get('/api/leaderboard', (req, res) => {
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
-    const leaders = db.getLeaderboard(limit);
+    const includeBots = req.query.bots === 'true';
+    // BUG-1052: mismo filtro de bots que cmdScore (DIS-522)
+    const BOT_PATTERNS = [/^BotTester/i, /^playtest_bot/i, /^PTBot/i, /^DisTester/i, /^PTBotD/i, /^DisDesign/i, /^PlayBot/i, /^bot_/i, /^BotPlaytest/i];
+    const isBot = name => BOT_PATTERNS.some(p => p.test(name || ''));
+    const rawLeaders = db.getLeaderboard(includeBots ? limit : limit * 3);
+    const leaders = includeBots ? rawLeaders : rawLeaders.filter(p => !isBot(p.username)).slice(0, limit);
     res.json({
       count: leaders.length,
       leaderboard: leaders.map((p, idx) => ({
