@@ -203,7 +203,20 @@ function getItemDef(name) {
 function findItem(itemList, query) {
   const normalize = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const q = normalize(query);
-  return itemList.find(item => normalize(item).includes(q)) || null;
+  // Paso 1: match exacto por substring (ej: "escudo de gladiador" incluye "escudo de gladiador")
+  const exact = itemList.find(item => normalize(item).includes(q));
+  if (exact) return exact;
+  // Paso 2: fuzzy matching por tokens — todos los tokens del query deben estar en el nombre del ítem
+  // Permite "escudo gladiador" → "escudo de gladiador" (ignora artículos/preposiciones)
+  const tokens = q.split(/\s+/).filter(t => t.length > 0);
+  if (tokens.length > 1) {
+    const fuzzy = itemList.find(item => {
+      const norm = normalize(item);
+      return tokens.every(t => norm.includes(t));
+    });
+    if (fuzzy) return fuzzy;
+  }
+  return null;
 }
 
 /**
