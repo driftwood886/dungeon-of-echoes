@@ -315,7 +315,7 @@ function execute(playerId, input, context) {
     case 'unwear':    result = cmdUnwear(player); break;
     case 'map':       result = cmdMap(player); break;
     case 'who':       result = cmdWho(); break;
-    case 'score':     result = cmdScore(player, action.args); break;
+    case 'score':     result = cmdScore(player, action.args, context); break;
     case 'give':      result = cmdGive(player, action.args); break;
     case 'pay':       result = cmdPay(player, action.args); break;
     case 'loot':      result = cmdLoot(player); break;
@@ -5193,7 +5193,7 @@ function cmdWho() {
  * score — Tabla de líderes. Sin args: kills+XP. Con args: "oro" o "duelos".
  * T112: Rankings extendidos
  */
-function cmdScore(player, args) {
+function cmdScore(player, args, context) {
   const mode = (args && args[0]) ? args[0].toLowerCase() : '';
 
   if (mode === 'oro' || mode === 'gold' || mode === 'riqueza') {
@@ -5220,7 +5220,7 @@ function cmdScore(player, args) {
 
   // Modo default: kills + XP
   // DIS-522: filtrar bots de playtest del ranking visible (patrones de username)
-  const BOT_PATTERNS = [/^BotTester/i, /^playtest_bot/i, /^PTBot/i, /^DisTester/i, /^PTBotD/i, /^DisDesign/i, /^PlayBot/i, /^bot_/i, /^BotPlaytest/i];
+  const BOT_PATTERNS = [/^BotTester/i, /^playtest_bot/i, /^PTBot/i, /^DisTester/i, /^PTBotD/i, /^DisDesign/i, /^PlayBot/i, /^bot_/i, /^BotPlaytest/i, /^Bot\w*(Bugs|Diseno|Design|Mago)/i, /^playtest/i, /^PTDesign/i, /bugbot/i, /^diseno/i, /^design/i, /MagoBot/i];
   const isBot = name => BOT_PATTERNS.some(p => p.test(name));
 
   const mode2 = mode === 'bots' || mode === 'todo';

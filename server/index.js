@@ -282,7 +282,8 @@ async function main() {
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
     const includeBots = req.query.bots === 'true';
     // BUG-1052: mismo filtro de bots que cmdScore (DIS-522)
-    const BOT_PATTERNS = [/^BotTester/i, /^playtest_bot/i, /^PTBot/i, /^DisTester/i, /^PTBotD/i, /^DisDesign/i, /^PlayBot/i, /^bot_/i, /^BotPlaytest/i];
+    // BUG-1065: patrones expandidos para cubrir nombres históricos de bots
+    const BOT_PATTERNS = [/^BotTester/i, /^playtest_bot/i, /^PTBot/i, /^DisTester/i, /^PTBotD/i, /^DisDesign/i, /^PlayBot/i, /^bot_/i, /^BotPlaytest/i, /^Bot\w*(Bugs|Diseno|Design|Mago)/i, /^playtest/i, /^PTDesign/i, /bugbot/i, /^diseno/i, /^design/i, /MagoBot/i];
     const isBot = name => BOT_PATTERNS.some(p => p.test(name || ''));
     const rawLeaders = db.getLeaderboard(includeBots ? limit : limit * 3);
     const leaders = includeBots ? rawLeaders : rawLeaders.filter(p => !isBot(p.username)).slice(0, limit);
