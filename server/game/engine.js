@@ -330,7 +330,7 @@ function execute(playerId, input, context) {
     case 'emote':     result = cmdEmote(player, action.args.join(' ')); break;
     case 'dice':      result = cmdDice(player, action.args.join(' ')); break;
     case 'party':     result = cmdParty(player, action.args); break;
-    case 'shop':      result = cmdShop(player); break;
+    case 'shop':      result = cmdShop(player, action.args.join(' ')); break;
     case 'buy':       result = cmdBuy(player, action.args.join(' ')); break;
     case 'sell':      result = cmdSell(player, action.args.join(' ')); break;
     case 'talk':      result = cmdTalk(player, action.args.join(' ')); break;
@@ -7520,8 +7520,10 @@ function cmdTalk(player, target) {
   return { text: 'Aldric te mira durante más tiempo del necesario cuando te acercás.\n\n"Pasaste ya por los niveles inferiores," dice. No lo pregunta.\n\nGuarda el libro de cuentas debajo del mostrador. Cuando vuelve a mirarte, tiene una expresión diferente: menos mercader, más algo que no sabés nombrar.\n\n"Hay algo en la prisión del nivel inferior. Sala 8." Baja la voz. "Una carta con el sello de las dos llaves cruzadas. Si la encontrás, traémela. Sin abrirla."\n\n"¿Por qué?" preguntás.\n\n"Porque era del reino. Y yo era del reino."\n\nVuelve a sacar el libro de cuentas. La conversación terminó, aunque él todavía no se fue.\n\n📜 Nueva quest: El Sello de las Dos Llaves — Encontrá la carta sellada en sala 8 y traésela a Aldric.' };
 }
 
-function cmdShop(player) {
+function cmdShop(player, args) {
   player = db.getPlayer(player.id);
+  const modeArg = (args || '').trim().toLowerCase();
+  const basicMode = modeArg === 'basico' || modeArg === 'básico' || modeArg === 'basic';
 
   if (player.current_room_id !== MERCHANT_ROOM_ID) {
     // BUG-955: ruta dinámica según posición (mismo patrón que DIS-954 en cmdSell)
@@ -7585,6 +7587,36 @@ function cmdShop(player) {
     }
   }
 
+  // DIS-1063: modo básico — filtrar catálogo por clase del jugador
+  const clsForFilter = classes.getPlayerClass(player);
+  const CLASS_BASIC_ITEMS = {
+    'Guerrero': ['poción de salud', 'poción mayor de salud', 'antídoto', 'espada de hierro', 'espada de acero', 'escudo de madera', 'cuero endurecido', 'cota de cuero', 'cota de malla', 'peto de huesos', 'cuerda', 'bolsa de lona', 'antorcha'],
+    'Mago':     ['poción de salud', 'poción mayor de salud', 'antídoto', 'poción de maná', 'poción de maná mayor', 'vara de energía', 'pergamino de hechizo', 'túnica encantada', 'cuerda', 'bolsa de lona', 'cristal helado'],
+    'Clérigo':  ['poción de salud', 'poción mayor de salud', 'antídoto', 'poción de maná', 'símbolo sagrado', 'poción de bendición', 'cuero endurecido', 'cota de cuero', 'cota de malla', 'cuerda', 'bolsa de lona'],
+    'Pícaro':   ['poción de salud', 'poción mayor de salud', 'antídoto', 'daga envenenada', 'veneno de contacto', 'guantes de cuero fino', 'cuero endurecido', 'cota de cuero', 'cuerda', 'bolsa de lona', 'antorcha'],
+  };
+  const basicItemNames = clsForFilter && CLASS_BASIC_ITEMS[clsForFilter.name]
+    ? new Set(CLASS_BASIC_ITEMS[clsForFilter.name])
+    : null;
+
+  const buyableCatalog = SHOP_CATALOG.filter(item => !item.sellOnly);
+  const filteredCatalog = basicMode && basicItemNames
+    ? buyableCatalog.filter(item => basicItemNames.has(item.name))
+    : buyableCatalog;
+
+  if (basicMode) {
+    if (basicItemNames) {
+      lines.push(`🎯 Modo básico — ítems recomendados para ${clsForFilter.emoji} ${clsForFilter.name}.`);
+      lines.push(`💡 Usá "tienda" para ver el catálogo completo (${buyableCatalog.length} ítems).`);
+    } else {
+      lines.push('💡 Usá "tienda" para ver el catálogo completo.');
+    }
+    lines.push('');
+  } else {
+    lines.push(`💡 Tip: "tienda basico" muestra solo lo recomendado para tu clase.`);
+    lines.push('');
+  }
+
   if (discount > 0) {
     lines.push(`${repInfo.icon} Tu reputación (${repInfo.name}) te da un descuento de ${Math.round(discount * 100)}%.`);
     lines.push('');
@@ -7594,7 +7626,7 @@ function cmdShop(player) {
   }
   lines.push('─'.repeat(60));
 
-  SHOP_CATALOG.filter(item => !item.sellOnly).forEach((item, i) => {
+  filteredCatalog.forEach((item, i) => {
     const num = String(i + 1).padStart(2, ' ');
     const namePad = item.name.padEnd(26, ' ');
     const finalPrice = getDiscountedPrice(item.price, reputation);
