@@ -886,6 +886,14 @@ function cmdLook(player) {
           const progress = (() => { try { const p = JSON.parse(playerQ.quest_progress || '{}'); return (p.questId === activeQ.questDef.id) ? (p.progress || 0) : 0; } catch(_) { return 0; } })();
           const goal = activeQ.questDef.goal;
           questHintLine = `\n📜 Objetivo de quest aquí: ${activeQ.questDef.target} (${progress}/${goal} eliminados)`;
+        } else {
+          // DIS-1045: mostrar progreso de quest incluso cuando no hay monstruos objetivo en esta sala
+          // El jugador puede haber limpiado la sala y querer saber cuánto le falta.
+          const progress = (() => { try { const p = JSON.parse(playerQ.quest_progress || '{}'); return (p.questId === activeQ.questDef.id) ? (p.progress || 0) : 0; } catch(_) { return 0; } })();
+          if (progress > 0) {
+            const goal = activeQ.questDef.goal;
+            questHintLine = `\n📜 Quest activa: "${activeQ.questDef.title}" — ${progress}/${goal} ${activeQ.questDef.target}s eliminados.`;
+          }
         }
       }
     }
