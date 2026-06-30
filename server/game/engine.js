@@ -1923,6 +1923,29 @@ function cmdInventory(player) {
     }
   }
 
+  // DIS-1058: detectar ingredientes "sueltos" (tenés uno de la receta pero te falta el otro)
+  // Solo mostramos el hint si el ítem suelto NO ya tiene una receta completa (✨)
+  const loneIngredientHints = [];
+  const shownLoneHints = new Set();
+  for (const recipe of RECIPES) {
+    const [ing1, ing2] = recipe.ingredients.map(s => s.toLowerCase());
+    const hasIng1 = allItemNames.has(ing1);
+    const hasIng2 = allItemNames.has(ing2);
+    if (hasIng1 && !hasIng2) {
+      const key = `${ing1}|${recipe.result}`;
+      if (!shownLoneHints.has(key)) {
+        shownLoneHints.add(key);
+        loneIngredientHints.push(`  💡 Tenés **${recipe.ingredients[0]}** — combinalo con **${recipe.ingredients[1]}** para craftear **${recipe.result}**`);
+      }
+    } else if (!hasIng1 && hasIng2) {
+      const key = `${ing2}|${recipe.result}`;
+      if (!shownLoneHints.has(key)) {
+        shownLoneHints.add(key);
+        loneIngredientHints.push(`  💡 Tenés **${recipe.ingredients[1]}** — combinalo con **${recipe.ingredients[0]}** para craftear **${recipe.result}**`);
+      }
+    }
+  }
+
   const lines = [];
   let idx = 1;
   // Primero los equipados (con marcador visual)
@@ -1974,7 +1997,20 @@ function cmdInventory(player) {
     ? `\n✨ = tenés ingredientes para craftear algo con ese ítem — probá 'recetas'`
     : '';
 
-  return { text: `Inventario:\n${lines.join('\n')}\n${summary}\n${slotLine}${viableNote}` };
+  // DIS-1058: hint de ingredientes sueltos (solo si no hay ya una receta completa ✨)
+  // Filtramos hints de ítems que ya aparecen como viables (no repetir la info)
+  const filteredLoneHints = loneIngredientHints.filter(h => {
+    // Extraer el nombre del ítem que "tenés" del hint (entre ** y **)
+    const match = h.match(/Tenés \*\*(.+?)\*\*/);
+    if (!match) return true;
+    return !viableRecipeItems.has(match[1].toLowerCase());
+  });
+  // Limitar a máximo 3 hints para no saturar
+  const loneNote = filteredLoneHints.length > 0
+    ? `\n🧪 Ingredientes sueltos:\n${filteredLoneHints.slice(0, 3).join('\n')}`
+    : '';
+
+  return { text: `Inventario:\n${lines.join('\n')}\n${summary}\n${slotLine}${viableNote}${loneNote}` };
 }
 
 /**
