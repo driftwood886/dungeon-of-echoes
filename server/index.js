@@ -424,14 +424,29 @@ async function main() {
   });
 
   /**
-   * GET /api/world — Evento global activo del dungeon (T090)
+   * GET /api/world — Evento global activo del dungeon (T090) + resumen de salas (BUG-1051)
    */
   app.get('/api/world', (req, res) => {
     const ev = worldEvents.getCurrentEvent();
     const nextText = worldEvents.getNextEventText();
+    // BUG-1051: agregar resumen de salas para que /api/world sea útil como mapa del mundo
+    const allRooms = [];
+    for (let i = 1; i <= 25; i++) {
+      const r = db.getRoom(i);
+      if (!r) continue;
+      const monsters = db.getMonstersInRoom(i).filter(m => m.hp > 0);
+      allRooms.push({
+        id: r.id,
+        name: r.name,
+        exits: Object.keys(r.exits || {}),
+        monsters_count: monsters.length,
+        items_count: (r.items || []).length,
+      });
+    }
     res.json({
       active_event: ev || null,
       next_event_info: ev ? null : nextText,
+      rooms: allRooms,
     });
   });
 
