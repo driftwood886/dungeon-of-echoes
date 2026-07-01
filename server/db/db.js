@@ -299,6 +299,18 @@ async function init() {
     )
   `);
 
+  // EPIC-MR-1083: Tabla de World State colectivo (estado semanal del dungeon)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS world_state (
+      key        TEXT PRIMARY KEY,
+      value      INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  // Inicializar World State (lazy reset semanal si corresponde)
+  initWorldState();
+
   // EPIC-962: Tabla de legados (Salón de los Caídos — historial de ascensiones)
   db.run(`
     CREATE TABLE IF NOT EXISTS legacies (
@@ -2084,6 +2096,137 @@ function setLegacyItem(legacyId, itemName, roomId) {
 }
 
 
+// ─── EPIC-MR-1083: World State colectivo ─────────────────────────────────────
+
+/**
+ * Calcula el número de semana actual (consistente con getWeeklyContract).
+ * @returns {number}
+ */
+function getCurrentWeekNumber() {
+  return Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+}
+
+/**
+ * Inicializa las claves del world_state con valor 0 si no existen,
+ * y ejecuta un lazy reset semanal si el week_number cambió.
+ * Llamado desde init() después de crear la tabla.
+ */
+function initWorldState() {
+  const INITIAL_KEYS = [
+    'aranas_semana',
+    'esqueletos_semana',
+    'goblins_semana',
+    'elementales_semana',
+    'lich_derrotado_semana',
+    'subastas_semana',
+    'items_crafteados_semana',
+    'week_number',
+    'lich_last_kill_ts',
+  ];
+
+  // Insertar claves que no existan
+  for (const key of INITIAL_KEYS) {
+    try {
+      run(
+        `INSERT OR IGNORE INTO world_state (key, value, updated_at) VALUES (?, 0, datetime('now'))`,
+        [key]
+      );
+    } catch (_) {}
+  }
+
+  // Lazy reset semanal
+  const currentWeek = getCurrentWeekNumber();
+  const storedRow = one(`SELECT value FROM world_state WHERE key = 'week_number'`);
+  const storedWeek = storedRow ? storedRow.value : null;
+
+  if (storedWeek !== null && storedWeek !== currentWeek) {
+    // Semana nueva — guardar snapshot antes de resetear
+    const snapshot = getWorldStateSnapshot();
+    const snapshotMsg = `Semana ${storedWeek}: aranas=${snapshot.aranas_semana}, esqueletos=${snapshot.esqueletos_semana}, goblins=${snapshot.goblins_semana}, elementales=${snapshot.elementales_semana}, lich=${snapshot.lich_derrotado_semana}, subastas=${snapshot.subastas_semana}, crafts=${snapshot.items_crafteados_semana}`;
+    try {
+      run(
+        `INSERT INTO global_events (type, message) VALUES ('world_state_reset', ?)`,
+        [snapshotMsg]
+      );
+    } catch (_) {}
+
+    // Resetear contadores semanales (no lich_last_kill_ts ni week_number)
+    run(
+      `UPDATE world_state SET value = 0, updated_at = datetime('now') WHERE key LIKE '%_semana'`
+    );
+    console.log(`[world_state] Reset semanal ejecutado. ${snapshotMsg}`);
+  }
+
+  // Actualizar week_number al valor actual
+  run(
+    `UPDATE world_state SET value = ?, updated_at = datetime('now') WHERE key = 'week_number'`,
+    [currentWeek]
+  );
+}
+
+/**
+ * Incrementa un contador de world_state en 1.
+ * @param {string} key — clave del contador (ej: 'aranas_semana')
+ */
+function incrementWorldState(key) {
+  try {
+    run(
+      `INSERT INTO world_state (key, value, updated_at) VALUES (?, 1, datetime('now'))
+       ON CONFLICT(key) DO UPDATE SET value = value + 1, updated_at = datetime('now')`,
+      [key]
+    );
+  } catch (e) {
+    console.error(`[world_state] Error incrementando ${key}:`, e.message);
+  }
+}
+
+/**
+ * Setea un valor específico en world_state (usado para lich_last_kill_ts).
+ * @param {string} key
+ * @param {number} value
+ */
+function setWorldState(key, value) {
+  try {
+    run(
+      `INSERT INTO world_state (key, value, updated_at) VALUES (?, ?, datetime('now'))
+       ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = datetime('now')`,
+      [key, value, value]
+    );
+  } catch (e) {
+    console.error(`[world_state] Error seteando ${key}:`, e.message);
+  }
+}
+
+/**
+ * Lee múltiples claves del world_state y retorna un objeto { key: value }.
+ * @param {string[]} keys
+ * @returns {Object}
+ */
+function getWorldStateValues(keys) {
+  const result = {};
+  for (const key of keys) {
+    const row = one(`SELECT value FROM world_state WHERE key = ?`, [key]);
+    result[key] = row ? row.value : 0;
+  }
+  return result;
+}
+
+/**
+ * Obtiene un snapshot completo del world_state (todas las claves).
+ * @returns {Object} — { key: value, ... }
+ */
+function getWorldStateSnapshot() {
+  const rows = all(`SELECT key, value FROM world_state`);
+  const result = {};
+  for (const row of rows) {
+    result[row.key] = row.value;
+  }
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+
 module.exports = {
   init, persist,
   // players
@@ -2142,4 +2285,6 @@ module.exports = {
    processLoginStreak,
   // EPIC-962: legados (Sistema de Ascensión)
   createLegacyEntry, getLegaciesByAccount, getAllLegacies, getUnclaimedLegacyItem, claimLegacyItem, setLegacyItem,
+  // EPIC-MR-1083: World State colectivo
+  initWorldState, incrementWorldState, setWorldState, getWorldStateValues, getWorldStateSnapshot,
   };
