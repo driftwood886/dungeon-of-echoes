@@ -11082,7 +11082,9 @@ function cmdClase(player, args) {
   const newAttack  = Math.max(clsStats.attack,    freshForClass.attack   || 5);
   const newDefense = Math.max(clsStats.defense,   freshForClass.defense  || 3);
   const newMaxMana = Math.max(clsStats.max_mana,  freshForClass.max_mana || 20);
-  const newHp      = Math.min(freshForClass.hp || newMaxHp, newMaxHp);
+  // BUG-1077 fix: al elegir clase el jugador recibe HP completo (newMaxHp).
+  // Antes: Math.min(currentHp, newMaxHp) dejaba el HP sin curar, mostrando ej. 30/35.
+  const newHp      = newMaxHp;
   const newMana    = Math.min(freshForClass.mana || newMaxMana, newMaxMana);
   // DIS-491: Dar 25g de inicio al elegir clase por primera vez (DIS-993: subido de 10 a 25)
   const isFirstClass = currentClass === 'sin_clase';
@@ -14050,7 +14052,7 @@ function cmdContract(player) {
     'Araña Tejedora':        '📍 Se encuentran en: Pozo Sin Fondo (sala 7)',
     'Espectro del Corredor': '📍 Se encuentran en: Sala del Trono (sala 9)',
     'Murciélago Vampiro':    '📍 Se encuentran en: Capilla Olvidada (sala 5)',
-    'Esqueleto Guerrero':    '📍 Se encuentran en: Cámara del Tesoro (sala 3)',
+    'Esqueleto Guerrero':    '📍 Se encuentran en: Sala de los Ecos (sala 3)',
     'Campeón Espectral':     '📍 Se encuentran en: Coliseo de Huesos (sala 14)',
     'Sombra del Vacío':      '📍 Se encuentran en: Abismo Eterno (sala 20)',
   };
