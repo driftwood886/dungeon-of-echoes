@@ -268,6 +268,8 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   // NPC Mercader en sala 4
   if (roomId === 4) {
     lines.push(`\n🏪 Aldric el Mercader está aquí, sentado detrás de un improvisado mostrador de cajas.\n   "Bienvenido. Escribí 'tienda' para ver mis artículos."`);
+    // DIS-1097: hint sobre acceso a la Casa de Subastas sin pelear
+    lines.push(`\n🏛️ Pista: Al norte de esta sala (Prisión) podés acceder a la Casa de Subastas (sala 17).\n   Los espectros de la Prisión dejan pasar si no los provocás — movete sin atacar.`);
   }
 
   // DIS-D48: Cuenco Sagrado en sala 5 (Capilla Olvidada)

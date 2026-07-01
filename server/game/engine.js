@@ -1119,6 +1119,20 @@ function cmdMove(player, direction) {
     return { text: 'Error: tu habitación actual no existe en la BD.' };
   }
 
+  // DIS-1090: En la Antesala (sala 16), bloquear la salida sur si el jugador no eligió clase.
+  // El anciano no deja pasar al dungeon real sin una vocación definida.
+  if (player.current_room_id === 16) {
+    const normalizedDir = dungeon.normalizeDirection(direction);
+    if (normalizedDir === 'south') {
+      const playerClass = player.player_class || 'sin_clase';
+      if (playerClass === 'sin_clase') {
+        return {
+          text: `🧓 El guardián anciano da un paso al frente y bloquea el paso con su bastón.\n\n"Aún no." Su voz es firme, sin reproche. "El dungeon mata a los que entran sin saber quiénes son. Primero elegí tu vocación."\n\nSe aparta levemente. "Escribí: clase guerrero, clase mago, clase picaro o clase clerigo. Yo espero."\n\n💡 También podés atacar al Goblin de Práctica aquí adentro para practicar antes de elegir.`,
+        };
+      }
+    }
+  }
+
   // BUG-287: Validar que la dirección existe ANTES de chequear monstruos.
   // Si la dirección es inválida, mostrar error sin intentar huir.
   const exitCheck = dungeon.resolveExit(room, direction);
@@ -2706,6 +2720,24 @@ function cmdAttack(player, targetName) {
     if (fled) {
       return { text: `💨 El ${fled.name} huyó de la sala. ¡Ya no está aquí!\n   Usá "perseguir" o movete en su dirección para seguirlo.` };
     }
+    // DIS-1096: verificar si hay un monstruo muerto con ese nombre — sugerir recoger loot
+    try {
+      const deadInRoom = db.getDeadMonstersForRoom(player.current_room_id);
+      const normalTarget2 = targetName.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const deadMatch = deadInRoom.find(m => {
+        const normalName = m.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return normalName.includes(normalTarget2) || normalTarget2.includes(normalName);
+      });
+      if (deadMatch) {
+        // Verificar si dejó loot en la sala
+        const roomItems = db.getRoom(player.current_room_id);
+        const hasLoot = roomItems && roomItems.items && roomItems.items.length > 0;
+        const lootHint = hasLoot
+          ? `💡 El monstruo está muerto. ¿Querés recoger el loot? Escribí: pick todo`
+          : `💡 El monstruo está muerto y ya fue saqueado. Buscá la siguiente sala.`;
+        return { text: `💀 El ${deadMatch.name} ya está muerto.\n${lootHint}` };
+      }
+    } catch (_) { /* no romper attack si falla */ }
     return { text: `No hay ningún "${targetName}" aquí.` };
   }
 
@@ -3851,15 +3883,16 @@ function cmdPick(player, itemQuery) {
 
   // DIS-D327/DIS-D351: hint de quest de Aldric cuando se recoge la carta sellada
   // DIS-D351: variar hint según nivel del jugador (Aldric no activa la quest hasta nivel 5)
+  // DIS-1092: mejorar el hint inicial — la carta aparece sin contexto, el jugador puede venderla
   let cartaHint = '';
   if (found.toLowerCase().includes('carta sellada') && player.current_room_id === 8) {
     const questState = player.aldric_quest || 'none';
     const playerLevel = player.level || 1;
     if (questState === 'none') {
       if (playerLevel < 5) {
-        cartaHint = `\n\n📜 El sello de las dos llaves cruzadas... recordás haberlo visto en otro lugar. Quizás valga la pena llevársela al mercader de sala 4 cuando seas más experimentado (nivel 5+).`;
+        cartaHint = `\n\n📜 El sello es de cera negra con dos llaves cruzadas. No lo reconocés, pero algo en él se siente importante — como si alguien lo guardara aquí con cuidado.\n\n💡 No la vendas todavía. Cuando llegués al nivel 5, hablá con Aldric el Mercader (sala 4) — quizás él sepa qué significa este sello.`;
       } else {
-        cartaHint = '\n\n📜 El sello de las dos llaves cruzadas... recordás haberlo visto en algún otro lugar del dungeon. (Pista: "hablar aldric" en sala 4)';
+        cartaHint = '\n\n📜 El sello de las dos llaves cruzadas... recordás haberlo visto en algún otro lugar del dungeon.\n\n💡 Hablá con Aldric el Mercader en sala 4 — escribí "hablar aldric". Puede que él sepa qué es esto.';
       }
     } else if (questState === 'active') {
       cartaHint = '\n\n📜 ¡La carta de la quest de Aldric! Llevásela al mercader en sala 4 ("hablar aldric").';
@@ -6236,6 +6269,8 @@ function cmdMap(player) {
     })(),
     // DIS-702: hint de navegación con ruta
     `💡 ¿Perdido? Usá: ruta <sala>  —  Ej: ruta mercader  /  ruta tienda  /  ruta catedral  /  ruta jefe  /  ruta 4`,
+    // DIS-1093: mostrar alias de sala en el mapa para que el jugador descubra rutas textuales
+    `🗺  Alias de ruta: mercader/tienda=sala 4  |  jefe=sala 10  |  catedral=sala 15  |  santuario=sala 10  |  forja=sala 12`,
     // BUG-894: nota explicativa de la puerta 🔑 del Pozo (sala 7) — va al pie, no inline en la grilla
     ...(() => {
       const room7 = db.getRoom(7);
@@ -11302,6 +11337,40 @@ function cmdClase(player, args) {
     lines.push(`   Habilidades exclusivas: sanacion_mayor (Lv3), bendicion (Lv6), resurreccion (Lv10).`);
   }
 
+  // DIS-1091: Explicar habilidades de clase al momento de elegirla (no solo cuando ya las tenés)
+  lines.push(``, `⚔️  HABILIDADES DE CLASE:`);
+  if (className === 'guerrero') {
+    lines.push(
+      `   • smash     (Lv1 — disponible ahora): Golpe devastador, daño aumentado.`,
+      `     Usá: "skills" durante combate para ver cuándo está disponible.`,
+      `     Aparece en pantalla cuando podés activarlo: "Habilidades disponibles: smash"`,
+      `   • grito_de_guerra (Lv3): Intimidación que reduce el ATK enemigo.`,
+      `   • forma_de_berserker (Lv5): +50% ATK, -20% DEF por 5 turnos.`,
+    );
+  } else if (className === 'mago') {
+    lines.push(
+      `   • rayo      (Lv1 — disponible ahora): Hechizo de rayo básico. Usá: cast rayo`,
+      `   • bola_de_fuego (Lv3): Bola de fuego más potente.`,
+      `   • tormenta_de_hielo (Lv5): Congela al enemigo y reduce su velocidad.`,
+      `   Tus spells cuestan maná — revisá con "status" cuánto te queda.`,
+    );
+  } else if (className === 'picaro') {
+    lines.push(
+      `   • veneno    (Lv1 — disponible ahora): Envenena al enemigo por varios turnos.`,
+      `     Aparece en pantalla cuando podés activarlo: "Habilidades disponibles: veneno"`,
+      `   • golpe_furtivo (Lv3): Daño extra si el enemigo no te atacó aún.`,
+      `   • sombras   (Lv5): Aumenta esquiva al 40% por 3 turnos.`,
+    );
+  } else if (className === 'clerigo') {
+    lines.push(
+      `   • heal             (Lv1 — disponible ahora): Auto-curación. Usá: heal`,
+      `   • heal <jugador>   (Lv1): Sanar a un aliado en la misma sala.`,
+      `   • sanacion_mayor   (Lv3): Curación potente de emergencia.`,
+      `   • bendicion        (Lv6): Bufea ATK y DEF del grupo.`,
+    );
+  }
+  lines.push(``, `💡 Escribí "skills" en cualquier momento para ver tus habilidades disponibles.`);
+
   // DIS-491: Mostrar oro inicial si es la primera clase
   if (isFirstClass) {
     lines.push(``, `🪙 Monedero inicial: +25 🪙 (suficiente para comprarte un arma en la tienda de Aldric).`);
@@ -14434,11 +14503,32 @@ function cmdWrite(player, args) {
  */
 function cmdReadWall(player) {
   const msgs = db.getWallMessages(player.current_room_id);
-  if (msgs.length === 0) {
+
+  // DIS-1094: Lore pregenerado para salas específicas — se muestra antes de mensajes de jugadores
+  // Estas son "inscripciones antiguas" de aventureros ficticios que dan contexto de mundo
+  const LORE_INSCRIPTIONS = {
+    2: [ // Corredor de las Sombras
+      { author: 'Gretha la Tenaz', date: 'hace mucho tiempo', msg: 'Llegué hasta el Pozo. La puerta del norte necesita llave. Busqué en la Prisión — está al norte del Tesoro. Salí con vida. Cuídense del goblin élite, pega más de lo que aparenta.' },
+      { author: 'Torvin', date: 'una noche oscura', msg: 'El nombre en la pared — Kaelthas — lo vi también en el trono de la sala 9. Algo aquí no murió como debería. Pregúntenle al anciano.' },
+      { author: 'Desconocido', date: '?', msg: 'Si llegás a leer esto: hay un cuenco sagrado en la Capilla al este. Restaura la salud completa. Recordalo cuando estés a punto de morir.' },
+    ],
+  };
+
+  const loreForRoom = LORE_INSCRIPTIONS[player.current_room_id] || [];
+
+  if (msgs.length === 0 && loreForRoom.length === 0) {
     return { text: '📜 Las paredes están vacías. Nadie ha dejado ningún mensaje aquí.' };
   }
+
   const BOT_PATTERNS = /^(PTBot_|Critico_Diseno_|PlaytestBot_|TestBot_|Bot_)/i;
   const lines = ['📜 Inscripciones en la pared:'];
+
+  // Primero mostrar lore antiguo (inmersivo, narrativo)
+  for (const loreLine of loreForRoom) {
+    lines.push(`  📖 ${loreLine.author} [${loreLine.date}]: ${loreLine.msg}`);
+  }
+
+  // Luego los mensajes de jugadores reales
   for (const m of msgs) {
     const date = m.created_at ? m.created_at.slice(5, 16).replace('T', ' ') : '';
     const isBot = BOT_PATTERNS.test(m.player_name);
@@ -14446,6 +14536,7 @@ function cmdReadWall(player) {
     const prefix = isBot ? '  🤖' : '  ✍️';
     lines.push(`${prefix} ${m.player_name} [${date}]: ${m.message}`);
   }
+
   return { text: lines.join('\n') };
 }
 

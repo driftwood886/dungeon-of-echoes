@@ -1358,7 +1358,10 @@ function attackRound(player, monster) {
     const freshForBlindCheck = db.getPlayer(player.id);
     const blindFx = freshForBlindCheck.status_effects ? (typeof freshForBlindCheck.status_effects === 'string' ? JSON.parse(freshForBlindCheck.status_effects) : freshForBlindCheck.status_effects) : {};
     const blindDef = blindFx.blinded ? (blindFx.blinded.amount || 0) : 0;
-    const rawDmgToPlayer = Math.max(1, monsterDmg + bloodmoonBonus + weatherDmgBonus - Math.floor((effectiveDef || player.defense || 0) - blindDef));
+    // DIS-1095: piso mínimo de daño — al menos el 30% del ATK base del monstruo (mínimo 2)
+    // para que el combate inicial no sea trivial incluso con defensa alta
+    const minDmg = Math.max(2, Math.ceil(monsterAtkForCounterattack * 0.30));
+    const rawDmgToPlayer = Math.max(minDmg, monsterDmg + bloodmoonBonus + weatherDmgBonus - Math.floor((effectiveDef || player.defense || 0) - blindDef));
     // T104: Escudo mágico activo absorbe 5 de daño
     const freshForShield = freshForBlindCheck; // reusar la lectura
     const shieldActive = freshForShield.shield_active || 0;

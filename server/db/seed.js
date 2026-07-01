@@ -498,10 +498,17 @@ function migrateTutorial() {
       max_hp: 8,
       attack: 2,
       room_id: 16,
-      loot: ['monedas de cobre'],
+      loot: ['monedas de cobre', 'cuchillo oxidado'],
       respawn_room_id: 16,
     });
     console.log('[seed] migrateTutorial: Goblin de Práctica (id 20) creado en sala 16.');
+  } else {
+    // DIS-1090: migración del loot — asegurar que el Goblin dropee un cuchillo oxidado (arma de novato)
+    const goblinLoot = Array.isArray(existingGoblin.loot) ? existingGoblin.loot : [];
+    if (!goblinLoot.includes('cuchillo oxidado')) {
+      db.upsertMonster({ ...existingGoblin, loot: [...goblinLoot, 'cuchillo oxidado'] });
+      console.log('[seed] migrateTutorial: Goblin de Práctica loot actualizado con cuchillo oxidado (DIS-1090).');
+    }
   }
 }
 
