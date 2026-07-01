@@ -7457,7 +7457,27 @@ function cmdTalk(player, target) {
     if (!inAuctionRoom) {
       return { text: '📜 El escriba élfico no está aquí. Está en la Casa de Subastas (sala 17, al este de la Cámara del Tesoro).\n  💡 Ruta desde la Cámara del Tesoro: este' };
     }
-    return { text: '📜 El escriba levanta la pluma un instante —lo único que se detiene— y te mira de costado sin girar la cabeza.\n\n"¿Subasta? Simple." Vuelve a escribir sin dejar de hablar.\n\n"Tenés un ítem. Querés oro. Escribís: subastar <ítem> <precio_mínimo>. Ejemplo: subastar espada oxidada 10."\n\nTic. Tac. La pluma sigue.\n\n"Para ver subastas activas: subastas. Para pujar: pujar <id> <monto>. La sala acepta vendedores y compradores simultáneamente."\n\nPausa. Un segundo. "Si nadie compra, el ítem vuelve. Si alguien supera tu puja, el oro te vuelve. Sin pérdidas involuntarias."\n\nReanuda el registro como si la conversación hubiera terminado antes de que empezara.' };
+    // EPIC-MR-1081: Niveles de memoria del Escriba según actividad en subastas
+    let escribaMem = {};
+    try { escribaMem = (JSON.parse(player.npc_memory || '{}')).escriba || {}; } catch (_) {}
+    const escSold   = escribaMem.auctions_sold || 0;
+    const escWon    = escribaMem.auctions_won || 0;
+    const escVol    = escribaMem.gold_volume_auctions || 0;
+    const escBaron   = escSold >= 20 || escVol >= 1000;
+    const escSerious = !escBaron && (escSold >= 5 || escVol >= 200);
+    const escActive  = !escBaron && !escSerious && (escSold >= 1 || escWon >= 1);
+
+    if (escBaron) {
+      return { text: `📜 El escriba deja la pluma en el tintero. Completo. Cosa que no hace. Te mira directamente. «${escVol}g en circulación. ${escSold} ventas.» Una pausa. «En los registros de esta sala hay quienes vinieron y se fueron sin dejar rastro.» Señala el libro con un dedo. «Tu nombre aparece demasiadas veces para eso.»` };
+    }
+    if (escSerious) {
+      return { text: `📜 La pluma del escriba se detiene —solo un instante— cuando entrás. Levanta la vista. Eso no lo hace con casi nadie. «El mercado recuerda quiénes lo mueven», dice. «Y vos lo moviste ${escVol}g de oro este ciclo.» Vuelve a escribir. «¿Qué traés hoy?»` };
+    }
+    if (escActive) {
+      return { text: `📜 «Vos de nuevo.» La pluma no para. «${escSold} ventas. ${escWon} compras. ${escVol}g en circulación.» Una pausa casi imperceptible. «Para los estándares del mercado, eso es... aceptable.»` };
+    }
+    // Nivel 0: nunca usó subastas → texto original explicativo
+    return { text: '📜 El escriba levanta la pluma un instante —lo único que se detiene— y te mira de costado sin girar la cabeza.\n\n\"¿Subasta? Simple.\" Vuelve a escribir sin dejar de hablar.\n\n\"Tenés un ítem. Querés oro. Escribís: subastar <ítem> <precio_mínimo>. Ejemplo: subastar espada oxidada 10.\"\n\nTic. Tac. La pluma sigue.\n\n\"Para ver subastas activas: subastas. Para pujar: pujar <id> <monto>. La sala acepta vendedores y compradores simultáneamente.\"\n\nPausa. Un segundo. \"Si nadie compra, el ítem vuelve. Si alguien supera tu puja, el oro te vuelve. Sin pérdidas involuntarias.\"\n\nReanuda el registro como si la conversación hubiera terminado antes de que empezara.' };
   }
 
   if (!isAldric) {
@@ -10184,9 +10204,23 @@ function resolveExpiredAuctions(broadcastFn) {
         const winnerInv = Array.isArray(winner.inventory) ? winner.inventory : JSON.parse(winner.inventory || '[]');
         winnerInv.push(auction.item_name);
         db.updatePlayer(winner.id, { inventory: JSON.stringify(winnerInv) });
+        // EPIC-MR-1081: trackear auctions_won y gold_volume del ganador
+        const wmem = {};
+        try { Object.assign(wmem, JSON.parse((db.getPlayer(winner.id).npc_memory) || '{}')); } catch (_) {}
+        if (!wmem.escriba) wmem.escriba = { auctions_sold: 0, auctions_won: 0, gold_volume_auctions: 0 };
+        wmem.escriba.auctions_won = (wmem.escriba.auctions_won || 0) + 1;
+        wmem.escriba.gold_volume_auctions = (wmem.escriba.gold_volume_auctions || 0) + auction.current_bid;
+        db.updatePlayer(winner.id, { npc_memory: JSON.stringify(wmem) });
       }
       if (seller) {
         db.updatePlayer(seller.id, { gold: (seller.gold || 0) + auction.current_bid });
+        // EPIC-MR-1081: trackear auctions_sold y gold_volume del vendedor
+        const smem = {};
+        try { Object.assign(smem, JSON.parse((db.getPlayer(seller.id).npc_memory) || '{}')); } catch (_) {}
+        if (!smem.escriba) smem.escriba = { auctions_sold: 0, auctions_won: 0, gold_volume_auctions: 0 };
+        smem.escriba.auctions_sold = (smem.escriba.auctions_sold || 0) + 1;
+        smem.escriba.gold_volume_auctions = (smem.escriba.gold_volume_auctions || 0) + auction.current_bid;
+        db.updatePlayer(seller.id, { npc_memory: JSON.stringify(smem) });
       }
 
       const msg = `🔨 ¡REMATE CERRADO! "${auction.item_name}" vendida por ${auction.current_bid}g. Ganador: ${auction.bidder_name}. Vendedor: ${auction.seller_name} recibe ${auction.current_bid}g.`;
