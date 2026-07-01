@@ -9135,7 +9135,20 @@ function cmdCraft(player, args) {
     });
     if (matchingRecipe) {
       const [ing1, ing2] = matchingRecipe.ingredients;
-      return { text: `Para craftear "${matchingRecipe.result}" necesitás dos ingredientes.\n💡 Receta: ${ing1} + ${ing2} → ${matchingRecipe.result}\nUsá: craft ${ing1} con ${ing2}` };
+      // DIS-1104: indicar cuál ingrediente tiene el jugador y cuál le falta
+      const nfn1104 = s => (s || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const nfnInv = (player.inventory || []).map(i => nfn1104(typeof i === 'string' ? i : (i.name || '')));
+      const hasIng1 = nfnInv.includes(nfn1104(ing1)) || nfn1104(player.equipped_weapon || '') === nfn1104(ing1) || nfn1104(player.equipped_armor || '') === nfn1104(ing1);
+      const hasIng2 = nfnInv.includes(nfn1104(ing2)) || nfn1104(player.equipped_weapon || '') === nfn1104(ing2) || nfn1104(player.equipped_armor || '') === nfn1104(ing2);
+      let missingNote = '';
+      if (hasIng1 && !hasIng2) {
+        missingNote = `\n✅ Tenés: ${ing1}\n❌ Te falta: ${ing2}`;
+      } else if (!hasIng1 && hasIng2) {
+        missingNote = `\n✅ Tenés: ${ing2}\n❌ Te falta: ${ing1}`;
+      } else if (hasIng1 && hasIng2) {
+        missingNote = `\n✅ Tenés ambos ingredientes. Usá el comando de abajo:`;
+      }
+      return { text: `Para craftear "${matchingRecipe.result}" necesitás dos ingredientes.\n💡 Receta: ${ing1} + ${ing2} → ${matchingRecipe.result}${missingNote}\nUsá: craft ${ing1} con ${ing2}` };
     }
     return { text: 'No entendí la sintaxis. Usá:\n  craft <ítem1> con <ítem2>\n  craft <ítem1> + <ítem2>\nEjemplo: craft hierba curativa con poción menor' };
   }
