@@ -5,7 +5,7 @@
  * que puede usar en combate con comandos explícitos y cooldown.
  *
  * Habilidades (Guerrero/sin clase):
- *   - smash / golpetazo   (nivel 3): Ataque potente ×1.8 daño, cooldown 45s
+ *   - smash / golpetazo   (nivel 3): Ataque potente ×1.8 daño, cooldown 30s
  *   - shield_bash / escudo_bash (nivel 6): Daño normal + stun al monstruo 1 turno, cooldown 60s
  *   - rally / arenga      (nivel 10): En party, +2 ATK a todos en la sala por 60s
  *

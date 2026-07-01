@@ -16065,7 +16065,7 @@ function cmdGuide(args) {
       '    cada kill suma +1 daño. El combo se reinicia si morís.',
       '',
       'HABILIDADES (al subir niveles):',
-      '  smash / golpetazo (Lv3) — ×1.8 daño, CD 45s',
+      '  smash / golpetazo (Lv3) — ×1.8 daño, CD 30s',
       '  shield_bash (Lv6)       — Stun + daño',
       '  rally / arenga (Lv10)   — +2 ATK a todo el grupo (o +1 ATK solo si no hay aliados)',
       '',

@@ -537,7 +537,7 @@ Comandos disponibles:
   perfil / profile      — Tarjeta de aventurero completa con todos los stats en formato visual
   diario / journal      — Ver tu diario personal: logros, subidas de nivel, muertes y boss derrotados
   skills / habilidades  — Ver tus habilidades activas desbloqueadas y sus cooldowns (Lv3/6/10)
-  smash / golpetazo     — Habilidad: golpe potente ×1.8 daño (requiere Nivel 3, cooldown 45s)
+  smash / golpetazo     — Habilidad: golpe potente ×1.8 daño (requiere Nivel 3, cooldown 30s)
   bash / escudo_bash    — Habilidad: golpe de escudo + stun al monstruo 1 turno (Nivel 6, 60s)
   rally / arenga        — Habilidad: +2 ATK al grupo en la sala por 60s (Nivel 10, 2min)
   sigilo / hide         — [Pícaro] Entrar en modo sigilo (60s): el primer ataque es crítico garantizado y el monstruo no responde ese turno.
@@ -649,7 +649,7 @@ const COMMAND_HELP = {
   calendar:  'calendar / eventos / timers / temporizadores\\\\n  Panel de temporizadores del dungeon.\\\\n  Muestra: estado del boss (vivo/respawn con cuenta regresiva), clima actual con tiempo restante,\\\\n  fuente eterna (disponible o en cooldown), tus buffs activos con tiempo restante,\\\\n  y estado de las trampas del dungeon (armadas/desactivadas).',
   // BUG-028: ayuda detallada para comandos de habilidades, magia y bóveda
   skills:    'skills / habilidades / poderes\\\\\\\\n  Ver tus habilidades activas desbloqueadas y sus cooldowns.\\\\\\\\n  Las habilidades se desbloquean al subir de nivel (varían según clase):\\\\\\\\n  Guerrero: Nivel 3: smash/golpetazo (×1.8) | Nivel 6: shield_bash (stun) | Nivel 10: arenga\\\\\\\\n  Pícaro:   Nivel 3: golpe_sucio (×1.3+veneno) | Nivel 6: evasion (esquiva garantizada) | Nivel 10: golpe_sombra (×2.5)\\\\\\\\n  Clérigo:  Nivel 3: sanacion_mayor | Nivel 6: bendicion | Nivel 10: resurreccion\\\\\\\\n  Pícaro desde Nivel 1: robar (robo de monedas) | sigilo/hide (golpe de sorpresa garantizado)\\\\\\\\n\\\\\\\\n  Las habilidades se usan escribiendo el nombre directamente.\\\\\\\\n  Ej: sanacion_mayor, bendicion, smash, golpe_sucio',
-  smash:     'smash [monstruo] / golpetazo [monstruo]\\\\n  Habilidad activa desbloqueada en Nivel 3.\\\\n  Ataque potente: inflige ×1.8 del daño normal.\\\\n  Cooldown: 45 segundos. Si hay múltiples monstruos, especificá el nombre.',
+  smash:     'smash [monstruo] / golpetazo [monstruo]\\\\n  Habilidad activa desbloqueada en Nivel 3.\\\\n  Ataque potente: inflige ×1.8 del daño normal.\\\\n  Cooldown: 30 segundos. Si hay múltiples monstruos, especificá el nombre.',
   shield_bash: 'shield_bash [monstruo] / escudo_bash [monstruo]\\\\\\\\n  Habilidad activa desbloqueada en Nivel 6.\\\\\\\\n  Golpe con escudo: daño normal + aturdimiento al monstruo por 1 turno (no ataca).\\\\\\\\n  Cooldown: 60 segundos.',
   // DIS-903: ayuda específica para skills del Clérigo
   sanacion_mayor: 'sanacion_mayor / sanación_mayor / big_heal / gran_curacion\\\\\\\\n  Habilidad de Clérigo desbloqueada en Nivel 3.\\\\\\\\n  Curación sagrada masiva: restaura ~45 HP (basado en Nivel).\\\\\\\\n  Costo: 12 maná. Cooldown: 60 segundos.\\\\\\\\n  Usá el nombre directamente como comando: sanacion_mayor',
