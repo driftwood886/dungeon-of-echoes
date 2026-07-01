@@ -168,10 +168,11 @@ const BOSS_MONSTERS = {
     deathAnnouncement: '💀 ¡La SOMBRA DEL VACÍO ha sido disipada! La oscuridad del Abismo Eterno retrocede por un momento...',
     lootBonus: [],
     // DIS-D423: Fase 2 al 50% HP — la Sombra se divide temporalmente
+    // DIS-1070: mensaje más claro sobre la escalada de daño para dar agencia al jugador
     phase2: {
       atkBonus: 4,
       defBonus: 2,
-      message: '🌑 ¡La SOMBRA DEL VACÍO se fragmenta y se reagrupa! Sus bordes oscilan más rápido — volviéndose más peligrosa. (FASE 2)',
+      message: '🌑 ¡La SOMBRA DEL VACÍO se fragmenta y se reagrupa!\nSus bordes oscilan más rápido, volviéndose más densa y letal — sus ataques aumentan en intensidad. (FASE 2)\n⚠️ Sus golpes ahora infligen más daño. Curá antes de que sea tarde.',
     },
   },
   21: { // Eco Viviente — BUG-404: faltaba aquí, por eso podía huir (DIS-D364 no lo cubría)
