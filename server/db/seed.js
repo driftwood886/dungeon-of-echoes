@@ -586,7 +586,27 @@ function migrateCampeonEspectralLoot() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047 };
+/**
+ * DIS-1105: El Gólem de Piedra (Santuario Profano, nivel 5+) se derrota fácilmente con Guerrero nivel 4 + smash.
+ * Subir HP de 55 a 70 para que sea genuinamente peligroso sin equipo de calidad.
+ * La resistencia física ×0.75 y regeneración de 8 HP/2 turnos se mantienen en combat.js.
+ */
+function migrateGolemPiedraDIS1105() {
+  const all = db.getAllMonsters ? db.getAllMonsters() : [];
+  const g = all.find(m => m.id === 5 || (m.name && m.name.toLowerCase().includes('gólem de piedra')));
+  if (!g) {
+    console.warn('[seed] migrateGolemPiedraDIS1105: Gólem de Piedra no encontrado');
+    return;
+  }
+  if (g.max_hp >= 70) {
+    // Ya actualizado
+    return;
+  }
+  db.updateMonster(g.id, { hp: 70, max_hp: 70 });
+  console.log('[seed] migrateGolemPiedraDIS1105: Gólem de Piedra HP 55→70. DIS-1105 ✓');
+}
+
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105 };
 
 /**
  * DIS-534 + DIS-541: Arregla la economía temprana rota.

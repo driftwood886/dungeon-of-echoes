@@ -217,7 +217,7 @@ const MONSTER_BASE_STATS = {
   2:  { name: 'Esqueleto Guerrero',    max_hp: 20, attack: 5  },
   3:  { name: 'Rata Gigante',          max_hp: 10, attack: 2  },
   4:  { name: 'Espectro del Corredor', max_hp: 18, attack: 6  },
-  5:  { name: 'Gólem de Piedra',       max_hp: 55, attack: 8  },  // DIS-630: HP 35→55
+  5:  { name: 'Gólem de Piedra',       max_hp: 70, attack: 8  },  // DIS-630: HP 35→55. DIS-1105: HP 55→70
   6:  { name: 'Murciélago Vampiro',    max_hp: 12, attack: 3  },
   7:  { name: 'Araña Tejedora',        max_hp: 8,  attack: 4  },
   8:  { name: 'Guardia Espectral',     max_hp: 55, attack: 7  },  // DIS-679: HP 40→55
