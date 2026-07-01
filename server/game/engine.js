@@ -118,9 +118,9 @@ const COMBO_MSGS = {
 
 // ── Fuente de Rejuvenecimiento (T103) ─────────────────────────────────────────
 // Sala 18 — Cámara de la Fuente Eterna.
-// Cooldown global: 10 minutos por sala (no por jugador).
+// Cooldown global: 3 minutos por sala (no por jugador). DIS-1074: reducido de 10 min.
 const FOUNTAIN_ROOM_ID = 18;
-const FOUNTAIN_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutos
+const FOUNTAIN_COOLDOWN_MS = 3 * 60 * 1000; // 3 minutos (DIS-1074)
 let fountainCooldownUntil = 0; // timestamp en ms (0 = disponible)
 
 // ── Cuenco Sagrado de la Capilla (DIS-D48) ────────────────────────────────────
@@ -4579,7 +4579,7 @@ function cmdExamine(player, query) {
     // DIS-575: Puerta norte del Pozo — hint sobre llave oxidada y Araña Tejedora
     'puerta':          { rooms: [7],  text: 'La puerta al norte del Pozo Sin Fondo es de hierro macizo, con una cerradura de manufactura antigua. La cerradura tiene marcas de uso —alguien la abría regularmente antes de que vos llegaras.\n\n🔑 Para abrirla necesitás una **llave oxidada**.\n\n💡 Podés conseguirla de tres formas:\n  • Comprarla en la tienda de Aldric (sala 4, Cámara del Tesoro) por 20 monedas de oro\n  • Buscarla en la Prisión Subterránea (sala 8, al norte del Tesoro)\n  • La **Araña Tejedora** de este mismo Pozo la lleva consigo a veces (15% de chance)\n\n🗺 Si no tenés la llave, hay una ruta alternativa sin cerradura:\n  Entrada → este → Capilla Olvidada → norte → Túnel de Hongos → norte → Sala del Trono → este → Santuario Profano.' },
     // DIS-D413: Cámara de la Fuente Eterna (sala 18) — elementos interactivos
-    'fuente':          { rooms: [18], text: 'La fuente de mármol blanco ocupa el centro exacto de la sala. El agua que mana de ella es plateada —no por el reflejo de la luz, sino en sí misma. Nunca se agota: el nivel permanece constante independientemente de cuánto bebas.\n\nLas runas del borde cambian de forma si las mirás de reojo. Mirás directo: no se mueven. Mirás de costado: diferentes. Tocás el agua: la mano no se moja. El agua la cruza y sigue cayendo.\n\n💧 Para beber de la fuente y restaurar tu salud: usá "beber", "fuente" o "drink" — todos funcionan. Cooldown global de 10 minutos.' },
+    'fuente':          { rooms: [18], text: 'La fuente de mármol blanco ocupa el centro exacto de la sala. El agua que mana de ella es plateada —no por el reflejo de la luz, sino en sí misma. Nunca se agota: el nivel permanece constante independientemente de cuánto bebas.\n\nLas runas del borde cambian de forma si las mirás de reojo. Mirás directo: no se mueven. Mirás de costado: diferentes. Tocás el agua: la mano no se moja. El agua la cruza y sigue cayendo.\n\n💧 Para beber de la fuente y restaurar tu salud: usá "beber", "fuente" o "drink" — todos funcionan. Cooldown global de 3 minutos.' },
     'fisura':          { rooms: [18], text: 'La fisura en el suelo es fina pero perfectamente recta —demasiado recta para ser natural. El agua de la fuente se filtra por ella hacia abajo, formando una cortina microscópica que no hace ruido.\n\nTe agachás a mirar: más abajo hay luz. No reflejo de la fuente, sino una luminosidad propia, azulada. Alguien, en algún momento, construyó esta sala encima de algo que ya estaba brillando.' },
     'runas eterna':    { rooms: [18], text: 'Las runas en las paredes de la Cámara de la Fuente son diferentes a las del Santuario —mientras aquellas forman patrones de invocación, estas son concéntricas, como capas de una cebolla, cada círculo más pequeño hacia el centro.\n\nEl círculo interior es tan pequeño que casi no se ve. Pero está grabado en el mármol encima de la fuente: una sola runa, diferente a todas las demás. No la reconocés, pero entendés su función intuitivamente: significa "permanecer".' },
     'runas fuente':    { rooms: [18], text: 'Las runas en las paredes de la Cámara de la Fuente son diferentes a las del Santuario —mientras aquellas forman patrones de invocación, estas son concéntricas, como capas de una cebolla, cada círculo más pequeño hacia el centro.\n\nEl círculo interior es tan pequeño que casi no se ve. Pero está grabado en el mármol encima de la fuente: una sola runa, diferente a todas las demás. No la reconocés, pero entendés su función intuitivamente: significa "permanecer".' },
@@ -9400,7 +9400,7 @@ function cmdMeditate(player) {
 /**
  * drink/beber — Beber de la Fuente Eterna (sala 18).
  *
- * Recupera HP completo. Cooldown global de 10 minutos (no por jugador, por sala).
+ * Recupera HP completo. Cooldown global de 3 minutos (no por jugador, por sala). DIS-1074.
  * Si la fuente está en cooldown, nadie puede usarla hasta que se recargue.
  */
 function cmdDrink(player) {
@@ -9436,7 +9436,7 @@ function cmdDrink(player) {
   const hpBar = buildBar(player.max_hp, player.max_hp, 20);
 
   return {
-    text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! +${restored} HP.\n${hpBar} ${player.max_hp}/${player.max_hp} HP\n\n⏳ La fuente empieza a atenuarse... necesitará 10 minutos para recargarse.\n\n⚠️ Esta sala tiene salidas peligrosas: el Gólem de Piedra (sur, nivel 5+) y la Sombra del Vacío (abajo, nivel 7+). Revisá tu equipo antes de avanzar.`,
+    text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! (+${restored} HP recuperado)\n${hpBar} ${player.max_hp}/${player.max_hp} HP\n\n⏳ La fuente empieza a atenuarse... necesitará 3 minutos para recargarse.\n\n⚠️ Esta sala tiene salidas peligrosas: el Gólem de Piedra (sur, nivel 5+) y la Sombra del Vacío (abajo, nivel 7+). Revisá tu equipo antes de avanzar.`,
     event: `${player.username} bebe de la Fuente Eterna. Un resplandor plateado llena la sala.`,
     eventRoomId: FOUNTAIN_ROOM_ID,
   };
@@ -17841,7 +17841,7 @@ function cmdTips(args) {
       '🏔️  El dungeon tiene 22 salas (más sala de práctica). El minimapa muestra ⚔ donde hay monstruos vivos.',
       '🔐 La sala 7 (Mazmorra) requiere la llave oxidada que está en sala 8.',
       '⛪ La sala 1 tiene regen sagrada de +1 HP cada 10s si tu HP no está al máximo.',
-      '🌊 La sala 18 (Fuente Eterna) restaura HP completo con "beber" — cooldown global de 10 min.',
+      '🌊 La sala 18 (Fuente Eterna) restaura HP completo con "beber" — cooldown global de 3 min.',
     ],
     social: [
       '👥 Formá un grupo (party) para compartir XP cuando matan en la misma sala (75% del atacante).',

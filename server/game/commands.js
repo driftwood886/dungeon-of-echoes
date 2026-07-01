@@ -526,7 +526,7 @@ Comandos disponibles:
   pet [adopt <tipo>]    — Adoptar una mascota (rata, murciélago, araña, etc.) o ver tu compañero
   dados <NdM>           — Tirar dados (ej: dados 2d6, dice 1d20). Resultado visible para toda la sala
   party [<jugador>]     — Gestionar tu grupo: invitar/unirse, ver miembros, party leave para salir
-  beber / drink         — Beber de la Fuente Eterna (sala 18): restaura HP completo. Cooldown global 10 min
+  beber / drink         — Beber de la Fuente Eterna (sala 18): restaura HP completo. Cooldown global 3 min
   cuenco / bowl         — Beber del Cuenco Sagrado (sala 5 — Capilla): restaura 40% HP. Cooldown personal 5 min
   cast <hechizo>        — Lanzar un hechizo (bola de fuego, escudo, curación). Requiere maná
   hechizos / spells     — Ver tus hechizos disponibles y el maná actual
@@ -623,7 +623,7 @@ const COMMAND_HELP = {
     bid:       'pujar <id_subasta> <monto> / bid <auction_id> <amount>\\\\n  Realizar una puja en una subasta activa.\\\\n  La puja debe ser mayor a la puja actual. Si alguien supera tu puja, recibís tu oro de vuelta.\\\\n  El oro se descuenta al pujar y se devuelve si te superan.',
     auctions:  'subastas / auctions / remates\\\\\\\\n  Ver todas las subastas activas en la Casa de Subastas.\\\\\\\\n  Muestra: ID, ítem, precio mínimo, puja actual, tiempo restante y vendedor.',
     dice:      'dados <NdM> / dice <NdM> / roll <NdM>\\\\\\\\n  Tirar dados en la sala. Ej: \\\"dados 2d6\\\" tira dos dados de 6 caras.\\\\\\\\n  El resultado es visible para todos los jugadores presentes en la sala.\\\\\\\\n  Formatos soportados: 1d4, 1d6, 1d8, 1d10, 1d12, 1d20, 1d100, hasta 10d100.',
-    drink:     'drink / beber / tomar\\n  Beber de la Fuente Eterna en la Cámara de la Fuente Eterna (sala 18, al norte del Santuario Profano).\\n  Restaura tu HP completamente.\\n  Cooldown GLOBAL de 10 minutos: una vez que alguien bebe, la fuente tarda 10 min en recargarse.\\n  Nadie puede usarla durante ese tiempo. No funciona si ya estás al máximo de HP.',
+    drink:     'drink / beber / tomar\\n  Beber de la Fuente Eterna en la Cámara de la Fuente Eterna (sala 18, al norte del Santuario Profano).\\n  Restaura tu HP completamente.\\n  Cooldown GLOBAL de 3 minutos: una vez que alguien bebe, la fuente tarda 3 min en recargarse.\\n  Nadie puede usarla durante ese tiempo. No funciona si ya estás al máximo de HP.',
     bowl:      'bowl / cuenco / ofrenda\\n  Beber del Cuenco Sagrado en la Capilla Olvidada (sala 5, al este de la Entrada).\\n  Restaura el 40% de tu HP máximo.\\n  Cooldown PERSONAL de 5 minutos: el cooldown es tuyo, no afecta a otros jugadores.\\n  Ideal para recuperar entre combates sin ir hasta la tienda. No funciona si ya estás al máximo.',
     journal:   'journal / diario\\n  Ver tu diario personal de aventurero.\\n  Se registra automáticamente cuando: derrotes un boss, completes una quest, desbloquees un logro, subas de nivel o mueras.\\n  Muestra las últimas 10 entradas con tipo, fecha y descripción.',
     enemies:   'enemies [N] / enemigos [N] / top [N]\\n  Ver los N monstruos más poderosos del dungeon (ordenados por HP máximo).\\n  Muestra: nombre, estado (vivo/respawn), sala donde habitan y estadísticas.\\n  N es opcional, por defecto 10. Máximo 20.',
