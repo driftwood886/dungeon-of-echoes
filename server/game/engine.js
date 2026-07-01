@@ -11346,9 +11346,9 @@ function cmdClase(player, args) {
   lines.push(``, `⚔️  HABILIDADES DE CLASE:`);
   if (className === 'guerrero') {
     lines.push(
-      `   • smash     (Lv1 — disponible ahora): Golpe devastador, daño aumentado.`,
+      `   • smash (Golpetazo) (Lv1 — disponible ahora): Golpe devastador, daño aumentado.`,
       `     Usá: "skills" durante combate para ver cuándo está disponible.`,
-      `     Aparece en pantalla cuando podés activarlo: "Habilidades disponibles: smash"`,
+      `     Aparece en pantalla cuando podés activarlo: "Habilidades disponibles: smash (Golpetazo)"`,
       `   • grito_de_guerra (Lv3): Intimidación que reduce el ATK enemigo.`,
       `   • forma_de_berserker (Lv5): +50% ATK, -20% DEF por 5 turnos.`,
     );
@@ -13551,7 +13551,7 @@ function cmdChangelog() {
       '✨ NUEVO: comando changelog/novedades — esto que estás leyendo',
     ]},
     { version: '0.21', date: '2026-05-30', changes: [
-      '✨ NUEVO: habilidades activas por nivel (smash Lv3, shield_bash Lv6, rally Lv10)',
+      '✨ NUEVO: habilidades activas por nivel (smash/Golpetazo Lv3, shield_bash Lv6, rally Lv10)',
       '✨ NUEVO: logros secretos (5 logros ocultos: Temerario, Mecenas, Artesano, Último Aliento, Cartógrafo)',
     ]},
     { version: '0.20', date: '2026-05-30', changes: [

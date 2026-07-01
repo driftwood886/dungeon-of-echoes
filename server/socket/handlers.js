@@ -166,7 +166,7 @@ function registerHandlers(io) {
         '💡 Tip: atacá sin tilde — "attack golem" funciona igual que "attack gólem".',
         '💡 Tip: elegí una clase con "clase guerrero/mago/pícaro" para desbloquear bonuses únicos.',
         '💡 Tip: "forage" o "buscar" en una sala sin monstruos puede revelar ítems ocultos.',
-        '💡 Tip: las habilidades activas se desbloquean al subir de nivel: smash (Lv3), bash (Lv6), rally (Lv10).',
+        '💡 Tip: las habilidades activas se desbloquean al subir de nivel: smash/Golpetazo (Lv3), bash (Lv6), rally (Lv10).',
         '💡 Tip: "craft <ítem1> con <ítem2>" combina ítems. Escribí "recetas" para ver las combinaciones.',
         '💡 Tip: el mercader Aldric (sala 4) compra y vende ítems. Usá "tienda" para ver su catálogo.',
         '💡 Tip: algunos NPCs tienen quests especiales. Intentá "hablar aldric" cuando tengas nivel 5+.',
