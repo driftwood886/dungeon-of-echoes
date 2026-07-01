@@ -166,6 +166,29 @@ const SPECIALIZATIONS = {
     },
   },
 
+  // DIS-1072: segunda especialización para el Clérigo — Juicio (ofensivo)
+  juicio: {
+    id: 'juicio',
+    class: 'clerigo',
+    name: 'Juicio',
+    emoji: '⚖️',
+    description: 'El Clérigo que castiga. El Juicio convierte la fe en fuerza de ataque: más daño, poder contra no-muertos, y un rayo sagrado devastador. Menos curación, más condena.',
+    flavor: '⚖️ La luz divina se endurece en tu puño. Sos el Juicio de los dioses — la misericordia puede esperar.',
+    passives: [
+      '+2 ATK permanente, −15 HP máximo (más frágil pero más peligroso)',
+      'Rayo Divino (`rayo_divino`): ataque sagrado ×1.5 que ignora la defensa del monstruo',
+      '+50% daño extra contra monstruos no-muertos (esqueletos, sombras, Lich)',
+      'Cooldown de `sanacion_mayor` aumenta a 80s (era 60s) — el Juicio prioriza atacar',
+    ],
+    new_commands: ['rayo_divino'],
+    combat_modifiers: {
+      atk_bonus: 2,
+      max_hp_penalty: 15,
+      undead_dmg_bonus: 0.50,         // +50% daño a no-muertos
+      sanacion_mayor_cooldown: 80,    // cooldown aumentado
+    },
+  },
+
 };
 
 /**
@@ -184,6 +207,10 @@ const SPEC_ALIASES = {
   assassin:   'asesino',
   sanador:    'sanador',
   healer:     'sanador',
+  juicio:     'juicio',
+  judgment:   'juicio',
+  jugdment:   'juicio',
+  justicia:   'juicio',
   ladron:     'ladron',
   ladrón:     'ladron',
   'ladron de sombras': 'ladron',

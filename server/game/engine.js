@@ -634,6 +634,8 @@ Para todos los comandos: help todo
           emboscar: 'emboscar', emboscada: 'emboscar',
           chain_heal: 'chain_heal', cadena_curacion: 'chain_heal', cadena_curación: 'chain_heal',
           escudo_sagrado: 'escudo_sagrado', sacred_shield: 'escudo_sagrado', barrera_sagrada: 'escudo_sagrado', burbuja: 'escudo_sagrado',
+          // DIS-1072: Juicio
+          rayo_divino: 'rayo_divino', divine_ray: 'rayo_divino', condena: 'rayo_divino', divine_smite: 'rayo_divino',
           // DIS-986: Berserker
           furia: 'furia', berserk: 'furia', rage: 'furia', arrebato: 'furia',
           // DIS-947: Ladrón de Sombras
@@ -11590,6 +11592,14 @@ function cmdSpecialize(player, args) {
     currentSE.spec_crit_bonus = mods.crit_bonus;
     db.updatePlayer(fresh.id, { status_effects: currentSE });
   }
+  // Juicio: +2 ATK permanente, −15 HP máximo (DIS-1072)
+  if (specId === 'juicio') {
+    const freshForJu = db.getPlayer(fresh.id);
+    const newAtkJu = (freshForJu.attack || 5) + (mods.atk_bonus || 2);
+    const newMaxHpJu = Math.max(15, (freshForJu.max_hp || 30) - (mods.max_hp_penalty || 15));
+    const newHpJu = Math.min(newMaxHpJu, freshForJu.hp || 15);
+    db.updatePlayer(fresh.id, { attack: newAtkJu, max_hp: newMaxHpJu, hp: newHpJu });
+  }
 
   const lines = [
     `${specObj.flavor}`,
@@ -12362,9 +12372,13 @@ function cmdUseSkill(player, args, context) {
     const newHpSM = Math.min(freshCler.max_hp, freshCler.hp + healAmt);
     const healedSM = newHpSM - freshCler.hp;
     const newManaSM = currManaSM - manaCostSM;
-    const newCDsM = skills.applyCooldown(freshCler, 'sanacion_mayor');
+    // DIS-1072: Juicio tiene cooldown de sanacion_mayor aumentado a 80s
+    const effectiveCdSM = freshCler.specialization === 'juicio' ? 80 : (skill.cooldown_seconds || 60);
+    const cooldownsSM = skills.getCooldowns(freshCler);
+    cooldownsSM['sanacion_mayor'] = new Date(Date.now() + effectiveCdSM * 1000).toISOString();
+    const newCDsM = JSON.stringify(cooldownsSM);
     db.updatePlayer(freshCler.id, { hp: newHpSM, mana: newManaSM, skill_cooldowns: newCDsM });
-    const text = `✨ ¡SANACIÓN MAYOR! Canalizás la gracia divina completa sobre tus heridas.\n   +${healedSM} HP (${freshCler.hp} → ${newHpSM}/${freshCler.max_hp}) · -${manaCostSM} maná (${newManaSM}/${freshCler.max_mana || 30})\n   (Cooldown: ${skill.cooldown_seconds}s)`;
+    const text = `✨ ¡SANACIÓN MAYOR! Canalizás la gracia divina completa sobre tus heridas.\n   +${healedSM} HP (${freshCler.hp} → ${newHpSM}/${freshCler.max_hp}) · -${manaCostSM} maná (${newManaSM}/${freshCler.max_mana || 30})\n   (Cooldown: ${effectiveCdSM}s${freshCler.specialization === 'juicio' ? ' — penalidad de Juicio' : ''})`;
     if (context && context.broadcastToRoom) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
         `✨ ${freshPlayer.username} canaliza una Sanación Mayor. (+${healedSM} HP)`);
@@ -12955,6 +12969,143 @@ function cmdUseSkill(player, args, context) {
         `🛡️ ${freshPlayer.username} proyecta un Escudo Sagrado de luz divina.`);
     }
     return { text: `🛡️ ¡ESCUDO SAGRADO activado! Una barrera de luz envuelve tu cuerpo.\n   Absorberá hasta ${shieldAmount} HP del próximo golpe (${skill.duration_seconds || 30}s).\n   -${manaCostES} maná (${newManaES}/${freshES.max_mana || 30}) · Cooldown: ${skill.cooldown_seconds}s\n\n💡 Usá sanacion_mayor para curar daño ya recibido — el escudo previene el próximo golpe.` };
+  }
+
+  // ── Rayo Divino (rayo_divino) — Juicio Lv5 ──────────────────────────────
+  // DIS-1072: daño sagrado ×1.5 ignorando defensa; +50% extra contra no-muertos
+  if (skillId === 'rayo_divino') {
+    const freshJu = db.getPlayer(freshPlayer.id);
+    const manaCostJu = skill.mana_cost || 12;
+    const currManaJu = freshJu.mana != null ? freshJu.mana : 0;
+    if (currManaJu < manaCostJu) {
+      return { text: `⚖️ No tenés suficiente maná para Rayo Divino. Necesitás ${manaCostJu} maná (tenés ${currManaJu}).` };
+    }
+    const monsters = db.getMonstersInRoom(freshJu.current_room_id);
+    const alive = monsters.filter(m => m.hp > 0);
+    const targetName = args.slice(1).join(' ').trim();
+    if (alive.length === 0) {
+      if (targetName) return { text: `⚖️ No hay ningún "${targetName}" aquí para juzgar.` };
+      return { text: '⚖️ No hay monstruos aquí para juzgar.' };
+    }
+    let target = targetName ? combat.findMonsterInRoom(freshJu.current_room_id, targetName) : null;
+    if (!target) target = alive[0];
+    // BUG-1020: si está en Sala de Práctica atacando un maniquí, redirigir a _cmdTrainingFight
+    if (freshJu.current_room_id === TRAINING_ROOM_ID && TRAINING_DUMMY_IDS.has(target.id)) {
+      skills.applyCooldown(freshJu, 'rayo_divino');
+      return _cmdTrainingFight(freshJu, target);
+    }
+    // Daño base: ATK × 1.5, ignora defensa del monstruo
+    const baseDmgJu = freshJu.attack || 5;
+    const rawDmgJu = Math.max(1, Math.floor(baseDmgJu * (skill.dmg_multiplier || 1.5)));
+    const variationJu = Math.floor(rawDmgJu * 0.10);
+    let finalDmgJu = rawDmgJu + Math.floor(Math.random() * (variationJu * 2 + 1)) - variationJu;
+    // Verificar si el monstruo es no-muerto (esqueletos, sombras, lich, espectros, zombis)
+    const undeadNames = ['esqueleto', 'sombra', 'lich', 'espectro', 'zombi', 'zombie', 'espíritu', 'espiritu', 'alma', 'fantasma', 'muerto', 'non-muerto', 'no muerto'];
+    const targetNameLower = (target.name || '').toLowerCase();
+    const isUndead = undeadNames.some(u => targetNameLower.includes(u));
+    let undeadLabel = '';
+    if (isUndead) {
+      const undeadBonus = skill.undead_dmg_bonus || 0.50;
+      finalDmgJu = Math.ceil(finalDmgJu * (1 + undeadBonus));
+      undeadLabel = ` ✨ [NO-MUERTO ×${(1 + undeadBonus).toFixed(1)}]`;
+    }
+    finalDmgJu = Math.max(1, finalDmgJu);
+    const newHpJu = Math.max(0, target.hp - finalDmgJu);
+    db.updateMonster(target.id, { hp: newHpJu });
+    // BUG-971: marcar boss atacado si el target es un boss
+    if (combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]) markBossAttacked(freshJu, freshJu.current_room_id);
+    const newManaJu = currManaJu - manaCostJu;
+    const newCDsJu = skills.applyCooldown(freshJu, 'rayo_divino');
+    db.updatePlayer(freshJu.id, { mana: newManaJu, skill_cooldowns: newCDsJu });
+    const deadJu = newHpJu <= 0;
+    let textJu = `⚖️ ¡RAYO DIVINO! Un haz de luz sagrada juzga al ${target.name}${undeadLabel} — ×${skill.dmg_multiplier} (ignora defensa) — ¡${finalDmgJu} de daño!`;
+    if (deadJu) {
+      textJu += `\n💀 El ${target.name} cae fulminado por el Juicio divino.`;
+      const { droppedLoot: juLoot, globalEvent: juGlobalEvent } = combat.dropLoot(target, freshJu.current_room_id);
+      if (juLoot && juLoot.length > 0) textJu += `\n💰 El ${target.name} suelta: ${juLoot.join(', ')}.`;
+      if (juGlobalEvent) {
+        db.logGlobalEvent('boss', juGlobalEvent);
+        if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: juGlobalEvent });
+      }
+      const xpGainJu = Math.max(5, Math.floor(target.max_hp * 2));
+      const newXpJu = (freshJu.xp || 0) + xpGainJu;
+      const newLevelJu = xpSystem.levelFromXp(newXpJu);
+      const levelUpJu = newLevelJu > (freshJu.level || 1);
+      const updJu = { xp: newXpJu, level: newLevelJu, kills: (freshJu.kills || 0) + 1 };
+      if (levelUpJu) {
+        updJu.max_hp = (freshJu.max_hp || 30) + 5;
+        updJu.hp = Math.min(updJu.max_hp, (freshJu.hp || 1) + Math.ceil(updJu.max_hp * 0.20));
+        updJu.attack = (freshJu.attack || 5) + 1;
+      }
+      db.updatePlayer(freshJu.id, updJu);
+      textJu += `\n⭐ +${xpGainJu} XP (kills: ${updJu.kills} | nivel: ${newLevelJu})${levelUpJu ? ` ✨ ¡SUBE AL NIVEL ${newLevelJu}!` : ''}`;
+      db.addBestiaryKill(freshJu.id, target.name);
+      const freshForJuAch = db.getPlayer(freshJu.id);
+      if (freshForJuAch) {
+        const juBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+        const juLichKill = target.id === 13;
+        const newJuAchs = ach.checkAchievements(freshForJuAch, { bossKill: juLichKill });
+        const juAchLines = ach.formatNewAchievements(newJuAchs);
+        if (juAchLines) textJu += '\n' + juAchLines;
+        if (juBossKill) {
+          db.logGlobalEvent('boss', `⚔️ ${freshJu.username} fulminó al ${target.name} con Rayo Divino.`);
+          db.addJournalEntry(freshJu.id, 'boss', `⚖️ Juzgaste al ${target.name} con el Rayo Divino.`);
+          textJu += `\n\n╔════════════════════════════════════╗\n║  ⚖️  ¡${target.name.toUpperCase()} JUZGADO!  ⚖️  ║\n╚════════════════════════════════════╝\n¡Usá 'loot' para recoger los tesoros!`;
+        }
+        if (juLichKill) {
+          try {
+            const freshJuCycle = db.getPlayer(freshJu.id);
+            if (freshJuCycle) {
+              const newLichKillsJu = (freshJuCycle.lich_kills || 0) + 1;
+              const cycleTimeMinJu = freshJuCycle.cycle_start_at ? Math.floor((Date.now() - new Date(freshJuCycle.cycle_start_at).getTime()) / 60000) : 0;
+              const juCycleUpd = { lich_kills: newLichKillsJu, cycle_start_at: new Date().toISOString() };
+              if (!freshJuCycle.cycle_best_time || cycleTimeMinJu < freshJuCycle.cycle_best_time) juCycleUpd.cycle_best_time = cycleTimeMinJu;
+              db.updatePlayer(freshJu.id, juCycleUpd);
+            }
+          } catch (e) { console.warn('[engine] rayo_divino: Error en lich_kills:', e.message); }
+        }
+      }
+      const freshForJuQuest = db.getPlayer(freshJu.id);
+      const qJuResult = quests.recordProgress(freshForJuQuest, 'kill', { monsterName: target.name });
+      const crJu = db.updateDailyChallengeProgress(freshJu.id, 'kill', target.name);
+      const wcrJu = db.updateWeeklyContractProgress(freshJu.id, target.name);
+      if (wcrJu && wcrJu.reward) textJu += `\n📜 ¡CONTRATO COMPLETADO! +${wcrJu.reward.xp} XP · +${wcrJu.reward.gold}g`;
+      if (crJu && crJu.reward) textJu += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙`;
+      if (qJuResult) {
+        db.updatePlayer(freshJu.id, { quest_progress: qJuResult.questProgress });
+        if (qJuResult.justCompleted && qJuResult.reward) {
+          const freshQ5 = db.getPlayer(freshJu.id);
+          const questNewXpJu = (freshQ5.xp || 0) + qJuResult.reward.xp;
+          const questNewLvlJu = xpSystem.levelFromXp(questNewXpJu);
+          const questLvlUpJu = questNewLvlJu > (freshQ5.level || 1);
+          db.updatePlayer(freshJu.id, { gold: (freshQ5.gold || 0) + qJuResult.reward.gold, xp: questNewXpJu, level: questNewLvlJu });
+          textJu += `\n🎉 ¡Quest completada! Recibís ${qJuResult.reward.gold}g y ${qJuResult.reward.xp} XP.${questLvlUpJu ? ` ✨ ¡SUBÍS AL NIVEL ${questNewLvlJu}!` : ''}`;
+        }
+      }
+    } else {
+      textJu += `\n  El ${target.name} tiene ${newHpJu}/${target.max_hp} HP.`;
+      textJu += `\n  -${manaCostJu} maná (${newManaJu}/${freshJu.max_mana || 30}) · Cooldown: ${skill.cooldown_seconds}s`;
+      // BUG-1023: Fase 2 del boss
+      if (newHpJu > 0 && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id] && combat.BOSS_MONSTERS[target.id].phase2) {
+        const juMonSe = target.status_effects ? JSON.parse(target.status_effects || '{}') : {};
+        const juHalfHp = Math.floor(target.max_hp / 2);
+        if (!juMonSe.phase2_triggered && newHpJu <= juHalfHp) {
+          juMonSe.phase2_triggered = true;
+          const p2Ju = combat.BOSS_MONSTERS[target.id].phase2;
+          db.updateMonster(target.id, {
+            attack: (target.attack || 0) + p2Ju.atkBonus,
+            defense: (target.defense || 0) + p2Ju.defBonus,
+            status_effects: JSON.stringify(juMonSe),
+          });
+          textJu += `\n${p2Ju.message}`;
+        }
+      }
+    }
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `⚖️ ${freshPlayer.username} lanza el Rayo Divino sobre el ${target.name}! (-${finalDmgJu} HP)`);
+    }
+    return { text: textJu };
   }
 
   return { text: `Habilidad "${skillId}" no implementada aún.` };

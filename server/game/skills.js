@@ -227,6 +227,22 @@ const SKILLS = {
     description: 'Proyectás un escudo de luz divina: absorbe hasta 25 HP del próximo golpe recibido (dura 30s). Decisión táctica: prevenir daño en vez de curarlo. Solo Sanador (nivel 7+). Cooldown: 45s. Costo: 10 maná.',
     combat_only: false,
   },
+  // DIS-1072: Rayo Divino — skill del Clérigo especialización Juicio
+  rayo_divino: {
+    id: 'rayo_divino',
+    name: 'Rayo Divino',
+    aliases: ['rayo_divino', 'rayo divino', 'divine_ray', 'divine_smite', 'rayo sagrado', 'rayo_sagrado', 'condemn', 'condena'],
+    required_level: 5,
+    required_class: 'clerigo',
+    required_specialization: 'juicio',
+    cooldown_seconds: 60,
+    type: 'juicio_smite',
+    dmg_multiplier: 1.5,
+    undead_dmg_bonus: 0.50,   // +50% extra contra no-muertos (acumulado con el pasivo)
+    mana_cost: 12,
+    description: 'Invocás el poder del Juicio: ×1.5 daño sagrado que IGNORA la defensa del monstruo. +50% daño adicional contra no-muertos. Solo Juicio (nivel 5+). Cooldown: 60s. Costo: 12 maná.',
+    combat_only: true,
+  },
 };
 
 /**
