@@ -189,6 +189,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN ascension_count INTEGER NOT NULL DEFAULT 0`,          // EPIC-962: número de ascensiones de esta cuenta
     `ALTER TABLE players ADD COLUMN legacy_bonus TEXT NOT NULL DEFAULT '{}'`,             // EPIC-962: JSON del bonus de legado a aplicar al siguiente personaje
     `ALTER TABLE legacies ADD COLUMN item_claimed INTEGER NOT NULL DEFAULT 0`,            // T970: ítem heredado reclamado por el sucesor
+    `ALTER TABLE players ADD COLUMN npc_memory TEXT NOT NULL DEFAULT '{}'`,               // EPIC-MR-1079: memoria de NPCs (Aldric, Anciano, Escriba)
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }

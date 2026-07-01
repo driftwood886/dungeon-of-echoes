@@ -7419,7 +7419,61 @@ function cmdTalk(player, target) {
   const questState = player.aldric_quest || 'none';
   const level = player.level || 1;
 
-  // Contar visitas a sala 4
+  // EPIC-MR-1079: Leer memoria de Aldric y preparar sufijo de diálogo
+  let aldricMem = {};
+  try { aldricMem = (JSON.parse(player.npc_memory || '{}')).aldric || {}; } catch (_) {}
+  const aldricPurchases = aldricMem.purchases || 0;
+  const aldricAscCount = player.ascension_count || 0;
+  const aldricAscSeen = aldricMem.ascension_count_seen || 0;
+  const aldricClassRevealed = aldricMem.class_revealed || null;
+  const aldricPlayerClass = player.player_class || 'sin_clase';
+
+  // Sufijo de reconocimiento según purchases (solo si no está en la quest)
+  function getAldricMemorySuffix(skipForQuestFlow = false) {
+    if (skipForQuestFlow) return '';
+    let suffix = '';
+    // Variante post-ascensión (solo una vez por ciclo de ascensión)
+    if (aldricAscCount > 0 && aldricAscCount > aldricAscSeen) {
+      suffix += '\n\n— Aldric te mira de arriba abajo. Hay algo diferente en su expresión —no sorpresa, sino reconocimiento de algo que esperaba. «Ascendiste», dice. No es una pregunta. «Vi tu nombre desaparecer del libro de registro y volver como nuevo.» Pausa. «Bienvenido de vuelta. Los veteranos compran mejor.»';
+      // Actualizar ascension_count_seen
+      const memUpd = {};
+      try { Object.assign(memUpd, JSON.parse(player.npc_memory || '{}')); } catch (_) {}
+      if (!memUpd.aldric) memUpd.aldric = {};
+      memUpd.aldric.purchases = aldricPurchases;
+      memUpd.aldric.ascension_count_seen = aldricAscCount;
+      db.updatePlayer(player.id, { npc_memory: JSON.stringify(memUpd) });
+      return suffix;
+    }
+    // Variante por clase (solo si no fue revelada o cambió)
+    if (aldricPlayerClass !== 'sin_clase' && aldricPlayerClass !== aldricClassRevealed) {
+      const classLines = {
+        guerrero: '— «Un guerrero.» Aldric no levanta la vista del mostrador. «La sección de armas está a la izquierda de mi imaginación y a la derecha de tu presupuesto.»',
+        mago:     '— «Mago.» Una pausa. «Entonces necesitás maná, pergaminos, o algo que brille sin ser útil.»',
+        clerigo:  '— «Clérigo.» Aldric asiente apenas. «Si venís por pociones de curación, las tengo. Si venís a salvarme el alma, siguiente.»',
+      };
+      if (classLines[aldricPlayerClass]) {
+        suffix += '\n\n' + classLines[aldricPlayerClass];
+        const memUpdC = {};
+        try { Object.assign(memUpdC, JSON.parse(player.npc_memory || '{}')); } catch (_) {}
+        if (!memUpdC.aldric) memUpdC.aldric = {};
+        memUpdC.aldric.purchases = aldricPurchases;
+        memUpdC.aldric.class_revealed = aldricPlayerClass;
+        db.updatePlayer(player.id, { npc_memory: JSON.stringify(memUpdC) });
+        return suffix;
+      }
+    }
+    // Variante por nivel de compras (solo en diálogos neutros)
+    if (aldricPurchases >= 25) {
+      suffix += '\n\n— «Ah.» Una sola sílaba, pero Aldric la dice con algo que se parece al afecto. «El dungeon sigue sin matarte.» Pausa. «Eso ya dice algo.»';
+    } else if (aldricPurchases >= 10) {
+      suffix += '\n\n— «Mi mejor cliente», dice Aldric en voz baja, con un tono que no sabés si es elogio o advertencia. «¿Qué necesitás hoy?»';
+    } else if (aldricPurchases >= 1) {
+      suffix += '\n\n— «Tercer viaje esta semana, ¿no?» Aldric no levanta la vista del mostrador. «Lo sé porque tengo buena memoria para quienes vuelven. El dungeon no.»';
+    }
+    return suffix;
+  }
+
+
   let visited = [];
   try { visited = JSON.parse(player.rooms_visited || '[]'); } catch (_) {}
   const room4VisitCount = visited.filter(id => id === 4).length;
@@ -7430,7 +7484,7 @@ function cmdTalk(player, target) {
   const triggerable = level >= 5 || (player.gold_spent || 0) > 0;
 
   if (questState === 'done') {
-    return { text: 'Aldric te mira con algo que podría ser respeto, o reconocimiento, o las dos cosas.\n\n"Ya no te veo igual que antes," dice, y vuelve a sus cuentas.\n\nEl símbolo de las dos llaves cruzadas sigue en su delantal. Ahora sabés qué significa. Kaelthas Vorn. El guardián. El dungeon fue su archivo.\n\nSu alma sigue aquí, atada a las piedras. A los corredores. A la Sala del Trono donde algo observa sin ojos.' };
+    return { text: 'Aldric te mira con algo que podría ser respeto, o reconocimiento, o las dos cosas.\n\n"Ya no te veo igual que antes," dice, y vuelve a sus cuentas.\n\nEl símbolo de las dos llaves cruzadas sigue en su delantal. Ahora sabés qué significa. Kaelthas Vorn. El guardián. El dungeon fue su archivo.\n\nSu alma sigue aquí, atada a las piedras. A los corredores. A la Sala del Trono donde algo observa sin ojos.' + getAldricMemorySuffix() };
   }
 
   if (questState === 'active') {
@@ -7482,9 +7536,9 @@ function cmdTalk(player, target) {
     const invForHint = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
     const hasCartaForHint = invForHint.some(i => i.toLowerCase().includes('carta sellada'));
     if (hasCartaForHint) {
-      return { text: 'Aldric levanta la vista de su libro de cuentas. Algo en su mirada cambia cuando te ve —un reconocimiento fugaz que apaga enseguida.\n\n"¿Querés comprar algo?" dice. No es una pregunta. Pero sus ojos van a tu mochila por un instante.\n\nNecesitás más experiencia para que confíe en vos. (Nivel 5 requerido para desbloquear la quest)' };
+      return { text: 'Aldric levanta la vista de su libro de cuentas. Algo en su mirada cambia cuando te ve —un reconocimiento fugaz que apaga enseguida.\n\n"¿Querés comprar algo?" dice. No es una pregunta. Pero sus ojos van a tu mochila por un instante.\n\nNecesitás más experiencia para que confíe en vos. (Nivel 5 requerido para desbloquear la quest)' + getAldricMemorySuffix() };
     }
-    return { text: 'Aldric levanta la vista de su libro de cuentas.\n\n"¿Querés comprar algo?" dice. No es una pregunta.\n\nSu mirada vuelve a los números. El delantal con el símbolo de las dos llaves cruzadas se mueve cuando se inclina sobre el mostrador.' };
+    return { text: 'Aldric levanta la vista de su libro de cuentas.\n\n"¿Querés comprar algo?" dice. No es una pregunta.\n\nSu mirada vuelve a los números. El delantal con el símbolo de las dos llaves cruzadas se mueve cuando se inclina sobre el mostrador.' + getAldricMemorySuffix() };
   }
 
   // Trigger: desbloquear la quest
@@ -7712,6 +7766,17 @@ function cmdBuy(player, itemQuery) {
 
   // T115: Trackear oro gastado para logro secreto Mecenas
   db.addGoldSpent(player.id, finalPrice);
+
+  // EPIC-MR-1079: Actualizar memoria de Aldric (purchases y gold_spent_at_aldric)
+  {
+    const memPlayer = db.getPlayer(player.id);
+    let mem = {};
+    try { mem = JSON.parse(memPlayer.npc_memory || '{}'); } catch (_) {}
+    if (!mem.aldric) mem.aldric = { purchases: 0, gold_spent_at_aldric: 0 };
+    mem.aldric.purchases = (mem.aldric.purchases || 0) + 1;
+    mem.aldric.gold_spent_at_aldric = (mem.aldric.gold_spent_at_aldric || 0) + finalPrice;
+    db.updatePlayer(player.id, { npc_memory: JSON.stringify(mem) });
+  }
 
   // Evaluar logros de compra
   const freshBuyer = db.getPlayer(player.id);
