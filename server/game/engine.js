@@ -9991,10 +9991,10 @@ function formatTimeLeft(endsAt) {
 function cmdAuction(player, args) {
   player = db.getPlayer(player.id);
 
-  // BUG-311: si no hay args o el primer arg es "listar/list/ver/subastas/remates", mostrar las subastas activas
+  // BUG-311 / DIS-1089: si no hay args o el primer arg es un alias de "listar" (incluyendo "lista"), mostrar las subastas activas
   // (funciona desde cualquier sala, igual que el comando 'remates')
   if (!args || args.length === 0 ||
-      ['listar', 'list', 'ver', 'subastas', 'remates', 'ver subastas', 'listado', 'all', 'todas'].includes(args[0].toLowerCase())) {
+      ['listar', 'list', 'lista', 'ver', 'subastas', 'remates', 'ver subastas', 'listado', 'all', 'todas', 'mostrar', 'activas'].includes(args[0].toLowerCase())) {
     return cmdAuctions();
   }
 
