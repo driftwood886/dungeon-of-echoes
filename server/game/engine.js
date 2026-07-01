@@ -6236,8 +6236,13 @@ function cmdMap(player) {
       // BUG-894: lockMark debe ser CORTO para no romper el formato ASCII de la grilla
       // El texto explicativo se agrega como nota al pie del mapa (ver lockHint abajo)
       const lockMark = isPuertaAbierta ? '🔓' : '🔑';
-      // DIS-898: separar la fila densa en dos grupos visuales con separador ---
-      return `            ${c(6)}---${c(2)}  ╎  ${c(7)}${lockMark}---${c(3)}---${c(4)}---${c(8)}---${c(17)}`;
+      // BUG-1099: corregido layout — sala 8 (Prisión) está al NORTE de sala 4 (Tesoro),
+      // no al este. Sala 17 (Subastas) está al este de sala 4 Y al este de sala 8.
+      // Se muestran sala 8 y 17 en una fila encima de sala 4, con conector vertical.
+      const row1 = `            ${c(6)}---${c(2)}  ╎  ${c(7)}${lockMark}---${c(3)}---${c(4)}---${c(17)}`;
+      const row2 = `                                                               |         |`;
+      const row3 = `                                                         ${c(8)}---+`;
+      return [row1, row2, row3].join('\n');
     })(),
     `              |         |`,
     `            ${c(5)}---${c(1)}`,
