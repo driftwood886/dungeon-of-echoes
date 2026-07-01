@@ -11393,7 +11393,7 @@ function cmdClase(player, args) {
   lines.push(``, `⚔️  HABILIDADES DE CLASE:`);
   if (className === 'guerrero') {
     lines.push(
-      `   • smash (Golpetazo) (Lv3): Golpe devastador, daño aumentado. ×1.8, cooldown 45s.`,
+      `   • smash (Golpetazo) (Lv3): Golpe devastador, daño aumentado. ×1.8, cooldown 30s.`,
       `     Usá: "skills" durante combate para ver cuándo está disponible.`,
       `     Aparece cuando subís al nivel 3: "Habilidades disponibles: smash (Golpetazo)"`,
       `   • grito_de_guerra (Lv3): Intimidación que reduce el ATK enemigo.`,
