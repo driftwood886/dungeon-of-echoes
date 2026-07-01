@@ -284,8 +284,100 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
     lines.push(`\n✍️ Alguien ha dejado inscripciones en la pared. (Escribí "read" para leerlas.)`);
   }
 
+  // EPIC-MR-1085: Texto ambiental de World State colectivo
+  try {
+    const wsText = getWorldStateRoomText(roomId);
+    if (wsText) {
+      lines.push(`\n${wsText}`);
+    }
+  } catch (_) { /* no romper look si falla */ }
+
   return lines.join('\n');
 }
+
+// ─── EPIC-MR-1085: Texto ambiental de World State colectivo ──────────────────
+
+/**
+ * Devuelve texto ambiental basado en el estado colectivo del dungeon (world_state).
+ * Retorna string con el texto o null si no hay nada que mostrar.
+ * @param {number} roomId
+ * @returns {string|null}
+ */
+function getWorldStateRoomText(roomId) {
+  // Solo salas afectadas: 2, 3, 4, 6, 7, 14, 15
+  const AFFECTED_ROOMS = new Set([2, 3, 4, 6, 7, 14, 15]);
+  if (!AFFECTED_ROOMS.has(roomId)) return null;
+
+  // Leer las claves relevantes según sala
+  const KEY_MAP = {
+    2:  ['goblins_semana'],
+    3:  ['subastas_semana'],
+    4:  ['esqueletos_semana'],
+    6:  ['items_crafteados_semana'],
+    7:  ['aranas_semana'],
+    14: ['lich_derrotado_semana'],
+    15: ['lich_last_kill_ts'],
+  };
+  const keysToRead = KEY_MAP[roomId] || [];
+  const ws = db.getWorldStateValues(keysToRead);
+
+  switch (roomId) {
+    case 2: { // Corredor de las Sombras — goblins
+      const v = ws.goblins_semana || 0;
+      if (v >= 10) return '🌫️ El corredor huele menos a goblin que de costumbre. La semana ha sido activa.';
+      return null;
+    }
+    case 3: { // Sala de los Ecos — subastas (escriba)
+      const v = ws.subastas_semana || 0;
+      if (v === 0) return '📜 El escriba tiene los brazos cruzados. «Nadie subastó nada esta semana», dice sin que le preguntes. «El mercado duerme.»';
+      if (v >= 5) return `📜 La pluma del escriba no para. «Buena semana», dice mientras escribe. «${v} transacciones. El dungeon está activo.»`;
+      return null; // 1-4: actividad normal, sin texto extra
+    }
+    case 4: { // Cámara del Tesoro — esqueletos
+      const v = ws.esqueletos_semana || 0;
+      if (v >= 20) return '💀 Alguien redecoró. Los esqueletos fueron destruidos tantas veces esta semana que el suelo cruje diferente.';
+      if (v >= 8)  return '💀 Los huesos del suelo están más recientes de lo normal. No son los de siempre.';
+      return null;
+    }
+    case 6: { // Túnel de los Hongos — crafteo
+      const v = ws.items_crafteados_semana || 0;
+      if (v >= 15) return '⚗️ El túnel tiene un aroma denso y químico. Esta semana, los alquimistas del dungeon estuvieron muy ocupados.';
+      if (v >= 5)  return '⚗️ El olor a hierbas procesadas es más fuerte de lo habitual. Alguien estuvo cocinando pociones.';
+      return null;
+    }
+    case 7: { // Pozo Sin Fondo — arañas
+      const v = ws.aranas_semana || 0;
+      if (v >= 30) return '🕷️ El nido está casi en silencio. Apenas quedan rastros de tela de araña — los aventureros limpiaron bien. Los huevos, sin embargo, siguen ahí.';
+      if (v >= 10) return '🕷️ El nido está más tranquilo de lo usual. Alguien ha estado cazando en este corredor.';
+      return null;
+    }
+    case 14: { // Coliseo de Huesos — lich derrotado
+      const v = ws.lich_derrotado_semana || 0;
+      if (v >= 3) return `💀 Las inscripciones muestran múltiples marcas frescas. ${v} veces llegaron hasta el Lich esta semana.`;
+      if (v >= 1) return '💀 Las inscripciones en las columnas cambian según el ciclo. Esta semana, alguien llegó hasta el final.';
+      return null;
+    }
+    case 15: { // Catedral de la Oscuridad — ventana de tiempo del Lich
+      const ts = ws.lich_last_kill_ts || 0;
+      if (ts === 0) return null;
+      const msAgo = Date.now() - ts;
+      const TWO_HOURS = 2 * 60 * 60 * 1000;
+      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+      if (msAgo < TWO_HOURS) {
+        return '⚡ El suelo todavía está caliente. Llegaste apenas después que otro.';
+      }
+      if (msAgo < TWENTY_FOUR_HOURS) {
+        return '✨ Una energía residual impregna el aire — el ritual de muerte fue reciente. Podés sentir el eco del combate en las piedras.';
+      }
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 
 module.exports = {
   getRoomFull,
