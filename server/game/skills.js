@@ -211,6 +211,22 @@ const SKILLS = {
     description: 'Cura 12 HP a todos los jugadores en la sala (incluido vos). Solo Sanador (nivel 5+). Cooldown: 90s. Costo: 15 maná.',
     combat_only: false,
   },
+  // DIS-1069: Escudo Sagrado — nuevo skill solo-Sanador para combate individual
+  escudo_sagrado: {
+    id: 'escudo_sagrado',
+    name: 'Escudo Sagrado',
+    aliases: ['escudo_sagrado', 'escudo sagrado', 'sacred_shield', 'barrera_sagrada', 'barrera sagrada', 'holy_shield', 'burbuja', 'bubble'],
+    required_level: 7,
+    required_class: 'clerigo',
+    required_specialization: 'sanador',
+    cooldown_seconds: 45,
+    type: 'sanador_shield',
+    shield_amount: 25,
+    duration_seconds: 30,
+    mana_cost: 10,
+    description: 'Proyectás un escudo de luz divina: absorbe hasta 25 HP del próximo golpe recibido (dura 30s). Decisión táctica: prevenir daño en vez de curarlo. Solo Sanador (nivel 7+). Cooldown: 45s. Costo: 10 maná.',
+    combat_only: false,
+  },
 };
 
 /**

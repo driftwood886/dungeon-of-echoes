@@ -213,6 +213,7 @@ const COMMAND_ALIASES = {
   furia: 'useSkill', berserk: 'useSkill', rage: 'useSkill', arrebato: 'useSkill', berserkear: 'useSkill',
   emboscar: 'useSkill', emboscada: 'useSkill', ataque_sorpresa: 'useSkill', surprise_attack: 'useSkill',
   chain_heal: 'useSkill', cadena_curacion: 'useSkill', cadena_curación: 'useSkill', curacion_grupal: 'useSkill', curación_grupal: 'useSkill', aura_sanadora: 'useSkill',
+  escudo_sagrado: 'useSkill', 'escudo sagrado': 'useSkill', sacred_shield: 'useSkill', barrera_sagrada: 'useSkill', 'barrera sagrada': 'useSkill', holy_shield: 'useSkill', burbuja: 'useSkill', bubble: 'useSkill',
   // DIS-620: Sigilo del Pícaro (nivel 1)
   sigilo: 'sigilo', hide: 'sigilo', stealth: 'sigilo', ocultarse: 'sigilo', esconderse: 'sigilo', sombras: 'sigilo',
   // note / apunte (T116)

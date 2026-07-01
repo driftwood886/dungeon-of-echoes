@@ -156,7 +156,7 @@ const SPECIALIZATIONS = {
       'Al morir en PvE: 20% chance de resurrección automática con 5 HP (milagro)',
       'La penalidad de arma no-sagrada (×0.9) desaparece',
     ],
-    new_commands: ['chain_heal'],
+    new_commands: ['chain_heal', 'escudo_sagrado'],
     combat_modifiers: {
       sanacion_mayor_hp: 30,         // cura 30 HP (era 20)
       pray_duration_multiplier: 2.0, // doble duración de bendición

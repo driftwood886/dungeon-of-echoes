@@ -1394,6 +1394,24 @@ function attackRound(player, monster) {
       }
     }
 
+    // DIS-1069: Escudo Sagrado del Sanador — absorbe hasta 25 HP del próximo golpe
+    const freshForSacredShield = db.getPlayer(player.id);
+    const seSacredShield = freshForSacredShield.status_effects ? (typeof freshForSacredShield.status_effects === 'string' ? JSON.parse(freshForSacredShield.status_effects) : freshForSacredShield.status_effects) : {};
+    const sacredShield = seSacredShield.sacred_shield;
+    if (sacredShield && new Date(sacredShield.expires_at).getTime() > Date.now() && sacredShield.amount > 0) {
+      const sacredAbsorb = Math.min(sacredShield.amount, dmgToPlayer);
+      if (sacredAbsorb > 0) {
+        dmgToPlayer = Math.max(0, dmgToPlayer - sacredAbsorb);
+        // El escudo se consume en un solo golpe — se elimina
+        delete seSacredShield.sacred_shield;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(seSacredShield) });
+        if (player.status_effects && typeof player.status_effects === 'object') {
+          delete player.status_effects.sacred_shield;
+        }
+        lines.push(`🛡️ ¡Tu Escudo Sagrado absorbe ${sacredAbsorb} de daño! (escudo consumido)`);
+      }
+    }
+
     player.hp = Math.max(0, player.hp - dmgToPlayer);
 
     const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🌑(+${bloodmoonBonus} Luna de Sangre)` : '';

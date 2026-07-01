@@ -633,6 +633,7 @@ Para todos los comandos: help todo
           imposition: 'imposition', imposicion: 'imposition', imposición: 'imposition',
           emboscar: 'emboscar', emboscada: 'emboscar',
           chain_heal: 'chain_heal', cadena_curacion: 'chain_heal', cadena_curación: 'chain_heal',
+          escudo_sagrado: 'escudo_sagrado', sacred_shield: 'escudo_sagrado', barrera_sagrada: 'escudo_sagrado', burbuja: 'escudo_sagrado',
           // DIS-986: Berserker
           furia: 'furia', berserk: 'furia', rage: 'furia', arrebato: 'furia',
           // DIS-947: Ladrón de Sombras
@@ -2151,6 +2152,14 @@ function cmdStatus(player) {
     if (bsExpiry > Date.now()) {
       const bsSecsLeft = Math.ceil((bsExpiry - Date.now()) / 1000);
       statusLines.push(`🛡️ BENDICIÓN ACTIVA — +2 DEF · Escudo absorbente: ${statusFx.blessing_shield.amount}/10 HP restantes (${bsSecsLeft}s)`);
+    }
+  }
+  // DIS-1069: mostrar Escudo Sagrado activo del Sanador
+  if (statusFx.sacred_shield && statusFx.sacred_shield.amount > 0) {
+    const ssExpiry = new Date(statusFx.sacred_shield.expires_at).getTime();
+    if (ssExpiry > Date.now()) {
+      const ssSecsLeft = Math.ceil((ssExpiry - Date.now()) / 1000);
+      statusLines.push(`🛡️ ESCUDO SAGRADO ACTIVO — Absorberá hasta ${statusFx.sacred_shield.amount} HP del próximo golpe (${ssSecsLeft}s)`);
     }
   }
 
@@ -12918,6 +12927,34 @@ function cmdUseSkill(player, args, context) {
         `💚 ${freshPlayer.username} lanza Cadena de Curación — ¡+${healAmtCh} HP para todos en la sala!`);
     }
     return { text: textCh };
+  }
+
+  // ── Escudo Sagrado (escudo_sagrado) — Sanador Lv7 ─────────────────────────
+  // DIS-1069: absorbe hasta 25 HP del próximo golpe. Decisión táctica vs sanacion_mayor.
+  if (skillId === 'escudo_sagrado') {
+    const freshES = db.getPlayer(freshPlayer.id);
+    const manaCostES = skill.mana_cost || 10;
+    const currManaES = freshES.mana != null ? freshES.mana : 0;
+    if (currManaES < manaCostES) {
+      return { text: `🛡️ No tenés suficiente maná para Escudo Sagrado. Necesitás ${manaCostES} maná (tenés ${currManaES}).` };
+    }
+    const seES = freshES.status_effects ? (typeof freshES.status_effects === 'string' ? JSON.parse(freshES.status_effects) : freshES.status_effects) : {};
+    // Verificar si ya hay un escudo activo
+    if (seES.sacred_shield && new Date(seES.sacred_shield.expires_at).getTime() > Date.now()) {
+      const secsLeft = Math.ceil((new Date(seES.sacred_shield.expires_at).getTime() - Date.now()) / 1000);
+      return { text: `🛡️ Ya tenés un Escudo Sagrado activo (${seES.sacred_shield.amount} HP de absorción restante, ${secsLeft}s).` };
+    }
+    const shieldAmount = skill.shield_amount || 25;
+    const durationMs = (skill.duration_seconds || 30) * 1000;
+    seES.sacred_shield = { amount: shieldAmount, expires_at: new Date(Date.now() + durationMs).toISOString() };
+    const newManaES = currManaES - manaCostES;
+    const newCDsES = skills.applyCooldown(freshES, 'escudo_sagrado');
+    db.updatePlayer(freshES.id, { mana: newManaES, status_effects: JSON.stringify(seES), skill_cooldowns: newCDsES });
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
+        `🛡️ ${freshPlayer.username} proyecta un Escudo Sagrado de luz divina.`);
+    }
+    return { text: `🛡️ ¡ESCUDO SAGRADO activado! Una barrera de luz envuelve tu cuerpo.\n   Absorberá hasta ${shieldAmount} HP del próximo golpe (${skill.duration_seconds || 30}s).\n   -${manaCostES} maná (${newManaES}/${freshES.max_mana || 30}) · Cooldown: ${skill.cooldown_seconds}s\n\n💡 Usá sanacion_mayor para curar daño ya recibido — el escudo previene el próximo golpe.` };
   }
 
   return { text: `Habilidad "${skillId}" no implementada aún.` };
