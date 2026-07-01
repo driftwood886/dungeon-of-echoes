@@ -1894,8 +1894,26 @@ function cmdMove(player, direction) {
     } catch (_) {}
   }
 
+  // DIS-1102: Recordatorio de especialización pendiente — 1 vez por sesión al moverse entre salas
+  let specReminderMsg = '';
+  {
+    const freshForSpec = db.getPlayer(player.id) || player;
+    const needsSpec = (freshForSpec.level || 1) >= 5
+      && freshForSpec.player_class
+      && freshForSpec.player_class !== 'sin_clase'
+      && !freshForSpec.specialization;
+    if (needsSpec) {
+      const seForSpec = parseSE(freshForSpec.status_effects);
+      if (!seForSpec.spec_reminder_shown) {
+        specReminderMsg = '\n\n🌟 **¡Recordatorio!** Ya tenés nivel 5 y podés especializarte. Escribí "especializar" para elegir tu subclase permanente y desbloquear habilidades exclusivas.';
+        const newSeSpec = { ...seForSpec, spec_reminder_shown: true };
+        db.updatePlayer(freshForSpec.id, { status_effects: JSON.stringify(newSeSpec) });
+      }
+    }
+  }
+
   return {
-    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}${leftEpicMsg}`,
+    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
