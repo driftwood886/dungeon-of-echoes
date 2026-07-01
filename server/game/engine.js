@@ -2814,7 +2814,27 @@ function cmdAttack(player, targetName) {
     }
   }
 
-  // ── T212: Campeón de la hora ─────────────────────────────────────────────
+  // ── EPIC-MR-1084: World State colectivo — contabilizar kill por tipo ───────
+  if (monsterDead && monster.id !== 20) { // excluir Goblin de Práctica (id=20)
+    const monsterBaseName = (monster.name.startsWith('⭐ ') ? monster.name.slice(2) : monster.name).trim();
+    const wsKillMap = {
+      'Araña Tejedora':    'aranas_semana',
+      'Esqueleto Guerrero':'esqueletos_semana',
+      'Goblin Merodeador': 'goblins_semana',
+      'Elemental de Hielo':'elementales_semana',
+      'Lich Anciano':      'lich_derrotado_semana',
+    };
+    const wsKey = wsKillMap[monsterBaseName];
+    if (wsKey) {
+      db.incrementWorldState(wsKey);
+      // Timestamp del último kill del Lich (para ventana 24h en sala 15)
+      if (monsterBaseName === 'Lich Anciano') {
+        db.setWorldState('lich_last_kill_ts', Date.now());
+      }
+    }
+  }
+
+ // ── T212: Campeón de la hora ─────────────────────────────────────────────
   let championMsg = '';
   if (monsterDead) {
     const newHourlyKills = db.incrementHourlyKills(player.id);
@@ -9105,6 +9125,7 @@ function cmdCraft(player, args) {
 
   // T194: Metas globales — incrementar crafteos
   const craftGoalHit = db.incrementWorldGoal('crafts', 1);
+  db.incrementWorldState('items_crafteados_semana'); // EPIC-MR-1084: World State colectivo
   let craftGoalMsg = '';
   if (craftGoalHit) {
     craftGoalMsg = `\n🌍 ¡HITO GLOBAL! El servidor alcanza ${craftGoalHit.toLocaleString()} ítems crafteados entre todos los aventureros.`;
@@ -10226,6 +10247,7 @@ function resolveExpiredAuctions(broadcastFn) {
       const msg = `🔨 ¡REMATE CERRADO! "${auction.item_name}" vendida por ${auction.current_bid}g. Ganador: ${auction.bidder_name}. Vendedor: ${auction.seller_name} recibe ${auction.current_bid}g.`;
       messages.push(msg);
       if (broadcastFn) broadcastFn(msg);
+      db.incrementWorldState('subastas_semana'); // EPIC-MR-1084: World State colectivo
 
     } else if (auction.is_passive) {
       // DIS-535: Subasta PASIVA expirada sin postor → El Mercader la compra garantizado al 50%
