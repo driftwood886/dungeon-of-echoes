@@ -295,7 +295,8 @@ function craft(player, itemA, itemB) {
   if (idxA === -1) {
     if (na === equippedWeapon || na === equippedArmor) {
       // DIS-889: mostrar flujo completo unequip → craft → equip
-      return { ok: false, text: `«${itemA}» está equipado — no podés usarlo como ingrediente mientras lo tenés puesto.\n💡 Flujo: \`unequip\` → \`craft ${itemA} con ${itemB}\` → \`equip ${recipe ? recipe.result : 'resultado'}\`` };
+      // BUG-1098: aclarar explícitamente que los otros ítems NO se consumen en el error
+      return { ok: false, text: `«${itemA}» está equipado — no podés usarlo como ingrediente mientras lo tenés puesto.\n📦 Tus otros ítems están intactos, nada fue consumido.\n💡 Flujo: \`unequip\` → \`craft ${itemA} con ${itemB}\` → \`equip ${recipe ? recipe.result : 'resultado'}\`` };
     }
     return { ok: false, text: `No tenés "${itemA}" en el inventario. Si lo usaste antes, ya no está disponible.` };
   }
@@ -305,7 +306,8 @@ function craft(player, itemA, itemB) {
   if (idxB === -1) {
     if (nb === equippedWeapon || nb === equippedArmor) {
       // DIS-889: mostrar flujo completo unequip → craft → equip
-      return { ok: false, text: `«${itemB}» está equipado — no podés usarlo como ingrediente mientras lo tenés puesto.\n💡 Flujo: \`unequip\` → \`craft ${itemA} con ${itemB}\` → \`equip ${recipe ? recipe.result : 'resultado'}\`` };
+      // BUG-1098: aclarar explícitamente que los otros ítems NO se consumen en el error
+      return { ok: false, text: `«${itemB}» está equipado — no podés usarlo como ingrediente mientras lo tenés puesto.\n📦 Tus otros ítems están intactos, nada fue consumido.\n💡 Flujo: \`unequip\` → \`craft ${itemA} con ${itemB}\` → \`equip ${recipe ? recipe.result : 'resultado'}\`` };
     }
     return { ok: false, text: `No tenés "${itemB}" en el inventario. Si lo usaste antes, ya no está disponible.` };
   }
