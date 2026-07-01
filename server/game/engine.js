@@ -3680,7 +3680,15 @@ function cmdPick(player, itemQuery) {
       }
       const newInv = [...inv, item];
       db.updatePlayer(current.id, { inventory: newInv });
-      pickedLines.push(`  ✅ ${item}`);
+      // DIS-1103: ítems raros/épicos/legendarios en pick todo → línea resaltada separada
+      const itemRarity1103 = items.getItemRarity(item);
+      const itemEmoji1103  = items.getRarityEmoji(item);
+      if (itemRarity1103 !== 'común') {
+        const rarityLabel1103 = itemRarity1103.toUpperCase();
+        pickedLines.push(`\n  ✨ ${itemEmoji1103} [${rarityLabel1103}] ${item} — ¡ítem especial recogido!`);
+      } else {
+        pickedLines.push(`  ✅ ${item}`);
+      }
       current = db.getPlayer(current.id);
     }
     // Dejar en el suelo solo los ítems no recogidos
@@ -3921,8 +3929,16 @@ function cmdPick(player, itemQuery) {
     cartaHint += `\n\n📖 Las páginas están soldadas por el hielo — un diario parcial de alguien que llegó aquí antes que vos. Usá \`use páginas congeladas\` o \`examine páginas congeladas\` para leerlas. No tienen uso de combate pero revelan algo sobre el dungeon.`;
   }
 
+  // DIS-1103: para ítems raros/épicos/legendarios en pick individual → bloque destacado propio
+  let pickSingleMsg;
+  if (rarity !== 'común') {
+    pickSingleMsg = `✨ ${rarityEmoji} [${rarity.toUpperCase()}] Recogés **${found}** y lo guardás en tu mochila.${pickCraftHint}${cartaHint}`;
+  } else {
+    pickSingleMsg = `${rarityEmoji} Recogés ${found} y lo guardás en tu mochila.${rarityLabel}${pickCraftHint}${cartaHint}`;
+  }
+
   return {
-    text: `${rarityEmoji} Recogés ${found} y lo guardás en tu mochila.${rarityLabel}${pickCraftHint}${cartaHint}`,
+    text: pickSingleMsg,
     event: `${player.username} recoge algo del suelo.`,
     eventRoomId: room.id,
   };
