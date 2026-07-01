@@ -269,8 +269,10 @@ function formatQuest(player) {
       const allMonsters = db.getAllMonsters();
       const allRooms = db.getAllRooms ? db.getAllRooms() : [];
       // Buscar monstruo con ese nombre (puede estar vivo o en respawn_room)
+      // DIS-1071: excluir Goblin de Práctica (id=20) — no cuenta para quests y confunde al señalar sala 16
       const matchMonsters = allMonsters.filter(m => {
-        const normalize = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (m.id === 20) return false; // Goblin de Práctica: excluido de quests (DIS-1032/DIS-1071)
+        const normalize = s => s.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
         return normalize(m.name).includes(normalize(quest.target));
       });
       if (matchMonsters.length > 0) {
