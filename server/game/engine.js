@@ -17117,8 +17117,19 @@ function cmdEnchant(player, args) {
 
   let effectiveType = runeType;
 
-  // Si es caos, elegir un tipo aleatorio de los otros 4
+  // DIS-1075: Runa de caos — pedir confirmación antes de consumir (efecto aleatorio)
   if (runeType === 'caos') {
+    const confirmArg = (args[1] || '').toLowerCase();
+    const isConfirm = confirmArg === 'confirmar' || confirmArg === 'si' || confirmArg === 'sí' || confirmArg === 'yes' || confirmArg === 'ok';
+    if (!isConfirm) {
+      // Verificar que tiene la runa antes de mostrar el aviso
+      const runeCountCheck = runes[runeType] || 0;
+      if (runeCountCheck <= 0) {
+        return { text: `❌ No tenés runas de 🌀 caos. Obtenés runas al matar monstruos (15% de chance).` };
+      }
+      return { text: `🌀 RUNA DE CAOS — Confirmación requerida\n\nEl efecto será ALEATORIO (fuego, hielo, sombra o luz) — se revela al consumir la runa.\nTambién podés guardar 3 runas de caos para una fusión permanente (+3 maná).\n\n¿Querés consumir la runa de caos de todos modos?\n→ Escribí: enchant caos confirmar` };
+    }
+    // Si confirmó, seguir con el flujo normal
     const otherTypes = RUNE_TYPES.filter(t => t !== 'caos');
     effectiveType = otherTypes[Math.floor(Math.random() * otherTypes.length)];
   }
