@@ -869,7 +869,27 @@ function cmdLook(player) {
   const text = dungeon.describeRoom(player.current_room_id, player.id, player);
   // Mostrar efecto de sala si existe
   const roomEffect = ROOM_EFFECTS[player.current_room_id];
-  const effectLine = roomEffect ? `\n🌐 Efecto de sala: ${roomEffect.label}` : '';
+  let effectLine = '';
+  if (roomEffect) {
+    // BUG-1111: para salas de daño primera-vez (sala 15 Catedral), mostrar label diferente
+    // si el jugador ya conoce el efecto (known_traps contiene heat_room_<id>)
+    let effectLabel = roomEffect.label;
+    if (roomEffect.type === 'damage' && player.current_room_id === 15) {
+      try {
+        const knownTrapsRaw = player.known_traps;
+        const knownTrapsObj = typeof knownTrapsRaw === 'object' && knownTrapsRaw !== null
+          ? knownTrapsRaw
+          : JSON.parse(knownTrapsRaw || '{}');
+        const alreadyKnowsCatedral = Array.isArray(knownTrapsObj)
+          ? knownTrapsObj.includes('heat_room_15')
+          : knownTrapsObj['heat_room_15'];
+        if (alreadyKnowsCatedral) {
+          effectLabel = '💀 Energía oscura residual (maldición conocida — sin daño)';
+        }
+      } catch (_) { /* usar label por defecto */ }
+    }
+    effectLine = `\n🌐 Efecto de sala: ${effectLabel}`;
+  }
   // DIS-D366: la postura solo se muestra al cambiar de sala (en move), no en cada look.
   // Esto evita que contamine visualmente cada descripción de sala cuando el jugador mira repetidamente.
 
