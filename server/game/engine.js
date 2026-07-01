@@ -7324,6 +7324,62 @@ function cmdTalk(player, target) {
     const leyoDiario = seFreshG.leyo_diario_galeria;
     const qStateG = player.aldric_quest || 'none';
 
+    // EPIC-MR-1080: Leer memoria del Anciano (capa adicional, no reemplaza lógica existente)
+    let ancianoMem = {};
+    try { ancianoMem = (JSON.parse(player.npc_memory || '{}')).anciano || {}; } catch (_) {}
+    const ancKillsAtChat     = ancianoMem.kills_at_last_chat || 0;
+    const ancDeathsAtChat    = ancianoMem.deaths_at_last_chat || 0;
+    const ancLichKillsAtChat = ancianoMem.lich_kills_at_last_chat || 0;
+    const ancAscAck          = !!ancianoMem.ascension_acknowledged;
+    const ancCurrentKills    = player.kills || 0;
+    const ancCurrentDeaths   = player.deaths || 0;
+    const ancCurrentLichKills = player.lich_kills || 0;
+    const ancCurrentAscCount  = player.ascension_count || 0;
+    const ancKillsDelta       = ancCurrentKills - ancKillsAtChat;
+
+    function getAncianoMemorySuffix() {
+      let suffix = '';
+      const memToSave = {};
+      try { Object.assign(memToSave, JSON.parse(player.npc_memory || '{}')); } catch (_) {}
+      if (!memToSave.anciano) memToSave.anciano = {};
+      let needsSave = false;
+
+      // Prioridad 1: Post-ascensión (solo una vez por ciclo)
+      if (ancCurrentAscCount > 0 && !ancAscAck) {
+        suffix += '\n\nEl anciano baja la voz. «Ascendiste.» Una pausa. «Yo vi entrar a pocos y salir a menos. Pero volver —eso lo veo por primera vez.» Te mira con algo que podría ser admiración o podría ser miedo. «El dungeon no sabe qué hacer con vos.»';
+        memToSave.anciano.ascension_acknowledged = true;
+        needsSave = true;
+      }
+
+      // Nivel 3: Lich kills nuevos (desde la última charla)
+      if (ancCurrentLichKills > ancLichKillsAtChat) {
+        const lichN = ancCurrentLichKills;
+        suffix += `\n\nEl anciano te mira largo. «Lo mataste de nuevo», dice. «Yo llevo la cuenta.» ${lichN} ${lichN === 1 ? 'vez' : 'veces'} ya. «El dungeon también lleva la cuenta. No creo que sea lo mismo el décimo que el primero.»`;
+        memToSave.anciano.lich_kills_at_last_chat = ancCurrentLichKills;
+        needsSave = true;
+      }
+
+      // Nivel 2: Muertes nuevas desde la última charla
+      if (ancCurrentDeaths > ancDeathsAtChat) {
+        suffix += '\n\nEl anciano nota algo en tus ojos. «Moriste aquí adentro.» No es acusación. «La mayoría que muere no vuelve. Vos sí.» Asiente apenas. «Eso no lo olvida el dungeon.»';
+        memToSave.anciano.deaths_at_last_chat = ancCurrentDeaths;
+        needsSave = true;
+      }
+
+      // Nivel 1: kills_delta >= 5 desde la última charla
+      if (ancKillsDelta >= 5) {
+        suffix += `\n\nHace una pausa antes de que te vayas. «Escuché los ecos de tus combates. ${ancKillsDelta} más desde la última vez.» No agrega nada. Pero algo en su postura dice que lo registró.`;
+        memToSave.anciano.kills_at_last_chat = ancCurrentKills;
+        needsSave = true;
+      }
+
+      if (needsSave) {
+        memToSave.anciano.last_interaction = new Date().toISOString();
+        db.updatePlayer(player.id, { npc_memory: JSON.stringify(memToSave) });
+      }
+      return suffix;
+    }
+
     // DIS-454: Pregunta específica sobre santuario o llave → ruta alternativa directa
     const askingSanctuaryOrKey = tLow.includes('santuario') || tLow.includes('llave') || tLow.includes('pozo') || tLow.includes('cómo llegar') || tLow.includes('ruta');
     if (askingSanctuaryOrKey) {
@@ -7338,41 +7394,41 @@ function cmdTalk(player, target) {
       } else if (leyoDiario) {
         cartText += '\n\n\"Leíste el diario de la Galería de Hielo, ¿verdad?\" Asiente lentamente. \"Kaelthas. Ese nombre aparece en demasiados lugares para ser casualidad. Si todavía no hablaste con Aldric —el mercader en sala 4— creo que deberías. Él sabe cosas que yo solo intuyo.\"';
       }
-      return { text: cartText };
+      return { text: cartText + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 2: Quest de Aldric completada — conoce la historia de Kaelthas
     if (qStateG === 'done') {
-      return { text: 'El anciano levanta la vista. Algo en tu cara le dice que ya no sos el mismo que entró al dungeon por primera vez.\n\n\"Hablaste con Aldric,\" dice. No es una pregunta.\n\nAsiente despacio. \"Kaelthas Vorn. El guardián del sello. Sabía que tarde o temprano alguien lo iba a descubrir.\" Pausa. \"Yo lo sospechaba hace años, cuando noté que los monstruos nunca desaparecen del todo. No es magia al azar —hay una voluntad detrás.\"\n\n\"Cuidate en la Catedral,\" agrega en voz baja. \"Su presencia ahí es más... directa. El Lich Anciano no es el peligro final. Es solo la puerta.\"' };
+      return { text: 'El anciano levanta la vista. Algo en tu cara le dice que ya no sos el mismo que entró al dungeon por primera vez.\n\n\"Hablaste con Aldric,\" dice. No es una pregunta.\n\nAsiente despacio. \"Kaelthas Vorn. El guardián del sello. Sabía que tarde o temprano alguien lo iba a descubrir.\" Pausa. \"Yo lo sospechaba hace años, cuando noté que los monstruos nunca desaparecen del todo. No es magia al azar —hay una voluntad detrás.\"\n\n\"Cuidate en la Catedral,\" agrega en voz baja. \"Su presencia ahí es más... directa. El Lich Anciano no es el peligro final. Es solo la puerta.\"' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 3: Leyó el diario — hint directo sobre Kaelthas y Aldric
     if (leyoDiario && qStateG === 'none') {
-      return { text: 'El anciano pausa al verte. Hay algo diferente en su mirada —te estudia con más atención de lo habitual.\n\n\"Leíste el diario helado,\" dice. No es una pregunta. \"En la Galería de Hielo. Las páginas medio fusionadas.\"\n\nBaja la voz. \"Kaelthas no murió como los libros dicen. Eligió quedarse aquí —y el dungeon lo aceptó.\" Se inclina levemente hacia vos. \"Hay un mercader en sala 4. Aldric. Cuando tengas nivel 5, hablá con él. Llevá cualquier objeto que hayas encontrado en el dungeon —especialmente si tiene un sello grabado. Creo que sabe más. Mucho más.\"\n\nVuelve a mirar la entrada en silencio. Como si temiera que el dungeon lo escuche.' };
+      return { text: 'El anciano pausa al verte. Hay algo diferente en su mirada —te estudia con más atención de lo habitual.\n\n\"Leíste el diario helado,\" dice. No es una pregunta. \"En la Galería de Hielo. Las páginas medio fusionadas.\"\n\nBaja la voz. \"Kaelthas no murió como los libros dicen. Eligió quedarse aquí —y el dungeon lo aceptó.\" Se inclina levemente hacia vos. \"Hay un mercader en sala 4. Aldric. Cuando tengas nivel 5, hablá con él. Llevá cualquier objeto que hayas encontrado en el dungeon —especialmente si tiene un sello grabado. Creo que sabe más. Mucho más.\"\n\nVuelve a mirar la entrada en silencio. Como si temiera que el dungeon lo escuche.' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 4: Leyó el diario y tiene la quest en progreso — hint de avance
     if (leyoDiario && qStateG === 'active') {
-      return { text: 'El anciano asiente al verte acercarte.\n\n\"Buscás a Kaelthas.\" Más afirmación que pregunta. \"Aldric te mandó.\"\n\nSeñala la entrada del dungeon. \"La Prisión está en el norte del dungeon —sala 8, al norte de la Cámara del Tesoro. Ahí guardaban las llaves y también los secretos que nadie quería que salieran.\" Pausa. \"Si encontrás una carta con el sello de las dos llaves cruzadas, llevásela a Aldric. Él sabe qué hacer.\"\n\nBaja la vista. \"Kaelthas fue el guardián del sello del reino. No un mago cualquiera. El dungeon no es una mazmorra abandonada —es su archivo.\"' };
+      return { text: 'El anciano asiente al verte acercarte.\n\n\"Buscás a Kaelthas.\" Más afirmación que pregunta. \"Aldric te mandó.\"\n\nSeñala la entrada del dungeon. \"La Prisión está en el norte del dungeon —sala 8, al norte de la Cámara del Tesoro. Ahí guardaban las llaves y también los secretos que nadie quería que salieran.\" Pausa. \"Si encontrás una carta con el sello de las dos llaves cruzadas, llevásela a Aldric. Él sabe qué hacer.\"\n\nBaja la vista. \"Kaelthas fue el guardián del sello del reino. No un mago cualquiera. El dungeon no es una mazmorra abandonada —es su archivo.\"' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 5: Nivel alto (≥7) — veterano del dungeon
     if (level >= 7) {
-      return { text: 'El anciano te mira con algo parecido al respeto.\n\n\"Nivel ' + level + '.\" Asiente con lentitud. \"Ya no necesitás mis advertencias sobre el Pozo o la llave.\"\n\nSe recuesta en la pared con expresión seria. \"Si llegaste hasta acá con ese nivel, ya pasaste por la Catedral de la Oscuridad o el Abismo Eterno.\" Pausa. \"¿Encontraste las páginas del diario helado en la Galería? Hay un nombre que aparece en demasiados lugares aquí adentro. Si no lo conectaste todavía, hablá con Aldric en sala 4.\"\n\nTe mira fijo. \"El dungeon tiene memoria. Y vos ya sos parte de ella.\"' };
+      return { text: 'El anciano te mira con algo parecido al respeto.\n\n\"Nivel ' + level + '.\" Asiente con lentitud. \"Ya no necesitás mis advertencias sobre el Pozo o la llave.\"\n\nSe recuesta en la pared con expresión seria. \"Si llegaste hasta acá con ese nivel, ya pasaste por la Catedral de la Oscuridad o el Abismo Eterno.\" Pausa. \"¿Encontraste las páginas del diario helado en la Galería? Hay un nombre que aparece en demasiados lugares aquí adentro. Si no lo conectaste todavía, hablá con Aldric en sala 4.\"\n\nTe mira fijo. \"El dungeon tiene memoria. Y vos ya sos parte de ella.\"' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 6: Visitó el Pozo — navegación avanzada
     if (hasVisitedPozo) {
-      return { text: 'El anciano te mira con ojos que han visto demasiado.\n\n\"Ya encontraste el Pozo, ¿verdad? La puerta al norte del Pozo tiene cerradura —necesitás una llave oxidada. La guardaban en la Prisión, sala 8, al norte de la Cámara del Tesoro.\"\n\nTose y continúa: \"Pero si no querés buscarla, hay otro camino. Hacia el este está la Capilla Olvidada. Desde ahí, al norte, el Túnel de los Hongos. Luego al norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario. Sin llave.\"\n\nSonríe brevemente. \"Nadie sabe por qué ese camino quedó abierto. Yo tengo mis sospechas.\"' };
+      return { text: 'El anciano te mira con ojos que han visto demasiado.\n\n\"Ya encontraste el Pozo, ¿verdad? La puerta al norte del Pozo tiene cerradura —necesitás una llave oxidada. La guardaban en la Prisión, sala 8, al norte de la Cámara del Tesoro.\"\n\nTose y continúa: \"Pero si no querés buscarla, hay otro camino. Hacia el este está la Capilla Olvidada. Desde ahí, al norte, el Túnel de los Hongos. Luego al norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario. Sin llave.\"\n\nSonríe brevemente. \"Nadie sabe por qué ese camino quedó abierto. Yo tengo mis sospechas.\"' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 7: Nivel medio (≥3)
     if (level >= 3) {
-      return { text: 'El anciano asiente al verte.\n\n\"Buscás llegar al Santuario Profano, ¿no?\" No espera respuesta. \"Hay dos rutas. La directa pasa por el Pozo Sin Fondo —al oeste desde la Sala de los Ecos— pero la puerta al norte tiene cerradura. Necesitás una llave oxidada.\"\n\nSeñala hacia el este. \"La otra ruta es más larga pero abierta: Capilla → Hongos → Trono → Santuario. Sin llave. Muchos lo ignoran y se quedan dando vueltas buscando oro para la tienda.\"\n\nVuelve a apoyarse en la pared, como si esa conversación lo hubiera cansado.' };
+      return { text: 'El anciano asiente al verte.\n\n\"Buscás llegar al Santuario Profano, ¿no?\" No espera respuesta. \"Hay dos rutas. La directa pasa por el Pozo Sin Fondo —al oeste desde la Sala de los Ecos— pero la puerta al norte tiene cerradura. Necesitás una llave oxidada.\"\n\nSeñala hacia el este. \"La otra ruta es más larga pero abierta: Capilla → Hongos → Trono → Santuario. Sin llave. Muchos lo ignoran y se quedan dando vueltas buscando oro para la tienda.\"\n\nVuelve a apoyarse en la pared, como si esa conversación lo hubiera cansado.' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 8: Principiante
-    return { text: 'El guardián anciano levanta la vista hacia vos.\n\n\"Nuevo en el dungeon. Bien.\" Pausa. \"Escuchá: el dungeon tiene dos zonas principales. Al norte y al este desde aquí. Al norte hay más combate directo; al este hay cosas más... sutiles.\"\n\nSe rasca la barba. \"Cuando llegués al Pozo Sin Fondo —lo vas a saber cuando lo veas— hay una puerta bloqueada al norte. Si no tenés la llave, no la fuerces. Hay otro camino por el este, pasando por la Capilla. Acordate de eso.\"\n\nSeñala hacia abajo con el pulgar. \"Ah, y si querés practicar sin riesgo —sin que nadie te lastime y sin perder nada— hay una Sala de Práctica debajo de acá. Escribí \'abajo\' para bajar. Los maniquíes no muerden.\"\n\nVuelve a mirar la pared, como si la conversación hubiera terminado.' };
+    return { text: 'El guardián anciano levanta la vista hacia vos.\n\n\"Nuevo en el dungeon. Bien.\" Pausa. \"Escuchá: el dungeon tiene dos zonas principales. Al norte y al este desde aquí. Al norte hay más combate directo; al este hay cosas más... sutiles.\"\n\nSe rasca la barba. \"Cuando llegués al Pozo Sin Fondo —lo vas a saber cuando lo veas— hay una puerta bloqueada al norte. Si no tenés la llave, no la fuerces. Hay otro camino por el este, pasando por la Capilla. Acordate de eso.\"\n\nSeñala hacia abajo con el pulgar. \"Ah, y si querés practicar sin riesgo —sin que nadie te lastime y sin perder nada— hay una Sala de Práctica debajo de acá. Escribí \'abajo\' para bajar. Los maniquíes no muerden.\"\n\nVuelve a mirar la pared, como si la conversación hubiera terminado.' + getAncianoMemorySuffix() };
   }
 
   // Solo Aldric por ahora. Acepta: 'aldric', 'mercader', 'tendero', o vacío si está en sala 4
