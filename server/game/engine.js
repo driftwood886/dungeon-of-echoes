@@ -6200,7 +6200,7 @@ function cmdMap(player) {
     `                     ${c(20)}`,
     ``,
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
-    `[18] = Fuente Eterna — oeste del Trono (18→east→9) y norte del Santuario (18→south→10)`,
+    `[18] = Fuente Eterna (sala de mid-dungeon — escribí "beber" para restaurar HP completo)`,
     `↓  = zona profunda (bajar desde Galería [11], ya visible arriba)  ╎ = separación visual (sin conexión directa)`,
     // DIS-635: solo mencionar sala 8 como fuente de llave si ya fue visitada
     visitedRooms.has(8)
@@ -7758,7 +7758,7 @@ function cmdBuy(player, itemQuery) {
     : '';
 
   return {
-    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${buyAchLines}`,
+    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
@@ -14290,6 +14290,17 @@ function cmdGreet(player, args, context) {
   const target = others.find(p => p.username.toLowerCase() === targetName);
 
   if (!target) {
+    // DIS-1067: si hay múltiples palabras (ej: "hola mundo sin sentido"), asumir que el jugador
+    // quiso escribir un mensaje libre (say), no saludar a alguien llamado "mundo".
+    if (args.length > 1) {
+      const freeMsg = args.join(' ').trim().slice(0, 200);
+      const _ioGreetSay = (() => { try { return require('../ioRef').get(); } catch(e) { return null; } })();
+      if (_ioGreetSay) {
+        _ioGreetSay.to(`room_${player.current_room_id}`).emit('say', { username: player.username, name_color: player.name_color || null, message: freeMsg });
+        if (global.pushRecentChat) global.pushRecentChat('say', player.username, freeMsg);
+      }
+      return { text: `Decís: "${freeMsg}"\n💡 Tip: usá "decir <mensaje>" para hablar libre, o "saludar <nombre>" para saludar a otro jugador.` };
+    }
     // BUG-333: mensaje más útil — diferenciar "no existe ese jugador" de "comando confundido"
     const onlinePlayers = db.getPlayersInRoom(player.current_room_id)
       .filter(p => p.id !== player.id)
