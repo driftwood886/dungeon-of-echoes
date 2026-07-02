@@ -614,7 +614,7 @@ Para todos los comandos: help todo
           forage: 'forage', buscar: 'forage', explorar: 'forage', hurgar: 'forage', rebuscar: 'forage',
           auction: 'auction', subasta: 'auction', subastar: 'auction',
           bid: 'bid', pujar: 'bid',
-          auctions: 'auctions', subastas: 'auctions',
+          auctions: 'auctions', subastas: 'auctions', pujas: 'auctions',
           dice: 'dice', dado: 'dice', dados: 'dice', roll: 'dice',
           party: 'party', grupo: 'party', equipo: 'party',
           drink: 'drink', beber: 'drink', tomar: 'drink',
