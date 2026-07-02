@@ -2075,7 +2075,7 @@ function cmdInventory(player) {
   const rareCount = allItems.filter(i => items.getItemRarity(i) !== 'común').length
     + equippedItems.filter(e => items.getItemRarity(e.name) !== 'común').length;
   const summary = rareCount > 0
-    ? `─ ${totalVisible} ítem${totalVisible !== 1 ? 's' : ''} (${rareCount} no común${rareCount !== 1 ? 'es' : ''})`
+    ? `─ ${totalVisible} ítem${totalVisible !== 1 ? 's' : ''} (${rareCount} no ${rareCount !== 1 ? 'comunes' : 'común'})`
     : `─ ${totalVisible} ítem${totalVisible !== 1 ? 's' : ''}`;
 
   // DIS-994: línea de slots de mochila
