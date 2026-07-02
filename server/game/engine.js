@@ -9441,8 +9441,18 @@ function cmdForage(player) {
 
   // Verificar que no hay monstruos en la sala
   const monsters = db.getMonstersInRoom(player.current_room_id);
-  if (monsters.length > 0) {
-    const names = monsters.map(m => m.name).join(', ');
+  // DIS-1122: La Capilla Olvidada (sala 5) tiene un Murciélago Vampiro que siempre reaparece.
+  // El murciélago revolotea en las alturas de la capilla y no bloquea el forage —
+  // la capilla es un lugar sagrado donde se puede buscar sin peligro inmediato.
+  const FORAGE_IGNORE_MONSTERS = {
+    5: ['murciélago vampiro'],  // Capilla: el murciélago está en el techo
+  };
+  const ignoredMonsters = FORAGE_IGNORE_MONSTERS[player.current_room_id] || [];
+  const activeMonsters = monsters.filter(m =>
+    !ignoredMonsters.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
+  );
+  if (activeMonsters.length > 0) {
+    const names = activeMonsters.map(m => m.name).join(', ');
     return { text: `⚠️ No podés buscar mientras hay monstruos en la sala (${names}). Derrotalos o huí primero.` };
   }
 
