@@ -391,6 +391,11 @@ function parse(input) {
       'sanación mayor': { cmd: 'useSkill', skillId: 'sanacion_mayor' },
       'gran curacion':  { cmd: 'useSkill', skillId: 'sanacion_mayor' },
       'gran curación':  { cmd: 'useSkill', skillId: 'sanacion_mayor' },
+      'drenar arcano':  { cmd: 'useSkill', skillId: 'drenar_arcano' },  // DIS-1113: mago sin maná
+      'drain mana':     { cmd: 'useSkill', skillId: 'drenar_arcano' },
+      'absorber mana':  { cmd: 'useSkill', skillId: 'drenar_arcano' },
+      'drenar energía': { cmd: 'useSkill', skillId: 'drenar_arcano' },
+      'drenar energia': { cmd: 'useSkill', skillId: 'drenar_arcano' },
       // BUG-286: "tienda vender X" / "tienda comprar X" → sell/buy
       'tienda vender':  { cmd: 'sell',    skillId: null },
       'tienda comprar': { cmd: 'buy',     skillId: null },

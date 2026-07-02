@@ -729,6 +729,7 @@ function attackRound(player, monster) {
       ? stanceMsgsForStance[Math.floor(Math.random() * stanceMsgsForStance.length)]
       : `Atacás al ${monster.name}`;
     // DIS-471: mensaje de sabor especial para el Mago sin maná (ataque físico con báculo)
+    // DIS-1113: hint para usar drenar_arcano si el jugador tiene 0 maná
     const curMana = player.mana != null ? player.mana : 0;
     const isMagoSinMana = clsData && clsData.name === 'Mago' && curMana <= 0;
     const magoMsgs = [
@@ -740,7 +741,7 @@ function attackRound(player, monster) {
     const magoFlavor = isMagoSinMana
       ? `[sin maná — ${magoMsgs[Math.floor(Math.random() * magoMsgs.length)]}] `
       : '';
-    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño.${physResist < 1.0 ? ` ${physResistLabel}` : ''}${spectralBonusDmg > 0 ? ` 👻 (+${spectralBonusDmg} espectral)` : ''}${clericWeaponPenaltyNote.length > 0 ? ' ' + clericWeaponPenaltyNote[0] : ''}${rageLabel} (${monster.hp}/${monster.max_hp} HP)`);
+    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño.${physResist < 1.0 ? ` ${physResistLabel}` : ''}${spectralBonusDmg > 0 ? ` 👻 (+${spectralBonusDmg} espectral)` : ''}${clericWeaponPenaltyNote.length > 0 ? ' ' + clericWeaponPenaltyNote[0] : ''}${rageLabel} (${monster.hp}/${monster.max_hp} HP)${isMagoSinMana ? '\n   💡 [Mago sin maná] Usá "drenar arcano" para absorber esencia mágica y recuperar 2-4 maná.' : ''}`);
   }
 
   // Actualizar monstruo en BD

@@ -11970,7 +11970,7 @@ function cmdSpecialize(player, args) {
  */
 function cmdUseSkill(player, args, context) {
   if (!args || args.length === 0) {
-    return { text: 'Uso: smash | escudo_bash | arenga | sanacion_mayor | bendicion | resurreccion | golpe_sucio | robar | evasion | golpe_sombra | furia. Ver habilidades disponibles con "skills".' };
+    return { text: 'Uso: smash | escudo_bash | arenga | sanacion_mayor | bendicion | resurreccion | golpe_sucio | robar | evasion | golpe_sombra | furia | drenar_arcano. Ver habilidades disponibles con "skills".' };
   }
 
   const freshPlayer = db.getPlayer(player.id);
@@ -12219,6 +12219,65 @@ function cmdUseSkill(player, args, context) {
         `🪓 ${freshBs.username} entra en FURIA — su próximo ataque será devastador!`);
     }
     return { text };
+  }
+
+  // ── Drenar Arcano (drenar_arcano) — Mago DIS-1113 ─────────────────────────
+  if (skillId === 'drenar_arcano') {
+    const freshDr = db.getPlayer(freshPlayer.id);
+    const monstersForDrain = db.getMonstersInRoom(freshDr.current_room_id);
+    const aliveForDrain = monstersForDrain.filter(m => m.hp > 0);
+    if (aliveForDrain.length === 0) {
+      return { text: '🔮 No hay monstruos aquí para drenar su esencia.' };
+    }
+    const targetNameDr = args.slice(1).join(' ').trim();
+    let targetDr = targetNameDr ? combat.findMonsterInRoom(freshDr.current_room_id, targetNameDr) : null;
+    if (!targetDr) targetDr = aliveForDrain[0];
+
+    // Daño físico normal (sin multiplicador)
+    const baseDmgDr = Math.max(1, freshDr.attack || 5);
+    const varDr = Math.floor(baseDmgDr * 0.2);
+    const rawDmgDr = baseDmgDr + Math.floor(Math.random() * (varDr * 2 + 1)) - varDr;
+    const finalDmgDr = Math.max(1, rawDmgDr - Math.floor(targetDr.defense || 0));
+    const newHpDr = Math.max(0, targetDr.hp - finalDmgDr);
+    db.updateMonster(targetDr.id, { hp: newHpDr });
+
+    // Recuperar maná (2-4)
+    const manaRecovered = Math.floor(Math.random() * (skill.mana_recover_max - skill.mana_recover_min + 1)) + skill.mana_recover_min;
+    const currentManaDr = freshDr.mana != null ? freshDr.mana : 0;
+    const maxManaDr = freshDr.max_mana || 20;
+    const newManaDr = Math.min(maxManaDr, currentManaDr + manaRecovered);
+
+    // Aplicar cooldown y guardar
+    const newCDsDr = skills.applyCooldown(freshDr, 'drenar_arcano');
+    db.updatePlayer(freshDr.id, { mana: newManaDr, skill_cooldowns: newCDsDr });
+
+    const deadDr = newHpDr <= 0;
+    let textDr = `🔮 ¡DRENAR ARCANO! Golpeás al ${targetDr.name} con el báculo canalizando su esencia mágica (${finalDmgDr} dmg).\n   ✨ Absorbés ${manaRecovered} maná (${currentManaDr} → ${newManaDr}/${maxManaDr}). (Cooldown: ${skill.cooldown_seconds}s)`;
+    if (deadDr) {
+      textDr += `\n💀 El ${targetDr.name} cae — toda su esencia mágica absorbida.`;
+      const { droppedLoot: drLoot, globalEvent: drGlobalEvent } = combat.dropLoot(targetDr, freshDr.current_room_id);
+      if (drLoot && drLoot.length > 0) textDr += `\n💰 El ${targetDr.name} suelta: ${drLoot.join(', ')}.`;
+      if (drGlobalEvent) {
+        db.logGlobalEvent('boss', drGlobalEvent);
+        if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: drGlobalEvent });
+      }
+      const xpGainDr = Math.max(5, Math.floor(targetDr.max_hp * 2));
+      const newXpDr = (freshDr.xp || 0) + xpGainDr;
+      const newLevelDr = xpSystem.levelFromXp(newXpDr);
+      const levelUpDr = newLevelDr > (freshDr.level || 1);
+      const drUpd = { xp: newXpDr, level: newLevelDr, kills: (freshDr.kills || 0) + 1 };
+      if (levelUpDr) {
+        drUpd.max_hp = (freshDr.max_hp || 30) + 5;
+        textDr += `\n⭐ ¡Subís al nivel ${newLevelDr}!`;
+      }
+      textDr += `\n⭐ +${xpGainDr} XP`;
+      db.updatePlayer(freshDr.id, drUpd);
+    }
+    if (context && context.broadcastToRoom) {
+      context.broadcastToRoom(freshDr.current_room_id, freshDr.id,
+        `🔮 ${freshDr.username} drena la esencia arcana del ${targetDr.name}!`);
+    }
+    return { text: textDr };
   }
 
   // ── Golpe de Escudo (shield_bash) ─────────────────────────────────────────

@@ -227,6 +227,20 @@ const SKILLS = {
     description: 'Proyectás un escudo de luz divina: absorbe hasta 25 HP del próximo golpe recibido (dura 30s). Decisión táctica: prevenir daño en vez de curarlo. Solo Sanador (nivel 7+). Cooldown: 45s. Costo: 10 maná.',
     combat_only: false,
   },
+  // DIS-1113: Drenar Arcano — Mago sin maná recupera esencia mágica al golpear
+  drenar_arcano: {
+    id: 'drenar_arcano',
+    name: 'Drenar Arcano',
+    aliases: ['drenar_arcano', 'drenar arcano', 'drain_mana', 'drenar', 'absorber_mana', 'absorber_arcano', 'robar_mana', 'siphon', 'drenar_energia', 'drenar energía'],
+    required_level: 1,
+    required_class: 'mago',
+    cooldown_seconds: 45,
+    type: 'mago_drain',
+    mana_recover_min: 2,
+    mana_recover_max: 4,
+    description: 'Golpeás al monstruo con tu báculo y absorbés su esencia mágica (recuperás 2-4 maná). Útil cuando el maná llega a 0 para volver al combate arcano. Cooldown: 45s. Solo Mago.',
+    combat_only: true,
+  },
   // DIS-1072: Rayo Divino — skill del Clérigo especialización Juicio
   rayo_divino: {
     id: 'rayo_divino',
