@@ -74,6 +74,22 @@ const SKILLS = {
     description: 'Intenta robar monedas a un monstruo vivo. 50% de éxito (+15% por cada nivel de ventaja). Si falla, el monstruo ataca. Cooldown: 60s. Solo pícaro.',
     combat_only: false,  // funciona con o sin combate activo
   },
+  // BUG-1144: habilidad veneno Lv1 del Pícaro — aplica veneno al arma actual por 3 ataques
+  veneno: {
+    id: 'veneno',
+    name: 'Veneno',
+    aliases: ['veneno', 'envenenar', 'poison', 'impregnar', 'aplicar_veneno'],
+    required_level: 1,
+    required_class: 'picaro',
+    cooldown_seconds: 90,
+    type: 'picaro_poison_weapon',
+    poison_charges: 3,
+    poison_chance: 0.50,  // 50% de chance de envenenar por ataque (mejor que ítem de tienda 40%)
+    poison_damage: 3,
+    poison_turns: 3,
+    description: 'Arte del Pícaro: impregnás tu arma con veneno extraído de tus suministros. Los próximos 3 ataques tienen 50% de envenenar al objetivo (3 dmg × 3 turnos). Cooldown: 90s. Solo Pícaro Lv1.',
+    combat_only: false,  // se puede aplicar fuera de combate también
+  },
   golpe_sucio: {
     id: 'golpe_sucio',
     name: 'Golpe Sucio',

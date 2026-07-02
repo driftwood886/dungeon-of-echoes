@@ -11589,10 +11589,10 @@ function cmdClase(player, args) {
     );
   } else if (className === 'picaro') {
     lines.push(
-      `   • veneno    (Lv1 — disponible ahora): Envenena al enemigo por varios turnos.`,
-      `     Aparece en pantalla cuando podés activarlo: "Habilidades disponibles: veneno"`,
-      `   • golpe_furtivo (Lv3): Daño extra si el enemigo no te atacó aún.`,
-      `   • sombras   (Lv5): Aumenta esquiva al 40% por 3 turnos.`,
+      `   • veneno    (Lv1 — disponible ahora): Arte del Pícaro. Impregnás tu arma con veneno. Los próximos 3 ataques tienen 50% de envenenar. Usá: veneno`,
+      `   • robar     (Lv1 — disponible ahora): Robá monedas a un monstruo vivo. Usá: robar <monstruo>`,
+      `   • golpe_sucio (Lv3): Ataque traicionero ×1.3 + veneno (3 dmg × 3 turnos). Cooldown 50s.`,
+      `   • evasion   (Lv6): Esquiva garantizada al próximo ataque recibido. Cooldown 90s.`,
     );
   } else if (className === 'clerigo') {
     lines.push(
@@ -12104,7 +12104,7 @@ function cmdSpecialize(player, args) {
  */
 function cmdUseSkill(player, args, context) {
   if (!args || args.length === 0) {
-    return { text: 'Uso: smash | escudo_bash | arenga | sanacion_mayor | bendicion | resurreccion | golpe_sucio | robar | evasion | golpe_sombra | furia | drenar_arcano. Ver habilidades disponibles con "skills".' };
+    return { text: 'Uso: smash | escudo_bash | arenga | sanacion_mayor | bendicion | resurreccion | golpe_sucio | robar | veneno | evasion | golpe_sombra | furia | drenar_arcano. Ver habilidades disponibles con "skills".' };
   }
 
   const freshPlayer = db.getPlayer(player.id);
@@ -12926,6 +12926,41 @@ function cmdUseSkill(player, args, context) {
       }
       return { text };
     }
+  }
+
+  // ── Veneno (veneno) — Pícaro Lv1 ─────────────────────────────────────────
+  // BUG-1144: habilidad de clase prometida en la pantalla de creación del Pícaro
+  if (skillId === 'veneno') {
+    const freshPicVen = db.getPlayer(freshPlayer.id);
+    if (!freshPicVen) return { text: 'Error al leer tu perfil.' };
+
+    const sePicVen = freshPicVen.status_effects
+      ? (typeof freshPicVen.status_effects === 'string' ? JSON.parse(freshPicVen.status_effects) : freshPicVen.status_effects)
+      : {};
+
+    // Si ya tiene veneno activo en el arma, informar
+    if (sePicVen.contact_poison && (sePicVen.contact_poison.charges || 0) > 0) {
+      const chargesLeft = sePicVen.contact_poison.charges;
+      return { text: `🧪 Tu arma ya está impregnada de veneno (${chargesLeft} carga${chargesLeft === 1 ? '' : 's'} restantes). Esperá a agotar las cargas actuales.` };
+    }
+
+    // Aplicar veneno al arma (igual que contact_poison pero con 50% de chance — mejor que ítem de tienda 40%)
+    sePicVen.contact_poison = {
+      charges: skill.poison_charges || 3,
+      poison_chance: skill.poison_chance || 0.50,
+      poison_damage: skill.poison_damage || 3,
+      poison_turns: skill.poison_turns || 3,
+    };
+    const newCDsVen = skills.applyCooldown(freshPicVen, 'veneno');
+    db.updatePlayer(freshPicVen.id, {
+      status_effects: JSON.stringify(sePicVen),
+      skill_cooldowns: newCDsVen,
+    });
+    const venCharges = skill.poison_charges || 3;
+    const venChance = Math.round((skill.poison_chance || 0.50) * 100);
+    const venDmg = skill.poison_damage || 3;
+    const venTurns = skill.poison_turns || 3;
+    return { text: `🧪 [Arte del Pícaro] Extraés veneno de tus suministros y lo impregnás en tu arma con maestría.\n🗡️ Los próximos ${venCharges} ataques tienen ${venChance}% de envenenar al objetivo (${venDmg} dmg × ${venTurns} turnos).\n⏱️ Cooldown: ${skill.cooldown_seconds}s.` };
   }
 
   // ── Sanación Mayor (sanacion_mayor) — Clérigo Lv3 ────────────────────────

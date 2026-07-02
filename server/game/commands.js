@@ -198,6 +198,8 @@ const COMMAND_ALIASES = {
   rally: 'useSkill', arenga: 'useSkill', motivar: 'useSkill', grito_batalla: 'useSkill',
   // Habilidades de Pícaro (BUG-271)
   robar: 'useSkill', steal: 'useSkill', hurtar: 'useSkill', pickpocket: 'useSkill', sustraer: 'useSkill',
+  // BUG-1144: habilidad veneno del Pícaro Lv1
+  veneno: 'useSkill', envenenar: 'useSkill', impregnar: 'useSkill', aplicar_veneno: 'useSkill', poison: 'useSkill',
   golpe_sucio: 'useSkill', dirty_strike: 'useSkill', backstab: 'useSkill', punalada_trasera: 'useSkill',
   // Habilidades de Pícaro Lv6 y Lv10 (DIS-616)
   evasion: 'useSkill', evasión: 'useSkill', evadir: 'useSkill', esquivar: 'useSkill', dodge: 'useSkill', esquive: 'useSkill',
