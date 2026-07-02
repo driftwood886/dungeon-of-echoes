@@ -568,6 +568,10 @@ Comandos útiles en combate:
   skills / habilidades — Ver habilidades desbloqueadas
   heal             — Curación rápida (Clérigo)
 
+Monstruos en cada sala:
+  ★ (estrella)  — activo: te ataca si lo provocás
+  ◆ (rombo)    — pasivo: está ahí pero no te bloquea ni ataca
+
 Para más detalle: help <comando>  (ej: help attack)
 Para ayuda de clase: guide
 Para todos los comandos: help todo
