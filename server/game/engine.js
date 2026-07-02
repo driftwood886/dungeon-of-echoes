@@ -5135,7 +5135,7 @@ function cmdEquip(player, itemQuery) {
         return cmdWear(player, shieldArmor);
       }
       // Tienen solo escudo roto u otro escudo misc
-      return { text: `"${found}" no se puede equipar directamente.\n💡 Los escudos van en el slot de armadura con el comando \`wear\` o \`ponerse\`.\n   Si tenés un escudo crafteado (ej: escudo de madera), usá: wear escudo de madera` };
+      return { text: `"${found}" no se puede equipar directamente.\n🔧 Es un material de crafteo: \"escudo roto\" + \"garra de esqueleto\" → escudo de gladiador (+DEF).\n💡 Usá: craft escudo roto con garra de esqueleto` };
     }
     return { text: `${found} no es un arma que puedas equipar.${def && def.type === 'armor' ? ' Usá "wear" para ponerte armaduras.' : def && def.type === 'misc' && found.toLowerCase().includes('amuleto') ? '\n✨ El amuleto del eco es un ítem pasivo — con solo tenerlo en el inventario activa su efecto.' : ''}` };
   }
@@ -5723,6 +5723,10 @@ function cmdWear(player, itemQuery) {
     // BUG-845: ítem pasivo (misc) — mensaje específico si el jugador intenta "wear" algo pasivo
     if (def && def.type === 'misc' && found.toLowerCase().includes('amuleto')) {
       return { text: `✨ El ${found} es un ítem pasivo — no necesitás ponértelo. Con solo tenerlo en tu inventario activa su efecto. No lo equipés.` };
+    }
+    // DIS-1129: ítems misc con receta de crafteo conocida — mostrar hint en vez de error genérico
+    if (def && def.type === 'misc' && def.description && def.description.includes('crafteo')) {
+      return { text: `${found} no es equipable directamente.\n🔧 ${def.description}\n💡 Usá el comando «craft» con los ingredientes indicados.` };
     }
     return { text: `${found} no es una armadura que puedas ponerte. Para armas usá "equip".` };
   }

@@ -66,7 +66,7 @@ const ITEM_CATALOG = {
   'monedas de oro':      { type: 'misc', description: 'Monedas de oro resplandecientes. Son pocas, pero valen mucho.' },
   'cofre de oro':        { type: 'misc', description: 'Un cofre repleto de monedas de oro del Lich. Un tesoro maldito que vale una fortuna.' },
   'pelaje áspero':       { type: 'misc', description: 'El pelaje de una rata gigante. Áspero al tacto. 🔧 Combinalo con una escama abismal para curtirlo en cuero de criatura.' },
-  'escudo roto':         { type: 'misc', description: 'Un escudo con el centro partido. Inútil para defenderse así. Las garras del esqueleto que lo portó podrían servir para reforzarlo... (crafteo: escudo roto + garra de esqueleto)' },
+  'escudo roto':         { type: 'misc', description: 'Un escudo con el centro partido. Inútil para defenderse así. 🔧 Crafteo: escudo roto + garra de esqueleto → escudo de gladiador. O vendelo a Aldric por 8g.' },
   'escudo de madera':    { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Un escudo de madera reforzada. No es glamoroso, pero te protege. +2 de defensa.' },
   'esencia etérea':      { type: 'misc', description: 'Una esencia brumosa dentro de un frasco. Resuena con el más allá. 🔧 Pistas de crafteo: lanza espectral + esencia etérea = lanza espectral reforzada (+9 ATK) | alabarda de huesos + esencia etérea = alabarda espectral (+12 ATK, efecto especial).' },
   'mochila de cuero':    { type: 'misc', description: 'Una mochila resistente de cuero curtido. Útil para cargar cosas.' },
