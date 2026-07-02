@@ -239,6 +239,7 @@ async function main() {
         shield_active: player.shield_active || 0,
         player_class: player.player_class || 'sin_clase',
         class_name: player.player_class || 'sin_clase',  // DIS-D305: alias para compatibilidad
+        specialization: player.specialization || null,
         playtime_minutes: player.playtime_minutes || 0,
       },
       other_players: others,
@@ -608,6 +609,7 @@ async function main() {
           shield_active: player.shield_active || 0,
           player_class: player.player_class || 'sin_clase',
           class_name: player.player_class || 'sin_clase',  // DIS-D305: alias para compatibilidad
+          specialization: player.specialization || null,
           playtime_minutes: player.playtime_minutes || 0,
         },
         other_players: others,
