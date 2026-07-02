@@ -2024,13 +2024,13 @@ function cmdInventory(player) {
       const key = `${ing1}|${recipe.result}`;
       if (!shownLoneHints.has(key)) {
         shownLoneHints.add(key);
-        loneIngredientHints.push(`  💡 Tenés **${recipe.ingredients[0]}** — combinalo con **${recipe.ingredients[1]}** para craftear **${recipe.result}**`);
+        loneIngredientHints.push(`  💡 Tenés **${recipe.ingredients[0]}** — te falta **${recipe.ingredients[1]}** para craftear **${recipe.result}**`);
       }
     } else if (!hasIng1 && hasIng2) {
       const key = `${ing2}|${recipe.result}`;
       if (!shownLoneHints.has(key)) {
         shownLoneHints.add(key);
-        loneIngredientHints.push(`  💡 Tenés **${recipe.ingredients[1]}** — combinalo con **${recipe.ingredients[0]}** para craftear **${recipe.result}**`);
+        loneIngredientHints.push(`  💡 Tenés **${recipe.ingredients[1]}** — te falta **${recipe.ingredients[0]}** para craftear **${recipe.result}**`);
       }
     }
   }
