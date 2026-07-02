@@ -155,7 +155,7 @@ const COMMAND_ALIASES = {
   // bid / pujar (T098)
   bid: 'bid', pujar: 'bid', puja: 'bid', apostar: 'bid', ofrecer_oro: 'bid',
   // auctions / listar subastas (T098)
-  auctions: 'auctions', subastas: 'auctions', remates: 'auctions', sala_subasta: 'auctions',
+  auctions: 'auctions', subastas: 'auctions', remates: 'auctions', sala_subasta: 'auctions', pujas: 'auctions', // BUG-1133: alias pujas
   // market / mercado de jugadores (T181)
   market: 'market', mercado: 'market', tianguis: 'market', tablero: 'market', tablón: 'market',
   // gestos sociales (T182)
@@ -627,7 +627,7 @@ const COMMAND_HELP = {
     forage:    'forage / buscar / explorar\\n  Buscar ítems ocultos en la sala actual.\\n  Cooldown de 3 minutos por sala. No funciona si hay monstruos vivos.\\n  Podés encontrar: hierbas curativas, pociones, monedas de oro, materiales de crafteo.',
     auction:   'subastar <ítem> <precio_min> / auction <item> <min_price>\\n  Poner un ítem tuyo a subasta en la Casa de Subastas (sala 17, al este de la Cámara del Tesoro).\\n  La subasta dura 5 minutos. El ítem se retira de tu inventario inmediatamente.\\n  Si hay ganador: el vendedor recibe el oro, el ganador recibe el ítem.\\n  Si nadie puja: el ítem vuelve al vendedor.',
     bid:       'pujar <id_subasta> <monto> / bid <auction_id> <amount>\\\\n  Realizar una puja en una subasta activa.\\\\n  La puja debe ser mayor a la puja actual. Si alguien supera tu puja, recibís tu oro de vuelta.\\\\n  El oro se descuenta al pujar y se devuelve si te superan.',
-    auctions:  'subastas / auctions / remates\\\\\\\\n  Ver todas las subastas activas en la Casa de Subastas.\\\\\\\\n  Muestra: ID, ítem, precio mínimo, puja actual, tiempo restante y vendedor.',
+    auctions:  'subastas / pujas / auctions / remates\\\\\\\\n  Ver todas las subastas activas en la Casa de Subastas.\\\\\\\\n  Muestra: ID, ítem, precio mínimo, puja actual, tiempo restante y vendedor.',
     dice:      'dados <NdM> / dice <NdM> / roll <NdM>\\\\\\\\n  Tirar dados en la sala. Ej: \\\"dados 2d6\\\" tira dos dados de 6 caras.\\\\\\\\n  El resultado es visible para todos los jugadores presentes en la sala.\\\\\\\\n  Formatos soportados: 1d4, 1d6, 1d8, 1d10, 1d12, 1d20, 1d100, hasta 10d100.',
     drink:     'drink / beber / tomar\\n  Beber de la Fuente Eterna en la Cámara de la Fuente Eterna (sala 18, al norte del Santuario Profano).\\n  Restaura tu HP completamente.\\n  Cooldown GLOBAL de 3 minutos: una vez que alguien bebe, la fuente tarda 3 min en recargarse.\\n  Nadie puede usarla durante ese tiempo. No funciona si ya estás al máximo de HP.',
     bowl:      'bowl / cuenco / ofrenda\\n  Beber del Cuenco Sagrado en la Capilla Olvidada (sala 5, al este de la Entrada).\\n  Restaura el 40% de tu HP máximo.\\n  Cooldown PERSONAL de 5 minutos: el cooldown es tuyo, no afecta a otros jugadores.\\n  Ideal para recuperar entre combates sin ir hasta la tienda. No funciona si ya estás al máximo.',
