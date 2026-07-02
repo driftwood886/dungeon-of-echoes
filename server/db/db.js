@@ -1181,7 +1181,8 @@ const RUNE_BONUSES = {
  * y se aplica el bonus permanente. Devuelve un mensaje o null.
  */
 function tryAddRune(playerId) {
-  if (Math.random() > 0.15) return null; // 15% de chance
+  // DIS-1127: subido de 0.15 a 0.20 para que el sistema sea más visible durante el early game
+  if (Math.random() > 0.20) return null; // 20% de chance
 
   const player = getPlayer(playerId);
   if (!player) return null;

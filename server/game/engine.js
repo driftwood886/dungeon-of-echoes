@@ -17640,7 +17640,7 @@ function cmdEnchant(player, args) {
       // Verificar que tiene la runa antes de mostrar el aviso
       const runeCountCheck = runes[runeType] || 0;
       if (runeCountCheck <= 0) {
-        return { text: `❌ No tenés runas de 🌀 caos. Obtenés runas al matar monstruos (15% de chance).` };
+        return { text: `❌ No tenés runas de 🌀 caos. Obtenés runas al matar monstruos (20% de chance).` };
       }
       return { text: `🌀 RUNA DE CAOS — Confirmación requerida\n\nEl efecto será ALEATORIO (fuego, hielo, sombra o luz) — se revela al consumir la runa.\nTambién podés guardar 3 runas de caos para una fusión permanente (+3 maná).\n\n¿Querés consumir la runa de caos de todos modos?\n→ Escribí: enchant caos confirmar` };
     }
@@ -17652,7 +17652,7 @@ function cmdEnchant(player, args) {
   // Verificar runa disponible
   const runeCount = runes[runeType] || 0;
   if (runeCount <= 0) {
-    return { text: `❌ No tenés runas de ${RUNE_EMOJIS[runeType]} ${runeType}. Obtenés runas al matar monstruos (15% de chance).` };
+    return { text: `❌ No tenés runas de ${RUNE_EMOJIS[runeType]} ${runeType}. Obtenés runas al matar monstruos (20% de chance).` };
   }
 
   // Consumir la runa
