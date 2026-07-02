@@ -6452,7 +6452,7 @@ function cmdUnlock(player, direction) {
 // DIS-740: Mapa de origen de ítems de desactivación — se muestra cuando el jugador no tiene el ítem
 const TRAP_ITEM_SOURCE = {
   'hongo azul':  'Los hongos azules crecen principalmente en el Túnel de los Hongos (sala 6) — probá "buscar" allí. También: algunos asoman en la Capilla Olvidada (sala 5, al sur del Túnel) — podés buscarlos ANTES de entrar al Túnel.',
-  'corona rota': 'Buscá en la Sala del Trono (sala 9) — aparece en el suelo o con "buscar".',
+  'corona rota': 'La podés conseguir de tres formas: (1) derrota al Espectro del Corredor en sala 9 — la droppea como loot, (2) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, o (3) buscá con "buscar" en el Corredor del Espectro (sala 10).',
   'cuerda':      'Disponible en la tienda del Mercader Aldric (sala 4). También puede aparecer con "buscar".',
   'red de pesca':'Podés encontrarla con "buscar" en la Caverna Sumergida (sala 13).',
 };
@@ -6474,7 +6474,7 @@ function cmdDisarm(player, args) {
     const dirLabel2 = (normalized2 && DIR_NAMES_ES2[normalized2]) || dirArg;
 
     if (!exit) {
-      return { text: `No hay salida hacia el ${dirLabel2}.` };
+      return { text: `No hay salida hacia el ${dirLabel2} desde tu sala actual.\n💡 Solo podés desactivar trampas de salas directamente adyacentes (una sola puerta de distancia).` };
     }
 
     const adjRoom = db.getRoom(exit.targetId);
@@ -12055,7 +12055,7 @@ function cmdUseSkill(player, args, context) {
     // Evita que en niveles altos el guerrero oneshot enemigos tier 1-2 quitando toda tensión
     const smashThreshold = Math.ceil((freshPlayer.max_hp || 30) * 0.20);
     if (target.hp <= smashThreshold && target.hp <= 20) {
-      return { text: `⚡ ${target.name} tiene ${target.hp} HP — es demasiado débil para merecer tu Golpetazo. Usá \`attack\` para terminarlo.\n💡 El Golpetazo solo está disponible contra enemigos que representan una amenaza real.` };
+      return { text: `⚡ ${target.name} agoniza con ${target.hp} HP — no merece tu Golpetazo. Rematalo con \`attack\`.\n💡 El Golpetazo requiere un rival que aún represente una amenaza real.` };
     }
 
     const baseDmg = freshPlayer.attack || 5;
