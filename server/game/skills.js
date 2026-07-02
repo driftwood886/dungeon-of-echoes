@@ -247,7 +247,7 @@ const SKILLS = {
   drenar_arcano: {
     id: 'drenar_arcano',
     name: 'Drenar Arcano',
-    aliases: ['drenar_arcano', 'drenar arcano', 'drain_mana', 'drenar', 'absorber_mana', 'absorber_arcano', 'robar_mana', 'siphon', 'drenar_energia', 'drenar energía'],
+    aliases: ['drenar arcano', 'drenar_arcano', 'drain_mana', 'drenar', 'absorber_mana', 'absorber_arcano', 'robar_mana', 'siphon', 'drenar_energia', 'drenar energía'],
     required_level: 1,
     required_class: 'mago',
     cooldown_seconds: 45,
