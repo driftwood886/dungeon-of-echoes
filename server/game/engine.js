@@ -5765,8 +5765,8 @@ function cmdWear(player, itemQuery) {
     if (def && def.type === 'misc' && found.toLowerCase().includes('amuleto')) {
       return { text: `✨ El ${found} es un ítem pasivo — no necesitás ponértelo. Con solo tenerlo en tu inventario activa su efecto. No lo equipés.` };
     }
-    // DIS-1129: ítems misc con receta de crafteo conocida — mostrar hint en vez de error genérico
-    if (def && def.type === 'misc' && def.description && def.description.includes('crafteo')) {
+    // DIS-1129 / BUG-1132: ítems misc con receta de crafteo conocida — mostrar hint en vez de error genérico
+    if (def && def.type === 'misc' && def.description && def.description.toLowerCase().includes('crafteo')) {
       return { text: `${found} no es equipable directamente.\n🔧 ${def.description}\n💡 Usá el comando «craft» con los ingredientes indicados.` };
     }
     return { text: `${found} no es una armadura que puedas ponerte. Para armas usá "equip".` };
