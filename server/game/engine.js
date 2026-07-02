@@ -13393,6 +13393,11 @@ function cmdUseSkill(player, args, context) {
       return { text: '🗡️ No hay monstruos aquí para emboscar.' };
     }
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
+    // BUG-1146: si se especificó un nombre pero no coincide con ningún monstruo, devolver error
+    // (antes hacía fallback silencioso al primero de la sala — comportamiento peligroso)
+    if (targetName && !target) {
+      return { text: `🗡️ No hay ningún "${targetName}" aquí para emboscar.\n💡 Monstruos en esta sala: ${alive.map(m => m.name).join(', ')}.` };
+    }
     if (!target) target = alive[0];
     // BUG-1020: si está en Sala de Práctica atacando un maniquí, redirigir a _cmdTrainingFight (sin XP/kills)
     if (freshPlayer.current_room_id === TRAINING_ROOM_ID && TRAINING_DUMMY_IDS.has(target.id)) {
