@@ -16,8 +16,8 @@ const CLASSES = {
     max_hp: 35,
     attack: 6,
     defense: 4,
-    mana: 10,
-    max_mana: 10,
+    mana: 20,
+    max_mana: 20,
     crit_bonus: 0,     // % adicional de crítico (sobre la base del 10%)
     dodge_bonus: 0,    // % adicional de esquiva (sobre la base del 8%)
     spell_power: 1.0,  // multiplicador de daño de hechizos

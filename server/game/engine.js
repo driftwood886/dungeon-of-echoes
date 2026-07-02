@@ -11494,8 +11494,8 @@ function cmdClase(player, args) {
       `   • smash (Golpetazo) (Lv3): Golpe devastador, daño aumentado. ×1.8, cooldown 30s.`,
       `     Usá: "skills" durante combate para ver cuándo está disponible.`,
       `     Aparece cuando subís al nivel 3: "Habilidades disponibles: smash (Golpetazo)"`,
-      `   • grito_de_guerra (Lv3): Intimidación que reduce el ATK enemigo.`,
-      `   • forma_de_berserker (Lv5): +50% ATK, -20% DEF por 5 turnos.`,
+      `   💡 Al nivel 5 podés especializarte: Paladín (debilitador) o Berserker (furia total).`,
+      `      Habilidades de especialización se desbloquean al elegir tu rama.`,
     );
   } else if (className === 'mago') {
     lines.push(
@@ -16271,7 +16271,7 @@ function cmdGuide(args) {
       'Podés cambiar antes de 5 kills. Después es permanente.',
       '',
       '⚔  GUERRERO',
-      '  HP: 35 | ATK: 6 | Maná: 10',
+      '  HP: 35 | ATK: 6 | Maná: 20',
       '  Ventaja: más HP y daño base. Ideal para principiantes.',
       '  Consejo: usá stance agresivo para maximizar daño.', // DIS-1056
       '',
