@@ -9733,10 +9733,6 @@ function cmdDrink(player) {
     return { text: '💧 No hay ninguna fuente aquí.\n   La Fuente Eterna se encuentra en la Cámara de la Fuente Eterna (al norte del Santuario Profano).' };
   }
 
-  if (player.hp >= player.max_hp) {
-    return { text: '💧 Ya estás al máximo de HP. El agua brilla tentadoramente pero no la necesitás ahora.' };
-  }
-
   // Verificar cooldown global
   const now = Date.now();
   if (fountainCooldownUntil > now) {
@@ -9749,9 +9745,47 @@ function cmdDrink(player) {
     return { text: `💧 La fuente brilla tenuemente. Sus aguas se están recargando...\n   Disponible en: ${timeStr}.\n   Las runas en la pared pulsan lentamente.` };
   }
 
-  // Usar la fuente
+  // DIS-1114: si el HP está al máximo, verificar si hay maná para restaurar
+  const playerCls1114 = classes.getPlayerClass(player);
+  const isMagicClass1114 = playerCls1114 && (playerCls1114.name === 'Mago' || playerCls1114.name === 'Clérigo');
+  const currentMana1114 = player.mana != null ? player.mana : 0;
+  const maxMana1114 = player.max_mana || 0;
+
+  if (player.hp >= player.max_hp) {
+    // Si es Mago/Clérigo con maná no lleno, la fuente restaura maná
+    if (isMagicClass1114 && maxMana1114 > 0 && currentMana1114 < maxMana1114) {
+      const isMago = playerCls1114.name === 'Mago';
+      // Magos recuperan todo el maná; Clérigos recuperan +10
+      const manaRestored = isMago ? (maxMana1114 - currentMana1114) : Math.min(10, maxMana1114 - currentMana1114);
+      const newMana = currentMana1114 + manaRestored;
+      db.updatePlayer(player.id, { mana: newMana });
+      fountainCooldownUntil = now + FOUNTAIN_COOLDOWN_MS;
+      const manaBar = buildBar(newMana, maxMana1114, 20);
+      const flavorMago = isMago
+        ? 'Las runas arcanas de la fuente resuenan con tu naturaleza mágica. El maná fluye hacia vos como si el agua supiera exactamente lo que necesitás.'
+        : 'Las aguas sagradas de la fuente revitalizan tu conexión divina.';
+      return {
+        text: `💧 Tu cuerpo está sano. Pero la fuente ve más allá del cuerpo.\n${flavorMago}\n✨ Maná restaurado: +${manaRestored} maná (${currentMana1114} → ${newMana}/${maxMana1114})\n${manaBar} ${newMana}/${maxMana1114} maná\n\n⏳ La fuente empieza a atenuarse... necesitará 3 minutos para recargarse.`,
+        event: `${player.username} bebe de la Fuente Eterna. Sus ojos brillan con energía arcana.`,
+        eventRoomId: FOUNTAIN_ROOM_ID,
+      };
+    }
+    return { text: '💧 Ya estás al máximo de HP y maná. El agua brilla tentadoramente pero no la necesitás ahora.' };
+  }
+
+  // Usar la fuente — restaurar HP
   const restored = player.max_hp - player.hp;
-  db.updatePlayer(player.id, { hp: player.max_hp });
+  const updates1114 = { hp: player.max_hp };
+  // DIS-1114: si además tiene maná bajo (≤ 20%) y es clase mágica, restaurar +10 maná bonus
+  let manaBonus1114 = '';
+  if (isMagicClass1114 && maxMana1114 > 0 && currentMana1114 <= Math.floor(maxMana1114 * 0.20)) {
+    const bonusMana = Math.min(10, maxMana1114 - currentMana1114);
+    if (bonusMana > 0) {
+      updates1114.mana = currentMana1114 + bonusMana;
+      manaBonus1114 = `\n✨ [Bonus arcano] La fuente también restaura tu energía mágica: +${bonusMana} maná (${currentMana1114} → ${updates1114.mana}/${maxMana1114}).`;
+    }
+  }
+  db.updatePlayer(player.id, updates1114);
 
   // Activar cooldown global
   fountainCooldownUntil = now + FOUNTAIN_COOLDOWN_MS;
@@ -9759,7 +9793,7 @@ function cmdDrink(player) {
   const hpBar = buildBar(player.max_hp, player.max_hp, 20);
 
   return {
-    text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! (+${restored} HP recuperado)\n${hpBar} ${player.max_hp}/${player.max_hp} HP\n\n⏳ La fuente empieza a atenuarse... necesitará 3 minutos para recargarse.\n\n⚠️ Esta sala tiene salidas peligrosas: el Gólem de Piedra (sur, nivel 5+) y la Sombra del Vacío (abajo, nivel 7+). Revisá tu equipo antes de avanzar.`,
+    text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! (+${restored} HP recuperado)\n${hpBar} ${player.max_hp}/${player.max_hp} HP${manaBonus1114}\n\n⏳ La fuente empieza a atenuarse... necesitará 3 minutos para recargarse.\n\n⚠️ Esta sala tiene salidas peligrosas: el Gólem de Piedra (sur, nivel 5+) y la Sombra del Vacío (abajo, nivel 7+). Revisá tu equipo antes de avanzar.`,
     event: `${player.username} bebe de la Fuente Eterna. Un resplandor plateado llena la sala.`,
     eventRoomId: FOUNTAIN_ROOM_ID,
   };
