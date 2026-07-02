@@ -1233,19 +1233,19 @@ function getPlayerRunes(playerId) {
 // ─── Daily Challenge (T141) ───────────────────────────────────────────────────
 
 const DAILY_CHALLENGE_TYPES = [
-  { type: 'kill',  target: 'Goblin Merodeador',   goal: 3,  desc: 'Matar 3 Goblins Merodeadores' },
-  { type: 'kill',  target: 'Esqueleto Guerrero',  goal: 2,  desc: 'Matar 2 Esqueletos Guerreros' },
-  { type: 'kill',  target: 'Rata Gigante',        goal: 4,  desc: 'Matar 4 Ratas Gigantes' },
-  { type: 'kill',  target: 'Murciélago Vampiro',  goal: 3,  desc: 'Matar 3 Murciélagos Vampiro' },
-  { type: 'kill',  target: 'Araña Tejedora',      goal: 2,  desc: 'Matar 2 Arañas Tejedoras' },
-  { type: 'kill',  target: 'Espectro del Corredor', goal: 2, desc: 'Matar 2 Espectros del Corredor' },
-  { type: 'kill',  target: 'Gólem de Piedra',     goal: 1,  desc: 'Matar al Gólem de Piedra' },
-  { type: 'gold',  target: null,                  goal: 25, desc: 'Ganar 25 de oro (recoger monedas o abrir cofres)' },
-  { type: 'gold',  target: null,                  goal: 40, desc: 'Ganar 40 de oro (recoger monedas o abrir cofres)' },
-  { type: 'craft', target: null,                  goal: 1,  desc: 'Craftear 1 ítem' },
-  { type: 'craft', target: null,                  goal: 2,  desc: 'Craftear 2 ítems' },
-  { type: 'forage',target: null,                  goal: 2,  desc: 'Explorar (forage) 2 veces con éxito' },
-  { type: 'rooms', target: null,                  goal: 5,  desc: 'Visitar 5 salas diferentes' },
+  { type: 'kill',  target: 'Goblin Merodeador',      goal: 3,  desc: 'Matar 3 Goblins Merodeadores',               minLevel: 1 },
+  { type: 'kill',  target: 'Esqueleto Guerrero',      goal: 2,  desc: 'Matar 2 Esqueletos Guerreros',               minLevel: 1 },
+  { type: 'kill',  target: 'Rata Gigante',            goal: 4,  desc: 'Matar 4 Ratas Gigantes',                     minLevel: 1 },
+  { type: 'kill',  target: 'Murciélago Vampiro',      goal: 3,  desc: 'Matar 3 Murciélagos Vampiro',               minLevel: 1 },
+  { type: 'kill',  target: 'Araña Tejedora',          goal: 2,  desc: 'Matar 2 Arañas Tejedoras',                  minLevel: 3 },
+  { type: 'kill',  target: 'Espectro del Corredor',   goal: 2,  desc: 'Matar 2 Espectros del Corredor',            minLevel: 3 },
+  { type: 'kill',  target: 'Gólem de Piedra',         goal: 1,  desc: 'Matar al Gólem de Piedra',                  minLevel: 5 }, // DIS-1134: solo para nivel 5+
+  { type: 'gold',  target: null,                      goal: 25, desc: 'Ganar 25 de oro (recoger monedas o abrir cofres)', minLevel: 1 },
+  { type: 'gold',  target: null,                      goal: 40, desc: 'Ganar 40 de oro (recoger monedas o abrir cofres)', minLevel: 1 },
+  { type: 'craft', target: null,                      goal: 1,  desc: 'Craftear 1 ítem',                           minLevel: 1 },
+  { type: 'craft', target: null,                      goal: 2,  desc: 'Craftear 2 ítems',                          minLevel: 3 },
+  { type: 'forage',target: null,                      goal: 2,  desc: 'Explorar (forage) 2 veces con éxito',       minLevel: 1 },
+  { type: 'rooms', target: null,                      goal: 5,  desc: 'Visitar 5 salas diferentes',                minLevel: 1 },
 ];
 
 function getDailyChallenge(player) {
@@ -1264,6 +1264,18 @@ function getDailyChallenge(player) {
     const dateNum = parseInt(today.replace(/-/g, ''), 10);
     const seed = (idHash + dateNum) % DAILY_CHALLENGE_TYPES.length;
     let template = DAILY_CHALLENGE_TYPES[seed];
+    const playerLevel = player.level || 1;
+
+    // DIS-1134: Filtrar desafíos que requieran nivel superior al del jugador
+    if (template && (template.minLevel || 1) > playerLevel) {
+      for (let offset = 1; offset < DAILY_CHALLENGE_TYPES.length; offset++) {
+        const alt = DAILY_CHALLENGE_TYPES[(seed + offset) % DAILY_CHALLENGE_TYPES.length];
+        if ((alt.minLevel || 1) <= playerLevel) {
+          template = alt;
+          break;
+        }
+      }
+    }
 
     // DIS-D33: Evitar solapamiento con la quest activa (mismo tipo+target)
     try {
