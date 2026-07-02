@@ -102,7 +102,8 @@ const SPECIALIZATIONS = {
     flavor: '🗡️ Tu sombra se afila. Sos un Asesino — el primer golpe siempre deja marca.',
     passives: [
       'Crítico base +10% (pasivo permanente)',
-      'El primer ataque de cada combate nuevo es siempre crítico (emboscada)',
+      'El primer ataque de cada combate nuevo es siempre crítico (pasivo — sin cooldown)',
+      'La skill `emboscar` permite repetir un crítico garantizado + veneno cuando el pasivo ya fue usado (cooldown 45s)',
       'El veneno aplicado dura 5 turnos en lugar de 3',
       'Al matar con crítico: 15% chance de loot doble',
     ],

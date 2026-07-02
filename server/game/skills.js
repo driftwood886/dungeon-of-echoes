@@ -210,7 +210,7 @@ const SKILLS = {
     dmg_multiplier: 1.6,
     poison_damage: 4,
     poison_turns: 3,
-    description: 'Crítico garantizado + veneno intensificado (4 dmg × 3 turnos). Solo Asesino (nivel 5+). Cooldown: 45s.',
+    description: 'Crítico garantizado + veneno intensificado (4 dmg × 3 turnos; 5 si sos Asesino). Usá esto cuando tu crítico pasivo ya fue gastado. Cooldown: 45s. Solo Asesino (nivel 5+).',
     combat_only: true,
   },
   chain_heal: {
