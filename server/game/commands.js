@@ -116,6 +116,10 @@ const COMMAND_ALIASES = {
   inspect: 'inspect', inspeccionar: 'inspect', observar: 'inspect', ver_jugador: 'inspect',
   // quest / misión
   quest: 'quest', misión: 'quest', mision: 'quest', tarea: 'quest', objetivo: 'quest', quests: 'quest', misiones: 'quest',
+  // expedicion — EPIC-1158: sistema de expediciones narrativas
+  expedicion: 'expedicion', expedición: 'expedicion', expediciones: 'expedicion', misión_épica: 'expedicion', mision_epica: 'expedicion',
+  // decidir — resolución de decisión en expedición activa
+  decidir: 'expedicion', decide: 'expedicion',
   // guild / hermandad
   guild: 'guild', hermandad: 'guild', gremio: 'guild', clan: 'guild', faccion: 'guild', facción: 'guild',
   // guild quest — atajo directo

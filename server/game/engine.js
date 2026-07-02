@@ -27,6 +27,7 @@ const classes  = require('./classes'); // T107: sistema de clases
 const skills   = require('./skills');  // T114: habilidades activas por nivel
 const ambient  = require('./ambient'); // T121: período del día
 const xpSystem = require('./xp');      // DIS-D282: curva de XP cuadrática
+const expeditionEngine = require('./expedition_engine'); // EPIC-1158: sistema de expediciones
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // Cada sala puede tener un efecto que se aplica al entrar.
@@ -337,6 +338,7 @@ function execute(playerId, input, context) {
     case 'achievements': result = cmdAchievements(player); break;
     case 'inspect':      result = cmdInspect(player, action.args.join(' ')); break;
     case 'quest':        result = cmdQuest(player); break;
+    case 'expedicion':   result = cmdExpedicion(player, action.args); break;
     case 'guild':        result = cmdGuild(player, action.args); break;
     case 'gc':           result = cmdGuildChat(player, action.args); break;
     case 'duel':         result = cmdDuel(player, action.args.join(' ')); break;
@@ -1966,8 +1968,20 @@ function cmdMove(player, direction) {
     }
   } catch (_) {}
 
+  // ── EPIC-1158: hook de expedición — trigger 'enter' ─────────────────────
+  let expeditionEnterMsg = '';
+  try {
+    const freshForExpEnter = db.getPlayer(player.id);
+    const expEnterResult = expeditionEngine.checkStep(freshForExpEnter, 'enter', {
+      roomId: targetId,
+    });
+    if (expEnterResult.message) {
+      expeditionEnterMsg = '\n\n' + expEnterResult.message;
+    }
+  } catch (_) { /* no romper move si falla expedición */ }
+
   return {
-    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}`,
+    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -3346,6 +3360,21 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // ── EPIC-1158: hook de expedición — trigger 'kill' ───────────────────────
+  let expeditionKillMsg = '';
+  if (monsterDead && monster.id !== 20) { // excluir Goblin de Práctica
+    try {
+      const freshForExp = db.getPlayer(player.id);
+      const expResult = expeditionEngine.checkStep(freshForExp, 'kill', {
+        monsterName: monster.name,
+        roomId: player.current_room_id,
+      });
+      if (expResult.message) {
+        expeditionKillMsg = '\n\n' + expResult.message;
+      }
+    } catch (_) { /* no romper combate si falla expedición */ }
+  }
+
   const bossVictoryBlock = lichKill
     ? (() => {
       const freshVictory = db.getPlayer(player.id);
@@ -3486,7 +3515,7 @@ function cmdAttack(player, targetName) {
     }
   }
 
-  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '');
+  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + expeditionKillMsg;
 
   if (tutorialCompletionResult) {
     return {
@@ -4000,12 +4029,29 @@ function cmdPick(player, itemQuery) {
     pickSingleMsg = `${rarityEmoji} Recogés ${found} y lo guardás en tu mochila.${rarityLabel}${pickCraftHint}${cartaHint}`;
   }
 
+  // ── EPIC-1158: hook de expedición — trigger 'pickup' ─────────────────────
+  let expeditionPickMsg = '';
+  try {
+    const freshForExpPick = db.getPlayer(player.id);
+    const expPickResult = expeditionEngine.checkStep(freshForExpPick, 'pickup', {
+      itemName: found,
+      roomId: room.id,
+    });
+    if (expPickResult.message) {
+      expeditionPickMsg = '\n\n' + expPickResult.message;
+    }
+  } catch (_) { /* no romper pick si falla expedición */ }
+
   return {
-    text: pickSingleMsg,
+    text: pickSingleMsg + expeditionPickMsg,
     event: `${player.username} recoge algo del suelo.`,
     eventRoomId: room.id,
   };
+
+  // unreachable — hook de expedición 'pickup' se agrega más abajo si se refactoriza
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * use <ítem> — Usar un ítem del inventario.
@@ -4322,8 +4368,19 @@ function cmdUse(player, itemQuery) {
     }
   }
 
+  // ── EPIC-1158: hook de expedición — trigger 'use' ─────────────────────
+  let expeditionUseMsg = '';
+  try {
+    const freshForExpUse = db.getPlayer(player.id);
+    const expUseResult = expeditionEngine.checkStep(freshForExpUse, 'use', {
+      itemName: found,
+      roomId: player.current_room_id,
+    });
+    if (expUseResult.message) expeditionUseMsg = '\n\n' + expUseResult.message;
+  } catch (_) { /* no romper use si falla expedición */ }
+
   return {
-    text: resultText,
+    text: resultText + expeditionUseMsg,
     event: `${player.username} usa un ítem.`,
     eventRoomId: player.current_room_id,
   };
@@ -8254,6 +8311,109 @@ function cmdAchievements(player) {
 }
 
 /**
+ * EPIC-1158 — expedicion — Mostrar estado de la expedición activa del jugador.
+ * También maneja `decidir <opción>` para resolver bifurcaciones.
+ */
+function cmdExpedicion(player, args) {
+  player = db.getPlayer(player.id);
+  const argStr = (args || []).join(' ').trim().toLowerCase();
+
+  // ── Modo resolución de decisión: `decidir <opción>` o `expedicion decidir <opción>` ──
+  const isDecision = argStr.startsWith('decidir') || argStr.startsWith('decide');
+  if (isDecision) {
+    // Extraer la opción (todo lo que viene después de "decidir" o "decide")
+    const choice = argStr.replace(/^decidi[dr]\s*/i, '').trim();
+    if (!choice) {
+      return { text: '⚡ Indicá tu elección. Ej: `decidir liberar` o `decidir dejar`.' };
+    }
+    const resolution = expeditionEngine.resolveDecision(player, choice);
+    if (!resolution) {
+      // Sin expedición esperando decisión, o choice inválida
+      const activeStatus = expeditionEngine.getActiveExpeditionStatus(player);
+      if (!activeStatus) {
+        return { text: '📜 No tenés ninguna expedición activa con una decisión pendiente.' };
+      }
+      if (!activeStatus.needsDecision) {
+        return { text: `📜 Tu expedición «${activeStatus.title}» no está esperando una decisión ahora.\n${activeStatus.decisionPrompt || ''}` };
+      }
+      return { text: `⚡ Opción inválida. ${activeStatus.decisionPrompt || 'Revisá las opciones disponibles.'}` };
+    }
+    // Aplicar recompensas
+    const reward = resolution.reward;
+    let rewardLines = '';
+    if (reward) {
+      const freshR = db.getPlayer(player.id);
+      const updR = {};
+      if (reward.xp) {
+        const newXp = (freshR.xp || 0) + reward.xp;
+        const newLevel = xpSystem.levelFromXp(newXp);
+        const levelUp = newLevel > (freshR.level || 1);
+        updR.xp = newXp;
+        updR.level = newLevel;
+        if (levelUp) {
+          updR.max_hp = (freshR.max_hp || 30) + 5;
+          const healR = Math.ceil(updR.max_hp * 0.20);
+          updR.hp = Math.min(updR.max_hp, (freshR.hp || 1) + healR);
+          updR.attack = (freshR.attack || 5) + 1;
+          rewardLines += `\n✨ ¡SUBÍS AL NIVEL ${newLevel}!`;
+        }
+        rewardLines += `\n+${reward.xp} XP`;
+      }
+      if (reward.gold) {
+        updR.gold = (freshR.gold || 0) + reward.gold;
+        rewardLines += ` · +${reward.gold}g`;
+      }
+      if (Object.keys(updR).length > 0) db.updatePlayer(player.id, updR);
+      if (reward.item) {
+        rewardLines += `\n🎁 Ítem obtenido: ${reward.item}`;
+      }
+    }
+    return {
+      text: `${resolution.message}\n\n✅ **Expedición completada: ${resolution.title}**${rewardLines}`,
+    };
+  }
+
+  // ── Modo display: mostrar estado de la expedición activa ──
+  const activeStatus = expeditionEngine.getActiveExpeditionStatus(player);
+
+  if (!activeStatus) {
+    // Sin expedición activa — intentar asignar una nueva
+    const assigned = expeditionEngine.assignExpedition(player);
+    if (assigned) {
+      return {
+        text: [
+          `📜 **Nueva Expedición asignada: ${assigned.title}**`,
+          '',
+          assigned.introText,
+          '',
+          '💡 Usá `expedicion` para ver tu progreso actual en cualquier momento.',
+        ].join('\n'),
+      };
+    }
+    return { text: expeditionEngine.noExpeditionMessage(player) };
+  }
+
+  // Hay expedición activa — mostrar estado
+  const { title, intro, currentStep, totalSteps, currentObjective, needsDecision, decisionPrompt } = activeStatus;
+
+  const lines = [
+    `📜 **Expedición: ${title}** (Paso ${currentStep}/${totalSteps})`,
+    '',
+    `*${intro}*`,
+    '',
+    needsDecision
+      ? `⚡ **Decisión pendiente:**\n${decisionPrompt}`
+      : `🎯 **Objetivo actual:** ${currentObjective}`,
+    '',
+    needsDecision
+      ? `💡 Respondé con \`decidir <opción>\` para resolver la bifurcación.`
+      : `💡 Completá el objetivo y la expedición avanzará automáticamente.`,
+  ];
+
+  return { text: lines.join('\n') };
+}
+
+/**
  * T086 — Quest activa: mostrar quest global y progreso del jugador.
  * BUG-485: También muestra la quest narrativa de Aldric si está activa o completada.
  */
@@ -9388,9 +9548,22 @@ function cmdCraft(player, args) {
   if (freshCrafter) {
     const craftAchs = ach.checkAchievements(freshCrafter, {});
     const craftAchLines = ach.formatNewAchievements(craftAchs);
+
+    // ── EPIC-1158: hook de expedición — trigger 'craft' ───────────────────
+    let expeditionCraftMsg = '';
+    try {
+      const expCraftResult = expeditionEngine.checkStep(freshCrafter, 'craft', {
+        recipe: `${itemA} con ${itemB}`,
+        result: craftResult.result,
+        roomId: freshCrafter.current_room_id,
+      });
+      if (expCraftResult.message) expeditionCraftMsg = '\n\n' + expCraftResult.message;
+    } catch (_) { /* no romper craft si falla expedición */ }
+
     if (craftAchLines) {
-      return { text: craftResult.text + craftAchLines + craftChallengeMsg + guildCraftMsg + craftGoalMsg };
+      return { text: craftResult.text + craftAchLines + craftChallengeMsg + guildCraftMsg + craftGoalMsg + expeditionCraftMsg };
     }
+    return { text: craftResult.text + craftChallengeMsg + guildCraftMsg + craftGoalMsg + expeditionCraftMsg };
   }
 
   return { text: craftResult.text + craftChallengeMsg + guildCraftMsg + craftGoalMsg };
