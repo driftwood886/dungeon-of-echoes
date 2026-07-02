@@ -35,8 +35,8 @@ const CLASSES = {
     max_mana: 35,
     crit_bonus: 0,
     dodge_bonus: 0,
-    spell_power: 1.5,  // hechizos hacen 50% más daño
-    perks: ['Maná máximo aumentado (+15)', 'Hechizos 50% más potentes', 'Recarga de maná 6x más rápida'],
+    spell_power: 1.5,  // hechizos hacen 50% más daño (×1.2 niveles 1-2, ×1.5 nivel 3+)
+    perks: ['Maná máximo aumentado (+15)', 'Hechizos más potentes (×1.2 inicio, ×1.5 a nivel 3)', 'Recarga de maná 6x más rápida'],
   },
   picaro: {
     name: 'Pícaro',

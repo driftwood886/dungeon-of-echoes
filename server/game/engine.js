@@ -10827,7 +10827,18 @@ function cmdCast(player, args) {
     const dmg = spell.amount;
     // T107: Mago tiene spell_power 1.5 (hechizos hacen 50% más daño)
     const playerCls = classes.getPlayerClass(player);
-    const spellPower = playerCls ? (playerCls.spell_power || 1.0) : 1.0;
+    // DIS-1123: El Mago es demasiado poderoso al inicio — multiplicador escalonado por nivel.
+    // Nivel 1-2: ×1.2 (curva de dificultad más suave), nivel 3+: ×1.5 (valor original).
+    // Otras clases conservan su spell_power original.
+    let baseSpellPower = playerCls ? (playerCls.spell_power || 1.0) : 1.0;
+    if (player.player_class === 'mago' && baseSpellPower > 1.0) {
+      const playerLevel = player.level || 1;
+      if (playerLevel <= 2) {
+        baseSpellPower = 1.2;
+      }
+      // nivel 3+ conserva el 1.5 original
+    }
+    const spellPower = baseSpellPower;
     // DIS-852: ARCANE_SURGE — hechizos +50% daño durante el evento
     const activeEvCast = worldEvents.getCurrentEvent();
     const arcaneSurgeBonus = (activeEvCast && activeEvCast.id === 'arcane_surge') ? (activeEvCast.spellBonus || 0.50) : 0;
