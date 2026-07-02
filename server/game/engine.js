@@ -4039,6 +4039,21 @@ function cmdUse(player, itemQuery) {
       db.updatePlayer(player.id, { hp: newHp });
       return { text: `Intentás bajar por el borde del pozo. Tus dedos encuentran las mismas marcas de uñas del brocal —viejas, profundas.\n\nEn cuanto tus piernas cuelgan sobre el vacío, el frío te golpea desde abajo: no temperatura, sino un rechazo físico, una presión hacia arriba que empuja con la fuerza de algo que no quiere compañía.\n\nPerdés el agarre. Caés hacia atrás sobre el suelo de piedra.\n\n💥 -${dmg} HP por el impacto. (${newHp}/${player.max_hp || 30} HP)\n\nEl pozo sigue quieto. El frío permanece.` };
     }
+    // BUG-1138: "abrir puerta" → mensaje útil en lugar de "no tenés ningún puerta en el inventario"
+    const puertaKeywords = ['puerta', 'door', 'puerta bloqueada', 'entrada bloqueada', 'salida bloqueada', 'puerta cerrada'];
+    if (puertaKeywords.some(k => queryLower2.includes(k))) {
+      // Ver si hay salidas bloqueadas en la sala actual
+      const currentRoom = db.getRoom(player.current_room_id);
+      let exits = {};
+      try { exits = JSON.parse(currentRoom.exits || '{}'); } catch (_) { exits = {}; }
+      const lockedExits = Object.entries(exits).filter(([, v]) => v && typeof v === 'object' && v.locked);
+      if (lockedExits.length > 0) {
+        const dirs = lockedExits.map(([dir]) => dir).join(', ');
+        return { text: `🚪 La puerta no se abre con las manos. Necesitás una llave.\n💡 Salidas bloqueadas en esta sala: ${dirs}. Usá \`unlock ${lockedExits[0][0]}\` si tenés la llave correcta.` };
+      } else {
+        return { text: `🚪 No hay ninguna puerta bloqueada que puedas abrir aquí.\n💡 Para puertas bloqueadas con llave usá \`unlock <dirección>\` (ej: \`unlock norte\`).` };
+      }
+    }
     return { text: `No tenés ningún "${itemQuery}" en el inventario.` };
   }
 
