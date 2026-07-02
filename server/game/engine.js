@@ -15149,7 +15149,8 @@ function cmdDungeonStatus(player) {
       const q = getActiveQuest();
       if (q) {
         const def = q.questDef || q;
-        questInfo = `${def.title || def.name || def.id} — ${def.description || ''}`;
+        const minLvTag = def.minLevel && def.minLevel > 1 ? ` [Nivel ${def.minLevel}+]` : '';
+        questInfo = `${def.title || def.name || def.id}${minLvTag} — ${def.description || ''}`;
         // Mostrar progreso del jugador si hay player disponible
         if (player) {
           const freshP = db.getPlayer(player.id);

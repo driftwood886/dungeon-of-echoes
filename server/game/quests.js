@@ -27,6 +27,7 @@ const QUEST_CATALOG = [
     type: 'kill',
     target: 'Goblin',
     goal: 3,
+    minLevel: 1,
     reward: { gold: 30, xp: 50 },
   },
   {
@@ -36,6 +37,7 @@ const QUEST_CATALOG = [
     type: 'kill',
     target: 'Esqueleto Guerrero',
     goal: 3,
+    minLevel: 1,
     reward: { gold: 40, xp: 60 },
   },
   {
@@ -45,6 +47,7 @@ const QUEST_CATALOG = [
     type: 'kill',
     target: 'Araña Tejedora',
     goal: 2,
+    minLevel: 1,
     reward: { gold: 35, xp: 55 },
   },
   {
@@ -53,6 +56,7 @@ const QUEST_CATALOG = [
     description: 'El mercader busca aventureros ricos. Acumula 50 monedas de oro (cantidad total, no neta).',
     type: 'gold',
     goal: 50,
+    minLevel: 1,
     reward: { gold: 25, xp: 40 },
   },
   {
@@ -62,6 +66,7 @@ const QUEST_CATALOG = [
     type: 'kill',
     target: 'Murciélago Vampiro',
     goal: 3,
+    minLevel: 1,
     reward: { gold: 30, xp: 45 },
   },
   {
@@ -71,6 +76,7 @@ const QUEST_CATALOG = [
     type: 'kill',
     target: 'Lich Anciano',
     goal: 1,
+    minLevel: 10,
     reward: { gold: 100, xp: 150 },
   },
 ];
@@ -115,9 +121,11 @@ function saveQuest() {
   }
 }
 
-function startNewQuest(excludeId = null) {
-  const choices = QUEST_CATALOG.filter(q => q.id !== excludeId);
-  const def = choices[Math.floor(Math.random() * choices.length)];
+function startNewQuest(excludeId = null, maxPlayerLevel = 1) {
+  // DIS-1128: Excluir quests con minLevel > maxPlayerLevel para no asignar quests imposibles
+  const choices = QUEST_CATALOG.filter(q => q.id !== excludeId && (q.minLevel || 1) <= Math.max(maxPlayerLevel, 5));
+  const pool = choices.length > 0 ? choices : QUEST_CATALOG.filter(q => q.id !== excludeId);
+  const def = pool[Math.floor(Math.random() * pool.length)];
   activeQuest = {
     questDef: def,
     startedAt: new Date().toISOString(),
