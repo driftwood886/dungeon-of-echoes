@@ -9165,26 +9165,53 @@ function cmdCraft(player, args) {
     // BUG-516: si el argumento coincide con el nombre de un resultado de receta,
     // mostrar sugerencia con los ingredientes en lugar del error genérico
     const rawInput = args.join(' ').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const matchingRecipe = crafting.RECIPES.find(r => {
+    // BUG-1112: buscar TODAS las recetas con ese resultado (puede haber variantes)
+    const matchingRecipes = crafting.RECIPES.filter(r => {
       const norm = r.result.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       return norm === rawInput;
     });
-    if (matchingRecipe) {
-      const [ing1, ing2] = matchingRecipe.ingredients;
-      // DIS-1104: indicar cuál ingrediente tiene el jugador y cuál le falta
+    if (matchingRecipes.length > 0) {
+      // DIS-1104 / BUG-1112: preferir la receta cuyo jugador tiene ambos ingredientes
       const nfn1104 = s => (s || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       const nfnInv = (player.inventory || []).map(i => nfn1104(typeof i === 'string' ? i : (i.name || '')));
-      const hasIng1 = nfnInv.includes(nfn1104(ing1)) || nfn1104(player.equipped_weapon || '') === nfn1104(ing1) || nfn1104(player.equipped_armor || '') === nfn1104(ing1);
-      const hasIng2 = nfnInv.includes(nfn1104(ing2)) || nfn1104(player.equipped_weapon || '') === nfn1104(ing2) || nfn1104(player.equipped_armor || '') === nfn1104(ing2);
+      const hasItem = name => nfnInv.includes(nfn1104(name)) ||
+        nfn1104(player.equipped_weapon || '') === nfn1104(name) ||
+        nfn1104(player.equipped_armor  || '') === nfn1104(name);
+
+      // Ordenar: variante con ambos ingredientes disponibles primero, luego 1 ing, luego 0
+      const scored = matchingRecipes.map(r => {
+        const h1 = hasItem(r.ingredients[0]) ? 1 : 0;
+        const h2 = hasItem(r.ingredients[1]) ? 1 : 0;
+        return { r, score: h1 + h2 };
+      }).sort((a, b) => b.score - a.score);
+
+      // Receta principal = la que el jugador puede craftear (o la primera si ninguna)
+      const best = scored[0].r;
+      const [ing1, ing2] = best.ingredients;
+      const hasIng1 = hasItem(ing1);
+      const hasIng2 = hasItem(ing2);
+
       let missingNote = '';
-      if (hasIng1 && !hasIng2) {
+      if (hasIng1 && hasIng2) {
+        missingNote = `\n✅ Tenés ambos ingredientes. Usá el comando de abajo:`;
+      } else if (hasIng1 && !hasIng2) {
         missingNote = `\n✅ Tenés: ${ing1}\n❌ Te falta: ${ing2}`;
       } else if (!hasIng1 && hasIng2) {
         missingNote = `\n✅ Tenés: ${ing2}\n❌ Te falta: ${ing1}`;
-      } else if (hasIng1 && hasIng2) {
-        missingNote = `\n✅ Tenés ambos ingredientes. Usá el comando de abajo:`;
       }
-      return { text: `Para craftear "${matchingRecipe.result}" necesitás dos ingredientes.\n💡 Receta: ${ing1} + ${ing2} → ${matchingRecipe.result}${missingNote}\nUsá: craft ${ing1} con ${ing2}` };
+
+      // BUG-1112: si hay variantes alternativas con ingredientes disponibles, mostrarlas
+      let altNote = '';
+      const alternatives = scored.filter(({ r, score }) => r !== best && score > 0);
+      if (alternatives.length > 0) {
+        const altLines = alternatives.map(({ r, score }) => {
+          const checkmark = score === 2 ? '✅' : '⚠️';
+          return `  ${checkmark} craft ${r.ingredients[0]} con ${r.ingredients[1]}`;
+        });
+        altNote = `\n\n💡 También podés usar estas variantes:\n${altLines.join('\n')}`;
+      }
+
+      return { text: `Para craftear "${best.result}" necesitás dos ingredientes.\n💡 Receta: ${ing1} + ${ing2} → ${best.result}${missingNote}\nUsá: craft ${ing1} con ${ing2}${altNote}` };
     }
     return { text: 'No entendí la sintaxis. Usá:\n  craft <ítem1> con <ítem2>\n  craft <ítem1> + <ítem2>\nEjemplo: craft hierba curativa con poción menor' };
   }
