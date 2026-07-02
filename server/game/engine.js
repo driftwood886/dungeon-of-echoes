@@ -4529,6 +4529,22 @@ function cmdExamine(player, query) {
           recipeLine = `🧪 Ingrediente de crafteo: ${recipesList}`;
         }
       } catch(_) {}
+
+      // DIS-1115: ítems raros con lore enriquecido — texto especial al examinar
+      const RARE_ITEM_LORE = {
+        'corona rota': `👑 La corona está partida por la mitad, con precisión casi quirúrgica —no se rompió en combate sino que alguien la cortó deliberadamente. El metal es de un reino que no existe en ningún mapa actual del norte.\n\nLa mitad que falta nunca apareció. Pero algo en el peso de esta mitad sugiere que si existiera la otra, el par sería algo distinto a simplemente una corona.\n\n🔍 Uso conocido: sirve como ofrenda en la Sala del Trono (sala 9) para desactivar la trampa de frío. También puede equiparse (+3 DEF), venderse a Aldric, u ofrendarse en el altar de la sala 14.\n💡 Parece que Aldric la reconoce. Si se la mostrás, tal vez sepa más.`,
+
+        'sello del carcelero': `🔒 El sello es un cilindro de bronce negro con un motivo de llaves entrecruzadas —el mismo símbolo que aparece en las paredes de la Prisión Subterránea y, curiosamente, en el delantal de Aldric.\n\nNo es una pieza decorativa: tiene el peso de algo que se usó. El mecanismo de las llaves todavía gira con suavidad, como si alguien lo mantuvo aceitado mucho después de que la prisión fue abandonada.\n\n🔍 Aldric lo compra como "pieza histórica" (20g). Pero dado el símbolo compartido, es posible que sepa exactamente qué es —y que pagar 20g sea una forma conveniente de hacer que desaparezca.\n💡 Coleccionable histórico. Podés venderlo, equiparlo (+3 DEF), o guardarlo.`,
+
+        'carta sellada': `📜 El sobre está sellado con cera negra marcada con el símbolo de las dos llaves cruzadas. El papel es viejo —décadas al menos— pero el sellado está perfectamente intacto: alguien tomó cuidado de que esto durara.\n\nEn el reverso, en letra pequeña: "Para quien llegue después. Perdoname." Sin firma.\n\n🔍 La carta viene de la Prisión Subterránea (sala 8). El símbolo de las llaves... lo viste antes. En el delantal de Aldric. El mercader que eligió este dungeon por razones que nunca explicó.\n💡 Usá "use carta sellada" o "abrir carta" para leer su contenido. Una vez abierta, no hay vuelta atrás.`,
+      };
+      const rareLoreKey = invItemName.toLowerCase();
+      if (RARE_ITEM_LORE[rareLoreKey]) {
+        return {
+          text: `=== ${invItemName.toUpperCase()}${locationTag} ===\n${RARE_ITEM_LORE[rareLoreKey]}`,
+        };
+      }
+
       return {
         text: [
           `=== ${invItemName.toUpperCase()}${locationTag} ===`,
