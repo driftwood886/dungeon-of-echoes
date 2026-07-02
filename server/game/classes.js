@@ -11,7 +11,7 @@ const CLASSES = {
   guerrero: {
     name: 'Guerrero',
     emoji: '⚔️',
-    description: 'Resistente y brutal. Más HP y ataque, pero poco maná.',
+    description: 'Resistente y brutal. Más HP y ataque, con maná reservado para habilidades.',
     hp: 35,
     max_hp: 35,
     attack: 6,
