@@ -1252,6 +1252,9 @@ function getDailyChallenge(player) {
   try { ch = JSON.parse(player.daily_challenge || '{}'); } catch (_) { ch = {}; }
   const today = new Date().toISOString().slice(0, 10);
   if (ch.date !== today) {
+    // DIS-1117: guardar el tipo del desafío previo para evitar repetirlo
+    const prevType = ch.type || null;
+
     // Generar nuevo desafío para hoy (determinístico basado en player.id + fecha)
     // Fix DIS-P01: player.id es UUID string → calcular hash numérico para el seed
     const idStr = String(player.id);
@@ -1287,6 +1290,34 @@ function getDailyChallenge(player) {
         }
       }
     } catch (_) { /* quests module no disponible — ignorar */ }
+
+    // DIS-1117: Evitar repetir el mismo tipo de desafío dos días seguidos
+    if (template && prevType && template.type === prevType) {
+      // Buscar el siguiente template que tenga un tipo diferente
+      for (let offset = 1; offset < DAILY_CHALLENGE_TYPES.length; offset++) {
+        const alt = DAILY_CHALLENGE_TYPES[(seed + offset) % DAILY_CHALLENGE_TYPES.length];
+        if (alt.type !== prevType) {
+          template = alt;
+          break;
+        }
+      }
+    }
+    // DIS-1117: Excluir "Rata Gigante" del pool si el jugador tiene <3 kills totales
+    // (probablemente recién empieza — las ratas de sala 0 son el único lugar fácil)
+    if (template && template.target === 'Rata Gigante') {
+      const totalKills = player.kills || 0;
+      if (totalKills < 10) {
+        // Jugador nuevo — asignar alternativa que no sea sala 0
+        for (let offset = 1; offset < DAILY_CHALLENGE_TYPES.length; offset++) {
+          const alt = DAILY_CHALLENGE_TYPES[(seed + offset) % DAILY_CHALLENGE_TYPES.length];
+          if (alt.target !== 'Rata Gigante' && alt.type !== prevType) {
+            template = alt;
+            break;
+          }
+        }
+      }
+    }
+
     if (!template) {
       // Fallback seguro si por alguna razón el template es undefined
       const fallback = DAILY_CHALLENGE_TYPES[0];
@@ -1299,7 +1330,7 @@ function getDailyChallenge(player) {
   return ch;
 }
 
-function updateDailyChallengeProgress(playerId, type, target, amount = 1) {
+function updateDailyChallengeProgress(playerId, type, target, amount = 1, roomId = null) {
   const player = getPlayer(playerId);
   if (!player) return null;
   let ch = getDailyChallenge(player);
@@ -1310,6 +1341,9 @@ function updateDailyChallengeProgress(playerId, type, target, amount = 1) {
   // Strip ⭐ elite prefix from monster name before comparing (T221 elites should count)
   const targetBaseName = (target && typeof target === 'string' && target.startsWith('⭐ ')) ? target.slice(2) : target;
   if (type === 'kill' && targetBaseName && ch.target && ch.target.toLowerCase() !== targetBaseName.toLowerCase()) return null;
+
+  // DIS-1117: Excluir kills de Rata Gigante en sala 0 (tutorial) — el jugador ya limpió esa sala
+  if (type === 'kill' && ch.target === 'Rata Gigante' && roomId !== null && roomId === 0) return null;
 
   // BUG-999: Para desafíos de tipo 'rooms', usar rooms_today (salas visitadas hoy)
   // en lugar del amount externo (que antes dependía de visitResult.isNew — sala nunca visitada en toda la vida).

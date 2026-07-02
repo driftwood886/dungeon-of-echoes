@@ -2941,7 +2941,7 @@ function cmdAttack(player, targetName) {
   // ── Desafío diario (T141) ────────────────────────────────────────────────
   let challengeMsg = '';
   if (monsterDead) {
-    const cr = db.updateDailyChallengeProgress(player.id, 'kill', monster.name);
+    const cr = db.updateDailyChallengeProgress(player.id, 'kill', monster.name, 1, player.current_room_id);
     if (cr && cr.reward) {
       challengeMsg = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
     } else if (cr && !cr.challenge.done) {
