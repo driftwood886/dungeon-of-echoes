@@ -1615,7 +1615,11 @@ function attackRound(player, monster) {
       // handlePlayerDeath ya pusheó los mensajes de autoresurrección en lines
     } else {
       playerDead = true;
-      lines.push(`💀 ¡Moriste! Respawneás en la entrada del dungeon con 25% HP...`);
+      const respawnHpDisplay = Math.max(5, Math.floor((player.max_hp || 20) * 0.25));
+      lines.push(`\n══════════════════════════════════`);
+      lines.push(`💀 ¡CAÍSTE EN COMBATE!`);
+      lines.push(`   Reaparecés en la Entrada de la Cripta con ${respawnHpDisplay} HP.`);
+      lines.push(`══════════════════════════════════`);
       db.addJournalEntry(player.id, 'death', `💀 Caíste en combate contra ${monster.name}.`);
       if (hcResult2.globalEvent) globalEventHardcore = hcResult2.globalEvent;
     }
@@ -1806,7 +1810,11 @@ function tryFlee(player, monster, room, preferredDirection = null) {
 
   if (player.hp <= 0) {
     db.addJournalEntry(player.id, 'death', `💀 Muerto intentando huir del ${monster.name}.`);
-    line += `\n💀 ¡Moriste! Respawneás en la entrada del dungeon con 25% HP...`;
+    const respawnHpFlee = Math.max(5, Math.floor((player.max_hp || 20) * 0.25));
+    line += `\n\n══════════════════════════════════`;
+    line += `\n💀 ¡CAÍSTE EN COMBATE!`;
+    line += `\n   Reaparecés en la Entrada de la Cripta con ${respawnHpFlee} HP.`;
+    line += `\n══════════════════════════════════`;
     const hcResultFlee = handlePlayerDeath(player.id, [], 'huida');
     return { fled: false, destRoomId: null, line, playerDied: true, ...(hcResultFlee.globalEvent ? { globalEvent: hcResultFlee.globalEvent } : {}) };
   }
