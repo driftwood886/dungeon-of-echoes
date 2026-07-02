@@ -308,6 +308,24 @@ async function init() {
     )
   `);
 
+  // EPIC-1156: Tabla de Expediciones (sistema de misiones narrativas de sesión)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS expeditions (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      player_id       TEXT    NOT NULL,
+      expedition_id   TEXT    NOT NULL,
+      state           TEXT    NOT NULL DEFAULT 'active',
+      step            INTEGER NOT NULL DEFAULT 1,
+      data            TEXT    NOT NULL DEFAULT '{}',
+      started_at      TEXT    NOT NULL DEFAULT (datetime('now')),
+      completed_at    TEXT,
+      last_updated    TEXT    NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (player_id) REFERENCES players(id)
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_expeditions_player_state ON expeditions (player_id, state)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_expeditions_expedition_completed ON expeditions (expedition_id, state)`);
+
   // Inicializar World State (lazy reset semanal si corresponde)
   initWorldState();
 
@@ -2280,6 +2298,74 @@ function getWorldStateSnapshot() {
   return result;
 }
 
+// ─── EPIC-1156: Expediciones ─────────────────────────────────────────────────
+
+/**
+ * Devuelve la expedición activa del jugador, o null si no tiene ninguna.
+ * @param {string} playerId
+ * @returns {{ id, player_id, expedition_id, state, step, data, started_at, completed_at } | null}
+ */
+function getActiveExpedition(playerId) {
+  const row = one(
+    `SELECT * FROM expeditions WHERE player_id = ? AND state = 'active' LIMIT 1`,
+    [playerId]
+  );
+  if (!row) return null;
+  row.data = JSON.parse(row.data || '{}');
+  return row;
+}
+
+/**
+ * Asigna una nueva expedición al jugador.
+ * Prerrequisito: verificar que no tiene una activa antes de llamar.
+ * @param {string} playerId
+ * @param {string} expeditionId - slug de la expedición (ej: 'sello_carcelero')
+ */
+function assignExpeditionToDB(playerId, expeditionId) {
+  run(
+    `INSERT INTO expeditions (player_id, expedition_id, state, step, data) VALUES (?, ?, 'active', 1, '{}')`,
+    [playerId, expeditionId]
+  );
+}
+
+/**
+ * Avanza el paso actual de la expedición activa del jugador.
+ * @param {string} playerId
+ * @param {object} newData - nuevo estado interno (se serializa a JSON)
+ */
+function advanceExpeditionStep(playerId, newData = {}) {
+  run(
+    `UPDATE expeditions SET step = step + 1, data = ?, last_updated = datetime('now') WHERE player_id = ? AND state = 'active'`,
+    [JSON.stringify(newData), playerId]
+  );
+}
+
+/**
+ * Marca la expedición activa del jugador como completada.
+ * @param {string} playerId
+ * @param {object} finalData - estado final (decisión tomada, efectos mundiales, etc.)
+ */
+function completeExpeditionInDB(playerId, finalData = {}) {
+  run(
+    `UPDATE expeditions SET state = 'completed', completed_at = datetime('now'), data = ?, last_updated = datetime('now') WHERE player_id = ? AND state = 'active'`,
+    [JSON.stringify(finalData), playerId]
+  );
+}
+
+/**
+ * Devuelve todos los expedition_id que el jugador completó alguna vez.
+ * Usado por el motor de asignación para evitar repetir expediciones.
+ * @param {string} playerId
+ * @returns {string[]} array de slugs completados
+ */
+function getCompletedExpeditions(playerId) {
+  const rows = all(
+    `SELECT expedition_id FROM expeditions WHERE player_id = ? AND state = 'completed'`,
+    [playerId]
+  );
+  return rows.map(r => r.expedition_id);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -2343,4 +2429,6 @@ module.exports = {
   createLegacyEntry, getLegaciesByAccount, getAllLegacies, getUnclaimedLegacyItem, claimLegacyItem, setLegacyItem,
   // EPIC-MR-1083: World State colectivo
   initWorldState, incrementWorldState, setWorldState, getWorldStateValues, getWorldStateSnapshot,
+  // EPIC-1156: Expediciones
+  getActiveExpedition, assignExpeditionToDB, advanceExpeditionStep, completeExpeditionInDB, getCompletedExpeditions,
   };
