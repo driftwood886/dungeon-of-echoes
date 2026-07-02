@@ -10003,11 +10003,11 @@ function cmdEchoBowl(player) {
  * Cada mascota tiene un nombre descriptivo, emoji, tipo y costo en oro.
  */
 const PET_CATALOG = {
-  'rata':          { name: '🐀 Rata Mazmorrera', cost: 20,  desc: 'Una rata gris con ojos brillantes. Te sigue a todas partes olfateando el suelo.' },
-  'murciélago':    { name: '🦇 Murciélago Nocturno', cost: 25, desc: 'Un murciélago que se posa en tu hombro y chilla suavemente al detectar peligros cercanos.' },
-  'araña':         { name: '🕷️ Araña Doméstica', cost: 20,  desc: 'Una araña pequeña que teje su tela en tu mochila. Curiosamente, trae buena suerte.' },
-  'serpiente':     { name: '🐍 Serpiente de Mazmorra', cost: 30, desc: 'Una serpiente verde no venenosa. Se enrolla en tu brazo y sisea suavemente.' },
-  'escarabajo':    { name: '🪲 Escarabajo de Cristal', cost: 15, desc: 'Un escarabajo cuya caparazón refleja la luz como un prisma. Coleccionistas lo buscan.' },
+  'rata':          { name: '🐀 Rata Mazmorrera', cost: 20,  desc: 'Una rata gris con ojos brillantes. Te sigue a todas partes olfateando el suelo.\n  🗡️ En combate: 15% chance de atacar por 1-2 dmg adicional cada turno. Sube de nivel con vos.' },
+  'murciélago':    { name: '🦇 Murciélago Nocturno', cost: 25, desc: 'Un murciélago que se posa en tu hombro y chilla suavemente al detectar peligros cercanos.\n  🗡️ En combate: 20% chance de atacar por 2-3 dmg. 10% de infligir veneno al enemigo.' },
+  'araña':         { name: '🕷️ Araña Doméstica', cost: 20,  desc: 'Una araña pequeña que teje su tela en tu mochila. Curiosamente, trae buena suerte.\n  🗡️ En combate: 25% chance de atacar por 2-3 dmg. 20% de infligir veneno al enemigo.' },
+  'serpiente':     { name: '🐍 Serpiente de Mazmorra', cost: 30, desc: 'Una serpiente verde no venenosa. Se enrolla en tu brazo y sisea suavemente.\n  🗡️ En combate: 20% chance de atacar por 3-4 dmg. 30% de infligir veneno al enemigo.' },
+  'escarabajo':    { name: '🪲 Escarabajo de Cristal', cost: 15, desc: 'Un escarabajo cuya caparazón refleja la luz como un prisma. Coleccionistas lo buscan.\n  🗡️ En combate: 15% chance de atacar por 1-2 dmg. Absorbe 1 HP del enemigo para vos.' },
 };
 
 /**
@@ -10117,8 +10117,8 @@ function cmdPet(player, args) {
     // T199: mostrar nivel de mascota
     const petLv = getPetLevel(player.kills);
     const petBar = '⭐'.repeat(petLv) + '☆'.repeat(5 - petLv);
-    const petBonus = petLv >= 3 ? ` (+${petLv - 2} dmg bonus en combate)` : '';
-    return { text: `🐾 Tu mascota: ${player.pet}\n   Nivel: ${petLv}/5 ${petBar}${petBonus}\n   (Sube de nivel cada 20 kills — tenés ${player.kills || 0} kills)\n\nUsá "pet liberar" si querés dejarla ir.` };
+    const petLvBonusStr = petLv >= 3 ? ` (+${petLv - 2} dmg extra por nivel)` : '';
+    return { text: `🐾 Tu mascota: ${player.pet}\n   Nivel: ${petLv}/5 ${petBar}${petLvBonusStr}\n   (Sube de nivel cada 20 kills — tenés ${player.kills || 0} kills)\n\n✅ Bonus siempre activos:\n  • +1 ATK en combate mientras tenés mascota\n  • Ataque extra por turno (chance variable según especie)\n  • El nivel de la mascota aumenta su daño a partir de Lv3\n\nUsá \"pet liberar\" si querés dejarla ir.` };
   }
 
   // Liberar mascota
