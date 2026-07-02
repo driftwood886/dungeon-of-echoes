@@ -2143,7 +2143,9 @@ function wanderMonsters(onMove) {
       if (playersInRoom && playersInRoom.length > 0) continue;
 
       // Obtener salas adyacentes válidas (no sala tutorial, no sala de práctica, no casa de subastas)
-      const EXCLUDED_ROOMS = new Set([15, 16, 17, 18, 21, 22]); // catedral boss, tutorial, subastas, fuente, práctica, cripta
+      // DIS-1135: excluir salas de bajo nivel (1 y 2) para monstruos vagabundos — evitar que
+      // la Rata Gigante wanderee al Corredor de las Sombras junto al Goblin
+      const EXCLUDED_ROOMS = new Set([1, 2, 15, 16, 17, 18, 21, 22]); // entrada, corredor, catedral boss, tutorial, subastas, fuente, práctica, cripta
 
       // BUG-502: excluir salas que son respawn_room_id de monstruos no vagabundos
       // (p. ej. sala 5 = Capilla Olvidada es el respawn del murciélago vampiro de la quest)
