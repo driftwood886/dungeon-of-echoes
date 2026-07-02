@@ -13414,9 +13414,14 @@ function cmdUseSkill(player, args, context) {
     db.updateMonster(target.id, { hp: newHpAse });
     // BUG-971: marcar boss atacado si el target es un boss
     if (combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]) markBossAttacked(freshAse, freshAse.current_room_id);
-    // Aplicar veneno intensificado al monstruo (4 dmg × 3 turnos)
+    // Aplicar veneno intensificado al monstruo (4 dmg × 3 turnos, o 5 si es Asesino)
+    // BUG-1147: leer specialization para aplicar el bonus de duración del Asesino
+    const specAse = freshAse.specialization || '';
+    const specDataAse = specAse ? specializations.getSpec(specAse) : null;
+    const poisonDurationBonus = (specDataAse && specDataAse.combat_modifiers && specDataAse.combat_modifiers.poison_duration_bonus) || 0;
+    const effectivePoisonTurns = (skill.poison_turns || 3) + poisonDurationBonus;
     const monSeAse = target.status_effects ? JSON.parse(target.status_effects || '{}') : {};
-    const poisonDuration = (skill.poison_turns || 3) * 30 * 1000;
+    const poisonDuration = effectivePoisonTurns * 30 * 1000;
     const poisonExpiresAse = new Date(Date.now() + poisonDuration).toISOString();
     monSeAse.poisoned = { damage: skill.poison_damage || 4, expires_at: poisonExpiresAse, applied_by: freshAse.id };
     db.updateMonster(target.id, { status_effects: JSON.stringify(monSeAse) });
@@ -13424,7 +13429,7 @@ function cmdUseSkill(player, args, context) {
     db.updatePlayer(freshAse.id, { skill_cooldowns: newCDsAse });
     const deadAse = newHpAse <= 0;
     let textAse = `🗡️ ¡EMBOSCADA! Golpe crítico garantizado sobre el ${target.name} — ×${skill.dmg_multiplier} — ¡${finalDmgAse} de daño!`;
-    textAse += `\n   ☠️ Veneno intensificado: ${skill.poison_damage} dmg por ${skill.poison_turns} turnos.`;
+    textAse += `\n   ☠️ Veneno intensificado: ${skill.poison_damage} dmg por ${effectivePoisonTurns} turnos${poisonDurationBonus > 0 ? ` [+${poisonDurationBonus} Asesino]` : ''}.`;
     if (deadAse) {
       textAse += `\n💀 El ${target.name} cae envenenado.`;
       const { droppedLoot: aseLoot, globalEvent: aseGlobalEvent } = combat.dropLoot(target, freshAse.current_room_id);
