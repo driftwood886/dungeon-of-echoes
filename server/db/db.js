@@ -1631,10 +1631,19 @@ function cleanBotWallMessages() {
  * Si murieron hace poco, el cadáver todavía "está" en la sala.
  */
 function getRecentlyDeadMonsters(roomId, withinMinutes = 2) {
-  const cutoff = new Date(Date.now() + withinMinutes * 60000).toISOString();
+  // BUG-1137: La lógica anterior usaba cutoff = now+2min y filtraba respawn_at <= cutoff,
+  // lo que nunca matcheaba (respawn_at es now+3min o más). Fix: buscar monstruos con
+  // room_id IS NULL (muertos, no respawnearon) y respawn_at > now (todavía en respawn).
+  // Para acotar a "recientemente muertos", calculamos died_at aproximado:
+  // un monstruo murió hace menos de withinMinutes si respawn_at - now < (maxRespawn - withinMinutes).
+  // En la práctica, si respawn es 3-5 min, un monstruo que murió hace < 2 min tiene
+  // respawn_at > now + (respawnMinutes - withinMinutes) minutos.
+  // Simplificación pragmática: aceptar cualquier monstruo muerto en esta sala (room_id IS NULL,
+  // respawn_at > now) — el jugador solo puede llegar inmediatamente después del combate de todas formas.
+  const now = new Date(Date.now()).toISOString();
   return all(
-    `SELECT * FROM monsters WHERE respawn_room_id = ? AND room_id IS NULL AND respawn_at IS NOT NULL AND respawn_at <= ?`,
-    [roomId, cutoff]
+    `SELECT * FROM monsters WHERE respawn_room_id = ? AND room_id IS NULL AND respawn_at IS NOT NULL AND respawn_at > ?`,
+    [roomId, now]
   );
 }
 
