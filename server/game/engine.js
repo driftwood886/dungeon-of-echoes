@@ -15797,7 +15797,7 @@ function cmdPath(player, args) {
   // DIS-D14: Agregar advertencia de trampas al final si las hay
   if (trappedRooms.length > 0) {
     lines.push(`⚠️  ADVERTENCIA: la ruta pasa por ${trappedRooms.length} sala${trappedRooms.length > 1 ? 's' : ''} con trampa activa:`);
-    trappedRooms.forEach(name => lines.push(`   • ${name} — usá "disarm" para desactivarla (o "disarm <dirección>" desde la sala anterior)`));
+    trappedRooms.forEach(name => lines.push(`   • ${name} — usá "desactivar trampa <dirección>" desde la sala anterior para desactivarla (ej: "desactivar trampa norte")`));
 
     // DIS-D24: buscar ruta alternativa con menos trampas (Dijkstra con peso 5 por trampa)
     const trapRoomIds = new Set(found
