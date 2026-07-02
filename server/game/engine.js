@@ -3266,7 +3266,9 @@ function cmdAttack(player, targetName) {
 
   // ── T159: Killing Spree ──────────────────────────────────────────────────
   let streakMsg = '';
-  if (monsterDead) {
+  // BUG-1143: Excluir el Goblin de Práctica (id=20) del killStreak — no da kills reales
+  const PRACTICE_GOBLIN_STREAK_ID = 20;
+  if (monsterDead && monster.id !== PRACTICE_GOBLIN_STREAK_ID) {
     const prevStreak = killStreakMap.get(player.id) || 0;
     const newStreak = prevStreak + 1;
     killStreakMap.set(player.id, newStreak);
@@ -12306,6 +12308,37 @@ function cmdUseSkill(player, args, context) {
           });
           text += `\n${p2Smash.message}`;
         }
+      }
+    }
+
+    // BUG-1142: Actualizar killStreak cuando smash mata al monstruo
+    if (dead) {
+      const prevSmashStreak = killStreakMap.get(freshPlayer.id) || 0;
+      const newSmashStreak = prevSmashStreak + 1;
+      killStreakMap.set(freshPlayer.id, newSmashStreak);
+      if (newSmashStreak >= 5 && newSmashStreak % 5 === 0) {
+        const bonusXpStreak = STREAK_HITO_BONUS;
+        const freshStreak2 = db.getPlayer(freshPlayer.id);
+        if (freshStreak2) {
+          const newXpStreak2 = (freshStreak2.xp || 0) + bonusXpStreak;
+          const newLvlStreak2 = xpSystem.levelFromXp(newXpStreak2);
+          const lvlUpStreak2 = newLvlStreak2 > (freshStreak2.level || 1);
+          const updStreak2 = { xp: newXpStreak2, level: newLvlStreak2 };
+          if (lvlUpStreak2) {
+            updStreak2.max_hp = (freshStreak2.max_hp || 30) + 5;
+            const healStreak2 = Math.ceil(updStreak2.max_hp * 0.20);
+            updStreak2.hp = Math.min(updStreak2.max_hp, (freshStreak2.hp || 1) + healStreak2);
+            if (freshStreak2.player_class === 'mago' || freshStreak2.player_class === 'clerigo') {
+              updStreak2.max_mana = (freshStreak2.max_mana || 20) + 3;
+            }
+            updStreak2.attack = (freshStreak2.attack || 5) + 1;
+          }
+          db.updatePlayer(freshPlayer.id, updStreak2);
+          const streakLabel2 = newSmashStreak >= 20 ? '💥 ¡IMPARABLE!' : newSmashStreak >= 15 ? '🔥 ¡Dominando el Dungeon!' : newSmashStreak >= 10 ? '⚡ ¡Racha Brutal!' : '🔥 ¡Racha de Kills!';
+          text += `\n${streakLabel2} ${newSmashStreak} kills seguidos. +${bonusXpStreak} XP de bonificación.${lvlUpStreak2 ? ` ✨ ¡SUBÍS AL NIVEL ${newLvlStreak2}!` : ''}`;
+        }
+      } else if (newSmashStreak >= 3) {
+        text += `\n🔥 Racha: ${newSmashStreak} kills consecutivos sin morir.`;
       }
     }
 
