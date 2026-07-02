@@ -7465,7 +7465,7 @@ const SHOP_CATALOG = [
   // BUG-854: cristal mágico, capa de araña y escudo roto vendían al fallback de 4g por falta de entrada
   { name: 'cristal mágico',          price: 25,  sellOnly: true, description: 'Cristal imbuido con energía mágica concentrada. Drop del Gólem de Piedra. También ingrediente de crafteo avanzado.' },
   { name: 'capa de araña',           price: 10,  sellOnly: true, description: 'Capa tejida con seda de Araña Tejedora. Ligera y resistente (+2 DEF). Aldric la compra para artesanía.' },
-  { name: 'escudo roto',             price: 8,   sellOnly: true, description: 'Escudo partido por la mitad. Inútil por sí solo, pero sirve como ingrediente de crafteo (escudo roto + garra de esqueleto).' },
+  { name: 'escudo roto',             price: 8,   sellOnly: true, description: 'Escudo partido por la mitad. Inútil por sí solo, pero sirve como ingrediente de crafteo (escudo roto + garra de esqueleto → escudo de gladiador).' },
 ];
 
 // Precios de venta al mercader (jugador → mercader) — 40% del valor
@@ -17378,9 +17378,17 @@ function cmdPreview(player, args) {
   if (def.type === 'weapon') {
     const currentAtk = player.attack;
     // Calcular el ATK nuevo correctamente: base (sin arma actual) + bonus nueva arma
-    const prevWeaponBonusPreview = player.equipped_weapon ? (items.getItemDef(player.equipped_weapon)?.amount || 0) : 0;
-    const baseAtkPreview = currentAtk - prevWeaponBonusPreview;
-    const newAtk = baseAtkPreview + def.amount;
+    const prevWeaponDef = player.equipped_weapon ? items.getItemDef(player.equipped_weapon) : null;
+    const prevWeaponBonusPreview = prevWeaponDef ? (prevWeaponDef.amount || 0) : 0;
+    // DIS-1139: también restar mage_only_bonus si aplica (está sumado en player.attack)
+    const isMago = (player.player_class || '').toLowerCase() === 'mago';
+    const isClerigo = (player.player_class || '').toLowerCase() === 'clerigo';
+    const prevMageBonusPreview = (isMago && prevWeaponDef?.mage_only_bonus) ? prevWeaponDef.mage_only_bonus : 0;
+    const prevClericBonusPreview = (isClerigo && prevWeaponDef?.cleric_only_bonus) ? prevWeaponDef.cleric_only_bonus : 0;
+    const baseAtkPreview = currentAtk - prevWeaponBonusPreview - prevMageBonusPreview - prevClericBonusPreview;
+    const newMageBonus = (isMago && def.mage_only_bonus) ? def.mage_only_bonus : 0;
+    const newClericBonus = (isClerigo && def.cleric_only_bonus) ? def.cleric_only_bonus : 0;
+    const newAtk = baseAtkPreview + def.amount + newMageBonus + newClericBonus;
     const change = newAtk - currentAtk;
     const changeStr = change >= 0 ? `+${change}` : `${change}`;
     const currentWeapon = player.equipped_weapon || '(puños)';
@@ -17392,12 +17400,38 @@ function cmdPreview(player, args) {
     lines.push(`├${'─'.repeat(W)}┤`);
     lines.push(`│ ${def.description.length > W - 2 ? def.description.slice(0, W - 5) + '...' : pad(def.description, W - 2)} │`);
     lines.push(`├${'─'.repeat(W)}┤`);
+    // DIS-1139: mostrar bonuses condicionales que se perderían/ganarían al cambiar
+    const lossLines = [];
+    if (prevWeaponDef?.spectral_bonus) {
+      lossLines.push(`│ ${pad('⚠️  Perdés: +' + prevWeaponDef.spectral_bonus + ' ATK vs espectrales/mágicos', W)} │`);
+    }
+    if (prevWeaponDef?.on_hit) {
+      const oh = prevWeaponDef.on_hit;
+      if (oh.type === 'poison') lossLines.push(`│ ${pad('⚠️  Perdés: ' + Math.round((oh.chance||0)*100) + '% de envenenar al golpear', W)} │`);
+      else if (oh.type === 'weakened') lossLines.push(`│ ${pad('⚠️  Perdés: ' + Math.round((oh.chance||0)*100) + '% de aplicar Debilidad Espectral', W)} │`);
+      else if (oh.type === 'shadow_bolt') lossLines.push(`│ ${pad('⚠️  Perdés: ' + Math.round((oh.chance||0)*100) + '% de rayo de sombra (+' + (oh.bonus_damage||0) + ' dmg)', W)} │`);
+    }
+    const gainLines = [];
+    if (def.spectral_bonus) {
+      gainLines.push(`│ ${pad('✨ Ganás: +' + def.spectral_bonus + ' ATK vs espectrales/mágicos', W)} │`);
+    }
+    if (def.on_hit) {
+      const oh = def.on_hit;
+      if (oh.type === 'poison') gainLines.push(`│ ${pad('✨ Ganás: ' + Math.round((oh.chance||0)*100) + '% de envenenar al golpear', W)} │`);
+      else if (oh.type === 'weakened') gainLines.push(`│ ${pad('✨ Ganás: ' + Math.round((oh.chance||0)*100) + '% de aplicar Debilidad Espectral', W)} │`);
+      else if (oh.type === 'shadow_bolt') gainLines.push(`│ ${pad('✨ Ganás: ' + Math.round((oh.chance||0)*100) + '% de rayo de sombra (+' + (oh.bonus_damage||0) + ' dmg)', W)} │`);
+    }
+    if (lossLines.length > 0 || gainLines.length > 0) {
+      for (const l of lossLines) lines.push(l);
+      for (const g of gainLines) lines.push(g);
+      lines.push(`├${'─'.repeat(W)}┤`);
+    }
     if (change > 0) {
       lines.push(`│ ${pad('✅ Mejora de ' + change + ' puntos de ataque.', W)} │`);
     } else if (change < 0) {
       lines.push(`│ ${pad('⚠️  Bajaría ' + Math.abs(change) + ' puntos de ataque.', W)} │`);
     } else {
-      lines.push(`│ ${pad('➖ Sin cambio en el ataque.', W)} │`);
+      lines.push(`│ ${pad('➖ Sin cambio en el ataque base.', W)} │`);
     }
     lines.push(`│ ${pad('Para equipar: equip ' + found, W)} │`);
   } else if (def.type === 'armor') {
