@@ -1936,8 +1936,38 @@ function cmdMove(player, direction) {
     }
   }
 
+  // DIS-1130: Advertencia de trampas adyacentes también en primera visita al moverse
+  // (En look ya se muestra, pero al entrar por primera vez el jugador podría no hacer look)
+  let adjacentTrapMoveMsg = '';
+  try {
+    const TRAP_ROOM_DANGER_MOVE = {
+      13: { icon: '💧', name: 'trampa de inundación', roomName: 'Caverna Sumergida', dmg: 7, dmgRange: '6-8' },
+      6:  { icon: '👃', name: 'trampa de esporas',    roomName: 'Túnel de los Hongos', dmg: 5, dmgRange: '4-6' },
+    };
+    const freshAfterMove = db.getPlayer(player.id) || player;
+    let visitedArrMove = [];
+    try { visitedArrMove = JSON.parse(freshAfterMove.rooms_visited || '[]'); } catch (_) {}
+    const curRoom = dungeon.getRoom(targetId);
+    const curExitsMove = (curRoom && curRoom.exits) ? curRoom.exits : {};
+    const trapLinesMove = [];
+    for (const [dir, destId] of Object.entries(curExitsMove)) {
+      const trapRoomDef = TRAP_ROOM_DANGER_MOVE[destId];
+      if (trapRoomDef) {
+        const alreadyVisited = visitedArrMove.some(v => v == destId);
+        if (!alreadyVisited) {
+          const dirLabel = { north: 'al norte', south: 'al sur', east: 'al este', west: 'al oeste', up: 'arriba', down: 'abajo' }[dir] || dir;
+          const dmgStr = trapRoomDef.dmgRange ? `~${trapRoomDef.dmg} HP (${trapRoomDef.dmgRange})` : `-${trapRoomDef.dmg} HP`;
+          trapLinesMove.push(`${trapRoomDef.icon} ${dirLabel}: ${trapRoomDef.roomName} — ${trapRoomDef.name} activa (${dmgStr} al entrar por primera vez).`);
+        }
+      }
+    }
+    if (trapLinesMove.length > 0) {
+      adjacentTrapMoveMsg = '\n⚠️ ' + trapLinesMove.join('\n⚠️ ');
+    }
+  } catch (_) {}
+
   return {
-    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}`,
+    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
