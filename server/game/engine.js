@@ -3739,6 +3739,13 @@ function cmdPick(player, itemQuery) {
           }
         }
       }
+      // DIS-1125: registrar progreso del desafío diario de tipo 'gold' al hacer pick todo
+      const pickAllCr = db.updateDailyChallengeProgress(player.id, 'gold', null, totalGoldConverted);
+      if (pickAllCr && pickAllCr.reward) {
+        pickAllQuestLine += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+      } else if (pickAllCr && !pickAllCr.challenge.done) {
+        pickAllQuestLine += `\n📅 Desafío diario: ${pickAllCr.challenge.desc} (${pickAllCr.challenge.progress}/${pickAllCr.challenge.goal})`;
+      }
     }
     let resultMsg = `📦 Recogiste ${total} ítem(s) del suelo${goldSuffix}:\n${pickedLines.join('\n')}${pickAllQuestLine}`;
     // BUG-707: condensar todos los ítems que no cupieron en un único bloque al final
