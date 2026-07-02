@@ -685,7 +685,10 @@ function attackRound(player, monster) {
   const critResistMult = (isCrit && critResistDef) ? critResistDef.mult : 1.0;
   // DIS-936: bono espectral se agrega DESPUÉS de resistencias (daño plano, no multiplicativo)
   // DIS-1028: monsterVirtualDefBonus reduce el daño efectivo para jugadores nivel 10+ vs no-boss
-  const dmgToMonster = Math.max(1, Math.round(dmgAfterPhysResist * critResistMult) - Math.floor(monster.defense || 0) - monsterVirtualDefBonus + spectralBonusDmg);
+  // DIS-1116: Debilidad Espectral reduce la defensa efectiva del monstruo
+  const monsterWeakenedFx = monster.status_effects ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects) : {};
+  const weakenedDefReduction = monsterWeakenedFx.weakened ? (monsterWeakenedFx.weakened.amount || 0) : 0;
+  const dmgToMonster = Math.max(1, Math.round(dmgAfterPhysResist * critResistMult) - Math.max(0, Math.floor(monster.defense || 0) - weakenedDefReduction) - monsterVirtualDefBonus + spectralBonusDmg);
   monster.hp = Math.max(0, monster.hp - dmgToMonster);
 
   // T190: mensaje de encantamiento activo en el primer golpe del turno
@@ -903,6 +906,15 @@ function attackRound(player, monster) {
               db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterFx) });
               lines.push(`🕷 ¡Tu ${equippedWeapon} envenena al ${monster.name}! (${onHit.damage} dmg/turno por ${onHit.turns} turnos)`);
             }
+          } else if (onHit.type === 'weakened') {
+            // DIS-1116: Debilidad Espectral — reduce la defensa del monstruo por N rondas
+            const monsterFxW = monster.status_effects ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects) : {};
+            if (!monsterFxW.weakened) {
+              monsterFxW.weakened = { amount: onHit.amount, turns: onHit.turns };
+              monster.status_effects = monsterFxW;
+              db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterFxW) });
+              lines.push(`👻 ¡La Alabarda Espectral aplica DEBILIDAD ESPECTRAL al ${monster.name}! (-${onHit.amount} DEF por ${onHit.turns} rondas)`);
+            }
           } else if (onHit.type === 'shadow_bolt') {
             // Rayo de sombra: daño extra inmediato
             const shadowDmg = onHit.bonus_damage || 8;
@@ -1017,6 +1029,20 @@ function attackRound(player, monster) {
         db.updatePlayer(player.id, updates3);
         return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
       }
+    }
+  }
+
+  // ── DIS-1116: Tick de Debilidad Espectral del monstruo ────────────────────
+  if (monster.hp > 0 && monster.status_effects) {
+    const mFxW = typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects;
+    if (mFxW.weakened) {
+      mFxW.weakened.turns = (mFxW.weakened.turns || 1) - 1;
+      if (mFxW.weakened.turns <= 0) {
+        delete mFxW.weakened;
+        lines.push(`✨ La Debilidad Espectral en ${monster.name} se disipa.`);
+      }
+      monster.status_effects = mFxW;
+      db.updateMonster(monster.id, { status_effects: JSON.stringify(mFxW) });
     }
   }
 

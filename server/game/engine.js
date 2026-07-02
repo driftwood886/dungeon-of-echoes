@@ -7372,6 +7372,7 @@ const SHOP_CATALOG = [
   { name: 'lanza espectral',         price: 80,  sellOnly: true, description: 'Lanza de luz negra condensada (+10 ATK, +2 vs espectrales/mágicos).' },
   { name: 'hacha de guerra',         price: 70,  sellOnly: true, description: 'Un hacha de guerra imponente. Valdrath pagaba bien por estas.' },
   { name: 'alabarda de huesos',      price: 90,  sellOnly: true, description: 'Alabarda espectral con el sello de Valdrath. Pieza histórica. (+10 ATK)' },
+  { name: 'alabarda espectral',      price: 130, sellOnly: true, description: 'Alabarda de Valdrath impregnada con esencia etérea. Las runas pulsan violeta. (+12 ATK, efecto Debilidad Espectral)' },
   { name: 'espada envenenada',       price: 50,  sellOnly: true, description: 'Espada que supura veneno. Aldric la compra desactivada.' },
   { name: 'filacteria rota',         price: 50,  sellOnly: true, description: 'La filacteria destruida del Lich. Una reliquia oscura invaluable.' },
   { name: 'pergamino de velocidad',  price: 30,  sellOnly: true, description: 'Pergamino de energía cinética. Aldric lo colecciona.' },

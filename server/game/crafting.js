@@ -155,6 +155,13 @@ const RECIPES = [
     result: 'catalizador mágico',
     message: 'El cristal mágico absorbe la esencia de eco. La energía espectral cristaliza en un catalizador que concentra poder arcano.',
   },
+  {
+    // DIS-1116: Alabarda de huesos + esencia etérea = alabarda espectral
+    // La esencia del Espectro del Corredor impregna el arma del Guardia Espectral, creando un arma élite única.
+    ingredients: ['alabarda de huesos', 'esencia etérea'],
+    result: 'alabarda espectral',
+    message: 'La esencia etérea fluye desde el frasco hacia la alabarda de huesos. El símbolo de Valdrath grabado en el filo se ilumina con luz espectral violeta — los huesos comprimidos absorben el poder del más allá. La alabarda emerge transformada: más ligera, más fría, con marcas que no estaban antes y que no pertenecen a ningún alfabeto conocido.',
+  },
 ];
 
 // ─── Catálogo de ítems artesanales nuevos ─────────────────────────────────────
@@ -178,6 +185,8 @@ const CRAFTED_ITEMS = {
   'amuleto del eco':    { type: 'misc', description: 'Un amuleto que pulsa con ecos de memorias antiguas. Los sabios dicen que protege su portador de los efectos de la Cámara del Eco.' },
   // DIS-560: ítems artesanales de Mago
   'catalizador mágico': { type: 'weapon', effect: 'attack_bonus', amount: 7, mage_only_bonus: 3, description: 'Un concentrado de energía arcana. Amplifica la potencia de los hechizos del Mago. +7 de ataque. Los Magos reciben +3 de ataque adicional al empuñarlo.' },
+  // DIS-1116: Alabarda espectral — mejora de la alabarda de huesos con esencia etérea
+  'alabarda espectral': { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'La alabarda del Guardia Espectral impregnada con esencia etérea. Las marcas de Valdrath ahora pulsan con luz violeta. +12 de ataque. 20% de chance de aplicar Debilidad Espectral al objetivo por 2 rondas (reduce su defensa -3).' },
 };
 
 // ─── Función de crafteo ────────────────────────────────────────────────────────

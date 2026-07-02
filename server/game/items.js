@@ -51,7 +51,8 @@ const ITEM_CATALOG = {
   'espada de obsidiana': { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una espada de obsidiana pura que absorbe la luz —la luz literalmente desaparece al acercarse a la hoja. El molde para esta espada existe en la Forja de la sala 12, pero nunca fue terminado por manos humanas. Alguien —o algo— la completó a su manera. +12 de ataque. El arma más poderosa del dungeon.' },
   'lanza espectral':     { type: 'weapon', effect: 'attack_bonus', amount: 10, spectral_bonus: 2, description: 'Una lanza hecha de luz negra condensada, fría al tacto como el mármol pero sin peso. Artesanía del Elemental de Hielo condensada en forma de arma. +10 de ataque; +2 ATK adicional contra espectrales y criaturas mágicas.' },
   'lanza espectral reforzada': { type: 'weapon', effect: 'attack_bonus', amount: 11, spectral_bonus: 2, description: 'La lanza espectral básica ha sido reforzada con esencia de espectro de las profundidades. La luz negra es más densa, el frío más absoluto. Un arma formidable para los valientes que llegan al corazón del dungeon. +11 de ataque; +2 ATK adicional contra espectrales y criaturas mágicas.' },
-  'alabarda de huesos':  { type: 'weapon', effect: 'attack_bonus', amount: 10, description: 'La alabarda de un guardia espectral, forjada mientras el portador aún estaba vivo. Ligera a pesar de estar hecha de hueso comprimido. Los bordes están marcados con el símbolo del Reino de Valdrath —el mismo de los escudos de la Sala del Trono. Un arma de boss que supera ampliamente lo que se consigue en tienda. +10 de ataque.' },
+  'alabarda de huesos':  { type: 'weapon', effect: 'attack_bonus', amount: 10, description: 'La alabarda de un guardia espectral, forjada mientras el portador aún estaba vivo. Ligera a pesar de estar hecha de hueso comprimido. Los bordes están marcados con el símbolo del Reino de Valdrath —el mismo de los escudos de la Sala del Trono. Un arma de boss que supera ampliamente lo que se consigue en tienda. +10 de ataque. 🔧 Pista: combinala con esencia etérea para obtener la Alabarda Espectral (+12 ATK con efecto especial).' },
+  'alabarda espectral':  { type: 'weapon', effect: 'attack_bonus', amount: 12, on_hit: { type: 'weakened', chance: 0.20, amount: 3, turns: 2 }, description: 'La alabarda del Guardia Espectral impregnada con esencia del más allá. Las runas de Valdrath pulsan con luz violeta espectral. +12 de ataque. 20% de chance de aplicar Debilidad Espectral al objetivo por 2 rondas (reduce su defensa -3).' },
   'martillo de forja':   { type: 'weapon', effect: 'attack_bonus', amount: 7,  description: 'Un martillo colosal de las forjas. Aplastante y pesado. +7 de ataque.' },
 
   // ── Misc / coleccionables (dungeon base) ─────────────────────────────────
@@ -67,7 +68,7 @@ const ITEM_CATALOG = {
   'pelaje áspero':       { type: 'misc', description: 'El pelaje de una rata gigante. Áspero al tacto. 🔧 Combinalo con una escama abismal para curtirlo en cuero de criatura.' },
   'escudo roto':         { type: 'misc', description: 'Un escudo con el centro partido. Inútil para defenderse así. Las garras del esqueleto que lo portó podrían servir para reforzarlo... (crafteo: escudo roto + garra de esqueleto)' },
   'escudo de madera':    { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Un escudo de madera reforzada. No es glamoroso, pero te protege. +2 de defensa.' },
-  'esencia etérea':      { type: 'misc', description: 'Una esencia brumosa dentro de un frasco. Resuena con el más allá. 🔧 Pista: combinala con una lanza espectral para reforzarla (+9 ATK).' },
+  'esencia etérea':      { type: 'misc', description: 'Una esencia brumosa dentro de un frasco. Resuena con el más allá. 🔧 Pistas de crafteo: lanza espectral + esencia etérea = lanza espectral reforzada (+9 ATK) | alabarda de huesos + esencia etérea = alabarda espectral (+12 ATK, efecto especial).' },
   'mochila de cuero':    { type: 'misc', description: 'Una mochila resistente de cuero curtido. Útil para cargar cosas.' },
   'vela encendida':      { type: 'misc', description: 'Una vela que arde con una llama temblorosa. Apenas ilumina.' },
   'libro de hechizos':   { type: 'misc', description: 'Un libro de hechizos con runas grabadas. La tinta parece moverse.' },
@@ -247,6 +248,7 @@ const ITEM_RARITY = {
   'filacteria rota':          'épico',
   'espada envenenada':        'épico',
   'alabarda de huesos':       'épico',   // BUG-906: subida a +10 ATK (antes raro/+6, inferior a espada de hierro +8)
+  'alabarda espectral':       'legendario', // DIS-1116: craft de alabarda de huesos + esencia etérea
   'hacha de guerra':          'épico',
   // ── Raro ──────────────────────────────────────────────────────────────────
   'cuchillo envenenado':      'raro',
