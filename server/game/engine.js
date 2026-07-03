@@ -11190,7 +11190,7 @@ const SPELL_CATALOG = {
     cost: 8,
     type: 'damage',
     amount: 10,
-    description: 'Lanza una esfera de fuego al objetivo. Inflige 10 de daño directo.',
+    description: 'Lanza una esfera de fuego al objetivo. Inflige 10 de daño directo y 5 de daño colateral a todos los demás monstruos en la sala (efecto de área).',
     aliases: ['fuego', 'fireball', 'fire', 'flamazo', 'llama'],
     icon: '🔥',
   },
@@ -11862,6 +11862,38 @@ function cmdCast(player, args) {
           if (seAfterStun.stunned) castStunAppliedThisTurn = true;
         }
       } catch (_) {}
+    }
+
+    // DIS-1176: Bola de Fuego — efecto de área: daña también a otros monstruos en la sala
+    // El splash hace 50% del daño base del hechizo (sin spell_power para no ser OP)
+    if (spellName === 'bola de fuego') {
+      const splashTargets = monsters.filter(m => m.id !== target.id && m.hp > 0);
+      if (splashTargets.length > 0) {
+        lines.push(`   🔥 ¡La explosión se expande!`);
+        for (const splashM of splashTargets) {
+          const splashDmgRaw = Math.max(1, Math.round(spell.amount * 0.5 * magicResist));
+          const splashNewHp = Math.max(0, splashM.hp - splashDmgRaw);
+          if (splashNewHp <= 0) {
+            const splashRespawnAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+            db.updateMonster(splashM.id, { hp: 0, room_id: null, respawn_at: splashRespawnAt, status_effects: '{}' });
+            const { droppedLoot: splashLoot } = combat.dropLoot(splashM, player.current_room_id);
+            lines.push(`   🔥 ${splashM.name} recibe ${splashDmgRaw} de daño colateral (HP: ${splashM.hp} → 0). ¡Cae!`);
+            if (splashLoot.length > 0) lines.push(`   💰 Deja: ${splashLoot.join(', ')}.`);
+            const splashXp = Math.floor(5 + (splashM.max_hp || 10) / 2);
+            const freshForSplash = db.getPlayer(player.id);
+            const splashNewKills = (freshForSplash.kills || 0) + 1;
+            const splashNewXp = (freshForSplash.xp || 0) + splashXp;
+            const splashNewLevel = xpSystem.levelFromXp(splashNewXp);
+            db.updatePlayer(player.id, { kills: splashNewKills, xp: splashNewXp, level: splashNewLevel });
+            db.addBestiaryKill(player.id, splashM.name);
+            quests.recordProgress(db.getPlayer(player.id), 'kill', { monsterName: splashM.name });
+            lines.push(`   ⭐ +${splashXp} XP (splash)`);
+          } else {
+            db.updateMonster(splashM.id, { hp: splashNewHp });
+            lines.push(`   🔥 ${splashM.name} recibe ${splashDmgRaw} de daño colateral (HP: ${splashM.hp} → ${splashNewHp}).`);
+          }
+        }
+      }
     }
 
     // BUG-462: el monstruo contraataca si sigue vivo tras el hechizo
