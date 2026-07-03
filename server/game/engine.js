@@ -2413,7 +2413,12 @@ function cmdStatus(player) {
         const mana = player.mana || 0;
         const manaBar = buildBar(mana, maxMana || 1, 20);
         const className871 = cls693 ? cls693.name : 'tu clase';
-        return `Maná:     ${manaBar} ${mana}/${maxMana} (${className871} no usa maná — reservado)`;
+        // DIS-1168: si el maná bajó del máximo, alguna habilidad lo usó (ej: Furia del Guerrero)
+        // → mostrar nota dinámica en lugar del genérico "reservado"
+        const manaNote871 = (mana < maxMana)
+          ? `(${className871}: maná usado por habilidades — ${mana}/${maxMana})`
+          : `(${className871} no usa maná — reservado)`;
+        return `Maná:     ${manaBar} ${mana}/${maxMana} ${manaNote871}`;
       }
       return null;
     })(),
