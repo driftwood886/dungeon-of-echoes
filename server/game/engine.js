@@ -1284,6 +1284,25 @@ function cmdMove(player, direction) {
             // DIS-D307: trampa conocida → esquiva sin daño
             noBossTrapText = `\n\n🧠 Recordás la trampa de esta sala. Con cuidado, la esquivás sin problema.`;
           } else {
+            // DIS-1171: check auto-desactivación con ítem (igual que path normal — DIS-1167)
+            const TRAP_DISARM_ITEMS_NB = {
+              6:  'hongo azul',
+              9:  'corona rota',
+              3:  'cuerda',
+              13: 'red de pesca',
+            };
+            const nbDisarmItemName = TRAP_DISARM_ITEMS_NB[destId];
+            const nbFreshInv = (nbFresh.inventory || []).map(i => i.toLowerCase().trim());
+            const nbHasDisarmItem = nbDisarmItemName && nbFreshInv.includes(nbDisarmItemName);
+            if (nbHasDisarmItem) {
+              // Consumir ítem y marcar trampa como conocida — sin daño
+              const nbNewInv = [...(nbFresh.inventory || [])];
+              const nbDisarmIdx = nbNewInv.findIndex(i => i.toLowerCase().trim() === nbDisarmItemName);
+              if (nbDisarmIdx !== -1) nbNewInv.splice(nbDisarmIdx, 1);
+              const nbUpdatedKTDisarm = { ...nbKnownTraps, [destId]: true };
+              db.updatePlayer(nbFresh.id, { inventory: JSON.stringify(nbNewInv), known_traps: JSON.stringify(nbUpdatedKTDisarm) });
+              noBossTrapText = `\n\n🌿 ¡Detectás la trampa antes de que explote! Usás tu «${nbDisarmItemName}» para neutralizarla.\n✅ La trampa queda desactivada. (El ${nbDisarmItemName} fue consumido.)\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.`;
+            } else {
             // Primera vez: activar trampa, guardar conocimiento
             const TRAP_ATMOSPHERE_NB = {
               6:  '👃 Algo en el aire te hace cosquillear la nariz — un olor acre y punzante, como esporas que no deberían estar aquí en esta concentración.',
@@ -1318,6 +1337,7 @@ function cmdMove(player, direction) {
               }
               if (trapDeathNBLines.length > 0) noBossTrapText += '\n' + trapDeathNBLines.join('\n');
             }
+            } // cierra else de nbHasDisarmItem (DIS-1171)
           }
         }
         return {
@@ -1410,6 +1430,25 @@ function cmdMove(player, direction) {
           if (bfhTrapKnown) {
             bossFullHpTrapText = `\n\n🧠 Recordás la trampa de esta sala. Con cuidado, la esquivás sin problema.`;
           } else {
+            // DIS-1171: check auto-desactivación con ítem (igual que path normal — DIS-1167)
+            const TRAP_DISARM_ITEMS_BFH = {
+              6:  'hongo azul',
+              9:  'corona rota',
+              3:  'cuerda',
+              13: 'red de pesca',
+            };
+            const bfhDisarmItemName = TRAP_DISARM_ITEMS_BFH[destId];
+            const bfhFreshInv = (bfhFresh.inventory || []).map(i => i.toLowerCase().trim());
+            const bfhHasDisarmItem = bfhDisarmItemName && bfhFreshInv.includes(bfhDisarmItemName);
+            if (bfhHasDisarmItem) {
+              // Consumir ítem y marcar trampa como conocida — sin daño
+              const bfhNewInv = [...(bfhFresh.inventory || [])];
+              const bfhDisarmIdx = bfhNewInv.findIndex(i => i.toLowerCase().trim() === bfhDisarmItemName);
+              if (bfhDisarmIdx !== -1) bfhNewInv.splice(bfhDisarmIdx, 1);
+              const bfhUpdatedKTDisarm = { ...(bfhFresh.known_traps || {}), [destId]: true };
+              db.updatePlayer(bfhFresh.id, { inventory: JSON.stringify(bfhNewInv), known_traps: JSON.stringify(bfhUpdatedKTDisarm) });
+              bossFullHpTrapText = `\n\n🌿 ¡Detectás la trampa antes de que explote! Usás tu «${bfhDisarmItemName}» para neutralizarla.\n✅ La trampa queda desactivada. (El ${bfhDisarmItemName} fue consumido.)\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.`;
+            } else {
             const TRAP_ATMOSPHERE_BFH = {
               6:  '👃 Algo en el aire te hace cosquillear la nariz — un olor acre y punzante, como esporas que no deberían estar aquí en esta concentración.',
               9:  '🥶 Un frío antinatural te golpea antes de que tus ojos puedan adaptarse a la oscuridad de la sala.',
@@ -1428,6 +1467,7 @@ function cmdMove(player, direction) {
             const bfhDisarmHint = TRAP_DISARM_HINT_BFH[destId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
             const bfhAtmoPrefix = bfhAtmo ? `\n\n${bfhAtmo}` : '';
             bossFullHpTrapText = `${bfhAtmoPrefix}\n\n⚠️  ¡TRAMPA! ${bfhTrap.description}\n💥 Perdés ${bfhVarDmg} HP. (${bfhNewHp}/${bfhFresh.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).\n${bfhDisarmHint}`;
+            } // cierra else de bfhHasDisarmItem (DIS-1171)
           }
         }
         const freshPlayer = db.getPlayer(player.id);
