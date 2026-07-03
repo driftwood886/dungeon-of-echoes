@@ -1935,10 +1935,13 @@ function dropLoot(monster, roomId, player) {
     if (floorLoot.length > 0) {
       const room = db.getRoom(roomId);
       if (room) {
-        // BUG-334: Antes de agregar nuevo loot, eliminar TODAS las copias previas de esos
-        // mismos ítems del suelo. Evita acumulación cuando el jugador no recoge el loot
+        // BUG-334: Antes de agregar nuevo loot, eliminar copias previas de esos mismos
+        // ítems del suelo. Evita acumulación cuando el jugador no recoge el loot
         // entre cycles de kill/respawn del mismo monstruo.
-        const lootSet = new Set(baseAllLoot); // limpiar basado en la lista completa (no filtrada)
+        // BUG-1189: Usar floorLoot (el drop REAL de este kill, ya filtrado por probabilidades)
+        // en lugar de baseAllLoot. Evita borrar del suelo ítems que no fueron dropeados
+        // en esta instancia (ej: poción de maná pre-placed o de otro monstruo).
+        const lootSet = new Set(floorLoot); // solo los ítems que realmente caen ahora
         const floorWithoutOldLoot = room.items.filter(i => !lootSet.has(i));
         // BUG-566: No dropear ítems que YA están en el suelo (ítems pre-placed de la sala)
         // para evitar duplicados cuando el loot_table del boss coincide con objetos del mapa
