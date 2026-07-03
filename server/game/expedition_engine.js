@@ -715,6 +715,47 @@ function getActiveExpeditionStatus(player) {
 }
 
 /**
+ * Notifica al motor de expediciones que el jugador murió.
+ * Si el paso actual tiene cumulative.reset_on_death === true,
+ * reinicia el contador de progreso acumulativo a 0.
+ *
+ * @param {object} player - objeto player de la BD
+ * @returns {{ message: string } | null} — mensaje de reinicio o null si no aplica
+ */
+function notifyDeath(player) {
+  const activeRow = db.getActiveExpedition(player.id);
+  if (!activeRow) return null;
+
+  const expDef = getExpeditionDef(activeRow.expedition_id);
+  if (!expDef) return null;
+
+  const currentStepDef = getCurrentStep(expDef, activeRow.step);
+  if (!currentStepDef) return null;
+
+  // Solo actuar si el paso actual tiene reset_on_death
+  const cumul = currentStepDef.cumulative;
+  if (!cumul || !cumul.reset_on_death) return null;
+
+  const field = cumul.field;
+  const data = activeRow.data ? { ...activeRow.data } : {};
+  const prevCount = data[field] || 0;
+
+  // Si ya estaba en 0, no hacer nada
+  if (prevCount === 0) return null;
+
+  // Reiniciar contador
+  data[field] = 0;
+  db.raw().run(
+    `UPDATE expeditions SET data = ?, last_updated = datetime('now') WHERE player_id = ? AND state = 'active'`,
+    [JSON.stringify(data), player.id]
+  );
+
+  return {
+    message: `💀 Tu racha se corta. [${expDef.title}] Progreso reiniciado: 0/${cumul.goal} — tenés que volver a empezar.`
+  };
+}
+
+/**
  * Genera el mensaje de "sin expedición disponible".
  */
 function noExpeditionMessage(player) {
@@ -731,6 +772,7 @@ function noExpeditionMessage(player) {
 module.exports = {
   assignExpedition,
   checkStep,
+  notifyDeath,
   completeExpedition,
   resolveDecision,
   getActiveExpeditionStatus,

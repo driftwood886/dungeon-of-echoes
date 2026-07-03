@@ -3316,6 +3316,7 @@ function cmdAttack(player, targetName) {
       streakMsg = `\n💔 Se acabó tu racha de ${oldStreak} kills.`;
     }
     killStreakMap.set(player.id, 0);
+
   }
 
   // ── DIS-P08: Hint de habilidades disponibles en combate activo ──────────────
@@ -3387,6 +3388,19 @@ function cmdAttack(player, targetName) {
         db.updatePlayer(player.id, { active_scrolls: JSON.stringify(hongoScrolls) });
       }
     } catch (_) { /* no romper combate si falla decremento esencia */ }
+  }
+
+  // EPIC-1160: hook de expedición — notificar muerte del jugador (reset_on_death)
+  if (playerDead) {
+    try {
+      const freshForDeath = db.getPlayer(player.id);
+      if (freshForDeath) {
+        const deathResult = expeditionEngine.notifyDeath(freshForDeath);
+        if (deathResult && deathResult.message) {
+          expeditionKillMsg = '\n\n' + deathResult.message;
+        }
+      }
+    } catch (_) { /* no romper combate si falla expedición */ }
   }
 
   const bossVictoryBlock = lichKill
