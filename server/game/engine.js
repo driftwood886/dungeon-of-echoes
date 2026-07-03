@@ -4303,6 +4303,18 @@ function cmdUse(player, itemQuery) {
     if (wearResult && wearResult.text) {
       wearResult.text = `${wearResult.text}\n💡 Tip: para equipar armaduras usá el comando "equip ${found}" directamente.`;
     }
+    // EPIC-1155-DEF: hook de expedición para ítems tipo armor (early return bypasaba el hook)
+    // Verificar step antes de retornar, igual que el hook general al final de cmdUse
+    try {
+      const freshForExpArmor = db.getPlayer(player.id);
+      const expArmorResult = expeditionEngine.checkStep(freshForExpArmor, 'use', {
+        itemName: found,
+        roomId: player.current_room_id,
+      });
+      if (expArmorResult && expArmorResult.message && wearResult) {
+        wearResult.text = (wearResult.text || '') + '\n\n' + expArmorResult.message;
+      }
+    } catch (_) { /* no romper use si falla expedición */ }
     return wearResult;
 
   } else if (def.type === 'bag') {
@@ -7809,8 +7821,20 @@ function cmdTalk(player, target) {
   // El trigger es nivel 5+ O haber ido a la tienda antes (heurística: gold_spent > 0)
   const triggerable = level >= 5 || (player.gold_spent || 0) > 0;
 
+  // EPIC-1155-DEF: world_effect 'aldric_menciona_sello'
+  // Si el jugador completó la expedición sello_carcelero, Aldric lo menciona en cada diálogo
+  function getAldricSelloSuffix() {
+    try {
+      const completed = db.getCompletedExpeditions(player.id);
+      if (completed.includes('sello_carcelero')) {
+        return '\n\n— Aldric baja la voz un momento. «Ese sello del carcelero que andabas buscando... no me sorprende que hayas llegado hasta allí. Lo que hiciste en la prisión ya llegó a mis oídos. El dungeon guarda secretos, pero los aventureros los difunden.»';
+      }
+    } catch (_) { /* no romper diálogo */ }
+    return '';
+  }
+
   if (questState === 'done') {
-    return { text: 'Aldric te mira con algo que podría ser respeto, o reconocimiento, o las dos cosas.\n\n"Ya no te veo igual que antes," dice, y vuelve a sus cuentas.\n\nEl símbolo de las dos llaves cruzadas sigue en su delantal. Ahora sabés qué significa. Kaelthas Vorn. El guardián. El dungeon fue su archivo.\n\nSu alma sigue aquí, atada a las piedras. A los corredores. A la Sala del Trono donde algo observa sin ojos.' + getAldricMemorySuffix() };
+    return { text: 'Aldric te mira con algo que podría ser respeto, o reconocimiento, o las dos cosas.\n\n"Ya no te veo igual que antes," dice, y vuelve a sus cuentas.\n\nEl símbolo de las dos llaves cruzadas sigue en su delantal. Ahora sabés qué significa. Kaelthas Vorn. El guardián. El dungeon fue su archivo.\n\nSu alma sigue aquí, atada a las piedras. A los corredores. A la Sala del Trono donde algo observa sin ojos.' + getAldricMemorySuffix() + getAldricSelloSuffix() };
   }
 
   if (questState === 'active') {
@@ -7862,9 +7886,9 @@ function cmdTalk(player, target) {
     const invForHint = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
     const hasCartaForHint = invForHint.some(i => i.toLowerCase().includes('carta sellada'));
     if (hasCartaForHint) {
-      return { text: 'Aldric levanta la vista de su libro de cuentas. Algo en su mirada cambia cuando te ve —un reconocimiento fugaz que apaga enseguida.\n\n"¿Querés comprar algo?" dice. No es una pregunta. Pero sus ojos van a tu mochila por un instante.\n\nNecesitás más experiencia para que confíe en vos. (Nivel 5 requerido para desbloquear la quest)' + getAldricMemorySuffix() };
+      return { text: 'Aldric levanta la vista de su libro de cuentas. Algo en su mirada cambia cuando te ve —un reconocimiento fugaz que apaga enseguida.\n\n"¿Querés comprar algo?" dice. No es una pregunta. Pero sus ojos van a tu mochila por un instante.\n\nNecesitás más experiencia para que confíe en vos. (Nivel 5 requerido para desbloquear la quest)' + getAldricMemorySuffix() + getAldricSelloSuffix() };
     }
-    return { text: 'Aldric levanta la vista de su libro de cuentas.\n\n"¿Querés comprar algo?" dice. No es una pregunta.\n\nSu mirada vuelve a los números. El delantal con el símbolo de las dos llaves cruzadas se mueve cuando se inclina sobre el mostrador.' + getAldricMemorySuffix() };
+    return { text: 'Aldric levanta la vista de su libro de cuentas.\n\n"¿Querés comprar algo?" dice. No es una pregunta.\n\nSu mirada vuelve a los números. El delantal con el símbolo de las dos llaves cruzadas se mueve cuando se inclina sobre el mostrador.' + getAldricMemorySuffix() + getAldricSelloSuffix() };
   }
 
   // Trigger: desbloquear la quest
@@ -9657,6 +9681,7 @@ const SURVEY_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutos por sala (T205)
 const ROOM_FORAGE_BONUS = {
   5:  { item: 'hongo azul',       prob: 0.20 },  // Capilla Olvidada — algunos hongos del Túnel crecen aquí (BUG-882)
   6:  { item: 'hongo azul',       prob: 0.45 },  // Túnel de los Hongos — desactiva trampa esporas
+  8:  { item: 'sello del carcelero', prob: 0.40 }, // Prisión Subterránea — sello perdido en las celdas (EPIC-1155-DEF)
   9:  { item: 'corona rota',      prob: 0.45 },  // Sala del Trono — desactiva trampa fría
   11: { item: 'fragmento de hielo', prob: 0.15 }, // DIS-D34 → DIS-D421: bajado de 0.35 a 0.15 para que el crafteo de lanza espectral no sea trivial
   13: { item: 'red de pesca',     prob: 0.45 },  // Caverna Sumergida — desactiva trampa inundación

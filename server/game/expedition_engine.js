@@ -62,11 +62,11 @@ const EXPEDITION_POOL = [
       },
       {
         n: 2,
-        objective: 'Usar el sello en la Prisión Subterránea (sala 13)',
+        objective: 'Usar el sello en la Prisión Subterránea (sala 8)',
         trigger: 'use',
         condition: (player, ctx) => {
           const name = (ctx.itemName || '').toLowerCase();
-          const roomOk = ctx.roomId === 13;
+          const roomOk = ctx.roomId === 8;
           return name.includes('sello') && name.includes('carcelero') && roomOk;
         },
         message: '👻 El sello vibra y una figura espectral emerge de entre las sombras. "¿Quién te envía?", pregunta con voz de piedra.'
