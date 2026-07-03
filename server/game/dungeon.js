@@ -270,9 +270,26 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
     lines.push(`\n⚠️  Esta sala tiene una trampa activa. ${trapItemHint}`);
   }
 
+  // DIS-1178: Sala 1 (Entrada) — hint temprano sobre el mercader
+  if (roomId === 1) {
+    lines.push(`\n💡 Consejo: Hay un mercader dentro del dungeon. Su tienda está al norte (Corredor) y luego al este. Seguí el olor a cuero.`);
+  }
+
+  // DIS-1178: Sala 2 (Corredor de las Sombras) — hint olfativo hacia la tienda
+  if (roomId === 2) {
+    lines.push(`\n👃 Un tenue olor a cuero curtido y especias de ultramar llega desde el norte. Quizás hay algo interesante en esa dirección.`);
+  }
+
+  // DIS-1178: Sala 3 (Sala de los Ecos) — hint explícito hacia Aldric + nota sobre el Esqueleto
+  if (roomId === 3) {
+    lines.push(`\n🏪 Al este, el olor a cuero se vuelve inconfundible — la tienda del mercader Aldric está ahí.\n   ⚔️  El Esqueleto Guerrero custodia la entrada, pero Aldric lo instruyó para no atacar a compradores que lleguen sin arma desenvainada. Podés entrar sin pelear.`);
+  }
+
   // NPC Mercader en sala 4
   if (roomId === 4) {
     lines.push(`\n🏪 Aldric el Mercader está aquí, sentado detrás de un improvisado mostrador de cajas.\n   "Bienvenido. Escribí 'tienda' para ver mis artículos."`);
+    // DIS-1178: nota que el Esqueleto es guardia de Aldric y no ataca primero
+    lines.push(`\n⚔️  El Esqueleto Guerrero en la sala es el guardia personal de Aldric. No te atacará si no lo provocás — llegaste como comprador, no como invasor.`);
     // DIS-1097: hint sobre acceso a la Casa de Subastas sin pelear
     lines.push(`\n🏛️ Pista: Al norte de esta sala (Prisión) podés acceder a la Casa de Subastas (sala 17).\n   Los espectros de la Prisión dejan pasar si no los provocás — movete sin atacar.`);
   }
