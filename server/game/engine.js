@@ -338,7 +338,8 @@ function execute(playerId, input, context) {
     case 'achievements': result = cmdAchievements(player); break;
     case 'inspect':      result = cmdInspect(player, action.args.join(' ')); break;
     case 'quest':        result = cmdQuest(player); break;
-    case 'expedicion':   result = cmdExpedicion(player, action.args); break;
+    case 'expedicion':        result = cmdExpedicion(player, action.args); break;
+    case 'expediciones_list': result = cmdExpedicionesList(player); break;
     case 'guild':        result = cmdGuild(player, action.args); break;
     case 'gc':           result = cmdGuildChat(player, action.args); break;
     case 'duel':         result = cmdDuel(player, action.args.join(' ')); break;
@@ -8721,6 +8722,16 @@ function cmdExpedicion(player, args) {
   ];
 
   return { text: lines.join('\n') };
+}
+
+/**
+ * EPIC-1166 — expediciones — Listar todas las expediciones con su estado actual.
+ * Muestra activa, disponibles, bloqueadas y completadas.
+ */
+function cmdExpedicionesList(player) {
+  player = db.getPlayer(player.id);
+  const text = expeditionEngine.getAllExpeditionsStatus(player);
+  return { text };
 }
 
 /**

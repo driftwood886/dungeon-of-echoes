@@ -117,7 +117,9 @@ const COMMAND_ALIASES = {
   // quest / misión
   quest: 'quest', misión: 'quest', mision: 'quest', tarea: 'quest', objetivo: 'quest', quests: 'quest', misiones: 'quest',
   // expedicion — EPIC-1158: sistema de expediciones narrativas
-  expedicion: 'expedicion', expedición: 'expedicion', expediciones: 'expedicion', misión_épica: 'expedicion', mision_epica: 'expedicion',
+  expedicion: 'expedicion', expedición: 'expedicion', misión_épica: 'expedicion', mision_epica: 'expedicion',
+  // EPIC-1166: listar todas las expediciones disponibles/activas/completadas
+  expediciones: 'expediciones_list', 'todas-las-expediciones': 'expediciones_list', 'mis-expediciones': 'expediciones_list',
   // decidir — resolución de decisión en expedición activa
   decidir: 'expedicion', decide: 'expedicion',
   // guild / hermandad

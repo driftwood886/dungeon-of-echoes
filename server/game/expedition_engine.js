@@ -767,6 +767,67 @@ function noExpeditionMessage(player) {
   ].join('\n');
 }
 
+/**
+ * EPIC-1166 — Devuelve un resumen de todas las expediciones para el comando `expediciones`.
+ * Clasifica cada una en: activa / disponible / bloqueada (nivel) / no elegible (clase) / completada.
+ * @param {object} player
+ * @returns {string} texto formateado para mostrar al jugador
+ */
+function getAllExpeditionsStatus(player) {
+  const activeRow  = db.getActiveExpedition(player.id);
+  const completedSet = new Set(db.getCompletedExpeditions(player.id));
+
+  const lines = [
+    `📜 **Tus Expediciones** (nivel ${player.level || 1})`,
+    ''
+  ];
+
+  let countAvailable = 0;
+
+  for (const exp of EXPEDITION_POOL) {
+    const isActive    = activeRow && activeRow.expedition_id === exp.id;
+    const isCompleted = completedSet.has(exp.id);
+    const meetsLevel  = (player.level || 1) >= (exp.unlock_condition?.min_level || 1);
+    const meetsClass  = exp.eligible_classes === 'all' ||
+      (Array.isArray(exp.eligible_classes) && exp.eligible_classes.includes(normalizeClass(player.player_class)));
+
+    let statusIcon, statusLabel;
+    if (isActive) {
+      // Obtener progreso de la expedición activa
+      const totalSteps = exp.steps.length;
+      const currentStep = Math.min(activeRow.step, totalSteps);
+      statusIcon = '▶️';
+      statusLabel = `ACTIVA (paso ${currentStep}/${totalSteps})`;
+      countAvailable++;
+    } else if (isCompleted) {
+      statusIcon = '✅';
+      statusLabel = 'Completada';
+    } else if (!meetsLevel) {
+      statusIcon = '🔒';
+      statusLabel = `Bloqueada (requiere nivel ${exp.unlock_condition.min_level})`;
+    } else if (!meetsClass) {
+      const classReq = Array.isArray(exp.eligible_classes) ? exp.eligible_classes.join('/') : exp.eligible_classes;
+      statusIcon = '🚫';
+      statusLabel = `Solo para: ${classReq}`;
+    } else {
+      statusIcon = '📌';
+      statusLabel = 'Disponible';
+      countAvailable++;
+    }
+
+    lines.push(`${statusIcon} **${exp.title}** — ${statusLabel}`);
+  }
+
+  lines.push('');
+  if (countAvailable > 0) {
+    lines.push(`💡 Usá \`expedicion\` para ver la activa o que te asignen una nueva.`);
+  } else {
+    lines.push(`💡 ¡Completaste todo lo disponible para tu nivel y clase!`);
+  }
+
+  return lines.join('\n');
+}
+
 // ─── Exportar ─────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -776,6 +837,7 @@ module.exports = {
   completeExpedition,
   resolveDecision,
   getActiveExpeditionStatus,
+  getAllExpeditionsStatus,
   noExpeditionMessage,
   getExpeditionDef,
   EXPEDITION_POOL
