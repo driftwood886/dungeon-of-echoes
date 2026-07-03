@@ -828,6 +828,8 @@ function completeTutorial(player) {
   const xp = (player.xp || 0) + 10;
   const level = xpSystem.levelFromXp(xp);
   const oldLevel = player.level || 1;
+  // DIS-1172: dar 10g de oro inicial al completar el tutorial (onboarding economy)
+  const startingGold = (player.gold || 0) + 10;
   // DIS-713: el tiempo de ciclo se mide desde que el jugador sale del tutorial.
   // DIS-766: cycle_start_at se setea SIEMPRE al completar el tutorial (ya no se setea al crear jugador).
   //          Esto garantiza que el primer ciclo se mida correctamente desde el tutorial, no desde login.
@@ -836,6 +838,7 @@ function completeTutorial(player) {
     current_room_id: 1,
     xp,
     level,
+    gold: startingGold,
     cycle_start_at: new Date().toISOString(), // siempre resetear al salir del tutorial
   };
   // DIS-1019: si el bonus de +10 XP provocara un level-up (actualmente raro pero posible con
@@ -7656,7 +7659,7 @@ const SHOP_CATALOG = [
   { name: 'espada oxidada',          price: 15, description: 'Una espada vieja pero funcional. +3 ataque. Ingrediente para craftear espada de obsidiana.' },
   { name: 'llave oxidada',           price: 20, description: 'Abre la puerta al norte del Pozo Sin Fondo. El hierro está gastado por años de uso —quizás décadas. Algunos aventureros la encontraron en el suelo del Pozo, envuelta en seda: la Araña Tejedora la tomó de alguien que no salió. No sabés si ese alguien llegó más lejos que vos.' },
   // T152: Armaduras
-  { name: 'cuero endurecido',        price: 20, description: 'Armadura ligera. +2 defensa.' },  // DIS-676: 30g→20g para incentivar compra temprana
+  { name: 'cuero endurecido',        price: 15, description: 'Armadura ligera. +2 defensa.' },  // DIS-676: 30g→20g para incentivar compra temprana. DIS-1172: 20g→15g — permite comprar espada (15g)+armadura con ~30g del early game
   // DIS-863: cota de cuero como tier intermedio (35g, +3 DEF) entre cuero endurecido (20g, +2) y cota de malla (60g, +3)
   { name: 'cota de cuero',           price: 35, description: 'Cuero reforzado con placas de metal. +3 defensa. Tier intermedio — mejor que el cuero endurecido, más accesible que la cota de malla.' },
   { name: 'cota de malla',           price: 60, description: 'Armadura de hierro. +3 defensa.' },
