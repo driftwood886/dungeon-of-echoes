@@ -4050,6 +4050,18 @@ function cmdPick(player, itemQuery) {
     }
   }
 
+  // BUG-1170: si hay hint de crafteo para un ítem que TAMBIÉN acepta el altar (pray),
+  // advertir que craftear lo consume y que hay alternativa — evita confusión post-crafteo.
+  // Nota: esta lista debe mantenerse sincronizada con ALTAR_OFFERINGS (definida más abajo).
+  const ALTAR_ITEMS_SET = new Set([
+    'monedas de cobre', 'monedas de plata', 'monedas de oro',
+    'poción de salud', 'poción menor', 'libro viejo', 'amuleto oscuro',
+    'cristal mágico', 'corona rota', 'antídoto', 'hierba curativa',
+  ]);
+  if (pickCraftHint && ALTAR_ITEMS_SET.has(found.toLowerCase())) {
+    pickCraftHint += `\n   ⚠️ Recordá: si craftéás "${found}" lo consumís. También podés ofrecerlo en el altar con: pray ${found.toLowerCase()}`;
+  }
+
   // DIS-D327/DIS-D351: hint de quest de Aldric cuando se recoge la carta sellada
   // DIS-D351: variar hint según nivel del jugador (Aldric no activa la quest hasta nivel 5)
   // DIS-1092: mejorar el hint inicial — la carta aparece sin contexto, el jugador puede venderla
