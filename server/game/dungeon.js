@@ -273,8 +273,17 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   }
 
   // DIS-D48: Cuenco Sagrado en sala 5 (Capilla Olvidada)
+  // DIS-1180: si el jugador tiene HP bajo (<60%), destacar el cuenco con más urgencia
   if (roomId === 5) {
-    lines.push(`\n🙏 En el centro de la sala hay un cuenco de piedra negra lleno de agua fría.\n   ("cuenco" para beber — recupera 40% HP, cooldown personal 5 min)`);
+    const playerHp = player ? player.hp : null;
+    const playerMaxHp = player ? player.max_hp : null;
+    const hpPct = (playerHp !== null && playerMaxHp) ? (playerHp / playerMaxHp) : 1;
+    // Check cooldown del cuenco (el mapa de cooldowns está en engine.js — aquí usamos lore estático)
+    if (hpPct < 0.6) {
+      lines.push(`\n💧 ¡ATENCIÓN — HP bajo! El cuenco de piedra negra del altar puede curarte.\n   ("cuenco" o "beber" — recupera 40% HP, cooldown personal 5 min)`);
+    } else {
+      lines.push(`\n🙏 En el centro de la sala hay un cuenco de piedra negra lleno de agua fría.\n   ("cuenco" para beber — recupera 40% HP, cooldown personal 5 min)`);
+    }
   }
 
   // DIS-D344: Pista ruta alternativa ya incluida en la descripción de la sala 7 (seed.js)
