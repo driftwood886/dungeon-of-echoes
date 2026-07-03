@@ -2983,7 +2983,29 @@ function cmdAttack(player, targetName) {
   let runeMsg = '';
   if (monsterDead) {
     const rm = db.tryAddRune(player.id);
-    if (rm) runeMsg = '\n' + rm;
+    if (rm) {
+      runeMsg = '\n' + rm;
+      // EPIC-1163: hook de expedición — trigger 'pickup' para runas
+      try {
+        const freshForExpRune = db.getPlayer(player.id);
+        const runeObj = JSON.parse(freshForExpRune.runes || '{}');
+        // Construir itemName con el tipo de runa recién añadida
+        // El tipo se puede inferir del mensaje que contiene el nombre de la runa
+        const runeTypes = ['fuego', 'hielo', 'sombra', 'luz', 'caos'];
+        for (const rType of runeTypes) {
+          const prevCount = (JSON.parse(player.runes || '{}')[rType] || 0);
+          const newCount  = (runeObj[rType] || 0);
+          if (newCount > prevCount) {
+            const expRuneResult = expeditionEngine.checkStep(freshForExpRune, 'pickup', {
+              itemName: `runa de ${rType}`,
+              roomId: player.current_room_id,
+            });
+            if (expRuneResult.message) runeMsg += '\n\n' + expRuneResult.message;
+            break;
+          }
+        }
+      } catch (_) { /* no romper combate si falla expedición */ }
+    }
   }
 
   // ── Desafío diario (T141) ────────────────────────────────────────────────
@@ -4097,6 +4119,36 @@ function cmdUse(player, itemQuery) {
     const queryLower2 = itemQuery.trim().toLowerCase();
     if (player.current_room_id === FOUNTAIN_ROOM_ID && ['fuente', 'fountain', 'agua', 'agua plateada', 'beber fuente'].includes(queryLower2)) {
       return cmdDrink(player);
+    }
+    // EPIC-1163: "usar runas" en sala 18 (Fuente Eterna) — disparar el paso 2 de la expedición runa_perdida
+    const isRunaQuery = ['runas', 'runa', 'runas del mismo tipo'].includes(queryLower2) ||
+      queryLower2.startsWith('runa de ') || queryLower2.startsWith('runas de ');
+    if (isRunaQuery) {
+      if (player.current_room_id !== FOUNTAIN_ROOM_ID) {
+        return { text: '🔮 Las runas pulsan en tus manos, pero nada responde aquí. El pergamino del escriba decía: "reunidas en la Fuente Eterna". Llevá las runas a la Cámara de la Fuente Eterna (sala 18).' };
+      }
+      // Verificar que tiene runas
+      let runesCheck = {};
+      try { runesCheck = JSON.parse(player.runes || '{}'); } catch (_) {}
+      const totalRunes = Object.values(runesCheck).reduce((a, b) => a + b, 0);
+      if (totalRunes === 0) {
+        return { text: '🔮 No tenés runas para ofrecer a la Fuente. Conseguí runas matando monstruos (20% de chance por kill). Necesitás 3 del mismo tipo.' };
+      }
+      // Disparar el hook de expedición con trigger 'use' + itemName 'runas' en sala 18
+      const freshForExpRunaUse = db.getPlayer(player.id);
+      try {
+        const expRunaUseResult = expeditionEngine.checkStep(freshForExpRunaUse, 'use', {
+          itemName: 'runas',
+          roomId: FOUNTAIN_ROOM_ID,
+        });
+        if (expRunaUseResult.message) {
+          return { text: expRunaUseResult.message };
+        }
+        // No había expedición activa con ese trigger — mensaje narrativo por default
+        return { text: '🔮 Sostenés las runas sobre la fuente. El agua plateada reacciona levemente, pero nada más sucede. Quizás necesitás una expedición específica para que esto funcione.' };
+      } catch (_) {
+        return { text: '🔮 Sostenés las runas sobre la fuente. El agua parece responder... pero algo falla.' };
+      }
     }
     // BUG-481: "use cuenco" en sala 5 (Capilla) debería usar el cuenco sagrado
     if (player.current_room_id === 5 && ['cuenco', 'bowl', 'cuenco sagrado', 'ofrenda'].includes(queryLower2)) {
@@ -7825,7 +7877,12 @@ function cmdTalk(player, target) {
       return { text: `📜 «Vos de nuevo.» La pluma no para. «${escSold} ventas. ${escWon} compras. ${escVol}g en circulación.» Una pausa casi imperceptible. «Para los estándares del mercado, eso es... aceptable.»` };
     }
     // Nivel 0: nunca usó subastas → texto original explicativo
-    return { text: '📜 El escriba levanta la pluma un instante —lo único que se detiene— y te mira de costado sin girar la cabeza.\n\n\"¿Subasta? Simple.\" Vuelve a escribir sin dejar de hablar.\n\n\"Tenés un ítem. Querés oro. Escribís: subastar <ítem> <precio_mínimo>. Ejemplo: subastar espada oxidada 10.\"\n\nTic. Tac. La pluma sigue.\n\n\"Para ver subastas activas: subastas. Para pujar: pujar <id> <monto>. La sala acepta vendedores y compradores simultáneamente.\"\n\nPausa. Un segundo. \"Si nadie compra, el ítem vuelve. Si alguien supera tu puja, el oro te vuelve. Sin pérdidas involuntarias.\"\n\nReanuda el registro como si la conversación hubiera terminado antes de que empezara.' };
+    // EPIC-1163: si el jugador completó la expedición runa_perdida (ofrecida), el escriba lo menciona
+    let escribaRunaSuffix = '';
+    if (escribaMem.runa_fusion === 'runa_fusion_ofrecida') {
+      escribaRunaSuffix = '\n\n— La pluma se detiene por un segundo completo. «Lo que hiciste con esas runas en la Fuente...» El escriba no termina la frase. Vuelve a escribir. «El agua todavía tiene ese color. Eso no pasa.»';
+    }
+    return { text: '📜 El escriba levanta la pluma un instante —lo único que se detiene— y te mira de costado sin girar la cabeza.\n\n\"¿Subasta? Simple.\" Vuelve a escribir sin dejar de hablar.\n\n\"Tenés un ítem. Querés oro. Escribís: subastar <ítem> <precio_mínimo>. Ejemplo: subastar espada oxidada 10.\"\n\nTic. Tac. La pluma sigue.\n\n\"Para ver subastas activas: subastas. Para pujar: pujar <id> <monto>. La sala acepta vendedores y compradores simultáneamente.\"\n\nPausa. Un segundo. \"Si nadie compra, el ítem vuelve. Si alguien supera tu puja, el oro te vuelve. Sin pérdidas involuntarias.\"\n\nReanuda el registro como si la conversación hubiera terminado antes de que empezara.' + escribaRunaSuffix };
   }
 
   if (!isAldric) {
@@ -7838,6 +7895,17 @@ function cmdTalk(player, target) {
       ? '💡 Ruta desde la Entrada: norte → norte → este'
       : '💡 Usá `ruta tesoro` para obtener el camino desde tu posición actual.';
     return { text: `🏪 Aldric no está aquí. Está en la Cámara del Tesoro (sala 4).\n  ${talkRouteHint}\n  ⚠️ Hay monstruos en el camino — nivel 2+ recomendado.` };
+  }
+
+  // EPIC-1162: trigger 'command' para expedición mercader_deuda (paso 2: hablar con Aldric)
+  let expeditionTalkCmdMsg = '';
+  {
+    const freshForExpTalk = db.getPlayer(player.id);
+    const expTalkResult = expeditionEngine.checkStep(freshForExpTalk, 'command', {
+      command: 'talk',
+      args: tLow
+    });
+    if (expTalkResult.message) expeditionTalkCmdMsg = '\n\n' + expTalkResult.message;
   }
 
   const questState = player.aldric_quest || 'none';
@@ -7919,8 +7987,21 @@ function cmdTalk(player, target) {
     return '';
   }
 
+  // EPIC-1162: world_effect 'aldric_relacion_cambia'
+  // Si el jugador completó la expedición mercader_deuda, Aldric lo reconoce como un igual (o lo trata con frialdad)
+  function getAldricDeudaSuffix() {
+    try {
+      let memD = {};
+      try { memD = (JSON.parse(player.npc_memory || '{}')).aldric || {}; } catch (_) {}
+      if (memD.deuda_pagada) {
+        return '\n\n— Aldric te mira un instante más de lo habitual. «El paquete llegó», dice en voz baja. «El destinatario envió sus saludos.» Una pausa casi imperceptible. «Eso no lo hacen con nadie.»';
+      }
+    } catch (_) { /* no romper diálogo */ }
+    return '';
+  }
+
   if (questState === 'done') {
-    return { text: 'Aldric te mira con algo que podría ser respeto, o reconocimiento, o las dos cosas.\n\n"Ya no te veo igual que antes," dice, y vuelve a sus cuentas.\n\nEl símbolo de las dos llaves cruzadas sigue en su delantal. Ahora sabés qué significa. Kaelthas Vorn. El guardián. El dungeon fue su archivo.\n\nSu alma sigue aquí, atada a las piedras. A los corredores. A la Sala del Trono donde algo observa sin ojos.' + getAldricMemorySuffix() + getAldricSelloSuffix() };
+    return { text: 'Aldric te mira con algo que podría ser respeto, o reconocimiento, o las dos cosas.\n\n"Ya no te veo igual que antes," dice, y vuelve a sus cuentas.\n\nEl símbolo de las dos llaves cruzadas sigue en su delantal. Ahora sabés qué significa. Kaelthas Vorn. El guardián. El dungeon fue su archivo.\n\nSu alma sigue aquí, atada a las piedras. A los corredores. A la Sala del Trono donde algo observa sin ojos.' + getAldricMemorySuffix() + getAldricSelloSuffix() + getAldricDeudaSuffix() + expeditionTalkCmdMsg };
   }
 
   if (questState === 'active') {
@@ -7972,9 +8053,9 @@ function cmdTalk(player, target) {
     const invForHint = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
     const hasCartaForHint = invForHint.some(i => i.toLowerCase().includes('carta sellada'));
     if (hasCartaForHint) {
-      return { text: 'Aldric levanta la vista de su libro de cuentas. Algo en su mirada cambia cuando te ve —un reconocimiento fugaz que apaga enseguida.\n\n"¿Querés comprar algo?" dice. No es una pregunta. Pero sus ojos van a tu mochila por un instante.\n\nNecesitás más experiencia para que confíe en vos. (Nivel 5 requerido para desbloquear la quest)' + getAldricMemorySuffix() + getAldricSelloSuffix() };
+      return { text: 'Aldric levanta la vista de su libro de cuentas. Algo en su mirada cambia cuando te ve —un reconocimiento fugaz que apaga enseguida.\n\n"¿Querés comprar algo?" dice. No es una pregunta. Pero sus ojos van a tu mochila por un instante.\n\nNecesitás más experiencia para que confíe en vos. (Nivel 5 requerido para desbloquear la quest)' + getAldricMemorySuffix() + getAldricSelloSuffix() + getAldricDeudaSuffix() + expeditionTalkCmdMsg };
     }
-    return { text: 'Aldric levanta la vista de su libro de cuentas.\n\n"¿Querés comprar algo?" dice. No es una pregunta.\n\nSu mirada vuelve a los números. El delantal con el símbolo de las dos llaves cruzadas se mueve cuando se inclina sobre el mostrador.' + getAldricMemorySuffix() + getAldricSelloSuffix() };
+    return { text: 'Aldric levanta la vista de su libro de cuentas.\n\n"¿Querés comprar algo?" dice. No es una pregunta.\n\nSu mirada vuelve a los números. El delantal con el símbolo de las dos llaves cruzadas se mueve cuando se inclina sobre el mostrador.' + getAldricMemorySuffix() + getAldricSelloSuffix() + getAldricDeudaSuffix() + expeditionTalkCmdMsg };
   }
 
   // Trigger: desbloquear la quest
@@ -8188,8 +8269,19 @@ function cmdBuy(player, itemQuery) {
 
   const gold = player.gold || 0;
   const reputation = player.reputation || 0;
-  const finalPrice = getDiscountedPrice(item.price, reputation);
+  let finalPrice = getDiscountedPrice(item.price, reputation);
   const discount = getRepDiscount(reputation);
+
+  // EPIC-1162: world_effect 'aldric_precio_sube' — si el jugador rechazó el encargo, +10% en precios
+  let aldricPrecioSubeMsg = '';
+  {
+    let aldricMemBuy = {};
+    try { aldricMemBuy = (JSON.parse(player.npc_memory || '{}')).aldric || {}; } catch (_) {}
+    if (aldricMemBuy.precio_sube) {
+      finalPrice = Math.ceil(finalPrice * 1.10);
+      aldricPrecioSubeMsg = '\n⚠️ Aldric no te mira con la misma amabilidad de antes.';
+    }
+  }
 
   if (gold < finalPrice) {
     return { text: `💰 No tenés suficiente oro. Necesitás ${finalPrice}g, tenés ${gold}g.` };
@@ -8258,8 +8350,22 @@ function cmdBuy(player, itemQuery) {
     ? '\n"He oído tu nombre antes," dice Aldric en voz baja. "Hasta Kaelthas supo que vendría alguien así. No sé si eso es bueno."'
     : '';
 
+  // EPIC-1162: trigger 'command' para expedición mercader_deuda (paso 1: comprar 3 ítems)
+  let expeditionBuyMsg = '';
+  {
+    const freshForExpBuy = db.getPlayer(player.id);
+    const expBuyResult = expeditionEngine.checkStep(freshForExpBuy, 'command', {
+      command: 'buy',
+      args: itemQuery
+    });
+    if (expBuyResult.message) expeditionBuyMsg = '\n\n' + expBuyResult.message;
+    if (expBuyResult.needsDecision && expBuyResult.message && !expeditionBuyMsg.includes(expBuyResult.message)) {
+      expeditionBuyMsg = '\n\n' + expBuyResult.message;
+    }
+  }
+
   return {
-    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}`,
+    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
@@ -8477,6 +8583,43 @@ function cmdExpedicion(player, args) {
       if (reward.item) {
         rewardLines += `\n🎁 Ítem obtenido: ${reward.item}`;
       }
+    }
+    // EPIC-1162: aplicar world_effects de la expedición mercader_deuda
+    if (resolution.worldEffect === 'aldric_deuda_pagada' || resolution.worldEffect === 'aldric_precio_sube') {
+      const freshWE = db.getPlayer(player.id);
+      const memWE = {};
+      try { Object.assign(memWE, JSON.parse(freshWE.npc_memory || '{}')); } catch (_) {}
+      if (!memWE.aldric) memWE.aldric = {};
+      if (resolution.worldEffect === 'aldric_deuda_pagada') {
+        memWE.aldric.deuda_pagada = true;
+      } else if (resolution.worldEffect === 'aldric_precio_sube') {
+        memWE.aldric.precio_sube = true;
+      }
+      db.updatePlayer(player.id, { npc_memory: JSON.stringify(memWE) });
+    }
+    // EPIC-1163: aplicar world_effects de la expedición runa_perdida
+    if (resolution.worldEffect === 'runa_fusion_absorbida' || resolution.worldEffect === 'runa_fusion_ofrecida') {
+      const freshWERuna = db.getPlayer(player.id);
+      if (resolution.worldEffect === 'runa_fusion_absorbida') {
+        // Absorber la esencia arcana: +10 max_mana permanente
+        const newMaxManaWE = (freshWERuna.max_mana || 20) + 10;
+        const newManaWE = Math.min(newMaxManaWE, (freshWERuna.mana || 0) + 5);
+        db.updatePlayer(player.id, { max_mana: newMaxManaWE, mana: newManaWE });
+        rewardLines += `\n⚡ Tu maná máximo aumenta permanentemente en +10. (${newManaWE}/${newMaxManaWE})`;
+      } else if (resolution.worldEffect === 'runa_fusion_ofrecida') {
+        // Ofrecer a la Fuente: el escriba te revela un hechizo secreto (status_effect narrativo)
+        const seWERuna = {};
+        try { Object.assign(seWERuna, JSON.parse(freshWERuna.status_effects || '{}')); } catch (_) {}
+        seWERuna.conjuro_fuente_conocido = true;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(seWERuna) });
+        rewardLines += `\n🌊 El escriba te revela el conjuro secreto "Voz de la Fuente" — un hechizo que ningún otro jugador conoce.`;
+      }
+      // Registrar en NPC memory para que el escriba lo recuerde
+      const memRuna = {};
+      try { Object.assign(memRuna, JSON.parse(freshWERuna.npc_memory || '{}')); } catch (_) {}
+      if (!memRuna.escriba) memRuna.escriba = {};
+      memRuna.escriba.runa_fusion = resolution.worldEffect;
+      db.updatePlayer(player.id, { npc_memory: JSON.stringify(memRuna) });
     }
     return {
       text: `${resolution.message}\n\n✅ **Expedición completada: ${resolution.title}**${rewardLines}`,

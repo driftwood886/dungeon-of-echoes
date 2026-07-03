@@ -327,11 +327,11 @@ const EXPEDITION_POOL = [
       },
       {
         n: 2,
-        objective: 'Llevar las runas a la Fuente Eterna (sala 12) — usá `usar runas`',
+        objective: 'Llevar las runas a la Fuente Eterna (sala 18) — usá `usar runas`',
         trigger: 'use',
         condition: (player, ctx) => {
           const name = (ctx.itemName || '').toLowerCase();
-          const roomOk = ctx.roomId === 12; // Fuente Eterna
+          const roomOk = ctx.roomId === 18; // Fuente Eterna (sala 18)
           return name.includes('runa') && roomOk;
         },
         message: '✨ Las tres runas resuenan en la Fuente. Algo en la sala cambia — el agua tiene un nuevo color.'
