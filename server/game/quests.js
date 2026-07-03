@@ -23,10 +23,10 @@ const QUEST_CATALOG = [
   {
     id: 'slayer_goblin',
     title: '¡Exterminador de Goblins!',
-    description: 'Los goblins se han multiplicado en el dungeon. Elimina 3 Goblins para recibir tu recompensa.',
+    description: 'Los goblins se han multiplicado en el dungeon. Elimina 2 Goblins Merodeadores para recibir tu recompensa.', // DIS-1174: 3→2 kills — solo hay 1 goblin en sala 2 (respawn 3min), 3 era frustrante
     type: 'kill',
     target: 'Goblin',
-    goal: 3,
+    goal: 2,
     minLevel: 1,
     reward: { gold: 30, xp: 50 },
   },
