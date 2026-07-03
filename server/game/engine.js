@@ -1320,6 +1320,9 @@ function cmdMove(player, direction) {
               if (nbDisarmIdx !== -1) nbNewInv.splice(nbDisarmIdx, 1);
               const nbUpdatedKTDisarm = { ...nbKnownTraps, [destId]: true };
               db.updatePlayer(nbFresh.id, { inventory: JSON.stringify(nbNewInv), known_traps: JSON.stringify(nbUpdatedKTDisarm) });
+              // BUG-1193: actualizar room.trap.active = false en la BD
+              const newTrapNB = { ...nbTrap, active: false, respawn_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() };
+              db.updateRoomTrap(destRoomForTrapNB.id, newTrapNB);
               noBossTrapText = `\n\n🌿 ¡Detectás la trampa antes de que explote! Usás tu «${nbDisarmItemName}» para neutralizarla.\n✅ La trampa queda desactivada. (El ${nbDisarmItemName} fue consumido.)\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.`;
             } else {
             // Primera vez: activar trampa, guardar conocimiento
@@ -1466,6 +1469,9 @@ function cmdMove(player, direction) {
               if (bfhDisarmIdx !== -1) bfhNewInv.splice(bfhDisarmIdx, 1);
               const bfhUpdatedKTDisarm = { ...(bfhFresh.known_traps || {}), [destId]: true };
               db.updatePlayer(bfhFresh.id, { inventory: JSON.stringify(bfhNewInv), known_traps: JSON.stringify(bfhUpdatedKTDisarm) });
+              // BUG-1193: actualizar room.trap.active = false en la BD
+              const newTrapBFH = { ...bfhTrap, active: false, respawn_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() };
+              db.updateRoomTrap(destRoomForTrap.id, newTrapBFH);
               bossFullHpTrapText = `\n\n🌿 ¡Detectás la trampa antes de que explote! Usás tu «${bfhDisarmItemName}» para neutralizarla.\n✅ La trampa queda desactivada. (El ${bfhDisarmItemName} fue consumido.)\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.`;
             } else {
             const TRAP_ATMOSPHERE_BFH = {
@@ -1688,6 +1694,11 @@ function cmdMove(player, direction) {
         if (disarmIdx !== -1) newInvAfterDisarm.splice(disarmIdx, 1);
         const updatedKTDisarm = { ...(player.known_traps || {}), [targetId]: true };
         db.updatePlayer(player.id, { inventory: JSON.stringify(newInvAfterDisarm), known_traps: JSON.stringify(updatedKTDisarm) });
+        // BUG-1193: actualizar room.trap.active = false en la BD (igual que hace cmdDisarm)
+        // Sin esto, `look` posterior sigue mostrando "⚠️ Esta sala tiene una trampa activa"
+        // aunque el mensaje diga que fue desactivada. La trampa se reactiva a los 10 min (igual que cmdDisarm).
+        const newTrapAfterAutoDisarm = { ...trap, active: false, respawn_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() };
+        db.updateRoomTrap(targetRoomFull.id, newTrapAfterAutoDisarm);
         trapText = `\n\n🌿 ¡Detectás la trampa antes de que explote! Usás tu «${disarmItem}» para neutralizarla.\n✅ La trampa queda desactivada. (El ${disarmItem} fue consumido.)\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.`;
         trapWasAvoided = true; // no aplicar debuff de sala
       } else {
