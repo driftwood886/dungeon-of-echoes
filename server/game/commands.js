@@ -589,6 +589,7 @@ Comandos disponibles:
   preview <arma/arm>   — Previsualizar cómo cambiarían tus stats si equiparas un arma o armadura del inventario.
   gamble <monto>       — Mini-juego de apuestas con dados en la Casa de Subastas (sala 17). Apostás oro vs la casa. Cooldown 2 min.
   heal [jugador]       — (Solo Clérigo) Curás HP propio o de un aliado en la sala. Cuesta 8 maná.
+  ascender             — Sistema de Ascensión roguelite: al derrotar al Lich podés reiniciar con un legado heredado (bonus permanente para tu próximo personaje). Escribí "ascender" para ver las 3 opciones de herencia.
 
 Atajos de dirección: n, s, e, o (oeste), w (west)
 Esta es la lista completa. Para empezar: help basico  |  Para ayuda de un comando: help <cmd>

@@ -5798,6 +5798,9 @@ function cmdScore(player, args, context) {
   lines.push(`╚═════════════════════════════════════════════════════╝`);
   lines.push(`  Subcategorías: "score oro" | "score duelos" | "score rep" | "score crafteos" | "score tiempo" | "score amigos" | "score sesión"`);
   lines.push(`  (Bots de playtest ocultos. "score todo" para ver todos.)`);
+  // DIS-1194: mencionar Ascensión para jugadores nuevos que no conocen el sistema
+  lines.push(`\n✨ Los aventureros que derrotan al Lich Anciano pueden Ascender: reiniciar con un legado heredado.`);
+  lines.push(`   Escribí "ascender" luego de vencer al Lich para elegir tu herencia (bonus permanente para el próximo personaje).`);
 
   return { text: lines.join('\n') };
 }
