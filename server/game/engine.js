@@ -1587,6 +1587,28 @@ function cmdMove(player, direction) {
       trapText = `\n\n🐾 ¡Tu ${player.pet} te advierte a tiempo! Evitás la trampa: ${trap.description.split('–')[0].trim()}.`;
       trapWasAvoided = true; // BUG-339: trampa evitada por mascota → no aplicar debuff de sala
     } else {
+      // DIS-1167: si el jugador tiene el ítem de desactivación en inventario, auto-desactivar
+      // la trampa al entrar (consumir ítem + marcar como conocida + sin daño).
+      // El hint en la sala anterior ya informó que llevar ese ítem lo protege.
+      const TRAP_DISARM_ITEMS = {
+        6:  'hongo azul',
+        9:  'corona rota',
+        3:  'cuerda',
+        13: 'red de pesca',
+      };
+      const disarmItem = TRAP_DISARM_ITEMS[targetId];
+      const playerInvNormDI = (player.inventory || []).map(i => i.toLowerCase().trim());
+      const hasDisarmItem = disarmItem && playerInvNormDI.includes(disarmItem);
+      if (hasDisarmItem) {
+        // Consumir el ítem de desactivación y marcar la trampa como conocida (evitada)
+        const newInvAfterDisarm = [...player.inventory];
+        const disarmIdx = newInvAfterDisarm.findIndex(i => i.toLowerCase().trim() === disarmItem);
+        if (disarmIdx !== -1) newInvAfterDisarm.splice(disarmIdx, 1);
+        const updatedKTDisarm = { ...(player.known_traps || {}), [targetId]: true };
+        db.updatePlayer(player.id, { inventory: JSON.stringify(newInvAfterDisarm), known_traps: JSON.stringify(updatedKTDisarm) });
+        trapText = `\n\n🌿 ¡Detectás la trampa antes de que explote! Usás tu «${disarmItem}» para neutralizarla.\n✅ La trampa queda desactivada. (El ${disarmItem} fue consumido.)\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.`;
+        trapWasAvoided = true; // no aplicar debuff de sala
+      } else {
       // DIS-451: línea atmosférica de advertencia antes de activar la trampa (pista implícita)
       const TRAP_ATMOSPHERE = {
         6:  '👃 Algo en el aire te hace cosquillear la nariz — un olor acre y punzante, como esporas que no deberían estar aquí en esta concentración.',
@@ -1637,6 +1659,7 @@ function cmdMove(player, direction) {
         }
       }
       // (el hint específico ya se agregó en trapText arriba — no agregar el genérico)
+      } // cierra else de hasDisarmItem (DIS-1167)
     }
   }
 
