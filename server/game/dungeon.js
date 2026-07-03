@@ -373,7 +373,11 @@ function getWorldStateRoomText(roomId) {
       return null;
     }
     case 3: { // Sala de los Ecos — subastas (escriba)
+      // DIS-1185: el mensaje debe reflejar subastas activas, no solo el historial semanal
+      let activeCount = 0;
+      try { activeCount = (db.getActiveAuctions() || []).length; } catch (_) { /* continuar */ }
       const v = ws.subastas_semana || 0;
+      if (activeCount > 0) return `📜 El escriba levanta la vista de sus papeles. «Hay ${activeCount} ${activeCount === 1 ? 'ítem en subasta ahora mismo' : 'ítems en subasta ahora mismo'}», dice señalando la puerta al norte. «Podés ver las ofertas activas con "subasta" o "subastas".»`;
       if (v === 0) return '📜 El escriba tiene los brazos cruzados. «Nadie subastó nada esta semana», dice sin que le preguntes. «El mercado duerme.»';
       if (v >= 5) return `📜 La pluma del escriba no para. «Buena semana», dice mientras escribe. «${v} transacciones. El dungeon está activo.»`;
       return null; // 1-4: actividad normal, sin texto extra
