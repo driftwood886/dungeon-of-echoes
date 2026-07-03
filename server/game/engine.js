@@ -8652,6 +8652,32 @@ function cmdExpedicion(player, args) {
       memPag.escriba.conoce_elemental = true;
       db.updatePlayer(player.id, { npc_memory: JSON.stringify(memPag) });
     }
+    // EPIC-1165: aplicar world_effects de la expedición llave_del_vacio
+    if (resolution.worldEffect === 'cofre_del_vacio_abierto' || resolution.worldEffect === 'figura_liberada_bendicion') {
+      const freshWELlave = db.getPlayer(player.id);
+      const seLlave = {};
+      try { Object.assign(seLlave, JSON.parse(freshWELlave.status_effects || '{}')); } catch (_) {}
+      const memLlave = {};
+      try { Object.assign(memLlave, JSON.parse(freshWELlave.npc_memory || '{}')); } catch (_) {}
+      if (!memLlave.santuario) memLlave.santuario = {};
+      if (resolution.worldEffect === 'cofre_del_vacio_abierto') {
+        // Abrió el cofre primero: bonus de ataque permanente (+1 ATK) como recompensa extra
+        const newAtkLlave = (freshWELlave.attack || 5) + 1;
+        db.updatePlayer(player.id, { attack: newAtkLlave });
+        memLlave.santuario.llave_decision = 'cofre';
+        rewardLines += `\n⚔️ Las armas antiguas del cofre aumentan tu conocimiento marcial: +1 ATK permanente. (${newAtkLlave} ATK total)`;
+      } else if (resolution.worldEffect === 'figura_liberada_bendicion') {
+        // Liberó al paladín: bendición invisible — +5 max_hp permanente
+        const newMaxHpLlave = (freshWELlave.max_hp || 30) + 5;
+        const newHpLlave = Math.min(newMaxHpLlave, (freshWELlave.hp || 1) + 3);
+        seLlave.bendicion_paladin_caido = true;
+        db.updatePlayer(player.id, { max_hp: newMaxHpLlave, hp: newHpLlave, status_effects: JSON.stringify(seLlave) });
+        memLlave.santuario.llave_decision = 'liberar';
+        rewardLines += `\n✨ La bendición invisible del paladín te fortalece: +5 HP máximo permanente. (${newHpLlave}/${newMaxHpLlave} HP)`;
+      }
+      memLlave.santuario.profano_abierto = true;
+      db.updatePlayer(player.id, { npc_memory: JSON.stringify(memLlave) });
+    }
     return {
       text: `${resolution.message}\n\n✅ **Expedición completada: ${resolution.title}**${rewardLines}`,
     };
