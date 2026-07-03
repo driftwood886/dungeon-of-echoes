@@ -2184,7 +2184,10 @@ function cmdInventory(player) {
   // DIS-994: Mostrar slots usados/totales del inventario
   const invBonus = player.inventory_bonus || 0;
   const maxSlots = 25 + invBonus;
-  const usedSlots = allItems.length;  // solo ítems en mochila, no equipados
+  // BUG-1192: incluir ítems equipados en el conteo de slots (igual que hace cmdGet en línea 4008)
+  // Los ítems equipados se remueven de player.inventory y van a equipped_weapon/equipped_armor,
+  // pero ocupan slot en el límite total. Sin esto, el jugador ve "23/25" y luego "25/25 llena" al recoger.
+  const usedSlots = allItems.length + equippedItems.length;
   // DIS-1037: solo mostrar hint de bolsa de lona cuando el inventario está casi lleno (>18/25 slots usados)
   let slotHint = '';
   if (invBonus === 0 && usedSlots > 18) {
