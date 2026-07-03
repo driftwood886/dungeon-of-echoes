@@ -253,16 +253,21 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
     if (adjRoom && adjRoom.trap && adjRoom.trap.active) {
       // Si el jugador ya conoce esta trampa, no mostrar el hint (ya sabe de qué se trata)
       if (knownTraps[String(adjId)] === true) continue;
-      trapHints.push(`${DIR_NAMES[dir] || dir}: marcas de mecanismo sospechosas en el umbral (podés escribir "desactivar trampa ${DIR_NAMES[dir] || dir}" para neutralizarla sin entrar)`);
+      // DIS-1182: mostrar el ítem requerido para desactivar la trampa antes de entrar
+      const itemNeeded = adjRoom.trap.item_needed ? ` — necesitás "${adjRoom.trap.item_needed}" para desactivarla` : '';
+      trapHints.push(`${DIR_NAMES[dir] || dir}: marcas de mecanismo sospechosas en el umbral${itemNeeded} (podés escribir "desactivar trampa ${DIR_NAMES[dir] || dir}" para neutralizarla sin entrar)`);
     }
   }
   if (trapHints.length > 0) {
     lines.push(`\n🔍 Observás: ${trapHints.join('; ')}.`);
   }
 
-  // Indicador de trampa activa
+  // Indicador de trampa activa — DIS-1182: mostrar el ítem requerido
   if (room.trap && room.trap.active) {
-    lines.push(`\n⚠️  Esta sala tiene una trampa activa. Escribí "desactivar trampa" con el ítem correcto.`);
+    const trapItemHint = room.trap.item_needed
+      ? `Necesitás "${room.trap.item_needed}" para desactivarla.`
+      : 'Escribí "desactivar trampa" con el ítem correcto.';
+    lines.push(`\n⚠️  Esta sala tiene una trampa activa. ${trapItemHint}`);
   }
 
   // NPC Mercader en sala 4
