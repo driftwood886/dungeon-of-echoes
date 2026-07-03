@@ -85,16 +85,60 @@ const AMBIENT = {
     midnight:  ['El trono proyecta una sombra imposible a medianoche — más larga de lo que debería.', 'El silencio aquí es diferente: no es ausencia de sonido, es presencia de algo que no habla.'],
   },
   cave: {
-    morning:   ['El corredor exhala aire fresco de las profundidades, ajeno al amanecer exterior.', 'Las estalactitas gotean rítmicamente. El dungeon tiene su propio pulso.'],
-    afternoon: ['El pasaje se curva hacia la oscuridad. El exterior podría ser otro mundo.', 'Hongos luminiscentes en las grietas ofrecen la única orientación en este laberinto.'],
-    evening:   ['A medida que el día muere afuera, los sonidos del dungeon se intensifican aquí dentro.', 'Murciélagos invisibles se desplazan en las paredes. Algo los inquieta.'],
-    midnight:  ['El corredor a medianoche amplifica todo sonido: cada paso, cada respiración.', 'La profundidad del dungeon se hace sentir — estás muy abajo. Muy adentro.'],
+    morning:   [
+      'El corredor exhala aire fresco de las profundidades, ajeno al amanecer exterior.',
+      'Las estalactitas gotean rítmicamente. El dungeon tiene su propio pulso.',
+      'A esta hora las criaturas nocturnas del corredor se retiran. Podés oír el silencio después del caos.',
+      'La humedad de las piedras es más pronunciada a la mañana. El túnel respira.',
+    ],
+    afternoon: [
+      'El pasaje se curva hacia la oscuridad. El exterior podría ser otro mundo.',
+      'Hongos luminiscentes en las grietas ofrecen la única orientación en este laberinto.',
+      'Las sombras del corredor se acortan al máximo. Aún así, el fondo sigue en tinieblas.',
+      'Un viento sutil recorre el pasaje desde las profundidades. Constante, impredecible.',
+    ],
+    evening:   [
+      'A medida que el día muere afuera, los sonidos del dungeon se intensifican aquí dentro.',
+      'Murciélagos invisibles se desplazan en las paredes. Algo los inquieta.',
+      'La temperatura del corredor desciende notablemente al caer la tarde.',
+      'Los crujidos de las piedras se vuelven más frecuentes a esta hora. El dungeon se acomoda.',
+      'Una brisa desde las profundidades trae consigo olores que preferirías no identificar.',
+    ],
+    midnight:  [
+      'El corredor a medianoche amplifica todo sonido: cada paso, cada respiración.',
+      'La profundidad del dungeon se hace sentir — estás muy abajo. Muy adentro.',
+      'La oscuridad de los túneles a medianoche es casi perfecta. Casi material.',
+      'Los sonidos de criaturas desconocidas llegan de secciones inaccesibles del dungeon.',
+      'A medianoche los pasillos pertenecen a lo que vive en ellos. Que no sos vos.',
+    ],
   },
   generic: {
-    morning:   ['El dungeon despierta lentamente. Los primeros aventureros se oyen a la distancia.', 'Un nuevo día comienza. Las criaturas del dungeon aún están adormecidas.'],
-    afternoon: ['La hora de mayor actividad. Pasos y gritos lejanos recorren los corredores.', 'El dungeon zumba con la energía de la tarde. Cuidado con lo que está despierto.'],
-    evening:   ['El dungeon se prepara para la noche. Los monstruos se vuelven más agresivos.', 'Con la caída del sol exterior, algo cambia en el aire del dungeon. Más denso. Más cargado.'],
-    midnight:  ['La hora más peligrosa. El dungeon pertenece a las criaturas de la noche.', 'Medianoche en el dungeon — el momento en que el peligro y la recompensa alcanzan su pico.'],
+    morning:   [
+      'El dungeon despierta lentamente. Los primeros aventureros se oyen a la distancia.',
+      'Un nuevo día comienza. Las criaturas del dungeon aún están adormecidas.',
+      'El aire de la mañana es casi fresco aquí adentro. Casi.',
+      'Una quietud inusual reina en el dungeon a esta hora temprana.',
+    ],
+    afternoon: [
+      'La hora de mayor actividad. Pasos y gritos lejanos recorren los corredores.',
+      'El dungeon zumba con la energía de la tarde. Cuidado con lo que está despierto.',
+      'El calor de la tarde llega amortiguado hasta aquí, pero se siente.',
+      'Voces distantes rebotan entre las piedras — otros aventureros, en algún lugar.',
+    ],
+    evening:   [
+      'El dungeon se prepara para la noche. Los monstruos se vuelven más agresivos.',
+      'Con la caída del sol exterior, algo cambia en el aire del dungeon. Más denso. Más cargado.',
+      'Los sonidos del dungeon cambian al caer la tarde. Los gruñidos lejanos se multiplican.',
+      'Una tensión sutil llena el ambiente. El dungeon nocturno es distinto al diurno.',
+      'Las sombras se alargan en los rincones. El atardecer favorece a las criaturas de este lugar.',
+    ],
+    midnight:  [
+      'La hora más peligrosa. El dungeon pertenece a las criaturas de la noche.',
+      'Medianoche en el dungeon — el momento en que el peligro y la recompensa alcanzan su pico.',
+      'El silencio de medianoche es engañoso. Nada está realmente quieto aquí.',
+      'A esta hora, incluso las antorchas parecen más tenues. El dungeon reclama su oscuridad.',
+      'Los monstruos que temen la luz no tienen ese problema ahora. Andá con cuidado.',
+    ],
   },
 };
 
