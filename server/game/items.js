@@ -22,7 +22,7 @@ const ITEM_CATALOG = {
   // ── Pociones ────────────────────────────────────────────────────────────────
   'poción de salud':          { type: 'potion', effect: 'heal', amount: 15, description: 'Una pequeña poción rojiza que restaura 15 HP.' },
   'poción mayor de salud':    { type: 'potion', effect: 'heal', amount: 50, description: 'Una gran poción carmesí que restaura 50 HP. Para las situaciones desesperadas.' },
-  'poción de vida':           { type: 'potion', effect: 'heal', amount: 25, description: 'Una poción grande que restaura 25 HP.' },
+  'poción de vida':           { type: 'potion', effect: 'heal', amount: 30, description: 'Una poción grande que restaura 30 HP. Crafteada con hierba curativa — supera significativamente a la poción de salud básica (15 HP).' }, // DIS-1175: 25→30 HP para que el crafteo tenga sentido económico en mid-game
   'poción menor':             { type: 'potion', effect: 'heal', amount: 8,  description: 'Una poción débil. Restaura 8 HP.' },
   'poción de poder':     { type: 'atk_potion', effect: 'power', atk_bonus: 3, duration: 60, description: 'Una poción oscura que amplifica tu fuerza durante 60 segundos. El zumbido en los huesos es real. (+3 ATK por 60s)' },
   'poción de maná':      { type: 'mana_potion', effect: 'restore_mana', amount: 15, description: 'Un frasco azul brillante. Restaura 15 puntos de maná instantáneamente.' },
