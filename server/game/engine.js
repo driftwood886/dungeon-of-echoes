@@ -4163,6 +4163,14 @@ function cmdPick(player, itemQuery) {
     pickSingleMsg = `${rarityEmoji} Recogés ${found} y lo guardás en tu mochila.${rarityLabel}${pickCraftHint}${cartaHint}`;
   }
 
+  // DIS-1173: aviso proactivo de inventario casi lleno al recoger un ítem individual
+  const freshForInvWarn = db.getPlayer(player.id);
+  const invWarnCount = (freshForInvWarn.inventory || []).length + ((freshForInvWarn.equipped_weapon ? 1 : 0) + (freshForInvWarn.equipped_armor ? 1 : 0));
+  const invWarnMax = 25 + (freshForInvWarn.inventory_bonus || 0);
+  if (invWarnCount >= 20) {
+    pickSingleMsg += `\n\n⚠️  Inventario casi lleno (${invWarnCount}/${invWarnMax}) — considerá vender ítems en la tienda de Aldric (sala 4) o guardarlos en la bóveda antes de enfrentar al Lich.`;
+  }
+
   // ── EPIC-1158: hook de expedición — trigger 'pickup' ─────────────────────
   let expeditionPickMsg = '';
   try {
@@ -6003,8 +6011,15 @@ function cmdLoot(player) {
     };
   }
 
+  // DIS-1173: aviso proactivo cuando inventario supera 20/MAX_INVENTORY
+  // (umbral ≥20 para alertar antes de llegar al Lich con inventario lleno)
+  const usedAfterLoot = newInventory.length + equippedCountLoot;
+  const inventoryWarnLine = (usedAfterLoot >= 20 && itemsLeft.length === 0)
+    ? `\n\n⚠️  Inventario casi lleno (${usedAfterLoot}/${MAX_INVENTORY}) — considerá vender ítems en la tienda de Aldric (sala 4) o guardarlos en la bóveda antes de enfrentar al Lich.`
+    : '';
+
   return {
-    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${fullBagLine}`,
+    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${fullBagLine}${inventoryWarnLine}`,
     event: `${player.username} saquea el suelo de la sala.`,
     eventRoomId: room.id,
   };
