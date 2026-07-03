@@ -298,12 +298,26 @@ function formatQuest(player) {
     }
   }
 
+  // DIS-1179: hint de acceso para quests que requieren atravesar una puerta cerrada
+  let accessHint = '';
+  if (quest.id === 'slayer_spider') {
+    accessHint = [
+      '',
+      '🔑 Nota: Las Arañas Tejedoras están en el Pozo Sin Fondo (sala 7), detrás de una puerta cerrada.',
+      '   Para entrar necesitás una llave oxidada (3 opciones):',
+      '   • Comprársela a Aldric en la Cámara del Tesoro (sala 4) por 20g',
+      '   • Buscarla en la Prisión Subterránea (sala 8)',
+      '   • Matar la Araña Tejedora de la sala 7... que ya está dentro (15% de drop)',
+      '   💡 Alternativa sin llave: este→ Capilla → norte → Hongos → norte → Trono → este → Santuario (las arañas quedan en el Pozo).',
+    ].join('\n');
+  }
+
   return [
     `══ 📜 QUEST ACTIVA: ${quest.title} ══`,
     quest.description,
     `Progreso: ${bar} ${progress}/${goal} (faltan ${remaining})`,
     `Recompensa: ${rewardStr}`,
-  ].join('\n') + locationHint;
+  ].join('\n') + locationHint + accessHint;
 }
 
 module.exports = {

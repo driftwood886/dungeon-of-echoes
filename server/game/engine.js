@@ -1197,11 +1197,23 @@ function cmdMove(player, direction) {
         if (!hasKey) {
           const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
           const isPozo = player.current_room_id === 7 && dungeon.normalizeDirection(direction) === 'north';
+          // DIS-1179: si el jugador tiene la quest de arañas activa y está bloqueado en sala 7, dar hint específico
+          const spiderQuestActive = (() => {
+            try {
+              const aq = quests.getActiveQuest();
+              if (!aq || aq.questDef.id !== 'slayer_spider') return false;
+              const qp = JSON.parse(player.quest_progress || '{}');
+              return qp.questId !== 'slayer_spider' || (qp.progress || 0) < aq.questDef.goal;
+            } catch (_) { return false; }
+          })();
+          const questPozoPreffix = isPozo && spiderQuestActive
+            ? '\n\n📜 Tu quest activa ("La Caza de Arañas") pide matar Arañas Tejedoras — están aquí dentro, pero la puerta las bloquea. Para completarla necesitás entrar:'
+            : '';
           const altRouteHint = isPozo
             ? `\n\n💡 Podés conseguir la llave:\n  • Comprándola a Aldric (sala 4) por 20g\n  • Buscando en la Prisión (sala 8)\n  • Matando la Araña Tejedora de esta sala (15% de chance)\n\n🗺 Ruta alternativa (sin llave): Entrada → este → Capilla → norte → Túnel de Hongos → norte → Sala del Trono → este → Santuario.\n\n(Tip: "examine puerta" para más detalles.)`
             : '';
           return {
-            text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${requiredKeyFlee}" para abrirla.${altRouteHint}`,
+            text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${requiredKeyFlee}" para abrirla.${questPozoPreffix}${altRouteHint}`,
           };
         }
       }
@@ -1531,11 +1543,23 @@ function cmdMove(player, direction) {
       const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
       // DIS-D42: Si es la puerta del Pozo (sala 7 → norte), agregar pista de ruta alternativa
       const isPozo = player.current_room_id === 7 && dungeon.normalizeDirection(direction) === 'north';
+      // DIS-1179: si el jugador tiene la quest de arañas activa y está bloqueado en sala 7
+      const spiderQuestActivePrincipal = (() => {
+        try {
+          const aq = quests.getActiveQuest();
+          if (!aq || aq.questDef.id !== 'slayer_spider') return false;
+          const qp = JSON.parse(player.quest_progress || '{}');
+          return qp.questId !== 'slayer_spider' || (qp.progress || 0) < aq.questDef.goal;
+        } catch (_) { return false; }
+      })();
+      const questPozoPrincipal = isPozo && spiderQuestActivePrincipal
+        ? '\n\n📜 Tu quest activa ("La Caza de Arañas") pide matar Arañas Tejedoras — están aquí dentro, pero la puerta las bloquea. Para completarla necesitás entrar:'
+        : '';
       const altRouteHint = isPozo
         ? `\n\n💡 Podés conseguir la llave:\n  • Comprándola a Aldric (sala 4) por 20g\n  • Buscando en la Prisión (sala 8)\n  • Matando la Araña Tejedora de esta sala (15% de chance)\n\n🗺 Ruta alternativa (sin llave): Entrada → este → Capilla → norte → Túnel de Hongos → norte → Sala del Trono → este → Santuario.\n\n(Tip: "examine puerta" para más detalles.)`
         : '';
       return {
-        text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${key}" para abrirla.${altRouteHint}`,
+        text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${key}" para abrirla.${questPozoPrincipal}${altRouteHint}`,
       };
     }
   }
