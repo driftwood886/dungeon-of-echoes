@@ -379,9 +379,9 @@ const EXPEDITION_POOL = [
       },
       {
         n: 2,
-        objective: 'Llevar las páginas al escriba de la Casa de Subastas (sala 4)',
+        objective: 'Llevar las páginas al escriba de la Casa de Subastas (sala 17)',
         trigger: 'enter',
-        condition: (player, ctx) => ctx.roomId === 4,
+        condition: (player, ctx) => ctx.roomId === 17,
         message: '📚 El escriba examina las páginas con ojos brillantes. "Extraordinario. Sabía que aparecerían en algún momento."'
       }
     ],

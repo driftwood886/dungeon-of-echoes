@@ -7882,7 +7882,16 @@ function cmdTalk(player, target) {
     if (escribaMem.runa_fusion === 'runa_fusion_ofrecida') {
       escribaRunaSuffix = '\n\n— La pluma se detiene por un segundo completo. «Lo que hiciste con esas runas en la Fuente...» El escriba no termina la frase. Vuelve a escribir. «El agua todavía tiene ese color. Eso no pasa.»';
     }
-    return { text: '📜 El escriba levanta la pluma un instante —lo único que se detiene— y te mira de costado sin girar la cabeza.\n\n\"¿Subasta? Simple.\" Vuelve a escribir sin dejar de hablar.\n\n\"Tenés un ítem. Querés oro. Escribís: subastar <ítem> <precio_mínimo>. Ejemplo: subastar espada oxidada 10.\"\n\nTic. Tac. La pluma sigue.\n\n\"Para ver subastas activas: subastas. Para pujar: pujar <id> <monto>. La sala acepta vendedores y compradores simultáneamente.\"\n\nPausa. Un segundo. \"Si nadie compra, el ítem vuelve. Si alguien supera tu puja, el oro te vuelve. Sin pérdidas involuntarias.\"\n\nReanuda el registro como si la conversación hubiera terminado antes de que empezara.' + escribaRunaSuffix };
+    // EPIC-1164: si el jugador completó la expedición paginas_congeladas, el escriba lo menciona
+    let escribaPaginasSuffix = '';
+    if (escribaMem.conoce_elemental) {
+      if (escribaMem.paginas_decision === 'aprender') {
+        escribaPaginasSuffix = '\n\n— La pluma para un instante. «Ese conjuro que te enseñé del libro del Elemental.» Pausa larga. «Usalo con cuidado. No todos los hielos se derriten igual.»';
+      } else if (escribaMem.paginas_decision === 'vender') {
+        escribaPaginasSuffix = '\n\n— «El libro del Elemental.» La pluma no para, pero la voz baja un tono. «Tomé la decisión correcta al pagarte bien. Ese grimorio no debería estar en manos de alguien que no sabe leerlo.»';
+      }
+    }
+    return { text: '📜 El escriba levanta la pluma un instante —lo único que se detiene— y te mira de costado sin girar la cabeza.\n\n\"¿Subasta? Simple.\" Vuelve a escribir sin dejar de hablar.\n\n\"Tenés un ítem. Querés oro. Escribís: subastar <ítem> <precio_mínimo>. Ejemplo: subastar espada oxidada 10.\"\n\nTic. Tac. La pluma sigue.\n\n\"Para ver subastas activas: subastas. Para pujar: pujar <id> <monto>. La sala acepta vendedores y compradores simultáneamente.\"\n\nPausa. Un segundo. \"Si nadie compra, el ítem vuelve. Si alguien supera tu puja, el oro te vuelve. Sin pérdidas involuntarias.\"\n\nReanuda el registro como si la conversación hubiera terminado antes de que empezara.' + escribaRunaSuffix + escribaPaginasSuffix };
   }
 
   if (!isAldric) {
@@ -8620,6 +8629,28 @@ function cmdExpedicion(player, args) {
       if (!memRuna.escriba) memRuna.escriba = {};
       memRuna.escriba.runa_fusion = resolution.worldEffect;
       db.updatePlayer(player.id, { npc_memory: JSON.stringify(memRuna) });
+    }
+    // EPIC-1164: aplicar world_effects de la expedición paginas_congeladas
+    if (resolution.worldEffect === 'conjuro_hielo_aprendido' || resolution.worldEffect === 'libro_vendido') {
+      const freshWEPag = db.getPlayer(player.id);
+      const sePag = {};
+      try { Object.assign(sePag, JSON.parse(freshWEPag.status_effects || '{}')); } catch (_) {}
+      const memPag = {};
+      try { Object.assign(memPag, JSON.parse(freshWEPag.npc_memory || '{}')); } catch (_) {}
+      if (!memPag.escriba) memPag.escriba = {};
+      if (resolution.worldEffect === 'conjuro_hielo_aprendido') {
+        // Aprender el conjuro: status_effect narrativo + +5 ataque mágico temporal (hasta fin de sesión)
+        sePag.conjuro_hielo_aprendido = true;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(sePag) });
+        memPag.escriba.paginas_decision = 'aprender';
+        rewardLines += `\n❄️ Aprendés "Fragmento de Hielo" — conjuro especial que ralentiza enemigos. El escriba anota tu nombre en un registro separado.`;
+      } else if (resolution.worldEffect === 'libro_vendido') {
+        // Vender el libro: oro extra incluido en reward, registrar decisión
+        memPag.escriba.paginas_decision = 'vender';
+        rewardLines += `\n💰 El escriba te paga el valor completo del libro. El oro cae pesado en tu bolsa.`;
+      }
+      memPag.escriba.conoce_elemental = true;
+      db.updatePlayer(player.id, { npc_memory: JSON.stringify(memPag) });
     }
     return {
       text: `${resolution.message}\n\n✅ **Expedición completada: ${resolution.title}**${rewardLines}`,
