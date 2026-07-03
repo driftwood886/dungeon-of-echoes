@@ -211,22 +211,37 @@ function seedIfEmpty() {
 /**
  * Aplica las puertas bloqueadas al dungeon.
  * Se ejecuta siempre al arrancar para asegurar que las salidas con llave estén configuradas.
- * Actualiza los exits de sala 7 para que norte→10 requiera la llave oxidada.
+ * Actualiza los exits de sala 7 para que norte→10 requiera la llave oxidada,
+ * y los exits de sala 10 para que sur→7 también requiera la llave oxidada. (BUG-1188)
  */
 function migrateDoors() {
   const room7 = db.getRoom(7);
   if (!room7) return;
 
-  const exits = room7.exits || {};
+  const exits7 = room7.exits || {};
   // Solo actualizar si la salida norte no tiene estructura de objeto (formato viejo)
-  if (typeof exits.north === 'number') {
+  if (typeof exits7.north === 'number') {
     const newExits = {
-      ...exits,
-      north: { room_id: exits.north, key: 'llave oxidada' },
+      ...exits7,
+      north: { room_id: exits7.north, key: 'llave oxidada' },
     };
     const newDesc = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario. (💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)';
     db.upsertRoom({ ...room7, exits: newExits, description: newDesc });
     console.log('[seed] migrateDoors: Sala 7 actualizada — norte hacia sala 10 requiere llave oxidada 🔒');
+  }
+
+  // BUG-1188: también bloquear la dirección inversa (Santuario→Pozo, sala 10 south→7)
+  const room10 = db.getRoom(10);
+  if (room10) {
+    const exits10 = room10.exits || {};
+    if (typeof exits10.south === 'number') {
+      const newExits10 = {
+        ...exits10,
+        south: { room_id: exits10.south, key: 'llave oxidada' },
+      };
+      db.upsertRoom({ ...room10, exits: newExits10 });
+      console.log('[seed] migrateDoors: Sala 10 actualizada — sur hacia sala 7 requiere llave oxidada 🔒 (BUG-1188)');
+    }
   }
 }
 

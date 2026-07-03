@@ -1197,6 +1197,8 @@ function cmdMove(player, direction) {
         if (!hasKey) {
           const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
           const isPozo = player.current_room_id === 7 && dungeon.normalizeDirection(direction) === 'north';
+          // BUG-1188: también verificar la dirección inversa (sala 10 → sur)
+          const isSanctuarioSurFlee = player.current_room_id === 10 && dungeon.normalizeDirection(direction) === 'south';
           // DIS-1179: si el jugador tiene la quest de arañas activa y está bloqueado en sala 7, dar hint específico
           const spiderQuestActive = (() => {
             try {
@@ -1211,7 +1213,9 @@ function cmdMove(player, direction) {
             : '';
           const altRouteHint = isPozo
             ? `\n\n💡 Podés conseguir la llave:\n  • Comprándola a Aldric (sala 4) por 20g\n  • Buscando en la Prisión (sala 8)\n  • Matando la Araña Tejedora de esta sala (15% de chance)\n\n🗺 Ruta alternativa (sin llave): Entrada → este → Capilla → norte → Túnel de Hongos → norte → Sala del Trono → este → Santuario.\n\n(Tip: "examine puerta" para más detalles.)`
-            : '';
+            : isSanctuarioSurFlee
+              ? `\n\n🔒 La puerta de hierro entre el Santuario y el Pozo Sin Fondo está cerrada desde este lado también.\n💡 Necesitás la llave oxidada para cruzar en cualquier dirección.\n  • Comprándola a Aldric (sala 4) por 20g\n  • Buscando en la Prisión (sala 8, al norte del Tesoro)\n  • La Araña Tejedora del Pozo la lleva a veces (15% de chance)\n\n🗺 Para salir del Santuario sin bajar al Pozo: oeste → Sala del Trono → sur → Túnel de Hongos → sur → Capilla → oeste → Entrada.`
+              : '';
           return {
             text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${requiredKeyFlee}" para abrirla.${questPozoPreffix}${altRouteHint}`,
           };
@@ -1544,6 +1548,8 @@ function cmdMove(player, direction) {
       const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
       // DIS-D42: Si es la puerta del Pozo (sala 7 → norte), agregar pista de ruta alternativa
       const isPozo = player.current_room_id === 7 && dungeon.normalizeDirection(direction) === 'north';
+      // BUG-1188: Si es la puerta del Santuario (sala 10 → sur), mostrar mensaje simétrico
+      const isSanctuarioSur = player.current_room_id === 10 && dungeon.normalizeDirection(direction) === 'south';
       // DIS-1179: si el jugador tiene la quest de arañas activa y está bloqueado en sala 7
       const spiderQuestActivePrincipal = (() => {
         try {
@@ -1558,7 +1564,9 @@ function cmdMove(player, direction) {
         : '';
       const altRouteHint = isPozo
         ? `\n\n💡 Podés conseguir la llave:\n  • Comprándola a Aldric (sala 4) por 20g\n  • Buscando en la Prisión (sala 8)\n  • Matando la Araña Tejedora de esta sala (15% de chance)\n\n🗺 Ruta alternativa (sin llave): Entrada → este → Capilla → norte → Túnel de Hongos → norte → Sala del Trono → este → Santuario.\n\n(Tip: "examine puerta" para más detalles.)`
-        : '';
+        : isSanctuarioSur
+          ? `\n\n🔒 La puerta de hierro entre el Santuario y el Pozo Sin Fondo está cerrada desde este lado también.\n💡 Necesitás la llave oxidada para cruzar en cualquier dirección.\n  • Comprándola a Aldric (sala 4) por 20g\n  • Buscando en la Prisión (sala 8, al norte del Tesoro)\n  • La Araña Tejedora del Pozo la lleva a veces (15% de chance)\n\n🗺 Para salir del Santuario sin bajar al Pozo: oeste → Sala del Trono → sur → Túnel de Hongos → sur → Capilla → oeste → Entrada.`
+          : '';
       return {
         text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${key}" para abrirla.${questPozoPrincipal}${altRouteHint}`,
       };
@@ -6833,6 +6841,23 @@ function cmdUnlock(player, direction) {
   const newExits = { ...room.exits };
   newExits[normalized] = exitVal.room_id;
   db.upsertRoom({ ...room, exits: newExits });
+
+  // BUG-1188: Si la puerta tiene sentido inverso también bloqueado, desbloquearlo en simetría.
+  // Ej: Sala 7 (norte→10) y Sala 10 (sur→7) comparten la misma puerta física.
+  try {
+    const reverseDir = dungeon.DIR_OPPOSITES ? dungeon.DIR_OPPOSITES[normalized] : (dungeon.DIR_OPPOSITE ? dungeon.DIR_OPPOSITE[normalized] : null);
+    if (reverseDir && exitVal.room_id) {
+      const targetRoom = db.getRoom(exitVal.room_id);
+      if (targetRoom && targetRoom.exits) {
+        const reverseExit = targetRoom.exits[reverseDir];
+        if (reverseExit && typeof reverseExit === 'object' && reverseExit.key === requiredKey && reverseExit.room_id === player.current_room_id) {
+          const newTargetExits = { ...targetRoom.exits };
+          newTargetExits[reverseDir] = player.current_room_id;
+          db.upsertRoom({ ...targetRoom, exits: newTargetExits });
+        }
+      }
+    }
+  } catch (_) { /* No crítico — la puerta principal ya quedó abierta */ }
 
   const dirName = dungeon.DIR_NAMES[normalized] || normalized;
   return {
