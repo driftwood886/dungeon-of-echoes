@@ -15042,6 +15042,24 @@ function cmdRunas(player) {
   lines.push('║    luz y caos.                                  ║');
   lines.push('║  • La runa de caos tiene efecto aleatorio al    ║');
   lines.push('║    encantarse (equivale a uno de los otros 4).  ║');
+  // DIS-1184: guía enchant vs. fusión
+  lines.push('╟' + '─'.repeat(44) + '╢');
+  lines.push('║  ⚖️  ENCHANT vs. FUSIÓN — ¿Cuándo usar qué?    ║');
+  lines.push('║                                                 ║');
+  lines.push('║  ENCHANT (enchant <tipo>):                      ║');
+  lines.push('║  • Consume 1 runa. Efecto temporal 3 minutos.   ║');
+  lines.push('║  • Ideal en combates difíciles (boss, elite).   ║');
+  lines.push('║  • No mejora el arma de forma permanente.       ║');
+  lines.push('║  • Úsalo si no llegás a 3 del mismo tipo pronto.║');
+  lines.push('║                                                 ║');
+  lines.push('║  FUSIÓN (automática al llegar a 3 del mismo):   ║');
+  lines.push('║  • Consume 3 runas. +1 ATK permanente al arma. ║');
+  lines.push('║  • Vale más a largo plazo — el bonus no expira. ║');
+  lines.push('║  • Conviene si estás acumulando runas del mismo ║');
+  lines.push('║    tipo y no necesitás el boost ahora.          ║');
+  lines.push('║                                                 ║');
+  lines.push('║  💡 Regla general: si vas a morir sin ayuda,    ║');
+  lines.push('║  enchant. Si podés esperar 3 runas, fusioná.   ║');
   lines.push('╟' + '─'.repeat(44) + '╢');
   lines.push('║  💡 USO: enchant <tipo>  — Encanta tu arma      ║');
   lines.push('║  equipada con 1 runa del tipo indicado.         ║');
