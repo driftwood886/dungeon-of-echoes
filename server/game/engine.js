@@ -1538,7 +1538,8 @@ function cmdMove(player, direction) {
 
   if (key) {
     const inventory = player.inventory || [];
-    const hasKey = inventory.some(item => item.toLowerCase() === key.toLowerCase());
+    const keyIdx = inventory.findIndex(item => item.toLowerCase() === key.toLowerCase());
+    const hasKey = keyIdx !== -1;
     if (!hasKey) {
       const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
       // DIS-D42: Si es la puerta del Pozo (sala 7 → norte), agregar pista de ruta alternativa
@@ -1562,6 +1563,12 @@ function cmdMove(player, direction) {
         text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${key}" para abrirla.${questPozoPrincipal}${altRouteHint}`,
       };
     }
+    // BUG-1187: consumir la llave al pasar (no solo al usar cmdUnlock)
+    // La puerta sigue bloqueada para otros jugadores; usar cmdUnlock para abrirla permanentemente.
+    const newInventoryKey = [...inventory.slice(0, keyIdx), ...inventory.slice(keyIdx + 1)];
+    db.updatePlayer(player.id, { inventory: newInventoryKey });
+    // Actualizar el objeto player en memoria para que el resto de cmdMove vea el inventario correcto
+    player.inventory = newInventoryKey;
   }
 
   const targetRoom = db.getRoom(targetId);
