@@ -429,7 +429,11 @@ function attackRound(player, monster) {
   let scrollDefBonus = 0;
   const expiredScrollKeys = [];
   for (const [effect, data] of Object.entries(scrolls)) {
-    if (data.expires_at > now153) {
+    // EPIC-1159: soporte de charges_left (sin expires_at, o con expires_at como fallback)
+    const hasCharges = typeof data.charges_left === 'number';
+    const chargesOk = !hasCharges || data.charges_left > 0;
+    const timeOk = !data.expires_at || data.expires_at > now153;
+    if (chargesOk && timeOk) {
       scrollAtkBonus += data.atk_bonus || 0;
       scrollDefBonus += data.def_bonus || 0;
     } else {

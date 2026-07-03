@@ -3373,6 +3373,20 @@ function cmdAttack(player, targetName) {
         expeditionKillMsg = '\n\n' + expResult.message;
       }
     } catch (_) { /* no romper combate si falla expedición */ }
+
+    // EPIC-1159: decrementar charges de esencia del hongo tras cada combate ganado
+    try {
+      const freshForHongo = db.getPlayer(player.id);
+      const hongoScrolls = JSON.parse(freshForHongo.active_scrolls || '{}');
+      if (hongoScrolls['esencia_hongo'] && typeof hongoScrolls['esencia_hongo'].charges_left === 'number') {
+        hongoScrolls['esencia_hongo'].charges_left -= 1;
+        if (hongoScrolls['esencia_hongo'].charges_left <= 0) {
+          delete hongoScrolls['esencia_hongo'];
+          expeditionKillMsg += '\n🍄 La esencia del hongo se agota.';
+        }
+        db.updatePlayer(player.id, { active_scrolls: JSON.stringify(hongoScrolls) });
+      }
+    } catch (_) { /* no romper combate si falla decremento esencia */ }
   }
 
   const bossVictoryBlock = lichKill
@@ -4253,6 +4267,19 @@ function cmdUse(player, itemQuery) {
     const flavorPB = isClerigoPB ? '\n✨ (La fe del Clérigo amplifica el efecto de la poción. Sentís la gracia divina fluyendo.)' : '';
     resultText = `✨ Bebés la poción de bendición. Una calidez dorada te envuelve.\n💙 Maná: ${currMana} → ${newMana}/${maxMana} (+${manaGained})\n⚔️ +${def.atk_bonus} ATK por ${def.duration}s.${flavorPB}`;
 
+  } else if (found === 'esencia del hongo') {
+    // EPIC-1159: esencia del hongo — buff +2 ATK por 5 combates (charge-based)
+    const freshHongo = db.getPlayer(player.id);
+    const hongoScrollsUse = JSON.parse(freshHongo.active_scrolls || '{}');
+    // Si ya tiene el buff activo, notificar
+    if (hongoScrollsUse['esencia_hongo'] && (hongoScrollsUse['esencia_hongo'].charges_left || 0) > 0) {
+      return { text: `🍄 Ya tenés la esencia del hongo activa (${hongoScrollsUse['esencia_hongo'].charges_left} combates restantes). Guardás esta dosis para más tarde.` };
+    }
+    hongoScrollsUse['esencia_hongo'] = { atk_bonus: 2, def_bonus: 0, charges_left: 5 };
+    const newInvHongo = removeFirst(freshHongo.inventory, found);
+    db.updatePlayer(freshHongo.id, { inventory: newInvHongo, active_scrolls: JSON.stringify(hongoScrollsUse) });
+    resultText = `🍄 Bebés la esencia violácea. El calor seco es inmediato — los músculos se tensan, los ojos se agudizan.\n⚔️ +2 ATK por los próximos 5 combates.`;
+
   } else if (def.type === 'potion' && def.effect === 'defense_bonus') {
     // DIS-692: ungüento de araña — buff temporal de DEF (y otros ítems similares)
     const freshUng = db.getPlayer(player.id);
@@ -4389,6 +4416,51 @@ function cmdUse(player, itemQuery) {
       roomId: player.current_room_id,
     });
     if (expUseResult.message) expeditionUseMsg = '\n\n' + expUseResult.message;
+
+    // EPIC-1159: si la expedición se completó sin decisión, entregar recompensas
+    if (expUseResult.completed) {
+      const expDef = expeditionEngine.getExpeditionDef(
+        expeditionEngine.getActiveExpedition ? null : null // se accede via DB más abajo
+      );
+      // Obtener la definición desde la DB (la expedición ya fue marcada completada, pero podemos buscarla por completed)
+      const freshForReward = db.getPlayer(player.id);
+      // Buscar la expedición recién completada en el pool usando el world_effect como clave si es necesario
+      // Más directo: buscar en el EXPEDITION_POOL la expedición que matchea world_effect
+      const completedExpId = expUseResult.worldEffect
+        ? expeditionEngine.EXPEDITION_POOL.find(e => e.world_effect === expUseResult.worldEffect)
+        : null;
+      if (completedExpId && completedExpId.reward) {
+        const rew = completedExpId.reward;
+        const updRew = {};
+        if (rew.xp) {
+          const newXp = (freshForReward.xp || 0) + rew.xp;
+          const newLevel = require('./xp').levelFromXp(newXp);
+          const levelUp = newLevel > (freshForReward.level || 1);
+          updRew.xp = newXp;
+          updRew.level = newLevel;
+          if (levelUp) {
+            updRew.max_hp = (freshForReward.max_hp || 30) + 5;
+            updRew.hp = Math.min(updRew.max_hp, (freshForReward.hp || 1) + Math.ceil(updRew.max_hp * 0.20));
+            updRew.attack = (freshForReward.attack || 5) + 1;
+            expeditionUseMsg += `\n✨ ¡SUBÍS AL NIVEL ${newLevel}!`;
+          }
+          expeditionUseMsg += `\n+${rew.xp} XP`;
+        }
+        if (rew.gold) {
+          updRew.gold = (freshForReward.gold || 0) + rew.gold;
+          expeditionUseMsg += ` · +${rew.gold}g`;
+        }
+        if (Object.keys(updRew).length > 0) db.updatePlayer(player.id, updRew);
+        if (rew.item) {
+          // Dar el ítem al inventario
+          const freshForItem = db.getPlayer(player.id);
+          const invRew = Array.isArray(freshForItem.inventory) ? freshForItem.inventory : JSON.parse(freshForItem.inventory || '[]');
+          invRew.push(rew.item);
+          db.updatePlayer(player.id, { inventory: JSON.stringify(invRew) });
+          expeditionUseMsg += `\n🎁 Ítem obtenido: **${rew.item}**`;
+        }
+      }
+    }
   } catch (_) { /* no romper use si falla expedición */ }
 
   return {

@@ -98,28 +98,27 @@ const EXPEDITION_POOL = [
     title: 'El Alquimista del Hongo',
     intro: [
       'El escriba murmuró algo sobre un ritual de los chamanes del Túnel de los Hongos.',
-      'Se dice que tres hongos de distinto color, combinados con veneno concentrado y ofrendados en el altar,',
+      'Se dice que tres hongos del Túnel, combinados con veneno concentrado y ofrendados en el altar,',
       'producen un efecto que nadie que lo haya visto puede describir coherentemente.'
     ].join(' '),
     steps: [
       {
         n: 1,
-        objective: 'Recoger 3 hongos de distintos tipos en el Túnel de los Hongos (sala 7)',
+        objective: 'Recoger 3 hongos en el Túnel de los Hongos (sala 6) — probá "buscar" allí',
         trigger: 'pickup',
         condition: (player, ctx) => {
           const name = (ctx.itemName || '').toLowerCase();
           const isHongo = name.includes('hongo');
-          if (!isHongo) return false;
-          // Rastrear hongos en data de la expedición (el motor los acumula)
-          return true; // La condición de "3 hongos distintos" se valida en checkStep con data
+          const inTunel = ctx.roomId === 6;
+          return isHongo && inTunel;
         },
-        // Esta es una condición acumulativa — se resuelve internamente en checkStep
+        // Acumulativo — 3 hongos en sala 6 (cualquier tipo)
         cumulative: { field: 'hongos_recogidos', goal: 3 },
         message: '🍄 {count}/3 hongos recogidos. El olor es... perturbador.'
       },
       {
         n: 2,
-        objective: 'Craftear con los hongos y veneno concentrado',
+        objective: 'Craftear el brebaje: "craftear hongo azul con veneno concentrado"',
         trigger: 'craft',
         condition: (player, ctx) => {
           // Cualquier crafteo que involucre un hongo y veneno
@@ -130,18 +129,18 @@ const EXPEDITION_POOL = [
       },
       {
         n: 3,
-        objective: 'Usar la concoción en el altar de la sala 5 (Capilla Olvidada)',
+        objective: 'Usar el brebaje en el altar de la Capilla Olvidada (sala 5) — "usar brebaje del hongo"',
         trigger: 'use',
         condition: (player, ctx) => {
           const name = (ctx.itemName || '').toLowerCase();
           const roomOk = ctx.roomId === 5;
-          return (name.includes('concocion') || name.includes('mezcla') || name.includes('brebaje')) && roomOk;
+          return (name.includes('brebaje') || name.includes('concocion') || name.includes('mezcla')) && roomOk;
         },
         message: '✨ El altar pulsa con luz violácea. Algo en las paredes cambia — sentís que el dungeon te recuerda.'
       }
     ],
     decision: null,
-    reward: { xp: 120, gold: 20, item: 'esencia del hongo (buff: +2 ATK por 5 combates)' },
+    reward: { xp: 120, gold: 20, item: 'esencia del hongo' },
     world_effect: 'altar_capilla_activado',
     unlock_condition: { min_level: 2 },
     eligible_classes: 'all'
@@ -571,6 +570,8 @@ function checkStep(player, trigger, context = {}) {
       data[field] = newCount;
       if (newCount >= goal) {
         conditionMet = true;
+        // Guardar el count en el contexto para usarlo en el mensaje
+        context._cumulativeCount = newCount;
       } else {
         // Actualizar contador sin avanzar paso
         db.advanceExpeditionStep(player.id, data);
@@ -618,7 +619,10 @@ function checkStep(player, trigger, context = {}) {
     // Avanzar al siguiente paso
     const newData = { ...(activeRow.data || {}), [`step_${activeRow.step}_completed`]: true };
     db.advanceExpeditionStep(player.id, newData);
-    result.message = currentStepDef.message || `Paso ${activeRow.step} completado.`;
+    const rawMsg = currentStepDef.message || `Paso ${activeRow.step} completado.`;
+    result.message = context._cumulativeCount
+      ? rawMsg.replace('{count}', context._cumulativeCount)
+      : rawMsg;
   }
 
   return result;

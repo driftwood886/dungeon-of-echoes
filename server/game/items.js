@@ -75,7 +75,9 @@ const ITEM_CATALOG = {
   'gancho de hierro':    { type: 'misc', description: 'Un gancho de hierro forjado. Podría servir para escalar.' },
   'cadenas rotas':       { type: 'misc', description: 'Cadenas de hierro partido. Aún huelen a sufrimiento.' },
   'corona rota':         { type: 'misc', description: 'Una corona de metal ennegrecido, partida en dos. Perteneció a alguien poderoso. El frío que emana de la Sala del Trono la reconoce: como ofrenda al trono, disipa la trampa de hielo. Los altares del dungeon también la aceptan: pray corona rota otorga una bendición de mando (+2 ATK +3 DEF, 5 min). O podés venderla si preferís el oro.' },
-  'hongo azul':          { type: 'misc', description: 'Un hongo luminiscente de color azul profundo. Tiene propiedades alquímicas.' },
+  'hongo azul':          { type: 'misc', description: 'Un hongo luminiscente de color azul profundo. Tiene propiedades alquímicas. 🔧 Pista: combinalo con veneno concentrado para un brebaje del hongo.' },
+  'hongo rojo':          { type: 'misc', description: 'Un hongo de color carmesí con venas luminiscentes. El calor que irradia es extraño para una criatura tan pequeña.' },
+  'hongo verde':         { type: 'misc', description: 'Un hongo de tonalidad verde esmeralda con textura aterciopelada. Huele a tierra mojada y algo más que no podés nombrar.' },
   'hilo de seda':        { type: 'misc', description: 'Hilo de seda de araña, increíblemente resistente. Se usa en armaduras mágicas.' },
   'veneno concentrado':  { type: 'misc', description: 'Un vial con el veneno de la Araña Tejedora. Peligroso si se derrama.' },
 
@@ -130,6 +132,10 @@ const ITEM_CATALOG = {
 
   // ── DIS-D425: Ítem único de la Prisión Subterránea ───────────────────────
   'sello del carcelero': { type: 'armor', effect: 'defense_bonus', amount: 3, description: 'Un medallón de hierro negro con una calavera grabada. Los carceleros de la Prisión Subterránea lo usaban como símbolo de autoridad. Aún irradia una energía disuasoria. ⚔️ Equípalo para +3 de defensa, o vendelo al Mercader como pieza histórica (20g).' },
+
+  // ── EPIC-1159: Expedición hongo_maestro ──────────────────────────────────
+  'brebaje del hongo':   { type: 'misc', craft_only: true, description: 'Una mezcla burbujeante de hongos del Túnel y veneno concentrado. El vapor violeta irrita los ojos. Tiene propósitos rituales: el altar de la Capilla Olvidada lo reconocería. 🔧 Crafteable: hongo azul + veneno concentrado.' },
+  'esencia del hongo':   { type: 'misc', buff: { stat: 'attack', amount: 2, charges: 5 }, description: 'Una esencia violácea que queda tras el ritual del altar. Al beberla, la sensación es de calor seco y claridad absoluta. Efecto: +2 ATK por los próximos 5 combates. (Consumible — se activa al usarla.)' },
 
   // ── Armaduras (T152) ─────────────────────────────────────────────────────
   'cota de malla':       { type: 'armor', effect: 'defense_bonus', amount: 3,  description: 'Una cota de malla de hierro. Pesada pero fiable. +3 de defensa.' },

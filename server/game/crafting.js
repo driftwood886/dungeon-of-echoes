@@ -102,6 +102,13 @@ const RECIPES = [
     result: 'poción de poder',
     message: 'Disolvés el cristal helado en la tinta de kraken. La mezcla forma una poción densa y humeante.',
   },
+  // ── EPIC-1159: Expedición hongo_maestro ──────────────────────────────────
+  {
+    // Brebaje ritual para el altar de la Capilla Olvidada
+    ingredients: ['hongo azul', 'veneno concentrado'],
+    result: 'brebaje del hongo',
+    message: 'Triturás el hongo azul y lo mezclás con el veneno concentrado. La reacción es inmediata: el líquido burbujea y se tiñe de violeta. Un vapor picante sube y te hace lagrimear. Esto es... raro.',
+  },
   // ── DIS-492: Recetas para ítems de loot basura ───────────────────────────
   {
     ingredients: ['pelaje áspero', 'escama abismal'],
