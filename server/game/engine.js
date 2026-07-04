@@ -742,6 +742,18 @@ Comandos más usados:
 function handleTutorialCommand(player, action, step) {
   const cmd = action.command;
 
+  // BUG-1196: Si el jugador está en paso 2 o 3 y el goblin de práctica ya está muerto
+  // (tiene respawn_at o hp=0), auto-completar el tutorial. Esto evita el bloqueo al reconectar
+  // cuando el goblin murió en una sesión anterior y aún no respawneó.
+  if (step >= 2) {
+    const goblinCheck = db.getMonster(20);
+    const goblinDeadOrGone = !goblinCheck || goblinCheck.room_id !== 16 || (goblinCheck.hp <= 0) || !!(goblinCheck.respawn_at);
+    if (goblinDeadOrGone && cmd !== 'look' && cmd !== 'help' && cmd !== 'status' && cmd !== 'inventory' && cmd !== 'clear') {
+      // El goblin ya no existe — el jugador lo mató. Completar tutorial.
+      return completeTutorial(player);
+    }
+  }
+
   // Siempre se pueden ejecutar look y status en el tutorial (paso 1 requiere look)
   if (cmd === 'look') {
     // Ejecutar look normalmente, pero si estamos en paso 1 avanzar al paso 2
@@ -784,8 +796,12 @@ function handleTutorialCommand(player, action, step) {
       if (step < 3) {
         // BUG-447: Safety net — si el goblin no está en sala 16 (huyó antes del fix),
         // auto-completar el tutorial para no dejar al jugador bloqueado indefinidamente.
+        // BUG-1196: También auto-completar si el goblin está muerto (hp=0 o respawn_at no nulo)
+        // — un goblin muerto tiene room_id=16 pero respawn_at futuro. Sin este check, al reconectar
+        // el jugador queda bloqueado exigiendo atacar a un goblin que no existe visualmente.
         const goblin = db.getMonster(20);
-        if (!goblin || goblin.room_id !== 16) {
+        const goblinIsDead = !goblin || goblin.room_id !== 16 || (goblin.hp <= 0) || !!(goblin.respawn_at);
+        if (goblinIsDead) {
           return completeTutorial(player);
         }
         const hint = tutorial.getStepMessage(step);
