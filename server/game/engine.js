@@ -11328,10 +11328,10 @@ const SPELL_CATALOG = {
     icon: '✨',
   },
   'rayo': {
-    cost: 10, // DIS-647: reducido de 12→10 para mejorar economía de maná del Mago
+    cost: 12, // DIS-1214: subido de 10→12 para crear gestión de recursos real en Mago lv1-2
     type: 'damage',
-    amount: 15,
-    description: 'Invoca un rayo de tormenta. 15 de daño y 25% de probabilidad de aturdir al objetivo.',
+    amount: 13, // DIS-1214: reducido de 15→13 (16 Mago lv1-2 ×1.2; 19 Mago lv3+ ×1.5)
+    description: 'Invoca un rayo de tormenta. 13 de daño base (16 con Mago lv1-2, 19 con Mago lv3+) y 25% de probabilidad de aturdir al objetivo.',
     aliases: ['lightning', 'thunder', 'trueno', 'relámpago', 'relampago', 'rayo_de_tormenta'],
     icon: '⚡',
     stun_chance: 0.25,  // T214: 25% de chance de aturdir
