@@ -20,6 +20,7 @@ const classes = require('./classes'); // T107: bonus de clase
 const items = require('./items');    // T110: efectos on_hit de armas crafteadas
 const xpSystem = require('./xp');   // DIS-D282: curva de XP cuadrática
 const eventScheduler = require('./eventScheduler'); // T-1227: eventos cíclicos globales (BD)
+const challengeTracker = require('./challengeTracker'); // T-1231: tracking de desafíos diarios
 
 // IDs de monstruos espectrales para SPECTRAL_TIDE
 const SPECTRAL_MONSTER_IDS = new Set([4, 8, 11, 12, 13, 21, 22]); // Espectro Corredor, Guardia Espectral, Esqueleto Guerrero, Campeón Espectral, Lich, Eco Viviente, Sombra
@@ -1235,6 +1236,22 @@ function attackRound(player, monster) {
       updates.hp = newHpLuz;
     }
     db.updatePlayer(player.id, updates);
+
+    // T-1231: Tracking de desafíos diarios — al matar un monstruo
+    try {
+      const freshForChallenge = db.getPlayer(player.id);
+      const newEvForChallenge = getNewActiveEvent();
+      const activeEventIdForChallenge = newEvForChallenge && newEvForChallenge.event
+        ? newEvForChallenge.event.id : (worldEvents.getCurrentEvent() || {}).id || null;
+      const challengeKillMsg = challengeTracker.trackKill(player.id, freshForChallenge, monster, {
+        equippedWeapon: freshForChallenge.equipped_weapon,
+        playerHp: freshForChallenge.hp,
+        playerTookNoDamage: false, // simplificación: no rastreamos esto por ahora
+        playerDidntHeal: false,
+        activeEventId: activeEventIdForChallenge,
+      });
+      if (challengeKillMsg) lines.push(challengeKillMsg.trim());
+    } catch (_) { /* no interrumpir combate si falla el tracker */ }
 
     // DIS-914: Asesino — al matar con crítico, 15% chance de loot doble
     if (player.specialization === 'asesino' && isCrit && loot.length > 0 && Math.random() < 0.15) {

@@ -29,6 +29,7 @@ const skills   = require('./skills');  // T114: habilidades activas por nivel
 const ambient  = require('./ambient'); // T121: período del día
 const xpSystem = require('./xp');      // DIS-D282: curva de XP cuadrática
 const expeditionEngine = require('./expedition_engine'); // EPIC-1158: sistema de expediciones
+const challengeTracker = require('./challengeTracker');  // T-1231: tracking de desafíos diarios
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // Cada sala puede tener un efecto que se aplica al entrar.
@@ -1260,6 +1261,8 @@ function cmdMove(player, direction) {
         db.updatePlayer(player.id, { current_room_id: destId });
         // BUG-790: registrar sala visitada en el path de monstruos sin boss (early return)
         db.trackRoomVisit(player.id, destId);
+        // T-1231: Tracking de desafíos — visita de sala
+        try { challengeTracker.trackVisitRoom(player.id, player, destId); } catch (_) {}
         const destRoom = db.getRoom(destId);
         const destName = destRoom ? destRoom.name : 'sala desconocida';
         // Cambiamos el mensaje cuando no hay boss: texto neutro de movimiento.
@@ -1422,6 +1425,8 @@ function cmdMove(player, direction) {
         db.updatePlayer(player.id, { current_room_id: destId });
         // BUG-790: registrar sala visitada incluso en el path bossAtFullHp (early return)
         db.trackRoomVisit(player.id, destId);
+        // T-1231: Tracking de desafíos — visita de sala
+        try { challengeTracker.trackVisitRoom(player.id, player, destId); } catch (_) {}
         const destRoom = db.getRoom(destId);
         const destName = destRoom ? destRoom.name : 'sala desconocida';
         // BUG-806: aplicar ROOM_EFFECT del destino en el path bossAtFullHp (mismo que el path normal)
@@ -1629,6 +1634,8 @@ function cmdMove(player, direction) {
 
   // T115: Registrar sala visitada para logro secreto Cartógrafo
   const visitResult = db.trackRoomVisit(player.id, targetId);
+  // T-1231: Tracking de desafíos — visita de sala (path principal)
+  try { const freshForRoomTrack = db.getPlayer(player.id); challengeTracker.trackVisitRoom(player.id, freshForRoomTrack, targetId); } catch (_) {}
   const freshForCartog = db.getPlayer(player.id);
   let cartogAchLines = '';
   if (freshForCartog) {
@@ -6041,6 +6048,15 @@ function cmdLoot(player) {
   // Dejar en el suelo los ítems que no entraron (las monedas ya se procesaron aparte)
   db.updateRoomItems(room.id, itemsLeft);
 
+  // T-1231: Tracking de desafíos diarios — loot recogido
+  let lootChallengeMsg = '';
+  try {
+    const freshForLootChallenge = db.getPlayer(player.id);
+    if (itemsToPickup.length > 0) {
+      lootChallengeMsg = challengeTracker.trackLoot(player.id, freshForLootChallenge, itemsToPickup);
+    }
+  } catch (_) { /* no interrumpir loot si falla tracker */ }
+
   const lista = itemsToPickup.map(i => {
     const emoji = items.getRarityEmoji(i);
     const rarity = items.getItemRarity(i);
@@ -6112,7 +6128,7 @@ function cmdLoot(player) {
     : '';
 
   return {
-    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${fullBagLine}${inventoryWarnLine}`,
+    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${fullBagLine}${inventoryWarnLine}${lootChallengeMsg ? '\n' + lootChallengeMsg.trim() : ''}`,
     event: `${player.username} saquea el suelo de la sala.`,
     eventRoomId: room.id,
   };
@@ -8585,6 +8601,12 @@ function cmdBuy(player, itemQuery) {
   const buyAchs = ach.checkAchievements(freshBuyer, { boughtSomething: true });
   const buyAchLines = ach.formatNewAchievements(buyAchs);
 
+  // T-1231: Tracking de desafíos diarios — compra en tienda
+  let buyChallengeMsg = '';
+  try {
+    buyChallengeMsg = challengeTracker.trackBuy(player.id, freshBuyer, item.name, 1);
+  } catch (_) { /* no interrumpir compra si falla tracker */ }
+
   const discountMsg = discount > 0 ? ` (descuento ${Math.round(discount * 100)}% por reputación)` : '';
 
   // DIS-676: Si el jugador compra un arma y no tiene armadura, Aldric sugiere comprar cuero endurecido
@@ -8639,7 +8661,7 @@ function cmdBuy(player, itemQuery) {
   }
 
   return {
-    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}`,
+    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
@@ -8781,8 +8803,15 @@ function cmdSell(player, itemQuery) {
     }
   }
 
+  // T-1231: Tracking de desafíos diarios — venta en tienda
+  let sellChallengeMsg = '';
+  try {
+    const freshForSellChallenge = db.getPlayer(player.id);
+    sellChallengeMsg = challengeTracker.trackSell(player.id, freshForSellChallenge, found, 1);
+  } catch (_) { /* no interrumpir venta si falla tracker */ }
+
   return {
-    text: `🏪 Aldric examina el objeto.${rareFlavorLine}${materialFlavorLine}\n"Te doy ${sellPrice}g por eso."\n💰 Vendiste: ${found} por ${sellPrice}g. Total: ${newGold}g.${sellQuestLine}`,
+    text: `🏪 Aldric examina el objeto.${rareFlavorLine}${materialFlavorLine}\n"Te doy ${sellPrice}g por eso."\n💰 Vendiste: ${found} por ${sellPrice}g. Total: ${newGold}g.${sellQuestLine}${sellChallengeMsg ? '\n' + sellChallengeMsg.trim() : ''}`,
     event: `${player.username} vende algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
@@ -10086,6 +10115,15 @@ function cmdCraft(player, args) {
 
   // T115: Trackear crafteos para logro secreto Artesano
   db.addCraftsCount(player.id);
+
+  // T-1231: Tracking de desafíos diarios — crafteo
+  try {
+    const freshForCraftChallenge = db.getPlayer(player.id);
+    const craftedItemDef = crafting.CRAFTED_ITEMS[craftResult.result] || {};
+    const isWeaponCraft = craftedItemDef.type === 'weapon';
+    const craftChalMsg = challengeTracker.trackCraft(player.id, freshForCraftChallenge, craftResult.result, isWeaponCraft);
+    if (craftChalMsg) craftGoalMsg = (craftGoalMsg || '') + '\n' + craftChalMsg.trim();
+  } catch (_) { /* no interrumpir craft si falla tracker */ }
 
   // T194: Metas globales — incrementar crafteos
   const craftGoalHit = db.incrementWorldGoal('crafts', 1);
