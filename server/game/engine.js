@@ -8326,7 +8326,11 @@ function cmdTalk(player, target) {
 function cmdShop(player, args) {
   player = db.getPlayer(player.id);
   const modeArg = (args || '').trim().toLowerCase();
-  const basicMode = modeArg === 'basico' || modeArg === 'básico' || modeArg === 'basic';
+  // DIS-1218: por defecto mostrar solo ítems de la clase del jugador.
+  // "shop todo" / "shop all" / "shop completo" muestra el catálogo completo.
+  // "shop basico" sigue funcionando como alias del modo filtrado.
+  const todoMode = modeArg === 'todo' || modeArg === 'all' || modeArg === 'completo';
+  const basicMode = !todoMode; // filtrado por clase es el modo default
 
   if (player.current_room_id !== MERCHANT_ROOM_ID) {
     // BUG-955: ruta dinámica según posición (mismo patrón que DIS-954 en cmdSell)
@@ -8409,14 +8413,14 @@ function cmdShop(player, args) {
 
   if (basicMode) {
     if (basicItemNames) {
-      lines.push(`🎯 Modo básico — ítems recomendados para ${clsForFilter.emoji} ${clsForFilter.name}.`);
-      lines.push(`💡 Usá "tienda" para ver el catálogo completo (${buyableCatalog.length} ítems).`);
+      lines.push(`🎯 Mostrando ítems recomendados para ${clsForFilter.emoji} ${clsForFilter.name}.`);
+      lines.push(`💡 Usá "tienda todo" para ver el catálogo completo (${buyableCatalog.length} ítems).`);
     } else {
-      lines.push('💡 Usá "tienda" para ver el catálogo completo.');
+      lines.push('💡 Usá "tienda todo" para ver el catálogo completo.');
     }
     lines.push('');
   } else {
-    lines.push(`💡 Tip: "tienda basico" muestra solo lo recomendado para tu clase.`);
+    lines.push(`💡 Tip: "tienda" muestra solo lo recomendado para tu clase. "tienda todo" = catálogo completo.`);
     lines.push('');
   }
 
