@@ -845,7 +845,8 @@ function completeTutorial(player) {
   const level = xpSystem.levelFromXp(xp);
   const oldLevel = player.level || 1;
   // DIS-1172: dar 10g de oro inicial al completar el tutorial (onboarding economy)
-  const startingGold = (player.gold || 0) + 10;
+  // DIS-1201: aumentado a 40g para que el jugador pueda comprar arma básica (25g) Y armadura (15g) sin quedar en 0
+  const startingGold = (player.gold || 0) + 40;
   // DIS-713: el tiempo de ciclo se mide desde que el jugador sale del tutorial.
   // DIS-766: cycle_start_at se setea SIEMPRE al completar el tutorial (ya no se setea al crear jugador).
   //          Esto garantiza que el primer ciclo se mida correctamente desde el tutorial, no desde login.
