@@ -12807,6 +12807,47 @@ function cmdSpecialize(player, args) {
   lines.push('');
   lines.push(`Nuevos comandos desbloqueados: ${specObj.new_commands.join(', ')}`);
   lines.push('');
+
+  // DIS-1197: Flavor text del dungeon reconociendo la especialización (por sala)
+  const roomForSpec = fresh.current_room_id;
+  const SPEC_ROOM_FLAVOR = {
+    // Santuario Profano (sala 5)
+    5:  (sp) => sp === 'paladin'   ? 'La estatua con diez brazos inclina levemente la cabeza —la primera reacción que hace en respuesta a vos.'
+              : sp === 'berserker' ? 'Las antorchas del Santuario tiemblan. El olor a incienso se agria de golpe.'
+              : sp === 'asesino'   ? 'Una de las diez manos de la estatua apunta, brevemente, hacia la salida del sur.'
+              : sp === 'juicio'    ? 'El aire del Santuario cambia de temperatura. Las sombras se achican.'
+              : null,
+    // Sala del Trono (sala 12)
+    12: (sp) => sp === 'paladin'   ? 'El trono vacío emite un pulso de luz fría. Como si hubiera esperado este momento.'
+              : sp === 'berserker' ? 'Las cadenas oxidadas de la Sala del Trono tintinean solas. El rey que estuvo aquí también fue un berserker.'
+              : sp === 'asesino'   ? 'Las sombras detrás del trono se agrupan y después se dispersan. Un saludo antiguo.'
+              : null,
+    // Cámara del Eco (sala 19)
+    19: (sp) => `Una voz que viene de ningún lado repite tu elección: "...${specObj.name}... ${specObj.name}..." El eco se desvanece.`,
+    // Sala de las Forjas (sala 14)
+    14: (sp) => sp === 'berserker' ? 'El martillo sobre el yunque vibra solo. Como reconociéndote.'
+              : sp === 'paladin'   ? 'Una armadura sin terminar, colgada en la pared, refleja tu imagen más definida de lo normal.'
+              : null,
+    // Forja Profunda (sala 15)
+    15: (sp) => sp === 'berserker' ? 'Las brasas se avivan sin que nadie las avive. El calor es casi un abrazo.'
+              : null,
+    // Cripta (sala 2 / 3 / 4)
+    2: (_sp) => 'Las velas de la Cripta parpadean una vez, con intención.',
+    3: (_sp) => 'El silencio del túnel cambia de textura. Algo te escuchó.',
+    4: (_sp) => 'Las runas en las paredes brillan un segundo y vuelven a apagarse.',
+    // Entrada (sala 1) — poco épica, pero algo
+    1: (_sp) => 'El cartel de la entrada cruje levemente. El dungeon registró tu nombre.',
+    // Capilla Corrompida (sala 9)
+    9: (sp) => sp === 'sanador'    ? 'Un rayo de luz atraviesa el techo de la Capilla Corrompida —que está bajo tierra. No debería ser posible.'
+              : sp === 'juicio'    ? 'Los frescos de la Capilla muestran una figura en silhouette que hoy se parece a vos.'
+              : null,
+  };
+  const flavorFn = SPEC_ROOM_FLAVOR[roomForSpec];
+  if (flavorFn) {
+    const flavorLine = typeof flavorFn === 'function' ? flavorFn(specId) : flavorFn;
+    if (flavorLine) lines.push(`\n✨ ${flavorLine}`);
+  }
+
   lines.push('💡 Usá "skills" para ver tu especialización en detalle.');
 
   return { text: lines.join('\n') };
