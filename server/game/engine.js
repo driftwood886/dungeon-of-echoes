@@ -2699,7 +2699,20 @@ function cmdStatus(player) {
     }
   }
 
-  return { text: text + '\n' + achLine + questChangeLine };
+  // DIS-1206: mostrar runas acumuladas en status si hay alguna
+  let runesStatusLine = '';
+  let runesForStatus = {};
+  try { runesForStatus = JSON.parse(player.runes || '{}'); } catch (_) {}
+  const totalRunesStatus = Object.values(runesForStatus).reduce((a, b) => a + b, 0);
+  if (totalRunesStatus > 0) {
+    const { RUNE_EMOJIS } = db;
+    const runePartsStatus = Object.entries(runesForStatus)
+      .filter(([, cnt]) => cnt > 0)
+      .map(([type, cnt]) => `${RUNE_EMOJIS[type] || '🔮'} ${type}: ${cnt}/3`);
+    runesStatusLine = `\nRunas:    ${runePartsStatus.join(' | ')}  (usá "runas" para más detalle)`;
+  }
+
+  return { text: text + runesStatusLine + '\n' + achLine + questChangeLine };
 }
 
 // T143: IDs de maniquíes de entrenamiento (sala 21)
