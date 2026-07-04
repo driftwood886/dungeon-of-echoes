@@ -4189,34 +4189,10 @@ function cmdPick(player, itemQuery) {
       }
     }
   }
-  // DIS-802: hint al recoger el PRIMER ingrediente de una receta (antes de tener el segundo)
-  // Solo si aún no se ha mostrado el hint completo de esa receta — orienta al Mago/jugador nuevo
-  if (!pickCraftHint) {
-    const freshP802 = db.getPlayer(player.id);
-    const shownH802 = freshP802.status_effects || {};
-    const foundLowerN = found.toLowerCase().trim();
-    for (const recipe of crafting.RECIPES) {
-      const [ingA, ingB] = recipe.ingredients;
-      const hKeyFull = `craft_hint_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
-      const hKeyFirst = `craft_first_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
-      // Si el jugador recién recogió ingA y aún no tiene ingB (ni el hint completo ya fue mostrado)
-      const justGotA = foundLowerN === ingA.toLowerCase().trim() && !invWithEquipped.includes(ingB.toLowerCase().trim());
-      const justGotB = foundLowerN === ingB.toLowerCase().trim() && !invWithEquipped.includes(ingA.toLowerCase().trim());
-      if ((justGotA || justGotB) && !shownH802[hKeyFull] && !shownH802[hKeyFirst]) {
-        const otherIng = justGotA ? ingB : ingA;
-        // DIS-1207: nota de venta para recetas de maná si la clase no usa maná
-        const resultHasMana802 = recipe.result.toLowerCase().includes('maná') || recipe.result.toLowerCase().includes('mana');
-        const playerClass802 = classes.getPlayerClass(freshP802);
-        const isMagicClass802 = playerClass802 && (playerClass802.name === 'Mago' || playerClass802.name === 'Clérigo');
-        const manaNote802 = resultHasMana802 && !isMagicClass802
-          ? `\n   ℹ️ Tu clase no usa maná — pero "${recipe.result}" tiene valor de venta con Aldric.`
-          : '';
-        pickCraftHint = `\n✨ Ingrediente de receta: "${found}" + "${otherIng}" → ${recipe.result}.${manaNote802}\n   Conseguí "${otherIng}" y usá: \`craft ${ingA} con ${ingB}\``;
-        db.updatePlayer(freshP802.id, { status_effects: JSON.stringify({ ...shownH802, [hKeyFirst]: true }) });
-        break;
-      }
-    }
-  }
+  // DIS-1215: eliminar hint de "primer ingrediente" — generaba demasiado ruido (9 tips en ~30 acciones).
+  // El hint completo (ambos ingredientes disponibles) sigue activo arriba.
+  // El listado de crafts disponibles ya se muestra en el inventario.
+
 
   // BUG-1170: si hay hint de crafteo para un ítem que TAMBIÉN acepta el altar (pray),
   // advertir que craftear lo consume y que hay alternativa — evita confusión post-crafteo.
