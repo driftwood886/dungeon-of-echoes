@@ -254,7 +254,16 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
       // Si el jugador ya conoce esta trampa, no mostrar el hint (ya sabe de qué se trata)
       if (knownTraps[String(adjId)] === true) continue;
       // DIS-1182: mostrar el ítem requerido para desactivar la trampa antes de entrar
-      const itemNeeded = adjRoom.trap.item_needed ? ` — necesitás "${adjRoom.trap.item_needed}" para desactivarla` : '';
+      // DIS-1198: agregar hint de dónde conseguir el ítem para ítems con fuente no obvia
+      const TRAP_ITEM_WHERE = {
+        'hongo azul': ' (crece en el Túnel de los Hongos — entrá y usá "buscar" para recoger uno, o volvé desde el Corredor con uno en el inventario para desactivarla sin entrar)',
+        'corona rota': ' (loot del Espectro del Corredor, o buscá en la Prisión Subterránea)',
+        'cuerda': ' (disponible en la tienda del Mercader Aldric)',
+        'red de pesca': ' (buscá en la Caverna Sumergida)',
+      };
+      const itemNeeded = adjRoom.trap.item_needed
+        ? ` — necesitás "${adjRoom.trap.item_needed}"${TRAP_ITEM_WHERE[adjRoom.trap.item_needed] || ''} para desactivarla`
+        : '';
       trapHints.push(`${DIR_NAMES[dir] || dir}: marcas de mecanismo sospechosas en el umbral${itemNeeded} (podés escribir "desactivar trampa ${DIR_NAMES[dir] || dir}" para neutralizarla sin entrar)`);
     }
   }
