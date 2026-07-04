@@ -983,13 +983,13 @@ function cmdLook(player) {
           const bossIsAlive = bossMonster && bossMonster.room_id !== null && bossMonster.room_id !== undefined && (bossMonster.hp || 0) > 0;
           if (!bossIsAlive) continue; // boss muerto → sin advertencia
           const playerLevel = player.level || 1;
-          // DIS-690: ambas ramas incluyen nivel recomendado para consistencia
-          // BUG-747: ambas ramas muestran "nivel recomendado:" para consistencia
+          // DIS-1216: aclarar comportamiento real del boss — solo ataca si lo agredís o si entrás en combate
           const armorNote = danger.armorTip ? ` 🛡️ ${danger.armorTip}` : '';
+          const bossAttackNote = ' Podés pasar sin atacarlo — solo iniciará combate si lo agredís primero.';
           if (playerLevel < danger.level) {
-            dangerLines.push(`${danger.icon} PELIGRO ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}). ¡Preparate antes de entrar!${armorNote}`);
+            dangerLines.push(`${danger.icon} PELIGRO ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}).${bossAttackNote}${armorNote}`);
           } else {
-            dangerLines.push(`${danger.icon} ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}). El combate no admite escape fácil.${armorNote}`);
+            dangerLines.push(`${danger.icon} ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+).${bossAttackNote}${armorNote}`);
           }
         }
       }
@@ -1074,10 +1074,12 @@ function cmdLook(player) {
       const bossAlive = boss && boss.room_id !== null && (boss.hp || 0) > 0;
       if (bossAlive) {
         const playerLevel = player.level || 1;
+        // DIS-1216: aclarar comportamiento real — el boss no ataca al pasar, solo si lo agredís
+        const bossAttackNote = 'Podés pasar o ignorarlo — solo iniciará combate si lo agredís primero.';
         if (playerLevel < inRoomDanger.level) {
-          inRoomBossLine = `\n⚠️ ${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. (Tu nivel: ${playerLevel}) ¡Preparate bien antes de atacar!`;
+          inRoomBossLine = `\n⚠️ ${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. (Tu nivel: ${playerLevel}) ${bossAttackNote}`;
         } else {
-          inRoomBossLine = `\n${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. El combate no admite escape fácil.`;
+          inRoomBossLine = `\n${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. ${bossAttackNote}`;
         }
       }
     }
