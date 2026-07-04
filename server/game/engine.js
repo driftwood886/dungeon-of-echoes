@@ -4167,7 +4167,14 @@ function cmdPick(player, itemQuery) {
     if (invNorm2.includes(ingA.toLowerCase().trim()) && invNorm2.includes(ingB.toLowerCase().trim())) {
       const hKey = `craft_hint_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
       if (!shownH2[hKey]) {
-        pickCraftHint = `\n💡 ¡Tip de crafteo! Tenés "${ingA}" y "${ingB}" — combiná con:\n   craftear ${ingA} con ${ingB}`;
+        // DIS-1207: si la receta produce un ítem de maná y la clase no usa maná, agregar nota de venta
+        const resultHasMana = recipe.result.toLowerCase().includes('maná') || recipe.result.toLowerCase().includes('mana');
+        const playerClass1207 = classes.getPlayerClass(freshP2);
+        const isMagicClass1207 = playerClass1207 && (playerClass1207.name === 'Mago' || playerClass1207.name === 'Clérigo');
+        const manaNote1207 = resultHasMana && !isMagicClass1207
+          ? `\n   ℹ️ Tu clase no usa maná — pero podés vender "${recipe.result}" a Aldric por oro.`
+          : '';
+        pickCraftHint = `\n💡 ¡Tip de crafteo! Tenés "${ingA}" y "${ingB}" — combiná con:\n   craftear ${ingA} con ${ingB}${manaNote1207}`;
         db.updatePlayer(freshP2.id, { status_effects: JSON.stringify({ ...shownH2, [hKey]: true }) });
         break;
       }
@@ -4197,7 +4204,14 @@ function cmdPick(player, itemQuery) {
       const justGotB = foundLowerN === ingB.toLowerCase().trim() && !invWithEquipped.includes(ingA.toLowerCase().trim());
       if ((justGotA || justGotB) && !shownH802[hKeyFull] && !shownH802[hKeyFirst]) {
         const otherIng = justGotA ? ingB : ingA;
-        pickCraftHint = `\n✨ Ingrediente de receta: "${found}" + "${otherIng}" → ${recipe.result}.\n   Conseguí "${otherIng}" y usá: \`craft ${ingA} con ${ingB}\``;
+        // DIS-1207: nota de venta para recetas de maná si la clase no usa maná
+        const resultHasMana802 = recipe.result.toLowerCase().includes('maná') || recipe.result.toLowerCase().includes('mana');
+        const playerClass802 = classes.getPlayerClass(freshP802);
+        const isMagicClass802 = playerClass802 && (playerClass802.name === 'Mago' || playerClass802.name === 'Clérigo');
+        const manaNote802 = resultHasMana802 && !isMagicClass802
+          ? `\n   ℹ️ Tu clase no usa maná — pero "${recipe.result}" tiene valor de venta con Aldric.`
+          : '';
+        pickCraftHint = `\n✨ Ingrediente de receta: "${found}" + "${otherIng}" → ${recipe.result}.${manaNote802}\n   Conseguí "${otherIng}" y usá: \`craft ${ingA} con ${ingB}\``;
         db.updatePlayer(freshP802.id, { status_effects: JSON.stringify({ ...shownH802, [hKeyFirst]: true }) });
         break;
       }
