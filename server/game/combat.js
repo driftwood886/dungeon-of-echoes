@@ -1055,25 +1055,37 @@ function attackRound(player, monster) {
     monsterDead = true;
     lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)}!`);
 
-    // Soltar loot en la habitación
-    const { droppedLoot, directLoot: directLootItems, globalEvent, lootNote: ln936 } = dropLoot(monster, player.current_room_id, player);
-    loot = droppedLoot;
+    // DIS-1212: El Goblin de Práctica (id=20) no deja loot durante el tutorial.
+    // completeTutorial() ya limpia el suelo de sala 16 — no generar drop ni mostrar mensaje.
+    const PRACTICE_GOBLIN_ID_LOOT = 20;
+    const freshPlayerForTutLoot = db.getPlayer(player.id);
+    const inTutorialLoot = freshPlayerForTutLoot && freshPlayerForTutLoot.tutorial_step != null && freshPlayerForTutLoot.tutorial_step > 0;
+    let globalEvent = null; // DIS-1212: declarado aquí para ser accesible en ambos paths
+    if (monster.id === PRACTICE_GOBLIN_ID_LOOT && inTutorialLoot) {
+      // No hay loot — el tutorial avanza automáticamente al completarlo
+      loot = [];
+    } else {
+      // Soltar loot en la habitación (flujo normal)
+      const { droppedLoot, directLoot: directLootItems, globalEvent: dropGlobalEvent, lootNote: ln936 } = dropLoot(monster, player.current_room_id, player);
+      loot = droppedLoot;
+      globalEvent = dropGlobalEvent;
 
-    // DIS-1007: ítems directos van al inventario del jugador sin pasar por el suelo
-    if (directLootItems && directLootItems.length > 0) {
-      const freshPlayer2 = db.getPlayer(player.id);
-      const inv2 = Array.isArray(freshPlayer2.inventory) ? freshPlayer2.inventory : JSON.parse(freshPlayer2.inventory || '[]');
-      const newInv2 = [...inv2, ...directLootItems];
-      db.updatePlayer(player.id, { inventory: JSON.stringify(newInv2) });
-      lines.push(`⚔️ ${articuloMonstruo(monster.name)} ${monster.name} suelta directamente: **${directLootItems.join(', ')}** (ya en tu inventario).`);
-    }
+      // DIS-1007: ítems directos van al inventario del jugador sin pasar por el suelo
+      if (directLootItems && directLootItems.length > 0) {
+        const freshPlayer2 = db.getPlayer(player.id);
+        const inv2 = Array.isArray(freshPlayer2.inventory) ? freshPlayer2.inventory : JSON.parse(freshPlayer2.inventory || '[]');
+        const newInv2 = [...inv2, ...directLootItems];
+        db.updatePlayer(player.id, { inventory: JSON.stringify(newInv2) });
+        lines.push(`⚔️ ${articuloMonstruo(monster.name)} ${monster.name} suelta directamente: **${directLootItems.join(', ')}** (ya en tu inventario).`);
+      }
 
-    if (loot.length > 0) {
-      lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
-    } else if (!directLootItems || directLootItems.length === 0) {
-      lines.push(`${articuloMonstruo(monster.name)} ${monster.name} no deja nada.`);
+      if (loot.length > 0) {
+        lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
+      } else if (!directLootItems || directLootItems.length === 0) {
+        lines.push(`${articuloMonstruo(monster.name)} ${monster.name} no deja nada.`);
+      }
+      if (ln936) lines.push(ln936);
     }
-    if (ln936) lines.push(ln936);
 
     // Actualizar kills y XP del jugador
     // T221: Bonus élite — +75% XP y loot extra si el monstruo es élite
