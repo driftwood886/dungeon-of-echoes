@@ -8045,7 +8045,9 @@ function cmdTalk(player, target) {
 
   // Solo Aldric por ahora. Acepta: 'aldric', 'mercader', 'tendero', o vacío si está en sala 4
   const inRoom4 = player.current_room_id === MERCHANT_ROOM_ID;
-  const isAldric = tLow.includes('aldric') || tLow === 'mercader' || tLow === 'tendero' || (tLow === '' && inRoom4);
+  const isAldric = tLow.includes('aldric') || tLow === 'mercader' || tLow === 'tendero' ||
+                   tLow.includes('kaelthas') || // DIS-1217: "hablar kaelthas" en sala del mercader
+                   (tLow === '' && inRoom4);
 
   // DIS-537: Escriba élfico de la Casa de Subastas (sala 17) — responde a "hablar escriba"
   const isEscribaAuction = tLow.includes('escriba') || tLow.includes('elfo') || tLow.includes('élfico') || tLow.includes('subastador');
@@ -8222,6 +8224,10 @@ function cmdTalk(player, target) {
   }
 
   if (questState === 'done') {
+    // DIS-1217: si el jugador pregunta por Kaelthas con quest completada, respuesta lore especial
+    if (tLow.includes('kaelthas')) {
+      return { text: 'Aldric te mira un instante con ojos que ya no calculan.\n\n"Kaelthas Vorn." Repite el nombre como quien lee una inscripción conocida. "El guardián. El dungeon fue su archivo. Su alma sigue aquí."\n\nUna pausa. "Eso ya lo sabés, ¿no?" No espera respuesta. Vuelve a sus cuentas.\n\nEl símbolo de las dos llaves cruzadas en su delantal cobra otro sentido cada vez que lo mirás.' + expeditionTalkCmdMsg };
+    }
     return { text: 'Aldric te mira con algo que podría ser respeto, o reconocimiento, o las dos cosas.\n\n"Ya no te veo igual que antes," dice, y vuelve a sus cuentas.\n\nEl símbolo de las dos llaves cruzadas sigue en su delantal. Ahora sabés qué significa. Kaelthas Vorn. El guardián. El dungeon fue su archivo.\n\nSu alma sigue aquí, atada a las piedras. A los corredores. A la Sala del Trono donde algo observa sin ojos.' + getAldricMemorySuffix() + getAldricSelloSuffix() + getAldricDeudaSuffix() + expeditionTalkCmdMsg };
   }
 
@@ -8266,7 +8272,35 @@ function cmdTalk(player, target) {
     }
   }
 
-  // questState === 'none'
+  // DIS-1217: si el jugador dice "hablar kaelthas" y la quest aún no está completa
+  if (tLow.includes('kaelthas') && questState !== 'done') {
+    const seKae = parseSE(player.status_effects);
+    const kaeMenciones = seKae.kaelthas_menciones || 0;
+    const kaeAlreadyTalked = seKae.kaelthas_hablo_aldric || false;
+
+    if (kaeAlreadyTalked) {
+      // Ya habló sobre Kaelthas con Aldric — respuesta corta sin recompensa
+      return { text: 'Aldric levanta la vista.\n\n"El guardián." Pausa. "¿Encontraste algo más en el dungeon que lo mencione?"\n\nVuelve a sus cuentas. Sabe algo que no dice.' + expeditionTalkCmdMsg };
+    }
+
+    if (kaeMenciones >= 1) {
+      // El jugador encontró al menos un gancho lore — dar la primera pista real y recompensa
+      const freshKae = db.getPlayer(player.id);
+      const lvlKae = calcLevelUp(freshKae, 10);
+      const seUpdKae = { ...parseSE(freshKae.status_effects), kaelthas_hablo_aldric: true };
+      db.updatePlayer(player.id, {
+        ...lvlKae.fields,
+        status_effects: JSON.stringify(seUpdKae),
+      });
+      db.addJournalEntry(player.id, 'lore', '\u{1F4D6} Le pregunté a Aldric sobre Kaelthas. Se quedó quieto un segundo de más antes de responder. Sabe más de lo que dice. El símbolo de las dos llaves cruzadas en su delantal no es casualidad.');
+      return { text: 'El nombre detiene a Aldric.\n\nNo es una pausa normal — es la pausa de alguien que reconoce algo que esperaba no escuchar tan pronto.\n\n"¿Dónde lo viste?" pregunta, en voz baja. No "¿qué es?" No "¿de qué hablás?". Directo al punto.\n\nCuando le contás lo que encontraste en el dungeon, asiente despacio.\n\n"El dungeon fue su archivo. Su biblioteca. Cuando murió, su esencia quedó atada aquí — a las piedras, a los corredores, a los nombres grabados en las paredes."\n\nUna pausa. "Si querés saber más, buscá la carta sellada. Sala 8. Prisión del nivel inferior. Tiene el sello de las dos llaves cruzadas."\n\nSus ojos van al delantal y vuelven a vos. El símbolo cobra otro sentido.\n\n+10 XP — primera pista del arco de Kaelthas.\n\u{1F4D6} Diario actualizado.' + lvlKae.levelUpMsg + expeditionTalkCmdMsg };
+    }
+
+    // El jugador no encontró ningún gancho — Aldric no reconoce el nombre aún
+    return { text: 'El nombre no parece registrar en Aldric.\n\n"Kaelthas." Lo repite como si lo estuviera probando. Una pausa.\n\n"No es un nombre que escuche seguido." Vuelve a sus cuentas.\n\nAlgo en su tono dice que miente, pero no tenés forma de saberlo todavía.' + expeditionTalkCmdMsg };
+  }
+
+    // questState === 'none'
   if (!triggerable) {
     // Todavía no se desbloqueó — Aldric habla normalmente
     // DIS-D351: si el jugador tiene la carta sellada pero aún no es nivel 5,
