@@ -9221,7 +9221,13 @@ function cmdGuild(player, args) {
     };
   }
 
-  return { text: `Subcomando desconocido: "${sub}". Usá guild create | join | leave | info | list | quest` };
+  // ── guild chat <msg> — alias de gc (DIS-1199) ──────────────────────────────
+  if (sub === 'chat') {
+    // Redirigir al handler de gc con el resto de los args
+    return cmdGuildChat(player, args.slice(1));
+  }
+
+  return { text: `Subcomando desconocido: "${sub}". Usá guild create | join | leave | info | list | quest | chat` };
 }
 
 /**
