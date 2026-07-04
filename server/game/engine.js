@@ -6932,7 +6932,25 @@ function cmdDisarm(player, args) {
     const dirLabel2 = (normalized2 && DIR_NAMES_ES2[normalized2]) || dirArg;
 
     if (!exit) {
-      return { text: `No hay salida hacia el ${dirLabel2} desde tu sala actual.\n💡 Solo podés desactivar trampas de salas directamente adyacentes (una sola puerta de distancia).` };
+      // DIS-1204: sugerir la dirección correcta si hay trampas activas en otras salidas
+      const allExitsForHint = room.exits || {};
+      const trappedAdjacentDirs = [];
+      for (const [exitDir, exitData] of Object.entries(allExitsForHint)) {
+        const adjId = typeof exitData === 'number' ? exitData : exitData?.targetId;
+        if (!adjId) continue;
+        const adjR = db.getRoom(adjId);
+        if (adjR && adjR.trap && adjR.trap.active) {
+          const DIR_NAMES_ES3 = { north: 'norte', south: 'sur', east: 'este', west: 'oeste', up: 'arriba', down: 'abajo' };
+          trappedAdjacentDirs.push(DIR_NAMES_ES3[exitDir] || exitDir);
+        }
+      }
+      let suggestionMsg = '';
+      if (trappedAdjacentDirs.length > 0) {
+        suggestionMsg = `\n⚠️  Las trampas activas desde aquí están hacia: ${trappedAdjacentDirs.join(', ')}.\n💡 Intentá "desactivar trampa ${trappedAdjacentDirs[0]}" si querés desactivar la correcta.`;
+      } else {
+        suggestionMsg = '\n💡 Solo podés desactivar trampas de salas directamente adyacentes (una sola puerta de distancia).';
+      }
+      return { text: `No hay salida hacia el ${dirLabel2} desde tu sala actual.${suggestionMsg}` };
     }
 
     const adjRoom = db.getRoom(exit.targetId);
@@ -6974,7 +6992,7 @@ function cmdDisarm(player, args) {
         }
       }
       return {
-        text: `Intentás desactivar la trampa de ${adjRoom.name} (al ${dirLabel2}) desde aquí, pero no tenés lo necesario.\n🔧 Ítem requerido para ${adjRoom.name}: "${trapAdj.item_needed}"${TRAP_ITEM_SOURCE[trapAdj.item_needed] ? `\n💡 ${TRAP_ITEM_SOURCE[trapAdj.item_needed]}` : ''}${ownTrapHint}`,
+        text: `Intentás desactivar la trampa de ${adjRoom.name} (al ${dirLabel2}) desde aquí, pero no tenés lo necesario.\n🔧 Ítem requerido para ${adjRoom.name}: "${trapAdj.item_needed}"${TRAP_ITEM_SOURCE[trapAdj.item_needed] ? `\n💡 ${TRAP_ITEM_SOURCE[trapAdj.item_needed]}` : ''}\n⛔ Si entrás sin desactivarla recibirás daño. Conseguí el ítem primero.${ownTrapHint}`,
       };
     }
 
