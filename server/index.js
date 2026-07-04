@@ -16,6 +16,7 @@ const { checkRespawns, wanderMonsters } = require('./game/combat');
 const quests                 = require('./game/quests');
 const worldEvents            = require('./game/worldEvents');
 const weather                = require('./game/weather');
+const eventScheduler         = require('./game/eventScheduler'); // T-1225: scheduler de eventos cíclicos
 const { registerHandlers, playerSockets, previousRoomMap, monsterTrackMap } = require('./socket/handlers');
 
 const PORT = process.env.PORT || 3000;
@@ -762,6 +763,9 @@ async function main() {
       console.log(`[weather] Nuevo clima: ${weatherResult.weather.name}`);
     }
   }, 60000);
+
+  // T-1225: Scheduler de eventos cíclicos globales (La Gaceta del Corredor)
+  eventScheduler.init(db, io);
 
   // 12. Auction resolution loop: resolver subastas expiradas cada 30 segundos
   setInterval(() => {

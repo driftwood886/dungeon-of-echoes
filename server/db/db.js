@@ -326,6 +326,19 @@ async function init() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_expeditions_player_state ON expeditions (player_id, state)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_expeditions_expedition_completed ON expeditions (expedition_id, state)`);
 
+  // T-1224 / EPIC Gaceta del Corredor — Tabla de eventos globales activos del dungeon
+  db.run(`
+    CREATE TABLE IF NOT EXISTS active_events (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id    TEXT    NOT NULL,
+      event_type  TEXT    NOT NULL DEFAULT 'global',
+      room_id     INTEGER,
+      started_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+      expires_at  TEXT    NOT NULL,
+      data        TEXT    NOT NULL DEFAULT '{}'
+    )
+  `);
+
   // Inicializar World State (lazy reset semanal si corresponde)
   initWorldState();
 
@@ -2366,6 +2379,47 @@ function getCompletedExpeditions(playerId) {
   return rows.map(r => r.expedition_id);
 }
 
+// ─── Eventos cíclicos globales (T-1224 / Gaceta del Corredor) ────────────────
+
+/**
+ * Devuelve el evento global activo actual (no expirado), o null si no hay.
+ * @returns {{ id, event_id, event_type, started_at, expires_at, data }|null}
+ */
+function getActiveGlobalEvent() {
+  const now = new Date().toISOString();
+  const row = one(
+    `SELECT * FROM active_events WHERE event_type = 'global' AND expires_at > ? ORDER BY id DESC LIMIT 1`,
+    [now]
+  );
+  if (!row) return null;
+  try { row.data = JSON.parse(row.data); } catch (_) { row.data = {}; }
+  return row;
+}
+
+/**
+ * Inserta un nuevo evento global en la tabla. Limpia eventos expirados antes de insertar.
+ * @param {string} eventId - ej: 'BLOOD_MOON', 'ARCANE_SURGE'
+ * @param {number} durationMs - duración en milisegundos
+ * @param {object} [data={}] - parámetros adicionales del evento
+ */
+function setActiveGlobalEvent(eventId, durationMs, data = {}) {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + durationMs).toISOString();
+  clearExpiredGlobalEvents();
+  db.run(
+    `INSERT INTO active_events (event_id, event_type, started_at, expires_at, data) VALUES (?, 'global', ?, ?, ?)`,
+    [eventId, now.toISOString(), expiresAt, JSON.stringify(data)]
+  );
+}
+
+/**
+ * Borra todos los eventos globales expirados de la tabla.
+ */
+function clearExpiredGlobalEvents() {
+  const now = new Date().toISOString();
+  db.run(`DELETE FROM active_events WHERE expires_at <= ?`, [now]);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -2431,4 +2485,6 @@ module.exports = {
   initWorldState, incrementWorldState, setWorldState, getWorldStateValues, getWorldStateSnapshot,
   // EPIC-1156: Expediciones
   getActiveExpedition, assignExpeditionToDB, advanceExpeditionStep, completeExpeditionInDB, getCompletedExpeditions,
+  // T-1224: Eventos cíclicos globales (La Gaceta del Corredor)
+  getActiveGlobalEvent, setActiveGlobalEvent, clearExpiredGlobalEvents,
   };

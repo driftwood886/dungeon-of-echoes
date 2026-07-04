@@ -138,8 +138,10 @@ const COMMAND_ALIASES = {
   accept: 'accept', aceptar: 'accept', acepto: 'accept',
   // decline / rechazar duelo
   decline: 'decline', rechazar: 'decline', rechazo: 'decline', negar: 'decline',
-  // world / evento global
-  world: 'world', evento: 'world', mundo: 'world', dungeon_event: 'world', 'evento-dungeon': 'world',
+  // world / estado global del dungeon
+  world: 'world', mundo: 'world', dungeon_event: 'world',
+  // evento / eventos cíclicos globales (T-1226: Gaceta del Corredor)
+  evento: 'evento', event: 'evento', events: 'evento', 'evento-global': 'evento', ciclo: 'evento',
   recent: 'recent', recientes: 'recent', 'chat-log': 'recent', ultimos: 'recent', últimos: 'recent', 'chat-reciente': 'recent',
   // T166: clima
   weather: 'weather', clima: 'weather', tiempo: 'weather', atmosfera: 'weather', atmósfera: 'weather',

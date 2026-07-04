@@ -21,6 +21,7 @@ const quests  = require('./quests');
 const guildQuests = require('./guild_quests'); // T189: quests de guild
 const worldEvents = require('./worldEvents');
 const weather     = require('./weather'); // T166: clima del dungeon
+const eventScheduler = require('./eventScheduler'); // T-1226: eventos cíclicos globales
 const tutorial = require('./tutorial');
 const crafting = require('./crafting');
 const classes  = require('./classes'); // T107: sistema de clases
@@ -353,6 +354,7 @@ function execute(playerId, input, context) {
     case 'memorial':     result = cmdMemorial(); break;                              // T178
     case 'salon':        result = cmdSalon(player, action.args); break;              // EPIC-965
     case 'world':        result = cmdWorld(); break;
+    case 'evento':       result = cmdEvento(); break;    // T-1226: evento global activo
     case 'weather':      result = cmdWeather(); break;
     case 'recent':       result = cmdRecent(action.args); break;
     case 'craft':        result = cmdCraft(player, action.args); break;
@@ -16965,6 +16967,67 @@ function cmdWeather() {
     `║  ${effectLine.padEnd(40)} ║`,
     `╠══════════════════════════════════════════╣`,
     `║  Cambia en: ${remainingStr.padEnd(29)} ║`,
+    `╚══════════════════════════════════════════╝`,
+  ];
+
+  return { text: lines.join('\n') };
+}
+
+// ─── T-1226: cmdEvento ────────────────────────────────────────────────────────
+/**
+ * Muestra el evento global activo del dungeon con tiempo restante.
+ * Alias: evento, event, events, ciclo
+ */
+function cmdEvento() {
+  // Usar db directamente para obtener el evento activo
+  const row = db.getActiveGlobalEvent();
+
+  if (!row) {
+    return { text: `╔══════════════════════════════════════════╗
+║   🌟 EVENTOS GLOBALES DEL DUNGEON        ║
+╠══════════════════════════════════════════╣
+║  No hay evento activo en este momento.   ║
+║  Los eventos ocurren cada ~60-90 min.    ║
+╠══════════════════════════════════════════╣
+║  Eventos posibles:                       ║
+║  🌑 Luna de Sangre  — Monstruos fuertes  ║
+║  ⚡ Carga Arcana    — Hechizos +50% daño ║
+║  🌿 Respiro Dungeon — Spawns x2          ║
+║  👻 Marea Espectral — Solo espectros     ║
+║  💰 Fiebre del Oro  — Oro x3            ║
+╚══════════════════════════════════════════╝` };
+  }
+
+  // Obtener la definición del evento desde el pool del scheduler
+  const pool = eventScheduler.getEventPool();
+  const eventDef = pool.find(e => e.id === row.event_id);
+  if (!eventDef) {
+    return { text: `Evento activo: ${row.event_id} (definición no encontrada).` };
+  }
+
+  const expiresAt = new Date(row.expires_at);
+  const msRemaining = Math.max(0, expiresAt - Date.now());
+  const minutesRemaining = Math.floor(msRemaining / 60000);
+  const secondsRemaining = Math.floor((msRemaining % 60000) / 1000);
+  const remainingStr = minutesRemaining > 0
+    ? `${minutesRemaining}m ${secondsRemaining}s`
+    : `${secondsRemaining}s`;
+
+  const descLine1 = eventDef.description.substring(0, 40).padEnd(40);
+  const descLine2 = eventDef.description.length > 40
+    ? eventDef.description.substring(40, 80).padEnd(40)
+    : null;
+
+  const lines = [
+    `╔══════════════════════════════════════════╗`,
+    `║   🌟 EVENTO GLOBAL ACTIVO                ║`,
+    `╠══════════════════════════════════════════╣`,
+    `║  ${eventDef.name.padEnd(40)} ║`,
+    `╠══════════════════════════════════════════╣`,
+    `║  ${descLine1} ║`,
+    ...(descLine2 ? [`║  ${descLine2} ║`] : []),
+    `╠══════════════════════════════════════════╣`,
+    `║  Tiempo restante: ${remainingStr.padEnd(23)} ║`,
     `╚══════════════════════════════════════════╝`,
   ];
 
