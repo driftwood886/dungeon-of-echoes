@@ -19,6 +19,22 @@ const weather     = require('./weather');
 const classes = require('./classes'); // T107: bonus de clase
 const items = require('./items');    // T110: efectos on_hit de armas crafteadas
 const xpSystem = require('./xp');   // DIS-D282: curva de XP cuadrática
+const eventScheduler = require('./eventScheduler'); // T-1227: eventos cíclicos globales (BD)
+
+// IDs de monstruos espectrales para SPECTRAL_TIDE
+const SPECTRAL_MONSTER_IDS = new Set([4, 8, 11, 12, 13, 21, 22]); // Espectro Corredor, Guardia Espectral, Esqueleto Guerrero, Campeón Espectral, Lich, Eco Viviente, Sombra
+
+/**
+ * T-1227: Devuelve el evento activo del eventScheduler (BD), o null si no hay.
+ * Wrapper seguro: no rompe si el scheduler no está inicializado.
+ */
+function getNewActiveEvent() {
+  try {
+    return eventScheduler.getActiveEventInfo();
+  } catch (_) {
+    return null;
+  }
+}
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -341,6 +357,26 @@ function attackRound(player, monster) {
       delete monsterSeClean.attacked_player_this_turn;
       db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterSeClean) });
       monster.status_effects = monsterSeClean; // actualizar referencia local
+    }
+  } catch (_) {}
+
+  // T-1227: SPECTRAL_TIDE — bloquear combate con no-espectros durante el evento
+  try {
+    const newEvCheck = getNewActiveEvent();
+    if (newEvCheck && newEvCheck.event && newEvCheck.event.id === 'SPECTRAL_TIDE') {
+      const isSpectral = SPECTRAL_MONSTER_IDS.has(monster.id) ||
+        (monster.name || '').toLowerCase().includes('espectro') ||
+        (monster.name || '').toLowerCase().includes('fantasma') ||
+        (monster.name || '').toLowerCase().includes('espectral') ||
+        (monster.name || '').toLowerCase().includes('lich') ||
+        (monster.name || '').toLowerCase().includes('sombra');
+      if (!isSpectral) {
+        const minLeft = newEvCheck.minutesRemaining;
+        return {
+          lines: [`👻 MAREA ESPECTRAL — Solo los no-muertos están activos. El ${monster.name} huye ante la marea espectral y no puede ser combatido ahora. (Evento termina en ~${minLeft} min)`],
+          monsterDead: false, playerDead: false, loot: [], spectralBlocked: true
+        };
+      }
     }
   } catch (_) {}
 
@@ -1140,7 +1176,14 @@ function attackRound(player, monster) {
     const bloodmoonXpMult = (activeEv && activeEv.id === 'bloodmoon' && activeEv.affectedIds && activeEv.affectedIds.has(monster.id))
       ? (1 + (activeEv.xpBonus || 0.75)) : 1.0;
     const weatherXpMult = weather.getXpMultiplier(); // 1.1 si calma arcana, 1.0 si no
-    const xpGain = Math.floor(xpBase * invasionMult * bloodmoonXpMult * weatherXpMult * eliteXpMult);
+    // T-1227: BLOOD_MOON del nuevo scheduler también da +75% XP para monstruos nivel 3+
+    const BLOOD_MOON_XP_IDS = new Set([2, 4, 5, 8, 9, 10, 11, 12, 13, 21, 22]);
+    const newEvXp = getNewActiveEvent();
+    const newBloodmoonXpMult = (newEvXp && newEvXp.event && newEvXp.event.id === 'BLOOD_MOON' && BLOOD_MOON_XP_IDS.has(monster.id))
+      ? (newEvXp.event.data.xp_mult || 1.75) : 1.0;
+    // Tomar el mayor multiplicador de XP (worldEvents o eventScheduler, no acumular ambos)
+    const finalBloodmoonXpMult = Math.max(bloodmoonXpMult, newBloodmoonXpMult);
+    const xpGain = Math.floor(xpBase * invasionMult * finalBloodmoonXpMult * weatherXpMult * eliteXpMult);
     const freshPlayer = db.getPlayer(player.id);
 
     // DIS-1019 / BUG-927: El Goblin de Práctica (id=20) no da XP ni kills en ningún caso.
@@ -1354,7 +1397,17 @@ function attackRound(player, monster) {
   // DIS-852: bloodmoon rediseñado — +30% ATK proporcional para monstruos nivel 3+ (no flat +2)
   const activeEvMon = worldEvents.getCurrentEvent();
   const bloodmoonAffects = (activeEvMon && activeEvMon.id === 'bloodmoon' && activeEvMon.affectedIds && activeEvMon.affectedIds.has(monster.id));
-  const bloodmoonBonus = bloodmoonAffects ? Math.floor(monsterAtkForCounterattack * (activeEvMon.atkBonus || 0.30)) : 0;
+  // T-1227: también aplicar BLOOD_MOON del nuevo eventScheduler (BD) para monstruos afectados
+  const newEvMon = getNewActiveEvent();
+  const newBloodmoonAffects = (newEvMon && newEvMon.event && newEvMon.event.id === 'BLOOD_MOON' && SPECTRAL_MONSTER_IDS.has(monster.id) === false);
+  // Para el nuevo BLOOD_MOON: aplica a monstruos nivel 3+ identificados por nivel > 2 o HP alto
+  const BLOOD_MOON_HIGH_LEVEL_IDS = new Set([2, 4, 5, 8, 9, 10, 11, 12, 13, 21, 22]); // igual que worldEvents
+  const newBloodmoonAffectsMonster = (newEvMon && newEvMon.event && newEvMon.event.id === 'BLOOD_MOON' && BLOOD_MOON_HIGH_LEVEL_IDS.has(monster.id));
+  const newBloodmoonAtkMult = newBloodmoonAffectsMonster ? (newEvMon.event.data.monster_hp_mult || 1.3) : 1.0;
+  const newBloodmoonAtkBonus = newBloodmoonAffectsMonster ? Math.floor(monsterAtkForCounterattack * 0.30) : 0;
+  const bloodmoonBonus = bloodmoonAffects
+    ? Math.floor(monsterAtkForCounterattack * (activeEvMon.atkBonus || 0.30))
+    : newBloodmoonAtkBonus;
   const weatherDmgBonus = weather.getMonsterDamageBonus(); // +1 si spore_rain
 
   // T101: 8% de esquiva — el jugador evita el daño por completo
@@ -1461,11 +1514,15 @@ function attackRound(player, monster) {
     player.hp = Math.max(0, player.hp - dmgToPlayer);
 
     const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🌑(+${bloodmoonBonus} Luna de Sangre)` : '';
+    // T-1227: si el bonus viene del nuevo BLOOD_MOON, actualizar etiqueta
+    const bloodmoonSuffixFinal = newBloodmoonAtkBonus > 0 && newBloodmoonAtkBonus >= (bloodmoonBonus - newBloodmoonAtkBonus)
+      ? ` 🌑(+${bloodmoonBonus} Luna de Sangre [evento])` : bloodmoonSuffix;
     const weatherDmgSuffix = weatherDmgBonus > 0 ? ` 🍄(+${weatherDmgBonus} Esporas)` : '';
     // DIS-976: feedback visual de postura defensiva — mostrar que la postura absorbió daño
     const defensiveSuffix = (stanceName === 'defensivo' && stanceMods.defMod > 0)
       ? ` 🛡️ [defensivo +${stanceMods.defMod} DEF]` : '';
     lines.push(`🩸 ${articuloMonstruo(monster.name)} ${monster.name} te golpea y causa ${dmgToPlayer} de daño.${bloodmoonSuffix}${weatherDmgSuffix}${defensiveSuffix} (${player.hp}/${player.max_hp} HP)`);
+    // (bloodmoonSuffixFinal se calcula arriba para el nuevo BLOOD_MOON del scheduler)
 
     // DIS-616: marcar que el monstruo atacó este turno (para golpe_sombra)
     try {
@@ -1908,10 +1965,19 @@ function dropLoot(monster, roomId, player) {
 
   // DIS-D421: Aplicar probabilidades por ítem (si existen para este monstruo)
   const chances = LOOT_CHANCES[monster.id];
+  // T-1227: BLOOD_MOON — +50% drop rate para monstruos nivel 3+
+  let dropMultiplier = 1.0;
+  try {
+    const BLOOD_MOON_DROP_IDS = new Set([2, 4, 5, 8, 9, 10, 11, 12, 13, 21, 22]);
+    const newEvDrop = getNewActiveEvent();
+    if (newEvDrop && newEvDrop.event && newEvDrop.event.id === 'BLOOD_MOON' && BLOOD_MOON_DROP_IDS.has(monster.id)) {
+      dropMultiplier = newEvDrop.event.data.drop_mult || 1.5;
+    }
+  } catch (_) {}
   let allLoot = chances
     ? baseAllLoot.filter(item => {
         const chance = chances[item];
-        return chance === undefined ? true : Math.random() < chance;
+        return chance === undefined ? Math.random() < dropMultiplier : Math.random() < Math.min(1.0, chance * dropMultiplier);
       })
     : baseAllLoot;
 
@@ -1990,6 +2056,15 @@ function dropLoot(monster, roomId, player) {
     const respawnMinutes = bossDef ? bossDef.respawnMinutes : 5;
     respawnAt = new Date(Date.now() + respawnMinutes * 60 * 1000).toISOString();
   }
+  // T-1227: DUNGEON_BREATH — respawn 2× más rápido para no-bosses
+  try {
+    const newEvRespawn = getNewActiveEvent();
+    if (newEvRespawn && newEvRespawn.event && newEvRespawn.event.id === 'DUNGEON_BREATH' && !bossDef && monster.id !== PRACTICE_GOBLIN_ID) {
+      const speedMult = newEvRespawn.event.data.respawn_speed_mult || 2.0;
+      const currentRespawnMs = new Date(respawnAt).getTime() - Date.now();
+      respawnAt = new Date(Date.now() + Math.floor(currentRespawnMs / speedMult)).toISOString();
+    }
+  } catch (_) {}
   db.updateMonster(monster.id, {
     hp: 0,
     room_id: null,        // ya no está en ninguna sala
@@ -2015,6 +2090,30 @@ function dropLoot(monster, roomId, player) {
   if (monster.id === 5 && allLoot.includes('piedra de poder')) {
     lootNote = '🪨 Al arrancarlo del pecho del Gólem, el constructo se desplomó en una lluvia de cascotes. El núcleo de energía pulsa en tu mano con calor telúrico.';
   }
+
+  // T-1227: GOLD_RUSH — monedas de oro ×3 durante el evento
+  let goldRushNote = null;
+  try {
+    const newEvLoot = getNewActiveEvent();
+    if (newEvLoot && newEvLoot.event && newEvLoot.event.id === 'GOLD_RUSH') {
+      const goldMult = newEvLoot.event.data.gold_loot_mult || 3.0;
+      const goldCount = finalFloorLoot.filter(i => i === 'monedas de oro').length;
+      if (goldCount > 0) {
+        // Agregar monedas extras al suelo de la sala
+        const extraGold = Math.round(goldCount * (goldMult - 1));
+        const extraItems = Array(extraGold).fill('monedas de oro');
+        const roomForGold = db.getRoom(roomId);
+        if (roomForGold) {
+          db.updateRoomItems(roomId, [...roomForGold.items, ...extraItems]);
+        }
+        goldRushNote = `💰 [Fiebre del Oro] Las monedas se multiplican — ×${goldMult} monedas de este combate!`;
+        // Agregar al finalFloorLoot para que se muestre en el mensaje de loot
+        for (let i = 0; i < extraItems.length; i++) finalFloorLoot.push('monedas de oro');
+      }
+    }
+  } catch (_) {}
+  if (goldRushNote && !lootNote) lootNote = goldRushNote;
+  else if (goldRushNote) lootNote = lootNote + '\n' + goldRushNote;
 
   return { droppedLoot: finalFloorLoot, directLoot: finalDirectLoot, globalEvent, lootNote };
 }

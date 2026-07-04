@@ -1111,6 +1111,19 @@ function cmdLook(player) {
     }
   } catch (_) { /* no romper look si worldEvents falla */ }
 
+  // T-1227: también mostrar evento del nuevo eventScheduler (BD) si no hay worldEvent activo
+  if (!activeEventLine) {
+    try {
+      const newEvInfo = eventScheduler.getActiveEventInfo();
+      if (newEvInfo && newEvInfo.event) {
+        const newEvMinLeft = newEvInfo.minutesRemaining;
+        const newEvSecLeft = newEvInfo.secondsRemaining;
+        const newEvTimeStr = newEvMinLeft > 0 ? `${newEvMinLeft}m ${newEvSecLeft}s` : `${newEvSecLeft}s`;
+        activeEventLine = `\n${newEvInfo.event.name} — ${newEvInfo.event.description} (⏱ ${newEvTimeStr} restantes)`;
+      }
+    } catch (_) { /* no romper look si eventScheduler falla */ }
+  }
+
   return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + practicaPosturaHint + activeEventLine };
 }
 
@@ -11666,7 +11679,15 @@ function cmdCast(player, args) {
     // DIS-852: ARCANE_SURGE — hechizos +50% daño durante el evento
     const activeEvCast = worldEvents.getCurrentEvent();
     const arcaneSurgeBonus = (activeEvCast && activeEvCast.id === 'arcane_surge') ? (activeEvCast.spellBonus || 0.50) : 0;
-    const arcaneSurgeMult = 1 + arcaneSurgeBonus;
+    // T-1227: también aplicar ARCANE_SURGE del nuevo eventScheduler (BD)
+    let newArcaneSurgeBonus = 0;
+    try {
+      const newEvCast = eventScheduler.getActiveEventInfo();
+      if (newEvCast && newEvCast.event && newEvCast.event.id === 'ARCANE_SURGE') {
+        newArcaneSurgeBonus = newEvCast.event.data.spell_damage_mult ? (newEvCast.event.data.spell_damage_mult - 1) : 0.50;
+      }
+    } catch (_) {}
+    const arcaneSurgeMult = 1 + Math.max(arcaneSurgeBonus, newArcaneSurgeBonus);
     // DIS-914: Evoker — hechizos de daño directo (rayo, bola de fuego, escarcha) +25%
     const EVOKER_DIRECT_DAMAGE_SPELLS = ['rayo', 'bola de fuego', 'fireball', 'lightning', 'escarcha', 'ice', 'frost', 'meteoro'];
     const evokerBonus = (player.specialization === 'evoker' && EVOKER_DIRECT_DAMAGE_SPELLS.includes(spellName)) ? 0.25 : 0;
@@ -11741,8 +11762,12 @@ function cmdCast(player, args) {
     lines.push(`🪄 Lanzás ${spell.icon} **${spellName}** sobre ${target.name}!`);
     const magicResistNote = hasMagicResist ? ` 🛡️ (resistencia mágica: ×${magicResist})` : '';
     const arcaneSurgeNote = arcaneSurgeBonus > 0 ? ` ⚡(+${Math.round(arcaneSurgeBonus * 100)}% Carga Arcana)` : '';
+    // T-1227: nota de Carga Arcana del nuevo scheduler
+    const effectiveArcaneSurgeBonus = Math.max(arcaneSurgeBonus, newArcaneSurgeBonus);
+    const arcaneSurgeNoteNew = (newArcaneSurgeBonus > 0 && newArcaneSurgeBonus >= arcaneSurgeBonus) ? ` ⚡(+${Math.round(newArcaneSurgeBonus * 100)}% Carga Arcana [evento])` : arcaneSurgeNote;
     const evokerNote = evokerBonus > 0 ? ` ⚡[Evoker +25%]` : '';
-    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${arcaneSurgeNote}${evokerNote}${elementalNote})` : (magicResistNote + arcaneSurgeNote + evokerNote + elementalNote) || '';
+    const finalArcaneSurgeNote = arcaneSurgeNoteNew || arcaneSurgeNote;
+    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${finalArcaneSurgeNote}${evokerNote}${elementalNote})` : (magicResistNote + finalArcaneSurgeNote + evokerNote + elementalNote) || '';
     lines.push(`   ${target.name} recibe ${finalDmg} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
 
     // T214: stun_chance — hechizos que pueden aturdir al monstruo (ej: rayo)
