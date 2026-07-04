@@ -1203,11 +1203,12 @@ function cmdMove(player, direction) {
     if (!hasBoss) {
       // Huida garantizada contra monstruos normales — el jugador simplemente escapa
       // Mover al jugador a la sala destino directamente (igual que el movimiento normal)
-      const exits = room ? (room.exits || {}) : {};
-      const exitVal = exits[direction.toLowerCase().trim()];
-      const destId = exitVal ? (typeof exitVal === 'object' ? exitVal.room_id : exitVal) : null;
+      // BUG-1209 fix: usar exitCheck (ya normalizado) en vez de recalcular con direction.toLowerCase().trim()
+      // Sin este fix, "norte"/"sur"/etc. no coinciden con las keys en inglés del mapa exits → destId=null
+      // → el código cae en tryFlee que puede bloquear al jugador cuando no debería.
+      const destId = exitCheck.targetId;
       // BUG-625: verificar si la salida requiere llave antes de mover (aunque no haya boss)
-      const requiredKeyFlee = exitVal && typeof exitVal === 'object' ? exitVal.key : null;
+      const requiredKeyFlee = exitCheck.key;
       if (requiredKeyFlee) {
         const inventory = player.inventory || [];
         const hasKey = inventory.some(item => item.toLowerCase() === requiredKeyFlee.toLowerCase());
@@ -1398,9 +1399,8 @@ function cmdMove(player, direction) {
     const thisPlayerAttackedBoss = bossInRoom && !!seForBossCheck[`boss_attacked_${player.current_room_id}`];
     const bossAtFullHp = bossInRoom && (bossInRoom.hp >= bossInRoom.max_hp || !thisPlayerAttackedBoss);
     if (bossAtFullHp) {
-      const exits = room ? (room.exits || {}) : {};
-      const exitVal = exits[direction.toLowerCase().trim()];
-      const destId = exitVal ? (typeof exitVal === 'object' ? exitVal.room_id : exitVal) : null;
+      // BUG-1209 fix: usar exitCheck (ya normalizado) en vez de recalcular con direction.toLowerCase().trim()
+      const destId = exitCheck.targetId;
       if (destId) {
         db.updatePlayer(player.id, { current_room_id: destId });
         // BUG-790: registrar sala visitada incluso en el path bossAtFullHp (early return)

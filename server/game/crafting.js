@@ -9,8 +9,11 @@
 
 'use strict';
 
+// BUG-1210 fix: importar items.js para consultar el catálogo de ítems general
+// y así poder mostrar el hint de equip/wear para ítems que no están en CRAFTED_ITEMS
+const items = require('./items');
+
 // ─── Catálogo de recetas ──────────────────────────────────────────────────────
-//
 // Cada receta: { ingredients: [itemA, itemB], result: itemName, message: string }
 // Los ingredientes son case-insensitive y el orden no importa.
 
@@ -328,7 +331,7 @@ function craft(player, itemA, itemB) {
     return { ok: false, text: `No tenés "${itemB}" en el inventario. Si lo usaste antes, ya no está disponible.` };
   }
 
-  const resultDef = CRAFTED_ITEMS[recipe.result] || {};
+  const resultDef = CRAFTED_ITEMS[recipe.result] || items.getItemDef(recipe.result) || {};
   let equipHint = resultDef.type === 'armor'
     ? `\n💡 Es una armadura — equipala con: \`wear ${recipe.result}\``
     : resultDef.type === 'weapon'
