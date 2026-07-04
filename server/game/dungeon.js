@@ -161,7 +161,17 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   }
   lines.push(roomDesc);
 
-  // Texto ambiental dinámico (T096)
+  // DIS-1208: pistas visuales directas en salas clave de la narrativa de Kaelthas
+  const KAELTHAS_ROOM_HINTS = {
+    2:  '🔍 Una inscripción en la pared del corredor llama tu atención — el barniz de cera la protege del tiempo. (Escribí "examine pared" o "examine inscripciones" para leerla.)',
+    5:  '🕯️ Sobre el altar hay un escudo sin emblema y velas que arden pese al polvo centenario — alguien estuvo aquí recientemente. (Escribí "examine altar" o "examine escudo" para inspeccionar.)',
+    9:  '👑 El trono tiene marcas en los apoyabrazos — dedos que se aferraron muchas veces. Algo grabado en la piedra del respaldo parece diferente al resto de la decoración. (Escribí "examine trono" para investigar.)',
+  };
+  if (KAELTHAS_ROOM_HINTS[room.id]) {
+    lines.push(`\n${KAELTHAS_ROOM_HINTS[room.id]}`);
+  }
+
+
   const ambientLine = ambient.getAmbientText(room);
   if (ambientLine) {
     lines.push(`\n🌫️ ${ambientLine}`);
