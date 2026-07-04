@@ -38,7 +38,7 @@ const ITEM_CATALOG = {
   'cuchillo oxidado':    { type: 'weapon', effect: 'attack_bonus', amount: 1,  description: 'Un cuchillo pequeño y oxidado. +1 de ataque.' },
   'espada de hierro':    { type: 'weapon', effect: 'attack_bonus', amount: 8,  description: 'Una espada de hierro forjado, sólida y confiable. +8 de ataque.' },
   'espada de acero':     { type: 'weapon', effect: 'attack_bonus', amount: 10, description: 'Una espada de acero templado, más pesada y letal que la de hierro. La mejor que Aldric consigue para aventureros de élite. +10 de ataque.' },  // DIS-855: gap de equipamiento nivel 6-8
-  'daga envenenada':     { type: 'weapon', effect: 'attack_bonus', amount: 4,  on_hit: { type: 'poison', chance: 0.35 }, description: 'Una daga con el filo impregnado de veneno. +4 de ataque. 35% de envenenar al golpear.' },
+  'daga envenenada':     { type: 'weapon', effect: 'attack_bonus', amount: 4,  on_hit: { type: 'poison', chance: 0.35, damage: 1, turns: 3 }, description: 'Una daga con el filo impregnado de veneno. +4 de ataque. 35% de envenenar al golpear (1 dmg/turno por 3 turnos).' },
   'espada larga':        { type: 'weapon', effect: 'attack_bonus', amount: 5,  description: 'Una espada bien balanceada. +5 de ataque.' },
   'cristal mágico':      { type: 'weapon', effect: 'attack_bonus', amount: 7,  description: 'Un cristal que amplifica la fuerza. +7 de ataque.' },
   'piedra de poder':     { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'El núcleo de energía que alimentaba los brazos del Gólem de Piedra. Al arrancarlo, el constructo se desplomó. Pulsa con magia telúrica contenida. +4 de ataque.' },
