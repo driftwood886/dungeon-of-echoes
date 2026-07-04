@@ -219,7 +219,18 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
       const rarityTag = rarity !== 'común' ? ` [${rarity}]` : '';
       return `${emoji} ${item}${rarityTag}`;
     }).join(', ');
-    lines.push(`\nObjetos en el suelo: ${itemList}`);
+    // DIS-1205: contexto narrativo para ítems de valor en Coliseo de Huesos (sala 14)
+    let floorNarrativeNote = '';
+    if (room.id === 14) {
+      const hasValueItem = room.items.some(item => {
+        const r = items.getItemRarity(item);
+        return r === 'épico' || r === 'raro' || r === 'legendario';
+      });
+      if (hasValueItem) {
+        floorNarrativeNote = '\n🦴 Entre la arena manchada de sangre seca yacen los restos de un aventurero anterior — alguien que llegó hasta aquí pero no lo logró. Su equipo quedó esparcido entre los huesos.\n';
+      }
+    }
+    lines.push(`${floorNarrativeNote}\nObjetos en el suelo: ${itemList}`);
   }
 
   // Otros jugadores presentes (T024)
