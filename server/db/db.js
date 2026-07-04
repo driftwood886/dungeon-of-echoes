@@ -426,6 +426,28 @@ async function init() {
     console.error('[db] BUG-030 HP restore error:', hpRestoreErr.message);
   }
 
+  // T-1229: Tablas para desafíos diarios y semanal colectivo (Gaceta del Corredor - Fase 2)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS daily_challenge_progress (
+      player_id    TEXT NOT NULL,
+      challenge_id TEXT NOT NULL,
+      count        INTEGER NOT NULL DEFAULT 0,
+      date_utc     TEXT NOT NULL,
+      PRIMARY KEY (player_id, challenge_id, date_utc)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS weekly_challenge_state (
+      week_key    TEXT PRIMARY KEY,
+      challenge_id TEXT NOT NULL,
+      progress    INTEGER NOT NULL DEFAULT 0,
+      target      INTEGER NOT NULL DEFAULT 0,
+      reward      TEXT NOT NULL DEFAULT '{}',
+      expires_at  TEXT NOT NULL
+    )
+  `);
+
   // Guardar al apagar
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });
@@ -2423,6 +2445,89 @@ function clearExpiredGlobalEvents() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
+// ─── Desafíos Diarios y Semanal Colectivo (T-1229 / Gaceta del Corredor Fase 2) ─
+
+/**
+ * Obtiene el progreso de todos los desafíos asignados a un jugador en una fecha UTC.
+ * @param {string} playerId
+ * @param {string} dateUtc — formato 'YYYY-MM-DD'
+ * @returns {object[]} — array de { challenge_id, count }
+ */
+function getDailyChallengeProgress(playerId, dateUtc) {
+  const rows = db.exec(
+    `SELECT challenge_id, count FROM daily_challenge_progress WHERE player_id = ? AND date_utc = ?`,
+    [playerId, dateUtc]
+  );
+  if (!rows.length || !rows[0].values.length) return [];
+  const { columns, values } = rows[0];
+  return values.map(row => {
+    const obj = {};
+    columns.forEach((col, i) => { obj[col] = row[i]; });
+    return obj;
+  });
+}
+
+/**
+ * Incrementa el contador de progreso de un desafío para un jugador hoy.
+ * Crea la fila si no existe (upsert).
+ * @param {string} playerId
+ * @param {string} challengeId — ej: 'CHAL-C01'
+ * @param {string} dateUtc — formato 'YYYY-MM-DD'
+ * @param {number} [increment=1]
+ */
+function updateChallengeProgress(playerId, challengeId, dateUtc, increment = 1) {
+  db.run(
+    `INSERT INTO daily_challenge_progress (player_id, challenge_id, count, date_utc)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(player_id, challenge_id, date_utc)
+     DO UPDATE SET count = count + ?`,
+    [playerId, challengeId, increment, dateUtc, increment]
+  );
+}
+
+/**
+ * Obtiene el estado actual del desafío semanal colectivo.
+ * @returns {object|null}
+ */
+function getWeeklyChallengeState() {
+  const rows = db.exec(`SELECT * FROM weekly_challenge_state ORDER BY rowid DESC LIMIT 1`);
+  if (!rows.length || !rows[0].values.length) return null;
+  const { columns, values } = rows[0];
+  const obj = {};
+  columns.forEach((col, i) => { obj[col] = values[0][i]; });
+  try { obj.reward = JSON.parse(obj.reward); } catch (_) { obj.reward = {}; }
+  return obj;
+}
+
+/**
+ * Establece (o reemplaza) el desafío semanal colectivo actual.
+ * @param {string} weekKey — ej: '2026-W27'
+ * @param {string} challengeId — ej: 'CHAL-S01'
+ * @param {number} target — cantidad objetivo
+ * @param {object} reward — { description: string, ... }
+ * @param {string} expiresAt — ISO timestamp del lunes siguiente 00:00 UTC
+ */
+function setWeeklyChallenge(weekKey, challengeId, target, reward, expiresAt) {
+  db.run(
+    `INSERT OR REPLACE INTO weekly_challenge_state (week_key, challenge_id, progress, target, reward, expires_at)
+     VALUES (?, ?, 0, ?, ?, ?)`,
+    [weekKey, challengeId, target, JSON.stringify(reward), expiresAt]
+  );
+}
+
+/**
+ * Incrementa el progreso colectivo del desafío semanal actual.
+ * @param {number} [amount=1]
+ */
+function incrementWeeklyProgress(amount = 1) {
+  db.run(
+    `UPDATE weekly_challenge_state SET progress = progress + ? WHERE expires_at > ?`,
+    [amount, new Date().toISOString()]
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 module.exports = {
   init, persist,
   // players
@@ -2487,4 +2592,7 @@ module.exports = {
   getActiveExpedition, assignExpeditionToDB, advanceExpeditionStep, completeExpeditionInDB, getCompletedExpeditions,
   // T-1224: Eventos cíclicos globales (La Gaceta del Corredor)
   getActiveGlobalEvent, setActiveGlobalEvent, clearExpiredGlobalEvents,
+  // T-1229: Desafíos diarios y semanal colectivo (Gaceta del Corredor Fase 2)
+  getDailyChallengeProgress, updateChallengeProgress,
+  getWeeklyChallengeState, setWeeklyChallenge, incrementWeeklyProgress,
   };
