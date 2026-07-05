@@ -1321,9 +1321,15 @@ function cmdMove(player, direction) {
             db.updatePlayer(freshForEffectNB.id, { hp: newHpNB });
             noBossEffectText = `\n\n${noBossRoomEffect.msg} (${newHpNB}/${freshForEffectNB.max_hp} HP)`;
             if (FIRST_TIME_DAMAGE_ROOMS_NB.has(destId)) {
+              // BUG-1239 fix: db.getPlayer() ya parsea known_traps como objeto JS.
+              // JSON.parse(objetoJS) falla silenciosamente — normalizar correctamente.
               const existingKnownNB = (() => {
+                const raw = freshForEffectNB.known_traps;
+                if (!raw) return {};
+                if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+                if (Array.isArray(raw)) { const obj = {}; raw.forEach(k => { obj[k] = true; }); return obj; }
                 try {
-                  const parsed = JSON.parse(freshForEffectNB.known_traps || '{}');
+                  const parsed = JSON.parse(raw);
                   if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
                   if (Array.isArray(parsed)) { const obj = {}; parsed.forEach(k => { obj[k] = true; }); return obj; }
                   return {};
@@ -1474,9 +1480,15 @@ function cmdMove(player, direction) {
             db.updatePlayer(freshForEffect.id, { hp: newHpBH });
             bossFullHpEffectText = `\n\n${bossFullHpRoomEffect.msg} (${newHpBH}/${freshForEffect.max_hp} HP)`;
             if (FIRST_TIME_DAMAGE_ROOMS_BH.has(destId)) {
+              // BUG-1239 fix: db.getPlayer() ya parsea known_traps como objeto JS.
+              // JSON.parse(objetoJS) falla silenciosamente — normalizar correctamente.
               const existingKnownBH = (() => {
+                const raw = freshForEffect.known_traps;
+                if (!raw) return {};
+                if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+                if (Array.isArray(raw)) { const obj = {}; raw.forEach(k => { obj[k] = true; }); return obj; }
                 try {
-                  const parsed = JSON.parse(freshForEffect.known_traps || '{}');
+                  const parsed = JSON.parse(raw);
                   if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
                   if (Array.isArray(parsed)) { const obj = {}; parsed.forEach(k => { obj[k] = true; }); return obj; }
                   return {};
@@ -1884,16 +1896,18 @@ function cmdMove(player, direction) {
         // Si es una sala de daño primera-vez, registrar que ya la conoce
         // BUG-502: guardar en formato objeto (mismo que el sistema de trampas) para evitar incompatibilidad
         if (FIRST_TIME_DAMAGE_ROOMS.has(targetId)) {
+          // BUG-1239 fix: db.getPlayer() ya parsea known_traps como objeto JS.
+          // JSON.parse(objetoJS) falla y devuelve {} borrando claves previas.
+          // Normalizar correctamente: si ya es objeto, usarlo directo.
           const existingKnown = (() => {
+            const raw = player.known_traps;
+            if (!raw) return {};
+            if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+            if (Array.isArray(raw)) { const obj = {}; raw.forEach(k => { obj[k] = true; }); return obj; }
             try {
-              const parsed = JSON.parse(player.known_traps || '{}');
+              const parsed = JSON.parse(raw);
               if (typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
-              if (Array.isArray(parsed)) {
-                // migrar array a objeto
-                const obj = {};
-                parsed.forEach(k => { obj[k] = true; });
-                return obj;
-              }
+              if (Array.isArray(parsed)) { const obj = {}; parsed.forEach(k => { obj[k] = true; }); return obj; }
               return {};
             } catch (_) { return {}; }
           })();
