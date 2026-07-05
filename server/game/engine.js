@@ -13229,10 +13229,12 @@ function cmdUseSkill(player, args, context) {
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
 
-    // DIS-1062: smash no está disponible contra enemigos demasiado débiles (HP ≤ 20% del max HP del jugador)
-    // Evita que en niveles altos el guerrero oneshot enemigos tier 1-2 quitando toda tensión
-    const smashThreshold = Math.ceil((freshPlayer.max_hp || 30) * 0.20);
-    if (target.hp <= smashThreshold && target.hp <= 20) {
+    // DIS-1062: smash no está disponible contra enemigos que ya están agonizando (HP ≤ 25% de su propio máximo)
+    // Evita desperdiciar smash en monstruos a punto de morir, pero sin bloquear vs monstruos débiles con vida plena
+    // BUG-1262: la versión anterior usaba player.max_hp como threshold, bloqueando smash contra monstruos
+    //           de HP máximo bajo (ej. Araña Tejedora 8 HP) aunque tuvieran vida completa.
+    const smashThreshold = Math.ceil((target.max_hp || target.hp || 1) * 0.25);
+    if (target.hp <= smashThreshold) {
       return { text: `⚡ ${target.name} agoniza con ${target.hp} HP — no merece tu Golpetazo. Rematalo con \`attack\`.\n💡 El Golpetazo requiere un rival que aún represente una amenaza real.` };
     }
 
