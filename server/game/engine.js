@@ -1246,7 +1246,7 @@ function cmdMove(player, direction) {
             } catch (_) { return false; }
           })();
           const questPozoPreffix = isPozo && spiderQuestActive
-            ? '\n\n📜 Tu quest activa ("La Caza de Arañas") pide matar Arañas Tejedoras — están aquí dentro, pero la puerta las bloquea. Para completarla necesitás entrar:'
+            ? '\n\n📜 Tu quest activa ("La Caza de Arañas"): las arañas están aquí en el Pozo — podés matar la araña de esta sala sin llave. Para la segunda araña necesitás cruzar al Santuario (al norte):'
             : '';
           const altRouteHint = isPozo
             ? `\n\n💡 Podés conseguir la llave:\n  • Comprándola a Aldric (sala 4) por 20g\n  • Buscando en la Prisión (sala 8)\n  • Matando la Araña Tejedora de esta sala (15% de chance)\n\n🗺 Ruta alternativa (sin llave): Entrada → este → Capilla → norte → Túnel de Hongos → norte → Sala del Trono → este → Santuario.\n\n(Tip: "examine puerta" para más detalles.)`
@@ -1606,7 +1606,7 @@ function cmdMove(player, direction) {
         } catch (_) { return false; }
       })();
       const questPozoPrincipal = isPozo && spiderQuestActivePrincipal
-        ? '\n\n📜 Tu quest activa ("La Caza de Arañas") pide matar Arañas Tejedoras — están aquí dentro, pero la puerta las bloquea. Para completarla necesitás entrar:'
+        ? '\n\n📜 Tu quest activa ("La Caza de Arañas"): las arañas están aquí en el Pozo — podés matar la araña de esta sala sin llave. Para la segunda araña necesitás cruzar al Santuario (al norte):'
         : '';
       const altRouteHint = isPozo
         ? `\n\n💡 Podés conseguir la llave:\n  • Comprándola a Aldric (sala 4) por 20g\n  • Buscando en la Prisión (sala 8)\n  • Matando la Araña Tejedora de esta sala (15% de chance)\n\n🗺 Ruta alternativa (sin llave): Entrada → este → Capilla → norte → Túnel de Hongos → norte → Sala del Trono → este → Santuario.\n\n(Tip: "examine puerta" para más detalles.)`

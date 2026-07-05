@@ -298,10 +298,10 @@ function formatQuest(player) {
     }
   }
 
-  // DIS-1179: hint de acceso para quests que requieren atravesar una puerta cerrada
+  // DIS-1235: hint de ubicación de arañas — aclarar que hay una en sala 7 sin llave, segunda vía Santuario
   let accessHint = '';
   if (quest.id === 'slayer_spider') {
-    // DIS-1191: verificar si el jugador ya tiene la llave — si la tiene, no mostrar instrucciones de cómo obtenerla
+    // DIS-1191: verificar si el jugador ya tiene la llave
     const playerInventory = Array.isArray(player.inventory)
       ? player.inventory
       : (() => { try { return JSON.parse(player.inventory || '[]'); } catch (_) { return []; } })();
@@ -309,17 +309,18 @@ function formatQuest(player) {
     if (playerHasKey) {
       accessHint = [
         '',
-        '🔑 Tenés la llave oxidada — podés entrar al Pozo Sin Fondo por la puerta norte de la sala 7.',
+        '🕷️ Las Arañas Tejedoras están en el Pozo Sin Fondo (sala 7) — podés llegar directamente.',
+        '🔑 Con tu llave oxidada podés cruzar al Santuario Profano (puerta norte de sala 7) para más arañas.',
       ].join('\n');
     } else {
       accessHint = [
         '',
-        '🔑 Nota: Las Arañas Tejedoras están en el Pozo Sin Fondo (sala 7), detrás de una puerta cerrada.',
-        '   Para entrar necesitás una llave oxidada (3 opciones):',
-        '   • Comprársela a Aldric en la Cámara del Tesoro (sala 4) por 20g',
-        '   • Buscarla en la Prisión Subterránea (sala 8)',
-        '   • Matar la Araña Tejedora de la sala 7... que ya está dentro (15% de drop)',
-        '   💡 Alternativa sin llave: este→ Capilla → norte → Hongos → norte → Trono → este → Santuario (las arañas quedan en el Pozo).',
+        '🕷️ Las Arañas Tejedoras están en el Pozo Sin Fondo (sala 7). Hay una araña ahí sin necesidad de llave.',
+        '   Para la segunda araña, hay dos rutas:',
+        '   • Ruta directa: la puerta norte de sala 7 lleva al Santuario (requiere llave oxidada).',
+        '     – Comprarla a Aldric en sala 4 por 20g, o buscarla en la Prisión (sala 8).',
+        '     – La araña del Pozo la lleva a veces (15% de drop).',
+        '   • Ruta alternativa: este → Capilla → norte → Hongos → norte → Trono → este → Santuario.',
       ].join('\n');
     }
   }
