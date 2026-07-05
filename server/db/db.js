@@ -566,11 +566,57 @@ function getPlayerByUsername(username) {
   return p;
 }
 
+/**
+ * BUG-1248: Detecta si un username corresponde a un bot de playtest.
+ * Centraliza la misma lógica que la migración de BUG-1247 para que aplique
+ * también en el momento de creación, no solo al reiniciar el servidor.
+ * @param {string} username
+ * @returns {boolean}
+ */
+function isBotUsername(username) {
+  if (!username) return false;
+  const u = username.toLowerCase();
+  return (
+    u.startsWith('bottester') || u.startsWith('bottest') ||
+    u.startsWith('playtest') || u.startsWith('ptbot') ||
+    u.startsWith('distester') || u.startsWith('ptbotd') ||
+    u.startsWith('disdesign') || u.startsWith('playbot') ||
+    u.startsWith('bot_') || u.startsWith('botplaytest') ||
+    u.startsWith('tester') || u.startsWith('testbot') ||
+    u.startsWith('pt_') || u.endsWith('_pt') || u.endsWith('_bot') ||
+    u.startsWith('ptdesign') || u.includes('bugbot') ||
+    u.startsWith('diseno') || u.startsWith('diseñ') || u.startsWith('design') ||
+    u.includes('magobot') || u.startsWith('designbot') ||
+    u.startsWith('designtest') || u.startsWith('designtester') ||
+    u.startsWith('designerbot') || u.startsWith('designer') ||
+    u.startsWith('disenobot') || u.startsWith('epic_bot') ||
+    u.startsWith('epicbot') || u.startsWith('epictest') ||
+    u.startsWith('epicdesign') || u.startsWith('pb_') ||
+    u.startsWith('hermesplay') || u.startsWith('bugtest') ||
+    u.startsWith('debugbot') || u.startsWith('botverify') ||
+    u.startsWith('bottest') || u.startsWith('botsearch') ||
+    u.startsWith('botjulio') || u.startsWith('botmago') ||
+    u.startsWith('botbugs') || u.startsWith('botfresco') ||
+    u.startsWith('botdesign') || u.startsWith('bot2_') ||
+    u.startsWith('bot_ciclo') || u.startsWith('disdesigner') ||
+    u.startsWith('diseñadorpd') || u.startsWith('playtestbot') ||
+    u.startsWith('clerdesign') || u.startsWith('verify') ||
+    u.includes('berser') && u.includes('test') ||
+    u.startsWith('testsello') || u.startsWith('audit_') ||
+    u.includes('audit') && u.includes('dis') ||
+    u.startsWith('craft_test') || u.startsWith('debug_') ||
+    u.includes('fix') && u.includes('test') ||
+    u.includes('verif') && u.includes('test')
+  );
+}
+
 function createPlayer(username) {
   const id = randomUUID();
+  // BUG-1248: detectar bots al crear, no solo al reiniciar el servidor
+  const isBot = isBotUsername(username) ? 1 : 0;
   run(
-    `INSERT INTO players (id, username) VALUES (?, ?)`,
-    [id, username]
+    `INSERT INTO players (id, username, is_bot) VALUES (?, ?, ?)`,
+    [id, username, isBot]
   );
   return getPlayer(id);
 }
@@ -2635,7 +2681,7 @@ function addAldricRep(playerId, amount) {
 module.exports = {
   init, persist,
   // players
-  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, addJournalEntry, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardAll, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers, getAllPlayers, getAllPlayerIds,
+  getPlayer, getPlayerByUsername, createPlayer, isBotUsername, updatePlayer, touchPlayer, addBestiaryKill, addJournalEntry, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardAll, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers, getAllPlayers, getAllPlayerIds,
   // DIS-007: cleanup de test players
   getTestPlayers, deletePlayer,
   // reputación (T125)
