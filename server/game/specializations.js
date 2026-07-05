@@ -54,7 +54,7 @@ const SPECIALIZATIONS = {
     passives: [
       '+3 ATK permanente, −1 DEF permanente',
       'Las pociones de salud curan −5 HP (el berserk descuida la autosanación)',
-      'Habilidad `furia`: gasta todo el maná para multiplicar daño ×1.5 en el próximo ataque (cooldown 3 turnos)',
+      'Habilidad `furia`: sacrificás 20% de tu HP máximo para hacer ×2.0 daño en el próximo ataque (cooldown 60s)',
       'La reputación sube un 20% más lento (reputación de bruto)',
     ],
     new_commands: ['furia'],
