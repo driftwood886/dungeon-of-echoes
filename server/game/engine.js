@@ -5353,7 +5353,7 @@ function cmdExamine(player, query) {
       baseText = '\n\n🔍 Mirás hacia abajo, como decía la carta. En la base del trono, casi ilegible por el tiempo, hay letras grabadas con algo oscuro —no tinta. Un nombre:\n\n  **K A E L T H A S   V O R N**\n\nEl nombre completo. El que todos olvidaron. Lo pronunciás en voz baja y algo en la sala parece escuchar.';
     } else if (cartaLeida) {
       // Leyó la carta pero no completó la quest — sabe de la pista
-      baseText = '\n\n🔍 Recordás lo que decía la carta: \"Lo grabé en la base del trono. Mirá abajo, no arriba.\" Agachás la vista hacia la base del trono. Hay letras grabadas con algo oscuro —casi ilegibles— pero podés distinguir un nombre. Necesitás saber más sobre Kaelthas antes de poder leerlo. (Hablar con Aldric en sala 4 podría ayudar.)';
+      baseText = '\n\n🔍 Recordás lo que decía la carta: \"Lo grabé en la base del trono. Mirá abajo, no arriba.\" Agachás la vista hacia la base del trono. Hay letras grabadas con algo oscuro —casi ilegibles— pero podés distinguir un nombre incompleto. El resto está borrado por el tiempo o protegido por algo.\n\n💡 Siguiente paso: hablá con Aldric en la tienda (sala 4) — preguntale sobre Kaelthas. Si ya hablaste con él, buscá la **carta sellada** en la Prisión Subterránea (sala 8, al norte del Tesoro): tiene la pista que falta. Con la información completa podrás leer el nombre verdadero aquí.';
     } else {
       // No leyó la carta todavía
       baseText = '\n\n🔍 En la base del trono, casi invisible por el tiempo y la suciedad, hay letras grabadas con algo oscuro —no tinta. Un nombre, casi ilegible. La curiosidad tira, pero no podés descifrar lo que dice.';
@@ -7280,8 +7280,21 @@ function cmdRest(player, context) {
     }
   }
 
+  // DIS-1245: Nota de maná para clases no-Mago (no restaura maná, pero hay regeneración pasiva)
+  let manaNoteNonMage = '';
+  {
+    const freshForManaNote = db.getPlayer(player.id);
+    const clsForNote = classes.getPlayerClass(freshForManaNote);
+    const isMago = clsForNote && clsForNote.name === 'Mago';
+    const curManaNote = freshForManaNote.mana != null ? freshForManaNote.mana : 0;
+    const maxManaNote = freshForManaNote.max_mana || 20;
+    if (!isMago && curManaNote < maxManaNote) {
+      manaNoteNonMage = `\n💧 El maná se recarga automáticamente con el tiempo — no requiere descansar. (${curManaNote}/${maxManaNote} 🔮)`;
+    }
+  }
+
   return {
-    text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP.${coldSuffix}${partyBonusText} ${hpBar} ${newHp}/${player.max_hp} HP${forageRestText}${restManaText}`,
+    text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP.${coldSuffix}${partyBonusText} ${hpBar} ${newHp}/${player.max_hp} HP${forageRestText}${restManaText}${manaNoteNonMage}`,
   };
 }
 
@@ -8677,6 +8690,11 @@ function cmdBuy(player, itemQuery) {
     ? '\n"Una espada sin protección es invitación al funeral." Aldric señala el cuero endurecido. "20 monedas — más barato que respawnear."'
     : '';
 
+  // DIS-1242: Si compró un arma, recordar al jugador que hay que equiparla manualmente
+  const equipTip = (boughtWeapon && boughtWeapon.type === 'weapon')
+    ? `\n💡 Para empuñarla: \`equipar ${item.name}\``
+    : '';
+
   // STORY-008: Personalidad de Aldric — líneas de flavor al comprar
   const buyFlavors = [
     'Aldric no levanta la vista de sus cuentas mientras envuelve el ítem.',
@@ -8719,7 +8737,7 @@ function cmdBuy(player, itemQuery) {
   }
 
   return {
-    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}`,
+    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${equipTip}${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };

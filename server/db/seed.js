@@ -1173,7 +1173,7 @@ function migratePistaSantuario() {
   if (!room7) return;
   const pistaVieja = '(💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)';
   // BUG-1047: también considerar la pista actualizada por DIS-1038 como "ya presente"
-  const pistaNueva = '(💡 Si no tenés la llave, hay otra ruta al Santuario: Entrada → Capilla (este) → Túnel de Hongos (norte) → Sala del Trono (norte) → Santuario.';
+  const pistaNueva = '(💡 Si no tenés la llave, hay otra ruta al Santuario: Entrada → Capilla (este) → Túnel de Hongos (norte) → Sala del Trono (este) → Santuario.';
   if (room7.description.includes(pistaVieja) || room7.description.includes(pistaNueva)) {
     // Pista ya presente (en alguna versión) — no agregar otra copia
     return;
@@ -2102,7 +2102,7 @@ function migratePistaSantuarioTrapasDIS1038() {
     if (!room7) return;
     // Buscar la pista antigua (con o sin la advertencia de trampas)
     const pistaAntigua = '(💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)';
-    const pistaNueva = '(💡 Si no tenés la llave, hay otra ruta al Santuario: Entrada → Capilla (este) → Túnel de Hongos (norte) → Sala del Trono (norte) → Santuario. ⚠️ Ojo: esa ruta tiene una trampa de esporas en los Hongos y una trampa de frío en el Trono — ambas activas en la primera visita.)';
+    const pistaNueva = '(💡 Si no tenés la llave, hay otra ruta al Santuario: Entrada → Capilla (este) → Túnel de Hongos (norte) → Sala del Trono (este) → Santuario. ⚠️ Ojo: esa ruta tiene una trampa de esporas en los Hongos y una trampa de frío en el Trono — ambas activas en la primera visita.)';
     if (room7.description.includes(pistaAntigua)) {
       const newDesc = room7.description.replace(pistaAntigua, pistaNueva);
       db.upsertRoom({ ...room7, description: newDesc });
@@ -2187,12 +2187,12 @@ function migrateCleanPistaSantuarioBUG1047() {
     // Descripción base canónica (sin ninguna pista de ruta al Santuario)
     const descBase = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario.';
     // Pista correcta final (DIS-1038)
-    const pistaNueva = ' (💡 Si no tenés la llave, hay otra ruta al Santuario: Entrada → Capilla (este) → Túnel de Hongos (norte) → Sala del Trono (norte) → Santuario. ⚠️ Ojo: esa ruta tiene una trampa de esporas en los Hongos y una trampa de frío en el Trono — ambas activas en la primera visita.)';
+    const pistaNueva = ' (💡 Si no tenés la llave, hay otra ruta al Santuario: Entrada → Capilla (este) → Túnel de Hongos (norte) → Sala del Trono (este) → Santuario. ⚠️ Ojo: esa ruta tiene una trampa de esporas en los Hongos y una trampa de frío en el Trono — ambas activas en la primera visita.)';
     const descCorrecta = descBase + pistaNueva;
     // Si la descripción ya es exactamente la correcta, nada que hacer
     if (room7.description === descCorrecta) return;
     // Detectar si la descripción está corrupta (contiene duplicados)
-    const pistaAntiguaMarker = '→ Túnel de Hongos (norte) → Sala del Trono (norte) → Santuario';
+    const pistaAntiguaMarker = '→ Túnel de Hongos (norte) → Sala del Trono (este) → Santuario';
     const hasCorruption = (room7.description.match(new RegExp(pistaAntiguaMarker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length > 1;
     if (hasCorruption || room7.description !== descCorrecta) {
       db.upsertRoom({ ...room7, description: descCorrecta });
