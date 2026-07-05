@@ -1292,6 +1292,28 @@ function cmdMove(player, direction) {
             }
           }
         }
+        // DIS-1249: Pre-move warning para Sala del Trono (sala 9) — path sin-boss
+        if (destId === 9) {
+          const room9WarnNB = db.getRoom(9);
+          if (room9WarnNB && room9WarnNB.trap && room9WarnNB.trap.active) {
+            const invNB1249 = (player.inventory || []).map(i => i.toLowerCase().trim());
+            const hasCoronaNB = invNB1249.includes('corona rota');
+            if (!hasCoronaNB) {
+              const seNB1249 = parseSE(player.status_effects);
+              if (!seNB1249.trono_warning_done) {
+                const newSeNB1249 = { ...seNB1249, trono_warning_done: true };
+                db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeNB1249) });
+                return {
+                  text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Si tenés una «corona rota», podés ofrecerla al trono para disipar el frío:\n   → Buscala en la Prisión Subterránea (sala 8) o derrotá al Espectro del Corredor aquí.\n   → Luego escribí «desactivar trampa <dir>» para desactivarla desde aquí.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+                };
+              }
+              // Segunda vez: limpiar flag y continuar
+              const clearedSeNB1249 = { ...seNB1249 };
+              delete clearedSeNB1249.trono_warning_done;
+              db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSeNB1249) });
+            }
+          }
+        }
         db.updatePlayer(player.id, { current_room_id: destId });
         // BUG-790: registrar sala visitada en el path de monstruos sin boss (early return)
         db.trackRoomVisit(player.id, destId);
@@ -1697,6 +1719,32 @@ function cmdMove(player, direction) {
         const clearedSe1244 = { ...se1244 };
         delete clearedSe1244.hongo_warning_done;
         db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe1244) });
+      }
+    }
+  }
+
+  // DIS-1249: Pre-move warning para Sala del Trono (sala 9) — trampa activa sin corona rota
+  // Aplica desde CUALQUIER dirección (norte desde Túnel, oeste desde Santuario, este desde Galería).
+  // Misma mecánica que DIS-1244: primera vez frena con aviso, segunda vez deja pasar con daño.
+  if (targetId === 9) {
+    const room9ForWarn = db.getRoom(9);
+    if (room9ForWarn && room9ForWarn.trap && room9ForWarn.trap.active) {
+      const inv1249 = (player.inventory || []).map(i => i.toLowerCase().trim());
+      const hasCoronaRota1249 = inv1249.includes('corona rota');
+      if (!hasCoronaRota1249) {
+        const se1249 = parseSE(player.status_effects);
+        if (!se1249.trono_warning_done) {
+          // Primera vez: mostrar warning sin mover al jugador
+          const newSe1249 = { ...se1249, trono_warning_done: true };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1249) });
+          return {
+            text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Si tenés una «corona rota», podés ofrecerla al trono para disipar el frío:\n   → Buscala en la Prisión Subterránea (sala 8) o derrotá al Espectro del Corredor aquí.\n   → Luego escribí «desactivar trampa <dir>» para desactivarla desde aquí.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+          };
+        }
+        // Segunda vez: limpiar el flag y continuar con el movimiento normal (recibirá daño de trampa)
+        const clearedSe1249 = { ...se1249 };
+        delete clearedSe1249.trono_warning_done;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe1249) });
       }
     }
   }
