@@ -1270,6 +1270,28 @@ function cmdMove(player, direction) {
         }
       }
       if (destId) {
+        // DIS-1244: Pre-move warning también en path sin-boss
+        if (destId === 6) {
+          const room6WarnNB = db.getRoom(6);
+          if (room6WarnNB && room6WarnNB.trap && room6WarnNB.trap.active) {
+            const invNB1244 = (player.inventory || []).map(i => i.toLowerCase().trim());
+            const hasHongoNB = invNB1244.includes('hongo azul');
+            if (!hasHongoNB) {
+              const seNB1244 = parseSE(player.status_effects);
+              if (!seNB1244.hongo_warning_done) {
+                const newSeNB1244 = { ...seNB1244, hongo_warning_done: true };
+                db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeNB1244) });
+                return {
+                  text: `⚠️  Antes de entrar al Túnel de Hongos, notás esporas densas flotando en el umbral — una concentración antinatural que te arde en los ojos.\n\nLas esporas activan una trampa al cruzar. Perderás HP si entrás ahora.\n\n🍄 Si tenés un «hongo azul», podés neutralizarlas sin daño:\n   → Conseguilo con «buscar» en esta sala o al comprar en la tienda.\n   → Luego escribí «desactivar trampa <dir>» para desactivarla desde aquí.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), volvé a enviar el comando de dirección.`,
+                };
+              }
+              // Segunda vez: limpiar flag y continuar
+              const clearedSeNB1244 = { ...seNB1244 };
+              delete clearedSeNB1244.hongo_warning_done;
+              db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSeNB1244) });
+            }
+          }
+        }
         db.updatePlayer(player.id, { current_room_id: destId });
         // BUG-790: registrar sala visitada en el path de monstruos sin boss (early return)
         db.trackRoomVisit(player.id, destId);
@@ -1651,6 +1673,32 @@ function cmdMove(player, direction) {
   const targetRoom = db.getRoom(targetId);
   if (!targetRoom) {
     return { text: 'Error: la habitación destino no existe.' };
+  }
+
+  // DIS-1244: Pre-move warning para Túnel de Hongos (sala 6) — trampa activa sin hongo azul
+  // La primera vez que el jugador intente entrar SIN hongo azul y con trampa activa, se frena
+  // mostrando un aviso en el umbral. El segundo intento consecutivo deja pasar (con daño).
+  if (targetId === 6) {
+    const room6ForWarn = db.getRoom(6);
+    if (room6ForWarn && room6ForWarn.trap && room6ForWarn.trap.active) {
+      const inv1244 = (player.inventory || []).map(i => i.toLowerCase().trim());
+      const hasHongoAzul1244 = inv1244.includes('hongo azul');
+      if (!hasHongoAzul1244) {
+        const se1244 = parseSE(player.status_effects);
+        if (!se1244.hongo_warning_done) {
+          // Primera vez: mostrar warning sin mover al jugador
+          const newSe1244 = { ...se1244, hongo_warning_done: true };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1244) });
+          return {
+            text: `⚠️  Antes de entrar al Túnel de Hongos, notás esporas densas flotando en el umbral — una concentración antinatural que te arde en los ojos.\n\nLas esporas activan una trampa al cruzar. Perderás HP si entrás ahora.\n\n🍄 Si tenés un «hongo azul», podés neutralizarlas sin daño:\n   → Conseguilo con «buscar» en esta sala o al comprar en la tienda.\n   → Luego escribí «desactivar trampa norte» para desactivarla desde aquí.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), escribí «norte» de nuevo.`,
+          };
+        }
+        // Segunda vez: limpiar el flag y continuar con el movimiento normal (recibirá daño de trampa)
+        const clearedSe1244 = { ...se1244 };
+        delete clearedSe1244.hongo_warning_done;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe1244) });
+      }
+    }
   }
 
   // Actualizar posición del jugador
