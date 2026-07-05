@@ -45,6 +45,8 @@ function isAlreadyCompleted(playerId, challengeId, amount, dateUtc) {
 
 /**
  * Da la recompensa de un desafío completado al jugador.
+ * También activa el Impulso del Aventurero si es el primer desafío del día,
+ * y da bonus de oro + aldric_rep si completa los 3.
  * Retorna un string con el mensaje de recompensa.
  * @param {string} playerId
  * @param {object} challenge — objeto challenge completo
@@ -73,7 +75,43 @@ function giveReward(playerId, challenge) {
     if (xp > 0)   parts.push(`+${xp} XP`);
     if (gold > 0) parts.push(`+${gold} 🪙`);
     if (rep > 0)  parts.push(`+${rep} Reputación`);
-    return `\n🏆 ¡DESAFÍO COMPLETADO! «${challenge.title}» — ${parts.join(' · ')}`;
+    let msg = `\n🏆 ¡DESAFÍO COMPLETADO! «${challenge.title}» — ${parts.join(' · ')}`;
+
+    // T-1233: Verificar si es el primer desafío del día → activar Impulso del Aventurero
+    try {
+      const dateUtc = getTodayUtc();
+      const allChallenges = getDailyChallengesForPlayer(fresh);
+      const progressRows = db.getDailyChallengeProgress(playerId, dateUtc);
+      const completedCount = allChallenges.filter(ch => {
+        if (!ch) return false;
+        const row = progressRows.find(r => r.challenge_id === ch.id);
+        return row && row.count >= ch.condition.amount;
+      }).length;
+
+      // Primer desafío completado (completedCount incluye el actual ya guardado)
+      if (completedCount === 1) {
+        const IMPULSO_MS = 15 * 60 * 1000;
+        const expiresAt = Date.now() + IMPULSO_MS;
+        const impulsoKey = `impulso_aventurero_${playerId}`;
+        db.setWorldState(impulsoKey, expiresAt);
+        msg += `\n✨ ¡IMPULSO DEL AVENTURERO! +20% XP en combate por 15 minutos.`;
+      }
+
+      // Los 3 desafíos completados → bonus oro + aldric_rep
+      if (completedCount === 3) {
+        const playerLevel = fresh.level || 1;
+        const bonusGold = 50 + Math.min(50, (playerLevel - 1) * 10); // 50 en niv1, 100 en niv5+
+        const freshForBonus = db.getPlayer(playerId);
+        db.updatePlayer(playerId, { gold: (freshForBonus.gold || 0) + bonusGold });
+        const newAldricRep = db.addAldricRep ? db.addAldricRep(playerId, 1) : null;
+        msg += `\n🎉 ¡TRES DESAFÍOS COMPLETADOS! +${bonusGold} 🪙 bonus del día.`;
+        if (newAldricRep !== null) {
+          msg += `\n🤝 +1 Reputación con Aldric (total: ${newAldricRep} pts)`;
+        }
+      }
+    } catch (_) { /* no interrumpir si falla */ }
+
+    return msg;
   } catch (_) {
     return '';
   }

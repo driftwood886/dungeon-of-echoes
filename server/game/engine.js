@@ -2650,6 +2650,16 @@ function cmdStatus(player) {
       ? `Duelos:   ⚔️ 0 ganados / 0 perdidos  (💡 usá "duel <nombre>" para retar a alguien en tu sala)`
       : `Duelos:   ⚔️ ${duelWins} ganados / ${duelLosses} perdidos`,
     `Reputación: ${repLevel.icon} ${repLevel.name} (${repLevel.points} pts)${repNextText}`,
+    (() => {
+      // T-1233: mostrar Reputación con Aldric en status
+      const aldricRep = player.aldric_rep || 0;
+      if (aldricRep === 0) return null;
+      const aldricRepLabel = aldricRep >= 200 ? '🤝 Héroe del Corredor'
+        : aldricRep >= 50 ? '🤝 Conocido de Aldric'
+        : `🤝 Novato`;
+      const aldricNextDiscount = aldricRep < 50 ? ` (+${50 - aldricRep} pts → -5% precios)` : aldricRep < 200 ? ` (+${200 - aldricRep} pts → ítem exclusivo)` : ' (máximo)';
+      return `Rep.Aldric: ${aldricRepLabel} (${aldricRep} pts)${aldricNextDiscount}`;
+    })(),
     `Ubicación: ${roomName}`,
     player.guild ? `Hermandad: [${player.guild}]` : `Hermandad: (sin guild)`,
     player.pet   ? `Mascota:   ${player.pet}` : `Mascota:   (sin compañero)`,
@@ -7932,9 +7942,12 @@ function getRepDiscount(reputation) {
   return 0;
 }
 
-function getDiscountedPrice(basePrice, reputation) {
+function getDiscountedPrice(basePrice, reputation, aldricRep = 0) {
   const discount = getRepDiscount(reputation);
-  return Math.max(1, Math.floor(basePrice * (1 - discount)));
+  // T-1233: descuento adicional por Reputación con Aldric
+  const aldricDiscount = aldricRep >= 200 ? 0.10 : aldricRep >= 50 ? 0.05 : 0;
+  const totalDiscount = Math.min(0.30, discount + aldricDiscount); // máximo 30% total
+  return Math.max(1, Math.floor(basePrice * (1 - totalDiscount)));
 }
 
 // ─── T242: Quest narrativa con Aldric ────────────────────────────────────────
@@ -8410,10 +8423,20 @@ function cmdShop(player, args) {
   const reputation = player.reputation || 0;
   const discount = getRepDiscount(reputation);
   const repInfo = db.getReputationLevel(reputation);
+  // T-1233: Reputación con Aldric — texto de saludo personalizado
+  const aldricRep = player.aldric_rep || 0;
+  const aldricGreeting = aldricRep >= 200
+    ? `"Ah, ${player.username}. Qué alegría verte, héroe del corredor." Aldric limpia el mostrador sin que se lo pidás. "Tenés ${gold}g. Mis mejores ítems están disponibles para vos."`
+    : aldricRep >= 50
+    ? `"${player.username}." Un asentimiento seco, casi un gesto de respeto. "Tenés ${gold}g. Ya sabés cómo funciona — los habituales tienen preferencia."`
+    : aldricRep >= 10
+    ? `"Bienvenido, ${player.username}. Tenés ${gold}g. Veo que seguís volviendo — eso dice algo." No queda claro qué exactamente.`
+    : `"Bienvenido, aventurero. Tenés ${gold}g. ¿Qué necesitás?"`;
 
   const lines = [
     '\n🏪 === TIENDA DE ALDRIC EL MERCADER ===',
-    `"Bienvenido, aventurero. Tenés ${gold}g. ¿Qué necesitás?"`,
+    aldricGreeting,
+    aldricRep > 0 ? `  (Rep. con Aldric: ${aldricRep} pts)` : null,
     '',
   ];
 
@@ -8431,7 +8454,7 @@ function cmdShop(player, args) {
       const recItems = recs.map(name => {
         const cat = SHOP_CATALOG.find(i => i.name === name && !i.sellOnly);
         if (!cat) return null;
-        const fp = getDiscountedPrice(cat.price, player.reputation || 0);
+        const fp = getDiscountedPrice(cat.price, player.reputation || 0, player.aldric_rep || 0);
         return `• ${cat.name} (${fp}g)`;
       }).filter(Boolean);
       if (recItems.length > 0) {
@@ -8502,7 +8525,7 @@ function cmdShop(player, args) {
   filteredCatalog.forEach((item, i) => {
     const num = String(i + 1).padStart(2, ' ');
     const namePad = item.name.padEnd(26, ' ');
-    const finalPrice = getDiscountedPrice(item.price, reputation);
+    const finalPrice = getDiscountedPrice(item.price, reputation, aldricRep);
     if (discount > 0) {
       const pricePad = `${finalPrice}g`.padEnd(9, ' ');
       const origPad  = `(${item.price}g)`.padEnd(11, ' ');
@@ -8560,7 +8583,8 @@ function cmdBuy(player, itemQuery) {
 
   const gold = player.gold || 0;
   const reputation = player.reputation || 0;
-  let finalPrice = getDiscountedPrice(item.price, reputation);
+  const aldricRepBuy = player.aldric_rep || 0;
+  let finalPrice = getDiscountedPrice(item.price, reputation, aldricRepBuy);
   const discount = getRepDiscount(reputation);
 
   // EPIC-1162: world_effect 'aldric_precio_sube' — si el jugador rechazó el encargo, +10% en precios

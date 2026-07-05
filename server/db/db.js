@@ -190,6 +190,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN legacy_bonus TEXT NOT NULL DEFAULT '{}'`,             // EPIC-962: JSON del bonus de legado a aplicar al siguiente personaje
     `ALTER TABLE legacies ADD COLUMN item_claimed INTEGER NOT NULL DEFAULT 0`,            // T970: ítem heredado reclamado por el sucesor
     `ALTER TABLE players ADD COLUMN npc_memory TEXT NOT NULL DEFAULT '{}'`,               // EPIC-MR-1079: memoria de NPCs (Aldric, Anciano, Escriba)
+    `ALTER TABLE players ADD COLUMN aldric_rep INTEGER NOT NULL DEFAULT 0`,                // T-1233: reputación con Aldric (desafíos diarios completados)
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -2526,6 +2527,47 @@ function incrementWeeklyProgress(amount = 1) {
   );
 }
 
+// ─── T-1233: Utilidades de world_state por clave individual y Aldric Rep ──────
+
+/**
+ * Lee una clave individual del world_state. Retorna null si no existe.
+ * Nota: world_state.value es INTEGER — para timestamps usamos este int.
+ * @param {string} key
+ * @returns {number|null}
+ */
+function getWorldStateValue(key) {
+  try {
+    const row = one(`SELECT value FROM world_state WHERE key = ?`, [key]);
+    return row ? row.value : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Obtiene la reputación de Aldric del jugador (campo aldric_rep).
+ * @param {string} playerId
+ * @returns {number}
+ */
+function getAldricRep(playerId) {
+  const p = getPlayer(playerId);
+  return p ? (p.aldric_rep || 0) : 0;
+}
+
+/**
+ * Incrementa la reputación con Aldric en `amount` puntos.
+ * @param {string} playerId
+ * @param {number} amount
+ * @returns {number} — nueva reputación
+ */
+function addAldricRep(playerId, amount) {
+  const p = getPlayer(playerId);
+  if (!p) return 0;
+  const newRep = (p.aldric_rep || 0) + amount;
+  updatePlayer(playerId, { aldric_rep: newRep });
+  return newRep;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -2595,4 +2637,6 @@ module.exports = {
   // T-1229: Desafíos diarios y semanal colectivo (Gaceta del Corredor Fase 2)
   getDailyChallengeProgress, updateChallengeProgress,
   getWeeklyChallengeState, setWeeklyChallenge, incrementWeeklyProgress,
+  // T-1233: world_state por clave individual, Aldric Rep
+  getWorldStateValue, getAldricRep, addAldricRep,
   };

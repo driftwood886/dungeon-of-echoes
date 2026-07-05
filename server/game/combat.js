@@ -1184,7 +1184,16 @@ function attackRound(player, monster) {
       ? (newEvXp.event.data.xp_mult || 1.75) : 1.0;
     // Tomar el mayor multiplicador de XP (worldEvents o eventScheduler, no acumular ambos)
     const finalBloodmoonXpMult = Math.max(bloodmoonXpMult, newBloodmoonXpMult);
-    const xpGain = Math.floor(xpBase * invasionMult * finalBloodmoonXpMult * weatherXpMult * eliteXpMult);
+    // T-1233: Impulso del Aventurero (+20% XP por 15min al completar primer desafío del día)
+    let impulsoXpMult = 1.0;
+    try {
+      const impulsoKey = `impulso_aventurero_${player.id}`;
+      const impulsoTs = db.getWorldStateValue ? db.getWorldStateValue(impulsoKey) : null;
+      if (impulsoTs && Date.now() < impulsoTs) {
+        impulsoXpMult = 1.2;
+      }
+    } catch (_) {}
+    const xpGain = Math.floor(xpBase * invasionMult * finalBloodmoonXpMult * weatherXpMult * eliteXpMult * impulsoXpMult);
     const freshPlayer = db.getPlayer(player.id);
 
     // DIS-1019 / BUG-927: El Goblin de Práctica (id=20) no da XP ni kills en ningún caso.
@@ -1225,7 +1234,7 @@ function attackRound(player, monster) {
         lines.push(`   Esta decisión es permanente — define quién sos en el dungeon.`);
       }
     }
-    lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})`);
+    lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})${impulsoXpMult > 1.0 ? ' ✨[+20% Impulso]' : ''}`);
     // T190: Encantamiento de luz — +3 HP al matar
     if (enchantActive && enchantData.type === 'luz') {
       const hpOnKill = enchantData.hp_on_kill || 3;
