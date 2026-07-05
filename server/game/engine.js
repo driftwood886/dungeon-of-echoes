@@ -2414,7 +2414,11 @@ function cmdStatus(player) {
   const gold   = player.gold   || 0;
   const duelWins   = player.duel_wins   || 0;
   const duelLosses = player.duel_losses || 0;
-  const xpBar  = buildBar(xpSystem.xpIntoLevel(xp, level), xpSystem.xpForNextLevel(level), 10);
+  const xpNextNeeded = xpSystem.xpForNextLevel(level);
+  const isMaxLevel   = (level >= xpSystem.MAX_LEVEL);
+  const xpBar  = isMaxLevel
+    ? '[██████████]'
+    : buildBar(xpSystem.xpIntoLevel(xp, level), xpNextNeeded, 10);
   const repLevel = db.getReputationLevel(player.reputation || 0);
   const repNextText = repLevel.nextThreshold
     ? ` (+${repLevel.nextThreshold - repLevel.points} pts para siguiente)`
@@ -2545,7 +2549,7 @@ function cmdStatus(player) {
         })()
       : `Clase:    (sin clase — usá "clase" para elegir)`,
     `Nivel:    ${level}  (${xp} XP total | kills: ${kills} | muertes: ${deaths})`,
-    `XP sig.:  ${xpBar} ${xpSystem.xpIntoLevel(xp, level)}/${xpSystem.xpForNextLevel(level)}`,
+    `XP sig.:  ${xpBar} ${isMaxLevel ? '— NIVEL MÁXIMO —' : `${xpSystem.xpIntoLevel(xp, level)}/${xpNextNeeded}`}`,
     `HP:       ${hpBar} ${player.hp}/${player.max_hp}`,
     (() => {
       // BUG-049: mostrar maná en status para Mago u otros jugadores con max_mana > 20
