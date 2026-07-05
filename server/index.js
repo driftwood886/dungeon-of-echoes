@@ -290,15 +290,12 @@ async function main() {
   app.get('/api/leaderboard', (req, res) => {
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
     const includeBots = req.query.bots === 'true';
-    // BUG-1052: mismo filtro de bots que cmdScore (DIS-522)
-    // BUG-1065: patrones expandidos para cubrir nombres históricos de bots
-    const BOT_PATTERNS = [/^BotTester/i, /^playtest_bot/i, /^PTBot/i, /^DisTester/i, /^PTBotD/i, /^DisDesign/i, /^PlayBot/i, /^bot_/i, /^BotPlaytest/i, /^Bot\w*(Bugs|Diseno|Design|Mago)/i, /^playtest/i, /^PTDesign/i, /bugbot/i, /^diseno/i, /^design/i, /MagoBot/i];
-    const isBot = name => BOT_PATTERNS.some(p => p.test(name || ''));
-    const rawLeaders = db.getLeaderboard(includeBots ? limit : limit * 3);
-    const leaders = includeBots ? rawLeaders : rawLeaders.filter(p => !isBot(p.username)).slice(0, limit);
+    // BUG-1247: el filtro de bots ahora se hace en la query (is_bot = 0 en db.getLeaderboard).
+    // Para includeBots=true, usamos db.getLeaderboardAll que no filtra is_bot.
+    const rawLeaders = includeBots ? db.getLeaderboardAll(limit) : db.getLeaderboard(limit);
     res.json({
-      count: leaders.length,
-      leaderboard: leaders.map((p, idx) => ({
+      count: rawLeaders.length,
+      leaderboard: rawLeaders.map((p, idx) => ({
         rank: idx + 1,
         username: p.username,
         level: p.level || 1,

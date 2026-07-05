@@ -5899,12 +5899,16 @@ function cmdScore(player, args, context) {
   }
 
   // Modo default: kills + XP
-  // DIS-522: filtrar bots de playtest del ranking visible (patrones de username)
-  const BOT_PATTERNS = [/^BotTester/i, /^playtest_bot/i, /^PTBot/i, /^DisTester/i, /^PTBotD/i, /^DisDesign/i, /^PlayBot/i, /^bot_/i, /^BotPlaytest/i, /^Bot\w*(Bugs|Diseno|Design|Mago)/i, /^playtest/i, /^PTDesign/i, /bugbot/i, /^diseno/i, /^design/i, /MagoBot/i];
+  // BUG-1247: el filtro de bots ahora se hace en la DB (is_bot = 0 en getLeaderboard).
+  // Para "score todo/bots", usar getLeaderboardAll que incluye bots.
+  // Mantenemos el filtro JS como respaldo por si hay bots sin la columna is_bot seteada.
+  const BOT_PATTERNS = [/^BotTester/i, /^playtest_bot/i, /^PTBot/i, /^DisTester/i, /^PTBotD/i, /^DisDesign/i, /^PlayBot/i, /^bot_/i, /^BotPlaytest/i, /^Bot\w*(Bugs|Diseno|Design|Mago)/i, /^playtest/i, /^PTDesign/i, /bugbot/i, /^diseno/i, /^design/i, /MagoBot/i, /^bottest/i, /^tester/i, /^testbot/i, /^pt_/i, /_pt$/, /_bot$/, /^diseñador/i];
   const isBot = name => BOT_PATTERNS.some(p => p.test(name));
 
   const mode2 = mode === 'bots' || mode === 'todo';
-  const leaders = db.getLeaderboard(mode2 ? 10 : 20).filter(p => mode2 || !isBot(p.username || '')).slice(0, 10);
+  // BUG-1247: getLeaderboard ya excluye bots via is_bot=0; getLeaderboardAll los incluye todos
+  const rawLeaders = mode2 ? db.getLeaderboardAll(10) : db.getLeaderboard(10);
+  const leaders = mode2 ? rawLeaders : rawLeaders.filter(p => !isBot(p.username || ''));
 
   if (leaders.length === 0) {
     return { text: 'Aún no hay aventureros en la tabla de líderes.' };

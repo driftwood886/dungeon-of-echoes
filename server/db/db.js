@@ -191,9 +191,57 @@ async function init() {
     `ALTER TABLE legacies ADD COLUMN item_claimed INTEGER NOT NULL DEFAULT 0`,            // T970: ítem heredado reclamado por el sucesor
     `ALTER TABLE players ADD COLUMN npc_memory TEXT NOT NULL DEFAULT '{}'`,               // EPIC-MR-1079: memoria de NPCs (Aldric, Anciano, Escriba)
     `ALTER TABLE players ADD COLUMN aldric_rep INTEGER NOT NULL DEFAULT 0`,                // T-1233: reputación con Aldric (desafíos diarios completados)
+    `ALTER TABLE players ADD COLUMN is_bot INTEGER NOT NULL DEFAULT 0`,                    // BUG-1247: flag de bot de playtest para excluir del leaderboard
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
+  }
+
+  // BUG-1247: migración para marcar bots de playtest existentes (nombres con patrones conocidos)
+  // Se ejecuta cada vez que se inicia, pero es idempotente (solo actualiza donde is_bot=0)
+  try {
+    db.run(`
+      UPDATE players SET is_bot = 1
+      WHERE is_bot = 0 AND (
+        username LIKE 'BotTester%' OR username LIKE 'bottest%' OR
+        username LIKE 'playtest%' OR username LIKE 'PTBot%' OR
+        username LIKE 'DisTester%' OR username LIKE 'PTBotD%' OR
+        username LIKE 'DisDesign%' OR username LIKE 'PlayBot%' OR
+        username LIKE 'bot\_%' ESCAPE '\\' OR
+        username LIKE 'BotPlaytest%' OR username LIKE 'tester%' OR
+        username LIKE 'testbot%' OR username LIKE 'pt\_%' ESCAPE '\\' OR
+        username LIKE '%_pt' OR username LIKE '%_bot' OR
+        username LIKE 'PTDesign%' OR username LIKE '%bugbot%' OR
+        username LIKE 'diseno%' OR username LIKE 'diseñador%' OR
+        username LIKE 'diseñ%' OR
+        username LIKE 'design%' OR username LIKE '%MagoBot%' OR
+        username LIKE 'DesignBot%' OR username LIKE 'DesignTest%' OR
+        username LIKE 'DesignTester%' OR username LIKE 'DesignerBot%' OR
+        username LIKE 'Designer%' OR username LIKE 'DisenoBot%' OR
+        username LIKE 'epic_bot%' OR username LIKE 'epicbot%' OR
+        username LIKE 'EpicBot%' OR username LIKE 'EpicTest%' OR
+        username LIKE 'EpicDesign%' OR
+        username LIKE 'pb\_%' ESCAPE '\\' OR
+        username LIKE 'HermesPlay%' OR
+        username LIKE 'bugtest%' OR username LIKE 'debugbot%' OR
+        username LIKE 'BotVerify%' OR username LIKE 'BotTest%' OR
+        username LIKE 'BotSearch%' OR username LIKE 'BotJulio%' OR
+        username LIKE 'BotMago%' OR username LIKE 'BotBugs%' OR
+        username LIKE 'BotFresco%' OR username LIKE 'BotDesign%' OR
+        username LIKE 'bot2_%' OR username LIKE 'bot_ciclo%' OR
+        username LIKE 'DisDesigner%' OR username LIKE 'DiseñadorPD%' OR
+        username LIKE 'playtestbot%' OR username LIKE 'playbot%' OR
+        username LIKE 'Cler%Design%' OR username LIKE 'ClerDesign%' OR
+        username LIKE 'Verify%' OR username LIKE '%Berser%Test%' OR
+        username LIKE 'TestSello%' OR
+        username LIKE 'audit\_%' ESCAPE '\\' OR username LIKE 'audit%dis%' OR
+        username LIKE 'craft_test%' OR username LIKE 'debug\_%' ESCAPE '\\' OR
+        username LIKE 'fix%test%' OR username LIKE 'verif%test%' OR
+        username LIKE 'verif_test%' OR username LIKE 'veriftest%'
+      )
+    `);
+  } catch (e) {
+    console.error('[db] Error en migración is_bot:', e.message);
   }
 
   // Tabla de historial de eventos globales (T093)
@@ -785,6 +833,20 @@ function getActivePlayers(cutoff) {
 
 function getLeaderboard(limit = 10) {
   // EPIC-962: excluir personajes archivados
+  // BUG-1247: excluir bots de playtest (is_bot = 1); se hace aquí en la query para evitar
+  // el problema anterior donde pedir pocos registros dejaba al filtro JS sin reales disponibles.
+  return all(
+    `SELECT username, level, xp, kills, hp, max_hp, deaths, gold, duel_wins, is_hardcore, fallen
+     FROM players
+     WHERE is_archived = 0 AND (is_bot IS NULL OR is_bot = 0)
+     ORDER BY kills DESC, xp DESC, level DESC
+     LIMIT ?`,
+    [limit]
+  );
+}
+
+// BUG-1247: versión sin filtro de bots (para ?bots=true en /api/leaderboard)
+function getLeaderboardAll(limit = 10) {
   return all(
     `SELECT username, level, xp, kills, hp, max_hp, deaths, gold, duel_wins, is_hardcore, fallen
      FROM players
@@ -2573,7 +2635,7 @@ function addAldricRep(playerId, amount) {
 module.exports = {
   init, persist,
   // players
-  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, addJournalEntry, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers, getAllPlayers, getAllPlayerIds,
+  getPlayer, getPlayerByUsername, createPlayer, updatePlayer, touchPlayer, addBestiaryKill, addJournalEntry, getPlayersInRoom, getActivePlayers, getLeaderboard, getLeaderboardAll, getLeaderboardByGold, getLeaderboardByDuels, getPartyMembers, getAllPlayers, getAllPlayerIds,
   // DIS-007: cleanup de test players
   getTestPlayers, deletePlayer,
   // reputación (T125)
