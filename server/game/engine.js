@@ -1030,7 +1030,12 @@ function cmdLook(player) {
             const dirLabel = { north: 'al norte', south: 'al sur', east: 'al este', west: 'al oeste', up: 'arriba', down: 'abajo' }[dir] || dir;
             // BUG-902: usar rango "~Xg HP" en lugar de valor exacto para reflejar varianza ±1
             const dmgStr = trapRoom.dmgRange ? `~${trapRoom.dmg} HP (${trapRoom.dmgRange})` : `-${trapRoom.dmg} HP`;
-            trapLines.push(`${trapRoom.icon} ${dirLabel}: ${trapRoom.roomName} — ${trapRoom.name} activa (${dmgStr} al entrar por primera vez).`);
+            let trapMsg = `${trapRoom.icon} ${dirLabel}: ${trapRoom.roomName} — ${trapRoom.name} activa (${dmgStr} al entrar por primera vez).`;
+            // DIS-1257: en sala 13 (Caverna Sumergida), mencionar dónde conseguir el ítem de desactivación
+            if (destId === 13) {
+              trapMsg += ` 💡 La red de pesca (en el suelo de esa misma sala) permite desactivarla — asegurate de tener espacio en el inventario.`;
+            }
+            trapLines.push(trapMsg);
           }
         }
       }
@@ -1950,6 +1955,8 @@ function cmdMove(player, direction) {
           effectText = `\n\n${roomEffect.msg} (${newHpVoid}/${player.max_hp} HP)`;
           if (isFirstVoid) {
             effectText += `\n🧠 El Abismo drena tu energía vital cada vez que lo visités. Volvé pronto y el vacío ya no podrá alcanzarte (cooldown: 60s).`;
+          } else {
+            effectText += `\n   (El Abismo drena -2 HP por visita, con cooldown de 60s entre drenajes.)`;
           }
         }
       } else {
@@ -2053,9 +2060,9 @@ function cmdMove(player, direction) {
     12: '🔥 Antes de ver la forja, la sentís. No es solo calor — es algo más persistente, más profundo. Como la respiración de algo que no debería seguir vivo. El fuego en el centro no proyecta sombras normales. Las sombras se mueven solas.\n\n⚠️ Nivel recomendado: 5+. El Golem de Forja que custodia este lugar es un constructo imparable — una vez activado, no cesa.',
     14: '🦴 El Coliseo de Huesos te recibe con el silencio de mil batallas perdidas. Gradas de huesos apilados se elevan hacia la oscuridad. Podés sentir el peso de todos los gladiadores que murieron aquí — sus espíritus aún esperan un digno rival que los vengue.\n\n⚠️ Nivel recomendado: 5+ con buen equipo (6+ recomendado). El Campeón Espectral tiene escudo espectral que reduce crits — no lo matarás solo con golpes afortunados. Necesitás daño sostenido.',
     15: '⛪ A medida que cruzás el umbral de la Catedral de la Oscuridad, el eco de tus pasos revela la inmensidad del lugar. Las vidrieras rotas dejan entrar rayos de luz violácea. Sentís el peso de siglos de oscuridad posarse sobre tus hombros.\n\n⚠️ Nivel recomendado: 7+. El Lich Anciano es el señor del dungeon.\n🛡️ Armadura recomendada: cota de malla o mejor (DEF 6+). El Lich hace ~13-20 dmg/turno — sin armadura pesada, caerás en 3 golpes.\n💡 La cota de malla (60g) se compra con Aldric (sala 4). Si no tenés suficiente defensa, considerá farmear primero.',
-    20: '🕳️ Al asomarte al Abismo Eterno, el vacío te mira de vuelta. No hay fondo visible. Solo oscuridad infinita, y el certero presentimiento de que algo muy antiguo — y muy hambriento — acaba de notar tu presencia.\n\n⚠️ Nivel recomendado: 7+. La Sombra del Vacío que habita aquí no permite huida fácil.\n💡 Cuando la Sombra alcanza el 50% de HP entra en Fase 2 y sus ataques aumentan. Curá antes de que sea tarde.',
+    20: '🕳️ Al asomarte al Abismo Eterno, el vacío te mira de vuelta. No hay fondo visible. Solo oscuridad infinita, y el certero presentimiento de que algo muy antiguo — y muy hambriento — acaba de notar tu presencia.\n\n⚠️ Nivel recomendado: 7+. La Sombra del Vacío que habita aquí no permite huida fácil.\n🌑 ADVERTENCIA — Oscuridad Paralizante: La Sombra puede envolverte en oscuridad absoluta, bloqueando tu capacidad de atacar durante ese turno. El primer turno de combate siempre activa esta parálisis. Vení con HP alto y pociones de salud — necesitarás aguantar sus ataques sin poder responder.\n💡 Cuando la Sombra alcanza el 50% de HP entra en Fase 2 y sus ataques aumentan. Curá antes de que sea tarde.',
     22: '🪦 La Cripta de los Valientes te recibe en silencio. Las placas en las paredes murmuran nombres olvidados. Una voz que no existe te susurra: "¿Serás digno de ser recordado aquí, o morirás en el anonimato?"',
-    19: '🔊 La Cámara del Eco no te recibe — te absorbe. El sonido de tus pasos no rebota: se multiplica, se distorsiona, regresa transformado en algo que no es exactamente tu pisada sino una versión de ella que tomó otro camino.\n\nEn el centro, los cristales resonantes pulsan con luz tenue. Cada uno guarda un eco atrapado. Algunas frecuencias son voces humanas. El eco más largo, el más persistente, es el nombre de alguien que claramente no quiso que lo recordaran.\n\nEn un rincón hay un cuenco de cristal que palpita con luz azulada. Cualquier aventurero puede usarlo (\"use cuenco\") para recuperar hasta 30% del HP máximo (o lo que falte si falta menos). Los Magos y Clérigos también recuperan hasta 50% del maná máximo. Los Clérigos además reciben una bendición sagrada que protege su maná del drenado del Lich durante 3 turnos.\n\nUna presencia se hace notar. El Eco Viviente.\n\n⚠️ Nivel recomendado: 6+. Este guardián no deja escapar a quien perturba la sala.',
+    19: '🔊 La Cámara del Eco no te recibe — te absorbe. El sonido de tus pasos no rebota: se multiplica, se distorsiona, regresa transformado en algo que no es exactamente tu pisada sino una versión de ella que tomó otro camino.\n\nEn el centro, los cristales resonantes pulsan con luz tenue. Cada uno guarda un eco atrapado. Algunas frecuencias son voces humanas. El eco más largo, el más persistente, es el nombre de alguien que claramente no quiso que lo recordaran.\n\nEn un rincón hay un cuenco de cristal que palpita con luz azulada. Cualquier aventurero puede usarlo (\"use cuenco\") para recuperar hasta 50% del HP máximo (o lo que falte si falta menos). Los Magos y Clérigos también recuperan hasta 50% del maná máximo. Los Clérigos además reciben una bendición sagrada que protege su maná del drenado del Lich durante 3 turnos.\n\nUna grieta en la pared rezuma una energía extraña — las almas de los aventureros caídos mantienen aquí una bóveda de ítems protegida por ecos. Usá \"vault\" para guardar y recuperar objetos.\n\nUna presencia se hace notar. El Eco Viviente.\n\n⚠️ Nivel recomendado: 6+. Este guardián no deja escapar a quien perturba la sala.',
   };
 
   const cinematicEvent = (firstVisitEver && CINEMATIC_EVENTS[targetId])
@@ -2365,9 +2372,9 @@ function cmdInventory(player) {
   // DIS-1037: solo mostrar hint de bolsa de lona cuando el inventario está casi lleno (>18/25 slots usados)
   let slotHint = '';
   if (invBonus === 0 && usedSlots > 18) {
-    slotHint = ` · Ampliá con bolsa de lona (+4 slots, 20g en tienda de Aldric — hacé "use bolsa de lona" al comprarla)`;
+    slotHint = ` · Ampliá con bolsa de lona (+4 slots, 20g en tienda de Aldric sala 4 — hacé "use bolsa de lona" al comprarla). En salas avanzadas: usá vault en sala 19.`;
   } else if (invBonus < 8 && usedSlots > (18 + invBonus)) {
-    slotHint = ` · Podés comprar una 2da bolsa de lona (+4 slots más, 20g en tienda de Aldric)`;
+    slotHint = ` · Podés comprar una 2da bolsa de lona (+4 slots más, 20g en tienda de Aldric sala 4). En salas avanzadas: usá vault en sala 19.`;
   }
   const rareCount = allItems.filter(i => items.getItemRarity(i) !== 'común').length
     + equippedItems.filter(e => items.getItemRarity(e.name) !== 'común').length;
@@ -3786,6 +3793,11 @@ function cmdAttack(player, targetName) {
         lines.push('   (O continuá explorando — podés ascender cuando quieras.)');
         lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         lines.push('');
+        lines.push('🌑 El dungeon sigue... hay 3 salas sin explorar en las');
+        lines.push('   profundidades: la Sombra del Vacío (Abismo Eterno),');
+        lines.push('   el Campeón Espectral (Coliseo de Huesos) y una cripta');
+        lines.push('   de secretos que pocos aventureros han visto.');
+        lines.push('');
         lines.push('╔══════════════════════════════════════════════════════╗');
         lines.push('║  🔄 El Lich regresará en 30 minutos. Mientras tanto: ║');
         lines.push('║  → Explorar salas que no visitaste                   ║');
@@ -3826,7 +3838,7 @@ function cmdAttack(player, targetName) {
       const invMaxDisplay = 25 + (freshForInv.inventory_bonus || 0);
       if (invCount >= invMaxDisplay - 2) {
         lines.push(`║  ⚠️  Tu mochila tiene ${invCount}/${invMaxDisplay} ítems — hacé espacio      ║`);
-        lines.push('║  con "drop <ítem>", "vault store <ítem>" o "subastar". ║');
+        lines.push('║  con "drop <ítem>", "vault store <ítem>" (Entrada/Subastas/Cámara del Eco) o "subastar". ║');
       }
       // DIS-656: mostrar progreso de exploración en el panel de victoria
       // DIS-808: 20 salas del dungeon real (excl. tutoriales 16 y 21, incl. sala 22 Cripta)
@@ -4218,7 +4230,7 @@ function cmdPick(player, itemQuery) {
   const maxInvSingle = 25 + (player.inventory_bonus || 0); // DIS-595: bolsas de lona
   if (!goldKey && currentInvCount >= maxInvSingle) {
     return {
-      text: `🎒 Tu mochila está llena (${currentInvCount}/${maxInvSingle} ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.\n💡 También podés usar la bóveda (vault) en la Entrada o en la Casa de Subastas.\n💡 Aldric vende bolsas de lona (20g) que amplían tu mochila +4 slots.`,
+      text: `🎒 Tu mochila está llena (${currentInvCount}/${maxInvSingle} ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.\n💡 También podés usar la bóveda (vault) en la Entrada, Casa de Subastas o Cámara del Eco (sala 19).\n💡 Aldric vende bolsas de lona (20g) que amplían tu mochila +4 slots.`,
     };
   }
 
@@ -7263,7 +7275,7 @@ function cmdRest(player, context) {
   player = db.getPlayer(player.id);
 
   if (player.hp >= player.max_hp) {
-    return { text: '💤 Ya estás al máximo de HP. No necesitás descansar.' };
+    return { text: `💤 Ya estás al máximo de HP (${player.hp}/${player.max_hp}). No necesitás descansar.\n   💡 El maná se regenera automáticamente con el tiempo.` };
   }
 
   // Verificar que no haya monstruos en la sala
@@ -10941,8 +10953,8 @@ function cmdEchoBowl(player) {
   const currentHp = player.hp || 1;
   const maxHp = player.max_hp || 30;
 
-  // DIS-654: restaurar HP para todas las clases (30%)
-  const hpRestoreAmount = Math.floor(maxHp * 0.30);
+  // DIS-654: restaurar HP para todas las clases (50% — DIS-1256: subido de 30% para ser útil pre-boss Sombra del Vacío)
+  const hpRestoreAmount = Math.floor(maxHp * 0.50);
   const newHp = Math.min(maxHp, currentHp + hpRestoreAmount);
   const hpRestored = newHp - currentHp;
 
@@ -19759,7 +19771,7 @@ function cmdBattlecry(player, args) {
 // DIS-506: ampliada de 10→20 slots, accesible también en Casa de Subastas (sala 17)
 // ══════════════════════════════════════════════════════════════════════════════
 const VAULT_MAX = 20;
-const VAULT_ROOMS = new Set([1, 17]); // Entrada + Casa de Subastas
+const VAULT_ROOMS = new Set([1, 17, 19]); // Entrada + Casa de Subastas + Cámara del Eco (DIS-1252: acceso en zona profunda)
 function cmdVault(player, args) {
   const W = 48;
   const vaultItems = JSON.parse(player.vault || '[]');

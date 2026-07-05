@@ -349,7 +349,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
     if (playerLevel < 7) {
       lines.push(`\n🌀 Por la fisura en el suelo, junto a la base de la fuente, llega un rumor de combate y ecos metálicos desde las profundidades. El agua plateada cae hacia el Abismo Eterno — una zona donde habita la Sombra del Vacío, una entidad de oscuridad pura.\n   📌 Objetivo futuro: cuando llegues al nivel 7, podrás explorar el Abismo Eterno (abajo).`);
     } else {
-      lines.push(`\n🌀 La fisura en el suelo (abajo) comunica con el Abismo Eterno — territorio de la Sombra del Vacío. La fuente sigue enviando agua curativa hacia las profundidades.`);
+      lines.push(`\n🌀 La fisura en el suelo (abajo) comunica con el Abismo Eterno — territorio de la Sombra del Vacío. La fuente sigue enviando agua curativa hacia las profundidades.\n   ⚠️ La Sombra usa Oscuridad Paralizante: el primer turno siempre te impide atacar. Entrá con HP alto y pociones de salud.`);
     }
   }
 
