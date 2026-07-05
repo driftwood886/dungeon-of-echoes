@@ -314,6 +314,17 @@ function trackEvent(playerId, player, eventType, params = {}) {
           break;
         }
 
+        case 'examine': {
+          if (eventType !== 'examine') break;
+          // target nulo = cualquier objeto examinado; si hay target = objeto específico
+          if (cond.target) {
+            matches = norm(params.objectKey || '').includes(norm(cond.target));
+          } else {
+            matches = true;
+          }
+          break;
+        }
+
         case 'sell': {
           if (eventType !== 'sell') break;
           // Sin target = cualquier venta
@@ -557,6 +568,17 @@ function trackPoisonApplied(playerId, player) {
   return trackEvent(playerId, player, 'poison_applied', {});
 }
 
+/**
+ * Llamar cuando un jugador examina un objeto del dungeon con éxito.
+ * @param {string} playerId
+ * @param {object} player
+ * @param {string} objectKey — clave del objeto examinado (ej: 'altar', 'pared', 'celdas')
+ * @returns {string}
+ */
+function trackExamine(playerId, player, objectKey = '') {
+  return trackEvent(playerId, player, 'examine', { objectKey });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -572,6 +594,7 @@ module.exports = {
   trackHealOther,
   trackCurePoison,
   trackPoisonApplied,
+  trackExamine,
   // Exponer trackEvent por si se necesita para casos edge
   trackEvent,
 };

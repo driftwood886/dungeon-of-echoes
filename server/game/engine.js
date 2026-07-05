@@ -323,7 +323,18 @@ function execute(playerId, input, context) {
     case 'use':       result = cmdUse(player, action.args.join(' ')); break;
     case 'heal':      result = cmdHeal(player, action.args); break;
     case 'drop':      result = cmdDrop(player, action.args.join(' ')); break;
-    case 'examine':   result = cmdExamine(player, action.args.join(' ')); break;
+    case 'examine': {
+      result = cmdExamine(player, action.args.join(' '));
+      // BUG-1260: trackear challenge 'examine' (CHAL-E15 "Inscripciones del Pasado")
+      if (result && result.text && !result.text.includes('No ves ningún')) {
+        try {
+          const freshForExamine = db.getPlayer(player.id);
+          const examineChMsg = challengeTracker.trackExamine(player.id, freshForExamine, action.args.join(' ').toLowerCase().trim());
+          if (examineChMsg) result = { ...result, text: result.text + examineChMsg };
+        } catch (_) {}
+      }
+      break;
+    }
     case 'equip':     result = cmdEquip(player, action.args.join(' ')); break;
     case 'unequip':   result = cmdUnequip(player, action.args.join(' ')); break;
     case 'wear':      result = cmdWear(player, action.args.join(' ')); break;
