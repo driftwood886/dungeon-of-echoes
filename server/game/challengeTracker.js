@@ -314,6 +314,25 @@ function trackEvent(playerId, player, eventType, params = {}) {
           break;
         }
 
+        case 'sell': {
+          if (eventType !== 'sell') break;
+          // Sin target = cualquier venta
+          if (cond.target) {
+            matches = norm(params.itemName) === norm(cond.target);
+          } else {
+            matches = true;
+          }
+          break;
+        }
+
+        case 'sell_weapon': {
+          if (eventType !== 'sell') break;
+          // Venta de arma (y opcionalmente también compró un arma)
+          // La condición extra.also_buy_weapon se evalúa con evento 'buy' en otro paso
+          matches = !!(params.isWeapon);
+          break;
+        }
+
         default:
           // Tipo desconocido — ignorar silenciosamente
           break;
