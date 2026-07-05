@@ -257,7 +257,7 @@ const COMMAND_ALIASES = {
   // runas / runes (T140)
   runas: 'runas', runes: 'runas', runacoleccion: 'runas', 'colección-runas': 'runas',
   // challenge / desafío diario (T141)
-  challenge: 'challenge', desafio: 'challenge', desafíos: 'challenge', desafios: 'challenge', desafío: 'challenge', 'desafio-diario': 'challenge', daily: 'challenge', mision_diaria: 'challenge', reto: 'challenge',
+  challenge: 'challenge', desafio: 'challenge', desafíos: 'challenge', desafios: 'challenge', desafío: 'challenge', 'desafio-diario': 'challenge', daily: 'challenge', mision_diaria: 'challenge', reto: 'challenge', challenges: 'challenge',
   // contract / contrato semanal (T222)
   contract: 'contract', contrato: 'contract', contratos: 'contract', 'contrato-caza': 'contract', 'caza-semanal': 'contract', weekly: 'contract', semanal: 'contract',
   // macro (T142)
@@ -573,7 +573,7 @@ Comandos disponibles:
   session / sesión     — Ver estadísticas de tu sesión actual (kills, XP, oro ganados y tiempo conectado).
   sessions / historial — Ver el historial de tus últimas 5 sesiones y el tiempo de juego total acumulado.
   score tiempo         — Ranking por tiempo de juego total (los aventureros más veteranos).
-  challenge / desafío  — Ver tu desafío diario personal y el progreso hacia él.
+  challenge / desafío  — Ver los 3 desafíos del día (2 personales + Gran Desafío) con progreso.
   contract / contrato  — Ver tu contrato de caza semanal (objetivo, progreso, recompensa).
   macro list           — Ver tus macros guardadas (hasta 5).
   macro set <n> <cmd> — Guardar macro (puede incluir secuencia con ;).

@@ -30,6 +30,7 @@ const ambient  = require('./ambient'); // T121: período del día
 const xpSystem = require('./xp');      // DIS-D282: curva de XP cuadrática
 const expeditionEngine = require('./expedition_engine'); // EPIC-1158: sistema de expediciones
 const challengeTracker = require('./challengeTracker');  // T-1231: tracking de desafíos diarios
+const challengeAssigner = require('./challengeAssigner'); // T-1232: asignación y lectura de los 3 desafíos diarios
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // Cada sala puede tener un efecto que se aplica al entrar.
@@ -15524,28 +15525,148 @@ function cmdProject(player, args) {
  * T141: challenge / desafío — Ver el desafío diario personal del jugador.
  */
 function cmdChallenge(player) {
+  // T-1232: Mostrar los 3 desafíos del día con progreso usando el nuevo sistema (challengeAssigner)
   const fresh = db.getPlayer(player.id);
   if (!fresh) return { text: 'Error al leer tu perfil.' };
-  const ch = db.getDailyChallenge(fresh);
-  const progress = ch.progress || 0;
-  const pct = Math.floor((progress / ch.goal) * 20);
-  const bar = '█'.repeat(pct) + '░'.repeat(20 - pct);
-  const status = ch.done ? '✅ ¡COMPLETADO!' : `${progress}/${ch.goal}`;
+
+  let challenges;
+  try {
+    challenges = challengeAssigner.getDailyChallengesForPlayer(fresh);
+  } catch (e) {
+    // Fallback al sistema antiguo si el nuevo falla
+    const ch = db.getDailyChallenge(fresh);
+    const progress = ch.progress || 0;
+    const pct = Math.floor((progress / ch.goal) * 20);
+    const bar = '█'.repeat(pct) + '░'.repeat(20 - pct);
+    const status = ch.done ? '✅ ¡COMPLETADO!' : `${progress}/${ch.goal}`;
+    return { text: [
+      '', '╔' + '═'.repeat(44) + '╗',
+      '║       📅 DESAFÍO DEL DÍA                    ║',
+      '╟' + '─'.repeat(44) + '╢',
+      `  ${ch.desc}`,
+      `  Progreso: [${bar}] ${status}`,
+      '╟' + '─'.repeat(44) + '╢',
+      '  Recompensa: +30 XP · +20 🪙 · +5 Reputación',
+      ch.done ? '  🌟 ¡Recompensa ya cobrada! Volvé mañana.' : '  ⏳ Completalo antes de medianoche (UTC).',
+      '╚' + '═'.repeat(44) + '╝', '',
+    ].join('\n') };
+  }
+
+  // Separar desafíos personales del Gran Desafío del Día
+  const personal = challenges.filter(c => !c.shared);
+  const grand    = challenges.find(c => c.shared);
+
+  const W = 52; // ancho de la caja
+  const BAR_LEN = 18;
+
+  function mkBar(progress, amount) {
+    const pct = amount > 0 ? Math.min(1, progress / amount) : 0;
+    const filled = Math.floor(pct * BAR_LEN);
+    return '█'.repeat(filled) + '░'.repeat(BAR_LEN - filled);
+  }
+
+  function categoryIcon(cat) {
+    if (cat === 'combate')    return '⚔️';
+    if (cat === 'exploracion') return '🗺️';
+    if (cat === 'economia')   return '💰';
+    if (cat === 'gran_desafio') return '🌟';
+    return '📅';
+  }
+
+  function wrapDesc(description, indent, maxWidth) {
+    // Word-wrap: split text to fit within maxWidth chars (indent included)
+    const words = description.split(' ');
+    const rows = [];
+    let current = indent;
+    for (const word of words) {
+      if (current.length + word.length + 1 > maxWidth && current.trim()) {
+        rows.push(current);
+        current = indent + word;
+      } else {
+        current = current === indent ? indent + word : current + ' ' + word;
+      }
+    }
+    if (current.trim()) rows.push(current);
+    return rows;
+  }
+
+  function rewardStr(reward) {
+    const parts = [];
+    if (reward.xp   > 0) parts.push(`+${reward.xp} XP`);
+    if (reward.gold > 0) parts.push(`+${reward.gold} 🪙`);
+    if (reward.rep  > 0) parts.push(`+${reward.rep} Rep`);
+    return parts.join(' · ') || 'Sin recompensa';
+  }
+
+  // Verificar si el "Impulso del Aventurero" está activo (T-1233 lo implementa, aquí solo mostramos)
+  let impulsoMsg = '';
+  try {
+    const impulsoKey = `impulso_aventurero_${fresh.id}`;
+    const impulsoTs = db.getWorldStateValue ? db.getWorldStateValue(impulsoKey) : null;
+    if (impulsoTs) {
+      const remaining = parseInt(impulsoTs) - Date.now();
+      if (remaining > 0) {
+        const mins = Math.ceil(remaining / 60000);
+        impulsoMsg = `\n  ✨ Impulso del Aventurero activo: +20% XP por ${mins} min más`;
+      }
+    }
+  } catch (_) {}
+
   const lines = [
     '',
-    '╔' + '═'.repeat(44) + '╗',
-    '║       📅 DESAFÍO DEL DÍA                    ║',
-    '╟' + '─'.repeat(44) + '╢',
-    `  ${ch.desc}`,
-    `  Progreso: [${bar}] ${status}`,
-    '╟' + '─'.repeat(44) + '╢',
-    '  Recompensa: +30 XP · +20 🪙 · +5 Reputación',
-    ch.done
-      ? '  🌟 ¡Recompensa ya cobrada! Volvé mañana.'
-      : '  ⏳ Completalo antes de medianoche (UTC).',
-    '╚' + '═'.repeat(44) + '╝',
-    '',
+    '╔' + '═'.repeat(W) + '╗',
+    '║' + '  📅 DESAFÍOS DEL DÍA'.padEnd(W) + '║',
+    '╟' + '─'.repeat(W) + '╢',
   ];
+
+  // Desafíos personales (1 y 2)
+  personal.forEach((ch, i) => {
+    const icon = categoryIcon(ch.category);
+    const label = `  ${icon} [${i + 1}] ${ch.title}`;
+    lines.push('║' + label.padEnd(W) + '║');
+    // Descripción con word-wrap
+    const descRows = wrapDesc(ch.description, '      ', W);
+    for (const row of descRows) lines.push('║' + row.padEnd(W) + '║');
+    const barDisplay = mkBar(ch.progress, ch.condition.amount);
+    const statusStr = ch.completed
+      ? '✅ ¡COMPLETADO!'
+      : `${ch.progress}/${ch.condition.amount}`;
+    lines.push('║' + `      [${barDisplay}] ${statusStr}`.padEnd(W) + '║');
+    lines.push('║' + `      Recompensa: ${rewardStr(ch.reward)}`.padEnd(W) + '║');
+    if (i < personal.length - 1) {
+      lines.push('╟' + '─'.repeat(W) + '╢');
+    }
+  });
+
+  // Gran Desafío del Día
+  if (grand) {
+    lines.push('╟' + '─'.repeat(W) + '╢');
+    lines.push('║' + '  🌟 GRAN DESAFÍO DEL DÍA (compartido)'.padEnd(W) + '║');
+    const gdescRows = wrapDesc(grand.description, '      ', W);
+    for (const row of gdescRows) lines.push('║' + row.padEnd(W) + '║');
+    const gBar = mkBar(grand.progress, grand.condition.amount);
+    const gStatus = grand.completed
+      ? '✅ ¡COMPLETADO!'
+      : `${grand.progress}/${grand.condition.amount}`;
+    lines.push('║' + `      [${gBar}] ${gStatus}`.padEnd(W) + '║');
+    lines.push('║' + `      Recompensa: ${rewardStr(grand.reward)}`.padEnd(W) + '║');
+  }
+
+  // Pie
+  lines.push('╟' + '─'.repeat(W) + '╢');
+  const allDone = challenges.every(c => c.completed);
+  const completedCount = challenges.filter(c => c.completed).length;
+  if (allDone) {
+    lines.push('║' + '  🎉 ¡Completaste todos los desafíos de hoy! Volvé mañana.'.padEnd(W) + '║');
+  } else {
+    lines.push('║' + `  Completados: ${completedCount}/${challenges.length}  ⏳ Se renuevan a medianoche (UTC).`.padEnd(W) + '║');
+    if (impulsoMsg) {
+      lines.push('║' + impulsoMsg.padEnd(W) + '║');
+    }
+  }
+  lines.push('╚' + '═'.repeat(W) + '╝');
+  lines.push('');
+
   return { text: lines.join('\n') };
 }
 
