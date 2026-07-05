@@ -2663,12 +2663,16 @@ function cmdStatus(player) {
     `Reputación: ${repLevel.icon} ${repLevel.name} (${repLevel.points} pts)${repNextText}`,
     (() => {
       // T-1233: mostrar Reputación con Aldric en status
+      // DIS-1234: mostrar siempre (incluso con 0 pts, con hint de cómo ganar)
       const aldricRep = player.aldric_rep || 0;
-      if (aldricRep === 0) return null;
       const aldricRepLabel = aldricRep >= 200 ? '🤝 Héroe del Corredor'
         : aldricRep >= 50 ? '🤝 Conocido de Aldric'
-        : `🤝 Novato`;
-      const aldricNextDiscount = aldricRep < 50 ? ` (+${50 - aldricRep} pts → -5% precios)` : aldricRep < 200 ? ` (+${200 - aldricRep} pts → ítem exclusivo)` : ' (máximo)';
+        : aldricRep >= 10 ? '🤝 Novato'
+        : '🤝 Sin relación';
+      const aldricNextDiscount = aldricRep === 0
+        ? ' (completá desafíos diarios para ganar rep)'
+        : aldricRep < 50 ? ` (+${50 - aldricRep} pts → -5% precios)`
+        : aldricRep < 200 ? ` (+${200 - aldricRep} pts → ítem exclusivo)` : ' (máximo)';
       return `Rep.Aldric: ${aldricRepLabel} (${aldricRep} pts)${aldricNextDiscount}`;
     })(),
     `Ubicación: ${roomName}`,
@@ -15243,6 +15247,26 @@ function cmdReputation(player) {
 
   const pad = (s, n) => (s + ' '.repeat(n)).slice(0, n);
 
+  const aldricRep = fresh.aldric_rep || 0;
+  const aldricRepLabel = aldricRep >= 200 ? '🤝 Héroe del Corredor'
+    : aldricRep >= 50 ? '🤝 Conocido de Aldric'
+    : aldricRep >= 10 ? '🤝 Novato'
+    : '🤝 Sin relación';
+  const aldricNextText = aldricRep >= 200 ? ' (máximo)'
+    : aldricRep >= 50 ? ` (+${200 - aldricRep} pts → ítem exclusivo + desc. 10%)`
+    : aldricRep >= 10 ? ` (+${50 - aldricRep} pts → -5% precios)`
+    : ` (+${10 - aldricRep} pts → saludos personalizados)`;
+
+  // DIS-1234: agregar líneas de Rep.Aldric al panel de reputación
+  const aldricLines = [
+    '╟' + '─'.repeat(40) + '╢',
+    '║  Reputación con Aldric:               ║',
+    '║' + pad(`  ${aldricRepLabel} (${aldricRep} pts)`, 40) + '║',
+    '║' + pad(`  Progreso:${aldricNextText}`, 40) + '║',
+    '║  📈 Ganar rep: completar desafíos     ║',
+    '║     diarios, comprar en tienda.       ║',
+  ];
+
   const lines = [
     '',
     '╔' + '═'.repeat(40) + '╗',
@@ -15255,6 +15279,7 @@ function cmdReputation(player) {
     '║    ⚔ Kill monstruo:    +1 pt        ║',
     '║    📜 Quest completada: +5 pts       ║',
     '║    🏅 Logro desbloqueado: +3 pts     ║',
+    ...aldricLines,
     '╚' + '═'.repeat(40) + '╝',
   ];
 
