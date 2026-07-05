@@ -195,56 +195,78 @@ function ensureWeeklyChallengeInitialized() {
 function getDailyChallengesForPlayer(player, activeEvents = []) {
   const dateUtc = getTodayUtc();
   const playerId = player.id;
+
+  // ── BUG-1258: Estabilidad de desafíos ante cambios de nivel/clase ──────────
+  // Si el jugador sube de nivel o elige clase durante el día, el pool filtrado
+  // cambia y los índices hash apuntarían a desafíos distintos — el progreso de
+  // desafíos anteriores se perdería silenciosamente.
+  // Fix: si ya hay asignaciones persistidas en la BD para hoy, recuperarlas por
+  // ID (estables) en lugar de recalcular con el nivel/clase actual.
+  const existingRows = db.getDailyChallengeProgress(playerId, dateUtc);
+  const existingPersonalIds = existingRows
+    .map(r => r.challenge_id)
+    .filter(id => !GRAND_CHALLENGE_IDS.includes(id));
+
+  let personalCombat = null;
+  let personalExploEcon = null;
+
+  // Intentar recuperar desafíos ya asignados desde la BD
+  for (const id of existingPersonalIds) {
+    const ch = getChallengeById(id);
+    if (!ch) continue;
+    if (ch.category === 'combate' && !personalCombat) personalCombat = ch;
+    else if ((ch.category === 'exploracion' || ch.category === 'economia') && !personalExploEcon) personalExploEcon = ch;
+  }
+
+  // ── Si faltan desafíos personales, calcularlos frescos ────────────────────
   const playerClass = (player.class || player.clase || 'guerrero').toLowerCase();
   const playerLevel = player.level || player.nivel || 1;
 
-  // Seed del jugador para hoy
-  const playerSeed = crypto
-    .createHash('sha256')
-    .update(playerId + dateUtc)
-    .digest('hex');
+  if (!personalCombat) {
+    // Seed del jugador para hoy
+    const playerSeed = crypto
+      .createHash('sha256')
+      .update(playerId + dateUtc)
+      .digest('hex');
 
-  // ── Desafío 1: Combate personal ──────────────────────────────────────────
-  const combatPool = getCombatPool(playerClass, playerLevel, activeEvents);
-  let personalCombat = null;
-
-  if (combatPool.length > 0) {
-    // Intentar 10 índices distintos buscando un desafío no repetido recientemente
-    const indices = hashToUniqueIndices(playerSeed, combatPool.length, Math.min(10, combatPool.length));
-    for (const idx of indices) {
-      const candidate = combatPool[idx];
-      if (!hasChallengeBeenAssignedRecently(playerId, candidate.id)) {
-        personalCombat = candidate;
-        break;
+    const combatPool = getCombatPool(playerClass, playerLevel, activeEvents);
+    if (combatPool.length > 0) {
+      // Intentar 10 índices distintos buscando un desafío no repetido recientemente
+      const indices = hashToUniqueIndices(playerSeed, combatPool.length, Math.min(10, combatPool.length));
+      for (const idx of indices) {
+        const candidate = combatPool[idx];
+        if (!hasChallengeBeenAssignedRecently(playerId, candidate.id)) {
+          personalCombat = candidate;
+          break;
+        }
       }
-    }
-    // Si todos fueron recientes, usar el primero del seed igualmente (7-day cooldown relaxado)
-    if (!personalCombat) {
-      personalCombat = combatPool[hashToIndex(playerSeed, combatPool.length)];
+      // Si todos fueron recientes, usar el primero del seed igualmente (7-day cooldown relaxado)
+      if (!personalCombat) {
+        personalCombat = combatPool[hashToIndex(playerSeed, combatPool.length)];
+      }
     }
   }
 
-  // ── Desafío 2: Exploración o Economía (alternados por paridad de fecha) ──
-  const exploEconPool = getExploEconPool(playerClass, playerLevel, activeEvents);
-  let personalExploEcon = null;
-
-  if (exploEconPool.length > 0) {
-    // Seed alternativo para el segundo desafío (rotar 16 chars)
+  if (!personalExploEcon) {
+    // Seed alternativo para el segundo desafío
     const seed2 = crypto
       .createHash('sha256')
       .update(playerId + dateUtc + 'explo')
       .digest('hex');
 
-    const indices2 = hashToUniqueIndices(seed2, exploEconPool.length, Math.min(10, exploEconPool.length));
-    for (const idx of indices2) {
-      const candidate = exploEconPool[idx];
-      if (!hasChallengeBeenAssignedRecently(playerId, candidate.id)) {
-        personalExploEcon = candidate;
-        break;
+    const exploEconPool = getExploEconPool(playerClass, playerLevel, activeEvents);
+    if (exploEconPool.length > 0) {
+      const indices2 = hashToUniqueIndices(seed2, exploEconPool.length, Math.min(10, exploEconPool.length));
+      for (const idx of indices2) {
+        const candidate = exploEconPool[idx];
+        if (!hasChallengeBeenAssignedRecently(playerId, candidate.id)) {
+          personalExploEcon = candidate;
+          break;
+        }
       }
-    }
-    if (!personalExploEcon) {
-      personalExploEcon = exploEconPool[hashToIndex(seed2, exploEconPool.length)];
+      if (!personalExploEcon) {
+        personalExploEcon = exploEconPool[hashToIndex(seed2, exploEconPool.length)];
+      }
     }
   }
 
@@ -252,9 +274,9 @@ function getDailyChallengesForPlayer(player, activeEvents = []) {
   const grandChallenge = getGrandChallengeOfDay(dateUtc);
 
   // ── Obtener progreso actual desde BD ────────────────────────────────────
-  const progressRows = db.getDailyChallengeProgress(playerId, dateUtc);
+  // (reutilizamos existingRows, ya consultado al inicio)
   const progressMap = {};
-  for (const row of progressRows) {
+  for (const row of existingRows) {
     progressMap[row.challenge_id] = row.count;
   }
 
