@@ -185,6 +185,7 @@ const SKILLS = {
     combat_only: true,
   },
   // DIS-986: Furia del Berserker
+  // DIS-1238: rediseñada — costo cambiado a HP (20% del max HP) para trade-off real
   furia: {
     id: 'furia',
     name: 'Furia',
@@ -192,10 +193,11 @@ const SKILLS = {
     required_level: 5,
     required_class: 'guerrero',
     required_specialization: 'berserker',
-    cooldown_seconds: 90,
+    cooldown_seconds: 60,
     type: 'berserker_rage',
-    dmg_multiplier: 1.5,
-    description: 'Gasta todo tu maná para hacer ×1.5 daño en el próximo ataque. Solo Berserker (nivel 5+). Cooldown: 90s.',
+    dmg_multiplier: 2.0,
+    hp_cost_pct: 0.20, // DIS-1238: cuesta 20% del HP máximo
+    description: 'Sacrificás 20% de tu HP máximo para hacer ×2.0 daño en el próximo ataque. ¡La sangre alimenta la rabia! Solo Berserker (nivel 5+). Cooldown: 60s.',
     combat_only: true,
   },
   emboscar: {

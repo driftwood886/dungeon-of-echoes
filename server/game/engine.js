@@ -13279,6 +13279,7 @@ function cmdUseSkill(player, args, context) {
   }
 
   // ── Furia (furia) — Berserker Lv5 ─────────────────────────────────────────
+  // DIS-1238: costo cambiado de maná a HP (20% max HP) — trade-off real para el Berserker
   if (skillId === 'furia') {
     const freshBs = db.getPlayer(freshPlayer.id);
     // Verificar que hay monstruos (solo usable en combate)
@@ -13287,26 +13288,31 @@ function cmdUseSkill(player, args, context) {
     if (aliveForRage.length === 0) {
       return { text: '🪓 ¡La Furia solo puede desatarse en combate! No hay enemigos aquí.' };
     }
-    const currentMana = freshBs.mana != null ? freshBs.mana : 0;
-    // Gastar todo el maná (mínimo 0)
-    const manaSpent = currentMana;
+    // Calcular costo en HP: 20% del HP máximo
+    const maxHpBs = freshBs.max_hp || 30;
+    const hpCost = Math.ceil(maxHpBs * (skill.hp_cost_pct || 0.20));
+    const currentHpBs = freshBs.hp || 1;
+    // No puede usarse si el costo te mataría (HP resultante <= 0)
+    if (currentHpBs - hpCost <= 0) {
+      return { text: `🪓 No podés entrar en Furia — el costo (${hpCost} HP) te mataría. Tenés ${currentHpBs}/${maxHpBs} HP.` };
+    }
+    const newHpBs = currentHpBs - hpCost;
     // Guardar buff berserker_rage en active_scrolls — se consume en el próximo ataque
     const scrollsBs = JSON.parse(freshBs.active_scrolls || '{}');
     // Expiración: 5 minutos (tiempo suficiente para 1 ataque; se consume antes)
     scrollsBs['berserker_rage'] = {
-      dmg_multiplier: skill.dmg_multiplier || 1.5,
+      dmg_multiplier: skill.dmg_multiplier || 2.0,
       consume_on_attack: true,
       expires_at: Date.now() + 5 * 60 * 1000,
     };
     // Aplicar cooldown
     const newCDsBs = skills.applyCooldown(freshBs, 'furia');
     db.updatePlayer(freshBs.id, {
-      mana: 0,
+      hp: newHpBs,
       skill_cooldowns: newCDsBs,
       active_scrolls: JSON.stringify(scrollsBs),
     });
-    const manaText = manaSpent > 0 ? `Gastás todo tu maná (${manaSpent} → 0).` : 'No tenías maná, pero la rabia ya es suficiente.';
-    const text = `🪓 ¡FURIA! La rabia te consume. ${manaText}\n   ✨ Tu próximo ataque causa ×${skill.dmg_multiplier || 1.5} de daño. (Cooldown: ${skill.cooldown_seconds}s)`;
+    const text = `🪓 ¡FURIA! La rabia te consume. Sacrificás ${hpCost} HP (${currentHpBs} → ${newHpBs}).\n   ✨ Tu próximo ataque causa ×${skill.dmg_multiplier || 2.0} de daño. (Cooldown: ${skill.cooldown_seconds}s)`;
     if (context && context.broadcastToRoom) {
       context.broadcastToRoom(freshBs.current_room_id, freshBs.id,
         `🪓 ${freshBs.username} entra en FURIA — su próximo ataque será devastador!`);
