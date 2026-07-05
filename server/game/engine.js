@@ -210,6 +210,16 @@ function calcLevelUp(freshPlayer, xpGain) {
       fields.max_mana = (freshPlayer.max_mana || 20) + 3;
     }
     fields.attack = (freshPlayer.attack || 5) + 1;
+    // DIS-1237: al subir a nivel 5 con especialización pendiente, marcar spec_reminder_shown
+    // para que no se repita al mover entre salas
+    if (newLevel === 5 && freshPlayer.player_class && freshPlayer.player_class !== 'sin_clase' && !freshPlayer.specialization) {
+      try {
+        const se = freshPlayer.status_effects
+          ? (typeof freshPlayer.status_effects === 'string' ? JSON.parse(freshPlayer.status_effects) : freshPlayer.status_effects)
+          : {};
+        fields.status_effects = JSON.stringify({ ...se, spec_reminder_shown: true });
+      } catch (_) { /* no interrumpir */ }
+    }
   }
   return { fields, levelUpMsg: levelUp ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}! +5 HP máx, +1 ataque${fields.hp ? `, +${fields.hp - (freshPlayer.hp || 1)} HP restaurado (${fields.hp}/${fields.max_hp} HP)` : ''}${newLevel === 5 && !freshPlayer.specialization ? '\n   🌟 ¡Desbloqueaste especializaciones! Escribí "especializar" para elegir una.' : ''}` : '' };
 }

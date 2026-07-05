@@ -1232,6 +1232,13 @@ function attackRound(player, monster) {
         lines.push(`\n🌟 ¡Nivel 5 alcanzado! Es hora de elegir tu ESPECIALIZACIÓN.`);
         lines.push(`   Escribí "especializar" para ver las opciones y escoger tu camino.`);
         lines.push(`   Esta decisión es permanente — define quién sos en el dungeon.`);
+        // DIS-1237: marcar spec_reminder_shown para no repetir al moverse
+        try {
+          const seSpec = freshPlayer.status_effects
+            ? (typeof freshPlayer.status_effects === 'string' ? JSON.parse(freshPlayer.status_effects) : freshPlayer.status_effects)
+            : {};
+          updates.status_effects = JSON.stringify({ ...seSpec, spec_reminder_shown: true });
+        } catch (_) { /* no interrumpir si falla */ }
       }
     }
     lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})${impulsoXpMult > 1.0 ? ' ✨[+20% Impulso]' : ''}`);
