@@ -12509,6 +12509,14 @@ function cmdClase(player, args) {
   }
   lines.push(``, `💡 Escribí "skills" en cualquier momento para ver tus habilidades disponibles.`);
 
+  // DIS-1241: Si el jugador ya tiene nivel >= 5 y no eligió especialización, invitar a especializar ahora mismo
+  const playerLevel = freshForClass.level || 1;
+  const hasSpec = !!freshForClass.specialization;
+  if (playerLevel >= 5 && !hasSpec) {
+    lines.push(``, `🌟 Ya tenés nivel ${playerLevel} — ¡podés elegir tu especialización ahora mismo!`);
+    lines.push(`   Escribí: especializar`);
+  }
+
   // DIS-491: Mostrar oro inicial si es la primera clase
   if (isFirstClass) {
     lines.push(``, `🪙 Monedero inicial: +25 🪙 (suficiente para comprarte un arma en la tienda de Aldric).`);
