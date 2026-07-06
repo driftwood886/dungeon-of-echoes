@@ -961,7 +961,11 @@ function cmdLook(player) {
         if (hasTarget) {
           const progress = (() => { try { const p = JSON.parse(playerQ.quest_progress || '{}'); return (p.questId === activeQ.questDef.id) ? (p.progress || 0) : 0; } catch(_) { return 0; } })();
           const goal = activeQ.questDef.goal;
-          questHintLine = `\n📜 Objetivo de quest aquí: ${activeQ.questDef.target} (${progress}/${goal} eliminados)`;
+          // DIS-1269: agregar contexto narrativo la primera vez que el jugador ve la quest (progress 0)
+          const questOrigin = progress === 0 && activeQ.questDef.description
+            ? `\n   📋 ${activeQ.questDef.description}\n   💰 Recompensa: ${activeQ.questDef.reward.gold}g y ${activeQ.questDef.reward.xp} XP.`
+            : '';
+          questHintLine = `\n📜 Quest activa: "${activeQ.questDef.title}" — ${progress}/${goal} eliminados.${questOrigin}`;
         } else {
           // DIS-1045: mostrar progreso de quest incluso cuando no hay monstruos objetivo en esta sala
           // El jugador puede haber limpiado la sala y querer saber cuánto le falta.
