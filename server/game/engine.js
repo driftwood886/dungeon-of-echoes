@@ -18561,6 +18561,22 @@ const ALTAR_OFFERINGS = {
   'corona rota':       { type: 'royal', atk: 2, def: 3, duration: 300, label: 'Majestad Caída', msg: 'La corona rota se funde en la piedra del altar. Su antiguo poder de mando te rodea como una armadura invisible.' },
   'antídoto':          { type: 'purify', atk: 0, def: 2, duration: 180, label: 'Purificación', msg: 'El antídoto purifica el altar. Una brisa limpia te envuelve, fortaleciendo tus defensas.' },
   'hierba curativa':   { type: 'purify', atk: 0, def: 1, hp: 8, duration: 180, label: 'Bendición Herbal', msg: 'Las hierbas se reducen a ceniza fragante. El altar te bendice con salud y resistencia.' },
+
+  // DIS-1267: materiales de criatura — ofrenda humilde → bendición menor de 90s
+  // Son los ítems que se acumulan en inventario de jugadores de nivel 5-6+ sin uso claro
+  'pelaje áspero':     { type: 'beast', atk: 1, def: 1, duration: 90, label: 'Espíritu de la Bestia', msg: 'El pelaje áspero arde con una llama azul y desaparece. El altar reconoce el tributo de una vida salvaje.' },
+  'garra de esqueleto':{ type: 'bone',  atk: 2, def: 0, duration: 90, label: 'Maldición Ósea', msg: 'Las garras se pulverizan y el polvo de hueso sube en espiral. El altar absorbe la energía de muerte.' },
+  'hongo rojo':        { type: 'spore', atk: 0, def: 0, hp: 10, duration: 0, label: 'Espora Vital', msg: 'El hongo carmesí explota en una nube de esporas rojas. Tu cuerpo absorbe la energía alquímica. (+10 HP)' },
+  'hongo verde':       { type: 'spore', atk: 0, def: 1, duration: 90, label: 'Resistencia Esporácea', msg: 'El hongo verde se disuelve en vapor esmeralda. Sentís tu piel más resistente al impacto.' },
+  'hongo azul':        { type: 'spore', atk: 1, def: 0, mana: 8, duration: 90, label: 'Resonancia Fúngica', msg: 'El hongo azul destella y libera un pulso de maná frío. El altar amplifica el efecto.' },
+  'fragmento de hielo':{ type: 'cold',  atk: 0, def: 2, duration: 120, label: 'Armadura de Escarcha', msg: 'El hielo antiguo se evapora en un siseo frío. Una capa invisible de escarcha recubre tu piel.' },
+  'escama abismal':    { type: 'abyss', atk: 2, def: 1, duration: 120, label: 'Bendición Abisal', msg: '¡La escama del Krakeling vibra intensamente y se desintegra! El altar canaliza el poder del abismo.' },
+  'tinta de kraken':   { type: 'abyss', atk: 0, def: 0, hp: 15, duration: 0, label: 'Vitalidad Oscura', msg: 'La tinta oscura se absorbe lentamente en la piedra del altar. Un calor extraño sana tus heridas. (+15 HP)' },
+  'esencia de sombra': { type: 'shadow',atk: 3, def: 0, duration: 120, label: 'Filo de Sombra', msg: '¡La esencia de sombra colapsa en el altar en una explosión silenciosa! Tu arma brilla con un tinte oscuro.' },
+  'cristal helado':    { type: 'cold',  atk: 1, def: 1, duration: 120, label: 'Bendición Glacial', msg: 'El cristal helado estalla en una lluvia de chispas de hielo. El altar absorbe el frío eterno.' },
+  'núcleo de forja':   { type: 'forge', atk: 4, def: 0, duration: 180, label: 'Fuerza de la Forja', msg: '¡El núcleo de forja explota en llamas! El calor de la forja penetra tus músculos y amplifica tu fuerza.' },
+  'filacteria rota':   { type: 'arcane',atk: 0, def: 3, duration: 180, label: 'Escudo Antimagia', msg: 'La filacteria destruida se pulveriza en el altar. Los fragmentos de hechizo del Lich te protegen irónicamente.' },
+  'esencia etérea':    { type: 'ether', atk: 2, def: 0, mana: 12, duration: 180, label: 'Toque Etéreo', msg: 'La esencia etérea se disuelve en el altar como niebla. El maná del más allá fluye por tus venas.' },
 };
 
 function cmdPray(player, args) {
@@ -18611,6 +18627,9 @@ function cmdPray(player, args) {
       `│  • cristal mágico / libro viejo → mana     │`,
       `│  • amuleto oscuro → poder oscuro           │`,
       `│  • corona rota, hierba curativa, antídoto  │`,
+      `│  • materiales de criatura (pelaje, garras, │`,
+      `│    hongos, escamas, esencias...) → buff 90s│`,
+      `│  • cualquier ítem misc → ofrenda humilde   │`,
       `│                                            │`,
       `│ Cooldown: 5 minutos entre ofrendas.        │`,
       `└────────────────────────────────────────────┘`,
@@ -18697,6 +18716,38 @@ function cmdPray(player, args) {
   const foundLower = found.toLowerCase();
   const effect = ALTAR_OFFERINGS[foundLower];
   if (!effect) {
+    // DIS-1267: catch-all para ítems misc desconocidos
+    // Si el ítem es de tipo misc, el altar lo acepta con una bendición humilde
+    const itemData = items.getItemData ? items.getItemData(foundLower) : items.ITEM_CATALOG && items.ITEM_CATALOG[foundLower];
+    if (itemData && itemData.type === 'misc') {
+      // Bendición genérica: +1 ATK por 60 segundos (el altar acepta cualquier ofrenda sincera)
+      const genericEffect = { type: 'generic', atk: 1, def: 0, duration: 60, label: 'Ofrenda Humilde', msg: `El altar recibe tu ofrenda de ${found}. La llama parpadea brevemente — no es gran cosa, pero el gesto fue honesto.` };
+      // Consumir el ítem
+      const newInvG = [...player.inventory];
+      const idxG = newInvG.findIndex(i => i.toLowerCase() === foundLower);
+      if (idxG !== -1) newInvG.splice(idxG, 1);
+      const updatesG = { inventory: newInvG };
+      const resultLinesG = [genericEffect.msg];
+      if (genericEffect.duration > 0 && genericEffect.atk > 0) {
+        const scrollsG2 = JSON.parse(player.active_scrolls || '{}');
+        scrollsG2['altar_blessing'] = {
+          atk_bonus: genericEffect.atk,
+          def_bonus: 0,
+          expires_at: Date.now() + genericEffect.duration * 1000,
+          label: genericEffect.label,
+        };
+        updatesG.active_scrolls = JSON.stringify(scrollsG2);
+        resultLinesG.push(`⚡ ${genericEffect.label}: +${genericEffect.atk} ATK por ${genericEffect.duration}s`);
+      }
+      db.updatePlayer(player.id, updatesG);
+      altarCooldowns.set(player.id, Date.now());
+      const altarNameG = roomId === 5 ? 'la Capilla Olvidada' : 'el Santuario Profano';
+      return {
+        text: `🙏 Ofrecés ${found} al altar de ${altarNameG}.\n\n${resultLinesG.join('\n')}`,
+        event: `${player.username} reza ante el altar.`,
+        eventRoomId: roomId,
+      };
+    }
     return { text: `🙏 Ponés ${found} en el altar... pero nada ocurre. Parece que el altar no acepta este tipo de ofrenda.\n  (El ítem no se consume.)` };
   }
 

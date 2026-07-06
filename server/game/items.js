@@ -42,8 +42,8 @@ const ITEM_CATALOG = {
   'espada larga':        { type: 'weapon', effect: 'attack_bonus', amount: 5,  description: 'Una espada bien balanceada. +5 de ataque.' },
   'cristal mágico':      { type: 'weapon', effect: 'attack_bonus', amount: 7,  description: 'Un cristal que amplifica la fuerza. +7 de ataque.' },
   'piedra de poder':     { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'El núcleo de energía que alimentaba los brazos del Gólem de Piedra. Al arrancarlo, el constructo se desplomó. Pulsa con magia telúrica contenida. +4 de ataque.' },
-  'diente afilado':      { type: 'weapon', effect: 'attack_bonus', amount: 2,  description: 'Un colmillo de murciélago vampiro, afilado como una aguja. +2 de ataque. También se usa como ingrediente para craftear el collar de garras (junto con hilo de seda).' },
-  'garra de esqueleto':  { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'La garra de un esqueleto endurecida por la magia oscura. +3 de ataque.' },
+  'diente afilado':      { type: 'weapon', effect: 'attack_bonus', amount: 2,  description: 'Un colmillo de murciélago vampiro, afilado como una aguja. +2 de ataque. 🔧 Crafteo: diente afilado + hilo de seda → collar de garras (+2 DEF) | diente afilado + hongo azul → veneno de colmillo (40% envenenar). 🙏 Ofrenda al altar: Maldición Ósea (+2 ATK, 90s).' },
+  'garra de esqueleto':  { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'La garra de un esqueleto endurecida por la magia oscura. +3 de ataque. 🔧 Crafteo: garra + cuerda → látigo de garras | garra + escudo roto → escudo de gladiador | garra + hongo verde → polvo de hueso (+2 DEF 120s). 🙏 Ofrenda al altar: Maldición Ósea (+2 ATK, 90s).' },
   'hacha rústica':       { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'Un hacha de mano, tosca pero funcional. +4 de ataque.' },
 
   // ── Armas (dungeon expandido) ─────────────────────────────────────────────
@@ -65,7 +65,7 @@ const ITEM_CATALOG = {
   'monedas de plata':    { type: 'misc', description: 'Monedas de plata con inscripciones antiguas.' },
   'monedas de oro':      { type: 'misc', description: 'Monedas de oro resplandecientes. Son pocas, pero valen mucho.' },
   'cofre de oro':        { type: 'misc', description: 'Un cofre repleto de monedas de oro del Lich. Un tesoro maldito que vale una fortuna.' },
-  'pelaje áspero':       { type: 'misc', description: 'El pelaje de una rata gigante. Áspero al tacto. 🔧 Combinalo con una escama abismal para curtirlo en cuero de criatura.' },
+  'pelaje áspero':       { type: 'misc', description: 'El pelaje de una rata gigante. Áspero al tacto. 🔧 Combinar con escama abismal → cuero de criatura, o con hongo rojo → ungüento de bestia (+18 HP), o con hongo verde → cuero silvestre (+3 DEF). 🙏 También sirve como ofrenda al altar.' },
   'escudo roto':         { type: 'misc', description: 'Un escudo con el centro partido. Inútil para defenderse así. 🔧 Crafteo: escudo roto + garra de esqueleto → escudo de gladiador. O vendelo a Aldric por 8g.' },
   'escudo de madera':    { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Un escudo de madera reforzada. No es glamoroso, pero te protege. +2 de defensa.' },
   'esencia etérea':      { type: 'misc', description: 'Una esencia brumosa dentro de un frasco. Resuena con el más allá. 🔧 Pistas de crafteo: lanza espectral + esencia etérea = lanza espectral reforzada (+9 ATK) | alabarda de huesos + esencia etérea = alabarda espectral (+12 ATK, efecto especial).' },
@@ -75,9 +75,9 @@ const ITEM_CATALOG = {
   'gancho de hierro':    { type: 'misc', description: 'Un gancho de hierro forjado. Podría servir para escalar.' },
   'cadenas rotas':       { type: 'misc', description: 'Cadenas de hierro partido. Aún huelen a sufrimiento.' },
   'corona rota':         { type: 'misc', description: 'Una corona de metal ennegrecido, partida en dos. Perteneció a alguien poderoso. El frío que emana de la Sala del Trono la reconoce: como ofrenda al trono, disipa la trampa de hielo. Los altares del dungeon también la aceptan: pray corona rota otorga una bendición de mando (+2 ATK +3 DEF, 5 min). O podés venderla si preferís el oro.' },
-  'hongo azul':          { type: 'misc', description: 'Un hongo luminiscente de color azul profundo. Tiene propiedades alquímicas. 🔧 Pista: combinalo con veneno concentrado para un brebaje del hongo.' },
-  'hongo rojo':          { type: 'misc', description: 'Un hongo de color carmesí con venas luminiscentes. El calor que irradia es extraño para una criatura tan pequeña.' },
-  'hongo verde':         { type: 'misc', description: 'Un hongo de tonalidad verde esmeralda con textura aterciopelada. Huele a tierra mojada y algo más que no podés nombrar.' },
+  'hongo azul':          { type: 'misc', description: 'Un hongo luminiscente de color azul profundo. Tiene propiedades alquímicas. 🔧 Pista: combinalo con veneno concentrado → brebaje del hongo, o con diente afilado → veneno de colmillo (40% de envenenar). 🙏 Ofrenda al altar: Resonancia Fúngica (+1 ATK, +8 maná, 90s).' },
+  'hongo rojo':          { type: 'misc', description: 'Un hongo de color carmesí con venas luminiscentes. El calor que irradia es extraño para una criatura tan pequeña. 🔧 Combinalo con pelaje áspero → ungüento de bestia (+18 HP). 🙏 Ofrenda al altar: Espora Vital (+10 HP).' },
+  'hongo verde':         { type: 'misc', description: 'Un hongo de tonalidad verde esmeralda con textura aterciopelada. Huele a tierra mojada y algo más. 🔧 Combinalo con pelaje áspero → cuero silvestre (+3 DEF), o con garra de esqueleto → polvo de hueso (+2 DEF 120s). 🙏 Ofrenda al altar: Resistencia Esporácea (+1 DEF, 90s).' },
   'hilo de seda':        { type: 'misc', description: 'Hilo de seda de araña, increíblemente resistente. Se usa en armaduras mágicas.' },
   'veneno concentrado':  { type: 'misc', description: 'Un vial con el veneno de la Araña Tejedora. Peligroso si se derrama.' },
 

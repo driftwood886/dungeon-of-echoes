@@ -172,6 +172,31 @@ const RECIPES = [
     result: 'alabarda espectral',
     message: 'La esencia etérea fluye desde el frasco hacia la alabarda de huesos. El símbolo de Valdrath grabado en el filo se ilumina con luz espectral violeta — los huesos comprimidos absorben el poder del más allá. La alabarda emerge transformada: más ligera, más fría, con marcas que no estaban antes y que no pertenecen a ningún alfabeto conocido.',
   },
+  // ── DIS-1267: Recetas de tier bajo para vaciar inventario de materiales basura ─
+  {
+    // pelaje áspero + hongo rojo → ungüento de bestia (poción de HP)
+    ingredients: ['pelaje áspero', 'hongo rojo'],
+    result: 'ungüento de bestia',
+    message: 'Triturás el hongo carmesí sobre el pelaje áspero. La mezcla desprende calor y el ungüento resultante huele a hierba quemada y sangre — pero claramente tiene propiedades curativas.',
+  },
+  {
+    // garra de esqueleto + hongo verde → polvo de hueso (armadura menor)
+    ingredients: ['garra de esqueleto', 'hongo verde'],
+    result: 'polvo de hueso',
+    message: 'Moler la garra de esqueleto con el hongo verde produce un polvo blanquecino con motas de esmeralda. Frotado en la piel actúa como refuerzo natural.',
+  },
+  {
+    // pelaje áspero + hongo verde → cuero silvestre (armadura)
+    ingredients: ['pelaje áspero', 'hongo verde'],
+    result: 'cuero silvestre',
+    message: 'Tratás el pelaje con la resina del hongo verde. El cuero se endurece y toma un tinte verdoso. No es elegante, pero protege.',
+  },
+  {
+    // diente afilado + hongo azul → veneno de colmillo (arma)
+    ingredients: ['diente afilado', 'hongo azul'],
+    result: 'veneno de colmillo',
+    message: 'El diente afilado disuelto en el jugo del hongo azul crea un veneno viscoso de color índigo. Podés untarlo en tu arma.',
+  },
 ];
 
 // ─── Catálogo de ítems artesanales nuevos ─────────────────────────────────────
@@ -197,6 +222,11 @@ const CRAFTED_ITEMS = {
   'catalizador mágico': { type: 'weapon', effect: 'attack_bonus', amount: 7, mage_only_bonus: 3, description: 'Un concentrado de energía arcana. Amplifica la potencia de los hechizos del Mago. +7 de ataque. Los Magos reciben +3 de ataque adicional al empuñarlo.' },
   // DIS-1116: Alabarda espectral — mejora de la alabarda de huesos con esencia etérea
   'alabarda espectral': { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'La alabarda del Guardia Espectral impregnada con esencia etérea. Las marcas de Valdrath ahora pulsan con luz violeta. +12 de ataque. 20% de chance de aplicar Debilidad Espectral al objetivo por 2 rondas (reduce su defensa -3).' },
+  // DIS-1267: ítems artesanales de tier bajo para reciclar materiales de criatura
+  'ungüento de bestia': { type: 'potion', effect: 'heal', amount: 18, description: 'Un ungüento hecho con pelaje de bestia y hongo rojo. Olor penetrante. Restaura 18 HP al aplicarlo.' },
+  'polvo de hueso':     { type: 'armor', effect: 'defense_bonus', amount: 2, duration: 120, description: 'Polvo de hueso de esqueleto mezclado con hongo verde. Frotado en la piel actúa como refuerzo natural por 2 minutos. +2 DEF temporal.' },
+  'cuero silvestre':    { type: 'armor', effect: 'defense_bonus', amount: 3, description: 'Cuero de criatura tratado con resina de hongo verde. Verdoso e irregular, pero protege bien. +3 DEF.' },
+  'veneno de colmillo': { type: 'weapon', effect: 'attack_bonus', amount: 3, on_hit: { type: 'poison', chance: 0.40, damage: 2, turns: 3 }, description: 'Veneno de colmillo de murciélago amplificado con hongo azul. Se unta en el arma equipada para añadir 40% de chance de envenenar (2 dmg/turno por 3 turnos). Se consume al usarse.' },
 };
 
 // ─── Función de crafteo ────────────────────────────────────────────────────────
