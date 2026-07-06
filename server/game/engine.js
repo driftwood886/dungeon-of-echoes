@@ -13248,6 +13248,13 @@ function cmdUseSkill(player, args, context) {
     const alive = monsters.filter(m => m.hp > 0);
     const targetName = args.slice(1).join(' ').trim();
     if (alive.length === 0) {
+      // DIS-1264: respuesta contextual si hay monstruos muertos en la sala
+      const dead = monsters.filter(m => m.hp <= 0);
+      if (dead.length > 0) {
+        const deadName = dead[dead.length - 1].name; // el más reciente
+        if (targetName) return { text: `⚡ ${targetName.charAt(0).toUpperCase() + targetName.slice(1)} ya no está en pie — fue derrotado. No queda nadie más aquí para golpear.` };
+        return { text: `⚡ El ${deadName} ya está derrotado. ¿Había otro objetivo?\n💡 Si querés avanzar, explorá la sala con \`look\` o movete con \`go [dirección]\`.` };
+      }
       if (targetName) return { text: `⚡ No hay ningún "${targetName}" aquí para golpear.` };
       return { text: '⚡ No hay monstruos aquí para golpear.' };
     }
