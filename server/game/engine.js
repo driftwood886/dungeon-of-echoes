@@ -463,6 +463,7 @@ function execute(playerId, input, context) {
       break;
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
+    case 'debuffs':      result = cmdDebuffs(player, action.args); break;    // EPIC-1295-F2: estados de combate (solo Mago)
     case 'clase':        result = cmdClase(player, action.args); break;
     case 'especializar': result = cmdSpecialize(player, action.args); break;
     case 'bestiary':     result = cmdBestiary(player); break;
@@ -12615,6 +12616,110 @@ function cmdCast(player, args) {
     text: lines.join('\n'),
     event: broadcastEvent,
   };
+}
+
+/**
+ * debuffs / estados — EPIC-1295-F2: Comando exclusivo del Mago.
+ * Muestra estados activos del primer monstruo en la sala (o del especificado),
+ * e indica qué sinergias son posibles con los hechizos disponibles.
+ */
+function cmdDebuffs(player, args) {
+  const debuffClass = classes.getPlayerClass(player);
+  const debuffClassName = debuffClass ? debuffClass.name : 'sin_clase';
+
+  if (debuffClassName !== 'Mago') {
+    return {
+      text: `🔮 Solo los Magos tienen el ojo arcano para leer los estados de combate.\n\"Los profanos no ven las corrientes de energía que fluyen alrededor del enemigo.\"\n\n💡 Elegí la clase Mago con \"clase mago\" para acceder a este comando.`,
+    };
+  }
+
+  const monsters = db.getMonstersInRoom(player.current_room_id);
+  if (monsters.length === 0) {
+    return { text: `🔮 No hay criaturas en esta sala. Nada que leer arcánicamente.` };
+  }
+
+  // Si hay args, buscar monstruo por nombre; si no, usar el primero
+  let target = monsters[0];
+  if (args && args.length > 0) {
+    const query = args.join(' ').toLowerCase();
+    const matched = monsters.find(m => m.name.toLowerCase().includes(query));
+    if (matched) target = matched;
+  }
+
+  const mStatus = {};
+  try {
+    const raw = target.status_effects;
+    if (raw) Object.assign(mStatus, typeof raw === 'string' ? JSON.parse(raw) : raw);
+  } catch (_) {}
+
+  const lines = [];
+  lines.push(`🔮 **Lectura arcana: ${target.name}** [${target.hp}/${target.max_hp} HP]`);
+  lines.push('');
+
+  // ─── Estados activos ──────────────────────────────────────────────────────
+  const stateIds = Object.keys(mStatus).filter(id => !id.startsWith('__'));
+  if (stateIds.length === 0) {
+    lines.push('  Sin estados activos.');
+  } else {
+    lines.push('Estados activos:');
+    for (const stateId of stateIds) {
+      const stateVal = mStatus[stateId];
+      if (!stateVal || typeof stateVal !== 'object') continue;
+      const catalog = combatStates.STATE_CATALOG[stateId] || {};
+      const emoji = catalog.emoji || '•';
+      const name  = catalog.name  || stateId;
+      const turns = stateVal.turns || 0;
+      const stacks = stateVal.stacks || 1;
+      const source = stateVal.source ? ` — origen: ${stateVal.source}` : '';
+      const dotNote = stateVal.dmg_per_turn > 0 ? ` — ${stateVal.dmg_per_turn * stacks} dmg/turno` : '';
+      const stacksNote = stacks > 1 ? ` ×${stacks}` : '';
+      lines.push(`  ${emoji} ${name}${stacksNote} (${turns}t restante${turns !== 1 ? 's' : ''})${dotNote}${source}`);
+    }
+  }
+
+  lines.push('');
+
+  // ─── Sinergias posibles ahora ─────────────────────────────────────────────
+  const SINERGIA_TABLE = combatStates.SINERGIA_TABLE;
+  // Mapa: hechizo del Mago → qué debuff aplica
+  const SPELL_DEBUFF_MAP = {
+    'rayo':          'stunned',
+    'escarcha':      'slowed',
+    'bola de fuego': 'burning',
+  };
+
+  const possibleSynergies = [];
+  for (const [spellName, debuffId] of Object.entries(SPELL_DEBUFF_MAP)) {
+    // Chequear si algún estado activo + este debuff genera sinergia
+    for (const existId of stateIds) {
+      const syn = combatStates.resolveDebuffSynergy(existId, debuffId, spellName);
+      if (syn && syn.triggered) {
+        const resultCat = combatStates.STATE_CATALOG[syn.result] || {};
+        const resultName = resultCat.name || syn.result;
+        const resultEmoji = resultCat.emoji || '✨';
+        possibleSynergies.push(`  • cast ${spellName.padEnd(15)} → ${resultEmoji} ${syn.result.toUpperCase()}: ${syn.message.replace(/^.*SINERGIA: /, '').replace(/→.*$/, '').trim()}`);
+      }
+    }
+  }
+
+  if (possibleSynergies.length > 0) {
+    lines.push('Sinergias posibles ahora:');
+    for (const s of possibleSynergies) lines.push(s);
+  } else if (stateIds.length > 0) {
+    lines.push('Sinergias posibles ahora:');
+    lines.push('  (ninguna — los estados actuales no combinan con tus hechizos)');
+  } else {
+    lines.push('💡 Sin estados activos — aplicá escarcha (→ ralentizado) o bola de fuego (→ quemando) para crear sinergias.');
+  }
+
+  // ─── Steam explosion activa del jugador ───────────────────────────────────
+  const pSE = parseSE(db.getPlayer(player.id).status_effects);
+  if (pSE['steam_explosion']) {
+    lines.push('');
+    lines.push(`💨 **¡Tenés Explosión de Vapor activa!** Tu próximo hechizo hace +50% daño.`);
+  }
+
+  return { text: lines.join('\n') };
 }
 
 /**

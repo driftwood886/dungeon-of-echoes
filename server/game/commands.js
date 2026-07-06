@@ -187,6 +187,8 @@ const COMMAND_ALIASES = {
   cast: 'cast', lanzar: 'cast', hechizar: 'cast', invocar: 'cast', magic: 'cast',
   // spells / hechizos (T104)
   spells: 'spells', hechizos: 'spells', magia: 'spells', conjuros: 'spells', grimorios: 'spells',
+  // debuffs / estados (EPIC-1295-F2: comando del Mago para ver estados activos y sinergias)
+  debuffs: 'debuffs', estados: 'debuffs', 'estados de combate': 'debuffs', 'estados activos': 'debuffs', sinergias: 'debuffs',
   // clase / class (T107)
   clase: 'clase', class: 'clase', profesion: 'clase', profesión: 'clase', vocacion: 'clase', vocación: 'clase', oficio: 'clase',
   // especializar (DIS-914)
