@@ -1284,9 +1284,33 @@ function cmdMove(player, direction) {
             : isSanctuarioSurFlee
               ? `\n\n🔒 La puerta de hierro entre el Santuario y el Pozo Sin Fondo está cerrada desde este lado también.\n💡 Necesitás la llave oxidada para cruzar en cualquier dirección.\n  • Comprándola a Aldric (sala 4) por 20g\n  • Buscando en la Prisión (sala 8, al norte del Tesoro)\n  • La Araña Tejedora del Pozo la lleva a veces (15% de chance)\n\n🗺 Para salir del Santuario sin bajar al Pozo: oeste → Sala del Trono → sur → Túnel de Hongos → sur → Capilla → oeste → Entrada.`
               : '';
+          // T1271: Si el jugador ya usó la llave (se consumió al cruzar), mostrar mensaje claro
+          const seFleeBlockedDoor = parseSE(player.status_effects);
+          const keyFleeFlag = `used_key_${requiredKeyFlee.toLowerCase().replace(/\s+/g, '_')}`;
+          const alreadyUsedKeyFlee = seFleeBlockedDoor[keyFleeFlag] === true;
+          if (alreadyUsedKeyFlee && isSanctuarioSurFlee) {
+            return {
+              text: `La puerta al sur está bloqueada. 🔒\nUsaste la llave oxidada para entrar — se rompió al girar y ya no podés volver por aquí.\n\n🗺 Para salir del Santuario sin bajar al Pozo: oeste → Sala del Trono → sur → Túnel de Hongos → sur → Capilla → oeste → Entrada.`,
+            };
+          }
           return {
             text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${requiredKeyFlee}" para abrirla.${questPozoPreffix}${altRouteHint}`,
           };
+        }
+      }
+      // T1271: Consumir la llave en el path de huida (igual que en el path normal)
+      if (requiredKeyFlee) {
+        const inventory = player.inventory || [];
+        const keyIdxFlee = inventory.findIndex(item => item.toLowerCase() === requiredKeyFlee.toLowerCase());
+        if (keyIdxFlee !== -1) {
+          const newInvFlee = [...inventory.slice(0, keyIdxFlee), ...inventory.slice(keyIdxFlee + 1)];
+          db.updatePlayer(player.id, { inventory: newInvFlee });
+          player.inventory = newInvFlee;
+          const seFleeKey = parseSE(player.status_effects);
+          seFleeKey[`used_key_${requiredKeyFlee.toLowerCase().replace(/\s+/g, '_')}`] = true;
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(seFleeKey) });
+          player.status_effects = seFleeKey;
+          player._usedKeyName = requiredKeyFlee;
         }
       }
       if (destId) {
@@ -1483,7 +1507,7 @@ function cmdMove(player, direction) {
           }
         }
         return {
-          text: `🚶 Te movés a «${destName}».${moveHintText}${noBossEffectText}${noBossTrapText}`,
+          text: `🚶 Te movés a «${destName}».${moveHintText}${noBossEffectText}${noBossTrapText}${player._usedKeyName ? `\n\n🔑 Usás la "${player._usedKeyName}" para abrir la puerta. La llave se rompe al girar — ya no te sirve, pero la puerta cedió. Una sola vez.` : ''}`,
           event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
@@ -1681,8 +1705,12 @@ function cmdMove(player, direction) {
       const dirName = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
       // DIS-D42: Si es la puerta del Pozo (sala 7 → norte), agregar pista de ruta alternativa
       const isPozo = player.current_room_id === 7 && dungeon.normalizeDirection(direction) === 'north';
-      // BUG-1188: Si es la puerta del Santuario (sala 10 → sur), mostrar mensaje simétrico
+    // BUG-1188: Si es la puerta del Santuario (sala 10 → sur), mostrar mensaje simétrico
       const isSanctuarioSur = player.current_room_id === 10 && dungeon.normalizeDirection(direction) === 'south';
+      // T1271: Verificar si el jugador ya usó la llave antes (y se consumió al cruzar)
+      const seBlockedDoor = parseSE(player.status_effects);
+      const keyFlagName = `used_key_${key.toLowerCase().replace(/\s+/g, '_')}`;
+      const alreadyUsedKey = seBlockedDoor[keyFlagName] === true;
       // DIS-1179: si el jugador tiene la quest de arañas activa y está bloqueado en sala 7
       const spiderQuestActivePrincipal = (() => {
         try {
@@ -1700,6 +1728,12 @@ function cmdMove(player, direction) {
         : isSanctuarioSur
           ? `\n\n🔒 La puerta de hierro entre el Santuario y el Pozo Sin Fondo está cerrada desde este lado también.\n💡 Necesitás la llave oxidada para cruzar en cualquier dirección.\n  • Comprándola a Aldric (sala 4) por 20g\n  • Buscando en la Prisión (sala 8, al norte del Tesoro)\n  • La Araña Tejedora del Pozo la lleva a veces (15% de chance)\n\n🗺 Para salir del Santuario sin bajar al Pozo: oeste → Sala del Trono → sur → Túnel de Hongos → sur → Capilla → oeste → Entrada.`
           : '';
+      // T1271: Si el jugador ya usó la llave (se consumió al cruzar), mostrar mensaje específico en lugar del genérico
+      if (alreadyUsedKey && isSanctuarioSur) {
+        return {
+          text: `La puerta al sur está bloqueada. 🔒\nUsaste la llave oxidada para entrar — se rompió al girar y ya no podés volver por aquí.\n\n🗺 Para salir del Santuario sin bajar al Pozo: oeste → Sala del Trono → sur → Túnel de Hongos → sur → Capilla → oeste → Entrada.`,
+        };
+      }
       return {
         text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${key}" para abrirla.${questPozoPrincipal}${altRouteHint}`,
       };
@@ -1710,6 +1744,14 @@ function cmdMove(player, direction) {
     db.updatePlayer(player.id, { inventory: newInventoryKey });
     // Actualizar el objeto player en memoria para que el resto de cmdMove vea el inventario correcto
     player.inventory = newInventoryKey;
+
+    // T1271: Guardar flag de que la llave fue usada, para mostrar mensaje correcto en puerta inversa
+    const seAfterKey = parseSE(player.status_effects);
+    seAfterKey[`used_key_${key.toLowerCase().replace(/\s+/g, '_')}`] = true;
+    db.updatePlayer(player.id, { status_effects: JSON.stringify(seAfterKey) });
+    player.status_effects = JSON.stringify(seAfterKey);
+    // T1271: Marcar la llave consumida para inyectar feedback en el move response
+    player._usedKeyName = key;
   }
 
   const targetRoom = db.getRoom(targetId);
@@ -2282,8 +2324,13 @@ function cmdMove(player, direction) {
     }
   } catch (_) { /* no romper move si falla expedición */ }
 
+  // T1271: Mensaje de feedback cuando se consume una llave al pasar por la puerta
+  const keyConsumedMsg = player._usedKeyName
+    ? `\n\n🔑 Usás la "${player._usedKeyName}" para abrir la puerta. La llave se rompe al girar — ya no te sirve, pero la puerta cedió. Una sola vez.`
+    : '';
+
   return {
-    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}`,
+    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
