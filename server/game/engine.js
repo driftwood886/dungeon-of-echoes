@@ -12157,7 +12157,18 @@ function cmdCast(player, args) {
       }
     }
     // BUG-943: elementalMult=0 (inmune) debería causar 0 daño, no el mínimo de 1
-    const rawDmg = Math.round(dmg * spellPower * magicResist * arcaneSurgeMult * evokerMult * elementalMult);
+    // EPIC-1293-F2: steam_explosion bonus — si el jugador tiene el estado activo, +50% daño a este hechizo
+    const pSEForSteam = parseSE(db.getPlayer(player.id).status_effects);
+    const steamExpData = pSEForSteam['steam_explosion'];
+    const steamExpMult = (steamExpData && steamExpData.next_spell_bonus) ? steamExpData.next_spell_bonus : 1.0;
+    let steamExpNote = '';
+    if (steamExpMult > 1.0) {
+      // Consumir el estado (1 turno = se gasta en este hechizo)
+      delete pSEForSteam['steam_explosion'];
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(pSEForSteam) });
+      steamExpNote = ` 💨[+50% Explosión de Vapor]`;
+    }
+    const rawDmg = Math.round(dmg * spellPower * magicResist * arcaneSurgeMult * evokerMult * elementalMult * steamExpMult);
     const finalDmg = elementalMult === 0.0 ? 0 : Math.max(1, rawDmg);
     const newHp = Math.max(0, target.hp - finalDmg);
     db.updatePlayer(player.id, { mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
@@ -12180,7 +12191,7 @@ function cmdCast(player, args) {
     const arcaneSurgeNoteNew = (newArcaneSurgeBonus > 0 && newArcaneSurgeBonus >= arcaneSurgeBonus) ? ` ⚡(+${Math.round(newArcaneSurgeBonus * 100)}% Carga Arcana [evento])` : arcaneSurgeNote;
     const evokerNote = evokerBonus > 0 ? ` ⚡[Evoker +25%]` : '';
     const finalArcaneSurgeNote = arcaneSurgeNoteNew || arcaneSurgeNote;
-    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${finalArcaneSurgeNote}${evokerNote}${elementalNote})` : (magicResistNote + finalArcaneSurgeNote + evokerNote + elementalNote) || '';
+    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${finalArcaneSurgeNote}${evokerNote}${elementalNote}${steamExpNote})` : (magicResistNote + finalArcaneSurgeNote + evokerNote + elementalNote + steamExpNote) || '';
     lines.push(`   ${target.name} recibe ${finalDmg} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
 
     // T214 / EPIC-1290-F1: rayo aturde SIEMPRE (determinista) si el monstruo sobrevive
@@ -12207,6 +12218,52 @@ function cmdCast(player, args) {
         db.updateMonster(target.id, { status_effects: JSON.stringify(slowTarget.status_effects) });
         for (const l of slowLines) lines.push(`   ${l}`);
       } catch (e) { /* silenciar errores de parseo */ }
+    }
+
+    // EPIC-1293-F2: bola de fuego aplica burning (DoT 3 dmg/turno) si el monstruo sobrevive
+    if (spellName === 'bola de fuego' && newHp > 0) {
+      try {
+        const mStatusBurn = JSON.parse(target.status_effects || '{}');
+        const burnTarget = { status_effects: mStatusBurn };
+        const { applied, lines: burnLines } = combatStates.applyDebuff(burnTarget, 'burning', { source: 'bola de fuego', turns: 2, dmg_per_turn: 3 });
+        // Si la sinergia generó steam_explosion_pending, transferirlo al jugador
+        if (burnTarget.status_effects['__steam_explosion_pending']) {
+          const steamData = burnTarget.status_effects['__steam_explosion_pending'];
+          delete burnTarget.status_effects['__steam_explosion_pending'];
+          // Aplicar steam_explosion al jugador (bonus para el próximo hechizo)
+          const pSE = parseSE(db.getPlayer(player.id).status_effects);
+          pSE['steam_explosion'] = {
+            turns: 1,
+            next_spell_bonus: steamData.next_spell_bonus || 1.50,
+            source: 'steam_explosion',
+          };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(pSE) });
+          lines.push(`   💨 ¡El vapor se acumula en tu magia! (próximo hechizo: +50% daño)`);
+        }
+        db.updateMonster(target.id, { status_effects: JSON.stringify(burnTarget.status_effects) });
+        for (const l of burnLines) lines.push(`   ${l}`);
+      } catch (e) { /* silenciar errores de burning */ }
+    }
+
+    // EPIC-1293-F2: escarcha también puede triggerear steam_explosion si el monstruo ya está burning
+    if (spellName === 'escarcha' && newHp > 0) {
+      try {
+        // Re-leer status effects post-slowed para detectar si quedó __steam_explosion_pending
+        const mStatusAfterSlow = JSON.parse(db.getMonster ? (db.getMonster(target.id) || target).status_effects || '{}' : target.status_effects || '{}');
+        if (mStatusAfterSlow['__steam_explosion_pending']) {
+          const steamData = mStatusAfterSlow['__steam_explosion_pending'];
+          delete mStatusAfterSlow['__steam_explosion_pending'];
+          db.updateMonster(target.id, { status_effects: JSON.stringify(mStatusAfterSlow) });
+          const pSE2 = parseSE(db.getPlayer(player.id).status_effects);
+          pSE2['steam_explosion'] = {
+            turns: 1,
+            next_spell_bonus: steamData.next_spell_bonus || 1.50,
+            source: 'steam_explosion',
+          };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(pSE2) });
+          lines.push(`   💨 ¡El vapor explosivo se desata! (próximo hechizo: +50% daño)`);
+        }
+      } catch (e) { /* silenciar */ }
     }
 
     // DIS-632: Fase 2 del boss al recibir daño mágico — mismo trigger que en combat.js

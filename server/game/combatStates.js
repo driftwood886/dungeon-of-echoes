@@ -7,8 +7,8 @@
  *   tickDebuffs(target, lines)                  → procesa DoT y decrementa duraciones
  *   describeDebuffs(target)                     → devuelve string legible para el jugador
  * 
- * Fase 1: SINERGIA_TABLE vacía — solo infraestructura.
- * Fase 2 (EPIC-1293-F2): activar sinergias del Mago.
+ * Fase 1: infraestructura completa (EPIC-1289..1292).
+ * Fase 2 (EPIC-1293-F2): sinergias del Mago activadas.
  */
 
 'use strict';
@@ -89,21 +89,42 @@ const STATE_CATALOG = {
 /**
  * SINERGIA_TABLE[existing][incoming] = { result, message, consumeExisting, extra }
  * 
- * FASE 1: Vacía — no activar sinergias todavía.
- * FASE 2 (EPIC-1293-F2): Poblar con sinergias del Mago.
+ * FASE 2 (EPIC-1293-F2): Sinergias del Mago activadas.
+ * 
+ * Lógica:
+ *   slowed + slowed   → frozen        (escarcha doble = congelado, 2 turnos control + -2 DEF)
+ *   slowed + stunned  → frozen        (ralentizado + rayo = congelado)
+ *   burning + slowed  → steam_exp     (fuego + frío = explosión de vapor, +50% dmg próximo hechizo al jugador)
+ *   burning + burning → stack ×2      (doble fuego = intensificación, solo acumulación)
+ *   stunned + golpe_sucio → exposed   (Pícaro: aturdido + golpe sucio = expuesto, Fase 3)
  */
 const SINERGIA_TABLE = {
-  // FASE 2 las llenará:
-  // 'slowed': {
-  //   'slowed':  { result: 'frozen',           message: '❄️⚡ SINERGIA: Ralentizado + escarcha = ¡HELADO! (2 turnos sin acción, -2 DEF)', consumeExisting: true },
-  //   'stunned': { result: 'frozen',            message: '❄️😵 SINERGIA: Ralentizado + aturdido = ¡HELADO! (2 turnos sin acción)', consumeExisting: true },
-  // },
-  // 'burning': {
-  //   'slowed':   { result: 'steam_explosion',  message: '🔥❄️ SINERGIA: Quemándose + escarcha = ¡EXPLOSIÓN DE VAPOR! (+50% daño del próximo hechizo)', consumeExisting: true, extra: { applyToPlayer: true } },
-  //   'burning':  { result: 'burning',           message: '🔥🔥 ¡Quemándose se intensifica! (2 stacks: 6 dmg/turno)', consumeExisting: false, stack: true },
-  // },
+  // ─── Sinergias del Mago (EPIC-1293-F2) ───────────────────────────────────────
+  'slowed': {
+    'slowed':  {
+      result: 'frozen',
+      message: '❄️❄️ SINERGIA: Escarcha doble → ¡HELADO! (2 turnos sin acción, -2 DEF)',
+      consumeExisting: true,
+    },
+    'stunned': {
+      result: 'frozen',
+      message: '❄️⚡ SINERGIA: Ralentizado + rayo → ¡HELADO! (2 turnos sin acción, -2 DEF)',
+      consumeExisting: true,
+    },
+  },
+  'burning': {
+    'slowed': {
+      result: 'steam_explosion',
+      message: '🔥❄️ SINERGIA: Quemándose + escarcha → ¡EXPLOSIÓN DE VAPOR! (+50% daño al próximo hechizo)',
+      consumeExisting: true,
+      extra: { applyToPlayer: true },
+    },
+    // Nota: burning+burning NO está aquí — el sistema de stacks natural lo maneja
+    // (burning es stackeable hasta max_stacks: 2, la segunda aplicación auto-incrementa stacks)
+  },
+  // ─── Sinergia del Pícaro (Fase 3 — preparada pero inactiva hasta EPIC-1286-DEF) ──
   // 'stunned': {
-  //   'golpe_sucio': { result: 'exposed',        message: '😵💀 SINERGIA: Aturdido + golpe sucio = ¡EXPUESTO! (-2 DEF por 1 turno)', consumeExisting: true },
+  //   'golpe_sucio': { result: 'exposed', message: '😵💀 SINERGIA: Aturdido + golpe sucio = ¡EXPUESTO! (-2 DEF por 1 turno)', consumeExisting: true },
   // },
 };
 
