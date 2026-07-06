@@ -1227,11 +1227,12 @@ function attackRound(player, monster) {
       updates.hp     = Math.min(updates.max_hp, (freshPlayer.hp || 1) + healOnLevelUp);
       updates.attack = (freshPlayer.attack || 5) + 1;
       lines.push(`✨ ¡Subiste al nivel ${newLevel}! +5 HP máx, +1 ataque, +${healOnLevelUp} HP restaurado.`);
-      // DIS-914: Prompt de especialización al llegar al nivel 5
+      // DIS-914/DIS-1282: Prompt de especialización al llegar al nivel 5
+      // DIS-1282: mensaje más prominente con ⚠️ para que el jugador no se lo pierda
       if (newLevel === 5 && freshPlayer.player_class && freshPlayer.player_class !== 'sin_clase' && !freshPlayer.specialization) {
-        lines.push(`\n🌟 ¡Nivel 5 alcanzado! Es hora de elegir tu ESPECIALIZACIÓN.`);
-        lines.push(`   Escribí "especializar" para ver las opciones y escoger tu camino.`);
-        lines.push(`   Esta decisión es permanente — define quién sos en el dungeon.`);
+        lines.push(`\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!`);
+        lines.push(`   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.`);
+        lines.push(`   Escribí \`especializar\` para ver las opciones y escoger tu camino.`);
         // DIS-1237: marcar spec_reminder_shown para no repetir al moverse
         try {
           const seSpec = freshPlayer.status_effects

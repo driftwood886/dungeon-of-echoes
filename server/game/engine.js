@@ -222,7 +222,7 @@ function calcLevelUp(freshPlayer, xpGain) {
       } catch (_) { /* no interrumpir */ }
     }
   }
-  return { fields, levelUpMsg: levelUp ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}! +5 HP máx, +1 ataque${fields.hp ? `, +${fields.hp - (freshPlayer.hp || 1)} HP restaurado (${fields.hp}/${fields.max_hp} HP)` : ''}${newLevel === 5 && !freshPlayer.specialization ? '\n   🌟 ¡Desbloqueaste especializaciones! Escribí "especializar" para elegir una.' : ''}` : '' };
+  return { fields, levelUpMsg: levelUp ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}! +5 HP máx, +1 ataque${fields.hp ? `, +${fields.hp - (freshPlayer.hp || 1)} HP restaurado (${fields.hp}/${fields.max_hp} HP)` : ''}${newLevel === 5 && !freshPlayer.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.' : ''}` : '' };
 }
 
 /**
@@ -1869,7 +1869,7 @@ function cmdMove(player, direction) {
       }
     }
     db.updatePlayer(player.id, upd);
-    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +2 XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!` : ''}`;
+    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +2 XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${newLevel === 5 && !freshExp.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.' : ''}` : ''}`;
   }
 
   // Construir respuesta
