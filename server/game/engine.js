@@ -12301,7 +12301,7 @@ function cmdCast(player, args) {
     const evokerNote = evokerBonus > 0 ? ` ⚡[Evoker +25%]` : '';
     const finalArcaneSurgeNote = arcaneSurgeNoteNew || arcaneSurgeNote;
     const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${finalArcaneSurgeNote}${evokerNote}${elementalNote}${steamExpNote})` : (magicResistNote + finalArcaneSurgeNote + evokerNote + elementalNote + steamExpNote) || '';
-    lines.push(`   ${target.name} recibe ${finalDmg} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
+    lines.push(`   ${target.name} recibe ${finalDmgCondenado} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
     if (spellCondenadoMsg) { lines.push(spellCondenadoMsg); }  // EPIC-1303-F4: mensaje de marca condenado
 
     // T214 / EPIC-1290-F1 / EPIC-1294-F2: rayo aturde SIEMPRE (100% determinista) si el monstruo sobrevive
