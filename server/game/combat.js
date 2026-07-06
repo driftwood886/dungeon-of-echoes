@@ -1635,6 +1635,23 @@ function attackRound(player, monster) {
       db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterSeForGS) });
     } catch (_) {}
 
+    // EPIC-1300-F3: Asesino — acumula shadow_points también cuando el monstruo ataca
+    // (bonus pasivo: las heridas recibidas alimentan la rabia de las sombras)
+    if (clsData && clsData.name === 'Pícaro' && player.specialization === 'asesino' && !playerDead) {
+      try {
+        const freshForSombraAsesino = db.getPlayer(player.id);
+        const seSombraAsesino = freshForSombraAsesino.status_effects ? (typeof freshForSombraAsesino.status_effects === 'string' ? JSON.parse(freshForSombraAsesino.status_effects) : freshForSombraAsesino.status_effects) : {};
+        const prevSombraA = seSombraAsesino['shadow_points'] ? (seSombraAsesino['shadow_points'].value || 0) : 0;
+        if (prevSombraA < 3) {
+          const newSombraA = Math.min(3, prevSombraA + 1);
+          seSombraAsesino['shadow_points'] = { value: newSombraA, source: 'asesino_herida' };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(seSombraAsesino) });
+          const dotsA = { 0: '○○○', 1: '●○○', 2: '●●○', 3: '●●●' };
+          lines.push(`🌑 [Asesino] Sombra: ${dotsA[prevSombraA] || '○○○'} → ${dotsA[newSombraA] || '●●●'} (+1 por herida)${newSombraA === 3 ? '  ⚡ ¡Podés activar golpe desde las sombras!' : ''}`);
+        }
+      } catch (_) { /* silenciar */ }
+    }
+
     // ── Posible envenenamiento del monstruo ──────────────────────────────────
     const poisonerDef = POISONERS[monster.name];
     if (poisonerDef && Math.random() < poisonerDef.chance) {
