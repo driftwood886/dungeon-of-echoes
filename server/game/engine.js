@@ -466,7 +466,7 @@ function execute(playerId, input, context) {
     case 'especializar': result = cmdSpecialize(player, action.args); break;
     case 'bestiary':     result = cmdBestiary(player); break;
     case 'profile':      result = cmdProfile(player); break;
-    case 'journal':      result = cmdJournal(player); break;
+    case 'journal':      result = cmdJournal(player, action.args); break;
     case 'skills':       result = cmdSkills(player); break;
     case 'useSkill':     result = cmdUseSkill(player, action.args, context); break;
     case 'note':         result = cmdNote(player, action.args); break;
@@ -15041,7 +15041,7 @@ function cmdUseSkill(player, args, context) {
  * T113: journal/diario — Diario personal del aventurero.
  * Muestra las últimas 10 entradas registradas automáticamente.
  */
-function cmdJournal(player) {
+function cmdJournal(player, args) {
   const fresh = db.getPlayer(player.id);
   if (!fresh) return { text: 'Error al leer tu diario.' };
 
@@ -15050,8 +15050,26 @@ function cmdJournal(player) {
     return { text: '📖 Tu diario está vacío. ¡Empieza a aventurarte para escribir tu historia!' };
   }
 
-  // Mostrar los últimos 10 entries (más recientes al final)
-  const entries = journal.slice(-10).reverse();
+  const PAGE_SIZE = 10;
+  const totalPages = Math.ceil(journal.length / PAGE_SIZE);
+
+  // Parsear número de página del argumento (ej: "journal 2" → página 2)
+  let page = 1;
+  if (args && args[0]) {
+    const parsed = parseInt(args[0], 10);
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= totalPages) {
+      page = parsed;
+    } else if (!isNaN(parsed)) {
+      return { text: `📖 Página ${parsed} inválida. Tu diario tiene ${totalPages} página(s) (${journal.length} entradas).` };
+    }
+  }
+
+  // Página 1 = las más recientes (últimas entradas)
+  // Página 2 = las anteriores, etc.
+  const reversedJournal = [...journal].reverse();
+  const start = (page - 1) * PAGE_SIZE;
+  const entries = reversedJournal.slice(start, start + PAGE_SIZE);
+
   const TYPE_LABELS = {
     boss:        '⚔️  Boss',
     quest:       '📜 Quest',
@@ -15081,7 +15099,11 @@ function cmdJournal(player) {
 
   // Reemplazar el último separador por el cierre
   lines[lines.length - 1] = `╚${'═'.repeat(W)}╝`;
-  lines.push(`(${journal.length} entradas en total · mostrando las últimas ${entries.length})`);
+
+  const pageInfo = totalPages > 1
+    ? ` · página ${page}/${totalPages} · usá "journal ${page < totalPages ? page + 1 : 1}" para ${page < totalPages ? 'siguiente' : 'volver al inicio'}`
+    : '';
+  lines.push(`(${journal.length} entradas en total · mostrando ${entries.length}${pageInfo})`);
 
   return { text: lines.join('\n') };
 }
