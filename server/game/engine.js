@@ -8815,10 +8815,34 @@ function cmdBuy(player, itemQuery) {
     ? '\n"Una espada sin protección es invitación al funeral." Aldric señala el cuero endurecido. "20 monedas — más barato que respawnear."'
     : '';
 
-  // DIS-1242: Si compró un arma, recordar al jugador que hay que equiparla manualmente
-  const equipTip = (boughtWeapon && boughtWeapon.type === 'weapon')
-    ? `\n💡 Para empuñarla: \`equipar ${item.name}\``
-    : '';
+  // DIS-1263: Compra → autoequip hint contextual
+  // Si compró un arma/armadura, mostrar hint contextual según si tiene algo equipado
+  let equipTip = '';
+  if (boughtWeapon && boughtWeapon.type === 'weapon') {
+    const currentWeapon = freshBuyer.equipped_weapon && freshBuyer.equipped_weapon !== 'null' ? freshBuyer.equipped_weapon : null;
+    if (!currentWeapon) {
+      // No tiene arma equipada — hint directo y urgente
+      equipTip = `\n⚔️ Aldric nota tu mano vacía. \"Equipala antes de salir —\" señala la puerta. Para empuñarla: \`equipar ${item.name}\``;
+    } else {
+      const currentDef = items.getItemDef(currentWeapon);
+      const newDef = boughtWeapon;
+      const isUpgrade = newDef.amount && currentDef && currentDef.amount && newDef.amount > currentDef.amount;
+      if (isUpgrade) {
+        // Nueva arma es superior — recomendar el cambio
+        equipTip = `\n💡 Mejora disponible (+${newDef.amount - currentDef.amount} ATK vs ${currentWeapon}). Para equiparla: \`equipar ${item.name}\``;
+      } else {
+        // Hint estándar
+        equipTip = `\n💡 Para empuñarla: \`equipar ${item.name}\``;
+      }
+    }
+  } else if (boughtWeapon && boughtWeapon.type === 'armor') {
+    const currentArm = freshBuyer.equipped_armor && freshBuyer.equipped_armor !== 'null' ? freshBuyer.equipped_armor : null;
+    if (!currentArm) {
+      equipTip = `\n🛡 Sin armadura equipada. Para vestirla: \`wear ${item.name}\``;
+    } else {
+      equipTip = `\n💡 Para vestirla: \`wear ${item.name}\``;
+    }
+  }
 
   // STORY-008: Personalidad de Aldric — líneas de flavor al comprar
   const buyFlavors = [
