@@ -10361,10 +10361,13 @@ function cmdCraft(player, args) {
       const hasIng1 = hasItem(ing1);
       const hasIng2 = hasItem(ing2);
 
-      let missingNote = '';
+      // T1272: Si el jugador tiene ambos ingredientes, craftear directamente sin intermediario
       if (hasIng1 && hasIng2) {
-        missingNote = `\n✅ Tenés ambos ingredientes. Usá el comando de abajo:`;
-      } else if (hasIng1 && !hasIng2) {
+        return cmdCraft(player, [ing1, 'con', ing2]);
+      }
+
+      let missingNote = '';
+      if (hasIng1 && !hasIng2) {
         missingNote = `\n✅ Tenés: ${ing1}\n❌ Te falta: ${ing2}`;
       } else if (!hasIng1 && hasIng2) {
         missingNote = `\n✅ Tenés: ${ing2}\n❌ Te falta: ${ing1}`;
