@@ -467,6 +467,7 @@ function execute(playerId, input, context) {
     case 'sombras':      result = cmdSombras(player, action.args); break;    // EPIC-1297-F3: golpe desde las sombras (solo Pícaro)
     case 'postura_defensiva': result = cmdPostaraDefensiva(player); break;   // EPIC-1301-F4: postura defensiva (solo Guerrero)
     case 'quemar_combo': result = cmdQuemarCombo(player); break;             // EPIC-1302-F4: quemar combo (solo Guerrero)
+    case 'condenar':     result = cmdCondenar(player, action.args); break;   // EPIC-1303-F4: condenar (solo Clérigo)
     case 'clase':        result = cmdClase(player, action.args); break;
     case 'especializar': result = cmdSpecialize(player, action.args); break;
     case 'bestiary':     result = cmdBestiary(player); break;
@@ -12257,7 +12258,28 @@ function cmdCast(player, args) {
     }
     const rawDmg = Math.round(dmg * spellPower * magicResist * arcaneSurgeMult * evokerMult * elementalMult * steamExpMult);
     const finalDmg = elementalMult === 0.0 ? 0 : Math.max(1, rawDmg);
-    const newHp = Math.max(0, target.hp - finalDmg);
+
+    // EPIC-1303-F4: estado "condenado" del Clérigo en hechizos — multiplicar daño ×1.30 y consumir
+    let spellCondenadoMult = 1.0;
+    let spellCondenadoMsg = null;
+    try {
+      const mFxCond = target.status_effects
+        ? (typeof target.status_effects === 'string' ? JSON.parse(target.status_effects) : target.status_effects)
+        : {};
+      if (mFxCond.condenado) {
+        const condEntrySpell = mFxCond.condenado;
+        const condExpSpell = condEntrySpell.expires_at ? new Date(condEntrySpell.expires_at) : null;
+        if (!condExpSpell || condExpSpell > new Date()) {
+          spellCondenadoMult = condEntrySpell.dmg_multiplier || 1.30;
+          spellCondenadoMsg = `⚕️ ¡CONDENADO! La marca divina amplifica el hechizo (×${spellCondenadoMult}).`;
+        }
+        delete mFxCond.condenado;
+        db.updateMonster(target.id, { status_effects: JSON.stringify(mFxCond) });
+      }
+    } catch (_) {}
+    const finalDmgCondenado = Math.round(finalDmg * spellCondenadoMult);
+
+    const newHp = Math.max(0, target.hp - finalDmgCondenado);
     db.updatePlayer(player.id, { mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
 
     // DIS-745: Si el jugador lanza un hechizo sobre un boss, marcar que inició combate
@@ -12280,6 +12302,7 @@ function cmdCast(player, args) {
     const finalArcaneSurgeNote = arcaneSurgeNoteNew || arcaneSurgeNote;
     const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${finalArcaneSurgeNote}${evokerNote}${elementalNote}${steamExpNote})` : (magicResistNote + finalArcaneSurgeNote + evokerNote + elementalNote + steamExpNote) || '';
     lines.push(`   ${target.name} recibe ${finalDmg} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
+    if (spellCondenadoMsg) { lines.push(spellCondenadoMsg); }  // EPIC-1303-F4: mensaje de marca condenado
 
     // T214 / EPIC-1290-F1 / EPIC-1294-F2: rayo aturde SIEMPRE (100% determinista) si el monstruo sobrevive
     // EPIC-1294-F2: cambió stun_chance → always_stun. Costo del rayo subió de 12→14 para compensar.
@@ -12802,6 +12825,77 @@ function cmdQuemarCombo(player) {
 
   return {
     text: `⚡ COMBO x${comboCount} CARGADO. El próximo ataque aplicará ×${mult} de daño.\n   ¡Atacá ahora para liberar toda tu fuerza acumulada! (20s para usar)`,
+  };
+}
+
+/**
+ * condenar — EPIC-1303-F4
+ * Solo Clérigo. Aplica estado "condenado" al monstruo objetivo.
+ * El próximo ataque de cualquier jugador contra ese monstruo hace ×1.30 daño.
+ * Costo: 6 maná. Cooldown: 20s. Se consume en el primer hit o expira en 2 turnos.
+ */
+function cmdCondenar(player, args) {
+  const condClass = classes.getPlayerClass(player);
+  const condClassName = condClass ? condClass.name : 'sin_clase';
+
+  if (condClassName !== 'Clérigo') {
+    return {
+      text: `⚕️ Solo el Clérigo puede invocar la condena divina.\n\n"La marca divina es un instrumento de justicia, no de venganza."\n\n💡 Elegí la clase Clérigo con "clase clerigo" para acceder a este comando.`,
+    };
+  }
+
+  // Verificar monstruos en sala
+  const condMonsters = db.getMonstersInRoom(player.current_room_id).filter(m => m.hp > 0);
+  if (condMonsters.length === 0) {
+    return { text: `⚕️ No hay objetivo que condenar aquí.` };
+  }
+
+  // Verificar maná
+  const freshCond = db.getPlayer(player.id);
+  if ((freshCond.mana || 0) < 6) {
+    return { text: `⚕️ No tenés maná suficiente para invocar la condena (necesitás 6, tenés ${freshCond.mana || 0}).` };
+  }
+
+  // Verificar cooldown (en status_effects)
+  const condSE = parseSE(freshCond.status_effects);
+  if (condSE.condenar_cooldown) {
+    const cdExp = new Date(condSE.condenar_cooldown);
+    if (cdExp > new Date()) {
+      const secsLeft = Math.ceil((cdExp.getTime() - Date.now()) / 1000);
+      return { text: `⚕️ La condena divina aún está rechargeando. (${secsLeft}s restantes)` };
+    }
+  }
+
+  // Resolver target: primer monstruo vivo, o el especificado en args
+  let target = condMonsters[0];
+  if (args && args.length > 0) {
+    const argStr = args.join(' ').toLowerCase().trim();
+    const found = condMonsters.find(m => m.name.toLowerCase().includes(argStr));
+    if (found) target = found;
+  }
+
+  // Aplicar estado "condenado" al monstruo
+  const monsterSE = target.status_effects
+    ? (typeof target.status_effects === 'string' ? JSON.parse(target.status_effects) : target.status_effects)
+    : {};
+  monsterSE.condenado = {
+    dmg_multiplier: 1.30,
+    expires_turn: 2,   // turnos contados en status — referencia conceptual
+    expires_at: new Date(Date.now() + 30 * 1000).toISOString(),  // 30s (≈ 2 turnos)
+    applied_by: player.id,
+  };
+  db.updateMonster(target.id, { status_effects: JSON.stringify(monsterSE) });
+
+  // Gastar maná
+  db.updatePlayer(player.id, { mana: (freshCond.mana || 0) - 6 });
+
+  // Aplicar cooldown de 20s
+  condSE.condenar_cooldown = new Date(Date.now() + 20 * 1000).toISOString();
+  db.updatePlayer(player.id, { status_effects: JSON.stringify(condSE) });
+
+  return {
+    text: `⚕️ CONDENADO. Una marca divina señala al ${target.name}.\n   El próximo golpe contra él causa ×1.30 daño. (Cooldown: 20s · -6 maná)`,
+    event: `${player.username} marca al ${target.name} con la condena divina.`,
   };
 }
 
