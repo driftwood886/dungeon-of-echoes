@@ -2678,7 +2678,26 @@ function cmdStatus(player) {
           const clsObj = classes.getPlayerClass(player) || {};
           const specLine = player.specialization
             ? ` [${(require('./specializations').getSpec(player.specialization) || {}).name || player.specialization}]`
-            : ((player.level || 1) >= 5 ? ' — ⚠️ elegí especialización: escribe "especializar"' : '');
+            : (() => {
+                // DIS-1265: cambiar tono del hint de especialización según nivel
+                // Nivel 5: urgente (acabás de desbloquear). Nivel 6+: recordatorio suave, 1 vez.
+                // En nivel 8+: no mostrar (ya decidiste ignorarlo, no es un spam útil).
+                const lvl = player.level || 1;
+                if (lvl < 5) return '';
+                if (lvl === 5) return ' — ⚠️ elegí especialización: escribe "especializar"';
+                if (lvl <= 7) {
+                  // Solo mostrar 1 vez más en nivel 6-7 (via spec_reminder_v2)
+                  const se = parseSE(player.status_effects);
+                  if (!se.spec_reminder_v2) {
+                    // Marcar para no repetir la próxima vez que haga status
+                    const newSe = { ...se, spec_reminder_v2: true };
+                    db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe) });
+                    return ' — 💡 todavía podés especializarte (escribe "especializar")';
+                  }
+                  return ''; // ya se le recordó
+                }
+                return ''; // nivel 8+ — dejó de ser relevante spamearlo
+              })();
           return `Clase:    ${clsObj.emoji || ''} ${clsObj.name || player.player_class}${specLine}`;
         })()
       : `Clase:    (sin clase — usá "clase" para elegir)`,
