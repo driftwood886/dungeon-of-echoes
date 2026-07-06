@@ -191,6 +191,32 @@ function markBossAttacked(player, roomId) {
 }
 
 /**
+ * DIS-1281: Genera un mensaje contextualizado para la entrada del diario al subir de nivel.
+ * Incluye sala, kills y nombre del monstruo si están disponibles.
+ * @param {number} newLevel - nuevo nivel alcanzado
+ * @param {object} options - { monsterName, kills, roomId, method }
+ * @returns {string}
+ */
+function makeLevelUpJournalMsg(newLevel, { monsterName = null, kills = null, roomId = null, method = null } = {}) {
+  let roomName = null;
+  if (roomId) {
+    try {
+      const r = db.getRoom(roomId);
+      if (r && r.name) roomName = r.name;
+    } catch (_) { /* no romper si falla */ }
+  }
+  const killsStr = kills !== null ? ` (${kills} kills en total)` : '';
+  const roomStr = roomName ? ` en ${roomName}` : '';
+  const methodStr = method ? ` con ${method}` : '';
+  if (newLevel === 2) {
+    // Primer nivel — mensaje evocador con contexto
+    return `⬆️ Subiste al nivel 2${methodStr}${roomName ? ` en ${roomName}` : ''}${killsStr}. Sentís que el dungeon te está cambiando. No estás seguro de que sea para bien.`;
+  }
+  const monsterStr = monsterName ? ` tras derrotar al ${monsterName}` : '';
+  return `⬆️ Subiste al nivel ${newLevel}${methodStr}${roomStr}${monsterStr}${killsStr}.`;
+}
+
+/**
  * BUG-973: Calcula level-up al ganar XP de quest.
  * Retorna los campos a mergear en updatePlayer + un string de notificación.
  * El llamante debe incluir estos fields en su updatePlayer y concatenar levelUpMsg al texto.
@@ -3552,10 +3578,12 @@ function cmdAttack(player, targetName) {
     if (monsterDead) {
       const prevLevelForJournal = player.level || 1;
       if (newLevel > prevLevelForJournal) {
-        // STORY-019: primer nivel con mensaje evocador
-        const levelMsg = newLevel === 2
-          ? `⬆️ Subiste al nivel ${newLevel}. Sentís que el dungeon te está cambiando. No estás seguro de que sea para bien.`
-          : `⬆️ Subiste al nivel ${newLevel}.`;
+        // DIS-1281: mensaje contextualizado con sala y kills
+        const levelMsg = makeLevelUpJournalMsg(newLevel, {
+          monsterName: monster.name,
+          kills: freshForAch ? (freshForAch.kills || 0) + 1 : null,
+          roomId: player.current_room_id,
+        });
         db.addJournalEntry(player.id, 'level', levelMsg);
 
         // T969: notificación de ítem heredado al llegar a nivel 3
@@ -12274,7 +12302,14 @@ function cmdCast(player, args) {
       // Bestiario
       db.addBestiaryKill(player.id, target.name);
       if (newLevel > (player.level || 1)) {
-        db.addJournalEntry(player.id, 'level', `⬆️ Subiste al nivel ${newLevel} usando ${spellName}.`);
+        // DIS-1281: mensaje contextualizado con sala, kills y hechizo usado
+        const castLevelMsg = makeLevelUpJournalMsg(newLevel, {
+          monsterName: target.name,
+          kills: newKills,
+          roomId: player.current_room_id,
+          method: spellName,
+        });
+        db.addJournalEntry(player.id, 'level', castLevelMsg);
       }
       // BUG-044: evaluar logros al matar con hechizo (incluyendo boss_killer)
       const castBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
@@ -13453,7 +13488,16 @@ function cmdUseSkill(player, args, context) {
       db.updatePlayer(freshPlayer.id, smashUpd);
       text += `\n⭐ +${xpGain} XP (kills: ${smashUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
-      if (levelUp) db.addJournalEntry(freshPlayer.id, 'level', `⬆️ Subiste al nivel ${newLevel} tras el Golpetazo.`);
+      if (levelUp) {
+        // DIS-1281: mensaje contextualizado con sala, kills y habilidad
+        const smashLevelMsg = makeLevelUpJournalMsg(newLevel, {
+          monsterName: target.name,
+          kills: smashUpd.kills,
+          roomId: freshPlayer.current_room_id,
+          method: 'Golpetazo',
+        });
+        db.addJournalEntry(freshPlayer.id, 'level', smashLevelMsg);
+      }
       // Logros — incluyendo boss_killer
       const smashBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
       const smashLichKill = target.id === 13; // solo el Lich Anciano real
@@ -13770,6 +13814,16 @@ function cmdUseSkill(player, args, context) {
       db.updatePlayer(freshPlayer.id, skillUpd);
       text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
+      // DIS-1281: Registrar subida de nivel en el diario (Golpe de Escudo)
+      if (levelUp) {
+        const bashLevelMsg = makeLevelUpJournalMsg(newLevel, {
+          monsterName: target.name,
+          kills: skillUpd.kills,
+          roomId: freshPlayer.current_room_id,
+          method: 'Golpe de Escudo',
+        });
+        db.addJournalEntry(freshPlayer.id, 'level', bashLevelMsg);
+      }
       // Logros — incluyendo boss_killer
       const bashBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
       const bashLichKill = target.id === 13; // solo el Lich Anciano real
