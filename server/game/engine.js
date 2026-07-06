@@ -1242,7 +1242,7 @@ function cmdMove(player, direction) {
         delete fxForShadow['shadow_points'];
         fxChanged = true;
         player.status_effects = fxForShadow;
-        // La notificación del reset se agrega abajo en el texto de salida
+        player._shadowWasReset = true; // EPIC-1299-F3: marcar para agregar notificación en texto de salida
       }
     }
 
@@ -2376,8 +2376,13 @@ function cmdMove(player, direction) {
     ? `\n\n🔑 Usás la "${player._usedKeyName}" para abrir la puerta. La llave se rompe al girar — ya no te sirve, pero la puerta cedió. Una sola vez.`
     : '';
 
+  // EPIC-1299-F3: notificación de reset de sombra al moverse
+  const shadowResetMsg = player._shadowWasReset
+    ? `\n🌑 Las sombras se disipan al abandonar la sala. (Sombra: 0/3)`
+    : '';
+
   return {
-    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}`,
+    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -3013,6 +3018,17 @@ function cmdStatus(player) {
           ? ` | ⏸️ Sigilo CD (${Math.ceil((new Date(seSt.stealth_cooldown).getTime() - Date.now()) / 1000)}s)`
           : '';
       return `Especial: 💨 Esquiva: ${dodgePct}%${dodgeNote} | ⚡ Crítico: ${effectiveCrit}%${critNote}${stealthNote}`;
+    })(),
+    (() => {
+      // EPIC-1298-F3: mostrar shadow_points del Pícaro en status
+      const clsStatusShadow = classes.getPlayerClass(player);
+      if (!clsStatusShadow || clsStatusShadow.name !== 'Pícaro') return null;
+      const seShadowStatus = parseSE(player.status_effects);
+      const spPoints = seShadowStatus['shadow_points'] ? (seShadowStatus['shadow_points'].value || 0) : 0;
+      const dotsMapSt = { 0: '○○○', 1: '●○○', 2: '●●○', 3: '●●●' };
+      const dotsSt = dotsMapSt[spPoints] || '○○○';
+      const readyNote = spPoints === 3 ? '  ⚡ ¡Listo! Escribí "sombras" para activar.' : '';
+      return `Sombra:   🌑 ${dotsSt} (${spPoints}/3)${readyNote}`;
     })(),
     ...(statusLines.length ? ['', ...statusLines] : []),
   ].filter(l => l !== null).join('\n');
