@@ -701,7 +701,7 @@ Comandos más usados:
   inv / inventario      — Ver tu mochila
   pick <ítem>           — Recoger del suelo (pick todo = todo)
   use <ítem>            — Usar ítem (poción = curar, arma = equipar)
-  equip <arma>          — Equipar arma; wear <armadura> para armadura
+  equip <ítem>          — Equipar arma o armadura (ambos usan equipar)
   rest / descansar      — Recuperar HP (sin monstruos, cooldown 60s)
   map / mapa            — Mapa del dungeon (salas visitadas)
   ruta <sala>           — Ruta más corta (acepta alias: mercader, tienda, jefe, catedral...)
@@ -5848,7 +5848,7 @@ function cmdEquip(player, itemQuery) {
       // Tienen solo escudo roto u otro escudo misc
       return { text: `"${found}" no se puede equipar directamente.\n🔧 Es un material de crafteo: \"escudo roto\" + \"garra de esqueleto\" → escudo de gladiador (+DEF).\n💡 Usá: craft escudo roto con garra de esqueleto` };
     }
-    return { text: `${found} no es un arma que puedas equipar.${def && def.type === 'armor' ? ' Usá "wear" para ponerte armaduras.' : def && def.type === 'misc' && found.toLowerCase().includes('amuleto') ? '\n✨ El amuleto del eco es un ítem pasivo — con solo tenerlo en el inventario activa su efecto.' : ''}` };
+    return { text: `${found} no es un arma que puedas equipar.${def && def.type === 'armor' ? ' Para armaduras, usá también `equipar` (o `wear`).' : def && def.type === 'misc' && found.toLowerCase().includes('amuleto') ? '\n✨ El amuleto del eco es un ítem pasivo — con solo tenerlo en el inventario activa su efecto.' : ''}` };
   }
 
   const oldAttack = player.attack;
@@ -8936,9 +8936,9 @@ function cmdBuy(player, itemQuery) {
   } else if (boughtWeapon && boughtWeapon.type === 'armor') {
     const currentArm = freshBuyer.equipped_armor && freshBuyer.equipped_armor !== 'null' ? freshBuyer.equipped_armor : null;
     if (!currentArm) {
-      equipTip = `\n🛡 Sin armadura equipada. Para vestirla: \`wear ${item.name}\``;
+      equipTip = `\n🛡 Sin armadura equipada. Para equiparla: \`equipar ${item.name}\``;
     } else {
-      equipTip = `\n💡 Para vestirla: \`wear ${item.name}\``;
+      equipTip = `\n💡 Para equiparla: \`equipar ${item.name}\``;
     }
   }
 
@@ -19062,7 +19062,7 @@ function cmdPreview(player, args) {
     } else {
       lines.push(`│ ${pad('➖ Sin cambio en la defensa.', W)} │`);
     }
-    lines.push(`│ ${pad('Para ponerte: wear ' + found, W)} │`);
+    lines.push(`│ ${pad('Para equiparla: equipar ' + found, W)} │`);
   }
 
   lines.push(`└${'─'.repeat(W)}┘`);
