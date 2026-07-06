@@ -1325,8 +1325,11 @@ function cmdMove(player, direction) {
               if (!seNB1244.hongo_warning_done) {
                 const newSeNB1244 = { ...seNB1244, hongo_warning_done: true };
                 db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeNB1244) });
+                // T1274: usar dirección dinámica
+                const dirNormNB1244 = dungeon.normalizeDirection(direction);
+                const dirEsNB1244 = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNormNB1244]) || dirNormNB1244 || 'la dirección indicada';
                 return {
-                  text: `⚠️  Antes de entrar al Túnel de Hongos, notás esporas densas flotando en el umbral — una concentración antinatural que te arde en los ojos.\n\nLas esporas activan una trampa al cruzar. Perderás HP si entrás ahora.\n\n🍄 Si tenés un «hongo azul», podés neutralizarlas sin daño:\n   → Conseguilo con «buscar» en esta sala o al comprar en la tienda.\n   → Luego escribí «desactivar trampa <dir>» para desactivarla desde aquí.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), volvé a enviar el comando de dirección.`,
+                  text: `⚠️  Antes de entrar al Túnel de Hongos, notás esporas densas flotando en el umbral — una concentración antinatural que te arde en los ojos.\n\nLas esporas activan una trampa al cruzar. Perderás HP si entrás ahora.\n\n🍄 Si tenés un «hongo azul», podés neutralizarlas sin daño:\n   → Conseguilo con «buscar» en esta sala o al comprar en la tienda.\n   → Luego escribí «desactivar trampa ${dirEsNB1244}» para desactivarla desde aquí.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), volvé a enviar el comando de dirección.`,
                 };
               }
               // Segunda vez: limpiar flag y continuar
@@ -1483,7 +1486,7 @@ function cmdMove(player, direction) {
             const nbUpdatedSE = { ...nbStatusEff, [nbTrapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
             db.updatePlayer(nbFresh.id, { hp: nbNewHp, status_effects: JSON.stringify(nbUpdatedSE), known_traps: JSON.stringify(nbUpdatedKT) });
             const TRAP_DISARM_HINT_NB = {
-              6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa al norte, podés escribir "desactivar trampa norte" antes de entrar.\n⚠️  Al norte de aquí está la Sala del Trono — también tiene una trampa de frío (primera visita). Si pasás por la Prisión (sala 8, volviendo al Pozo), hay una "corona rota" abandonada en las celdas que la desactiva. DIS-1033',
+              6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa hacia el Túnel, podés escribir "desactivar trampa <dir>" desde la sala anterior para desactivarla sin entrar.\n⚠️  Al norte del Túnel está la Sala del Trono — también tiene una trampa de frío (primera visita). Si pasás por la Prisión (sala 8, volviendo al Pozo), hay una "corona rota" abandonada en las celdas que la desactiva. DIS-1033',
               9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de tres formas: (1) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, (2) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (3) buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
               3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).\n🧠 Próxima vez que veas el hint de trampa al oeste, podés escribir "desactivar trampa oeste" antes de entrar.',
               13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Buscá en esta sala o en los alrededores del Lago.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
@@ -1773,8 +1776,11 @@ function cmdMove(player, direction) {
           // Primera vez: mostrar warning sin mover al jugador
           const newSe1244 = { ...se1244, hongo_warning_done: true };
           db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1244) });
+          // T1274: usar dirección dinámica en lugar de hardcodear "norte"
+          const dirNorm1244 = dungeon.normalizeDirection(direction);
+          const dirEs1244 = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNorm1244]) || dirNorm1244 || 'la dirección indicada';
           return {
-            text: `⚠️  Antes de entrar al Túnel de Hongos, notás esporas densas flotando en el umbral — una concentración antinatural que te arde en los ojos.\n\nLas esporas activan una trampa al cruzar. Perderás HP si entrás ahora.\n\n🍄 Si tenés un «hongo azul», podés neutralizarlas sin daño:\n   → Conseguilo con «buscar» en esta sala o al comprar en la tienda.\n   → Luego escribí «desactivar trampa norte» para desactivarla desde aquí.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), escribí «norte» de nuevo.`,
+            text: `⚠️  Antes de entrar al Túnel de Hongos, notás esporas densas flotando en el umbral — una concentración antinatural que te arde en los ojos.\n\nLas esporas activan una trampa al cruzar. Perderás HP si entrás ahora.\n\n🍄 Si tenés un «hongo azul», podés neutralizarlas sin daño:\n   → Conseguilo con «buscar» en esta sala o al comprar en la tienda.\n   → Luego escribí «desactivar trampa ${dirEs1244}» para desactivarla desde aquí.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), escribí «${dirEs1244}» de nuevo.`,
           };
         }
         // Segunda vez: limpiar el flag y continuar con el movimiento normal (recibirá daño de trampa)
@@ -1948,7 +1954,7 @@ function cmdMove(player, direction) {
 
       // DIS-451/452: tip personalizado según la trampa — indica dónde obtener el ítem de desactivación
       const TRAP_DISARM_HINT = {
-        6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa al norte, podés escribir "desactivar trampa norte" antes de entrar.\n⚠️  Al norte de aquí está la Sala del Trono — también tiene una trampa de frío (primera visita). Si pasás por la Prisión (sala 8, volviendo al Pozo), hay una "corona rota" abandonada en las celdas que la desactiva. DIS-1033',
+        6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa hacia el Túnel, podés escribir "desactivar trampa <dir>" desde la sala anterior para desactivarla sin entrar.\n⚠️  Al norte del Túnel está la Sala del Trono — también tiene una trampa de frío (primera visita). Si pasás por la Prisión (sala 8, volviendo al Pozo), hay una "corona rota" abandonada en las celdas que la desactiva. DIS-1033',
         9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de tres formas: (1) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, (2) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (3) buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
         3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).\n🧠 Próxima vez que veas el hint de trampa al oeste, podés escribir "desactivar trampa oeste" antes de entrar.',
         13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Buscá en esta sala o en los alrededores del Lago.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
