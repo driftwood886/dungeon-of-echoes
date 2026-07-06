@@ -1233,6 +1233,18 @@ function cmdMove(player, direction) {
       fxChanged = true;
     }
 
+    // EPIC-1286-DEF: Al moverse, resetear shadow_points del Pícaro a 0
+    const shadowClassMove = classes.getPlayerClass(player);
+    if (shadowClassMove && shadowClassMove.name === 'Pícaro') {
+      const fxForShadow = parseSE(player.status_effects);
+      if (fxForShadow['shadow_points'] && fxForShadow['shadow_points'].value > 0) {
+        delete fxForShadow['shadow_points'];
+        fxChanged = true;
+        player.status_effects = fxForShadow;
+        // La notificación del reset se agrega abajo en el texto de salida
+      }
+    }
+
     if (fxChanged) {
       db.updatePlayer(player.id, { status_effects: JSON.stringify(newFx) });
       player.status_effects = newFx;
@@ -3334,6 +3346,37 @@ function cmdAttack(player, targetName) {
 
   const combatResult = combat.attackRound(player, monster);
   const { lines, monsterDead, playerDead, globalEvent } = combatResult;
+
+  // ── EPIC-1286-DEF: Acumulación de Sombra del Pícaro ───────────────────────
+  // Cada ataque exitoso (no muere el jugador) acumula shadow_points.
+  // Golpe crítico acumula 2 en vez de 1. Máximo 3.
+  // golpe_desde_las_sombras se activa cuando el jugador usa el comando 'sombras' (implementado en cmdSombras — Fase 3 completa).
+  // Este bloque solo gestiona la acumulación pasiva en combate.
+  const shadowClass = classes.getPlayerClass(player);
+  const shadowClassName = shadowClass ? shadowClass.name : 'sin_clase';
+  if (shadowClassName === 'Pícaro' && !playerDead && !monsterDead) {
+    try {
+      const freshForShadow = db.getPlayer(player.id);
+      const shadowSE = parseSE(freshForShadow.status_effects);
+      const prevPoints = shadowSE['shadow_points'] ? (shadowSE['shadow_points'].value || 0) : 0;
+      const critHit = combatResult.isCrit === true;
+      const gainedPoints = critHit ? 2 : 1;
+      const newPoints = Math.min(3, prevPoints + gainedPoints);
+      shadowSE['shadow_points'] = { value: newPoints, source: 'acumulacion_picaro' };
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(shadowSE) });
+      // Feedback al jugador
+      const dotsMap = { 0: '○○○', 1: '●○○', 2: '●●○', 3: '●●●' };
+      const prevDots = dotsMap[prevPoints] || '○○○';
+      const newDots  = dotsMap[newPoints]  || '●●●';
+      if (newPoints !== prevPoints) {
+        const gainNote = critHit && gainedPoints === 2 ? ' (crit +2)' : '';
+        lines.push(`🌑 Sombra: ${prevDots} → ${newDots}${gainNote}${newPoints === 3 ? '  ⚡ ¡Podés activar golpe desde las sombras!' : ''}`);
+      }
+    } catch (e) { /* silenciar errores de shadow */ }
+  } else if (shadowClassName === 'Pícaro' && !playerDead && monsterDead) {
+    // Al matar, las sombras se mantienen (no se resetean por kill — solo por movimiento)
+    // No hacer nada especial
+  }
 
   // DIS-745: Si el jugador ataca a un boss, guardar flag para que la huida posterior
   // sepa que ESTE jugador inició combate (incluso si el boss ya fue dañado por otro).

@@ -1833,7 +1833,7 @@ function attackRound(player, monster) {
     }
   }
 
-  return { lines, monsterDead, playerDead, loot, poisonSurvived, ...(globalEventHardcore ? { globalEvent: globalEventHardcore } : {}) };
+  return { lines, monsterDead, playerDead, loot, poisonSurvived, isCrit, ...(globalEventHardcore ? { globalEvent: globalEventHardcore } : {}) };
 }
 
 /**
