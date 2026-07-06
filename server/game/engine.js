@@ -26,6 +26,7 @@ const tutorial = require('./tutorial');
 const crafting = require('./crafting');
 const classes  = require('./classes'); // T107: sistema de clases
 const skills   = require('./skills');  // T114: habilidades activas por nivel
+const combatStates = require('./combatStates'); // EPIC-1289-F1: sistema de estados de combate
 const ambient  = require('./ambient'); // T121: período del día
 const xpSystem = require('./xp');      // DIS-D282: curva de XP cuadrática
 const expeditionEngine = require('./expedition_engine'); // EPIC-1158: sistema de expediciones
@@ -12164,24 +12165,29 @@ function cmdCast(player, args) {
     const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${finalArcaneSurgeNote}${evokerNote}${elementalNote})` : (magicResistNote + finalArcaneSurgeNote + evokerNote + elementalNote) || '';
     lines.push(`   ${target.name} recibe ${finalDmg} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
 
-    // T214: stun_chance — hechizos que pueden aturdir al monstruo (ej: rayo)
-    if (spell.stun_chance && newHp > 0 && Math.random() < spell.stun_chance) {
-      // Aplicar aturdimiento guardando en status_effects del monstruo
+    // T214 / EPIC-1290-F1: rayo aturde SIEMPRE (determinista) si el monstruo sobrevive
+    // Cambio: stun_chance probabilístico → applyDebuff determinista
+    // EPIC-1294-F2 subirá el costo del rayo a 14 maná para compensar el determinismo.
+    if (spell.stun_chance && newHp > 0) {
       try {
         const mStatus = JSON.parse(target.status_effects || '{}');
-        mStatus.stunned = 1;  // dura 1 turno
-        db.updateMonster(target.id, { status_effects: JSON.stringify(mStatus) });
-        lines.push(`   ⚡ ¡${target.name} quedó aturdido por el rayo! (no puede atacar este turno)`);
+        const stunTarget = { status_effects: mStatus };
+        const { applied, lines: stunLines } = combatStates.applyDebuff(stunTarget, 'stunned', { source: 'rayo', turns: 1 });
+        db.updateMonster(target.id, { status_effects: JSON.stringify(stunTarget.status_effects) });
+        for (const l of stunLines) lines.push(`   ${l}`);
       } catch (e) { /* silenciar errores de parseo */ }
     }
 
-    // DIS-D29: slow_chance — escarcha puede ralentizar al monstruo
-    if (spell.slow_chance && newHp > 0 && Math.random() < spell.slow_chance) {
+    // DIS-D29 / EPIC-1290-F1: escarcha ralentiza SIEMPRE (determinista) si el monstruo sobrevive
+    // Cambio: slow_chance probabilístico → applyDebuff('slowed') determinista
+    // 'slowed' es semánticamente diferente a 'stunned' — base para sinergia frozen (EPIC-1293-F2)
+    if (spell.slow_chance && newHp > 0) {
       try {
         const mStatus2 = JSON.parse(target.status_effects || '{}');
-        mStatus2.stunned = 1;  // ralentizar = skip 1 turno (mismo mecanismo que stun)
-        db.updateMonster(target.id, { status_effects: JSON.stringify(mStatus2) });
-        lines.push(`   ❄️ ¡${target.name} quedó ralentizado por el hielo! (no puede atacar este turno)`);
+        const slowTarget = { status_effects: mStatus2 };
+        const { applied, lines: slowLines } = combatStates.applyDebuff(slowTarget, 'slowed', { source: 'escarcha', turns: 1 });
+        db.updateMonster(target.id, { status_effects: JSON.stringify(slowTarget.status_effects) });
+        for (const l of slowLines) lines.push(`   ${l}`);
       } catch (e) { /* silenciar errores de parseo */ }
     }
 
