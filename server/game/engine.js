@@ -2396,9 +2396,25 @@ function cmdInventory(player) {
   // DIS-994: línea de slots de mochila
   const slotLine = `📦 Mochila: ${usedSlots}/${maxSlots} slots${slotHint}`;
 
+  // DIS-1266: Separar hints en dos secciones claras:
+  // "✅ Listo para craftear" vs "🔧 Casi listo (te falta X)"
+  // Construir lista de recetas completas disponibles ahora
+  const readyRecipes = [];
+  const shownReadyRecipes = new Set();
+  for (const recipe of RECIPES) {
+    const [ing1, ing2] = recipe.ingredients.map(s => s.toLowerCase());
+    if (allItemNames.has(ing1) && allItemNames.has(ing2)) {
+      const key = recipe.result;
+      if (!shownReadyRecipes.has(key)) {
+        shownReadyRecipes.add(key);
+        readyRecipes.push(`  ✅ ${recipe.ingredients.join(' + ')} → **${recipe.result}** (escribí \`craftear ${recipe.result}\`)`);
+      }
+    }
+  }
+
   // Nota de recetas viables si hay alguna
-  const viableNote = viableRecipeItems.size > 0
-    ? `\n✨ = tenés ingredientes para craftear algo con ese ítem — probá 'recetas'`
+  const viableNote = readyRecipes.length > 0
+    ? `\n✨ Listo para craftear ahora:\n${readyRecipes.join('\n')}`
     : '';
 
   // DIS-1058: hint de ingredientes sueltos (solo si no hay ya una receta completa ✨)
@@ -2411,7 +2427,7 @@ function cmdInventory(player) {
   });
   // Limitar a máximo 3 hints para no saturar
   const loneNote = filteredLoneHints.length > 0
-    ? `\n🧪 Ingredientes sueltos:\n${filteredLoneHints.slice(0, 3).join('\n')}`
+    ? `\n🔧 Casi listo (te falta un ingrediente):\n${filteredLoneHints.slice(0, 3).join('\n')}`
     : '';
 
   return { text: `Inventario:\n${lines.join('\n')}\n${summary}\n${slotLine}${viableNote}${loneNote}` };
