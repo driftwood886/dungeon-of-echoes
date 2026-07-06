@@ -277,7 +277,7 @@ function formatAchievements(player) {
 
   const allEarned = earned; // incluye secretos ya desbloqueados (getPlayerAchievements los devuelve todos)
   const totalPublic = publicAchs.length;
-  const lines = allEarned.map(a => `  ${a.icon} ${a.name}${a.secret ? ' 🔒' : ''} — ${a.desc}`);
+  const lines = allEarned.map(a => `  ${a.icon} ${a.name} — ${a.desc}`);
 
   let header = `Logros (${allEarned.length}/${totalPublic + secretAchs.length}):`;
   const result = `${header}\n${lines.join('\n')}`;
