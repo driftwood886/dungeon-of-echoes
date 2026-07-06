@@ -2929,6 +2929,24 @@ function cmdStatus(player) {
       return `Rep.Aldric: ${aldricRepLabel} (${aldricRep} pts)${aldricNextDiscount}`;
     })(),
     `Ubicación: ${roomName}`,
+    (() => {
+      // EPIC-1292-F1: mostrar monstruos en sala con estados activos (describeDebuffs)
+      const monstersInSala = db.getMonstersInRoom(player.current_room_id);
+      if (!monstersInSala || monstersInSala.length === 0) return null;
+      const alive = monstersInSala.filter(m => m.hp > 0);
+      if (alive.length === 0) return null;
+      const lines1292 = alive.map(m => {
+        const hpStr = `${m.hp}/${m.max_hp || m.hp} HP`;
+        try {
+          const mFx = typeof m.status_effects === 'string' ? JSON.parse(m.status_effects || '{}') : (m.status_effects || {});
+          const statesDesc = combatStates.describeDebuffs({ status_effects: mFx });
+          return `  ⚔️ ${m.name} [${hpStr}]${statesDesc ? ` — ${statesDesc}` : ''}`;
+        } catch (_) {
+          return `  ⚔️ ${m.name} [${hpStr}]`;
+        }
+      });
+      return `Enemigos:  \n${lines1292.join('\n')}`;
+    })(),
     player.guild ? `Hermandad: [${player.guild}]` : `Hermandad: (sin guild)`,
     player.pet   ? `Mascota:   ${player.pet}` : `Mascota:   (sin compañero)`,
     (() => {
