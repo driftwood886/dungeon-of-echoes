@@ -15418,8 +15418,8 @@ function cmdUseSkill(player, args, context) {
     return { text: textCh };
   }
 
-  // ── Escudo Sagrado (escudo_sagrado) — Sanador Lv7 ─────────────────────────
-  // DIS-1069: absorbe hasta 25 HP del próximo golpe. Decisión táctica vs sanacion_mayor.
+  // ── Escudo Sagrado (escudo_sagrado) — Clérigo Lv3+; Sanador obtiene versión mejorada (EPIC-1304-F4) ─
+  // DIS-1069: absorbe HP del próximo golpe. Clérigo base: 10 HP; Sanador: 25 HP.
   if (skillId === 'escudo_sagrado') {
     const freshES = db.getPlayer(freshPlayer.id);
     const manaCostES = skill.mana_cost || 10;
@@ -15433,7 +15433,9 @@ function cmdUseSkill(player, args, context) {
       const secsLeft = Math.ceil((new Date(seES.sacred_shield.expires_at).getTime() - Date.now()) / 1000);
       return { text: `🛡️ Ya tenés un Escudo Sagrado activo (${seES.sacred_shield.amount} HP de absorción restante, ${secsLeft}s).` };
     }
-    const shieldAmount = skill.shield_amount || 25;
+    // EPIC-1304-F4: Sanador obtiene shield_amount_sanador (25 HP), Clérigo base obtiene shield_amount (10 HP)
+    const isSanadorES = freshES.specialization === 'sanador';
+    const shieldAmount = isSanadorES ? (skill.shield_amount_sanador || 25) : (skill.shield_amount || 10);
     const durationMs = (skill.duration_seconds || 30) * 1000;
     seES.sacred_shield = { amount: shieldAmount, expires_at: new Date(Date.now() + durationMs).toISOString() };
     const newManaES = currManaES - manaCostES;
@@ -15443,7 +15445,8 @@ function cmdUseSkill(player, args, context) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
         `🛡️ ${freshPlayer.username} proyecta un Escudo Sagrado de luz divina.`);
     }
-    return { text: `🛡️ ¡ESCUDO SAGRADO activado! Una barrera de luz envuelve tu cuerpo.\n   Absorberá hasta ${shieldAmount} HP del próximo golpe (${skill.duration_seconds || 30}s).\n   -${manaCostES} maná (${newManaES}/${freshES.max_mana || 30}) · Cooldown: ${skill.cooldown_seconds}s\n\n💡 Usá sanacion_mayor para curar daño ya recibido — el escudo previene el próximo golpe.` };
+    const sanadorNote = isSanadorES ? ' **(Sanador — versión mejorada)**' : '';
+    return { text: `🛡️ ¡ESCUDO SAGRADO activado!${sanadorNote} Una barrera de luz envuelve tu cuerpo.\n   Absorberá hasta ${shieldAmount} HP del próximo golpe (${skill.duration_seconds || 30}s).\n   -${manaCostES} maná (${newManaES}/${freshES.max_mana || 30}) · Cooldown: ${skill.cooldown_seconds}s\n\n💡 Usá sanacion_mayor para curar daño ya recibido — el escudo previene el próximo golpe.` };
   }
 
   // ── Rayo Divino (rayo_divino) — Juicio Lv5 ──────────────────────────────
