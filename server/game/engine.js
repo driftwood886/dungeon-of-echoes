@@ -2732,7 +2732,9 @@ function cmdStatus(player) {
         if (stanceAtkMod > 0) bonusParts.push(`+${stanceAtkMod} postura`);
         else if (stanceAtkMod < 0) bonusParts.push(`${stanceAtkMod} postura`);
         if (roomAtkMod !== 0) bonusParts.push(`${roomAtkMod} sala actual`);
-        return `Ataque:   ${player.attack} (${bonusParts.join(', ')} = ${effectiveAtk} efectivo)`;
+        // DIS-1268: agregar ícono de debuff ambiental al label del Ataque si hay penalización de sala
+        const atkLabel = roomAtkMod < 0 ? `Ataque:❄️` : `Ataque:  `;
+        return `${atkLabel} ${player.attack} (${bonusParts.join(', ')} = ${effectiveAtk} efectivo)`;
       }
       return `Ataque:   ${player.attack}`;
     })(),
