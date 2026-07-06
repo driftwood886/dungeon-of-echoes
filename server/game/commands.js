@@ -189,6 +189,8 @@ const COMMAND_ALIASES = {
   spells: 'spells', hechizos: 'spells', magia: 'spells', conjuros: 'spells', grimorios: 'spells',
   // debuffs / estados (EPIC-1295-F2: comando del Mago para ver estados activos y sinergias)
   debuffs: 'debuffs', estados: 'debuffs', 'estados de combate': 'debuffs', 'estados activos': 'debuffs', sinergias: 'debuffs',
+  // sombras / golpe desde las sombras (EPIC-1297-F3: ataque especial del Pícaro)
+  sombras: 'sombras', 'golpe desde las sombras': 'sombras', sombra: 'sombras', 'activar sombra': 'sombras', 'desde las sombras': 'sombras',
   // clase / class (T107)
   clase: 'clase', class: 'clase', profesion: 'clase', profesión: 'clase', vocacion: 'clase', vocación: 'clase', oficio: 'clase',
   // especializar (DIS-914)
@@ -227,7 +229,7 @@ const COMMAND_ALIASES = {
   chain_heal: 'useSkill', cadena_curacion: 'useSkill', cadena_curación: 'useSkill', curacion_grupal: 'useSkill', curación_grupal: 'useSkill', aura_sanadora: 'useSkill',
   escudo_sagrado: 'useSkill', 'escudo sagrado': 'useSkill', sacred_shield: 'useSkill', barrera_sagrada: 'useSkill', 'barrera sagrada': 'useSkill', holy_shield: 'useSkill', burbuja: 'useSkill', bubble: 'useSkill',
   // DIS-620: Sigilo del Pícaro (nivel 1)
-  sigilo: 'sigilo', hide: 'sigilo', stealth: 'sigilo', ocultarse: 'sigilo', esconderse: 'sigilo', sombras: 'sigilo',
+  sigilo: 'sigilo', hide: 'sigilo', stealth: 'sigilo', ocultarse: 'sigilo', esconderse: 'sigilo',
   // note / apunte (T116)
   note: 'note', apunte: 'note', apuntes: 'note', notas: 'note', nota: 'note', memo: 'note', memos: 'note',
   // changelog / novedades (T117)
@@ -399,6 +401,11 @@ function parse(input) {
       'dirty strike':   { cmd: 'useSkill', skillId: 'golpe_sucio' },
       'golpe sombra':   { cmd: 'useSkill', skillId: 'golpe_sombra' },  // DIS-616: pícaro
       'golpe en la sombra': { cmd: 'useSkill', skillId: 'golpe_sombra' },
+      // EPIC-1297-F3: golpe desde las sombras (primer golpe de sombra del Pícaro vía acumulación)
+      'golpe desde':    { cmd: 'sombras',  skillId: null },  // captura "golpe desde las sombras" por primeras 2 palabras
+      'activar sombra': { cmd: 'sombras',  skillId: null },
+      'activar sombras': { cmd: 'sombras', skillId: null },
+      'desde las':      { cmd: 'sombras',  skillId: null },  // "desde las sombras"
       'sanacion mayor': { cmd: 'useSkill', skillId: 'sanacion_mayor' },  // DIS-663: clérigo
       'sanación mayor': { cmd: 'useSkill', skillId: 'sanacion_mayor' },
       'gran curacion':  { cmd: 'useSkill', skillId: 'sanacion_mayor' },

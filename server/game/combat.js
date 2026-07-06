@@ -615,13 +615,30 @@ function attackRound(player, monster) {
     lines.push(`🥷 [GOLPE DE SORPRESA] Salís de las sombras con un ataque letal...`);
   }
 
+  // EPIC-1297-F3: Golpe desde las Sombras — flag golpe_sombra_activo en status_effects del jugador
+  // Consume los 3 shadow_points (ya reseteados por cmdSombras antes de llamar) y hace ×3 daño
+  const freshForSombra = db.getPlayer(player.id);
+  const seSombra = freshForSombra.status_effects ? (typeof freshForSombra.status_effects === 'string' ? JSON.parse(freshForSombra.status_effects) : freshForSombra.status_effects) : {};
+  let sombraStrike = false;
+  if (seSombra.golpe_sombra_activo && clsData && clsData.name === 'Pícaro') {
+    sombraStrike = true;
+    // Limpiar el flag (consumo único)
+    delete seSombra.golpe_sombra_activo;
+    db.updatePlayer(player.id, { status_effects: JSON.stringify(seSombra) });
+    if (player.status_effects && typeof player.status_effects === 'object') {
+      delete player.status_effects.golpe_sombra_activo;
+    }
+    lines.push(`🌑 [GOLPE DESDE LAS SOMBRAS] Las sombras acumuladas estallan en un único golpe devastador...`);
+  }
+
   const critChance = 0.10 + (clsData ? (clsData.crit_bonus || 0) / 100 : 0) + enchantCritBonus + rogueCritBonusGloves + stanceCritPenalty
     // DIS-914: bonus crit del Asesino (+10%)
     + (player.specialization === 'asesino' ? 0.10 : 0);
   // DIS-914: Asesino — primer ataque en sala nueva es siempre crítico (ambush)
   const seForAmbush = typeof player.status_effects === 'object' ? player.status_effects : {};
   const ambushReady = player.specialization === 'asesino' && seForAmbush.asesino_ambush_room !== player.current_room_id;
-  const isCrit = stealthSurprise || ambushReady ? true : Math.random() < critChance;
+  // EPIC-1297-F3: golpe sombra fuerza crítico
+  const isCrit = stealthSurprise || ambushReady || sombraStrike ? true : Math.random() < critChance;
   // Marcar sala de ambush para no repetir en esta sala
   if (ambushReady && !stealthSurprise) {
     const seForAmbushWrite = typeof player.status_effects === 'object' ? { ...player.status_effects } : {};
@@ -637,7 +654,13 @@ function attackRound(player, monster) {
   const isBossForStealth = !!(BOSS_MONSTERS && BOSS_MONSTERS[monster.id]);
   const isMidBossForStealth = monster.id === 9 || monster.id === 11; // Elemental de Hielo, Krakeling
   let critMultiplier = 2;
-  if (stealthSurprise && isBossForStealth) {
+  if (sombraStrike) {
+    // EPIC-1297-F3: ×3 daño para golpe sombra — bosses reciben ×2.5 (más resistentes pero no invulnerables)
+    critMultiplier = isBossForStealth ? 2.5 : 3;
+    if (isBossForStealth) {
+      lines.push(`🛡️ El boss absorbe parte del golpe — multiplicador de sombra reducido a ×2.5.`);
+    }
+  } else if (stealthSurprise && isBossForStealth) {
     critMultiplier = 1.5;
     lines.push(`🛡️ El boss percibe el sigilo — el multiplicador de emboscada se reduce a ×1.5.`);
   } else if (stealthSurprise && isMidBossForStealth) {

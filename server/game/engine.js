@@ -464,6 +464,7 @@ function execute(playerId, input, context) {
     case 'cast':         result = cmdCast(player, action.args); break;
     case 'spells':       result = cmdSpells(player); break;
     case 'debuffs':      result = cmdDebuffs(player, action.args); break;    // EPIC-1295-F2: estados de combate (solo Mago)
+    case 'sombras':      result = cmdSombras(player, action.args); break;    // EPIC-1297-F3: golpe desde las sombras (solo Pícaro)
     case 'clase':        result = cmdClase(player, action.args); break;
     case 'especializar': result = cmdSpecialize(player, action.args); break;
     case 'bestiary':     result = cmdBestiary(player); break;
@@ -3350,7 +3351,7 @@ function cmdAttack(player, targetName) {
   // ── EPIC-1286-DEF: Acumulación de Sombra del Pícaro ───────────────────────
   // Cada ataque exitoso (no muere el jugador) acumula shadow_points.
   // Golpe crítico acumula 2 en vez de 1. Máximo 3.
-  // golpe_desde_las_sombras se activa cuando el jugador usa el comando 'sombras' (implementado en cmdSombras — Fase 3 completa).
+  // golpe_desde_las_sombras se activa cuando el jugador usa el comando 'sombras' (implementado en cmdSombras — EPIC-1297-F3 ✓).
   // Este bloque solo gestiona la acumulación pasiva en combate.
   const shadowClass = classes.getPlayerClass(player);
   const shadowClassName = shadowClass ? shadowClass.name : 'sin_clase';
@@ -12660,6 +12661,93 @@ function cmdCast(player, args) {
   return {
     text: lines.join('\n'),
     event: broadcastEvent,
+  };
+}
+
+/**
+ * sombras / golpe desde las sombras — EPIC-1297-F3
+ * Activa el golpe de sombra del Pícaro: consume 3 shadow_points y realiza
+ * un ataque inmediato con ×3 daño (crítico garantizado) contra el monstruo en la sala.
+ */
+function cmdSombras(player, args) {
+  const sombraClass = classes.getPlayerClass(player);
+  const sombraClassName = sombraClass ? sombraClass.name : 'sin_clase';
+
+  if (sombraClassName !== 'Pícaro') {
+    return {
+      text: `🌑 Solo los Pícaros pueden invocar el poder de las sombras.\n\n"Las sombras no obedecen a quien no sabe esconderse en ellas."\n\n💡 Elegí la clase Pícaro con "clase picaro" para acceder a este comando.`,
+    };
+  }
+
+  // Verificar que hay un monstruo en la sala
+  const monsters = db.getMonstersInRoom(player.current_room_id);
+  const alive = monsters.filter(m => m.hp > 0);
+  if (alive.length === 0) {
+    return { text: `🌑 No hay enemigos en esta sala. Las sombras no tienen a quién devorar.` };
+  }
+
+  // Leer shadow_points
+  const freshPlayer = db.getPlayer(player.id);
+  const shadowSE = parseSE(freshPlayer.status_effects);
+  const currentPoints = shadowSE['shadow_points'] ? (shadowSE['shadow_points'].value || 0) : 0;
+
+  if (currentPoints < 3) {
+    const dotsMap = { 0: '○○○', 1: '●○○', 2: '●●○', 3: '●●●' };
+    const dots = dotsMap[currentPoints] || '○○○';
+    return {
+      text: `🌑 Sombra insuficiente: ${dots} (${currentPoints}/3)\n\nNecesitás 3 puntos de sombra para activar el golpe.\nAtacá más veces en esta sala para acumularlos.`,
+    };
+  }
+
+  // Seleccionar objetivo (por nombre si se especifica, o el primero)
+  let target = alive[0];
+  if (args && args.length > 0) {
+    const query = args.join(' ').toLowerCase();
+    const matched = alive.find(m => m.name.toLowerCase().includes(query));
+    if (matched) target = matched;
+  }
+
+  // Consumir los 3 shadow_points ANTES del ataque (combat.js limpiará el flag golpe_sombra_activo)
+  delete shadowSE['shadow_points'];
+  shadowSE['golpe_sombra_activo'] = true;
+  db.updatePlayer(player.id, { status_effects: JSON.stringify(shadowSE) });
+
+  // Refrescar player con el flag aplicado
+  const updatedPlayer = db.getPlayer(player.id);
+
+  // Ejecutar el ataque usando attackRound con el flag activado
+  const combatResult = combat.attackRound(updatedPlayer, target);
+  const { lines, monsterDead, playerDead, globalEvent } = combatResult;
+
+  // Post-ataque: acumulación de sombra (si sobrevive y el monstruo también)
+  // El golpe sombra mismo ya consumió los 3 puntos — no acumular en este turno
+  // (combat.js limpió el flag; solo mostrar resultado)
+
+  // Manejar muerte del jugador
+  if (playerDead) {
+    return {
+      text: lines.join('\n'),
+      event: globalEvent || null,
+    };
+  }
+
+  // Recargar monstruo
+  const updatedMonster = db.getMonster(target.id);
+  const monsterHpAfter = updatedMonster ? updatedMonster.hp : 0;
+
+  // Actualizar estado del jugador en memoria para el retorno
+  const finalPlayer = db.getPlayer(player.id);
+
+  const outputLines = [...lines];
+  if (!monsterDead && updatedMonster) {
+    outputLines.push(`🌑 Sombra consumida. Las sombras se disipan — volvé a acumular con ataques.`);
+  } else if (monsterDead) {
+    outputLines.push(`🌑 Sombra consumida. ${target.name} cayó ante la oscuridad.`);
+  }
+
+  return {
+    text: outputLines.join('\n'),
+    event: globalEvent || null,
   };
 }
 
