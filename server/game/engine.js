@@ -465,6 +465,8 @@ function execute(playerId, input, context) {
     case 'spells':       result = cmdSpells(player); break;
     case 'debuffs':      result = cmdDebuffs(player, action.args); break;    // EPIC-1295-F2: estados de combate (solo Mago)
     case 'sombras':      result = cmdSombras(player, action.args); break;    // EPIC-1297-F3: golpe desde las sombras (solo Pícaro)
+    case 'postura_defensiva': result = cmdPostaraDefensiva(player); break;   // EPIC-1301-F4: postura defensiva (solo Guerrero)
+    case 'quemar_combo': result = cmdQuemarCombo(player); break;             // EPIC-1302-F4: quemar combo (solo Guerrero)
     case 'clase':        result = cmdClase(player, action.args); break;
     case 'especializar': result = cmdSpecialize(player, action.args); break;
     case 'bestiary':     result = cmdBestiary(player); break;
@@ -3361,8 +3363,32 @@ function cmdAttack(player, targetName) {
     player = { ...player, attack: (player.attack || 5) + comboBonusDmg };
   }
 
+  // EPIC-1302-F4: Quemar combo — si el Guerrero tiene quemar_combo_activo, aplicar multiplicador
+  let quemarComboMult = 1;
+  let quemarComboMsg = null;
+  const qcFreshForAttack = db.getPlayer(player.id);
+  const qcSEForAttack = parseSE(qcFreshForAttack.status_effects);
+  if (qcSEForAttack.quemar_combo_activo) {
+    const qcEntry = qcSEForAttack.quemar_combo_activo;
+    const qcExp = qcEntry.expires_at ? new Date(qcEntry.expires_at) : null;
+    if (!qcExp || qcExp > new Date()) {
+      quemarComboMult = qcEntry.multiplicador || 1;
+      // Multiplicar el ataque del jugador
+      player = { ...player, attack: Math.round((player.attack || 5) * quemarComboMult) };
+      quemarComboMsg = `⚡ ¡COMBO QUEMADO! x${qcEntry.combo_original} → ×${quemarComboMult} de daño. ¡GOLPE DEVASTADOR!`;
+    }
+    // Consumir el estado (con o sin expiración)
+    delete qcSEForAttack.quemar_combo_activo;
+    db.updatePlayer(player.id, { status_effects: JSON.stringify(qcSEForAttack) });
+  }
+
   const combatResult = combat.attackRound(player, monster);
   const { lines, monsterDead, playerDead, globalEvent } = combatResult;
+
+  // EPIC-1302-F4: Agregar mensaje de quemar combo si aplica
+  if (quemarComboMsg) {
+    lines.unshift(quemarComboMsg);  // Al principio para que se vea antes del daño
+  }
 
   // ── EPIC-1286-DEF: Acumulación de Sombra del Pícaro ───────────────────────
   // Cada ataque exitoso (no muere el jugador) acumula shadow_points.
@@ -12677,6 +12703,105 @@ function cmdCast(player, args) {
   return {
     text: lines.join('\n'),
     event: broadcastEvent,
+  };
+}
+
+/**
+ * postura defensiva — EPIC-1301-F4
+ * Solo Guerrero. Gasta el turno de ataque y activa estado temporal que absorbe el
+ * próximo golpe recibido (DEF base + 3 extra). El combo NO se rompe.
+ */
+function cmdPostaraDefensiva(player) {
+  const pdClass = classes.getPlayerClass(player);
+  const pdClassName = pdClass ? pdClass.name : 'sin_clase';
+
+  if (pdClassName !== 'Guerrero') {
+    return {
+      text: `🛡️ Solo los Guerreros conocen la postura defensiva.\n\n"Un Guerrero no retrocede — absorbe el golpe y devuelve el doble."\n\n💡 Elegí la clase Guerrero con "clase guerrero" para acceder a este comando.`,
+    };
+  }
+
+  // Solo en combate (hay monstruos vivos en sala)
+  const pdMonsters = db.getMonstersInRoom(player.current_room_id).filter(m => m.hp > 0);
+  if (pdMonsters.length === 0) {
+    return { text: `🛡️ No hay amenaza de la que defenderse.\n   (La postura defensiva solo se activa en combate activo.)` };
+  }
+
+  // Verificar si ya está activa
+  const pdSE = parseSE(db.getPlayer(player.id).status_effects);
+  if (pdSE.postura_defensiva_guerrero && pdSE.postura_defensiva_guerrero.activa) {
+    return { text: `🛡️ Ya estás en postura defensiva. Esperá a que el monstruo ataque o pase el turno.` };
+  }
+
+  // Activar el estado temporal
+  const absorcion = (player.defense || 0) + 3;
+  pdSE.postura_defensiva_guerrero = {
+    activa: true,
+    absorcion: absorcion,
+    expires_at: new Date(Date.now() + 30 * 1000).toISOString(),  // expira en 30s si no atacan
+  };
+  db.updatePlayer(player.id, { status_effects: JSON.stringify(pdSE) });
+
+  return {
+    text: `🛡️ Adoptás postura defensiva. El próximo golpe que recibas será absorbido.\n   Absorción: ${absorcion} puntos de daño (DEF ${player.defense || 0} + 3 extra).\n   (Tu combo se mantiene — ventaja del Guerrero)\n   ⚠️ Perdés tu turno de ataque este round.`,
+  };
+}
+
+/**
+ * quemar combo — EPIC-1302-F4
+ * Solo Guerrero. Consume el combo acumulado (mínimo x3) para aplicar multiplicador
+ * de daño al próximo ataque: x2.5 en combo x3, x3 en x4, x3.5 en x5.
+ */
+function cmdQuemarCombo(player) {
+  const qcClass = classes.getPlayerClass(player);
+  const qcClassName = qcClass ? qcClass.name : 'sin_clase';
+
+  if (qcClassName !== 'Guerrero') {
+    return {
+      text: `⚡ Solo los Guerreros pueden liberar su combo acumulado.\n\n"La fuerza no es en el golpe — es en cuándo elegís golpear."\n\n💡 Elegí la clase Guerrero con "clase guerrero" para acceder a este comando.`,
+    };
+  }
+
+  // Solo en combate
+  const qcMonsters = db.getMonstersInRoom(player.current_room_id).filter(m => m.hp > 0);
+  if (qcMonsters.length === 0) {
+    return { text: `⚡ No hay nadie contra quien desatar el combo.\n   (Quemar combo solo funciona en combate activo.)` };
+  }
+
+  // Verificar combo acumulado
+  const currentComboEntry = comboMap.get(player.id);
+  const currentComboCount = currentComboEntry ? currentComboEntry.count : 0;
+  if (currentComboCount < 3) {
+    const comboDotsMap = { 0: '○○○○○', 1: '●○○○○', 2: '●●○○○', 3: '●●●○○', 4: '●●●●○', 5: '●●●●●' };
+    return {
+      text: `⚡ Necesitás al menos combo x3 para quemar el combo.\n   Combo actual: ${comboDotsMap[Math.min(currentComboCount, 5)] || '○○○○○'} (x${currentComboCount})\n   Seguí atacando al mismo monstruo para acumular.`,
+    };
+  }
+
+  // Verificar si ya hay un quemar_combo pendiente
+  const qcSE = parseSE(db.getPlayer(player.id).status_effects);
+  if (qcSE.quemar_combo_activo) {
+    return { text: `⚡ Ya tenés un golpe de combo cargado. ¡Atacá para liberarlo!` };
+  }
+
+  // Calcular multiplicador según combo
+  const multMap = { 3: 2.5, 4: 3.0, 5: 3.5 };
+  const mult = multMap[Math.min(currentComboCount, 5)] || 2.5;
+  const comboCount = Math.min(currentComboCount, 5);
+
+  // Marcar estado: el próximo ataque usará este multiplicador
+  qcSE.quemar_combo_activo = {
+    multiplicador: mult,
+    combo_original: comboCount,
+    expires_at: new Date(Date.now() + 20 * 1000).toISOString(),  // 20s para usar el golpe
+  };
+  db.updatePlayer(player.id, { status_effects: JSON.stringify(qcSE) });
+
+  // Resetear el combo en el mapa (se consume)
+  comboMap.delete(player.id);
+
+  return {
+    text: `⚡ COMBO x${comboCount} CARGADO. El próximo ataque aplicará ×${mult} de daño.\n   ¡Atacá ahora para liberar toda tu fuerza acumulada! (20s para usar)`,
   };
 }
 

@@ -191,6 +191,10 @@ const COMMAND_ALIASES = {
   debuffs: 'debuffs', estados: 'debuffs', 'estados de combate': 'debuffs', 'estados activos': 'debuffs', sinergias: 'debuffs',
   // sombras / golpe desde las sombras (EPIC-1297-F3: ataque especial del Pícaro)
   sombras: 'sombras', 'golpe desde las sombras': 'sombras', sombra: 'sombras', 'activar sombra': 'sombras', 'desde las sombras': 'sombras',
+  // postura defensiva (EPIC-1301-F4: habilidad del Guerrero)
+  postura_defensiva: 'postura_defensiva', defensive_stance: 'postura_defensiva', defender: 'postura_defensiva', cubrirse: 'postura_defensiva', bloquear: 'postura_defensiva',
+  // quemar_combo / burst de combo (EPIC-1302-F4: habilidad del Guerrero)
+  quemar_combo: 'quemar_combo', combo_burst: 'quemar_combo', desatar: 'quemar_combo', burst: 'quemar_combo', golpe_combo: 'quemar_combo',
   // clase / class (T107)
   clase: 'clase', class: 'clase', profesion: 'clase', profesión: 'clase', vocacion: 'clase', vocación: 'clase', oficio: 'clase',
   // especializar (DIS-914)
@@ -406,6 +410,14 @@ function parse(input) {
       'activar sombra': { cmd: 'sombras',  skillId: null },
       'activar sombras': { cmd: 'sombras', skillId: null },
       'desde las':      { cmd: 'sombras',  skillId: null },  // "desde las sombras"
+      // EPIC-1301-F4: postura defensiva del Guerrero
+      'postura defensiva': { cmd: 'postura_defensiva', skillId: null },
+      'postura defens':    { cmd: 'postura_defensiva', skillId: null },
+      'activar postura':   { cmd: 'postura_defensiva', skillId: null },
+      // EPIC-1302-F4: quemar combo del Guerrero
+      'quemar combo':   { cmd: 'quemar_combo', skillId: null },
+      'desatar combo':  { cmd: 'quemar_combo', skillId: null },
+      'combo burst':    { cmd: 'quemar_combo', skillId: null },
       'sanacion mayor': { cmd: 'useSkill', skillId: 'sanacion_mayor' },  // DIS-663: clérigo
       'sanación mayor': { cmd: 'useSkill', skillId: 'sanacion_mayor' },
       'gran curacion':  { cmd: 'useSkill', skillId: 'sanacion_mayor' },

@@ -1615,6 +1615,36 @@ function attackRound(player, monster) {
       }
     }
 
+    // EPIC-1301-F4: Postura defensiva del Guerrero — absorbe daño al recibir golpe
+    try {
+      const freshForPostura = db.getPlayer(player.id);
+      const sePostura = freshForPostura.status_effects ? (typeof freshForPostura.status_effects === 'string' ? JSON.parse(freshForPostura.status_effects) : freshForPostura.status_effects) : {};
+      const posturaState = sePostura.postura_defensiva_guerrero;
+      if (posturaState && posturaState.activa) {
+        const posturaExp = posturaState.expires_at ? new Date(posturaState.expires_at) : null;
+        if (!posturaExp || posturaExp > new Date()) {
+          const posturaAbsorb = Math.min(posturaState.absorcion || 0, dmgToPlayer);
+          const dmgReal = Math.max(0, dmgToPlayer - posturaAbsorb);
+          if (posturaAbsorb >= dmgToPlayer) {
+            lines.push(`🛡️ ¡POSTURA DEFENSIVA! Absorbés todo el golpe. (absorción: ${posturaAbsorb} — sin daño)`);
+          } else {
+            lines.push(`🛡️ Postura defensiva absorbe ${posturaAbsorb} de los ${dmgToPlayer} DMG. (daño real: ${dmgReal})`);
+          }
+          dmgToPlayer = dmgReal;
+          // Consumir el estado (se consume al recibir 1 golpe)
+          delete sePostura.postura_defensiva_guerrero;
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(sePostura) });
+          if (player.status_effects && typeof player.status_effects === 'object') {
+            delete player.status_effects.postura_defensiva_guerrero;
+          }
+        } else {
+          // Expiró — limpiar silenciosamente
+          delete sePostura.postura_defensiva_guerrero;
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(sePostura) });
+        }
+      }
+    } catch (_) { /* silenciar */ }
+
     player.hp = Math.max(0, player.hp - dmgToPlayer);
 
     const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🌑(+${bloodmoonBonus} Luna de Sangre)` : '';
