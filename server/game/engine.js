@@ -11772,13 +11772,13 @@ const SPELL_CATALOG = {
     icon: '✨',
   },
   'rayo': {
-    cost: 12, // DIS-1214: subido de 10→12 para crear gestión de recursos real en Mago lv1-2
+    cost: 14, // EPIC-1294-F2: subido de 12→14 para compensar que el stun ahora es 100% determinista
     type: 'damage',
     amount: 13, // DIS-1214: reducido de 15→13 (16 Mago lv1-2 ×1.2; 19 Mago lv3+ ×1.5)
-    description: 'Invoca un rayo de tormenta. 13 de daño base (16 con Mago lv1-2, 19 con Mago lv3+) y 25% de probabilidad de aturdir al objetivo.',
+    description: 'Invoca un rayo de tormenta. 13 de daño base (16 con Mago lv1-2, 19 con Mago lv3+). SIEMPRE aturde al objetivo si sobrevive (determinista). Costo: 14 maná.',
     aliases: ['lightning', 'thunder', 'trueno', 'relámpago', 'relampago', 'rayo_de_tormenta'],
     icon: '⚡',
-    stun_chance: 0.25,  // T214: 25% de chance de aturdir
+    always_stun: true,  // EPIC-1294-F2: stun 100% determinista (stun_chance era 25% — ya obsoleto)
   },
   // DIS-D29: hechizo de escarcha para que las debilidades al frío sean explotables
   'escarcha': {
@@ -12194,10 +12194,9 @@ function cmdCast(player, args) {
     const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${finalArcaneSurgeNote}${evokerNote}${elementalNote}${steamExpNote})` : (magicResistNote + finalArcaneSurgeNote + evokerNote + elementalNote + steamExpNote) || '';
     lines.push(`   ${target.name} recibe ${finalDmg} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
 
-    // T214 / EPIC-1290-F1: rayo aturde SIEMPRE (determinista) si el monstruo sobrevive
-    // Cambio: stun_chance probabilístico → applyDebuff determinista
-    // EPIC-1294-F2 subirá el costo del rayo a 14 maná para compensar el determinismo.
-    if (spell.stun_chance && newHp > 0) {
+    // T214 / EPIC-1290-F1 / EPIC-1294-F2: rayo aturde SIEMPRE (100% determinista) si el monstruo sobrevive
+    // EPIC-1294-F2: cambió stun_chance → always_stun. Costo del rayo subió de 12→14 para compensar.
+    if ((spell.stun_chance || spell.always_stun) && newHp > 0) {
       try {
         const mStatus = JSON.parse(target.status_effects || '{}');
         const stunTarget = { status_effects: mStatus };
