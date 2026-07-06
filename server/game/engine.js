@@ -12307,13 +12307,25 @@ function cmdCast(player, args) {
     // T214 / EPIC-1290-F1 / EPIC-1294-F2: rayo aturde SIEMPRE (100% determinista) si el monstruo sobrevive
     // EPIC-1294-F2: cambió stun_chance → always_stun. Costo del rayo subió de 12→14 para compensar.
     // EPIC-1296-F2: pasar isBoss para que applyDebuff aplique resistencias correctas
+    // EPIC-1306-F5: pasar isEvoker para que applyDebuff chequee COLAPSO ARCANO
     const targetIsBoss = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
+    const playerIsEvoker = (player.specialization === 'evoker');
     if ((spell.stun_chance || spell.always_stun) && newHp > 0) {
       try {
         const mStatus = JSON.parse(target.status_effects || '{}');
         const stunTarget = { status_effects: mStatus };
-        const { applied, lines: stunLines } = combatStates.applyDebuff(stunTarget, 'stunned', { source: 'rayo', turns: 1, isBoss: targetIsBoss });
-        db.updateMonster(target.id, { status_effects: JSON.stringify(stunTarget.status_effects) });
+        const { applied, lines: stunLines, evokerSinergia: stunEvoSin } = combatStates.applyDebuff(stunTarget, 'stunned', { source: 'rayo', turns: 1, isBoss: targetIsBoss, isEvoker: playerIsEvoker });
+        // EPIC-1306-F5: manejar COLAPSO ARCANO
+        if (stunEvoSin) {
+          const postColHp = Math.max(0, (target.hp || 0) - stunEvoSin.directDmg);
+          db.updateMonster(target.id, { hp: postColHp, status_effects: JSON.stringify(stunTarget.status_effects) });
+          if (stunEvoSin.paralyzedTurns) {
+            const pSECol = parseSE(db.getPlayer(player.id).status_effects);
+            lines.push(`   ⚡ Daño de colapso: −${stunEvoSin.directDmg} HP (${target.hp} → ${postColHp})`);
+          }
+        } else {
+          db.updateMonster(target.id, { status_effects: JSON.stringify(stunTarget.status_effects) });
+        }
         for (const l of stunLines) lines.push(`   ${l}`);
       } catch (e) { /* silenciar errores de parseo */ }
     }
@@ -12325,8 +12337,15 @@ function cmdCast(player, args) {
       try {
         const mStatus2 = JSON.parse(target.status_effects || '{}');
         const slowTarget = { status_effects: mStatus2 };
-        const { applied, lines: slowLines } = combatStates.applyDebuff(slowTarget, 'slowed', { source: 'escarcha', turns: 1, isBoss: targetIsBoss });
-        db.updateMonster(target.id, { status_effects: JSON.stringify(slowTarget.status_effects) });
+        const { applied, lines: slowLines, evokerSinergia: slowEvoSin } = combatStates.applyDebuff(slowTarget, 'slowed', { source: 'escarcha', turns: 1, isBoss: targetIsBoss, isEvoker: playerIsEvoker });
+        // EPIC-1306-F5: manejar COLAPSO ARCANO
+        if (slowEvoSin) {
+          const postColHp2 = Math.max(0, (target.hp || 0) - slowEvoSin.directDmg);
+          db.updateMonster(target.id, { hp: postColHp2, status_effects: JSON.stringify(slowTarget.status_effects) });
+          lines.push(`   ⚡ Daño de colapso: −${slowEvoSin.directDmg} HP (${target.hp} → ${postColHp2})`);
+        } else {
+          db.updateMonster(target.id, { status_effects: JSON.stringify(slowTarget.status_effects) });
+        }
         for (const l of slowLines) lines.push(`   ${l}`);
       } catch (e) { /* silenciar errores de parseo */ }
     }
@@ -12336,22 +12355,29 @@ function cmdCast(player, args) {
       try {
         const mStatusBurn = JSON.parse(target.status_effects || '{}');
         const burnTarget = { status_effects: mStatusBurn };
-        const { applied, lines: burnLines } = combatStates.applyDebuff(burnTarget, 'burning', { source: 'bola de fuego', turns: 2, dmg_per_turn: 3, isBoss: targetIsBoss });
-        // Si la sinergia generó steam_explosion_pending, transferirlo al jugador
-        if (burnTarget.status_effects['__steam_explosion_pending']) {
-          const steamData = burnTarget.status_effects['__steam_explosion_pending'];
-          delete burnTarget.status_effects['__steam_explosion_pending'];
-          // Aplicar steam_explosion al jugador (bonus para el próximo hechizo)
-          const pSE = parseSE(db.getPlayer(player.id).status_effects);
-          pSE['steam_explosion'] = {
-            turns: 1,
-            next_spell_bonus: steamData.next_spell_bonus || 1.50,
-            source: 'steam_explosion',
-          };
-          db.updatePlayer(player.id, { status_effects: JSON.stringify(pSE) });
-          lines.push(`   💨 ¡El vapor se acumula en tu magia! (próximo hechizo: +50% daño)`);
+        const { applied, lines: burnLines, evokerSinergia: burnEvoSin } = combatStates.applyDebuff(burnTarget, 'burning', { source: 'bola de fuego', turns: 2, dmg_per_turn: 3, isBoss: targetIsBoss, isEvoker: playerIsEvoker });
+        // EPIC-1306-F5: manejar COLAPSO ARCANO
+        if (burnEvoSin) {
+          const postColHp3 = Math.max(0, (target.hp || 0) - burnEvoSin.directDmg);
+          db.updateMonster(target.id, { hp: postColHp3, status_effects: JSON.stringify(burnTarget.status_effects) });
+          lines.push(`   ⚡ Daño de colapso: −${burnEvoSin.directDmg} HP (${target.hp} → ${postColHp3})`);
+        } else {
+          // Si la sinergia generó steam_explosion_pending, transferirlo al jugador
+          if (burnTarget.status_effects['__steam_explosion_pending']) {
+            const steamData = burnTarget.status_effects['__steam_explosion_pending'];
+            delete burnTarget.status_effects['__steam_explosion_pending'];
+            // Aplicar steam_explosion al jugador (bonus para el próximo hechizo)
+            const pSE = parseSE(db.getPlayer(player.id).status_effects);
+            pSE['steam_explosion'] = {
+              turns: 1,
+              next_spell_bonus: steamData.next_spell_bonus || 1.50,
+              source: 'steam_explosion',
+            };
+            db.updatePlayer(player.id, { status_effects: JSON.stringify(pSE) });
+            lines.push(`   💨 ¡El vapor se acumula en tu magia! (próximo hechizo: +50% daño)`);
+          }
+          db.updateMonster(target.id, { status_effects: JSON.stringify(burnTarget.status_effects) });
         }
-        db.updateMonster(target.id, { status_effects: JSON.stringify(burnTarget.status_effects) });
         for (const l of burnLines) lines.push(`   ${l}`);
       } catch (e) { /* silenciar errores de burning */ }
     }

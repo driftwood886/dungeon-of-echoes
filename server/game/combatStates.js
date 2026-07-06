@@ -128,6 +128,19 @@ const SINERGIA_TABLE = {
   // },
 };
 
+// EPIC-1306-F5: Sinergias avanzadas del Evoker (Mago) — 3 estados simultáneos
+// Se chequean ANTES de SINERGIA_TABLE cuando el jugador tiene specialization === 'evoker'
+const SINERGIA_EVOKER = [
+  {
+    requires: ['slowed', 'burning', 'stunned'],
+    id: 'colapso_arcano',
+    message: '⚡💥 COLAPSO ARCANO — ¡Los tres estados colisionan en una cascada destructiva! (+12 dmg directo, parálisis 2 turnos)',
+    directDmg: 12,
+    paralyzedTurns: 2,
+    clearAll: true,
+  },
+];
+
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 /**
@@ -150,6 +163,7 @@ function applyDebuff(target, stateId, opts = {}) {
   const lines = [];
   const catalog = STATE_CATALOG[stateId] || {};
   const isBoss = opts.isBoss ?? false;  // EPIC-1296-F2: true si el target es un boss
+  const isEvoker = opts.isEvoker ?? false;  // EPIC-1306-F5: true si el jugador es Evoker
   
   const turns    = opts.turns         ?? catalog.turns         ?? 1;
   const source   = opts.source        ?? 'desconocido';
@@ -157,6 +171,28 @@ function applyDebuff(target, stateId, opts = {}) {
   const dmgPT    = opts.dmg_per_turn  ?? catalog.dmg_per_turn  ?? 0;
   const defPen   = opts.def_penalty   ?? catalog.def_penalty   ?? 0;
   const stacks   = opts.stacks        ?? 1;
+
+  // ─── EPIC-1306-F5: Chequear COLAPSO ARCANO (Evoker) ANTES de sinergias de par ─
+  if (isEvoker) {
+    const activeStates = Object.keys(target.status_effects);
+    const allWithIncoming = new Set([...activeStates, stateId]);
+    for (const sinEvo of SINERGIA_EVOKER) {
+      if (sinEvo.requires.every(s => allWithIncoming.has(s))) {
+        // ¡COLAPSO ARCANO activado!
+        lines.push(sinEvo.message);
+        if (sinEvo.clearAll) {
+          target.status_effects = {};
+        }
+        // Aplicar daño directo y parálisis como flags para el engine
+        target.__evoker_sinergia = {
+          id: sinEvo.id,
+          directDmg: sinEvo.directDmg || 0,
+          paralyzedTurns: sinEvo.paralyzedTurns || 0,
+        };
+        return { applied: sinEvo.id, lines, evokerSinergia: target.__evoker_sinergia };
+      }
+    }
+  }
 
   // ─── Chequear sinergia ───────────────────────────────────────────────────
   const existingIds = Object.keys(target.status_effects);
@@ -397,6 +433,7 @@ function clearDebuff(target, stateId) {
 module.exports = {
   STATE_CATALOG,
   SINERGIA_TABLE,
+  SINERGIA_EVOKER,
   applyDebuff,
   resolveDebuffSynergy,
   tickDebuffs,
