@@ -13687,10 +13687,10 @@ function cmdSkills(player) {
       lines.push('  (cast bola de fuego / cast rayo / cast curación / cast escudo)');
     } else if (cls === 'clerigo') {
       lines.push('  Aún no desbloqueaste ninguna habilidad.');
-      lines.push('  (Nivel 3: sanacion_mayor · Nivel 6: bendicion · Nivel 10: resurreccion)');
+      lines.push('  (Nivel 3: sanacion_mayor · condenar · escudo_sagrado · Nivel 6: bendicion · Nivel 10: resurreccion)');
     } else {
       lines.push('  Aún no desbloqueaste ninguna habilidad.');
-      lines.push('  (Nivel 3: Golpetazo · Nivel 6: Golpe de Escudo · Nivel 10: Arenga)');
+      lines.push('  (Nivel 3: Golpetazo · postura_defensiva · quemar_combo · Nivel 6: Golpe de Escudo · Nivel 10: Arenga)');
     }
   } else {
     for (const sk of unlocked) {
@@ -13749,6 +13749,48 @@ function cmdSkills(player) {
     lines.push('🔒 Bloqueadas:');
     for (const sk of locked) {
       lines.push(`  🔒 ${sk.name} (Nivel ${sk.required_level}) — ${sk.description}`);
+    }
+  }
+
+  // EPIC-1305-F4: Mecánicas de clase activa (comandos propios de la clase, fuera del sistema de skills)
+  const playerClassMec = fresh.player_class;
+  if (playerClassMec === 'guerrero') {
+    const cdData = fresh.skill_cooldowns ? (typeof fresh.skill_cooldowns === 'string' ? JSON.parse(fresh.skill_cooldowns) : fresh.skill_cooldowns) : {};
+    const seGuerrero = fresh.status_effects ? (typeof fresh.status_effects === 'string' ? JSON.parse(fresh.status_effects) : fresh.status_effects) : {};
+    lines.push('─'.repeat(40));
+    lines.push('⚔️ MECÁNICAS DE CLASE — Guerrero');
+    // postura_defensiva
+    const posturaStatus = seGuerrero.postura_defensiva_activa ? '🛡️ ACTIVA' : '✅ Lista';
+    lines.push(`  🛡️ Postura Defensiva [postura_defensiva]`);
+    lines.push(`     Absorbés el próximo golpe (DEF base +3). El combo no se rompe. Solo en combate.`);
+    lines.push(`     Estado: ${posturaStatus}`);
+    // quemar_combo
+    const comboCount = seGuerrero.combo_count || 0;
+    const quemarStatus = comboCount >= 3 ? `✅ Lista (combo ×${comboCount})` : `🔒 Necesitás combo ×3 (tenés ×${comboCount})`;
+    lines.push(`  💥 Quemar Combo [quemar_combo]`);
+    lines.push(`     Consumís el combo (x3+) para un golpe masivo. ×3→×2.5dmg · ×4→×3.0 · ×5→×3.5`);
+    lines.push(`     Estado: ${quemarStatus}`);
+  } else if (playerClassMec === 'clerigo') {
+    const seClerico = fresh.status_effects ? (typeof fresh.status_effects === 'string' ? JSON.parse(fresh.status_effects) : fresh.status_effects) : {};
+    lines.push('─'.repeat(40));
+    lines.push('⚕️ MECÁNICAS DE CLASE — Clérigo');
+    // condenar
+    let condenarStatus = '✅ Lista';
+    if (seClerico.condenar_cooldown) {
+      const cdCondenarExp = new Date(seClerico.condenar_cooldown);
+      if (cdCondenarExp > new Date()) {
+        const secsCondenar = Math.ceil((cdCondenarExp.getTime() - Date.now()) / 1000);
+        condenarStatus = `⏳ ${secsCondenar}s cooldown`;
+      }
+    }
+    lines.push(`  🩸 Condenar [condenar <objetivo>]`);
+    lines.push(`     Marca al monstruo: el próximo golpe hace ×1.30 daño. Costo: 6 maná. Cooldown: 20s.`);
+    lines.push(`     Estado: ${condenarStatus}`);
+    // escudo_sagrado (ya aparece en skills desbloqueadas si tiene nivel 3+, pero refuerza si no)
+    if (level < 3) {
+      lines.push(`  🛡️ Escudo Sagrado [escudo_sagrado]`);
+      lines.push(`     Absorbe hasta 10 HP del próximo golpe (Sanador: 25 HP). Disponible: Nivel 3+.`);
+      lines.push(`     Estado: 🔒 Requiere nivel 3`);
     }
   }
 
