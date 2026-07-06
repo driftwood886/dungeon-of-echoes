@@ -12573,8 +12573,21 @@ function cmdClase(player, args) {
       ? `🎭 Tu clase actual: ${clsData.emoji} ${clsData.name.toUpperCase()}\n   ${clsData.description}`
       : `🎭 Tu clase actual: (sin clase) — todavía no elegiste tu vocación.`;
 
+    // DIS-1270: guía de perfil para jugadores nuevos (sin_clase)
+    const profileGuide = currentClass === 'sin_clase'
+      ? [
+          ``,
+          `❓ ¿No sabés cuál elegir? Elegí según tu estilo:`,
+          `   ⚔️  ¿Preferís aguantar golpes y pelear cuerpo a cuerpo?   → clase guerrero`,
+          `   🗡️  ¿Preferís evadir ataques y dar golpes críticos?        → clase picaro`,
+          `   🔮 ¿Preferís hacer daño mágico potente desde atrás?       → clase mago`,
+          `   ✝️  ¿Preferís curar aliados y ser el soporte del grupo?    → clase clerigo`,
+        ]
+      : [];
+
     const lines = [
       header,
+      ...profileGuide,
       ``,
       `Clases disponibles:`,
       classes.formatClassList(),
