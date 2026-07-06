@@ -21,6 +21,7 @@ const items = require('./items');    // T110: efectos on_hit de armas crafteadas
 const xpSystem = require('./xp');   // DIS-D282: curva de XP cuadrática
 const eventScheduler = require('./eventScheduler'); // T-1227: eventos cíclicos globales (BD)
 const challengeTracker = require('./challengeTracker'); // T-1231: tracking de desafíos diarios
+const combatStates = require('./combatStates'); // EPIC-1291-F1: sistema de estados de combate
 
 // IDs de monstruos espectrales para SPECTRAL_TIDE
 const SPECTRAL_MONSTER_IDS = new Set([4, 8, 11, 12, 13, 21, 22]); // Espectro Corredor, Guardia Espectral, Esqueleto Guerrero, Campeón Espectral, Lich, Eco Viviente, Sombra
@@ -1327,33 +1328,79 @@ function attackRound(player, monster) {
     return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
   }
 
-  // ── T114: Verificar si el monstruo está aturdido (shield_bash stun) ────────
-  const monsterFxForStun = monster.status_effects ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects) : {};
-  // T214: el stun puede ser {turns: N} (T114/shield_bash) o N numérico (T214/rayo)
-  const stunnedVal = monsterFxForStun.stunned;
-  if (stunnedVal) {
-    if (typeof stunnedVal === 'object' && stunnedVal.turns > 0) {
-      // Formato T114 — objeto con turnos
-      monsterFxForStun.stunned.turns -= 1;
-      if (monsterFxForStun.stunned.turns <= 0) {
-        delete monsterFxForStun.stunned;
-        lines.push(`😵 ${articuloMonstruo(monster.name)} ${monster.name} se recupera del aturdimiento.`);
+  // ── T114 / EPIC-1291-F1: Turno del monstruo — procesar estados activos ──────
+  // 1. tickDebuffs: aplica DoT (burning), decrementa duraciones, elimina expirados
+  // 2. Verificar control de movimiento: stunned, slowed, frozen (nuevo formato canónico + legacy)
+  const monsterFxForStun = monster.status_effects
+    ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects)
+    : {};
+
+  // EPIC-1291-F1: tickDebuffs para estados DoT (burning, etc.)
+  {
+    const tickTarget = { hp: monster.hp, name: monster.name, status_effects: monsterFxForStun };
+    const { dead: dotDead } = combatStates.tickDebuffs(tickTarget, lines);
+    monster.hp = tickTarget.hp; // propagar cambios de HP por DoT
+    // status_effects ya fue mutado in-place — monsterFxForStun está actualizado
+    if (dotDead) {
+      monster.hp = 0;
+      db.updateMonster(monster.id, { hp: 0, status_effects: JSON.stringify(monsterFxForStun) });
+      db.updatePlayer(player.id, { hp: player.hp, status_effects: JSON.stringify(player.status_effects || {}) });
+      return { lines, monsterDead: true, playerDead: false, loot };
+    }
+  }
+
+  // ── Verificar control de movimiento (stun / slowed / frozen) ─────────────
+  // Soporta 3 formatos: nuevo canónico ({ turns, source, ... }), legacy objeto ({ turns: N }), legacy número (N)
+  // El orden de prioridad: frozen > stunned > slowed
+  const controlStates = ['frozen', 'stunned', 'slowed'];
+  let controlApplied = false;
+
+  for (const stateId of controlStates) {
+    const stateVal = monsterFxForStun[stateId];
+    if (!stateVal) continue;
+
+    // Determinar si está activo y decrementar
+    let isActive = false;
+    const catalog = combatStates.STATE_CATALOG[stateId] || {};
+    const emoji = catalog.emoji || '😵';
+    const name  = catalog.name  || stateId;
+
+    if (typeof stateVal === 'object' && stateVal !== null && 'turns' in stateVal) {
+      // Formato canónico nuevo O legacy { turns: N }
+      if (stateVal.turns > 0) {
+        isActive = true;
+        stateVal.turns -= 1;
+        if (stateVal.turns <= 0) {
+          delete monsterFxForStun[stateId];
+          lines.push(`${emoji} ${articuloMonstruo(monster.name)} ${monster.name} se recupera de ${name}.`);
+        } else {
+          lines.push(`${emoji} ${articuloMonstruo(monster.name)} ${monster.name} está ${name.toLowerCase()} y no puede actuar (${stateVal.turns}t restantes).`);
+        }
       } else {
-        lines.push(`😵 ${articuloMonstruo(monster.name)} ${monster.name} está aturdido y no puede atacar este turno.`);
+        delete monsterFxForStun[stateId];
       }
-    } else if (typeof stunnedVal === 'number' && stunnedVal > 0) {
-      // Formato T214 — número de turnos restantes
-      const remaining = stunnedVal - 1;
+    } else if (typeof stateVal === 'number' && stateVal > 0) {
+      // Formato legacy numérico (ej: stunned = 1 del rayo antiguo)
+      isActive = true;
+      const remaining = stateVal - 1;
       if (remaining <= 0) {
-        delete monsterFxForStun.stunned;
-        lines.push(`😵 ${articuloMonstruo(monster.name)} ${monster.name} se recupera del aturdimiento eléctrico.`);
+        delete monsterFxForStun[stateId];
+        lines.push(`${emoji} ${articuloMonstruo(monster.name)} ${monster.name} se recupera del ${name.toLowerCase()}.`);
       } else {
-        monsterFxForStun.stunned = remaining;
-        lines.push(`⚡ ${articuloMonstruo(monster.name)} ${monster.name} sigue aturdido por el rayo y no puede atacar.`);
+        monsterFxForStun[stateId] = remaining;
+        lines.push(`${emoji} ${articuloMonstruo(monster.name)} ${monster.name} sigue ${name.toLowerCase()} y no puede actuar.`);
       }
     } else {
-      delete monsterFxForStun.stunned;
+      delete monsterFxForStun[stateId];
     }
+
+    if (isActive) {
+      controlApplied = true;
+      break; // un estado de control es suficiente para saltar el turno
+    }
+  }
+
+  if (controlApplied) {
     monster.status_effects = monsterFxForStun;
     db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterFxForStun) });
     db.updatePlayer(player.id, { hp: player.hp, status_effects: JSON.stringify(player.status_effects || {}) });
