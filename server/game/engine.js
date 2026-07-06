@@ -7259,12 +7259,18 @@ function cmdDisarm(player, args) {
 
     const trapAdj = adjRoom.trap;
 
+    // DIS-1277: construir header de confirmación de objetivo — muestra QUÉ trampa se apunta antes del resultado
+    const TRAP_TYPE_NAMES_ES = { spike: 'pinchos 🗡️', poison: 'esporas venenosas ☣️', cold: 'frío sobrenatural ❄️', flood: 'inundación 💧' };
+    const trapTypeName = TRAP_TYPE_NAMES_ES[trapAdj.type] || trapAdj.type || 'desconocida';
+    const itemNeededLabel = trapAdj.item_needed ? ` — ítem requerido: "${trapAdj.item_needed}"` : ' — sin ítem requerido';
+    const targetHeader = `🎯 Trampa objetivo: ${trapTypeName} en ${adjRoom.name} (al ${dirLabel2})${itemNeededLabel}.\n\n`;
+
     if (!trapAdj.item_needed) {
       // Sin ítem requerido — desactivación manual a distancia
       const newTrap = { ...trapAdj, active: false };
       db.updateRoomTrap(adjRoom.id, newTrap);
       return {
-        text: `🔧 Con cuidado, lográs desactivar el mecanismo desde el umbral sin entrar.\n✅ La trampa en ${adjRoom.name} quedó inerte.`,
+        text: `${targetHeader}🔧 Con cuidado, lográs desactivar el mecanismo desde el umbral sin entrar.\n✅ La trampa en ${adjRoom.name} quedó inerte.`,
         event: `${player.username} desactiva una trampa desde el umbral.`,
         eventRoomId: player.current_room_id,
       };
@@ -7289,7 +7295,7 @@ function cmdDisarm(player, args) {
         }
       }
       return {
-        text: `Intentás desactivar la trampa de ${adjRoom.name} (al ${dirLabel2}) desde aquí, pero no tenés lo necesario.\n🔧 Ítem requerido para ${adjRoom.name}: "${trapAdj.item_needed}"${TRAP_ITEM_SOURCE[trapAdj.item_needed] ? `\n💡 ${TRAP_ITEM_SOURCE[trapAdj.item_needed]}` : ''}\n⛔ Si entrás sin desactivarla recibirás daño. Conseguí el ítem primero.${ownTrapHint}`,
+        text: `${targetHeader}No tenés lo necesario para desactivar esta trampa desde aquí.\n💡 ${TRAP_ITEM_SOURCE[trapAdj.item_needed] || `Conseguí "${trapAdj.item_needed}" primero.`}\n⛔ Si entrás sin desactivarla recibirás daño.${ownTrapHint}`,
       };
     }
 
@@ -7302,7 +7308,7 @@ function cmdDisarm(player, args) {
     db.updateRoomTrap(adjRoom.id, newTrap);
 
     return {
-      text: `🔧 Desde el umbral, usás la ${trapAdj.item_needed} para neutralizar el mecanismo antes de entrar.\n✅ La trampa en ${adjRoom.name} está desactivada. Podés pasar sin peligro.`,
+      text: `${targetHeader}🔧 Desde el umbral, usás la ${trapAdj.item_needed} para neutralizar el mecanismo antes de entrar.\n✅ La trampa en ${adjRoom.name} está desactivada. Podés pasar sin peligro.`,
       event: `${player.username} desactiva una trampa desde el umbral.`,
       eventRoomId: player.current_room_id,
     };
