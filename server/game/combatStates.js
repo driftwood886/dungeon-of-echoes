@@ -141,11 +141,15 @@ const SINERGIA_TABLE = {
  *   applied = estado que quedó realmente aplicado (puede diferir por sinergia)
  *   lines   = mensajes de log del combate
  */
+// EPIC-1296-F2: estados de control que los bosses resisten (duración reducida a 1 turno)
+const BOSS_CONTROL_RESIST = new Set(['frozen']);
+
 function applyDebuff(target, stateId, opts = {}) {
   if (!target.status_effects) target.status_effects = {};
 
   const lines = [];
   const catalog = STATE_CATALOG[stateId] || {};
+  const isBoss = opts.isBoss ?? false;  // EPIC-1296-F2: true si el target es un boss
   
   const turns    = opts.turns         ?? catalog.turns         ?? 1;
   const source   = opts.source        ?? 'desconocido';
@@ -179,8 +183,16 @@ function applyDebuff(target, stateId, opts = {}) {
       } else {
         // Aplicar el estado resultante de la sinergia
         const resultCatalog = STATE_CATALOG[syn.result] || {};
+        let resultTurns = syn.resultTurns ?? resultCatalog.turns ?? turns;
+
+        // EPIC-1296-F2: bosses resisten frozen — dura solo 1 turno en vez de 2
+        if (isBoss && BOSS_CONTROL_RESIST.has(syn.result)) {
+          resultTurns = 1;
+          lines.push(`🛡️ ¡El boss resiste el control! ${syn.result.toUpperCase()} dura solo 1 turno.`);
+        }
+
         target.status_effects[syn.result] = {
-          turns:       syn.resultTurns  ?? resultCatalog.turns ?? turns,
+          turns:       resultTurns,
           source:      source,
           amount:      amount,
           stacks:      1,
@@ -197,19 +209,26 @@ function applyDebuff(target, stateId, opts = {}) {
   // ─── Sin sinergia: aplicar normalmente ───────────────────────────────────
   const existing = target.status_effects[stateId];
 
+  // EPIC-1296-F2: calcular turnos efectivos (bosses resisten frozen)
+  let effectiveTurns = turns;
+  if (isBoss && BOSS_CONTROL_RESIST.has(stateId)) {
+    effectiveTurns = 1;
+    lines.push(`🛡️ ¡El boss resiste el control! ${stateId.toUpperCase()} dura solo 1 turno.`);
+  }
+
   if (existing && catalog.stackeable) {
     // Acumular stacks (hasta max_stacks)
     const maxStacks = catalog.max_stacks || 2;
     const newStacks = Math.min((existing.stacks || 1) + stacks, maxStacks);
     existing.stacks = newStacks;
-    existing.turns = Math.max(existing.turns, turns); // refrescar duración
+    existing.turns = Math.max(existing.turns, effectiveTurns); // refrescar duración
     const emoji = catalog.emoji || '';
     const name  = catalog.name  || stateId;
     lines.push(`${emoji} ${name} se intensifica. (${newStacks} stacks)`);
   } else if (existing && !catalog.stackeable) {
     // No stackeable: refrescar duración si el nuevo es mayor
-    if (turns > existing.turns) {
-      existing.turns = turns;
+    if (effectiveTurns > existing.turns) {
+      existing.turns = effectiveTurns;
     }
     const emoji = catalog.emoji || '';
     const name  = catalog.name  || stateId;
@@ -217,7 +236,7 @@ function applyDebuff(target, stateId, opts = {}) {
   } else {
     // Estado nuevo
     target.status_effects[stateId] = {
-      turns,
+      turns: effectiveTurns,
       source,
       amount,
       stacks,

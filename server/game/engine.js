@@ -12197,11 +12197,13 @@ function cmdCast(player, args) {
 
     // T214 / EPIC-1290-F1 / EPIC-1294-F2: rayo aturde SIEMPRE (100% determinista) si el monstruo sobrevive
     // EPIC-1294-F2: cambió stun_chance → always_stun. Costo del rayo subió de 12→14 para compensar.
+    // EPIC-1296-F2: pasar isBoss para que applyDebuff aplique resistencias correctas
+    const targetIsBoss = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
     if ((spell.stun_chance || spell.always_stun) && newHp > 0) {
       try {
         const mStatus = JSON.parse(target.status_effects || '{}');
         const stunTarget = { status_effects: mStatus };
-        const { applied, lines: stunLines } = combatStates.applyDebuff(stunTarget, 'stunned', { source: 'rayo', turns: 1 });
+        const { applied, lines: stunLines } = combatStates.applyDebuff(stunTarget, 'stunned', { source: 'rayo', turns: 1, isBoss: targetIsBoss });
         db.updateMonster(target.id, { status_effects: JSON.stringify(stunTarget.status_effects) });
         for (const l of stunLines) lines.push(`   ${l}`);
       } catch (e) { /* silenciar errores de parseo */ }
@@ -12214,7 +12216,7 @@ function cmdCast(player, args) {
       try {
         const mStatus2 = JSON.parse(target.status_effects || '{}');
         const slowTarget = { status_effects: mStatus2 };
-        const { applied, lines: slowLines } = combatStates.applyDebuff(slowTarget, 'slowed', { source: 'escarcha', turns: 1 });
+        const { applied, lines: slowLines } = combatStates.applyDebuff(slowTarget, 'slowed', { source: 'escarcha', turns: 1, isBoss: targetIsBoss });
         db.updateMonster(target.id, { status_effects: JSON.stringify(slowTarget.status_effects) });
         for (const l of slowLines) lines.push(`   ${l}`);
       } catch (e) { /* silenciar errores de parseo */ }
@@ -12225,7 +12227,7 @@ function cmdCast(player, args) {
       try {
         const mStatusBurn = JSON.parse(target.status_effects || '{}');
         const burnTarget = { status_effects: mStatusBurn };
-        const { applied, lines: burnLines } = combatStates.applyDebuff(burnTarget, 'burning', { source: 'bola de fuego', turns: 2, dmg_per_turn: 3 });
+        const { applied, lines: burnLines } = combatStates.applyDebuff(burnTarget, 'burning', { source: 'bola de fuego', turns: 2, dmg_per_turn: 3, isBoss: targetIsBoss });
         // Si la sinergia generó steam_explosion_pending, transferirlo al jugador
         if (burnTarget.status_effects['__steam_explosion_pending']) {
           const steamData = burnTarget.status_effects['__steam_explosion_pending'];
