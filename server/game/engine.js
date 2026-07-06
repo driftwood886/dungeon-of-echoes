@@ -11017,7 +11017,9 @@ function cmdChapelBowl(player) {
   }
 
   if (player.hp >= player.max_hp) {
-    return { text: '🙏 Ya estás al máximo de HP. El cuenco brilla en silencio, pero no lo necesitás ahora.' };
+    // DIS-1280: mostrar cuánto HP recuperaría si estuviera herido
+    const healPreview = Math.floor(player.max_hp * 0.40);
+    return { text: `🙏 Ya estás al máximo de HP. El cuenco brilla en silencio, pero no lo necesitás ahora.\n   (Recupera hasta ${healPreview} HP — 40% de tu máximo. Volvé cuando estés herido.)` };
   }
 
   // Verificar cooldown personal
