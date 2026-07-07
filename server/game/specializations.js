@@ -55,9 +55,11 @@ const SPECIALIZATIONS = {
       '+3 ATK permanente, −1 DEF permanente',
       'Las pociones de salud curan −5 HP (el berserk descuida la autosanación)',
       'Habilidad `furia`: sacrificás 20% de tu HP máximo para hacer ×2.0 daño en el próximo ataque (cooldown 60s)',
+      '`modo_berserk`: 3 turnos de +5 ATK, bloquea flee y postura_defensiva; agotamiento post-berserk −2 ATK por 2 turnos (cooldown 90s)',
+      '`calmar_furia`: cancela modo_berserk activo (perdés el turno pero habilitás huida)',
       'La reputación sube un 20% más lento (reputación de bruto)',
     ],
-    new_commands: ['furia'],
+    new_commands: ['furia', 'modo_berserk', 'calmar_furia'],
     combat_modifiers: {
       atk_bonus: 3,
       def_penalty: 1,
@@ -106,8 +108,9 @@ const SPECIALIZATIONS = {
       'La skill `emboscar` permite repetir un crítico garantizado + veneno cuando el pasivo ya fue usado (cooldown 45s)',
       'El veneno aplicado dura 5 turnos en lugar de 3',
       'Al matar con crítico: 15% chance de loot doble',
+      '`emboscada_oscura`: activa 3 puntos de sombra instantáneamente (cooldown 20s)',
     ],
-    new_commands: ['emboscar'],
+    new_commands: ['emboscar', 'emboscada_oscura'],
     combat_modifiers: {
       crit_bonus: 10,                // +10% a crit base
       ambush_first_crit: true,       // primer ataque en sala nueva es siempre crit

@@ -191,6 +191,8 @@ const COMMAND_ALIASES = {
   debuffs: 'debuffs', estados: 'debuffs', 'estados de combate': 'debuffs', 'estados activos': 'debuffs', sinergias: 'debuffs',
   // sombras / golpe desde las sombras (EPIC-1297-F3: ataque especial del Pícaro)
   sombras: 'sombras', 'golpe desde las sombras': 'sombras', sombra: 'sombras', 'activar sombra': 'sombras', 'desde las sombras': 'sombras',
+  // emboscada_oscura (EPIC-1308-F5: habilidad del Asesino)
+  emboscada_oscura: 'emboscada_oscura', shadow_ambush: 'emboscada_oscura', dark_ambush: 'emboscada_oscura',
   // postura defensiva (EPIC-1301-F4: habilidad del Guerrero)
   postura_defensiva: 'postura_defensiva', defensive_stance: 'postura_defensiva', defender: 'postura_defensiva', cubrirse: 'postura_defensiva', bloquear: 'postura_defensiva',
   // quemar_combo / burst de combo (EPIC-1302-F4: habilidad del Guerrero)
@@ -414,6 +416,9 @@ function parse(input) {
       'activar sombra': { cmd: 'sombras',  skillId: null },
       'activar sombras': { cmd: 'sombras', skillId: null },
       'desde las':      { cmd: 'sombras',  skillId: null },  // "desde las sombras"
+      // EPIC-1308-F5: emboscada oscura del Asesino
+      'emboscada oscura': { cmd: 'emboscada_oscura', skillId: null },
+      'shadow ambush':    { cmd: 'emboscada_oscura', skillId: null },
       // EPIC-1301-F4: postura defensiva del Guerrero
       'postura defensiva': { cmd: 'postura_defensiva', skillId: null },
       'postura defens':    { cmd: 'postura_defensiva', skillId: null },

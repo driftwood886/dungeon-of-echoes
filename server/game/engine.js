@@ -467,9 +467,10 @@ function execute(playerId, input, context) {
     case 'sombras':      result = cmdSombras(player, action.args); break;    // EPIC-1297-F3: golpe desde las sombras (solo Pícaro)
     case 'postura_defensiva': result = cmdPostaraDefensiva(player); break;   // EPIC-1301-F4: postura defensiva (solo Guerrero)
     case 'quemar_combo': result = cmdQuemarCombo(player); break;             // EPIC-1302-F4: quemar combo (solo Guerrero)
-    case 'condenar':     result = cmdCondenar(player, action.args); break;   // EPIC-1303-F4: condenar (solo Clérigo)
+    case 'emboscada_oscura': result = cmdEmboscadaOscura(player); break;     // EPIC-1308-F5: emboscada oscura (solo Asesino)
     case 'modo_berserk': result = cmdModoBerserk(player, context); break;    // EPIC-1307-F5: modo berserk (solo Berserker)
     case 'calmar_furia': result = cmdCalmarFuria(player, context); break;    // EPIC-1307-F5: calmar furia (solo Berserker)
+    case 'condenar':     result = cmdCondenar(player, action.args); break;   // EPIC-1303-F4: condenar (solo Clérigo)
     case 'clase':        result = cmdClase(player, action.args); break;
     case 'especializar': result = cmdSpecialize(player, action.args); break;
     case 'bestiary':     result = cmdBestiary(player); break;
@@ -13193,6 +13194,63 @@ function cmdSombras(player, args) {
   return {
     text: outputLines.join('\n'),
     event: globalEvent || null,
+  };
+}
+
+/**
+ * emboscada_oscura — EPIC-1308-F5: Asesino activa shadow_points=3 instantáneamente.
+ * Solo funciona si el jugador es Pícaro/Asesino y shadow_points < 3.
+ * Cooldown: 20s (manejado via skills.js tipo 'asesino_shadow_ambush').
+ */
+function cmdEmboscadaOscura(player) {
+  // Verificar clase Pícaro
+  const ambClass = classes.getPlayerClass(player);
+  const ambClassName = ambClass ? ambClass.name : 'sin_clase';
+  if (ambClassName !== 'Pícaro') {
+    return { text: `🌑 Solo los Pícaros pueden usar la Emboscada Oscura.\n\n💡 Elegí la clase Pícaro con "clase picaro" para acceder a esta habilidad.` };
+  }
+
+  // Verificar especialización Asesino
+  const ambPlayer = db.getPlayer(player.id);
+  if (ambPlayer.specialization !== 'asesino') {
+    return { text: `🌑 Emboscada Oscura es exclusiva del Asesino.\n\nEspecializate como Asesino para desbloquearla: "especializar asesino".` };
+  }
+
+  // Verificar que hay un monstruo en la sala
+  const monsters = db.getMonstersInRoom(player.current_room_id);
+  const alive = monsters.filter(m => m.hp > 0);
+  if (alive.length === 0) {
+    return { text: `🌑 No hay enemigos en esta sala. La emboscada no tiene objetivo.` };
+  }
+
+  // Verificar cooldown (tipo: asesino_shadow_ambush, cooldown 20s)
+  const ambSE = parseSE(ambPlayer.status_effects);
+  const now = Date.now();
+  const cdKey = 'cd_emboscada_oscura';
+  if (ambSE[cdKey] && ambSE[cdKey].expires_at > now) {
+    const remaining = Math.ceil((ambSE[cdKey].expires_at - now) / 1000);
+    return { text: `🌑 Emboscada Oscura en cooldown. Disponible en ${remaining}s.` };
+  }
+
+  // Verificar que shadow_points < 3 (no tiene sentido si ya está lleno)
+  const currentPoints = ambSE['shadow_points'] ? (ambSE['shadow_points'].value || 0) : 0;
+  if (currentPoints >= 3) {
+    const dotsMap = { 0: '○○○', 1: '●○○', 2: '●●○', 3: '●●●' };
+    return {
+      text: `🌑 Ya tenés 3 puntos de sombra ${dotsMap[3]}. ¡Usá "sombras" directamente para activar el golpe!`,
+    };
+  }
+
+  // Activar: setear shadow_points = 3
+  const dotsMapPrev = { 0: '○○○', 1: '●○○', 2: '●●○', 3: '●●●' };
+  const prevDots = dotsMapPrev[currentPoints] || '○○○';
+  ambSE['shadow_points'] = { value: 3, source: 'emboscada_oscura' };
+  // Registrar cooldown (20s)
+  ambSE[cdKey] = { expires_at: now + 20000, source: 'emboscada_oscura' };
+  db.updatePlayer(player.id, { status_effects: JSON.stringify(ambSE) });
+
+  return {
+    text: `🌑 **Emboscada Oscura activada.**\nSombra: ${prevDots} → ●●● (3/3)\n\nEl velo de sombras te envuelve. ¡Activá "sombras" ahora para descargar el golpe!\n\n⏱ Cooldown: 20s`,
   };
 }
 

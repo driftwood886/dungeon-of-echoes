@@ -230,6 +230,19 @@ const SKILLS = {
     description: 'Cancela el Modo Berserk activo: 1 turno sin acción (perdés el turno) pero habilitás la huida. Solo funciona mientras el Modo Berserk esté activo. Solo Berserker (nivel 5+).',
     combat_only: true,
   },
+  // EPIC-1308-F5: Emboscada Oscura — activa shadow_points=3 instantáneamente
+  emboscada_oscura: {
+    id: 'emboscada_oscura',
+    name: 'Emboscada Oscura',
+    aliases: ['emboscada_oscura', 'emboscada oscura', 'shadow_ambush', 'oscura', 'dark_ambush'],
+    required_level: 5,
+    required_class: 'picaro',
+    required_specialization: 'asesino',
+    cooldown_seconds: 20,
+    type: 'asesino_shadow_ambush',
+    description: 'Activás instantáneamente 3 puntos de sombra — podés usar "sombras" de inmediato. Solo funciona si shadow_points < 3. Cooldown: 20s. Solo Asesino (nivel 5+).',
+    combat_only: true,
+  },
   emboscar: {
     id: 'emboscar',
     name: 'Emboscada',
