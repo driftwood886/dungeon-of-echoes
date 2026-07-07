@@ -231,7 +231,7 @@ const BOSS_MONSTERS = {
 // T221: Stats base de monstruos para restaurar después de ser élite
 // (id → { name, max_hp, attack })
 const MONSTER_BASE_STATS = {
-  1:  { name: 'Goblin Merodeador',     max_hp: 15, attack: 3  },
+  1:  { name: 'Goblin Merodeador',     max_hp: 15, attack: 4  },
   2:  { name: 'Esqueleto Guerrero',    max_hp: 20, attack: 5  },
   3:  { name: 'Rata Gigante',          max_hp: 10, attack: 2  },
   4:  { name: 'Espectro del Corredor', max_hp: 18, attack: 6  },
@@ -695,9 +695,9 @@ function attackRound(player, monster) {
     : monNameLow.includes('elemental de hielo') ? 0.80
     : FIRE_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? 0.80
     : 1.0;
-  const physResistLabel = monNameLow.includes('gólem de piedra') ? '🪨 (resistencia física: ×0.75)'
-    : monNameLow.includes('elemental de hielo') ? '🧊 (resistencia física: ×0.80)'
-    : FIRE_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? '🔥 (resistencia de fuego: ×0.80)'
+  const physResistLabel = monNameLow.includes('gólem de piedra') ? '🪨 (el golpe rebota en la piedra)'
+    : monNameLow.includes('elemental de hielo') ? '🧊 (tu golpe se disipa en la masa etérea)'
+    : FIRE_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? '🔥 (el calor absorbe parte del impacto)'
     : '';
   // DIS-936: La lanza espectral y sus variantes tienen bono real contra espectrales y criaturas mágicas
   // spectral_bonus en items.js define el ATK extra (+2 para base/reforzada, +3 para del eco)

@@ -2301,10 +2301,13 @@ function cmdMove(player, direction) {
     const prevRoomItems = db.getRoom(_originRoomId);
     if (prevRoomItems) {
       const floorItems = Array.isArray(prevRoomItems.items) ? prevRoomItems.items : [];
+      // DIS-1314: excluir ítems de trampa/ofrenda que no son carry-forward útiles
+      // (corona rota, hongo azul, etc. son raros pero se usan in-situ)
+      const TRAP_ITEMS_EXCLUDE = new Set(['corona rota', 'hongo azul', 'hongo rojo', 'hongo verde', 'cuerda', 'red de pesca']);
       const epicLeft = floorItems.filter(i => {
         const r = items.getItemRarity(i);
         // BUG-751: incluir 'raro' además de 'épico'/'legendario' para capturar tomo sellado, pergaminos, etc.
-        return r === 'épico' || r === 'legendario' || r === 'raro';
+        return (r === 'épico' || r === 'legendario' || r === 'raro') && !TRAP_ITEMS_EXCLUDE.has(i.toLowerCase());
       });
       if (epicLeft.length > 0) {
         const currentItemsKey = epicLeft.slice().sort().join(',');
@@ -4762,7 +4765,7 @@ function cmdPick(player, itemQuery) {
     'cristal mágico', 'corona rota', 'antídoto', 'hierba curativa',
   ]);
   if (pickCraftHint && ALTAR_ITEMS_SET.has(found.toLowerCase())) {
-    pickCraftHint += `\n   ⚠️ Recordá: si craftéás "${found}" lo consumís. También podés ofrecerlo en el altar con: pray ${found.toLowerCase()}`;
+    pickCraftHint += `\n   🙏 También podés ofrecerlo en el altar si preferís: pray ${found.toLowerCase()}`;
   }
 
   // DIS-D327/DIS-D351: hint de quest de Aldric cuando se recoge la carta sellada
