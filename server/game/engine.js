@@ -359,7 +359,7 @@ function execute(playerId, input, context) {
     case 'flee':      result = cmdFlee(player, action.args ? action.args.join(' ') : ''); break;
     case 'pick':      result = cmdPick(player, action.args.join(' ')); break;
     case 'use':       result = cmdUse(player, action.args.join(' ')); break;
-    case 'heal':      result = cmdHeal(player, action.args); break;
+    case 'heal':      result = cmdHeal(player, action.args); break; // BUG-1333: cmdHeal unificado (poción para todos, skill para Clérigo)
     case 'drop':      result = cmdDrop(player, action.args.join(' ')); break;
     case 'examine': {
       result = cmdExamine(player, action.args.join(' '));
@@ -766,7 +766,6 @@ Comandos más usados:
       }
       break;
     case 'pronunciar':   result = cmdPronunciar(player, action.args.join(' ')); break; // DIS-487
-    case 'heal':          result = cmdHeal(player, action.args); break; // DIS-496
     case 'unknown':
       // BUG-445: Pozo Sin Fondo — interceptar comandos temáticos en sala 7
       if (player.current_room_id === 7 && action.input) {
@@ -5021,7 +5020,13 @@ function cmdUse(player, itemQuery) {
       const newHp = Math.min(player.hp + HERB_HEAL, maxHp);
       const healed = newHp - player.hp;
       db.updatePlayer(player.id, { inventory: newInv2, hp: newHp });
-      resultText = `🌿 Masticás la ${found}. Sus propiedades medicinales te curan ${healed} HP. (${newHp}/${maxHp} HP)`;
+      // BUG-1334: mensaje diferenciado para antídoto vs hierba curativa
+      const isAntidote = found === 'antídoto' || found === 'antidoto';
+      if (isAntidote) {
+        resultText = `🧪 Tomás el antídoto preventivamente — no estás envenenado, pero sus compuestos curativos restauran ${healed} HP. (${newHp}/${maxHp} HP)`;
+      } else {
+        resultText = `🌿 Masticás la ${found}. Sus propiedades medicinales te curan ${healed} HP. (${newHp}/${maxHp} HP)`;
+      }
     }
 
   } else if (def.type === 'weapon') {
@@ -6530,7 +6535,7 @@ function cmdScoreCrafts() {
   return { text: lines.join('\n') };
 }
 
-function cmdHeal(player) {
+function cmdHealPotion(player) {
   player = db.getPlayer(player.id);
 
   // Buscar la primera poción en el inventario
@@ -13891,23 +13896,23 @@ function cmdClase(player, args) {
 }
 
 /**
- * DIS-496: cmdHeal — Comando exclusivo del Clérigo para sanar a aliados en la sala.
- * heal             → se auto-cura (15 HP base × heal_power)
- * heal <jugador>   → cura a ese jugador si está en la misma sala (10 HP base × heal_power)
- * Coste: 8 de maná
+ * DIS-496 / BUG-1333: cmdHeal — Comportamiento unificado:
+ * - Clérigo: usa su habilidad sagrada (heal a sí mismo o a aliados, cuesta 8 maná)
+ * - Otras clases: atajo para usar la primera poción de salud del inventario
+ * heal             → Clérigo: se auto-cura (15 HP × heal_power). Otros: usa primera poción.
+ * heal <jugador>   → Clérigo: cura a ese jugador si está en la misma sala.
+ * Coste: 8 de maná (solo Clérigo)
  */
 function cmdHeal(player, args) {
   const fresh = db.getPlayer(player.id);
   if (!fresh) return { text: 'Error al leer tu personaje.' };
 
   const cls = fresh.player_class || 'sin_clase';
+
+  // BUG-1333: para no-Clérigos, usar el atajo de poción en lugar de mostrar error
   if (cls !== 'clerigo') {
-    // DIS-604: el Mago puede curar con 'cast curación' — darle la alternativa correcta
-    if (cls === 'mago') {
-      return { text: `✨ El comando \`heal\` es la habilidad sagrada del Clérigo. Como Mago, podés curar con:\n  • \`cast curación\` — hechizo de curación (cuesta maná)\n  • \`use poción de salud\` — usar una poción del inventario` };
-    }
-    // DIS-609: otras clases (Guerrero, Pícaro, sin_clase) — indicar alternativa de curación
-    return { text: `✨ El comando \`heal\` es la habilidad sagrada del Clérigo. Para curarte, usá:\n  • \`use poción de salud\` — usar una poción del inventario\n  • (Si querés cambiar de clase: solo antes de 5 kills con \`clase clerigo\`)` };
+    // Solo healear a sí mismo (no admite target para no-Clérigos)
+    return cmdHealPotion(player);
   }
 
   const mana = fresh.mana != null ? fresh.mana : 0;
