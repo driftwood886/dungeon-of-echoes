@@ -644,7 +644,7 @@ function migrateCorredorHintDIS1107() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324 };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -2317,4 +2317,54 @@ function migrateEspectroHPDIS1203() {
   }
 }
 
+/**
+ * DIS-1324: Early game del Guerrero carece de tensión (nivel 1-3).
+ * Monstruos iniciales hacen 2 HP de daño por turno vs 35 HP del Guerrero — riesgo inexistente.
+ * Subir ATK de monstruos early game:
+ *   Goblin Merodeador (id 1): 4 → 5
+ *   Rata Gigante (id 3): 2 → 3
+ *   Murciélago Vampiro (ids 6, 26, 27): 3 → 4
+ * Con estos valores, 2-3 errores del jugador pueden ser peligrosos — sin dejar de ser manejable.
+ */
+function migrateEarlyGameATKDIS1324() {
+  try {
+    const all = db.getAllMonsters ? db.getAllMonsters() : [];
+    let changed = 0;
+
+    // Goblin Merodeador: 4 → 5
+    const goblin = all.find(m => m.id === 1);
+    if (goblin && (goblin.attack || 0) < 5) {
+      db.updateMonster(1, { attack: 5 });
+      console.log(`[seed] migrateEarlyGameATKDIS1324: Goblin Merodeador ATK ${goblin.attack}→5. ✓`);
+      changed++;
+    }
+
+    // Rata Gigante: 2 → 3
+    const rata = all.find(m => m.id === 3);
+    if (rata && (rata.attack || 0) < 3) {
+      db.updateMonster(3, { attack: 3 });
+      console.log(`[seed] migrateEarlyGameATKDIS1324: Rata Gigante ATK ${rata.attack}→3. ✓`);
+      changed++;
+    }
+
+    // Murciélagos Vampiro (ids 6, 26, 27): 3 → 4
+    for (const batId of [6, 26, 27]) {
+      const bat = all.find(m => m.id === batId);
+      if (bat && (bat.attack || 0) < 4) {
+        db.updateMonster(batId, { attack: 4 });
+        console.log(`[seed] migrateEarlyGameATKDIS1324: Murciélago Vampiro (id ${batId}) ATK ${bat.attack}→4. ✓`);
+        changed++;
+      }
+    }
+
+    if (changed === 0) {
+      console.log('[seed] migrateEarlyGameATKDIS1324: todos los monstruos ya tienen ATK actualizado. ✓');
+    } else {
+      db.persist();
+      console.log(`[seed] migrateEarlyGameATKDIS1324: ${changed} monstruos actualizados. DIS-1324 ✓`);
+    }
+  } catch (e) {
+    console.warn('[seed] migrateEarlyGameATKDIS1324:', e.message);
+  }
+}
 

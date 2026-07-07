@@ -231,12 +231,12 @@ const BOSS_MONSTERS = {
 // T221: Stats base de monstruos para restaurar después de ser élite
 // (id → { name, max_hp, attack })
 const MONSTER_BASE_STATS = {
-  1:  { name: 'Goblin Merodeador',     max_hp: 15, attack: 4  },
+  1:  { name: 'Goblin Merodeador',     max_hp: 15, attack: 5  }, // DIS-1324: ATK 4→5 para crear tensión en early game
   2:  { name: 'Esqueleto Guerrero',    max_hp: 20, attack: 5  },
-  3:  { name: 'Rata Gigante',          max_hp: 10, attack: 2  },
+  3:  { name: 'Rata Gigante',          max_hp: 10, attack: 3  }, // DIS-1324: ATK 2→3, hace la Rata un poco más amenazante
   4:  { name: 'Espectro del Corredor', max_hp: 18, attack: 6  },
   5:  { name: 'Gólem de Piedra',       max_hp: 70, attack: 8  },  // DIS-630: HP 35→55. DIS-1105: HP 55→70
-  6:  { name: 'Murciélago Vampiro',    max_hp: 12, attack: 3  },
+  6:  { name: 'Murciélago Vampiro',    max_hp: 12, attack: 4  }, // DIS-1324: ATK 3→4 — Murciélago más amenazante
   7:  { name: 'Araña Tejedora',        max_hp: 8,  attack: 4  },
   8:  { name: 'Guardia Espectral',     max_hp: 55, attack: 7  },  // DIS-679: HP 40→55
   // DIS-D46: Monstruos expandidos — stats balanceados para curva de dificultad progresiva
@@ -247,8 +247,8 @@ const MONSTER_BASE_STATS = {
   21: { name: 'Eco Viviente',          max_hp: 55, attack: 10 }, // DIS-D423: rebalanceado
   22: { name: 'Sombra del Vacío',      max_hp: 120, attack: 14 }, // DIS-729: HP 90→120, boss secreto más desafiante
   // BUG-697: Murciélagos extra de DIS-510 — sin entrada = élite acumula HP en cada ciclo
-  26: { name: 'Murciélago Vampiro',    max_hp: 12, attack: 3  }, // sala 3 (Sala de los Ecos)
-  27: { name: 'Murciélago Vampiro',    max_hp: 12, attack: 3  }, // sala 6 (Túnel de Hongos)
+  26: { name: 'Murciélago Vampiro',    max_hp: 12, attack: 4  }, // sala 3 (Sala de los Ecos) — DIS-1324: ATK 3→4
+  27: { name: 'Murciélago Vampiro',    max_hp: 12, attack: 4  }, // sala 6 (Túnel de Hongos) — DIS-1324: ATK 3→4
 };
 
 // BUG-1016: Mapa de géneros femeninos para artículos correctos.
