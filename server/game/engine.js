@@ -14481,9 +14481,9 @@ function cmdUseSkill(player, args, context) {
       : smashMonNameLow.includes('elemental de hielo') ? 0.80
       : SMASH_FIRE_RESISTANT.some(n => smashMonNameLow.includes(n)) ? 0.80
       : 1.0;
-    const smashResistLabel = smashMonNameLow.includes('gólem de piedra') ? '🪨 (resistencia física: ×0.75)'
-      : smashMonNameLow.includes('elemental de hielo') ? '🧊 (resistencia física: ×0.80)'
-      : SMASH_FIRE_RESISTANT.some(n => smashMonNameLow.includes(n)) ? '🔥 (resistencia de fuego: ×0.80)'
+    const smashResistLabel = smashMonNameLow.includes('gólem de piedra') ? '🪨 (el golpe rebota en la piedra)'
+      : smashMonNameLow.includes('elemental de hielo') ? '🧊 (el frío amortigua el impacto)'
+      : SMASH_FIRE_RESISTANT.some(n => smashMonNameLow.includes(n)) ? '🔥 (el calor absorbe parte del impacto)'
       : '';
     const dmgAfterSmashResist = Math.round(dmg * smashPhysResist);
     const finalDmg = Math.max(1, dmgAfterSmashResist - Math.floor(target.defense || 0));
