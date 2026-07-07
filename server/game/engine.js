@@ -249,7 +249,18 @@ function calcLevelUp(freshPlayer, xpGain) {
       } catch (_) { /* no interrumpir */ }
     }
   }
-  return { fields, levelUpMsg: levelUp ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}! +5 HP máx, +1 ataque${fields.hp ? `, +${fields.hp - (freshPlayer.hp || 1)} HP restaurado (${fields.hp}/${fields.max_hp} HP)` : ''}${newLevel === 5 && !freshPlayer.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.' : ''}` : '' };
+  // DIS-1323: si el jugador llega a nivel 5 con la carta sellada pero la quest de Aldric aún no inició,
+  // recordarle que hable con Aldric (sala 4) — el hint del pick solo se muestra una vez al recoger.
+  let aldricCartaReminder = '';
+  if (levelUp && newLevel === 5 && (freshPlayer.aldric_quest || 'none') === 'none') {
+    try {
+      const inv5 = Array.isArray(freshPlayer.inventory) ? freshPlayer.inventory : JSON.parse(freshPlayer.inventory || '[]');
+      if (inv5.some(i => i.toLowerCase().includes('carta sellada'))) {
+        aldricCartaReminder = '\n\n📜 ¡Tenés la carta sellada! Ahora que llegaste al nivel 5, hablá con Aldric el Mercader (sala 4, al norte-este) — tiene algo que decirte sobre el sello de las dos llaves cruzadas. Escribí `hablar aldric`.';
+      }
+    } catch (_) { /* no interrumpir */ }
+  }
+  return { fields, levelUpMsg: levelUp ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}! +5 HP máx, +1 ataque${fields.hp ? `, +${fields.hp - (freshPlayer.hp || 1)} HP restaurado (${fields.hp}/${fields.max_hp} HP)` : ''}${newLevel === 5 && !freshPlayer.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.' : ''}${aldricCartaReminder}` : '' };
 }
 
 /**
@@ -1943,7 +1954,17 @@ function cmdMove(player, direction) {
       }
     }
     db.updatePlayer(player.id, upd);
-    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +2 XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${newLevel === 5 && !freshExp.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.' : ''}` : ''}`;
+    // DIS-1323: recordatorio de Aldric en level-up de exploración
+    let expAldricReminder = '';
+    if (levelUp && newLevel === 5 && (freshExp.aldric_quest || 'none') === 'none') {
+      try {
+        const invExp5 = Array.isArray(freshExp.inventory) ? freshExp.inventory : JSON.parse(freshExp.inventory || '[]');
+        if (invExp5.some(i => i.toLowerCase().includes('carta sellada'))) {
+          expAldricReminder = '\n\n📜 ¡Tenés la carta sellada! Ahora que llegaste al nivel 5, hablá con Aldric el Mercader (sala 4, al norte-este). Escribí `hablar aldric`.';
+        }
+      } catch (_) { /* no interrumpir */ }
+    }
+    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +2 XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${newLevel === 5 && !freshExp.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.' : ''}${expAldricReminder}` : ''}`;
   }
 
   // Construir respuesta
