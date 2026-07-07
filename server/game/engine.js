@@ -4170,10 +4170,12 @@ function cmdAttack(player, targetName) {
       else if (lichKills >= 3) cycleMedal = '🥇';
       else if (lichKills >= 2) cycleMedal = '🥈';
 
+      const victorName = (freshVictory && freshVictory.username) || player.username || 'Aventurero';
+
       const lines = [
         '╔══════════════════════════════════════════════════════╗',
         `║  ☠️  ¡¡EL LICH ANCIANO HA CAÍDO!!                    ║`,
-        `║  ${monster.name.substring(0, 36).padEnd(36)}  ║`,
+        `║  ⚔️  Derrotado por: ${victorName.substring(0, 33).padEnd(33)}║`,
         '╠══════════════════════════════════════════════════════╣',
       ];
 
@@ -4974,7 +4976,11 @@ function cmdUse(player, itemQuery) {
     db.updatePlayer(player.id, { inventory: newInv });
 
     const palBonus = (player.specialization === 'paladin' && healAmount > def.amount) ? ` (+${healAmount - def.amount} 🛡️ Paladín)` : '';
-    const bsPenalty = (player.specialization === 'berserker' && healAmount < def.amount) ? ` (−${def.amount - healAmount} 🪓 Berserker)` : '';
+    let bsPenalty = '';
+    if (player.specialization === 'berserker' && healAmount < def.amount) {
+      const penalty = def.amount - healAmount;
+      bsPenalty = ` (la poción cura ${def.amount} HP, pero el Berserker no sabe cuidarse — −${penalty} 🪓)`;
+    }
     resultText = `Bebés ${articuloItem(found)} ${found}. Recuperás ${newHp - oldHp} HP${palBonus}${bsPenalty}. (${newHp}/${maxHp} HP)`;
 
   } else if (def.type === 'mana_potion' && def.effect === 'restore_mana') {
@@ -9176,6 +9182,34 @@ function cmdBuy(player, itemQuery) {
     return { text: `💰 No tenés suficiente oro. Necesitás ${finalPrice}g, tenés ${gold}g.` };
   }
 
+  // DIS-1331: Hint de crafteo equivalente — si el jugador tiene materiales para craftear algo igual o mejor, avisar
+  let craftAlternativeHint = '';
+  try {
+    const { RECIPES, CRAFTED_ITEMS } = require('./crafting');
+    const boughtItemDef = items.getItemDef(item.name);
+    if (boughtItemDef && (boughtItemDef.type === 'armor' || boughtItemDef.type === 'weapon') && boughtItemDef.amount) {
+      for (const recipe of RECIPES) {
+        const craftedDef = CRAFTED_ITEMS && CRAFTED_ITEMS[recipe.result];
+        if (!craftedDef) continue;
+        if (craftedDef.type !== boughtItemDef.type) continue;
+        if (!craftedDef.amount || craftedDef.amount < boughtItemDef.amount) continue;
+        // Verificar si el jugador tiene todos los ingredientes
+        const invCheck = [...player.inventory];
+        let hasMats = true;
+        for (const ing of recipe.ingredients) {
+          const idx = invCheck.findIndex(i => i && i.toLowerCase() === ing.toLowerCase());
+          if (idx === -1) { hasMats = false; break; }
+          invCheck.splice(idx, 1);
+        }
+        if (hasMats) {
+          const diffLabel = craftedDef.amount > boughtItemDef.amount ? ` (+${craftedDef.amount - boughtItemDef.amount} más que el comprado)` : ' (equivalente)';
+          craftAlternativeHint = `\n\n💡 Aldric levanta una ceja. "¿Sabés que tenés los materiales para hacer un **${recipe.result}**${diffLabel}? ${recipe.ingredients.join(' + ')} → craftear con \`craftear ${recipe.result}\`."`;
+          break;
+        }
+      }
+    }
+  } catch (_) { /* no interrumpir compra si falla el check */ }
+
   // Realizar la compra con precio con descuento
   const newGold = gold - finalPrice;
   const newInventory = [...player.inventory, item.name];
@@ -9289,7 +9323,7 @@ function cmdBuy(player, itemQuery) {
   }
 
   return {
-    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${equipTip}${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}`,
+    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}${craftAlternativeHint}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${equipTip}${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };

@@ -58,7 +58,7 @@ const SPECIALIZATIONS = {
       'Habilidad `furia`: sacrificás 20% de tu HP máximo para hacer ×2.0 daño en el próximo ataque (cooldown 60s)',
       '`modo_berserk`: 3 turnos de +5 ATK, bloquea flee y postura_defensiva; agotamiento post-berserk −2 ATK por 2 turnos (cooldown 90s)',
       '`calmar_furia`: cancela modo_berserk activo (perdés el turno pero habilitás huida)',
-      'La reputación sube un 20% más lento (reputación de bruto)',
+      'La reputación sube un 20% más lento (los brutos son temidos, no respetados — el miedo no genera aliados)',
     ],
     new_commands: ['furia', 'modo_berserk', 'calmar_furia'],
     combat_modifiers: {

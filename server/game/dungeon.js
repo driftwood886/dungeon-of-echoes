@@ -306,8 +306,18 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   }
 
   // DIS-1178: Sala 2 (Corredor de las Sombras) — hint olfativo hacia la tienda
+  // DIS-1329: suprimir si es primera visita (el evento cinemático ya menciona el olor a cuero curtido)
   if (roomId === 2) {
-    lines.push(`\n👃 Un tenue olor a cuero curtido y especias de ultramar llega desde el norte. Quizás hay algo interesante en esa dirección.`);
+    let sala2PrimeraVisita = false;
+    if (player && player.rooms_visited) {
+      try {
+        const visitados = JSON.parse(player.rooms_visited || '[]');
+        sala2PrimeraVisita = !visitados.includes(2);
+      } catch (_) {}
+    }
+    if (!sala2PrimeraVisita) {
+      lines.push(`\n👃 Un tenue olor a cuero curtido y especias de ultramar llega desde el norte. Quizás hay algo interesante en esa dirección.`);
+    }
   }
 
   // DIS-1178: Sala 3 (Sala de los Ecos) — hint explícito hacia Aldric + nota sobre el Esqueleto
