@@ -22267,7 +22267,19 @@ function cmdAscend(player, args, context) {
       const descParsed = leg.desc.replace('[nombre]', charName);
       lines.push(`  ${i + 1}. ${leg.emoji} ${leg.nombre}`);
       lines.push(`     "${descParsed}"`);
-      lines.push(`     → ${leg.efecto}`);
+
+      // DIS-1326: Para legados con efectos por clase, mostrar el desglose completo
+      if (leg.effects && leg.effects.class_stat_bonus) {
+        const csb = leg.effects.class_stat_bonus;
+        lines.push(`     → Según la clase que elijas en el próximo personaje:`);
+        if (csb.mago)     lines.push(`       • Mago:    +${csb.mago.max_mana || csb.mago.attack || csb.mago.max_hp} ${csb.mago.max_mana ? 'MP máximo' : csb.mago.attack ? 'ATK permanente' : 'HP máximo'}`);
+        if (csb.guerrero) lines.push(`       • Guerrero: +${csb.guerrero.max_mana || csb.guerrero.attack || csb.guerrero.max_hp} ${csb.guerrero.max_mana ? 'MP máximo' : csb.guerrero.attack ? 'ATK permanente' : 'HP máximo'}`);
+        if (csb.picaro)   lines.push(`       • Pícaro:   +${csb.picaro.max_mana || csb.picaro.attack || csb.picaro.max_hp} ${csb.picaro.max_mana ? 'MP máximo' : csb.picaro.attack ? 'ATK permanente' : 'HP máximo'}`);
+        if (csb.clerigo)  lines.push(`       • Clérigo:  +${csb.clerigo.max_mana || csb.clerigo.attack || csb.clerigo.max_hp} ${csb.clerigo.max_mana ? 'MP máximo' : csb.clerigo.attack ? 'ATK permanente' : 'HP máximo'}`);
+        lines.push(`     ℹ️  Elegís la clase cuando creás el próximo personaje.`);
+      } else {
+        lines.push(`     → ${leg.efecto}`);
+      }
       lines.push(``);
     });
 
