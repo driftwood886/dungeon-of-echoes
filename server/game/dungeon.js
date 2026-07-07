@@ -280,7 +280,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
         'hongo azul': ' (crece en el Túnel de los Hongos — entrá y usá "buscar" para recoger uno, o volvé desde el Corredor con uno en el inventario para desactivarla sin entrar)',
         'corona rota': ' (loot del Espectro del Corredor, o buscá en la Prisión Subterránea)',
         'cuerda': ' (disponible en la tienda del Mercader Aldric)',
-        'red de pesca': ' (buscá en la Caverna Sumergida)',
+        'red de pesca': ' (buscá en la Caverna Sumergida con \"buscar\" tras entrar, o comprá en la tienda de Aldric por 15g)',
       };
       const itemNeeded = adjRoom.trap.item_needed
         ? ` — necesitás "${adjRoom.trap.item_needed}"${TRAP_ITEM_WHERE[adjRoom.trap.item_needed] || ''} para desactivarla`

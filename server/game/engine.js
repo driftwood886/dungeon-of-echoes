@@ -1096,8 +1096,9 @@ function cmdLook(player) {
             const dmgStr = trapRoom.dmgRange ? `~${trapRoom.dmg} HP (${trapRoom.dmgRange})` : `-${trapRoom.dmg} HP`;
             let trapMsg = `${trapRoom.icon} ${dirLabel}: ${trapRoom.roomName} — ${trapRoom.name} activa (${dmgStr} al entrar por primera vez).`;
             // DIS-1257: en sala 13 (Caverna Sumergida), mencionar dónde conseguir el ítem de desactivación
+            // DIS-1342: aclarar la circularidad — la red se consigue dentro de la sala misma (o en tienda de Aldric)
             if (destId === 13) {
-              trapMsg += ` 💡 La red de pesca (en el suelo de esa misma sala) permite desactivarla — asegurate de tener espacio en el inventario.`;
+              trapMsg += ` 💡 Consejo: la primera visita siempre activa el daño. Entrá, usá "buscar" para encontrar la red de pesca (45% de chance) y la próxima vez podés desactivarla antes de entrar. Alternativa: comprá la red de pesca en la tienda de Aldric (sala 4, 15g).`;
             }
             trapLines.push(trapMsg);
           }
@@ -1573,7 +1574,7 @@ function cmdMove(player, direction) {
               6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa hacia el Túnel, podés escribir "desactivar trampa <dir>" desde la sala anterior para desactivarla sin entrar.\n⚠️  Al norte del Túnel está la Sala del Trono — también tiene una trampa de frío (primera visita). Si pasás por la Prisión (sala 8, volviendo al Pozo), hay una "corona rota" abandonada en las celdas que la desactiva. DIS-1033',
               9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de tres formas: (1) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, (2) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (3) buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
               3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).\n🧠 Próxima vez que veas el hint de trampa al oeste, podés escribir "desactivar trampa oeste" antes de entrar.',
-              13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Buscá en esta sala o en los alrededores del Lago.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
+              13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Usá "buscar" en esta sala (45% de chance) o comprala en la tienda de Aldric (sala 4, 15g). La primera visita siempre activa el daño, pero una vez que tenés la red, podés desactivarla antes de entrar.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
             };
             const nbDisarmHint = TRAP_DISARM_HINT_NB[destId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
             const nbAtmoPrefix = nbAtmo ? `\n\n${nbAtmo}` : '';
@@ -1725,7 +1726,7 @@ function cmdMove(player, direction) {
             const bfhUpdatedSE = { ...(bfhFresh.status_effects || {}), [bfhTrapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
             db.updatePlayer(bfhFresh.id, { hp: bfhNewHp, status_effects: JSON.stringify(bfhUpdatedSE), known_traps: JSON.stringify(bfhUpdatedKT) });
             const TRAP_DISARM_HINT_BFH = {
-              13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Buscá en esta sala o en los alrededores del Lago.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
+              13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Usá "buscar" en esta sala (45% de chance) o comprala en la tienda de Aldric (sala 4, 15g). La primera visita siempre activa el daño, pero una vez que tenés la red, podés desactivarla antes de entrar.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
             };
             const bfhDisarmHint = TRAP_DISARM_HINT_BFH[destId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
             const bfhAtmoPrefix = bfhAtmo ? `\n\n${bfhAtmo}` : '';
@@ -2051,7 +2052,7 @@ function cmdMove(player, direction) {
         6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa hacia el Túnel, podés escribir "desactivar trampa <dir>" desde la sala anterior para desactivarla sin entrar.\n⚠️  Al norte del Túnel está la Sala del Trono — también tiene una trampa de frío (primera visita). Si pasás por la Prisión (sala 8, volviendo al Pozo), hay una "corona rota" abandonada en las celdas que la desactiva. DIS-1033',
         9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de tres formas: (1) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, (2) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (3) buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
         3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).\n🧠 Próxima vez que veas el hint de trampa al oeste, podés escribir "desactivar trampa oeste" antes de entrar.',
-        13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Buscá en esta sala o en los alrededores del Lago.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
+        13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Usá "buscar" en esta sala (45% de chance) o comprala en la tienda de Aldric (sala 4, 15g). La primera visita siempre activa el daño, pero una vez que tenés la red, podés desactivarla antes de entrar.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
       };
       const disarmHint = TRAP_DISARM_HINT[targetId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
 
@@ -6091,7 +6092,7 @@ function cmdLore(query) {
     const SHOP_CATALOG = [
       'poción de salud', 'poción mayor', 'antídoto', 'cuchillo oxidado', 'espada oxidada',
       'hierba curativa', 'poción de maná', 'cuero endurecido', 'cota de malla', 'veste de sombra',
-      'espada de hierro', 'daga envenenada', 'escudo de madera', 'antorcha', 'cuerda', 'llave oxidada',
+      'espada de hierro', 'daga envenenada', 'escudo de madera', 'antorcha', 'cuerda', 'red de pesca', 'llave oxidada',
       'túnica encantada', 'poción de maná mayor', 'cristal helado',
     ];
     const inShop = SHOP_CATALOG.some(s => s === itemKey);
@@ -8436,6 +8437,8 @@ const SHOP_CATALOG = [
   { name: 'escudo de madera',        price: 25, description: 'Defensa +2. No es glamoroso, pero funciona.' },
   { name: 'antorcha',                price: 5,  description: 'Ilumina pasillos oscuros. Dura varias horas.' },
   { name: 'cuerda',                  price: 10, description: 'Desactiva trampas de pinchos. 15m de largo.' },
+  // DIS-1342: red de pesca disponible en tienda — alternativa para evitar el daño de la Caverna Sumergida en primera visita
+  { name: 'red de pesca',             price: 15, description: 'Red de pesca resistente. Desactiva la trampa de inundación de la Caverna Sumergida (sala 13) sin necesidad de entrar primero.' },
   { name: 'espada oxidada',          price: 15, description: 'Una espada vieja pero funcional. +3 ataque. Ingrediente para craftear espada de obsidiana.' },
   { name: 'llave oxidada',           price: 20, description: 'Abre la puerta al norte del Pozo Sin Fondo. El hierro está gastado por años de uso —quizás décadas. Algunos aventureros la encontraron en el suelo del Pozo, envuelta en seda: la Araña Tejedora la tomó de alguien que no salió. No sabés si ese alguien llegó más lejos que vos.' },
   // T152: Armaduras
