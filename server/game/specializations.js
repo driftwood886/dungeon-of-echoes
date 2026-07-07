@@ -33,8 +33,9 @@ const SPECIALIZATIONS = {
       'Smash aplica Aturdido (el monstruo pierde 1 turno, 25% chance)',
       'Las pociones de salud curan +5 HP adicionales',
       'La reputación sube un 50% más rápido',
+      '`consagrar_sala`: +2 DEF a todos en la sala por 60s (costo 12 maná, cooldown 120s; se pierde al moverte)',
     ],
-    new_commands: ['imposition'],
+    new_commands: ['imposition', 'consagrar_sala'],
     combat_modifiers: {
       def_bonus: 2,
       smash_stun_chance: 0.25,

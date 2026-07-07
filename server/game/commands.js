@@ -193,6 +193,8 @@ const COMMAND_ALIASES = {
   sombras: 'sombras', 'golpe desde las sombras': 'sombras', sombra: 'sombras', 'activar sombra': 'sombras', 'desde las sombras': 'sombras',
   // emboscada_oscura (EPIC-1308-F5: habilidad del Asesino)
   emboscada_oscura: 'emboscada_oscura', shadow_ambush: 'emboscada_oscura', dark_ambush: 'emboscada_oscura',
+  // consagrar_sala (EPIC-1309-F5: habilidad del Paladín)
+  consagrar_sala: 'consagrar_sala', consagrar: 'consagrar_sala', bless_room: 'consagrar_sala', sanctify: 'consagrar_sala', sagrar: 'consagrar_sala',
   // postura defensiva (EPIC-1301-F4: habilidad del Guerrero)
   postura_defensiva: 'postura_defensiva', defensive_stance: 'postura_defensiva', defender: 'postura_defensiva', cubrirse: 'postura_defensiva', bloquear: 'postura_defensiva',
   // quemar_combo / burst de combo (EPIC-1302-F4: habilidad del Guerrero)
@@ -419,6 +421,9 @@ function parse(input) {
       // EPIC-1308-F5: emboscada oscura del Asesino
       'emboscada oscura': { cmd: 'emboscada_oscura', skillId: null },
       'shadow ambush':    { cmd: 'emboscada_oscura', skillId: null },
+      // EPIC-1309-F5: consagrar sala del Paladín
+      'consagrar sala':   { cmd: 'consagrar_sala', skillId: null },
+      'bless room':       { cmd: 'consagrar_sala', skillId: null },
       // EPIC-1301-F4: postura defensiva del Guerrero
       'postura defensiva': { cmd: 'postura_defensiva', skillId: null },
       'postura defens':    { cmd: 'postura_defensiva', skillId: null },

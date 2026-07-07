@@ -498,7 +498,12 @@ function attackRound(player, monster) {
     : {};
   const atkDebuffAmt = atkDebuffFx.atk_debuffed ? (atkDebuffFx.atk_debuffed.amount || 0) : 0;
   const effectiveAtk = Math.max(1, player.attack + petBonus + scrollAtkBonus + stanceMods.atkMod - atkDebuffAmt);
-  const effectiveDef = (player.defense || 0) + scrollDefBonus + stanceMods.defMod;
+  let effectiveDef = (player.defense || 0) + scrollDefBonus + stanceMods.defMod;
+  // EPIC-1309-F5: bonus de consagración de sala del Paladín
+  const consagracionFx = atkDebuffFx['consagracion_sala'];
+  if (consagracionFx && consagracionFx.expires_at > Date.now() && consagracionFx.room_id === player.current_room_id) {
+    effectiveDef += (consagracionFx.def_bonus || 0);
+  }
 
   // DIS-1028: Escalado dinámico de dificultad para jugadores nivel 15+
   // Los monstruos no-boss ganan defensa virtual y ATK extra para mantener la tensión.

@@ -243,6 +243,22 @@ const SKILLS = {
     description: 'Activás instantáneamente 3 puntos de sombra — podés usar "sombras" de inmediato. Solo funciona si shadow_points < 3. Cooldown: 20s. Solo Asesino (nivel 5+).',
     combat_only: true,
   },
+  // EPIC-1309-F5: Consagrar Sala — Paladín aplica aura +2 DEF por 60s
+  consagrar_sala: {
+    id: 'consagrar_sala',
+    name: 'Consagrar Sala',
+    aliases: ['consagrar_sala', 'consagrar sala', 'consagrar', 'bless_room', 'sanctify', 'sagrar', 'consagración'],
+    required_level: 5,
+    required_class: 'guerrero',
+    required_specialization: 'paladin',
+    cooldown_seconds: 120,
+    type: 'paladin_sanctify',
+    def_bonus: 2,
+    duration_seconds: 60,
+    mana_cost: 12,
+    description: 'Consagrás la sala: +2 DEF a todos en ella durante 60s. Se pierde al moverte. En single: +4 DEF total (acumulado con tu +2 DEF permanente). Costo: 12 maná. Cooldown: 120s. Solo Paladín (nivel 5+).',
+    combat_only: false,
+  },
   emboscar: {
     id: 'emboscar',
     name: 'Emboscada',

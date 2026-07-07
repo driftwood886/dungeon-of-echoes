@@ -468,6 +468,7 @@ function execute(playerId, input, context) {
     case 'postura_defensiva': result = cmdPostaraDefensiva(player); break;   // EPIC-1301-F4: postura defensiva (solo Guerrero)
     case 'quemar_combo': result = cmdQuemarCombo(player); break;             // EPIC-1302-F4: quemar combo (solo Guerrero)
     case 'emboscada_oscura': result = cmdEmboscadaOscura(player); break;     // EPIC-1308-F5: emboscada oscura (solo Asesino)
+    case 'consagrar_sala':   result = cmdConsagrarSala(player); break;       // EPIC-1309-F5: consagrar sala (solo Paladín)
     case 'modo_berserk': result = cmdModoBerserk(player, context); break;    // EPIC-1307-F5: modo berserk (solo Berserker)
     case 'calmar_furia': result = cmdCalmarFuria(player, context); break;    // EPIC-1307-F5: calmar furia (solo Berserker)
     case 'condenar':     result = cmdCondenar(player, action.args); break;   // EPIC-1303-F4: condenar (solo Clérigo)
@@ -1253,6 +1254,29 @@ function cmdMove(player, direction) {
         player.status_effects = fxForShadow;
         player._shadowWasReset = true; // EPIC-1299-F3: marcar para agregar notificación en texto de salida
       }
+    }
+
+    // EPIC-1309-F5: Al moverse, limpiar consagracion_sala del Paladín (y de todos en la sala anterior)
+    const csMovePlayer = db.getPlayer(player.id);
+    const csMovePlayerSE = parseSE(csMovePlayer.status_effects);
+    if (csMovePlayerSE['consagracion_sala'] && csMovePlayerSE['consagracion_sala'].paladino_id === player.id) {
+      // Este jugador es el Paladín que consagró — limpiar aura de todos en la sala actual
+      const roomIdBefore = player.current_room_id;
+      const roomPlayersForCs = db.getPlayersInRoom(roomIdBefore);
+      if (roomPlayersForCs && roomPlayersForCs.length > 0) {
+        for (const rp of roomPlayersForCs) {
+          if (rp.id === player.id) continue;
+          const rpSE = parseSE(rp.status_effects);
+          if (rpSE['consagracion_sala'] && rpSE['consagracion_sala'].paladino_id === player.id) {
+            delete rpSE['consagracion_sala'];
+            db.updatePlayer(rp.id, { status_effects: JSON.stringify(rpSE) });
+          }
+        }
+      }
+      // Limpiar del propio Paladín
+      delete csMovePlayerSE['consagracion_sala'];
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(csMovePlayerSE) });
+      player._consagracionWasRemoved = true;
     }
 
     if (fxChanged) {
@@ -2390,8 +2414,13 @@ function cmdMove(player, direction) {
     ? `\n🌑 Las sombras se disipan al abandonar la sala. (Sombra: 0/3)`
     : '';
 
+  // EPIC-1309-F5: notificación de consagración removida al moverse
+  const consagracionRemovedMsg = player._consagracionWasRemoved
+    ? `\n✨ La consagración se disipa al abandonar la sala.`
+    : '';
+
   return {
-    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}`,
+    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -13251,6 +13280,92 @@ function cmdEmboscadaOscura(player) {
 
   return {
     text: `🌑 **Emboscada Oscura activada.**\nSombra: ${prevDots} → ●●● (3/3)\n\nEl velo de sombras te envuelve. ¡Activá "sombras" ahora para descargar el golpe!\n\n⏱ Cooldown: 20s`,
+  };
+}
+
+/**
+ * consagrar_sala — EPIC-1309-F5: Paladín aplica aura de +2 DEF a todos en la sala por 60s.
+ * Se pierde cuando el Paladín sale de la sala. Costo: 12 maná. Cooldown: 120s.
+ */
+function cmdConsagrarSala(player) {
+  // Verificar clase Guerrero
+  const csClass = classes.getPlayerClass(player);
+  const csClassName = csClass ? csClass.name : 'sin_clase';
+  if (csClassName !== 'Guerrero') {
+    return { text: `✨ Solo los Guerreros pueden consagrar una sala.\n\n💡 Elegí la clase Guerrero con "clase guerrero" para acceder a esta habilidad.` };
+  }
+
+  // Verificar especialización Paladín
+  const csPlayer = db.getPlayer(player.id);
+  if (csPlayer.specialization !== 'paladin') {
+    return { text: `✨ Consagrar Sala es exclusiva del Paladín.\n\nEspecializate como Paladín para desbloquearla: "especializar paladin".` };
+  }
+
+  // Verificar maná
+  const currentMana = csPlayer.mana || 0;
+  const MANA_COST = 12;
+  if (currentMana < MANA_COST) {
+    return { text: `✨ Maná insuficiente para Consagrar Sala. Necesitás ${MANA_COST} maná, tenés ${currentMana}.` };
+  }
+
+  // Verificar cooldown
+  const csSE = parseSE(csPlayer.status_effects);
+  const now = Date.now();
+  const cdKey = 'cd_consagrar_sala';
+  if (csSE[cdKey] && csSE[cdKey].expires_at > now) {
+    const remaining = Math.ceil((csSE[cdKey].expires_at - now) / 1000);
+    return { text: `✨ Consagrar Sala en cooldown. Disponible en ${remaining}s.` };
+  }
+
+  // Verificar que no hay consagración activa en esta sala
+  if (csSE['consagracion_sala'] && csSE['consagracion_sala'].expires_at > now && csSE['consagracion_sala'].room_id === csPlayer.current_room_id) {
+    const remaining = Math.ceil((csSE['consagracion_sala'].expires_at - now) / 1000);
+    return { text: `✨ Esta sala ya está consagrada. El aura expira en ${remaining}s.` };
+  }
+
+  // Descontar maná
+  const newMana = currentMana - MANA_COST;
+  const DURATION_MS = 60000; // 60s
+  const expiresAt = now + DURATION_MS;
+
+  // Aplicar consagracion_sala al Paladín mismo
+  csSE['consagracion_sala'] = {
+    def_bonus: 2,
+    expires_at: expiresAt,
+    room_id: csPlayer.current_room_id,
+    paladino_id: csPlayer.id,
+    source: 'consagrar_sala',
+  };
+  // Registrar cooldown (120s)
+  csSE[cdKey] = { expires_at: now + 120000, source: 'consagrar_sala' };
+  db.updatePlayer(csPlayer.id, {
+    mana: newMana,
+    status_effects: JSON.stringify(csSE),
+  });
+
+  // En multi: aplicar a todos los demás jugadores en la sala
+  const playersInRoom = db.getPlayersInRoom(csPlayer.current_room_id);
+  let othersBuffed = 0;
+  if (playersInRoom && playersInRoom.length > 1) {
+    for (const other of playersInRoom) {
+      if (other.id === csPlayer.id) continue;
+      const otherSE = parseSE(other.status_effects);
+      otherSE['consagracion_sala'] = {
+        def_bonus: 2,
+        expires_at: expiresAt,
+        room_id: csPlayer.current_room_id,
+        paladino_id: csPlayer.id,
+        source: 'consagrar_sala',
+      };
+      db.updatePlayer(other.id, { status_effects: JSON.stringify(otherSE) });
+      othersBuffed++;
+    }
+  }
+
+  const roomName = csPlayer.current_room_id;
+  const multiNote = othersBuffed > 0 ? `\n✨ ${othersBuffed} jugador(es) más en la sala reciben +2 DEF.` : '';
+  return {
+    text: `✨ **Consagrar Sala activado.**\n\nUna luz sagrada irradia desde tus manos y llena la sala.\n+2 DEF (60s) — se pierde si salís de aquí.${multiNote}\n\n💡 Tu DEF total ahora: base + 2 (Paladín perm.) + 2 (consagración) = +4 DEF sobre base.\nManá: ${newMana}/${csPlayer.max_mana || 20}  ⏱ Cooldown: 120s`,
   };
 }
 
