@@ -362,17 +362,28 @@ function attackRound(player, monster) {
     }
   } catch (_) {}
 
-  // T-1227: SPECTRAL_TIDE — bloquear combate con no-espectros durante el evento
+  // T-1227: SPECTRAL_TIDE — bloquear combate con no-espectros/no-muertos durante el evento
+  // DIS-1335: También permitir monstruos undead (esqueletos, zombis, vampiros, momias) ya que el
+  // anuncio dice "solo los no-muertos están activos" — no solo los espectrales puros.
   try {
     const newEvCheck = getNewActiveEvent();
     if (newEvCheck && newEvCheck.event && newEvCheck.event.id === 'SPECTRAL_TIDE') {
+      const monsterNameLower = (monster.name || '').toLowerCase();
       const isSpectral = SPECTRAL_MONSTER_IDS.has(monster.id) ||
-        (monster.name || '').toLowerCase().includes('espectro') ||
-        (monster.name || '').toLowerCase().includes('fantasma') ||
-        (monster.name || '').toLowerCase().includes('espectral') ||
-        (monster.name || '').toLowerCase().includes('lich') ||
-        (monster.name || '').toLowerCase().includes('sombra');
-      if (!isSpectral) {
+        monsterNameLower.includes('espectro') ||
+        monsterNameLower.includes('fantasma') ||
+        monsterNameLower.includes('espectral') ||
+        monsterNameLower.includes('lich') ||
+        monsterNameLower.includes('sombra');
+      // DIS-1335: undead no-espectrales también participan en la Marea Espectral
+      const isUndead = monsterNameLower.includes('esqueleto') ||
+        monsterNameLower.includes('zombie') ||
+        monsterNameLower.includes('zombi') ||
+        monsterNameLower.includes('vampiro') ||
+        monsterNameLower.includes('momia') ||
+        monsterNameLower.includes('óseo') ||
+        monsterNameLower.includes('muerto');
+      if (!isSpectral && !isUndead) {
         const minLeft = newEvCheck.minutesRemaining;
         return {
           lines: [`👻 MAREA ESPECTRAL — Solo los no-muertos están activos. El ${monster.name} huye ante la marea espectral y no puede ser combatido ahora. (Evento termina en ~${minLeft} min)`],
