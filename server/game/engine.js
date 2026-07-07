@@ -2800,6 +2800,18 @@ function cmdStatus(player) {
     for (const bl of activeBuffLines) statusLines.push(bl);
   }
 
+  // DIS-1311: mostrar Modo Berserk activo y agotamiento post-berserk en status
+  const seBerserk = parseSE(player.status_effects);
+  if (seBerserk.modo_berserk_activo && (seBerserk.modo_berserk_activo.turns_remaining || 0) > 0) {
+    const mbTurns = seBerserk.modo_berserk_activo.turns_remaining;
+    statusLines.push(`🪓 MODO BERSERK ACTIVO — +5 ATK, sin huida, sin postura defensiva (${mbTurns}t restantes)`);
+  }
+  if (seBerserk.berserk_agotamiento && (seBerserk.berserk_agotamiento.turns_remaining || 0) > 0) {
+    const agotTurns = seBerserk.berserk_agotamiento.turns_remaining;
+    const agotPenalty = seBerserk.berserk_agotamiento.atk_penalty || 2;
+    statusLines.push(`😤 AGOTAMIENTO BERSERK — -${agotPenalty} ATK (${agotTurns}t restantes)`);
+  }
+
   // DIS-D383: recordatorio de clase si nivel >= 3 y sin clase elegida
   if ((player.level || 1) >= 3 && (!player.player_class || player.player_class === 'sin_clase')) {
     statusLines.unshift(`💡 Aún no elegiste clase (nivel ${player.level}). Escribí 'clase' para ver las opciones.`);
@@ -3464,6 +3476,17 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // DIS-1310: Sincronizar player.status_effects con el estado actualizado en DB antes de combat.
+  // combat.js puede hacer early-return (monstruo stunned, encantamiento de hielo, etc.) y en esos
+  // paths sobreescribe status_effects usando el objeto player. Si el objeto no se actualizó (ej:
+  // después del decremento de modo_berserk), se sobreescribiría el DB con el turns_remaining viejo.
+  {
+    const freshForCombat = db.getPlayer(player.id);
+    if (freshForCombat) {
+      player = { ...player, status_effects: freshForCombat.status_effects };
+    }
+  }
+
   const combatResult = combat.attackRound(player, monster);
   const { lines, monsterDead, playerDead, globalEvent } = combatResult;
 
@@ -3528,7 +3551,22 @@ function cmdAttack(player, targetName) {
     // BUG-1026: no avanzar combo en turnos de parálisis (Sombra del Vacío)
     // El jugador no atacó, así que el combo no debe crecer
   } else {
-    comboMap.set(player.id, { monsterId: monster.id, count: comboCount });
+    // DIS-1315: guardar también availableSkillIds para trackear cambios en habilidades disponibles
+    let currentAvailableIds = '';
+    try {
+      const freshForCombo = db.getPlayer(player.id);
+      if (freshForCombo) {
+        const unlockedForCombo = skills.getUnlockedSkills(freshForCombo.level || 1, freshForCombo.player_class, freshForCombo.specialization);
+        const cdsForCombo = freshForCombo.skill_cooldowns
+          ? (typeof freshForCombo.skill_cooldowns === 'string' ? JSON.parse(freshForCombo.skill_cooldowns) : freshForCombo.skill_cooldowns)
+          : {};
+        const nowForCombo = Date.now();
+        currentAvailableIds = unlockedForCombo
+          .filter(sk => { const cd = cdsForCombo[sk.id]; return !cd || nowForCombo > new Date(cd).getTime(); })
+          .map(sk => sk.id).sort().join(',');
+      }
+    } catch (_) { /* no romper si falla */ }
+    comboMap.set(player.id, { monsterId: monster.id, count: comboCount, availableSkillIds: currentAvailableIds });
   }
   // Agregar mensaje de combo si aplica
   let comboMsg = '';
@@ -3994,6 +4032,8 @@ function cmdAttack(player, targetName) {
   }
 
   // ── DIS-P08: Hint de habilidades disponibles en combate activo ──────────────
+  // DIS-1315: mostrar solo al inicio del combate (primer turno) o cuando una
+  // habilidad pasa a estar disponible (su cooldown acaba de expirar).
   let skillHint = '';
   if (!monsterDead && !playerDead) {
     const freshForSkills = db.getPlayer(player.id);
@@ -4009,8 +4049,18 @@ function cmdAttack(player, targetName) {
           return !cd || now > new Date(cd).getTime();
         });
         if (available.length > 0) {
-          const skillNames = available.map(sk => `\`${sk.aliases[0]}\` (${sk.name})`).join(', ');
-          skillHint = `\n💡 Habilidades disponibles: ${skillNames} (o seguí con \`attack\`)`;
+          const availableIds = available.map(sk => sk.id).sort().join(',');
+          const prevAvailableIds = prevCombo && prevCombo.monsterId === monster.id
+            ? (prevCombo.availableSkillIds || '')
+            : null;
+          // Mostrar hint solo si: es el primer turno (sin combo previo con este monstruo)
+          // O si la lista de disponibles cambió (una habilidad se recargó)
+          const isFirstTurn = prevAvailableIds === null;
+          const skillsChanged = prevAvailableIds !== null && prevAvailableIds !== availableIds;
+          if (isFirstTurn || skillsChanged) {
+            const skillNames = available.map(sk => `\`${sk.aliases[0]}\` (${sk.name})`).join(', ');
+            skillHint = `\n💡 Habilidades disponibles: ${skillNames} (o seguí con \`attack\`)`;
+          }
         }
       }
     }
