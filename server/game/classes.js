@@ -30,7 +30,7 @@ const CLASSES = {
     hp: 22,
     max_hp: 22,
     attack: 4,
-    defense: 2,
+    defense: 3,  // DIS-1338: subido de 2→3 — DEF 2 era insostenible sin armadura en nivel 1-2
     mana: 35,
     max_mana: 35,
     crit_bonus: 0,

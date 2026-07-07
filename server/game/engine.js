@@ -8446,7 +8446,7 @@ const SHOP_CATALOG = [
   // DIS-863: cota de cuero como tier intermedio (35g, +3 DEF) entre cuero endurecido (20g, +2) y cota de malla (60g, +3)
   { name: 'cota de cuero',           price: 35, description: 'Cuero reforzado con placas de metal. +3 defensa. Tier intermedio — mejor que el cuero endurecido, más accesible que la cota de malla.' },
   { name: 'cota de malla',           price: 60, description: 'Armadura de hierro. +3 defensa.' },
-  { name: 'túnica encantada',        price: 80, description: 'Armadura mágica. +4 defensa. Ideal para magos.' },
+  { name: 'túnica encantada',        price: 60, description: 'Armadura mágica. +4 defensa. Ideal para magos.' },  // DIS-1338: 80g→60g — accesible en nivel 1-2 (el Mago empieza con 65g)
   // DIS-D27: poción de maná para Magos
   // DIS-559: precio bajado de 20g → 12g para compensar economía doble del Mago
   { name: 'poción de maná',          price: 12, description: 'Restaura 15 maná al instante. Indispensable para Magos.' },
