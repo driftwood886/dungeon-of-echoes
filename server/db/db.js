@@ -1338,13 +1338,15 @@ const RUNE_BONUSES = {
 };
 
 /**
- * Intenta dar una runa aleatoria al jugador (15% de chance).
+ * Intenta dar una runa aleatoria al jugador (28% de chance base, 100% si isBoss=true).
  * Si el jugador ya tiene 2 del mismo tipo y recibe una 3ra, se fusionan automáticamente
  * y se aplica el bonus permanente. Devuelve un mensaje o null.
  */
-function tryAddRune(playerId) {
+function tryAddRune(playerId, isBoss = false) {
   // DIS-1127: subido de 0.15 a 0.20 para que el sistema sea más visible durante el early game
-  if (Math.random() > 0.20) return null; // 20% de chance
+  // DIS-1341: subido de 0.20 a 0.28 — en 10 kills se obtienen ~2.8 runas (antes ~2)
+  //           Los bosses garantizan una runa (isBoss=true → saltea el check de probabilidad)
+  if (!isBoss && Math.random() > 0.28) return null; // 28% de chance base
 
   const player = getPlayer(playerId);
   if (!player) return null;
