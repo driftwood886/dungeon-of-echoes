@@ -16860,7 +16860,7 @@ function cmdRunas(player) {
   lines.push('╟' + '─'.repeat(44) + '╢');
   lines.push('║  📖 FUENTES DE RUNAS:                           ║');
   lines.push('║  • Cualquier monstruo puede soltar 1 runa al   ║');
-  lines.push('║    morir (15% de chance por kill).              ║');
+  lines.push('║    morir (28% chance; bosses: 100%).            ║');
   lines.push('║  • El tipo es ALEATORIO — no hay monstruo       ║');
   lines.push('║    específico para cada runa.                   ║');
   lines.push('║  • Hay 5 tipos en total: fuego, hielo, sombra,  ║');
