@@ -7295,13 +7295,38 @@ function cmdMap(player) {
 
   // DIS-D05: Mapa rediseñado con mejor alineación y leyenda numérica más clara
   // Cada celda es [NN:Nombre] de ancho fijo, sin emojis que rompan alineación
+
+  // DIS-1337: construir set de salas 'descubiertas' (adyacentes a visitadas pero aún no exploradas)
+  // Grafo fijo del dungeon — coincide con el layout del mapa ASCII
+  const ROOM_GRAPH = {
+    1:[2,5], 2:[1,3,6], 3:[2,4,7], 4:[3,8,17], 5:[1,6], 6:[2,5,9],
+    7:[3,10], 8:[4,17], 9:[6,10,18], 10:[7,9,11,18], 11:[10,12],
+    12:[11,13,14], 13:[12,14], 14:[12,13,19], 15:[19,20,22],
+    17:[4,8], 18:[9,10,20], 19:[14,15], 20:[15,18], 22:[15],
+  };
+  const discoveredRooms = new Set();
+  for (const [rid, neighbors] of Object.entries(ROOM_GRAPH)) {
+    const id = Number(rid);
+    if (!visitedRooms.has(id)) {
+      if (neighbors.some(n => visitedRooms.has(n))) {
+        discoveredRooms.add(id);
+      }
+    }
+  }
+
   function cell(id) {
     // DIS-580: salas no visitadas aparecen como neblina
     // DIS-1040: reemplazar "[ ??:?????????]" (15 chars, ruidoso) por "[ ············ ]"
     // (16 chars, limpio). También corrige el bug de desalineación de 1 char.
     // DIS-1055: mostrar ID de sala aunque no esté visitada, para que el jugador
     // pueda hacer "ruta NN" hacia ella. Formato: [?NN:··········] (16 chars fijo).
+    // DIS-1337: si la sala no está visitada pero es adyacente a una visitada,
+    // mostrar las primeras 4 letras del nombre con '?' al final (ej: [?19:Cm.E?····])
     if (!visitedRooms.has(id)) {
+      if (discoveredRooms.has(id)) {
+        const hint = (NAMES[id] || `S${id}`).substring(0, 4).padEnd(4, '·');
+        return `[?${String(id).padStart(2, ' ')}:${hint}?·····]`;
+      }
       return `[?${String(id).padStart(2, ' ')}:··········]`;
     }
     const label = (NAMES[id] || `Sala${id}`).substring(0, 9).padEnd(9, ' ');
@@ -7388,7 +7413,7 @@ function cmdMap(player) {
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
       : `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda del Mercader)`,
-    `[?NN:··········] = sala aún no explorada (usá "ruta NN" para llegar)  [16/21] = salas de tutorial (fuera del conteo de exploración)`,
+    `[?NN:··········] = sala aún no explorada (usá "ruta NN" para llegar)  [?NN:XXXX?·····] = sala detectada (adyacente)  [16/21] = salas de tutorial`,
     // DIS-921: conteo de salas exploradas al pie del mapa
     (() => {
       const MAP_DUNGEON_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18,19,20,22];
