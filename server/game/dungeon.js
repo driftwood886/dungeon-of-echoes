@@ -293,7 +293,8 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   }
 
   // Indicador de trampa activa — DIS-1182: mostrar el ítem requerido
-  if (room.trap && room.trap.active) {
+  // DIS-1344: no mostrar el aviso si el jugador ya conoce la trampa (ya la activó o desactivó)
+  if (room.trap && room.trap.active && !knownTraps[String(roomId)] && !knownTraps[roomId]) {
     const trapItemHint = room.trap.item_needed
       ? `Necesitás "${room.trap.item_needed}" para desactivarla.`
       : 'Escribí "desactivar trampa" con el ítem correcto.';
