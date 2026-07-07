@@ -3553,6 +3553,9 @@ function cmdAttack(player, targetName) {
   } else if (combatResult.paralyzed) {
     // BUG-1026: no avanzar combo en turnos de parálisis (Sombra del Vacío)
     // El jugador no atacó, así que el combo no debe crecer
+  } else if (combatResult.spectralBlocked) {
+    // BUG-1317: no avanzar combo cuando el ataque fue bloqueado por Marea Espectral
+    // El monstruo es inmune y huye — no hubo impacto real
   } else {
     // DIS-1315: guardar también availableSkillIds para trackear cambios en habilidades disponibles
     let currentAvailableIds = '';
@@ -3573,7 +3576,7 @@ function cmdAttack(player, targetName) {
   }
   // Agregar mensaje de combo si aplica
   let comboMsg = '';
-  if (!playerDead && !combatResult.paralyzed && comboCount >= 2) {
+  if (!playerDead && !combatResult.paralyzed && !combatResult.spectralBlocked && comboCount >= 2) {
     comboMsg = '\n' + (COMBO_MSGS[comboCount] || `⚡ ¡COMBO x${comboCount}!`) + ` (+${comboBonusDmg} dmg)`;
   }
 

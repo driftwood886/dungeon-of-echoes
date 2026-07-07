@@ -247,6 +247,7 @@ async function main() {
         class_name: player.player_class || 'sin_clase',  // DIS-D305: alias para compatibilidad
         specialization: player.specialization || null,
         playtime_minutes: player.playtime_minutes || 0,
+        reputation: player.reputation || 0,  // DIS-1319: exponer reputación en /api/state
       },
       other_players: others,
       recent_events: events,
@@ -614,6 +615,7 @@ async function main() {
           class_name: player.player_class || 'sin_clase',  // DIS-D305: alias para compatibilidad
           specialization: player.specialization || null,
           playtime_minutes: player.playtime_minutes || 0,
+          reputation: player.reputation || 0,  // DIS-1319: exponer reputación en /api/action state
         },
         other_players: others,
         recent_events: events,

@@ -24,7 +24,7 @@ const challengeTracker = require('./challengeTracker'); // T-1231: tracking de d
 const combatStates = require('./combatStates'); // EPIC-1291-F1: sistema de estados de combate
 
 // IDs de monstruos espectrales para SPECTRAL_TIDE
-const SPECTRAL_MONSTER_IDS = new Set([4, 8, 11, 12, 13, 21, 22]); // Espectro Corredor, Guardia Espectral, Esqueleto Guerrero, Campeón Espectral, Lich, Eco Viviente, Sombra
+const SPECTRAL_MONSTER_IDS = new Set([4, 8, 12, 13, 21, 22]); // Espectro Corredor, Guardia Espectral, Campeón Espectral, Lich, Eco Viviente, Sombra (id 11 era Krakeling Abismal — no espectral)
 
 /**
  * T-1227: Devuelve el evento activo del eventScheduler (BD), o null si no hay.
