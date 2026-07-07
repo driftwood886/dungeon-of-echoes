@@ -17449,7 +17449,10 @@ function cmdReadWall(player) {
     return { text: '📜 Las paredes están vacías. Nadie ha dejado ningún mensaje aquí.' };
   }
 
-  const BOT_PATTERNS = /^(PTBot_|Critico_Diseno_|PlaytestBot_|TestBot_|Bot_)/i;
+  // BUG-1327: usar el mismo array exhaustivo de patrones que en la limpieza de DB (línea ~6375)
+  // para garantizar que cualquier nombre de bot reciba el indicador 🤖
+  const BOT_PATTERNS_WALL = [/^BotTester/i, /^playtest_bot/i, /^PTBot/i, /^DisTester/i, /^PTBotD/i, /^DisDesign/i, /^PlayBot/i, /^bot_/i, /^BotPlaytest/i, /^Bot\w*(Bugs|Diseno|Design|Mago)/i, /^playtest/i, /^PTDesign/i, /bugbot/i, /^diseno/i, /^design/i, /MagoBot/i, /^bottest/i, /^tester/i, /^testbot/i, /^pt_/i, /_pt$/, /_bot$/, /^diseñador/i];
+  const isBotWallName = name => BOT_PATTERNS_WALL.some(p => p.test(name));
   const lines = ['📜 Inscripciones en la pared:'];
 
   // Primero mostrar lore antiguo (inmersivo, narrativo)
@@ -17460,7 +17463,7 @@ function cmdReadWall(player) {
   // Luego los mensajes de jugadores reales
   for (const m of msgs) {
     const date = m.created_at ? m.created_at.slice(5, 16).replace('T', ' ') : '';
-    const isBot = BOT_PATTERNS.test(m.player_name);
+    const isBot = isBotWallName(m.player_name);
     // DIS-498: marcar visualmente inscripciones de bots con tono más tenue
     const prefix = isBot ? '  🤖' : '  ✍️';
     lines.push(`${prefix} ${m.player_name} [${date}]: ${m.message}`);
