@@ -753,8 +753,29 @@ function attackRound(player, monster) {
   // DIS-1116: Debilidad Espectral reduce la defensa efectiva del monstruo
   const monsterWeakenedFx = monster.status_effects ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects) : {};
   const weakenedDefReduction = monsterWeakenedFx.weakened ? (monsterWeakenedFx.weakened.amount || 0) : 0;
-  const dmgToMonster = Math.max(1, Math.round(dmgAfterPhysResist * critResistMult) - Math.max(0, Math.floor(monster.defense || 0) - weakenedDefReduction) - monsterVirtualDefBonus + spectralBonusDmg);
+
+  // EPIC-1303-F4: estado "condenado" del Clérigo — multiplicar el daño final ×1.30
+  let condenadoMult = 1.0;
+  let condenadoMsg = null;
+  if (monsterWeakenedFx.condenado) {
+    const condEntry = monsterWeakenedFx.condenado;
+    const condExp = condEntry.expires_at ? new Date(condEntry.expires_at) : null;
+    if (!condExp || condExp > new Date()) {
+      condenadoMult = condEntry.dmg_multiplier || 1.30;
+      condenadoMsg = `⚕️ ¡CONDENADO! La marca divina amplifica el golpe (×${condenadoMult}).`;
+    }
+    // Consumir el estado (se consume en el primer ataque)
+    delete monsterWeakenedFx.condenado;
+    db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterWeakenedFx) });
+  }
+
+  const dmgToMonster = Math.max(1, Math.round(dmgAfterPhysResist * critResistMult * condenadoMult) - Math.max(0, Math.floor(monster.defense || 0) - weakenedDefReduction) - monsterVirtualDefBonus + spectralBonusDmg);
   monster.hp = Math.max(0, monster.hp - dmgToMonster);
+
+  // Agregar mensaje de condenado si aplica
+  if (condenadoMsg) {
+    lines.push(condenadoMsg);
+  }
 
   // T190: mensaje de encantamiento activo en el primer golpe del turno
   if (enchantActive) {

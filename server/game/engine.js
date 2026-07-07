@@ -468,6 +468,8 @@ function execute(playerId, input, context) {
     case 'postura_defensiva': result = cmdPostaraDefensiva(player); break;   // EPIC-1301-F4: postura defensiva (solo Guerrero)
     case 'quemar_combo': result = cmdQuemarCombo(player); break;             // EPIC-1302-F4: quemar combo (solo Guerrero)
     case 'condenar':     result = cmdCondenar(player, action.args); break;   // EPIC-1303-F4: condenar (solo Clérigo)
+    case 'modo_berserk': result = cmdModoBerserk(player, context); break;    // EPIC-1307-F5: modo berserk (solo Berserker)
+    case 'calmar_furia': result = cmdCalmarFuria(player, context); break;    // EPIC-1307-F5: calmar furia (solo Berserker)
     case 'clase':        result = cmdClase(player, action.args); break;
     case 'especializar': result = cmdSpecialize(player, action.args); break;
     case 'bestiary':     result = cmdBestiary(player); break;
@@ -702,7 +704,10 @@ Para todos los comandos: help todo
           // DIS-1072: Juicio
           rayo_divino: 'rayo_divino', divine_ray: 'rayo_divino', condena: 'rayo_divino', divine_smite: 'rayo_divino',
           // DIS-986: Berserker
-          furia: 'furia', berserk: 'furia', rage: 'furia', arrebato: 'furia',
+          furia: 'furia', rage: 'furia', arrebato: 'furia',
+          // EPIC-1307-F5: Berserker modo_berserk
+          modo_berserk: 'modo_berserk', desatar_ira: 'modo_berserk', berserk: 'modo_berserk',
+          calmar_furia: 'calmar_furia', calm_rage: 'calmar_furia',
           // DIS-947: Ladrón de Sombras
           desaparecer: 'desaparecer', vanish: 'desaparecer', esconder: 'desaparecer',
           cast: 'cast', lanzar: 'cast', hechizar: 'cast',
@@ -3383,12 +3388,63 @@ function cmdAttack(player, targetName) {
     db.updatePlayer(player.id, { status_effects: JSON.stringify(qcSEForAttack) });
   }
 
+  // EPIC-1307-F5: Modo Berserk — +5 ATK durante los 3 turnos activos
+  let modoBerserkMsg = null;
+  let berserkTurnsRemaining = 0;
+  const mbFresh = db.getPlayer(player.id);
+  const mbSE = parseSE(mbFresh.status_effects);
+  if (mbSE.modo_berserk_activo) {
+    const mbEntry = mbSE.modo_berserk_activo;
+    berserkTurnsRemaining = mbEntry.turns_remaining || 0;
+    if (berserkTurnsRemaining > 0) {
+      // Aplicar +5 ATK
+      player = { ...player, attack: (player.attack || 5) + 5 };
+      const newTurns = berserkTurnsRemaining - 1;
+      mbEntry.turns_remaining = newTurns;
+      if (newTurns <= 0) {
+        // Berserk termina — iniciar agotamiento (-2 ATK por 2 turnos)
+        delete mbSE.modo_berserk_activo;
+        mbSE.berserk_agotamiento = { turns_remaining: 2, atk_penalty: 2 };
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(mbSE) });
+        modoBerserkMsg = `🪓 MODO BERSERK (turno final) +5 ATK → ¡La rabia se agota! Agotamiento: -2 ATK por 2 turnos.`;
+      } else {
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(mbSE) });
+        modoBerserkMsg = `🪓 MODO BERSERK activo: +5 ATK (${newTurns}t restantes)`;
+      }
+    }
+  } else if (mbSE.berserk_agotamiento) {
+    // Agotamiento post-berserk: -2 ATK por los turnos restantes
+    const agot = mbSE.berserk_agotamiento;
+    const agotTurns = agot.turns_remaining || 0;
+    if (agotTurns > 0) {
+      player = { ...player, attack: Math.max(1, (player.attack || 5) - (agot.atk_penalty || 2)) };
+      const newAgotTurns = agotTurns - 1;
+      if (newAgotTurns <= 0) {
+        delete mbSE.berserk_agotamiento;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(mbSE) });
+        modoBerserkMsg = `😤 Agotamiento Berserk (turno final): -2 ATK. La rabia se disipó.`;
+      } else {
+        mbSE.berserk_agotamiento.turns_remaining = newAgotTurns;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(mbSE) });
+        modoBerserkMsg = `😤 Agotamiento Berserk: -2 ATK (${newAgotTurns}t más)`;
+      }
+    } else {
+      delete mbSE.berserk_agotamiento;
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(mbSE) });
+    }
+  }
+
   const combatResult = combat.attackRound(player, monster);
   const { lines, monsterDead, playerDead, globalEvent } = combatResult;
 
   // EPIC-1302-F4: Agregar mensaje de quemar combo si aplica
   if (quemarComboMsg) {
     lines.unshift(quemarComboMsg);  // Al principio para que se vea antes del daño
+  }
+
+  // EPIC-1307-F5: Agregar mensaje de modo berserk si aplica
+  if (modoBerserkMsg) {
+    lines.unshift(modoBerserkMsg);
   }
 
   // ── EPIC-1286-DEF: Acumulación de Sombra del Pícaro ───────────────────────
@@ -4175,6 +4231,13 @@ function cmdFlee(player, targetQuery) {
 
   if (monsters.length === 0) {
     return { text: 'No hay nada de lo que huir aquí.' };
+  }
+
+  // EPIC-1307-F5: Modo Berserk bloquea la huida
+  const fleePlayerFresh = db.getPlayer(player.id);
+  const fleePlayerSE = parseSE(fleePlayerFresh.status_effects);
+  if (fleePlayerSE.modo_berserk_activo && (fleePlayerSE.modo_berserk_activo.turns_remaining || 0) > 0) {
+    return { text: `🪓 ¡No podés huir en MODO BERSERK! La rabia no te deja retroceder.\n   Esperá a que termine (${fleePlayerSE.modo_berserk_activo.turns_remaining}t) o usá "calmar_furia" para cancelarlo (perdés 1 turno).` };
   }
 
   // BUG-705: Si hay un boss a HP lleno (no fue atacado), la huida es libre — sin daño ni tirada.
@@ -12782,6 +12845,11 @@ function cmdPostaraDefensiva(player) {
     return { text: `🛡️ Ya estás en postura defensiva. Esperá a que el monstruo ataque o pase el turno.` };
   }
 
+  // EPIC-1307-F5: Modo Berserk bloquea postura defensiva
+  if (pdSE.modo_berserk_activo && (pdSE.modo_berserk_activo.turns_remaining || 0) > 0) {
+    return { text: `🪓 ¡En MODO BERSERK no podés tomar postura defensiva! La rabia no te deja cubrirte.` };
+  }
+
   // Activar el estado temporal
   const absorcion = (player.defense || 0) + 3;
   pdSE.postura_defensiva_guerrero = {
@@ -12922,6 +12990,122 @@ function cmdCondenar(player, args) {
   return {
     text: `⚕️ CONDENADO. Una marca divina señala al ${target.name}.\n   El próximo golpe contra él causa ×1.30 daño. (Cooldown: 20s · -6 maná)`,
     event: `${player.username} marca al ${target.name} con la condena divina.`,
+  };
+}
+
+/**
+ * modo_berserk — EPIC-1307-F5
+ * Solo Berserker (Guerrero). Activa estado de combate alterado de 3 turnos:
+ * +5 ATK, sin huida, sin postura defensiva, inmune a slowed/frozen.
+ * Al terminar: -2 ATK por 2 turnos (agotamiento). Cooldown: 90s.
+ */
+function cmdModoBerserk(player, context) {
+  const mbClass = classes.getPlayerClass(player);
+  const mbClassName = mbClass ? mbClass.name : 'sin_clase';
+
+  if (mbClassName !== 'Guerrero') {
+    return {
+      text: `🪓 Solo los Guerreros pueden desatar la furia del Berserker.\n\n💡 Elegí la clase Guerrero con "clase guerrero".`,
+    };
+  }
+
+  // Verificar especialización
+  const freshMb = db.getPlayer(player.id);
+  if (freshMb.specialization !== 'berserker') {
+    return {
+      text: `🪓 Modo Berserk es exclusivo del Berserker.\n   Tu especialización actual: ${freshMb.specialization || 'ninguna'}.\n   Especializate con "especializar berserker" al nivel 5.`,
+    };
+  }
+
+  // Solo en combate
+  const mbMonsters = db.getMonstersInRoom(freshMb.current_room_id).filter(m => m.hp > 0);
+  if (mbMonsters.length === 0) {
+    return { text: `🪓 Modo Berserk solo puede activarse en combate. No hay enemigos aquí.` };
+  }
+
+  // Verificar cooldown
+  const mbCDs = JSON.parse(freshMb.skill_cooldowns || '{}');
+  if (mbCDs.modo_berserk) {
+    const remaining = Math.ceil((new Date(mbCDs.modo_berserk) - Date.now()) / 1000);
+    if (remaining > 0) {
+      return { text: `🪓 Modo Berserk está en cooldown: ${remaining}s restantes.` };
+    }
+  }
+
+  // Verificar que no hay berserk activo ya
+  const mbSEFresh = parseSE(freshMb.status_effects);
+  if (mbSEFresh.modo_berserk_activo && (mbSEFresh.modo_berserk_activo.turns_remaining || 0) > 0) {
+    return { text: `🪓 ¡Ya estás en MODO BERSERK! (${mbSEFresh.modo_berserk_activo.turns_remaining}t restantes)` };
+  }
+
+  // Verificar nivel mínimo
+  if ((freshMb.level || 1) < 5) {
+    return { text: `🪓 Necesitás nivel 5 para usar Modo Berserk.` };
+  }
+
+  // Activar modo berserk
+  mbSEFresh.modo_berserk_activo = {
+    turns_remaining: 3,
+    atk_bonus: 5,
+    started_at: new Date().toISOString(),
+  };
+  // Limpiar agotamiento si lo había (el berserk "reinicia" la rabia)
+  delete mbSEFresh.berserk_agotamiento;
+
+  // Aplicar cooldown de 90s
+  mbCDs.modo_berserk = new Date(Date.now() + 90 * 1000).toISOString();
+
+  db.updatePlayer(freshMb.id, {
+    status_effects: JSON.stringify(mbSEFresh),
+    skill_cooldowns: JSON.stringify(mbCDs),
+  });
+
+  if (context && context.broadcastToRoom) {
+    context.broadcastToRoom(freshMb.current_room_id, freshMb.id,
+      `🪓 ${freshMb.username} entra en MODO BERSERK — ¡la rabia pura lo consume!`);
+  }
+
+  return {
+    text: `🪓 ¡MODO BERSERK ACTIVADO!\n   +5 ATK por 3 turnos. Sin postura defensiva. Sin huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento).\n   Usá "calmar_furia" para cancelar (perdés 1 turno pero podés huir). (Cooldown: 90s)`,
+  };
+}
+
+/**
+ * calmar_furia — EPIC-1307-F5
+ * Cancela el modo berserk activo. El jugador pierde 1 turno pero puede huir.
+ * Solo funciona si el modo berserk está activo.
+ */
+function cmdCalmarFuria(player, context) {
+  const cfFresh = db.getPlayer(player.id);
+
+  // Verificar especialización
+  if (cfFresh.specialization !== 'berserker') {
+    return { text: `🪓 "calmar_furia" es exclusivo del Berserker.` };
+  }
+
+  // Verificar que el modo berserk esté activo
+  const cfSE = parseSE(cfFresh.status_effects);
+  if (!cfSE.modo_berserk_activo || (cfSE.modo_berserk_activo.turns_remaining || 0) <= 0) {
+    return { text: `🪓 No estás en MODO BERSERK. No hay nada que calmar.` };
+  }
+
+  // Cancelar el modo berserk sin agotamiento (lo cancelaste vos)
+  const turnsUsed = 3 - (cfSE.modo_berserk_activo.turns_remaining || 0);
+  delete cfSE.modo_berserk_activo;
+
+  db.updatePlayer(cfFresh.id, { status_effects: JSON.stringify(cfSE) });
+
+  const fleeNote = turnsUsed === 0
+    ? 'Cancelaste el Berserk antes de usarlo.'
+    : `Lo mantuviste ${turnsUsed} turno${turnsUsed !== 1 ? 's' : ''}.`;
+
+  if (context && context.broadcastToRoom) {
+    context.broadcastToRoom(cfFresh.current_room_id, cfFresh.id,
+      `😤 ${cfFresh.username} calma su furia — respira hondo y recupera el control.`);
+  }
+
+  return {
+    text: `😤 Calmás tu furia. ${fleeNote}\n   Perdés este turno — el monstruo puede atacarte libremente.\n   ✅ Ahora podés huir con "flee".`,
   };
 }
 

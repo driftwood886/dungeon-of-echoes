@@ -189,7 +189,7 @@ const SKILLS = {
   furia: {
     id: 'furia',
     name: 'Furia',
-    aliases: ['furia', 'berserk', 'rage', 'arrebato', 'berserkear'],
+    aliases: ['furia', 'rage', 'arrebato', 'berserkear'],
     required_level: 5,
     required_class: 'guerrero',
     required_specialization: 'berserker',
@@ -198,6 +198,36 @@ const SKILLS = {
     dmg_multiplier: 2.0,
     hp_cost_pct: 0.20, // DIS-1238: cuesta 20% del HP máximo
     description: 'Sacrificás 20% de tu HP máximo para hacer ×2.0 daño en el próximo ataque. ¡La sangre alimenta la rabia! Solo Berserker (nivel 5+). Cooldown: 60s.',
+    combat_only: true,
+  },
+  // EPIC-1307-F5: Modo Berserk — estado de combate de 3 turnos
+  modo_berserk: {
+    id: 'modo_berserk',
+    name: 'Modo Berserk',
+    aliases: ['modo_berserk', 'modo berserk', 'desatar_ira', 'desatar ira', 'berserk_mode'],
+    required_level: 5,
+    required_class: 'guerrero',
+    required_specialization: 'berserker',
+    cooldown_seconds: 90,
+    type: 'berserker_mode',
+    atk_bonus: 5,
+    duration_turns: 3,
+    exhaustion_penalty: 2,     // −2 ATK durante agotamiento post-berserk
+    exhaustion_turns: 2,       // duración del agotamiento
+    description: 'Entrás en estado de combate alterado por 3 turnos: +5 ATK, sin postura defensiva, sin huida, inmune a slowed/frozen. Al terminar: −2 ATK por 2 turnos de agotamiento. Sin costo. Solo Berserker (nivel 5+). Cooldown: 90s.',
+    combat_only: true,
+  },
+  // EPIC-1307-F5: Calmar Furia — cancela modo berserk
+  calmar_furia: {
+    id: 'calmar_furia',
+    name: 'Calmar Furia',
+    aliases: ['calmar_furia', 'calmar furia', 'calm_rage', 'calmar'],
+    required_level: 5,
+    required_class: 'guerrero',
+    required_specialization: 'berserker',
+    cooldown_seconds: 0,   // sin cooldown propio — se maneja por modo_berserk
+    type: 'berserker_calm',
+    description: 'Cancela el Modo Berserk activo: 1 turno sin acción (perdés el turno) pero habilitás la huida. Solo funciona mientras el Modo Berserk esté activo. Solo Berserker (nivel 5+).',
     combat_only: true,
   },
   emboscar: {

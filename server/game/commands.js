@@ -195,6 +195,8 @@ const COMMAND_ALIASES = {
   postura_defensiva: 'postura_defensiva', defensive_stance: 'postura_defensiva', defender: 'postura_defensiva', cubrirse: 'postura_defensiva', bloquear: 'postura_defensiva',
   // quemar_combo / burst de combo (EPIC-1302-F4: habilidad del Guerrero)
   quemar_combo: 'quemar_combo', combo_burst: 'quemar_combo', desatar: 'quemar_combo', burst: 'quemar_combo', golpe_combo: 'quemar_combo',
+  // condenar (EPIC-1303-F4: habilidad del Clérigo)
+  condenar: 'condenar', maldecir_objetivo: 'condenar', marcar: 'condenar', condemn: 'condenar', curse_target: 'condenar', marca_divina: 'condenar',
   // clase / class (T107)
   clase: 'clase', class: 'clase', profesion: 'clase', profesión: 'clase', vocacion: 'clase', vocación: 'clase', oficio: 'clase',
   // especializar (DIS-914)
@@ -227,8 +229,10 @@ const COMMAND_ALIASES = {
   resurreccion: 'useSkill', resurrección: 'useSkill', revivir: 'useSkill', resurrect: 'useSkill', rezar_revival: 'useSkill',
   // Habilidades de Especializaciones (BUG-915 / DIS-914)
   imposition: 'useSkill', imposicion: 'useSkill', imposición: 'useSkill', fe_sagrada: 'useSkill', luz_sagrada: 'useSkill',
-  // Berserker (DIS-986 / BUG-991)
-  furia: 'useSkill', berserk: 'useSkill', rage: 'useSkill', arrebato: 'useSkill', berserkear: 'useSkill',
+  // Berserker (DIS-986 / BUG-991 / EPIC-1307-F5)
+  furia: 'useSkill', rage: 'useSkill', arrebato: 'useSkill', berserkear: 'useSkill',
+  modo_berserk: 'modo_berserk', desatar_ira: 'modo_berserk', berserk_mode: 'modo_berserk', berserk: 'modo_berserk',
+  calmar_furia: 'calmar_furia', calm_rage: 'calmar_furia',
   emboscar: 'useSkill', emboscada: 'useSkill', ataque_sorpresa: 'useSkill', surprise_attack: 'useSkill',
   chain_heal: 'useSkill', cadena_curacion: 'useSkill', cadena_curación: 'useSkill', curacion_grupal: 'useSkill', curación_grupal: 'useSkill', aura_sanadora: 'useSkill',
   escudo_sagrado: 'useSkill', 'escudo sagrado': 'useSkill', sacred_shield: 'useSkill', barrera_sagrada: 'useSkill', 'barrera sagrada': 'useSkill', holy_shield: 'useSkill', burbuja: 'useSkill', bubble: 'useSkill',
@@ -418,6 +422,10 @@ function parse(input) {
       'quemar combo':   { cmd: 'quemar_combo', skillId: null },
       'desatar combo':  { cmd: 'quemar_combo', skillId: null },
       'combo burst':    { cmd: 'quemar_combo', skillId: null },
+      // EPIC-1307-F5: modo berserk y calmar furia del Berserker
+      'modo berserk':   { cmd: 'modo_berserk', skillId: null },
+      'desatar ira':    { cmd: 'modo_berserk', skillId: null },
+      'calmar furia':   { cmd: 'calmar_furia', skillId: null },
       'sanacion mayor': { cmd: 'useSkill', skillId: 'sanacion_mayor' },  // DIS-663: clérigo
       'sanación mayor': { cmd: 'useSkill', skillId: 'sanacion_mayor' },
       'gran curacion':  { cmd: 'useSkill', skillId: 'sanacion_mayor' },
