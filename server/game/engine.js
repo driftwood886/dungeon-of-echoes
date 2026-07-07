@@ -17417,13 +17417,29 @@ function cmdWrite(player, args) {
 function cmdReadWall(player) {
   const msgs = db.getWallMessages(player.current_room_id);
 
-  // DIS-1094: Lore pregenerado para salas específicas — se muestra antes de mensajes de jugadores
+  // DIS-1094 / DIS-1325: Lore pregenerado para salas específicas — se muestra antes de mensajes de jugadores
   // Estas son "inscripciones antiguas" de aventureros ficticios que dan contexto de mundo
   const LORE_INSCRIPTIONS = {
     2: [ // Corredor de las Sombras
       { author: 'Gretha la Tenaz', date: 'hace mucho tiempo', msg: 'Llegué hasta el Pozo. La puerta del norte necesita llave. Busqué en la Prisión — está al norte del Tesoro. Salí con vida. Cuídense del goblin élite, pega más de lo que aparenta.' },
       { author: 'Torvin', date: 'una noche oscura', msg: 'El nombre en la pared — Kaelthas — lo vi también en el trono de la sala 9. Algo aquí no murió como debería. Pregúntenle al anciano.' },
       { author: 'Desconocido', date: '?', msg: 'Si llegás a leer esto: hay un cuenco sagrado en la Capilla al este. Restaura la salud completa. Recordalo cuando estés a punto de morir.' },
+    ],
+    4: [ // Cámara del Tesoro
+      { author: 'Mira de Ceniza', date: 'tercer solsticio de oscuridad', msg: 'Los cofres que ves ya fueron vaciados por Kaelthas antes de su caída. Queda algo de valor en el Tesoro — pero no en los cofres. Mirá debajo del estante del fondo.' },
+      { author: 'Pellain el Mercader', date: 'hace dos inviernos', msg: 'Consejo: guardá monedas para la tienda de Aldric. Cobra caro, pero su trabajo de craft no tiene precio. Especialmente las pociones de poder: escasean en el dungeon y marcan la diferencia contra los bosses finales.' },
+    ],
+    8: [ // Prisión Subterránea
+      { author: 'Alguien que logró salir', date: 'fecha ilegible', msg: 'La llave oxidada que buscan está en el suelo del rincón norte. La dejé ahí cuando no pude seguir. Espero que a ustedes les vaya mejor.' },
+      { author: 'Un prisionero sin nombre', date: 'noche 847 de cautiverio', msg: 'Kaelthas nos encerraba aquí a los que resistíamos su dominio. Decía que necesitaba "recipientes". Nunca entendí qué quería decir. Ahora soy un eco y entiendo demasiado.' },
+    ],
+    9: [ // Sala del Trono
+      { author: 'Torvin', date: 'la misma noche oscura', msg: 'El trono huele a magia vieja y a traición. Las runas alrededor dicen "el que se sienta en el trono gobernará en la muerte tanto como en la vida". No me senté. No sé si hice bien.' },
+      { author: 'Hermana Vela', date: 'año desconocido', msg: 'Kaelthas fue un rey justo hasta que encontró el libro. El libro que prometía derrotar a la muerte. Encontrarán sus restos en el santuario — pero lo que lo habita ya no es él.' },
+    ],
+    15: [ // Catedral de la Oscuridad
+      { author: 'El último de los Doce', date: 'hora undécima', msg: 'Once entramos. Llegué solo. El Lich no usa las mismas tácticas dos veces — aprende entre combates. Si leyeron esto antes de entrar: tengan pociones de maná. No para atacar. Para sobrevivir los contra-hechizos.' },
+      { author: 'Desconocida — letra temblorosa', date: 'muy reciente', msg: 'La voz del Lich cuando muere dice siempre lo mismo. En el idioma antiguo significa "volveré". No sé si es una advertencia o una promesa. Quizás ambas.' },
     ],
   };
 

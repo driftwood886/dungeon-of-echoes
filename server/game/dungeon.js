@@ -353,9 +353,11 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
     }
   }
 
-  // Mensajes en las paredes (T147)
+  // Mensajes en las paredes (T147 / DIS-1325)
+  // El hint aparece si hay mensajes de jugadores O si hay lore hardcodeado para esta sala
+  const LORE_ROOMS = new Set([2, 4, 8, 9, 15]); // salas con inscripciones de lore (DIS-1094/DIS-1325)
   const wallMsgs = db.getWallMessages(roomId);
-  if (wallMsgs.length > 0) {
+  if (wallMsgs.length > 0 || LORE_ROOMS.has(roomId)) {
     lines.push(`\n✍️ Alguien ha dejado inscripciones en la pared. (Escribí "read" para leerlas.)`);
   }
 
