@@ -1337,6 +1337,17 @@ const RUNE_BONUSES = {
   caos:   { stat: 'mana',    amount: 3,  label: '+3 maná máximo permanente' },
 };
 
+// DIS-1364: afinidades temáticas de monstruos normales (no-boss)
+// Cuando el jugador no tiene runas del tipo afín, estos monstruos
+// añaden peso extra a su tipo temático (x3 adicional)
+const MONSTER_RUNE_AFFINITY = {
+  2:  'sombra',  // Esqueleto Guerrero
+  4:  'sombra',  // Espectro del Corredor
+  9:  'sombra',  // Guardia de la Prisión (no-boss variante)
+  11: 'hielo',   // Elemental de Hielo
+  18: 'sombra',  // Esqueleto Arquero (si existe)
+};
+
 // DIS-1354: mapa de bosses a su tipo de runa temático
 // Cada boss suelta su tipo característico (no aleatorio)
 const BOSS_RUNE_TYPES = {
@@ -1378,11 +1389,16 @@ function tryAddRune(playerId, isBoss = false, monsterId = null) {
     // DIS-1354: sistema de pesos — runas que el jugador ya acumula tienen más probabilidad
     // Peso: 0 acumuladas → 1, 1 acumulada → 3, 2 acumuladas → 6
     // Esto hace que completar un set sea ~3-6x más probable para tipos ya iniciados
+    // DIS-1364: bonus de afinidad temática para monstruos no-boss con tipo definido
     const WEIGHT_BY_COUNT = [1, 3, 6];
     const weightedPool = [];
     for (const t of RUNE_TYPES) {
       const count = runes[t] || 0;
-      const weight = WEIGHT_BY_COUNT[count] || 1;
+      let weight = WEIGHT_BY_COUNT[count] || 1;
+      // Bonus temático: si el monstruo tiene afinidad con este tipo, añadir peso extra x3
+      if (monsterId !== null && MONSTER_RUNE_AFFINITY[monsterId] === t) {
+        weight += 3;
+      }
       for (let i = 0; i < weight; i++) weightedPool.push(t);
     }
     type = weightedPool[Math.floor(Math.random() * weightedPool.length)];
