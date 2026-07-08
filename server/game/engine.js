@@ -13477,6 +13477,16 @@ function cmdModoBerserk(player, context) {
   }
 
   // Activar modo berserk
+  // DIS-1363: warning de confirmación la primera vez que se activa modo berserk
+  if (!mbSEFresh.berserk_warned) {
+    mbSEFresh.berserk_warned = true;
+    db.updatePlayer(freshMb.id, { status_effects: JSON.stringify(mbSEFresh) });
+    return {
+      text: `🪓 **MODO BERSERK** — Confirmación requerida (primera vez)\n\n⚠️  Al activar Modo Berserk:\n   ✅ +5 ATK por 3 turnos\n   ❌ No podés huir durante esos 3 turnos\n   ❌ No podés usar postura defensiva\n   ⚡ Al terminar: -2 ATK por 2 turnos (agotamiento)\n\n🔄 Si te encontrás en problemas, podés usar «calmar_furia» para cancelarlo (perdés 1 turno pero recuperás la huida).\n\n💡 Escribí «modo_berserk» de nuevo para confirmar y activarlo.`,
+    };
+  }
+
+  // Activar modo berserk (ya confirmado o segunda vez en adelante)
   mbSEFresh.modo_berserk_activo = {
     turns_remaining: 3,
     atk_bonus: 5,
