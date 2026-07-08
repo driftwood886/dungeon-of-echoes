@@ -21270,7 +21270,7 @@ function cmdBattlecry(player, args) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// T200: cmdVault — Bóveda personal (hasta 20 ítems, sala 1 o sala 17)
+// T200: cmdVault — Bóveda personal (hasta 20 ítems, sala 1 o sala 17 o sala 19)
 // DIS-506: ampliada de 10→20 slots, accesible también en Casa de Subastas (sala 17)
 // ══════════════════════════════════════════════════════════════════════════════
 const VAULT_MAX = 20;
@@ -21309,7 +21309,7 @@ function cmdVault(player, args) {
 
   // Accesible en sala 1 (Entrada) o sala 17 (Casa de Subastas)
   if (!VAULT_ROOMS.has(player.current_room_id)) {
-    return { text: '🏛️  La bóveda es accesible en la Entrada (sala 1) o en la Casa de Subastas (sala 17).\n  Usá `recall` para volver a la Entrada.' };
+    return { text: '🏛️  La bóveda es accesible en la Entrada (sala 1), la Casa de Subastas (sala 17) o la Cámara del Eco (sala 19).\n  Usá `recall` para volver a la Entrada.' };
   }
 
   if (subcmd === 'store' || subcmd === 'guardar' || subcmd === 'depositar') {
