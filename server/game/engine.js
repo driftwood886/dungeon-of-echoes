@@ -22059,18 +22059,22 @@ function cmdVault(player, args) {
 
     const inv = JSON.parse(typeof player.inventory === 'string' ? player.inventory : JSON.stringify(player.inventory));
     const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-    const idx = inv.findIndex(i => norm(i) === norm(itemArg) || norm(i).includes(norm(itemArg)));
+
+    // BUG-1379: chequear si el ítem está equipado ANTES de buscar en inventario,
+    // para dar un mensaje claro en lugar de "no tenés X en el inventario"
+    const fresh = db.getPlayer(player.id);
+    const normArg = norm(itemArg);
+    if (fresh.equipped_weapon && norm(fresh.equipped_weapon).includes(normArg)) {
+      return { text: `"${fresh.equipped_weapon}" está equipado como arma. Usá \`desequipar\` primero antes de guardarlo en la bóveda.` };
+    }
+    if (fresh.equipped_armor && norm(fresh.equipped_armor).includes(normArg)) {
+      return { text: `"${fresh.equipped_armor}" está equipado como armadura. Usá \`desequipar\` primero antes de guardarlo en la bóveda.` };
+    }
+
+    const idx = inv.findIndex(i => norm(i) === normArg || norm(i).includes(normArg));
     if (idx === -1) return { text: `No tenés "${itemArg}" en el inventario.` };
 
     const item = inv[idx];
-    // No se puede guardar el arma o armadura equipada
-    const fresh = db.getPlayer(player.id);
-    if (fresh.equipped_weapon && norm(fresh.equipped_weapon) === norm(item)) {
-      return { text: `Desequipá "${item}" antes de guardarlo en la bóveda.` };
-    }
-    if (fresh.equipped_armor && norm(fresh.equipped_armor) === norm(item)) {
-      return { text: `Quitáte "${item}" antes de guardarlo en la bóveda.` };
-    }
 
     inv.splice(idx, 1);
     vaultItems.push(item);
