@@ -9242,6 +9242,15 @@ function cmdShop(player, args) {
 
   // DIS-621: recomendaciones personalizadas por clase
   const clsShop = classes.getPlayerClass(player);
+
+  // DIS-1362: mostrar equipo actual del jugador para tomar decisiones informadas
+  const shopWeapon = (player.equipped_weapon && player.equipped_weapon !== 'null') ? player.equipped_weapon : null;
+  const shopArmor  = (player.equipped_armor  && player.equipped_armor  !== 'null') ? player.equipped_armor  : null;
+  const shopAtk = player.attack || 5;
+  const shopDef = player.defense || 2;
+  const shopHp  = `${player.hp || 0}/${player.max_hp || 30}`;
+  lines.push(`📊 Tu equipo actual:  ⚔️ ${shopWeapon || '(sin arma)'}  🛡️ ${shopArmor || '(sin armadura)'}  ATK: ${shopAtk}  DEF: ${shopDef}  HP: ${shopHp}`);
+  lines.push('');
   if (clsShop) {
     const CLASS_RECS = {
       'Mago':    ['vara de energía', 'pergamino de hechizo', 'poción de maná'],
