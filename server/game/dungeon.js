@@ -162,12 +162,19 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   lines.push(roomDesc);
 
   // DIS-1208: pistas visuales directas en salas clave de la narrativa de Kaelthas
+  // DIS-1346: suprimir para jugadores veteranos (nivel 3+) que ya visitaron la sala
+  const isVeteranPlayer = player && (player.level || 1) >= 3 && (() => {
+    try {
+      const vis = JSON.parse(player.rooms_visited || '[]');
+      return vis.includes(room.id) || vis.includes(String(room.id));
+    } catch (_) { return false; }
+  })();
   const KAELTHAS_ROOM_HINTS = {
     2:  '🔍 Una inscripción en la pared del corredor llama tu atención — el barniz de cera la protege del tiempo. (Escribí "examine pared" o "examine inscripciones" para leerla.)',
     5:  '🕯️ Sobre el altar hay un escudo sin emblema y velas que arden pese al polvo centenario — alguien estuvo aquí recientemente. (Escribí "examine altar" o "examine escudo" para inspeccionar.)',
     9:  '👑 El trono tiene marcas en los apoyabrazos — dedos que se aferraron muchas veces. Algo grabado en la piedra del respaldo parece diferente al resto de la decoración. (Escribí "examine trono" para investigar.)',
   };
-  if (KAELTHAS_ROOM_HINTS[room.id]) {
+  if (KAELTHAS_ROOM_HINTS[room.id] && !isVeteranPlayer) {
     lines.push(`\n${KAELTHAS_ROOM_HINTS[room.id]}`);
   }
 
@@ -302,13 +309,15 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   }
 
   // DIS-1178: Sala 1 (Entrada) — hint temprano sobre el mercader
-  if (roomId === 1) {
+  // DIS-1346: suprimir para jugadores veteranos (nivel 3+) que ya visitaron la sala
+  if (roomId === 1 && !isVeteranPlayer) {
     lines.push(`\n💡 Consejo: Hay un mercader dentro del dungeon. Su tienda está al norte (Corredor) y luego al este. Seguí el olor a cuero.`);
   }
 
   // DIS-1178: Sala 2 (Corredor de las Sombras) — hint olfativo hacia la tienda
   // DIS-1329: suprimir si es primera visita (el evento cinemático ya menciona el olor a cuero curtido)
-  if (roomId === 2) {
+  // DIS-1346: suprimir para jugadores veteranos
+  if (roomId === 2 && !isVeteranPlayer) {
     let sala2PrimeraVisita = false;
     if (player && player.rooms_visited) {
       try {
@@ -322,29 +331,36 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   }
 
   // DIS-1178: Sala 3 (Sala de los Ecos) — hint explícito hacia Aldric + nota sobre el Esqueleto
-  if (roomId === 3) {
+  // DIS-1346: suprimir para jugadores veteranos
+  if (roomId === 3 && !isVeteranPlayer) {
     lines.push(`\n🏪 Al este, el olor a cuero se vuelve inconfundible — la tienda del mercader Aldric está ahí.\n   ⚔️  El Esqueleto Guerrero custodia la entrada, pero Aldric lo instruyó para no atacar a compradores que lleguen sin arma desenvainada. Podés entrar sin pelear.`);
   }
 
   // NPC Mercader en sala 4
+  // DIS-1346: para veteranos, solo mostrar que Aldric está presente (útil), suprimir hints instructivos
   if (roomId === 4) {
     lines.push(`\n🏪 Aldric el Mercader está aquí, sentado detrás de un improvisado mostrador de cajas.\n   "Bienvenido. Escribí 'tienda' para ver mis artículos."`);
-    // DIS-1178: nota que el Esqueleto es guardia de Aldric y no ataca primero
-    lines.push(`\n⚔️  El Esqueleto Guerrero en la sala es el guardia personal de Aldric. No te atacará si no lo provocás — llegaste como comprador, no como invasor.`);
-    // DIS-1097: hint sobre acceso a la Casa de Subastas sin pelear
-    lines.push(`\n🏛️ Pista: Al norte de esta sala (Prisión) podés acceder a la Casa de Subastas (sala 17).\n   Los espectros de la Prisión dejan pasar si no los provocás — movete sin atacar.`);
+    if (!isVeteranPlayer) {
+      // DIS-1178: nota que el Esqueleto es guardia de Aldric y no ataca primero
+      lines.push(`\n⚔️  El Esqueleto Guerrero en la sala es el guardia personal de Aldric. No te atacará si no lo provocás — llegaste como comprador, no como invasor.`);
+      // DIS-1097: hint sobre acceso a la Casa de Subastas sin pelear
+      lines.push(`\n🏛️ Pista: Al norte de esta sala (Prisión) podés acceder a la Casa de Subastas (sala 17).\n   Los espectros de la Prisión dejan pasar si no los provocás — movete sin atacar.`);
+    }
   }
 
   // DIS-D48: Cuenco Sagrado en sala 5 (Capilla Olvidada)
   // DIS-1180: si el jugador tiene HP bajo (<60%), destacar el cuenco con más urgencia
+  // DIS-1346: para veteranos con HP alto, suprimir hint (ya conocen el cuenco)
   if (roomId === 5) {
     const playerHp = player ? player.hp : null;
     const playerMaxHp = player ? player.max_hp : null;
     const hpPct = (playerHp !== null && playerMaxHp) ? (playerHp / playerMaxHp) : 1;
     // Check cooldown del cuenco (el mapa de cooldowns está en engine.js — aquí usamos lore estático)
     if (hpPct < 0.6) {
+      // HP bajo: siempre mostrar (urgente, incluso para veteranos)
       lines.push(`\n💧 ¡ATENCIÓN — HP bajo! El cuenco de piedra negra del altar puede curarte.\n   ("cuenco" o "beber" — recupera 40% HP, cooldown personal 5 min)`);
-    } else {
+    } else if (!isVeteranPlayer) {
+      // HP normal + no veterano: hint informativo
       lines.push(`\n🙏 En el centro de la sala hay un cuenco de piedra negra lleno de agua fría.\n   ("cuenco" para beber — recupera 40% HP, cooldown personal 5 min)`);
     }
   }
@@ -355,7 +371,8 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   // DIS-1177: Sala 18 (Fuente Eterna) — gancho narrativo para salidas hacia zonas profundas
   // La sala tiene salida 'down' → sala 20 (Abismo Eterno, nivel 7+)
   // Jugadores de nivel bajo deben entender que hay algo ahí abajo y por qué volver.
-  if (roomId === 18) {
+  // DIS-1346: para veteranos que ya visitaron la sala, suprimir el texto guía (ya lo saben)
+  if (roomId === 18 && !isVeteranPlayer) {
     const playerLevel = player ? (player.level || 1) : 1;
     if (playerLevel < 7) {
       lines.push(`\n🌀 Por la fisura en el suelo, junto a la base de la fuente, llega un rumor de combate y ecos metálicos desde las profundidades. El agua plateada cae hacia el Abismo Eterno — una zona donde habita la Sombra del Vacío, una entidad de oscuridad pura.\n   📌 Objetivo futuro: cuando llegues al nivel 7, podrás explorar el Abismo Eterno (abajo).`);
@@ -366,9 +383,10 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
 
   // Mensajes en las paredes (T147 / DIS-1325)
   // El hint aparece si hay mensajes de jugadores O si hay lore hardcodeado para esta sala
+  // DIS-1346: para veteranos que ya visitaron la sala, suprimir el hint de inscripciones (ya lo saben)
   const LORE_ROOMS = new Set([2, 4, 8, 9, 15]); // salas con inscripciones de lore (DIS-1094/DIS-1325)
   const wallMsgs = db.getWallMessages(roomId);
-  if (wallMsgs.length > 0 || LORE_ROOMS.has(roomId)) {
+  if ((wallMsgs.length > 0 || LORE_ROOMS.has(roomId)) && !isVeteranPlayer) {
     lines.push(`\n✍️ Alguien ha dejado inscripciones en la pared. (Escribí "read" para leerlas.)`);
   }
 

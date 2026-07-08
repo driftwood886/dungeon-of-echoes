@@ -1029,14 +1029,18 @@ function cmdLook(player) {
   } catch (_) { /* no romper look si quests falla */ }
 
   // DIS-D383: recordatorio de clase si nivel >= 3 y sin clase elegida
+  // DIS-1346: suprimir para jugadores nivel 5+ (si a ese nivel no eligieron, es su decisión)
   let classReminderLine = '';
-  if ((player.level || 1) >= 3 && (!player.player_class || player.player_class === 'sin_clase')) {
+  const playerLevelLook = player.level || 1;
+  if (playerLevelLook >= 3 && playerLevelLook < 5 && (!player.player_class || player.player_class === 'sin_clase')) {
     classReminderLine = `\n💡 Aún no elegiste clase (nivel ${player.level}). Escribí 'clase' para ver las opciones.`;
   }
 
   // DIS-573: hint de peligro extremo en salas adyacentes a bosses que bloquean huida
   // Sirve para que el jugador pueda PREPARARSE antes de comprometerse a entrar
   // BUG-584: monsterId agregado para verificar si el boss está vivo antes de mostrar la advertencia
+  // DIS-1346: para jugadores veteranos (nivel 3+) que ya visitaron la sala del boss, suprimir el aviso
+  const visitedRoomsLook = (() => { try { return JSON.parse(player.rooms_visited || '[]'); } catch (_) { return []; } })();
   const BOSS_ROOM_DANGER = {
     9:  { name: 'el Espectro del Corredor', level: 3, icon: '👻', roomName: 'Sala del Trono', monsterId: 4 }, // DIS-890: advertir desde Túnel de los Hongos
     15: { name: 'el Lich Anciano',     level: 7, icon: '💀', roomName: 'Catedral de la Oscuridad', monsterId: 13, armorTip: 'Equipá cota de malla o mejor (DEF 6+).' },
@@ -1061,6 +1065,10 @@ function cmdLook(player) {
           const bossMonster = db.getMonster(danger.monsterId);
           const bossIsAlive = bossMonster && bossMonster.room_id !== null && bossMonster.room_id !== undefined && (bossMonster.hp || 0) > 0;
           if (!bossIsAlive) continue; // boss muerto → sin advertencia
+          // DIS-1346: suprimir aviso de boss adyacente si el jugador (nivel 3+) ya visitó esa sala
+          const isVeteranLook = (player.level || 1) >= 3;
+          const alreadyVisitedBossRoom = visitedRoomsLook.includes(Number(destId)) || visitedRoomsLook.includes(String(destId));
+          if (isVeteranLook && alreadyVisitedBossRoom) continue;
           const playerLevel = player.level || 1;
           // DIS-1216: aclarar comportamiento real del boss — solo ataca si lo agredís o si entrás en combate
           const armorNote = danger.armorTip ? ` 🛡️ ${danger.armorTip}` : '';
