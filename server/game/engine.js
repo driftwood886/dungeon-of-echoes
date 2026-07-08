@@ -5003,7 +5003,7 @@ function cmdPick(player, itemQuery) {
       const hKey = `craft_hint_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
       if (!shownH2[hKey]) {
         const equippedIng = invNorm2.includes(ingA.toLowerCase().trim()) ? ingB : ingA;
-        pickCraftHint = `\n💡 ¡Podés craftear ${recipe.result}! Tenés todos los ingredientes, pero «${equippedIng}» está equipado.\n   Flujo: \`unequip\` → \`craft ${ingA} con ${ingB}\` → \`equip ${recipe.result}\``;
+        pickCraftHint = `\n💡 ¡Podés craftear ${recipe.result}! Tenés todos los ingredientes, pero «${equippedIng}» está equipado.\n   Flujo: \`desequipar\` → \`craft ${ingA} con ${ingB}\` → \`equipar ${recipe.result}\``;
         db.updatePlayer(freshP2.id, { status_effects: JSON.stringify({ ...shownH2, [hKey]: true }) });
         break;
       }
@@ -5942,9 +5942,9 @@ function cmdExamine(player, query) {
       const equippedAtk = equippedDef ? (equippedDef.amount || 0) : 0;
       const delta = obsidianaAtk - equippedAtk;
       const deltaStr = delta > 0 ? `+${delta}` : `${delta}`;
-      comparisonNote = `\n\n⚖️ Comparación con tu ${equippedWpn} (equipado): espada de obsidiana ${delta >= 0 ? 'gana' : 'pierde'} ${Math.abs(delta)} ATK neto (${deltaStr}).${delta >= 0 ? ' Es un upgrade.' : ' Considerá tu build antes de cambiar.'}\n💡 Para equiparla: primero desequipá tu arma actual con \`unequip\`, luego recogé la espada y hacé \`equip espada de obsidiana\`.`;
+      comparisonNote = `\n\n⚖️ Comparación con tu ${equippedWpn} (equipado): espada de obsidiana ${delta >= 0 ? 'gana' : 'pierde'} ${Math.abs(delta)} ATK neto (${deltaStr}).${delta >= 0 ? ' Es un upgrade.' : ' Considerá tu build antes de cambiar.'}\n💡 Para equiparla: primero desequipá tu arma actual con \`desequipar\`, luego recogé la espada y hacé \`equipar espada de obsidiana\`.`;
     } else if (!equippedWpn) {
-      comparisonNote = `\n\n💡 No tenés arma equipada. Para equipar la espada: primero recogela con \`pick espada de obsidiana\`, luego \`equip espada de obsidiana\`.`;
+      comparisonNote = `\n\n💡 No tenés arma equipada. Para equipar la espada: primero recogela con \`pick espada de obsidiana\`, luego \`equipar espada de obsidiana\`.`;
     }
     const baseObsidianaText = 'La espada de obsidiana es negra de una manera que no es color sino ausencia. Donde debería haber un filo, hay una línea donde la luz simplemente deja de existir —no se refleja, no se dispersa, desaparece.\n\nCuando extendés la mano hacia ella, sentís una resistencia que no es física: es una presión en la mente, un umbral. La hoja no te rechaza. Te evalúa.\n\nLos bordes no tienen marcas de uso, pero tampoco parecen nuevos. Es como si el tiempo no pasara por ella.\n\n⚔️ Nivel requerido para equiparla: 6 (o tomarla del altar: sin restricción de nivel, pero enfrentarás al Lich Anciano —nivel recomendado 7).';
     return { text: baseObsidianaText + comparisonNote };
@@ -6461,7 +6461,7 @@ function cmdEquip(player, itemQuery) {
       // Tienen solo escudo roto u otro escudo misc
       return { text: `"${found}" no se puede equipar directamente.\n🔧 Es un material de crafteo: \"escudo roto\" + \"garra de esqueleto\" → escudo de gladiador (+DEF).\n💡 Usá: craft escudo roto con garra de esqueleto` };
     }
-    return { text: `${found} no es un arma que puedas equipar.${def && def.type === 'armor' ? ' Para armaduras, usá también `equipar` (o `wear`).' : def && def.type === 'misc' && found.toLowerCase().includes('amuleto') ? '\n✨ El amuleto del eco es un ítem pasivo — con solo tenerlo en el inventario activa su efecto.' : ''}` };
+    return { text: `${found} no es un arma que puedas equipar.${def && def.type === 'armor' ? ' Para armaduras, usá `equipar` (funciona para armas y armaduras).' : def && def.type === 'misc' && found.toLowerCase().includes('amuleto') ? '\n✨ El amuleto del eco es un ítem pasivo — con solo tenerlo en el inventario activa su efecto.' : ''}` };
   }
 
   const oldAttack = player.attack;
@@ -21339,7 +21339,7 @@ function cmdEnchant(player, args) {
   if (!freshP) return { text: 'Error al leer tu perfil.' };
 
   if (!freshP.equipped_weapon) {
-    return { text: '🪄 No tenés un arma equipada. Equipá un arma primero con `equip <arma>`.' };
+    return { text: '🪄 No tenés un arma equipada. Equipá un arma primero con `equipar <arma>`.' };
   }
 
   let runeType = args[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');

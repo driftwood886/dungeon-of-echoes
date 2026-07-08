@@ -206,7 +206,7 @@ const CRAFTED_ITEMS = {
   'cuchillo envenenado': { type: 'weapon', effect: 'attack_bonus', amount: 3, description: 'Un cuchillo impregnado de veneno. +3 de ataque. Los golpes tienen 25% de envenenar al objetivo.' },
   'látigo de garras':   { type: 'weapon', effect: 'attack_bonus', amount: 4, description: 'Un látigo improvisado con garras de esqueleto. Largo alcance. +4 de ataque.' },
   'red resistente':     { type: 'misc', description: 'Una red de araña y cuerda trenzadas. Casi imposible de romper. Podría usarse para atrapar cosas.' },
-  'collar de garras':   { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Un collar artesanal de colmillos de murciélago vampiro y seda de araña. Emana poder primitivo. +2 de defensa. Se equipa como armadura: `wear collar de garras`.' },
+  'collar de garras':   { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Un collar artesanal de colmillos de murciélago vampiro y seda de araña. Emana poder primitivo. +2 de defensa. Se equipa como armadura: `equipar collar de garras`.' },
   'grimorio del abismo':{ type: 'weapon', effect: 'attack_bonus', amount: 10, description: 'Un grimorio sellado con el poder de la perla negra abismal. +10 de ataque mágico.' },
   // DIS-492: ítems de reciclaje de loot basura
   'cuero de criatura':  { type: 'armor', effect: 'defense_bonus', amount: 2, description: 'Cuero curtido con escamas abismales. Áspero pero funcional. +2 de defensa.' },
@@ -345,7 +345,7 @@ function craft(player, itemA, itemB) {
     if (na === equippedWeapon || na === equippedArmor) {
       // DIS-889: mostrar flujo completo unequip → craft → equip
       // BUG-1098: aclarar explícitamente que los otros ítems NO se consumen en el error
-      return { ok: false, text: `«${itemA}» está equipado — no podés usarlo como ingrediente mientras lo tenés puesto.\n📦 Tus otros ítems están intactos, nada fue consumido.\n💡 Flujo: \`unequip\` → \`craft ${itemA} con ${itemB}\` → \`equip ${recipe ? recipe.result : 'resultado'}\`` };
+      return { ok: false, text: `«${itemA}» está equipado — no podés usarlo como ingrediente mientras lo tenés puesto.\n📦 Tus otros ítems están intactos, nada fue consumido.\n💡 Flujo: \`desequipar\` → \`craft ${itemA} con ${itemB}\` → \`equipar ${recipe ? recipe.result : 'resultado'}\`` };
     }
     return { ok: false, text: `No tenés "${itemA}" en el inventario. Si lo usaste antes, ya no está disponible.` };
   }
@@ -356,16 +356,16 @@ function craft(player, itemA, itemB) {
     if (nb === equippedWeapon || nb === equippedArmor) {
       // DIS-889: mostrar flujo completo unequip → craft → equip
       // BUG-1098: aclarar explícitamente que los otros ítems NO se consumen en el error
-      return { ok: false, text: `«${itemB}» está equipado — no podés usarlo como ingrediente mientras lo tenés puesto.\n📦 Tus otros ítems están intactos, nada fue consumido.\n💡 Flujo: \`unequip\` → \`craft ${itemA} con ${itemB}\` → \`equip ${recipe ? recipe.result : 'resultado'}\`` };
+      return { ok: false, text: `«${itemB}» está equipado — no podés usarlo como ingrediente mientras lo tenés puesto.\n📦 Tus otros ítems están intactos, nada fue consumido.\n💡 Flujo: \`desequipar\` → \`craft ${itemA} con ${itemB}\` → \`equipar ${recipe ? recipe.result : 'resultado'}\`` };
     }
     return { ok: false, text: `No tenés "${itemB}" en el inventario. Si lo usaste antes, ya no está disponible.` };
   }
 
   const resultDef = CRAFTED_ITEMS[recipe.result] || items.getItemDef(recipe.result) || {};
   let equipHint = resultDef.type === 'armor'
-    ? `\n💡 Es una armadura — equipala con: \`wear ${recipe.result}\``
+    ? `\n💡 Es una armadura — equipala con: \`equipar ${recipe.result}\``
     : resultDef.type === 'weapon'
-    ? `\n💡 Es un arma — equipala con: \`equip ${recipe.result}\``
+    ? `\n💡 Es un arma — equipala con: \`equipar ${recipe.result}\``
     : '';
   // DIS-979: si el ítem crafteado es un arma y es mejor que la equipada, agregar nota de comparación
   if (resultDef.type === 'weapon' && player.equipped_weapon && player.equipped_weapon !== 'null') {
