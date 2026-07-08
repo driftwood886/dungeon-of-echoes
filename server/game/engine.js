@@ -18340,6 +18340,12 @@ function cmdReadWall(player) {
       { author: 'El último de los Doce', date: 'hora undécima', msg: 'Once entramos. Llegué solo. El Lich no usa las mismas tácticas dos veces — aprende entre combates. Si leyeron esto antes de entrar: tengan pociones de maná. No para atacar. Para sobrevivir los contra-hechizos.' },
       { author: 'Desconocida — letra temblorosa', date: 'muy reciente', msg: 'La voz del Lich cuando muere dice siempre lo mismo. En el idioma antiguo significa "volveré". No sé si es una advertencia o una promesa. Quizás ambas.' },
     ],
+    22: [ // Cripta de los Valientes — BUG-1382: inscripciones de las placas funerarias
+      { author: 'Gretha la Tenaz — placa norte, tercera hilera', date: 'grabado con cincel de maestro', msg: 'Llegó donde otros no se atrevieron. Murió como vivió: de frente.' },
+      { author: 'Torvin — placa norte, primera hilera', date: 'letra grande, segura', msg: 'No supo cuándo parar. Eso es lo mejor y lo peor que puedo decir de mí.' },
+      { author: 'Sin nombre — placa deteriorada, esquina inferior', date: 'casi ilegible por la humedad', msg: 'Llegué hasta la sala del trono. Vi el nombre grabado. Entendí demasiado tarde.' },
+      { author: 'Placa en blanco — borde inferior, polvo fresco de cincel', date: 'reciente', msg: '(El nombre todavía no fue grabado. El espacio está reservado.)' },
+    ],
   };
 
   const loreForRoom = LORE_INSCRIPTIONS[player.current_room_id] || [];
