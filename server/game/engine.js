@@ -7003,7 +7003,7 @@ function cmdGive(player, args) {
         }
         // DIS-513: mensajes de guía cuando el give no completa la quest
         if (freshP.aldric_quest === 'active' && !found.toLowerCase().includes('carta sellada')) {
-          return { text: `Aldric te mira el ítem y niega con la cabeza. "Eso no es lo que busco." 💡 Tip: la quest de Aldric requiere la carta sellada del corredor de sombras (sala 3).` };
+          return { text: `Aldric te mira el ítem y niega con la cabeza. "Eso no es lo que busco." 💡 Tip: la quest de Aldric requiere la carta sellada de la Prisión Subterránea (al norte del Tesoro). Escribí \`buscar\` ahí para encontrarla.` };
         }
         if (freshP.aldric_quest === 'done') {
           return { text: `Aldric ya recibió lo que necesitaba. No hay nada más que entregarle.` };
@@ -17346,7 +17346,7 @@ function cmdContract(player) {
     'Araña Tejedora':        '📍 Se encuentran en: Pozo Sin Fondo (sala 7)',
     'Espectro del Corredor': '📍 Se encuentran en: Sala del Trono (sala 9)',
     'Murciélago Vampiro':    '📍 Se encuentran en: Capilla Olvidada (sala 5)',
-    'Esqueleto Guerrero':    '📍 Se encuentran en: Sala de los Ecos (sala 3)',
+    'Esqueleto Guerrero':    '📍 Se encuentran en: Sala de los Ecos (al norte del Corredor de las Sombras)',
     'Campeón Espectral':     '📍 Se encuentran en: Coliseo de Huesos (sala 14)',
     'Sombra del Vacío':      '📍 Se encuentran en: Abismo Eterno (sala 20)',
   };
