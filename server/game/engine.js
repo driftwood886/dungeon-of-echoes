@@ -5263,6 +5263,29 @@ function cmdUse(player, itemQuery) {
         db.updatePlayer(player.id, { status_effects: JSON.stringify(newSePag) });
       }
       resultText = `Las páginas del diario están medio fusionadas por el hielo, pero alcanzás a leer cuatro fragmentos:\n\n  "...llegamos cuatro. Somos dos. El frío no mata — algo lo usa."\n\n  "...vi su sombra en la Catedral. Desde aquí. Eso no es posible."\n\n  "...Kaelthas no murió. Eligió esto. Lo entendí cuando me miró. Me conocía.\n\n  \"...la Catedral Roja es el centro. Todo converge ahí. El Lich guarda el nombre real.\"${diarioExtraPag}`;
+    // DIS-1351: brebaje del hongo en sala 5 (Capilla) → alias de pray
+    } else if (found === 'brebaje del hongo' || found === 'brebaje') {
+      if (player.current_room_id === 5) {
+        // En la Capilla: disparar hook de expedición primero (checkStep espera trigger 'use')
+        let expBrebaje = '';
+        try {
+          const freshForBrebaje = db.getPlayer(player.id);
+          const expBrebajeResult = expeditionEngine.checkStep(freshForBrebaje, 'use', {
+            itemName: found,
+            roomId: 5,
+          });
+          if (expBrebajeResult && expBrebajeResult.message) expBrebaje = '\n\n' + expBrebajeResult.message;
+        } catch (_) { /* no romper si falla expedición */ }
+        // Redirigir a cmdPray para que el altar lo reconozca correctamente
+        const prayResult = cmdPray(player, [found]);
+        if (prayResult && expBrebaje) {
+          prayResult.text = (prayResult.text || '') + expBrebaje;
+        }
+        return prayResult;
+      } else {
+        // Fuera de la Capilla: mensaje orientativo (no consumir el ítem)
+        resultText = `🍄 Sostenés el brebaje. Los vapores violetas se disipan en el aire de esta sala sin efecto.\n💡 Este brebaje tiene propósitos rituales: llevalo al altar de la Capilla Olvidada (sala 5) y escribí "usar ${found}" allí para ofrendarlo.`;
+      }
     } else {
       resultText = `Examinás ${found}: ${def.description}`;
     }
@@ -19991,6 +20014,8 @@ const ALTAR_OFFERINGS = {
   'núcleo de forja':   { type: 'forge', atk: 4, def: 0, duration: 180, label: 'Fuerza de la Forja', msg: '¡El núcleo de forja explota en llamas! El calor de la forja penetra tus músculos y amplifica tu fuerza.' },
   'filacteria rota':   { type: 'arcane',atk: 0, def: 3, duration: 180, label: 'Escudo Antimagia', msg: 'La filacteria destruida se pulveriza en el altar. Los fragmentos de hechizo del Lich te protegen irónicamente.' },
   'esencia etérea':    { type: 'ether', atk: 2, def: 0, mana: 12, duration: 180, label: 'Toque Etéreo', msg: 'La esencia etérea se disuelve en el altar como niebla. El maná del más allá fluye por tus venas.' },
+  // DIS-1351: brebaje del hongo — ritual especial de la Capilla (crafteable, más potente que el hongo azul)
+  'brebaje del hongo': { type: 'ritual', atk: 2, def: 1, mana: 15, duration: 180, label: 'Comunión Fúngica', msg: '¡El brebaje humea al contacto con el altar! Los vapores violetas ascienden en espiral mientras el líquido se absorbe en la piedra sagrada. El altar de la Capilla Olvidada reconoce la ofrenda ritual.' },
 };
 
 function cmdPray(player, args) {
