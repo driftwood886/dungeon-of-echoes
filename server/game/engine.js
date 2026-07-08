@@ -1463,7 +1463,7 @@ function cmdMove(player, direction) {
                 const newSeNB1249 = { ...seNB1249, trono_warning_done: true };
                 db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeNB1249) });
                 return {
-                  text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Si tenés una «corona rota», podés ofrecerla al trono para disipar el frío:\n   → Buscala en la Prisión Subterránea (sala 8) o derrotá al Espectro del Corredor aquí.\n   → Luego escribí «desactivar trampa <dir>» para desactivarla desde aquí.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+                  text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance (DIS-1365)\n   • Derrotá al Espectro del Corredor dentro de esta sala (drop garantizado)\n   → Con la corona en mano: escribí «desactivar trampa <dir>» desde la sala anterior.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
                 };
               }
               // Segunda vez: limpiar flag y continuar
@@ -1669,7 +1669,7 @@ function cmdMove(player, direction) {
             db.updatePlayer(nbFresh.id, { hp: nbNewHp, status_effects: JSON.stringify(nbUpdatedSE), known_traps: JSON.stringify(nbUpdatedKT) });
             const TRAP_DISARM_HINT_NB = {
               6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa hacia el Túnel, podés escribir "desactivar trampa <dir>" desde la sala anterior para desactivarla sin entrar.\n⚠️  Al norte del Túnel está la Sala del Trono — también tiene una trampa de frío (primera visita). Si pasás por la Prisión (sala 8, volviendo al Pozo), hay una "corona rota" abandonada en las celdas que la desactiva. DIS-1033',
-              9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de tres formas: (1) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, (2) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (3) buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
+              9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de tres formas: (1) buscá en la Prisión Subterránea (sala 8) — usá "buscar" allí (35% de chance), (2) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (3) buscá en esta sala (intentá "buscar").\n🧠 Tip: si obtenés la corona en sala 8, podés escribir "desactivar trampa <dir>" desde el Túnel de Hongos para desactivarla SIN entrar (evitás el daño de la primera visita).',
               3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).\n🧠 Próxima vez que veas el hint de trampa al oeste, podés escribir "desactivar trampa oeste" antes de entrar.',
               13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Usá "buscar" en esta sala (45% de chance) o comprala en la tienda de Aldric (sala 4, 15g). Con la red en mano podés desactivarla antes de entrar (o la próxima vez usar instinto para encontrarla al llegar).\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
             };
@@ -2010,7 +2010,7 @@ function cmdMove(player, direction) {
           const newSe1249 = { ...se1249, trono_warning_done: true };
           db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1249) });
           return {
-            text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Si tenés una «corona rota», podés ofrecerla al trono para disipar el frío:\n   → Buscala en la Prisión Subterránea (sala 8) o derrotá al Espectro del Corredor aquí.\n   → Luego escribí «desactivar trampa <dir>» para desactivarla desde aquí.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+                  text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance (DIS-1365)\n   • Derrotá al Espectro del Corredor dentro de esta sala (drop garantizado)\n   → Con la corona en mano: escribí «desactivar trampa <dir>» desde la sala anterior.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
           };
         }
         // Segunda vez: limpiar el flag y continuar con el movimiento normal (recibirá daño de trampa)
@@ -2239,7 +2239,7 @@ function cmdMove(player, direction) {
       // DIS-451/452: tip personalizado según la trampa — indica dónde obtener el ítem de desactivación
       const TRAP_DISARM_HINT = {
         6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa hacia el Túnel, podés escribir "desactivar trampa <dir>" desde la sala anterior para desactivarla sin entrar.\n⚠️  Al norte del Túnel está la Sala del Trono — también tiene una trampa de frío (primera visita). Si pasás por la Prisión (sala 8, volviendo al Pozo), hay una "corona rota" abandonada en las celdas que la desactiva. DIS-1033',
-        9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de tres formas: (1) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, (2) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (3) buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
+        9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de tres formas: (1) buscá en la Prisión Subterránea (sala 8) — usá "buscar" allí (35% de chance), (2) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (3) buscá en esta sala (intentá "buscar").\n🧠 Tip: si obtenés la corona en sala 8, podés escribir "desactivar trampa <dir>" desde el Túnel de Hongos para desactivarla SIN entrar (evitás el daño de la primera visita).',
         3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).\n🧠 Próxima vez que veas el hint de trampa al oeste, podés escribir "desactivar trampa oeste" antes de entrar.',
         13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Usá "buscar" en esta sala (45% de chance) o comprala en la tienda de Aldric (sala 4, 15g). Con la red en mano podés desactivarla antes de entrar (o la próxima vez usar instinto para encontrarla al llegar).\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
       };
@@ -11362,6 +11362,34 @@ function cmdForage(player) {
       event: null,
     };
     } // end else (DIS-1018)
+  }
+
+  // DIS-1365: Prisión Subterránea (sala 8) — corona rota encontrable en celdas si trampa sala 9 activa
+  // Resuelve el bootstrap paradox: la corona se necesita para desactivar la trampa del Trono ANTES de entrar,
+  // pero el drop del Espectro sólo está disponible DENTRO de la sala con trampa.
+  if (player.current_room_id === 8) {
+    const room9_1365 = db.getRoom(9);
+    const inv_1365 = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+    if (room9_1365 && room9_1365.trap && room9_1365.trap.active && !inv_1365.includes('corona rota')) {
+      const coronaRoll1365 = Math.random();
+      if (coronaRoll1365 < 0.35) {
+        const newInv1365 = [...inv_1365, 'corona rota'];
+        db.updatePlayer(player.id, { inventory: JSON.stringify(newInv1365) });
+        const cr1365 = db.updateDailyChallengeProgress(player.id, 'forage', null);
+        let chalMsg1365 = '';
+        if (cr1365 && cr1365.reward) chalMsg1365 = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+        const fresh1365 = db.getPlayer(player.id);
+        const q1365 = quests.recordProgress(fresh1365, 'pick', { itemName: 'corona rota' });
+        if (q1365) db.updatePlayer(player.id, { quest_progress: q1365.questProgress });
+        // Guardar cooldown
+        forageData[roomKey] = now;
+        db.updatePlayer(player.id, { forage_data: JSON.stringify(forageData) });
+        return {
+          text: `Buscás entre las celdas de la Prisión, revisando la paja vieja y los rincones oscuros.\n🌿 ¡Encontrás: corona rota! Estaba casi oculta bajo paja vieja en una celda pequeña — una reliquia de un reino norteño que nadie se molestó en llevarse.\n\n👑 Con esta corona podés desactivar la trampa de frío de la Sala del Trono ANTES de entrar:\n   → Volvé al Túnel de los Hongos (sur del Corredor del Espectro) → escribí «desactivar trampa norte» para neutralizarla sin recibir daño.${chalMsg1365}`,
+          event: null,
+        };
+      }
+    }
   }
 
   let found = null;
