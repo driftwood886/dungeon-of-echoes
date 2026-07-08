@@ -2118,6 +2118,8 @@ function cmdMove(player, direction) {
       } catch (_) { /* no interrumpir */ }
     }
     explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +2 XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${newLevel === 5 && !freshExp.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.' : ''}${expAldricReminder}` : ''}`;
+    // EPIC-1373: Influencia de facción por exploración (nueva sala)
+    db.addFactionInfluence(player.id, 2);
   }
 
   // Construir respuesta
@@ -3960,6 +3962,12 @@ function cmdAttack(player, targetName) {
     } else if (wcr && wcr.contract && !wcr.contract.done) {
       contractMsg = `\n📜 Contrato semanal: ${wcr.contract.target} (${wcr.contract.progress}/${wcr.contract.goal})`;
     }
+  }
+
+  // ── EPIC-1373: Influencia de facción por kill ────────────────────────────
+  if (monsterDead) {
+    const factionKillPoints = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]) ? 5 : 1;
+    db.addFactionInfluence(player.id, factionKillPoints);
   }
 
   // ── Evaluar logros tras el combate ──────────────────────────────────────
@@ -9548,6 +9556,9 @@ function cmdBuy(player, itemQuery) {
   // T115: Trackear oro gastado para logro secreto Mecenas
   db.addGoldSpent(player.id, finalPrice);
 
+  // EPIC-1373: Influencia de facción por compra en tienda
+  db.addFactionInfluence(player.id, 1);
+
   // EPIC-MR-1079: Actualizar memoria de Aldric (purchases y gold_spent_at_aldric)
   {
     const memPlayer = db.getPlayer(player.id);
@@ -13582,6 +13593,11 @@ function cmdCast(player, args) {
       } else if (wcrCast && wcrCast.contract && !wcrCast.contract.done) {
         lines.push(`   📜 Contrato semanal: ${wcrCast.contract.target} (${wcrCast.contract.progress}/${wcrCast.contract.goal})`);
       }
+      // EPIC-1373: Influencia de facción por kill con hechizo
+      {
+        const factionSpellKillPoints = castBossKill ? 5 : 1;
+        db.addFactionInfluence(player.id, factionSpellKillPoints);
+      }
       // BUG-672: Completar tutorial si el goblin de práctica murió con un hechizo
       {
         const freshForCastTutorial = db.getPlayer(player.id);
@@ -15438,6 +15454,8 @@ function cmdUseSkill(player, args, context) {
       } else if (wcrSmash && wcrSmash.contract && !wcrSmash.contract.done) {
         text += `\n📜 Contrato semanal: ${wcrSmash.contract.target} (${wcrSmash.contract.progress}/${wcrSmash.contract.goal})`;
       }
+      // EPIC-1373: Influencia de facción por kill con smash
+      db.addFactionInfluence(freshPlayer.id, smashBossKill ? 5 : 1);
       if (crSmash && crSmash.reward) {
         text += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
       } else if (crSmash && crSmash.challenge && !crSmash.challenge.done) {
@@ -15764,6 +15782,8 @@ function cmdUseSkill(player, args, context) {
       } else if (wcrBash && wcrBash.contract && !wcrBash.contract.done) {
         text += `\n📜 Contrato semanal: ${wcrBash.contract.target} (${wcrBash.contract.progress}/${wcrBash.contract.goal})`;
       }
+      // EPIC-1373: Influencia de facción por kill con shield_bash
+      db.addFactionInfluence(freshPlayer.id, bashBossKill ? 5 : 1);
       if (crBash && crBash.reward) {
         text += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
       } else if (crBash && crBash.challenge && !crBash.challenge.done) {
@@ -18318,6 +18338,11 @@ function cmdReadWall(player) {
     // DIS-498: marcar visualmente inscripciones de bots con tono más tenue
     const prefix = isBot ? '  🤖' : '  ✍️';
     lines.push(`${prefix} ${m.player_name} [${date}]: ${m.message}`);
+  }
+
+  // EPIC-1373: Influencia de facción por leer inscripción
+  if (msgs.length > 0 || loreForRoom.length > 0) {
+    db.addFactionInfluence(player.id, 1);
   }
 
   return { text: lines.join('\n') };
