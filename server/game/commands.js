@@ -123,7 +123,9 @@ const COMMAND_ALIASES = {
   // decidir — resolución de decisión en expedición activa
   decidir: 'expedicion', decide: 'expedicion',
   // guild / hermandad
-  guild: 'guild', hermandad: 'guild', gremio: 'guild', clan: 'guild', faccion: 'guild', facción: 'guild',
+  guild: 'guild', hermandad: 'guild', gremio: 'guild', clan: 'guild',
+  // EPIC-1375: 'faccion' es su propio comando (no guild) — maneja elegir/cambiar/info
+  faccion: 'faccion', facción: 'faccion',
   facciones: 'facciones', facctions: 'facciones', guerra: 'facciones', influencia: 'facciones',  // EPIC-1374
   // guild quest — atajo directo
   'guild quest': 'guild', 'misión guild': 'guild', 'mision guild': 'guild',
@@ -468,6 +470,11 @@ function parse(input) {
       'crear clan':      { cmd: 'guild', skillId: 'create' },
       'crear faccion':   { cmd: 'guild', skillId: 'create' },
       'crear facción':   { cmd: 'guild', skillId: 'create' },
+      // EPIC-1375: faccion elegir / faccion cambiar — subcomandos de faccion
+      'faccion elegir':  { cmd: 'faccion', skillId: 'elegir' },
+      'facción elegir':  { cmd: 'faccion', skillId: 'elegir' },
+      'faccion cambiar': { cmd: 'faccion', skillId: 'cambiar' },
+      'facción cambiar': { cmd: 'faccion', skillId: 'cambiar' },
     };
     const mwMatch = MULTI_WORD_ALIASES[twoWord];
     if (mwMatch) {

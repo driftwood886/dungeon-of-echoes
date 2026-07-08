@@ -404,6 +404,7 @@ function execute(playerId, input, context) {
     case 'expedicion':        result = cmdExpedicion(player, action.args); break;
     case 'expediciones_list': result = cmdExpedicionesList(player); break;
     case 'guild':        result = cmdGuild(player, action.args); break;
+    case 'faccion':      result = cmdFaccion(player, action.args); break;        // EPIC-1375: elegir/cambiar facción
     case 'facciones':    result = cmdFacciones(player); break;            // EPIC-1374: pantalla de influencia semanal
     case 'gc':           result = cmdGuildChat(player, action.args); break;
     case 'duel':         result = cmdDuel(player, action.args.join(' ')); break;
@@ -3493,6 +3494,7 @@ function _cmdTrainingFight(player, monster) {
 function cmdAttack(player, targetName) {
   let _autoTargetHint = ''; // DIS-741: se llena cuando hay múltiples enemigos y se auto-selecciona
   let _inheritedItemMsg969 = ''; // T969: notificación de ítem heredado al llegar a nivel 3
+  let _factionInviteMsg = '';    // EPIC-1377: notificación de invitación a facciones al nivel 3
   if (!targetName || !targetName.trim()) {
     // DIS-D303: Si hay exactamente 1 monstruo en la sala, auto-apuntar a él
     const monstersInRoom = db.getMonstersInRoom(player.current_room_id);
@@ -4076,6 +4078,13 @@ function cmdAttack(player, targetName) {
               _inheritedItemMsg969 = `\n\n⚡ Algo stirred en tu memoria heredada. Tu predecesor dejó algo enterrado en ${itemRoomName969}. Llegaste al nivel 3 — ahora podés recuperarlo. Usá \`excavar\` allí.`;
             }
           }
+
+          // EPIC-1377: notificación narrativa de invitación a facciones (solo una vez por personaje)
+          const freshFor1377 = db.getPlayer(player.id);
+          if (!freshFor1377.faction_notified && !freshFor1377.faction) {
+            db.setFactionNotified(freshFor1377.id);
+            _factionInviteMsg = `\n\n📜 Un mensajero acaba de dejarte una nota en la entrada del dungeon.\n\n"Las facciones del dungeon han notado tu progreso, aventurero.\nLa Orden del Filo, el Cónclave Arcano y la Hermandad del Mercado\nte ofrecen membresía. Escribí 'facciones' para conocerlas."`;
+          }
         }
       }
     }
@@ -4516,7 +4525,7 @@ function cmdAttack(player, targetName) {
     }
   }
 
-  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + expeditionKillMsg;
+  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg;
 
   if (tutorialCompletionResult) {
     return {
@@ -10226,6 +10235,358 @@ function cmdFacciones(player) {
   lines.push(`╚══════════════════════════════════════════════════════╝`);
 
   return { text: lines.join('\n') };
+}
+
+// ─── EPIC-1375: Comando faccion elegir / faccion cambiar ───────────────────────
+
+/**
+ * DATOS DE FACCIONES: descripción narrativa, misiones ejemplo, ítems exclusivos.
+ * Estas son las 3 facciones fijas del dungeon.
+ */
+const FACTION_LORE = {
+  orden_filo: {
+    id: 'orden_filo',
+    name: 'La Orden del Filo',
+    icon: '🗡️',
+    tagline: 'El acero habla más fuerte que cualquier palabra.',
+    description:
+      'La Orden del Filo lleva décadas controlando este dungeon por la fuerza bruta.\n' +
+      'Guerreros, mercenarios y cazarrecompensas que creen que quien más mata, más merece.\n' +
+      'Si entrás a un nivel nuevo, ellos ya limpias las salas antes de que llegues.',
+    playstyle: 'Orientada al combate. Matar monstruos genera influencia directamente.',
+    bonuses: 'Bosses dropean doble loot · Monstruos +20% XP cuando tu facción controla',
+    missions: [
+      '⚔️  "Purgar la Sala de los Ecos" — Matar 15 monstruos esta semana',
+      '💀  "El Contador de Calaveras" — Ser el jugador con más kills en 48h',
+      '🏆  "Duelo por la Orden" — Ganar un duelo PvP en nombre de la Orden',
+    ],
+    exclusive_items: [
+      '🗡️  Escarapela de la Orden (cosmético — muestra rango en el dungeon)',
+      '⚔️  Acceso a desafíos de combate de élite (próximamente)',
+    ],
+  },
+  conclave_arcano: {
+    id: 'conclave_arcano',
+    name: 'El Cónclave Arcano',
+    icon: '🔮',
+    tagline: 'Cada sala es un texto. Cada monstruo, un capítulo.',
+    description:
+      'El Cónclave Arcano llegó al dungeon a estudiar sus anomalías. No matás por matar:\n' +
+      'explorás, lees inscripciones, investigás el lore de Kaelthas Vorn.\n' +
+      'Son pacientes, metódicos, y están convencidos de que el dungeon oculta algo mucho más grande.',
+    playstyle: 'Orientada a exploración y conocimiento. Leer inscripciones, descubrir salas y completar quests de lore genera influencia.',
+    bonuses: 'Crafteo sin costo secundario · Hechizos +15% daño cuando tu facción controla',
+    missions: [
+      '📜  "Investigación de campo" — Leer 5 inscripciones de lore esta semana',
+      '🗺️  "Cartografía del abismo" — Explorar 3 salas nunca antes visitadas',
+      '🔍  "El archivo de Kaelthas" — Completar la quest del arco de Kaelthas',
+    ],
+    exclusive_items: [
+      '🔮  Pergamino del Cónclave (cosmético — título en el leaderboard)',
+      '📚  Acceso al archivo de lore secreto del dungeon (próximamente)',
+    ],
+  },
+  hermandad_mercado: {
+    id: 'hermandad_mercado',
+    name: 'La Hermandad del Mercado',
+    icon: '🪙',
+    tagline: 'Todo tiene precio. Todo tiene comprador.',
+    description:
+      'La Hermandad del Mercado no lucha por el dungeon: lo *compra*.\n' +
+      'Comerciantes, pícaros y especuladores que controlan el flujo de oro.\n' +
+      'Mientras los demás pelean, ellos venden el loot a los dos bandos.',
+    playstyle: 'Orientada a la economía. Comerciar, vender en la subasta y acumular oro genera influencia.',
+    bonuses: 'Subasta sin comisión · Tienda 10% descuento cuando tu facción controla',
+    missions: [
+      '🪙  "Flujo de capital" — Completar 3 transacciones en la subasta esta semana',
+      '💰  "El gran proveedor" — Vender ítems por un total de 500g',
+      '🤝  "Socio de la Hermandad" — Hacer intercambio directo con otro jugador',
+    ],
+    exclusive_items: [
+      '🪙  Sello de la Hermandad (cosmético — descuento especial en tienda Aldric)',
+      '💼  Acceso al mercado negro del dungeon (próximamente)',
+    ],
+  },
+};
+
+/**
+ * cmdFaccion — maneja subcomandos: elegir, cambiar, info
+ * Routing: faccion elegir <nombre> | faccion cambiar <nombre> | faccion (sin args)
+ */
+function cmdFaccion(player, args) {
+  player = db.getPlayer(player.id);
+
+  if (!args || args.length === 0) {
+    // Sin args — mostrar info general
+    if (player.faction) {
+      const lore = FACTION_LORE[player.faction];
+      const display = lore ? `${lore.icon} ${lore.name}` : player.faction;
+      return { text: `Pertenecés a ${display}.\n\nComandos disponibles:\n  faccion elegir <nombre>  — elegir/cambiar facción\n  faccion cambiar <nombre> — cambiar facción (100g + cooldown 7 días)\n  facciones                — ver influencia semanal\n\nFacciones disponibles: orden_filo, conclave_arcano, hermandad_mercado` };
+    }
+    return { text: `No tenés facción. Elegí una con: faccion elegir <nombre>\n\nFacciones disponibles:\n  🗡️  orden_filo        — La Orden del Filo (combate)\n  🔮  conclave_arcano  — El Cónclave Arcano (exploración)\n  🪙  hermandad_mercado — La Hermandad del Mercado (economía)\n\n(Disponible en nivel 3+)` };
+  }
+
+  const sub = args[0].toLowerCase();
+  const nameArg = args.slice(1).join(' ').trim().toLowerCase().replace(/\s+/g, '_');
+
+  // ── faccion elegir <nombre> ─────────────────────────────────────────────────
+  if (sub === 'elegir') {
+    return _cmdFaccionElegir(player, args.slice(1));
+  }
+
+  // ── faccion cambiar <nombre> ────────────────────────────────────────────────
+  if (sub === 'cambiar') {
+    return _cmdFaccionCambiar(player, args.slice(1));
+  }
+
+  // ── faccion info <nombre> ───────────────────────────────────────────────────
+  if (sub === 'info') {
+    const fid = nameArg || null;
+    if (!fid) {
+      return { text: 'Usá: faccion info <nombre>\nNombres: orden_filo, conclave_arcano, hermandad_mercado' };
+    }
+    const lore = FACTION_LORE[fid];
+    if (!lore) {
+      return { text: `Facción desconocida: "${fid}"\nFacciones disponibles: orden_filo, conclave_arcano, hermandad_mercado` };
+    }
+    return { text: _buildFactionCard(lore, false) };
+  }
+
+  return { text: 'Usá: faccion elegir <nombre> | faccion cambiar <nombre> | faccion info <nombre>\n\nNombres de facción: orden_filo, conclave_arcano, hermandad_mercado' };
+}
+
+/**
+ * Construye la tarjeta de descripción de una facción.
+ * showConfirmHint: si mostrar el hint de confirmación al final.
+ */
+function _buildFactionCard(lore, showConfirmHint = true) {
+  const lines = [];
+  lines.push(`╔══════════════════════════════════════════════════════╗`);
+  lines.push(`║  ${lore.icon}  ${lore.name.padEnd(49)}║`);
+  lines.push(`╠══════════════════════════════════════════════════════╣`);
+  lines.push(`║  "${lore.tagline.substring(0, 50).padEnd(50)}"  ║`);
+  lines.push(`╟──────────────────────────────────────────────────────╢`);
+
+  // Descripción (máx 54 chars por línea)
+  const descWords = lore.description.split('\n');
+  for (const line of descWords) {
+    // Wrap en 52 chars
+    const wrapped = _wrapText(line, 52);
+    for (const wl of wrapped) {
+      lines.push(`║  ${wl.padEnd(52)}║`);
+    }
+  }
+
+  lines.push(`╟──────────────────────────────────────────────────────╢`);
+  lines.push(`║  Playstyle: ${lore.playstyle.substring(0, 43).padEnd(43)}║`);
+  lines.push(`║  Bonus activo: ${lore.bonuses.substring(0, 40).padEnd(40)}║`);
+
+  lines.push(`╟──────────────────────────────────────────────────────╢`);
+  lines.push(`║  📋 Misiones de facción:                             ║`);
+  for (const m of lore.missions) {
+    const mShort = m.substring(0, 52);
+    lines.push(`║  ${mShort.padEnd(52)}║`);
+  }
+
+  lines.push(`╟──────────────────────────────────────────────────────╢`);
+  lines.push(`║  🎁 Beneficios exclusivos:                           ║`);
+  for (const item of lore.exclusive_items) {
+    const iShort = item.substring(0, 52);
+    lines.push(`║  ${iShort.padEnd(52)}║`);
+  }
+
+  if (showConfirmHint) {
+    lines.push(`╟──────────────────────────────────────────────────────╢`);
+    lines.push(`║  ¿Querés unirte? Escribí:                            ║`);
+    lines.push(`║    faccion elegir ${lore.id.padEnd(36)}║`);
+    lines.push(`║  O cancelá y explorá otras opciones.                 ║`);
+  }
+
+  lines.push(`╚══════════════════════════════════════════════════════╝`);
+  return lines.join('\n');
+}
+
+/**
+ * Ajusta texto largo en líneas de maxWidth chars.
+ */
+function _wrapText(text, maxWidth) {
+  if (text.length <= maxWidth) return [text];
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  for (const w of words) {
+    if ((current + ' ' + w).trim().length <= maxWidth) {
+      current = (current + ' ' + w).trim();
+    } else {
+      if (current) lines.push(current);
+      current = w;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+/**
+ * Normaliza el nombre de facción ingresado por el jugador.
+ * Acepta: "orden del filo", "orden_filo", "orden", "filo", etc.
+ */
+function _normalizeFactionId(input) {
+  if (!input) return null;
+  const s = input.toLowerCase().replace(/\s+/g, '_').replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u');
+  // Mapeo flexible
+  if (s === 'orden_filo' || s === 'orden' || s === 'filo' || s === 'la_orden_del_filo' || s === 'orden_del_filo') return 'orden_filo';
+  if (s === 'conclave_arcano' || s === 'conclave' || s === 'arcano' || s === 'cónclave' || s === 'conclave_arcano' || s === 'el_conclave_arcano') return 'conclave_arcano';
+  if (s === 'hermandad_mercado' || s === 'hermandad' || s === 'mercado' || s === 'la_hermandad_del_mercado' || s === 'hermandad_del_mercado') return 'hermandad_mercado';
+  return null;
+}
+
+/**
+ * Handler para `faccion elegir <nombre>` y `faccion elegir <nombre> confirmar`
+ */
+function _cmdFaccionElegir(player, args) {
+  // Verificar nivel 3+
+  if ((player.level || 1) < 3) {
+    return { text: '⚔️ Las facciones del dungeon solo aceptan aventureros con experiencia probada (nivel 3+).\n\nSeguí explorando — el dungeon tiene más secretos que revelar.' };
+  }
+
+  // Sin args → listar facciones
+  if (!args || args.length === 0) {
+    const lines = [
+      '¿A qué facción querés unirte?\n',
+      '  🗡️  orden_filo        — La Orden del Filo (combate)',
+      '  🔮  conclave_arcano  — El Cónclave Arcano (exploración)',
+      '  🪙  hermandad_mercado — La Hermandad del Mercado (economía)\n',
+      'Para ver descripción completa: faccion elegir <nombre>',
+      'Para unirte directamente:      faccion elegir <nombre> confirmar',
+    ];
+    return { text: lines.join('\n') };
+  }
+
+  // Detectar si hay "confirmar" al final
+  const hasConfirm = args[args.length - 1].toLowerCase() === 'confirmar';
+  const nameArgs = hasConfirm ? args.slice(0, -1) : args;
+  const factionId = _normalizeFactionId(nameArgs.join(' '));
+
+  if (!factionId) {
+    return { text: `No reconozco esa facción: "${nameArgs.join(' ')}"\n\nFacciones válidas:\n  orden_filo, conclave_arcano, hermandad_mercado` };
+  }
+
+  const lore = FACTION_LORE[factionId];
+
+  // Si ya tiene esa misma facción
+  if (player.faction === factionId) {
+    return { text: `${lore.icon} Ya sos miembro de ${lore.name}. ¡Seguí acumulando influencia!\n\nUsá "facciones" para ver el estado semanal.` };
+  }
+
+  // Si ya tiene otra facción → redirigir a cambiar
+  if (player.faction) {
+    const currentLore = FACTION_LORE[player.faction];
+    const currentDisplay = currentLore ? `${currentLore.icon} ${currentLore.name}` : player.faction;
+    return {
+      text: `Ya sos miembro de ${currentDisplay}.\n\nPara cambiarte a ${lore.icon} ${lore.name}, usá:\n  faccion cambiar ${factionId}\n\n⚠️  El cambio tiene un costo de 100g y un cooldown de 7 días.`,
+    };
+  }
+
+  // Sin confirmación → mostrar tarjeta y pedir confirmación
+  if (!hasConfirm) {
+    const card = _buildFactionCard(lore, false);
+    return {
+      text: card + `\n\n¿Querés unirte a ${lore.icon} ${lore.name}?\nEscribí: faccion elegir ${factionId} confirmar\n(o explorá otras opciones con: faccion elegir <nombre>)`,
+    };
+  }
+
+  // ── CON confirmación: unirse a la facción ─────────────────────────────────
+  db.setPlayerFaction(player.id, factionId);
+
+  // Mensaje narrativo de bienvenida según facción
+  const WELCOME_MSGS = {
+    orden_filo:
+      '🗡️ Un heraldo con armadura de acero negro te hace señas desde la entrada del dungeon.\n\n"Bienvenido a la Orden del Filo."\n\nNo hay ceremonias. No hay juramentos. Solo un apretón de manos y una mirada que dice: *demuéstralo en combate.*\n\n"El dungeon es nuestro porque nosotros lo tomamos. Así de simple."\n\nEstás adentro.',
+    conclave_arcano:
+      '🔮 Una figura con túnica azul se materializa en el corredor — casi sin hacer ruido.\n\n"El Cónclave te ha estado observando. Esperábamos que llegaras a este nivel."\n\nTe entrega un pergamino doblado. Adentro hay un mapa parcial del dungeon, con anotaciones en un idioma que casi entendés.\n\n"El conocimiento es la única arma que no se oxida. Bienvenido."\n\nEstás adentro.',
+    hermandad_mercado:
+      '🪙 Un tipo con capa marrón y bolsa de monedas que tintiinea aparece a tu lado.\n\n"Sabía que eras listo." Una sonrisa. "La Hermandad tiene ojo para los buenos inversores."\n\nTe pasa una moneda de oro con el sello de la Hermandad.\n\n"Guardala. La próxima vez que Aldric te cobre de más, mostrásela. Ya sabe lo que significa."\n\nEstás adentro.',
+  };
+
+  const welcomeMsg = WELCOME_MSGS[factionId] || `Te uniste a ${lore.icon} ${lore.name}.`;
+
+  return {
+    text: `${welcomeMsg}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.\n\nCada acción tuya en el dungeon acumula influencia para tu facción. Usá "facciones" para ver el estado semanal.`,
+  };
+}
+
+/**
+ * Handler para `faccion cambiar <nombre>` y `faccion cambiar <nombre> confirmar`
+ * Costo: 100g + pérdida de misión activa de facción + cooldown 7 días.
+ */
+function _cmdFaccionCambiar(player, args) {
+  // Verificar nivel 3+
+  if ((player.level || 1) < 3) {
+    return { text: '⚔️ Las facciones del dungeon solo aceptan aventureros con experiencia probada (nivel 3+).' };
+  }
+
+  // Sin facción actual → redirigir a elegir
+  if (!player.faction) {
+    return { text: 'No tenés facción aún. Usá:\n  faccion elegir <nombre>' };
+  }
+
+  if (!args || args.length === 0) {
+    return { text: 'Usá: faccion cambiar <nombre>\n\nFacciones: orden_filo, conclave_arcano, hermandad_mercado' };
+  }
+
+  const hasConfirm = args[args.length - 1].toLowerCase() === 'confirmar';
+  const nameArgs = hasConfirm ? args.slice(0, -1) : args;
+  const newFactionId = _normalizeFactionId(nameArgs.join(' '));
+
+  if (!newFactionId) {
+    return { text: `No reconozco esa facción: "${nameArgs.join(' ')}"\n\nFacciones válidas: orden_filo, conclave_arcano, hermandad_mercado` };
+  }
+
+  if (player.faction === newFactionId) {
+    const lore = FACTION_LORE[newFactionId];
+    return { text: `${lore ? lore.icon : ''} Ya sos miembro de ${lore ? lore.name : newFactionId}. No necesitás cambiarte.` };
+  }
+
+  const newLore = FACTION_LORE[newFactionId];
+  const currentLore = FACTION_LORE[player.faction];
+
+  // Verificar cooldown de 7 días
+  if (player.faction_changed_at) {
+    const lastChange = new Date(player.faction_changed_at);
+    const now = new Date();
+    const diffDays = (now - lastChange) / (1000 * 60 * 60 * 24);
+    if (diffDays < 7) {
+      const daysLeft = Math.ceil(7 - diffDays);
+      return { text: `⏳ Cambiaste de facción hace menos de 7 días.\n\nPodés volver a cambiar en ${daysLeft} día${daysLeft !== 1 ? 's' : ''}.\n\n(Cooldown de 7 días — para que la elección tenga peso.)` };
+    }
+  }
+
+  // Verificar 100g
+  const gold = player.gold || 0;
+  if (gold < 100) {
+    return { text: `💰 Necesitás 100 monedas de oro para cambiar de facción. Tenés ${gold}g.\n\nFarmeá un poco más y volvé.` };
+  }
+
+  // Sin confirmación → mostrar warning
+  if (!hasConfirm) {
+    const currentDisplay = currentLore ? `${currentLore.icon} ${currentLore.name}` : player.faction;
+    const newDisplay = newLore ? `${newLore.icon} ${newLore.name}` : newFactionId;
+    return {
+      text: `⚠️  Cambiar de facción tiene un costo:\n\n  - 100 monedas de oro (tenés ${gold}g)\n  - Perderás tu misión de facción activa\n  - No podrás cambiar de facción por 7 días\n\nDe: ${currentDisplay}\nA:  ${newDisplay}\n\n¿Confirmar? Escribí:\n  faccion cambiar ${newFactionId} confirmar`,
+    };
+  }
+
+  // ── CON confirmación: aplicar el cambio ────────────────────────────────────
+  db.updatePlayer(player.id, { gold: gold - 100 });
+  db.setPlayerFaction(player.id, newFactionId);
+  db.recordFactionChange(player.id);
+
+  const currentDisplay = currentLore ? `${currentLore.icon} ${currentLore.name}` : player.faction;
+  const newDisplay = newLore ? `${newLore.icon} ${newLore.name}` : newFactionId;
+
+  return {
+    text: `✅ Cambiaste de facción.\n\n  De: ${currentDisplay}\n  A:  ${newDisplay}\n\n💰 Se descontaron 100g. Oro restante: ${gold - 100}g.\n\nTu progreso de misión de facción se perdió. Los próximos 7 días no podés cambiar de nuevo.\n\n"${newLore ? newLore.tagline : 'Bienvenido.'}"`,
+  };
 }
 
 function cmdGuild(player, args) {
