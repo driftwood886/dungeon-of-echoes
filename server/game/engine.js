@@ -1106,7 +1106,7 @@ function cmdLook(player) {
             // DIS-1257: en sala 13 (Caverna Sumergida), mencionar dónde conseguir el ítem de desactivación
             // DIS-1342: aclarar la circularidad — la red se consigue dentro de la sala misma (o en tienda de Aldric)
             if (destId === 13) {
-              trapMsg += ` 💡 Consejo: la primera visita siempre activa el daño. Entrá, usá "buscar" para encontrar la red de pesca (45% de chance) y la próxima vez podés desactivarla antes de entrar. Alternativa: comprá la red de pesca en la tienda de Aldric (sala 4, 15g).`;
+              trapMsg += ` 💡 Consejo: Al entrar hay 45% de chance de encontrar la red instintivamente (sin daño). Si no la encontrás, el agua solo te moja (2 HP). Con la red podés desactivar la trampa antes de entrar. Alternativa: comprá la red de pesca en la tienda de Aldric (sala 4, 15g).`;
             }
             trapLines.push(trapMsg);
           }
@@ -1565,6 +1565,45 @@ function cmdMove(player, direction) {
               db.updateRoomTrap(destRoomForTrapNB.id, newTrapNB);
               noBossTrapText = `\n\n🌿 ¡Detectás la trampa antes de que explote! Usás tu «${nbDisarmItemName}» para neutralizarla.\n✅ La trampa queda desactivada. (El ${nbDisarmItemName} fue consumido.)\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.`;
             } else {
+            // DIS-1357: sala 13 (Caverna Sumergida) — gracia de supervivencia en primera visita
+            // Si el jugador no tiene la red, intenta una búsqueda instintiva automática (45% chance).
+            // Si la encuentra: desactiva sin daño. Si no: daño reducido (2 HP) para no matar jugadores débiles.
+            let caverna_gracia_activada = false;
+            if (destId === 13) {
+              if (Math.random() < 0.45) {
+                // Encontró la red instintivamente — desactiva
+                const nbNewInvGracia = [...(nbFresh.inventory || []), 'red de pesca'];
+                const nbDisarmIdxGracia = nbNewInvGracia.findIndex(i => i.toLowerCase().trim() === 'red de pesca');
+                if (nbDisarmIdxGracia !== -1) nbNewInvGracia.splice(nbDisarmIdxGracia, 1);
+                const nbUpdatedKTGracia = { ...nbKnownTraps, [destId]: true };
+                const newTrapGracia = { ...nbTrap, active: false, respawn_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() };
+                db.updatePlayer(nbFresh.id, { known_traps: JSON.stringify(nbUpdatedKTGracia) });
+                db.updateRoomTrap(destRoomForTrapNB.id, newTrapGracia);
+                noBossTrapText = `\n\n💧 Un sonido de agua en movimiento llega desde las paredes. Demasiado rápido para ser natural.\n\n⚡ ¡INSTINTO! Ves una red de pesca colgada en la pared — la arrancás y tapás los conductos JUSTO A TIEMPO.\n✅ Trampa de inundación desactivada. (Quedó bloqueada, la red fue consumida.)\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.\n💡 Si la trampa se reactiva, comprá otra red en la tienda de Aldric (sala 4, 15g) o usá \"buscar\" aquí.`;
+                caverna_gracia_activada = true;
+              } else {
+                // No encontró la red — daño de gracia (2 HP) en lugar del completo (6-8)
+                const graciaHp = Math.max(0, nbFresh.hp - 2);
+                const nbUpdatedKTGracia = { ...nbKnownTraps, [destId]: true };
+                const nbUpdatedSEGracia = { ...nbStatusEff, [nbTrapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
+                db.updatePlayer(nbFresh.id, { hp: graciaHp, status_effects: JSON.stringify(nbUpdatedSEGracia), known_traps: JSON.stringify(nbUpdatedKTGracia) });
+                noBossTrapText = `\n\n💧 Un sonido de agua en movimiento llega desde las paredes. Demasiado rápido para ser natural.\n\n⚠️  ¡TRAMPA DE INUNDACIÓN! Una ola de agua te golpea al entrar — alcanzás a aferrarte a una saliente.\n💥 Perdés 2 HP de salpicadura. (${graciaHp}/${nbFresh.max_hp} HP)\n\n🔴 El agua sigue subiendo. ¡BUSCÁ LA RED AHORA antes de que sea demasiado tarde!\n   → Escribí \"buscar\" para intentar encontrar la red (45% de chance)\n   → O comprá una en la tienda de Aldric (sala 4, 15g)\n   → Con la red en mano, podés escribir \"desactivar trampa\" para bloquear los conductos.\n🧠 (Si salís sin la red, el daño completo ocurrirá en la próxima visita: 6-8 HP)`;
+                if (graciaHp === 0) {
+                  const trapDeathGraciaLines = [];
+                  const trapDeathGraciaResult = combat.handlePlayerDeath(nbFresh.id, trapDeathGraciaLines, `trampa en sala ${destId}`);
+                  if (!trapDeathGraciaResult.autoResurrected) {
+                    const afterDeathGracia = db.getPlayer(nbFresh.id);
+                    if (afterDeathGracia && afterDeathGracia.fallen !== 1 && afterDeathGracia.current_room_id !== 1) {
+                      db.updatePlayer(nbFresh.id, { hp: afterDeathGracia.max_hp || 30, current_room_id: 1 });
+                    }
+                    noBossTrapText += '\n☠️  Has muerto a causa de la trampa. Renacés en la Entrada.';
+                  }
+                  if (trapDeathGraciaLines.length > 0) noBossTrapText += '\n' + trapDeathGraciaLines.join('\n');
+                }
+                caverna_gracia_activada = true;
+              }
+            }
+            if (!caverna_gracia_activada) {
             // Primera vez: activar trampa, guardar conocimiento
             const TRAP_ATMOSPHERE_NB = {
               6:  '👃 Algo en el aire te hace cosquillear la nariz — un olor acre y punzante, como esporas que no deberían estar aquí en esta concentración.',
@@ -1582,7 +1621,7 @@ function cmdMove(player, direction) {
               6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa hacia el Túnel, podés escribir "desactivar trampa <dir>" desde la sala anterior para desactivarla sin entrar.\n⚠️  Al norte del Túnel está la Sala del Trono — también tiene una trampa de frío (primera visita). Si pasás por la Prisión (sala 8, volviendo al Pozo), hay una "corona rota" abandonada en las celdas que la desactiva. DIS-1033',
               9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de tres formas: (1) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, (2) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (3) buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
               3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).\n🧠 Próxima vez que veas el hint de trampa al oeste, podés escribir "desactivar trampa oeste" antes de entrar.',
-              13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Usá "buscar" en esta sala (45% de chance) o comprala en la tienda de Aldric (sala 4, 15g). La primera visita siempre activa el daño, pero una vez que tenés la red, podés desactivarla antes de entrar.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
+              13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Usá "buscar" en esta sala (45% de chance) o comprala en la tienda de Aldric (sala 4, 15g). Con la red en mano podés desactivarla antes de entrar (o la próxima vez usar instinto para encontrarla al llegar).\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
             };
             const nbDisarmHint = TRAP_DISARM_HINT_NB[destId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
             const nbAtmoPrefix = nbAtmo ? `\n\n${nbAtmo}` : '';
@@ -1599,6 +1638,7 @@ function cmdMove(player, direction) {
               }
               if (trapDeathNBLines.length > 0) noBossTrapText += '\n' + trapDeathNBLines.join('\n');
             }
+            } // cierra if (!caverna_gracia_activada)
             } // cierra else de nbHasDisarmItem (DIS-1171)
           }
         }
@@ -1721,6 +1761,26 @@ function cmdMove(player, direction) {
               db.updateRoomTrap(destRoomForTrap.id, newTrapBFH);
               bossFullHpTrapText = `\n\n🌿 ¡Detectás la trampa antes de que explote! Usás tu «${bfhDisarmItemName}» para neutralizarla.\n✅ La trampa queda desactivada. (El ${bfhDisarmItemName} fue consumido.)\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.`;
             } else {
+            // DIS-1357: sala 13 gracia también en path bossAtFullHp
+            let caverna_gracia_bfh = false;
+            if (destId === 13) {
+              if (Math.random() < 0.45) {
+                const bfhUpdatedKTGracia = { ...(bfhFresh.known_traps || {}), [destId]: true };
+                const newTrapBFHGracia = { ...bfhTrap, active: false, respawn_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() };
+                db.updatePlayer(bfhFresh.id, { known_traps: JSON.stringify(bfhUpdatedKTGracia) });
+                db.updateRoomTrap(destRoomForTrap.id, newTrapBFHGracia);
+                bossFullHpTrapText = `\n\n💧 Un sonido de agua en movimiento llega desde las paredes. Demasiado rápido para ser natural.\n\n⚡ ¡INSTINTO! Ves una red de pesca colgada en la pared — la arrancás y tapás los conductos JUSTO A TIEMPO.\n✅ Trampa de inundación desactivada. (Quedó bloqueada, la red fue consumida.)\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.`;
+                caverna_gracia_bfh = true;
+              } else {
+                const graciaHpBfh = Math.max(0, bfhFresh.hp - 2);
+                const bfhUpdatedKTGracia = { ...(bfhFresh.known_traps || {}), [destId]: true };
+                const bfhUpdatedSEGracia = { ...(bfhFresh.status_effects || {}), [bfhTrapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
+                db.updatePlayer(bfhFresh.id, { hp: graciaHpBfh, status_effects: JSON.stringify(bfhUpdatedSEGracia), known_traps: JSON.stringify(bfhUpdatedKTGracia) });
+                bossFullHpTrapText = `\n\n💧 Un sonido de agua en movimiento llega desde las paredes. Demasiado rápido para ser natural.\n\n⚠️  ¡TRAMPA DE INUNDACIÓN! Una ola de agua te golpea al entrar — alcanzás a aferrarte a una saliente.\n💥 Perdés 2 HP de salpicadura. (${graciaHpBfh}/${bfhFresh.max_hp} HP)\n\n🔴 El agua sigue subiendo. ¡BUSCÁ LA RED AHORA!\n   → Escribí "buscar" para intentar encontrar la red (45% de chance)\n   → O comprá una en la tienda de Aldric (sala 4, 15g)`;
+                caverna_gracia_bfh = true;
+              }
+            }
+            if (!caverna_gracia_bfh) {
             const TRAP_ATMOSPHERE_BFH = {
               6:  '👃 Algo en el aire te hace cosquillear la nariz — un olor acre y punzante, como esporas que no deberían estar aquí en esta concentración.',
               9:  '🥶 Un frío antinatural te golpea antes de que tus ojos puedan adaptarse a la oscuridad de la sala.',
@@ -1734,11 +1794,12 @@ function cmdMove(player, direction) {
             const bfhUpdatedSE = { ...(bfhFresh.status_effects || {}), [bfhTrapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
             db.updatePlayer(bfhFresh.id, { hp: bfhNewHp, status_effects: JSON.stringify(bfhUpdatedSE), known_traps: JSON.stringify(bfhUpdatedKT) });
             const TRAP_DISARM_HINT_BFH = {
-              13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Usá "buscar" en esta sala (45% de chance) o comprala en la tienda de Aldric (sala 4, 15g). La primera visita siempre activa el daño, pero una vez que tenés la red, podés desactivarla antes de entrar.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
+              13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Usá "buscar" en esta sala (45% de chance) o comprala en la tienda de Aldric (sala 4, 15g). Con la red en mano podés desactivarla antes de entrar (o la próxima vez usar instinto para encontrarla al llegar).\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
             };
             const bfhDisarmHint = TRAP_DISARM_HINT_BFH[destId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
             const bfhAtmoPrefix = bfhAtmo ? `\n\n${bfhAtmo}` : '';
             bossFullHpTrapText = `${bfhAtmoPrefix}\n\n⚠️  ¡TRAMPA! ${bfhTrap.description}\n💥 Perdés ${bfhVarDmg} HP. (${bfhNewHp}/${bfhFresh.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).\n${bfhDisarmHint}`;
+            } // cierra if (!caverna_gracia_bfh)
             } // cierra else de bfhHasDisarmItem (DIS-1171)
           }
         }
@@ -2034,6 +2095,44 @@ function cmdMove(player, direction) {
         trapText = `\n\n🌿 ¡Detectás la trampa antes de que explote! Usás tu «${disarmItem}» para neutralizarla.\n✅ La trampa queda desactivada. (El ${disarmItem} fue consumido.)\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.`;
         trapWasAvoided = true; // no aplicar debuff de sala
       } else {
+      // DIS-1357: sala 13 (Caverna Sumergida) — gracia de supervivencia en primera visita (path normal)
+      let caverna_gracia_main = false;
+      if (targetId === 13) {
+        if (Math.random() < 0.45) {
+          // Encontró la red instintivamente — desactiva sin daño
+          const updatedKTGraciaMain = { ...(player.known_traps || {}), [targetId]: true };
+          const newTrapGraciaMain = { ...trap, active: false, respawn_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() };
+          db.updatePlayer(player.id, { known_traps: JSON.stringify(updatedKTGraciaMain) });
+          db.updateRoomTrap(targetRoomFull.id, newTrapGraciaMain);
+          trapText = `\n\n💧 Un sonido de agua en movimiento llega desde las paredes. Demasiado rápido para ser natural.\n\n⚡ ¡INSTINTO! Ves una red de pesca colgada en la pared — la arrancás y tapás los conductos JUSTO A TIEMPO.\n✅ Trampa de inundación desactivada. (Quedó bloqueada, la red fue consumida.)\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.\n💡 Si la trampa se reactiva, comprá otra red en la tienda de Aldric (sala 4, 15g) o usá "buscar" aquí.`;
+          trapWasAvoided = true;
+          caverna_gracia_main = true;
+        } else {
+          // Daño de gracia (2 HP) — el agua te moja pero no te ahoga
+          player = db.getPlayer(player.id);
+          const graciaHpMain = Math.max(0, player.hp - 2);
+          const updatedKTGraciaMain = { ...(player.known_traps || {}), [targetId]: true };
+          const updatedSEGraciaMain = { ...parseSE(player.status_effects), [trapCdKey]: new Date(Date.now() + 1800 * 1000).toISOString() };
+          db.updatePlayer(player.id, { hp: graciaHpMain, status_effects: JSON.stringify(updatedSEGraciaMain), known_traps: JSON.stringify(updatedKTGraciaMain) });
+          trapText = `\n\n💧 Un sonido de agua en movimiento llega desde las paredes. Demasiado rápido para ser natural.\n\n⚠️  ¡TRAMPA DE INUNDACIÓN! Una ola de agua te golpea al entrar — alcanzás a aferrarte a una saliente.\n💥 Perdés 2 HP de salpicadura. (${graciaHpMain}/${player.max_hp} HP)\n\n🔴 El agua sigue subiendo. ¡BUSCÁ LA RED AHORA antes de que sea demasiado tarde!\n   → Escribí "buscar" para intentar encontrar la red (45% de chance)\n   → O comprá una en la tienda de Aldric (sala 4, 15g)\n   → Con la red en mano, podés escribir "desactivar trampa" para bloquear los conductos.\n🧠 (Si salís sin la red, el daño completo ocurrirá en la próxima visita: 6-8 HP)`;
+          if (graciaHpMain === 0) {
+            const trapDeathGraciaMainLines = [];
+            const trapDeathGraciaMainResult = combat.handlePlayerDeath(player.id, trapDeathGraciaMainLines, `trampa en sala ${targetId}`);
+            if (trapDeathGraciaMainResult.autoResurrected) {
+              if (trapDeathGraciaMainLines.length > 0) trapText += '\n' + trapDeathGraciaMainLines.join('\n');
+            } else {
+              const afterDeathGraciaMain = db.getPlayer(player.id);
+              if (afterDeathGraciaMain && afterDeathGraciaMain.fallen !== 1 && afterDeathGraciaMain.current_room_id !== 1) {
+                db.updatePlayer(player.id, { hp: afterDeathGraciaMain.max_hp || 30, current_room_id: 1 });
+              }
+              trapText += '\n☠️  Has muerto a causa de la trampa. Renacés en la Entrada.';
+              if (trapDeathGraciaMainLines.length > 0) trapText += '\n' + trapDeathGraciaMainLines.join('\n');
+            }
+          }
+          caverna_gracia_main = true;
+        }
+      }
+      if (!caverna_gracia_main) {
       // DIS-451: línea atmosférica de advertencia antes de activar la trampa (pista implícita)
       const TRAP_ATMOSPHERE = {
         6:  '👃 Algo en el aire te hace cosquillear la nariz — un olor acre y punzante, como esporas que no deberían estar aquí en esta concentración.',
@@ -2060,7 +2159,7 @@ function cmdMove(player, direction) {
         6:  '💡 Para desactivarla: un "hongo azul" neutraliza las esporas. Podés buscar uno en esta misma sala (intentá "buscar"), o descansando en la Galería de Hielo más adelante.\n🧠 Próxima vez que veas el hint de trampa hacia el Túnel, podés escribir "desactivar trampa <dir>" desde la sala anterior para desactivarla sin entrar.\n⚠️  Al norte del Túnel está la Sala del Trono — también tiene una trampa de frío (primera visita). Si pasás por la Prisión (sala 8, volviendo al Pozo), hay una "corona rota" abandonada en las celdas que la desactiva. DIS-1033',
         9:  '💡 Para desactivarla: una "corona rota" como ofrenda al trono disipa el frío. Podés conseguirla de tres formas: (1) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, (2) derrota al Espectro del Corredor en esta sala — la droppea como loot, o (3) buscá en esta sala (intentá "buscar").\n🧠 Próxima vez que veas el hint de trampa en la Sala del Trono, podés escribir "desactivar trampa <dir>" antes de entrar.',
         3:  '💡 Para desactivarla: una "cuerda" bloquea el mecanismo. Revisá el Pozo Sin Fondo (sala oeste del Corredor).\n🧠 Próxima vez que veas el hint de trampa al oeste, podés escribir "desactivar trampa oeste" antes de entrar.',
-        13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Usá "buscar" en esta sala (45% de chance) o comprala en la tienda de Aldric (sala 4, 15g). La primera visita siempre activa el daño, pero una vez que tenés la red, podés desactivarla antes de entrar.\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
+        13: '💡 Para desactivarla: una "red de pesca" bloquea los conductos. Usá "buscar" en esta sala (45% de chance) o comprala en la tienda de Aldric (sala 4, 15g). Con la red en mano podés desactivarla antes de entrar (o la próxima vez usar instinto para encontrarla al llegar).\n🧠 Próxima vez que veas el hint de trampa en el Lago, podés escribir "desactivar trampa <dir>" antes de entrar.',
       };
       const disarmHint = TRAP_DISARM_HINT[targetId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
 
@@ -2084,6 +2183,7 @@ function cmdMove(player, direction) {
         }
       }
       // (el hint específico ya se agregó en trapText arriba — no agregar el genérico)
+      } // cierra if (!caverna_gracia_main)
       } // cierra else de hasDisarmItem (DIS-1167)
     }
   }
