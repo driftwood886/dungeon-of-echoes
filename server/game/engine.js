@@ -5410,7 +5410,35 @@ function cmdUse(player, itemQuery) {
       const seC = parseSE(player.status_effects);
       seC.carta_sellada_leida = true;
       db.updatePlayer(player.id, { inventory: newInvC, status_effects: JSON.stringify(seC) });
-      resultText = `Con cuidado, rompés el sello de cera negra. El papel cruje levemente al desplegarse.\n\nLa letra es precisa, casi formal:\n\n  \"Si leés esto, llegaste más lejos de lo que esperaba cualquiera.\n  Kaelthas no puede morir — no de la manera que conocemos.\n  Encontró una forma de atar su esencia al dungeon mismo.\n  El único modo de terminar con esto es llegar al Trono del Vacío\n  y pronunciar su nombre completo en voz alta: no el que conocés.\n  El verdadero.\n\n  Lo grabé en la base del trono. Mirá abajo, no arriba.\n\n  Perdoname por no haberlo hecho yo mismo.\"\n\n  Sin firma. Solo el símbolo de dos llaves cruzadas.\n\n🔍 La carta sellada se deshace en polvo antiguo una vez que la leés.`;
+
+      // DIS-1366: al leer la carta sellada, si el jugador tiene suficientes pistas del arco de Kaelthas,
+      // agregar una entrada de diario que unifica los fragmentos como momento "aha!".
+      let cartaAhaMsg = '';
+      {
+        const seAha = seC;
+        const pistas1366 = [];
+        if (seAha.kaelthas_menc_trono_9)              pistas1366.push('inscripciones en la Sala del Trono');
+        if (seAha['kaelthas_menc_paginas_11'])         pistas1366.push('páginas congeladas de la Galería de Hielo');
+        if (seAha.kaelthas_nota_paginas)               pistas1366.push('el diario de un explorador anterior');
+        if (seAha.kaelthas_hablo_aldric)               pistas1366.push('la conversación con Aldric el Mercader');
+        // Los lore objects usan formato kaelthas_menc_<key>_<roomId>
+        if (seAha['kaelthas_menc_pared_2'])            pistas1366.push('la inscripción del Corredor de las Sombras');
+        if (seAha['kaelthas_menc_inscripciones_9'])    pistas1366.push('las inscripciones de la Sala del Trono');
+        if (seAha['kaelthas_menc_runas_10'] || seAha['kaelthas_menc_runa_10'])
+                                                       pistas1366.push('las runas del Corredor del Espectro');
+
+        if (pistas1366.length >= 2 && !seAha.kaelthas_arco_unificado) {
+          seAha.kaelthas_arco_unificado = true;
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(seAha) });
+          const listaStr = pistas1366.slice(0, 4).join(', ');
+          db.addJournalEntry(player.id, 'lore',
+            `📕 *Diario — La historia de Kaelthas:*\n\nLos fragmentos encajan. Lo que encontraste (${listaStr}) y ahora esta carta cuentan una sola historia:\n\nKaelthas Vorn fue guardián del reino de Valdrath. Cuando el reino cayó, eligió no morir — ató su esencia al dungeon. No fue capturado ni maldecido: lo hizo voluntariamente. El dungeon es su archivo, su biblioteca, su tumba voluntaria.\n\nAlguien (¿Aldric? ¿otro explorador?) intentó terminar con esto y no pudo. Dejó esta carta. El nombre verdadero está grabado en la base del Trono. Pronunciarlo en voz alta en el Trono del Vacío rompe el vínculo.\n\nYa sabés todo lo que necesitás saber.`
+          );
+          cartaAhaMsg = '\n\n📕 *Diario actualizado: La historia de Kaelthas — los fragmentos finalmente encajan. (Leé tu diario para el resumen completo.)*';
+        }
+      }
+
+      resultText = `Con cuidado, rompés el sello de cera negra. El papel cruje levemente al desplegarse.\n\nLa letra es precisa, casi formal:\n\n  \"Si leés esto, llegaste más lejos de lo que esperaba cualquiera.\n  Kaelthas no puede morir — no de la manera que conocemos.\n  Encontró una forma de atar su esencia al dungeon mismo.\n  El único modo de terminar con esto es llegar al Trono del Vacío\n  y pronunciar su nombre completo en voz alta: no el que conocés.\n  El verdadero.\n\n  Lo grabé en la base del trono. Mirá abajo, no arriba.\n\n  Perdoname por no haberlo hecho yo mismo.\"\n\n  Sin firma. Solo el símbolo de dos llaves cruzadas.\n\n🔍 La carta sellada se deshace en polvo antiguo una vez que la leés.${cartaAhaMsg}`;
     } else if (foundLow.includes('tomo sellado') || foundLow.includes('tomo')) {
       // DIS-D363: el tomo sellado tiene una condición real: necesitás el amuleto oscuro
       const freshP = db.getPlayer(player.id);
