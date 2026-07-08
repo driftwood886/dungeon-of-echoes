@@ -793,7 +793,7 @@ Comandos más usados:
   if (hasAscensionPending && !ASCENSION_REMINDER_EXCLUDED.has(action.command)) {
     const reminderTick = playerSe.ascension_reminder_tick != null ? playerSe.ascension_reminder_tick : 0;
     if (reminderTick === 0) {
-      result = { ...result, text: result.text + '\n\n⚡ El Lich cayó. Tu legado te espera — `ascender` para elegirlo.' };
+      result = { ...result, text: result.text + '\n\n⚡ **El Lich cayó. El Dungeon de los Ecos es tuyo.**\n\nPodés ascender para heredar un bonus permanente a tu próximo personaje.\n• Conservás: el bonus de legado elegido + tu nombre en el Salón de los Caídos.\n• Perdés: este personaje (nivel, ítems, gold, progreso).\n• Obtenés: una ventaja permanente de inicio para el próximo ciclo.\n\nEscribí `ascender` para ver las opciones — o seguí explorando. El Lich volverá.' };
       // Resetear tick a 15 (próximo recordatorio en 15 acciones)
       const freshSeForTick = db.getPlayer(playerId);
       const seForTick = freshSeForTick.status_effects ? (typeof freshSeForTick.status_effects === 'string' ? JSON.parse(freshSeForTick.status_effects) : freshSeForTick.status_effects) : {};
@@ -22393,9 +22393,12 @@ function cmdAscend(player, args, context) {
       `${charName} llegó lejos. Nivel ${fresh.level || 1}. El Lich cayó por`,
       `${lichKillsCount === 1 ? 'primera vez.' : lichKillsCount + ' vez.'}`,
       ``,
-      `Ascender es dejar ir a este personaje. Su nombre quedará`,
-      `grabado en el Salón de los Caídos. Pero algo de él`,
-      `persistirá — en el próximo aventurero de esta cuenta.`,
+      `Ascender significa dejar ir a este personaje — pero no todo se pierde.`,
+      `• Conservás: el bonus de legado elegido + tu nombre en el Salón de los Caídos.`,
+      `• Perdés: nivel, ítems, gold y progreso de este personaje.`,
+      `• Obtenés: una ventaja permanente que arranca desde el inicio del próximo ciclo.`,
+      ``,
+      `Si no querés ascender, seguís jugando con este personaje.`,
       ``,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       `  ¿QUÉ PARTE DE ${charName.toUpperCase()} QUERÉS QUE PERDURE?`,
