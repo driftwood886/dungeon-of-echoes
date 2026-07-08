@@ -9373,6 +9373,19 @@ function cmdShop(player, args) {
   lines.push(`📊 Tu equipo actual:  ⚔️ ${shopWeapon || '(sin arma)'}  🛡️ ${shopArmor || '(sin armadura)'}  ATK: ${shopAtk}  DEF: ${shopDef}  HP: ${shopHp}`);
   lines.push('');
   if (clsShop) {
+    // DIS-1383: detectar si el jugador tiene equipo épico/legendario para filtrar recomendaciones de armas básicas
+    const equippedWeaponName = (player.equipped_weapon && player.equipped_weapon !== 'null') ? player.equipped_weapon.toLowerCase() : null;
+    const equippedArmorName  = (player.equipped_armor  && player.equipped_armor  !== 'null') ? player.equipped_armor.toLowerCase()  : null;
+    const weaponRarity = equippedWeaponName ? (items.ITEM_RARITY[equippedWeaponName] || 'común') : 'común';
+    const armorRarity  = equippedArmorName  ? (items.ITEM_RARITY[equippedArmorName]  || 'común') : 'común';
+    const hasEpicWeapon = weaponRarity === 'épico' || weaponRarity === 'legendario';
+    const hasEpicArmor  = armorRarity  === 'épico' || armorRarity  === 'legendario';
+
+    // Armas básicas de tienda (ATK <= 10) — no recomendarlas si el jugador ya tiene arma épica/legendaria
+    const BASIC_SHOP_WEAPONS = new Set(['espada de hierro', 'espada de acero', 'daga envenenada', 'espada oxidada', 'guantes de cuero fino', 'vara de energía', 'símbolo sagrado']);
+    // Armaduras básicas de tienda — no recomendarlas si el jugador ya tiene armadura épica
+    const BASIC_SHOP_ARMORS = new Set(['escudo de madera', 'cuero endurecido', 'cota de cuero', 'cota de malla', 'túnica encantada']);
+
     const CLASS_RECS = {
       'Mago':    ['vara de energía', 'pergamino de hechizo', 'poción de maná'],
       'Clérigo': ['símbolo sagrado', 'poción de bendición', 'poción de salud'],
@@ -9381,15 +9394,38 @@ function cmdShop(player, args) {
     };
     const recs = CLASS_RECS[clsShop.name];
     if (recs) {
-      const recItems = recs.map(name => {
+      // DIS-1383: filtrar recomendaciones de armas/armaduras básicas si el jugador ya tiene equipo superior
+      const filteredRecs = recs.filter(name => {
+        if (hasEpicWeapon && BASIC_SHOP_WEAPONS.has(name)) return false;
+        if (hasEpicArmor  && BASIC_SHOP_ARMORS.has(name))  return false;
+        return true;
+      });
+      // Si se filtraron armas, agregar consumibles útiles para veteranos
+      const weaponsWereFiltered = hasEpicWeapon && recs.some(n => BASIC_SHOP_WEAPONS.has(n));
+      const VETERAN_CONSUMABLES = ['poción mayor de salud', 'antídoto', 'poción de maná mayor'];
+      const finalRecs = weaponsWereFiltered
+        ? [...filteredRecs, ...VETERAN_CONSUMABLES.filter(n => !filteredRecs.includes(n))].slice(0, 4)
+        : filteredRecs;
+
+      const recItems = finalRecs.map(name => {
         const cat = SHOP_CATALOG.find(i => i.name === name && !i.sellOnly);
         if (!cat) return null;
         const fp = getDiscountedPrice(cat.price, player.reputation || 0, player.aldric_rep || 0);
         return `• ${cat.name} (${fp}g)`;
       }).filter(Boolean);
       if (recItems.length > 0) {
-        lines.push(`${clsShop.emoji} Como ${clsShop.name}, Aldric te recomienda especialmente:`);
+        if (weaponsWereFiltered) {
+          lines.push(`${clsShop.emoji} Aldric nota tu equipo.`);
+          lines.push(`  \"${player.username}... con ese armamento, lo que vas a necesitar son estos:\"`);
+        } else {
+          lines.push(`${clsShop.emoji} Como ${clsShop.name}, Aldric te recomienda especialmente:`);
+        }
         lines.push(recItems.join('  '));
+        lines.push('');
+      } else if (hasEpicWeapon) {
+        // Todo fue filtrado (raro: jugador con arma épica y sin consumibles en lista)
+        lines.push(`${clsShop.emoji} Aldric te evalúa con la mirada.`);
+        lines.push(`  \"Con ese equipo ya no necesitás mis consejos. Pero pociones, siempre pociones.\"`);
         lines.push('');
       }
       // DIS-800: sugerir venta de materiales al Mago que no tiene suficiente oro para la vara de energía
