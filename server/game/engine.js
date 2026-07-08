@@ -21556,6 +21556,11 @@ function cmdVault(player, args) {
   const W = 48;
   const vaultItems = JSON.parse(player.vault || '[]');
 
+  // Accesible solo en sala 1 (Entrada), sala 17 (Casa de Subastas) o sala 19 (Cámara del Eco)
+  if (!VAULT_ROOMS.has(player.current_room_id)) {
+    return { text: '🏛️  La bóveda es accesible en la Entrada (sala 1), la Casa de Subastas (sala 17) o la Cámara del Eco (sala 19).\n  Usá `recall` para volver a la Entrada.' };
+  }
+
   // Sin args: listar el contenido
   if (!args || args.length === 0) {
     const lines = [];
@@ -21583,11 +21588,6 @@ function cmdVault(player, args) {
 
   const subcmd = args[0].toLowerCase();
   const itemArg = args.slice(1).join(' ').trim();
-
-  // Accesible en sala 1 (Entrada), sala 17 (Casa de Subastas) o sala 19 (Cámara del Eco)
-  if (!VAULT_ROOMS.has(player.current_room_id)) {
-    return { text: '🏛️  La bóveda es accesible en la Entrada (sala 1), la Casa de Subastas (sala 17) o la Cámara del Eco (sala 19).\n  Usá `recall` para volver a la Entrada.' };
-  }
 
   if (subcmd === 'store' || subcmd === 'guardar' || subcmd === 'depositar') {
     if (!itemArg) return { text: '¿Qué ítem querés guardar? Ej: vault store espada oxidada' };
