@@ -5872,20 +5872,33 @@ function cmdExamine(player, query) {
   }
 
   // DIS-856: examine trono en sala 9 — mostrar nombre en la base si el jugador conoce a Kaelthas Vorn
+  // DIS-1345: feedback visual dinámico según estado de quest (none/active/done)
   if (player.current_room_id === 9 && (qNorm === 'trono' || qNorm.includes('trono') || qNorm === 'base' || qNorm === 'base del trono')) {
     const tronoCuerpo = 'El trono está hecho de huesos ensamblados con precisión quirúrgica —no como un acto de brutalidad, sino como una declaración. Entre los brazos del trono, grabado en el hueso, hay un nombre en cursiva perfecta: KAELTHAS. Notás que el trono no tiene polvo. Lo demás en la sala lleva siglos sin ser tocado. Alguien se sienta aquí regularmente.';
     const freshP = db.getPlayer(player.id);
-    const questDone = freshP && freshP.aldric_quest === 'done';
-    const cartaLeida = !(freshP && (freshP.inventory || []).some(i => i.toLowerCase().includes('carta sellada')));
+    const questState = (freshP && freshP.aldric_quest) || 'none';
+    const invP = Array.isArray(freshP && freshP.inventory) ? freshP.inventory : JSON.parse((freshP && freshP.inventory) || '[]');
+    const tieneCarta = invP.some(i => i.toLowerCase().includes('carta sellada'));
+    const seP = parseSE(freshP && freshP.status_effects);
+    const cartaFueLeida = !!seP.carta_sellada_leida;
     let baseText = '';
-    if (questDone) {
+    if (questState === 'done') {
       // Jugador completó la quest — conoce el nombre verdadero
       baseText = '\n\n🔍 Mirás hacia abajo, como decía la carta. En la base del trono, casi ilegible por el tiempo, hay letras grabadas con algo oscuro —no tinta. Un nombre:\n\n  **K A E L T H A S   V O R N**\n\nEl nombre completo. El que todos olvidaron. Lo pronunciás en voz baja y algo en la sala parece escuchar.';
-    } else if (cartaLeida) {
-      // Leyó la carta pero no completó la quest — sabe de la pista
-      baseText = '\n\n🔍 Recordás lo que decía la carta: \"Lo grabé en la base del trono. Mirá abajo, no arriba.\" Agachás la vista hacia la base del trono. Hay letras grabadas con algo oscuro —casi ilegibles— pero podés distinguir un nombre incompleto. El resto está borrado por el tiempo o protegido por algo.\n\n💡 Siguiente paso: hablá con Aldric en la tienda (sala 4) — preguntale sobre Kaelthas. Si ya hablaste con él, buscá la **carta sellada** en la Prisión Subterránea (sala 8, al norte del Tesoro): tiene la pista que falta. Con la información completa podrás leer el nombre verdadero aquí.';
+    } else if (questState === 'active' && tieneCarta) {
+      // Quest activa y tiene la carta — llevarla a Aldric
+      baseText = '\n\n🔍 Agachás la vista hacia la base del trono. Hay letras grabadas con algo oscuro —casi ilegibles. Un nombre incompleto. El resto está borrado por el tiempo o protegido por algo.\n\n💡 Tenés la **carta sellada** que encontraste en la Prisión. Llevásela a **Aldric** en la tienda (sala 4) — él tiene la clave para completar el nombre.';
+    } else if (questState === 'active' && cartaFueLeida) {
+      // Quest activa y ya leyó la carta (se destruyó al abrirla) — hablar con Aldric con lo que sabe
+      baseText = '\n\n🔍 Agachás la vista hacia la base del trono. Hay letras grabadas con algo oscuro —casi ilegibles. Un nombre incompleto. El resto está borrado por el tiempo o protegido por algo.\n\n💡 Ya leíste la carta sellada. Volvé con **Aldric** en la tienda (sala 4) y contale lo que descubriste — él puede completar lo que falta.';
+    } else if (questState === 'active') {
+      // Quest activa — ya habló con Aldric, ahora buscar la carta en sala 8
+      baseText = '\n\n🔍 Agachás la vista hacia la base del trono. Hay letras grabadas con algo oscuro —casi ilegibles. Un nombre incompleto. El resto está borrado por el tiempo o protegido por algo.\n\n💡 Ya hablaste con Aldric. El siguiente paso: buscá la **carta sellada** en la **Prisión Subterránea** (sala 8, al norte del Tesoro). Tiene el sello de las dos llaves cruzadas.';
+    } else if (tieneCarta || cartaFueLeida) {
+      // Tiene la carta pero no activó la quest con Aldric — ir a Aldric primero
+      baseText = '\n\n🔍 Recordás algo que leíste: \"Lo grabé en la base del trono. Mirá abajo, no arriba.\" Agachás la vista hacia la base del trono. Hay letras grabadas con algo oscuro —casi ilegibles— pero podés distinguir un nombre incompleto. El resto está borrado por el tiempo o protegido por algo.\n\n💡 Siguiente paso: hablá con **Aldric** en la tienda (sala 4) — preguntale sobre Kaelthas. Tiene información que completará lo que ves aquí.';
     } else {
-      // No leyó la carta todavía
+      // No sabe nada todavía
       baseText = '\n\n🔍 En la base del trono, casi invisible por el tiempo y la suciedad, hay letras grabadas con algo oscuro —no tinta. Un nombre, casi ilegible. La curiosidad tira, pero no podés descifrar lo que dice.';
     }
     // Rastrear mención Kaelthas
