@@ -192,6 +192,11 @@ async function init() {
     `ALTER TABLE players ADD COLUMN npc_memory TEXT NOT NULL DEFAULT '{}'`,               // EPIC-MR-1079: memoria de NPCs (Aldric, Anciano, Escriba)
     `ALTER TABLE players ADD COLUMN aldric_rep INTEGER NOT NULL DEFAULT 0`,                // T-1233: reputación con Aldric (desafíos diarios completados)
     `ALTER TABLE players ADD COLUMN is_bot INTEGER NOT NULL DEFAULT 0`,                    // BUG-1247: flag de bot de playtest para excluir del leaderboard
+    `ALTER TABLE players ADD COLUMN faction TEXT`,                                          // EPIC-1373: facción del jugador ('orden_filo' | 'conclave_arcano' | 'hermandad_mercado')
+    `ALTER TABLE players ADD COLUMN faction_influence INTEGER NOT NULL DEFAULT 0`,          // EPIC-1373: contribución histórica total a su facción
+    `ALTER TABLE players ADD COLUMN faction_week_influence INTEGER NOT NULL DEFAULT 0`,     // EPIC-1373: contribución a su facción esta semana (resetea lunes UTC)
+    `ALTER TABLE players ADD COLUMN faction_changed_at TEXT`,                               // EPIC-1373: timestamp del último cambio de facción (cooldown 7 días)
+    `ALTER TABLE players ADD COLUMN faction_notified INTEGER NOT NULL DEFAULT 0`,           // EPIC-1373: 1 si ya recibió el mensaje narrativo de invitación a facciones (nivel 3)
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -243,6 +248,28 @@ async function init() {
   } catch (e) {
     console.error('[db] Error en migración is_bot:', e.message);
   }
+
+  // Tabla de facciones (EPIC-1373)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS factions (
+      id               TEXT PRIMARY KEY,
+      name             TEXT NOT NULL,
+      icon             TEXT NOT NULL,
+      description      TEXT,
+      playstyle        TEXT,
+      week_influence   INTEGER NOT NULL DEFAULT 0,
+      total_influence  INTEGER NOT NULL DEFAULT 0,
+      control_streak   INTEGER NOT NULL DEFAULT 0,
+      last_reset_week  TEXT
+    )
+  `);
+  // Seed: insertar las 3 facciones fijas si no existen
+  try {
+    db.run(`INSERT OR IGNORE INTO factions (id, name, icon, description, playstyle) VALUES
+      ('orden_filo',        'La Orden del Filo',        '🗡️',  'Guerreros y mercenarios que controlan el dungeon por la fuerza. Matan más, ganan más.',         'combate'),
+      ('conclave_arcano',   'El Cónclave Arcano',       '🔮',  'Magos e investigadores que estudian el dungeon. El conocimiento es su arma.',                   'exploracion'),
+      ('hermandad_mercado', 'La Hermandad del Mercado', '🪙',  'Comerciantes y pícaros que controlan el flujo económico. El oro es su poder.',                  'economia')`);
+  } catch (_) { /* ya existen */ }
 
   // Tabla de historial de eventos globales (T093)
   db.run(`
@@ -2725,6 +2752,158 @@ function addAldricRep(playerId, amount) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── EPIC-1373: Sistema de Facciones ─────────────────────────────────────────
+
+/**
+ * Obtener la facción de un jugador.
+ * @param {string} playerId
+ * @returns {string|null}
+ */
+function getPlayerFaction(playerId) {
+  const p = one('SELECT faction FROM players WHERE id = ?', [playerId]);
+  return p ? p.faction : null;
+}
+
+/**
+ * Obtener la fila completa de una facción.
+ * @param {string} factionId
+ * @returns {object|null}
+ */
+function getFaction(factionId) {
+  return one('SELECT * FROM factions WHERE id = ?', [factionId]);
+}
+
+/**
+ * Obtener las 3 facciones ordenadas por week_influence desc.
+ * @returns {Array<object>}
+ */
+function getAllFactions() {
+  return all('SELECT * FROM factions ORDER BY week_influence DESC', []);
+}
+
+/**
+ * Obtener el ranking semanal.
+ * @returns {{ leader: object|null, ranking: Array<object> }}
+ */
+function getWeeklyLeaders() {
+  const ranking = getAllFactions();
+  return { leader: ranking[0] || null, ranking };
+}
+
+/**
+ * Obtener los top contribuidores de una facción esta semana.
+ * @param {string} factionId
+ * @param {number} limit
+ * @returns {Array<object>}
+ */
+function getFactionTopContributors(factionId, limit = 5) {
+  return all(
+    `SELECT id, username, faction_week_influence
+     FROM players
+     WHERE faction = ? AND is_bot = 0
+     ORDER BY faction_week_influence DESC
+     LIMIT ?`,
+    [factionId, limit]
+  );
+}
+
+/**
+ * Asignar facción a un jugador. Resetea faction_week_influence a 0.
+ * @param {string} playerId
+ * @param {string|null} factionId
+ */
+function setPlayerFaction(playerId, factionId) {
+  run('UPDATE players SET faction = ?, faction_week_influence = 0 WHERE id = ?', [factionId || null, playerId]);
+}
+
+/**
+ * Registrar timestamp del cambio de facción.
+ * @param {string} playerId
+ */
+function recordFactionChange(playerId) {
+  run('UPDATE players SET faction_changed_at = datetime(\'now\') WHERE id = ?', [playerId]);
+}
+
+/**
+ * Agregar puntos de influencia a un jugador y a su facción.
+ * @param {string} playerId
+ * @param {number} amount
+ * @returns {boolean}
+ */
+function addFactionInfluence(playerId, amount) {
+  const p = one('SELECT faction FROM players WHERE id = ?', [playerId]);
+  if (!p || !p.faction) return false;
+  run(
+    'UPDATE players SET faction_influence = faction_influence + ?, faction_week_influence = faction_week_influence + ? WHERE id = ?',
+    [amount, amount, playerId]
+  );
+  run(
+    'UPDATE factions SET week_influence = week_influence + ?, total_influence = total_influence + ? WHERE id = ?',
+    [amount, amount, p.faction]
+  );
+  return true;
+}
+
+/**
+ * Resetear influencia semanal (correr lunes 00:00 UTC).
+ * Aplica influencia pasiva base a facciones sin jugadores activos.
+ * @returns {{ winner: string|null, newStreak: number }}
+ */
+function resetWeeklyFactionInfluence() {
+  const BASE_PASSIVE = 50; // puntos para facciones sin jugadores activos
+  const factions = getAllFactions();
+  let winner = null;
+  let newStreak = 0;
+  const leaderId = factions.length > 0 ? factions[0].id : null;
+
+  for (const faction of factions) {
+    const hasActivePlayers = (faction.week_influence > 0);
+    const passiveBonus = hasActivePlayers ? 0 : BASE_PASSIVE;
+    const finalInfluence = faction.week_influence + passiveBonus;
+
+    // Actualizar total_influence con la influencia final de la semana
+    run('UPDATE factions SET total_influence = total_influence + ? WHERE id = ?', [passiveBonus, faction.id]);
+
+    // Actualizar control_streak
+    if (faction.id === leaderId) {
+      const newStreakVal = faction.control_streak + 1;
+      run('UPDATE factions SET control_streak = ?, week_influence = 0, last_reset_week = ? WHERE id = ?',
+        [newStreakVal, getCurrentISOWeekKey(), faction.id]);
+      winner = faction.id;
+      newStreak = newStreakVal;
+    } else {
+      run('UPDATE factions SET control_streak = 0, week_influence = 0, last_reset_week = ? WHERE id = ?',
+        [getCurrentISOWeekKey(), faction.id]);
+    }
+  }
+
+  // Resetear influencia semanal de jugadores
+  run('UPDATE players SET faction_week_influence = 0', []);
+
+  return { winner, newStreak };
+}
+
+/**
+ * Obtener la ISO week key actual (ej: '2026-28').
+ * @returns {string}
+ */
+function getCurrentISOWeekKey() {
+  const now = new Date();
+  const jan1 = new Date(now.getFullYear(), 0, 1);
+  const week = Math.ceil(((now - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+  return `${now.getFullYear()}-${String(week).padStart(2, '0')}`;
+}
+
+/**
+ * Marcar que el jugador ya recibió la notificación de facción.
+ * @param {string} playerId
+ */
+function setFactionNotified(playerId) {
+  run('UPDATE players SET faction_notified = 1 WHERE id = ?', [playerId]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 module.exports = {
   init, persist,
   // players
@@ -2794,4 +2973,8 @@ module.exports = {
   getWeeklyChallengeState, setWeeklyChallenge, incrementWeeklyProgress,
   // T-1233: world_state por clave individual, Aldric Rep
   getWorldStateValue, getAldricRep, addAldricRep,
+  // EPIC-1373: Sistema de Facciones
+  getPlayerFaction, getFaction, getAllFactions, getWeeklyLeaders, getFactionTopContributors,
+  setPlayerFaction, recordFactionChange, addFactionInfluence, resetWeeklyFactionInfluence,
+  setFactionNotified, getCurrentISOWeekKey,
   };
