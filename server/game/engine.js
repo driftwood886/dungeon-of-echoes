@@ -1473,6 +1473,37 @@ function cmdMove(player, direction) {
             }
           }
         }
+        // DIS-1361: Pre-move warning para Taller de la Forja (sala 12) — calor ambiente primera visita
+        // El calor de la forja no es una trampa desactivable, pero el jugador merece saber antes de entrar.
+        if (destId === 12) {
+          const freshNB1361 = db.getPlayer(player.id);
+          const heatKeyNB1361 = 'heat_room_12';
+          const knownNB1361 = (() => {
+            try {
+              const raw = freshNB1361.known_traps;
+              if (!raw) return {};
+              if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+              if (Array.isArray(raw)) { const o = {}; raw.forEach(k => { o[k] = true; }); return o; }
+              const p = JSON.parse(raw);
+              return (typeof p === 'object' && p !== null && !Array.isArray(p)) ? p : {};
+            } catch (_) { return {}; }
+          })();
+          const alreadyKnowsForjaNB = !!knownNB1361[heatKeyNB1361];
+          if (!alreadyKnowsForjaNB) {
+            const seNB1361 = parseSE(freshNB1361.status_effects);
+            if (!seNB1361.forja_warning_done) {
+              const newSeNB1361 = { ...seNB1361, forja_warning_done: true };
+              db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeNB1361) });
+              return {
+                text: `⚠️  Al acercarte a la entrada del Taller de la Forja, una ola de calor abrasador te golpea en la cara — como abrir un horno gigante.\n\nEl calor extremo de la forja daña a quienes entran por primera vez (-2 HP). No hay forma de desactivarlo desde aquí.\n\n🔥 Una vez que entrés y soportes el calor inicial, tu cuerpo se adaptará — las visitas siguientes no te dañarán.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+              };
+            }
+            // Segunda vez: limpiar flag y continuar (recibirá el daño)
+            const clearedSeNB1361 = { ...seNB1361 };
+            delete clearedSeNB1361.forja_warning_done;
+            db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSeNB1361) });
+          }
+        }
         db.updatePlayer(player.id, { current_room_id: destId });
         // BUG-790: registrar sala visitada en el path de monstruos sin boss (early return)
         db.trackRoomVisit(player.id, destId);
@@ -1990,6 +2021,38 @@ function cmdMove(player, direction) {
     }
   }
 
+  // DIS-1361: Pre-move warning para Taller de la Forja (sala 12) — calor ambiente primera visita (path principal)
+  // No hay trampa desactivable, pero el jugador merece saber que va a recibir daño antes de entrar.
+  if (targetId === 12) {
+    const fresh1361 = db.getPlayer(player.id);
+    const heatKey1361 = 'heat_room_12';
+    const known1361 = (() => {
+      try {
+        const raw = fresh1361.known_traps;
+        if (!raw) return {};
+        if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+        if (Array.isArray(raw)) { const o = {}; raw.forEach(k => { o[k] = true; }); return o; }
+        const p = JSON.parse(raw);
+        return (typeof p === 'object' && p !== null && !Array.isArray(p)) ? p : {};
+      } catch (_) { return {}; }
+    })();
+    const alreadyKnowsForja = !!known1361[heatKey1361];
+    if (!alreadyKnowsForja) {
+      const se1361 = parseSE(fresh1361.status_effects);
+      if (!se1361.forja_warning_done) {
+        // Primera vez: mostrar warning sin mover al jugador
+        const newSe1361 = { ...se1361, forja_warning_done: true };
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1361) });
+        return {
+          text: `⚠️  Al acercarte a la entrada del Taller de la Forja, una ola de calor abrasador te golpea en la cara — como abrir un horno gigante.\n\nEl calor extremo de la forja daña a quienes entran por primera vez (-2 HP). No hay forma de desactivarlo desde aquí.\n\n🔥 Una vez que entrés y soportes el calor inicial, tu cuerpo se adaptará — las visitas siguientes no te dañarán.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+        };
+      }
+      // Segunda vez: limpiar el flag y continuar (recibirá el daño)
+      const clearedSe1361 = { ...se1361 };
+      delete clearedSe1361.forja_warning_done;
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe1361) });
+    }
+  }
   // Actualizar posición del jugador
   db.updatePlayer(player.id, { current_room_id: targetId });
 
