@@ -2485,26 +2485,50 @@ function cmdInventory(player) {
 
   // DIS-677: detectar qué ítems tienen receta viable con materiales ya en el inventario
   const { RECIPES } = require('./crafting');
-  const allItemNames = new Set(allItems.map(i => i.toLowerCase()));
+  // DIS-1347: usar Map de frecuencias en lugar de Set para detectar correctamente el caso de
+  // ingredientes duplicados (ej: mismo ítem como ingrediente A e ingrediente B de la receta).
+  // El Set no distingue cantidades, lo que puede generar sugerencias incorrectas si el jugador
+  // tiene un único exemplar de un ítem que aparece en dos posiciones de una receta.
+  const allItemFreq = new Map();
+  for (const item of allItems) {
+    const k = item.toLowerCase();
+    allItemFreq.set(k, (allItemFreq.get(k) || 0) + 1);
+  }
+  const allItemNames = new Set(allItemFreq.keys()); // compatibilidad con código existente
+  // Función auxiliar: ¿tenés SUFICIENTES unidades de este ítem para la receta?
+  // Si el mismo ítem aparece dos veces en ingredientes[0] e ingredientes[1], necesitás 2 unidades.
+  function hasEnoughForRecipe(recipe) {
+    const freq = new Map();
+    for (const ing of recipe.ingredients) {
+      const k = ing.toLowerCase();
+      freq.set(k, (freq.get(k) || 0) + 1);
+    }
+    for (const [k, needed] of freq.entries()) {
+      if ((allItemFreq.get(k) || 0) < needed) return false;
+    }
+    return true;
+  }
   // Un ítem tiene receta viable si existe al menos una receta en la que sea ingrediente
-  // Y el otro ingrediente TAMBIÉN está en el inventario
+  // Y el otro ingrediente TAMBIÉN está en el inventario (con cantidad suficiente)
   const viableRecipeItems = new Set();
   for (const recipe of RECIPES) {
-    const [ing1, ing2] = recipe.ingredients.map(s => s.toLowerCase());
-    if (allItemNames.has(ing1) && allItemNames.has(ing2)) {
-      viableRecipeItems.add(ing1);
-      viableRecipeItems.add(ing2);
+    if (hasEnoughForRecipe(recipe)) {
+      for (const ing of recipe.ingredients) viableRecipeItems.add(ing.toLowerCase());
     }
   }
 
   // DIS-1058: detectar ingredientes "sueltos" (tenés uno de la receta pero te falta el otro)
   // Solo mostramos el hint si el ítem suelto NO ya tiene una receta completa (✨)
+  // DIS-1347: usar allItemFreq para validar cantidad real disponible
   const loneIngredientHints = [];
   const shownLoneHints = new Set();
   for (const recipe of RECIPES) {
     const [ing1, ing2] = recipe.ingredients.map(s => s.toLowerCase());
-    const hasIng1 = allItemNames.has(ing1);
-    const hasIng2 = allItemNames.has(ing2);
+    // Cuántas unidades de cada ingrediente necesita esta receta
+    const need1 = recipe.ingredients.filter(i => i.toLowerCase() === ing1).length;
+    const need2 = recipe.ingredients.filter(i => i.toLowerCase() === ing2).length;
+    const hasIng1 = (allItemFreq.get(ing1) || 0) >= need1;
+    const hasIng2 = (allItemFreq.get(ing2) || 0) >= need2;
     if (hasIng1 && !hasIng2) {
       const key = `${ing1}|${recipe.result}`;
       if (!shownLoneHints.has(key)) {
@@ -2575,8 +2599,8 @@ function cmdInventory(player) {
   const readyRecipes = [];
   const shownReadyRecipes = new Set();
   for (const recipe of RECIPES) {
-    const [ing1, ing2] = recipe.ingredients.map(s => s.toLowerCase());
-    if (allItemNames.has(ing1) && allItemNames.has(ing2)) {
+    // DIS-1347: usar hasEnoughForRecipe para validar cantidad real disponible
+    if (hasEnoughForRecipe(recipe)) {
       const key = recipe.result;
       if (!shownReadyRecipes.has(key)) {
         shownReadyRecipes.add(key);
