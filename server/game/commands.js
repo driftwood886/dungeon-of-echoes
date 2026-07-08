@@ -124,6 +124,7 @@ const COMMAND_ALIASES = {
   decidir: 'expedicion', decide: 'expedicion',
   // guild / hermandad
   guild: 'guild', hermandad: 'guild', gremio: 'guild', clan: 'guild', faccion: 'guild', facción: 'guild',
+  facciones: 'facciones', facctions: 'facciones', guerra: 'facciones', influencia: 'facciones',  // EPIC-1374
   // guild quest — atajo directo
   'guild quest': 'guild', 'misión guild': 'guild', 'mision guild': 'guild',
   // gc / guild chat

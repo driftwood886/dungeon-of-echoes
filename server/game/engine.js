@@ -404,6 +404,7 @@ function execute(playerId, input, context) {
     case 'expedicion':        result = cmdExpedicion(player, action.args); break;
     case 'expediciones_list': result = cmdExpedicionesList(player); break;
     case 'guild':        result = cmdGuild(player, action.args); break;
+    case 'facciones':    result = cmdFacciones(player); break;            // EPIC-1374: pantalla de influencia semanal
     case 'gc':           result = cmdGuildChat(player, action.args); break;
     case 'duel':         result = cmdDuel(player, action.args.join(' ')); break;
     case 'accept':       result = cmdAcceptDuel(player); break;
@@ -10150,6 +10151,83 @@ function cmdInspect(player, targetName) {
  *   info             — Ver info de tu hermandad (miembros, líder)
  *   list             — Listar todas las hermandades activas
  */
+// ─── EPIC-1374: Pantalla de influencia de facciones ──────────────────────────
+
+/**
+ * cmdFacciones — muestra el estado de influencia semanal de las 3 facciones.
+ */
+function cmdFacciones(player) {
+  player = db.getPlayer(player.id);
+  const { ranking } = db.getWeeklyLeaders();
+
+  if (!ranking || ranking.length === 0) {
+    return { text: 'Las facciones del dungeon aún no tienen información esta semana.' };
+  }
+
+  const total = ranking.reduce((sum, f) => sum + f.week_influence, 0);
+  const weekKey = db.getCurrentISOWeekKey();
+  // Número de semana del año
+  const weekNum = parseInt(weekKey.split('-')[1], 10);
+
+  // Facción líder (primera tras ORDER BY week_influence DESC)
+  const leader = ranking[0];
+
+  // Bonuses por facción controladora
+  const BONUSES = {
+    orden_filo:        'Bosses dropean doble loot · Monstruos +20% XP',
+    conclave_arcano:   'Crafteo sin costo secundario · Hechizos +15% daño',
+    hermandad_mercado: 'Subasta sin comisión · Tienda 10% descuento',
+  };
+
+  // Barra ASCII (15 chars)
+  function makeBar(influence, total) {
+    const pct = total > 0 ? influence / total : 0;
+    const filled = Math.round(pct * 15);
+    return '█'.repeat(filled) + '░'.repeat(15 - filled);
+  }
+
+  const lines = [];
+  lines.push(`╔══════════════════════════════════════════════════════╗`);
+  lines.push(`║  ⚔️  CONTROL DEL DUNGEON — Semana ${String(weekNum).padEnd(2)}               ║`);
+  lines.push(`╠══════════════════════════════════════════════════════╣`);
+
+  for (const f of ranking) {
+    const pct = total > 0 ? Math.round((f.week_influence / total) * 100) : 0;
+    const bar = makeBar(f.week_influence, total);
+    const isLeader = f.id === leader.id;
+    const crown = isLeader ? ' 👑' : '   ';
+    lines.push(`║  ${f.icon} ${f.name.padEnd(22)} [${bar}] ${String(pct).padStart(3)}%${crown} ║`);
+  }
+
+  lines.push(`╟──────────────────────────────────────────────────────╢`);
+  if (leader.week_influence > 0) {
+    lines.push(`║  Control actual: ${leader.name.padEnd(35)}║`);
+    lines.push(`║  Bonus activo: ${(BONUSES[leader.id] || '???').padEnd(37)}║`);
+  } else {
+    lines.push(`║  Sin control establecido esta semana aún.             ║`);
+    lines.push(`║  Sé el primero en acumular influencia.                ║`);
+  }
+  lines.push(`╟──────────────────────────────────────────────────────╢`);
+
+  // Info del jugador
+  if (player.faction) {
+    const myFaction = ranking.find(f => f.id === player.faction);
+    const myPts = player.faction_week_influence || 0;
+    const top = db.getFactionTopContributors(player.faction, 3);
+    const topNames = top.map(c => `${c.username} (${c.faction_week_influence}pts)`).join(', ') || 'ninguno';
+    lines.push(`║  Tu facción: ${(myFaction ? myFaction.icon + ' ' + myFaction.name : '???').padEnd(39)}║`);
+    lines.push(`║  Tu contribución: ${String(myPts + ' pts esta semana').padEnd(34)}║`);
+    lines.push(`║  Top: ${topNames.substring(0, 46).padEnd(46)}║`);
+  } else {
+    lines.push(`║  No tenés facción aún.                                ║`);
+    lines.push(`║  Elegí una con: faccion elegir <nombre>               ║`);
+    lines.push(`║  (disponible en nivel 3)                              ║`);
+  }
+  lines.push(`╚══════════════════════════════════════════════════════╝`);
+
+  return { text: lines.join('\n') };
+}
+
 function cmdGuild(player, args) {
   if (!args || args.length === 0) {
     return { text: 'Usá: guild create <nombre> | guild join <nombre> | guild leave | guild info | guild list | guild quest' };
