@@ -1323,6 +1323,25 @@ function cmdMove(player, direction) {
     }
   }
 
+  // DIS-1360: En sala 1 (Entrada de la Cripta), advertir al jugador sin clase antes de salir.
+  // La primera vez bloquea; si tiene status_effects.clase_advertida, deja pasar con warning.
+  if (player.current_room_id === 1) {
+    const playerClass1 = player.player_class || 'sin_clase';
+    if (playerClass1 === 'sin_clase') {
+      const se1360 = parseSE(player.status_effects);
+      if (!se1360.clase_advertida) {
+        // Primera vez: marcar y bloquear
+        se1360.clase_advertida = true;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(se1360) });
+        player.status_effects = se1360;
+        return {
+          text: `⚔️  Antes de adentrarte en la oscuridad...\n\nNo elegiste una vocación todavía. Sin clase, tus stats son básicos (30 HP, 5 ATK, 2 DEF) y perderás ventajas importantes.\n\n  clase guerrero  — Guerrero: alto HP y defensa\n  clase mago      — Mago: hechizos poderosos, bajo HP\n  clase picaro    — Pícaro: velocidad y golpes críticos\n  clase clerigo   — Clérigo: soporte y curación\n\nSi de verdad querés entrar sin clase, intentá ir en la misma dirección de nuevo.\n💡 También podés explorar la Sala de Práctica (\"abajo\") para practicar antes de comprometerte.`,
+        };
+      }
+      // Segunda vez: dejar pasar con nota
+    }
+  }
+
   // BUG-287: Validar que la dirección existe ANTES de chequear monstruos.
   // Si la dirección es inválida, mostrar error sin intentar huir.
   const exitCheck = dungeon.resolveExit(room, direction);
@@ -14016,6 +14035,13 @@ function cmdClase(player, args) {
     max_mana: newMaxMana,
     gold:     startingGold,
   });
+
+  // DIS-1360: limpiar flag de advertencia de clase (ya no es necesario)
+  const seCleaner = parseSE(db.getPlayer(player.id).status_effects);
+  if (seCleaner.clase_advertida) {
+    delete seCleaner.clase_advertida;
+    db.updatePlayer(player.id, { status_effects: JSON.stringify(seCleaner) });
+  }
 
   const lines = [
     `✅ ¡Elegiste la clase ${clsStats.emoji} ${clsStats.name.toUpperCase()}!`,
