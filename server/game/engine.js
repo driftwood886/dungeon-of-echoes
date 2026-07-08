@@ -21447,7 +21447,7 @@ function cmdVault(player, args) {
     lines.push(`║  vault store <ítem>  — guardar un ítem`.padEnd(W + 2) + `║`);
     lines.push(`║  vault take <ítem>   — sacar un ítem`.padEnd(W + 2) + `║`);
     lines.push(`╠${'═'.repeat(W)}╣`);
-    lines.push(`║  Accesible en sala 1 (Entrada) y sala 17 (Subastas)`.padEnd(W + 2) + `║`);
+    lines.push(`║  Accesible en sala 1 (Entrada), sala 17 (Subastas) y sala 19 (Cámara del Eco)`.padEnd(W + 2) + `║`);
     lines.push(`╚${'═'.repeat(W)}╝`);
     return { text: lines.join('\n') };
   }
@@ -21455,7 +21455,7 @@ function cmdVault(player, args) {
   const subcmd = args[0].toLowerCase();
   const itemArg = args.slice(1).join(' ').trim();
 
-  // Accesible en sala 1 (Entrada) o sala 17 (Casa de Subastas)
+  // Accesible en sala 1 (Entrada), sala 17 (Casa de Subastas) o sala 19 (Cámara del Eco)
   if (!VAULT_ROOMS.has(player.current_room_id)) {
     return { text: '🏛️  La bóveda es accesible en la Entrada (sala 1), la Casa de Subastas (sala 17) o la Cámara del Eco (sala 19).\n  Usá `recall` para volver a la Entrada.' };
   }
@@ -21678,7 +21678,7 @@ function cmdTips(args) {
       '💰 Reputación Respetado+ da descuento en la tienda: -5%/-10%/-15% según nivel.',
       '🛒 Sell en la tienda (mercader Aldric, sala 4) da solo 40% del precio. Mejor guardar ítems buenos.',
       '⚖️  "market post <ítem> <precio>" para vender al precio que vos querés en el mercado de jugadores.',
-      '🏦 Guardá ítems en la bóveda (vault) en sala 1 o sala 17 — hasta 20 slots. No los perdés si morís.',
+      '🏦 Guardá ítems en la bóveda (vault) en sala 1, sala 17 o sala 19 — hasta 20 slots. No los perdés si morís.',
       '💸 "pay <jugador> <monto>" para transferir oro. Útil para coordinación de guild.',
       '🎁 Los monstruos de élite (Lich, Campeón Espectral) sueltan ítems épicos — mejor que comprarlos.',
     ],
