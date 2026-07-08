@@ -1337,12 +1337,27 @@ const RUNE_BONUSES = {
   caos:   { stat: 'mana',    amount: 3,  label: '+3 maná máximo permanente' },
 };
 
+// DIS-1354: mapa de bosses a su tipo de runa temático
+// Cada boss suelta su tipo característico (no aleatorio)
+const BOSS_RUNE_TYPES = {
+  13: 'sombra',  // Lich Anciano — no-muerto de naturaleza oscura
+  22: 'sombra',  // Sombra del Vacío — pura oscuridad
+  21: 'caos',    // Eco Viviente — aberración caótica
+  10: 'fuego',   // Golem de Forja — creado en fuego eterno
+  12: 'luz',     // Campeón Espectral — guerrero espectral sagrado
+  8:  'luz',     // Guardia Espectral — no-muerto sagrado
+  5:  'hielo',   // Gólem de Piedra — debilidad al frío
+};
+
 /**
- * Intenta dar una runa aleatoria al jugador (28% de chance base, 100% si isBoss=true).
+ * Intenta dar una runa al jugador (28% de chance base, 100% si isBoss=true).
+ * DIS-1354: sistema de pesos — los tipos que el jugador ya acumula tienen mayor
+ *   probabilidad de aparecer, facilitando completar sets sin depender solo del RNG.
+ *   Los bosses sueltan su tipo temático fijo (ver BOSS_RUNE_TYPES).
  * Si el jugador ya tiene 2 del mismo tipo y recibe una 3ra, se fusionan automáticamente
  * y se aplica el bonus permanente. Devuelve un mensaje o null.
  */
-function tryAddRune(playerId, isBoss = false) {
+function tryAddRune(playerId, isBoss = false, monsterId = null) {
   // DIS-1127: subido de 0.15 a 0.20 para que el sistema sea más visible durante el early game
   // DIS-1341: subido de 0.20 a 0.28 — en 10 kills se obtienen ~2.8 runas (antes ~2)
   //           Los bosses garantizan una runa (isBoss=true → saltea el check de probabilidad)
@@ -1354,10 +1369,24 @@ function tryAddRune(playerId, isBoss = false) {
   let runes;
   try { runes = JSON.parse(player.runes || '{}'); } catch (_) { runes = {}; }
 
-  // Elegir runa aleatoria, priorizando las que el jugador no tiene en máximo (2)
-  const available = RUNE_TYPES.filter(t => (runes[t] || 0) < 2);
-  const pool = available.length > 0 ? available : RUNE_TYPES;
-  const type = pool[Math.floor(Math.random() * pool.length)];
+  let type;
+
+  // DIS-1354: bosses sueltan su tipo temático fijo
+  if (isBoss && monsterId !== null && BOSS_RUNE_TYPES[monsterId]) {
+    type = BOSS_RUNE_TYPES[monsterId];
+  } else {
+    // DIS-1354: sistema de pesos — runas que el jugador ya acumula tienen más probabilidad
+    // Peso: 0 acumuladas → 1, 1 acumulada → 3, 2 acumuladas → 6
+    // Esto hace que completar un set sea ~3-6x más probable para tipos ya iniciados
+    const WEIGHT_BY_COUNT = [1, 3, 6];
+    const weightedPool = [];
+    for (const t of RUNE_TYPES) {
+      const count = runes[t] || 0;
+      const weight = WEIGHT_BY_COUNT[count] || 1;
+      for (let i = 0; i < weight; i++) weightedPool.push(t);
+    }
+    type = weightedPool[Math.floor(Math.random() * weightedPool.length)];
+  }
 
   const current = runes[type] || 0;
 

@@ -3729,7 +3729,7 @@ function cmdAttack(player, targetName) {
   // ── Runas coleccionables (T140) ──────────────────────────────────────────
   let runeMsg = '';
   if (monsterDead) {
-    const rm = db.tryAddRune(player.id, !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]));
+    const rm = db.tryAddRune(player.id, !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]), monster.id);
     if (rm) {
       runeMsg = '\n' + rm;
       // EPIC-1163: hook de expedición — trigger 'pickup' para runas
@@ -4917,7 +4917,7 @@ function cmdUse(player, itemQuery) {
       try { runesCheck = JSON.parse(player.runes || '{}'); } catch (_) {}
       const totalRunes = Object.values(runesCheck).reduce((a, b) => a + b, 0);
       if (totalRunes === 0) {
-        return { text: '🔮 No tenés runas para ofrecer a la Fuente. Conseguí runas matando monstruos (28% de chance por kill, 100% en bosses). Necesitás 3 del mismo tipo.' };
+        return { text: '🔮 No tenés runas para ofrecer a la Fuente. Conseguí runas matando monstruos (28% de chance por kill, 100% en bosses; acumular runas del mismo tipo aumenta la probabilidad de conseguir más de ese tipo). Necesitás 3 del mismo tipo.' };
       }
       // Disparar el hook de expedición con trigger 'use' + itemName 'runas' en sala 18
       const freshForExpRunaUse = db.getPlayer(player.id);
@@ -16927,12 +16927,17 @@ function cmdRunas(player) {
   }
   lines.push('╟' + '─'.repeat(44) + '╢');
   lines.push('║  📖 FUENTES DE RUNAS:                           ║');
-  lines.push('║  • Cualquier monstruo puede soltar 1 runa al   ║');
-  lines.push('║    morir (28% chance; bosses: 100%).            ║');
-  lines.push('║  • El tipo es ALEATORIO — no hay monstruo       ║');
-  lines.push('║    específico para cada runa.                   ║');
-  lines.push('║  • Hay 5 tipos en total: fuego, hielo, sombra,  ║');
-  lines.push('║    luz y caos.                                  ║');
+  lines.push('║  • Cualquier monstruo: 28% chance al morir.    ║');
+  lines.push('║  • Bosses: 100% — y su tipo es FIJO:           ║');
+  lines.push('║    🔥 Golem de Forja → fuego                   ║');
+  lines.push('║    ❄️  Gólem de Piedra → hielo                  ║');
+  lines.push('║    🌑 Lich/Sombra del Vacío → sombra           ║');
+  lines.push('║    ✨ Campeón/Guardia Espectral → luz           ║');
+  lines.push('║    🌀 Eco Viviente → caos                      ║');
+  lines.push('║  • Los tipos que ya acumulás tienen MÁS chance ║');
+  lines.push('║    de aparecer — el sistema favorece completar ║');
+  lines.push('║    sets en lugar de dispersar el loot.         ║');
+  lines.push('║  • Hay 5 tipos: fuego, hielo, sombra, luz, caos║');
   lines.push('║  • La runa de caos tiene efecto aleatorio al    ║');
   lines.push('║    encantarse (equivale a uno de los otros 4).  ║');
   // DIS-1184: guía enchant vs. fusión
@@ -20627,7 +20632,7 @@ function cmdEnchant(player, args) {
       // Verificar que tiene la runa antes de mostrar el aviso
       const runeCountCheck = runes[runeType] || 0;
       if (runeCountCheck <= 0) {
-        return { text: `❌ No tenés runas de 🌀 caos. Obtenés runas al matar monstruos (28% de chance, 100% en bosses).` };
+        return { text: `❌ No tenés runas de 🌀 caos. Obtenés runas al matar monstruos (28% de chance, 100% en bosses; los tipos ya acumulados tienen más probabilidad de reaparecer).` };
       }
       return { text: `🌀 RUNA DE CAOS — Confirmación requerida\n\nEl efecto será ALEATORIO (fuego, hielo, sombra o luz) — se revela al consumir la runa.\nTambién podés guardar 3 runas de caos para una fusión permanente (+3 maná).\n\n¿Querés consumir la runa de caos de todos modos?\n→ Escribí: enchant caos confirmar` };
     }
@@ -20639,7 +20644,7 @@ function cmdEnchant(player, args) {
   // Verificar runa disponible
   const runeCount = runes[runeType] || 0;
   if (runeCount <= 0) {
-    return { text: `❌ No tenés runas de ${RUNE_EMOJIS[runeType]} ${runeType}. Obtenés runas al matar monstruos (28% de chance, 100% en bosses).` };
+    return { text: `❌ No tenés runas de ${RUNE_EMOJIS[runeType]} ${runeType}. Obtenés runas al matar monstruos (28% de chance, 100% en bosses; los tipos que ya acumulás tienen más probabilidad de reaparecer).` };
   }
 
   // Consumir la runa
