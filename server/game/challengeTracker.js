@@ -344,6 +344,14 @@ function trackEvent(playerId, player, eventType, params = {}) {
           break;
         }
 
+        case 'equip_crafted': {
+          // BUG-1381: El jugador equipó un arma que crafteó él mismo en esta sesión.
+          // Se dispara desde cmdEquip cuando detecta que el ítem está en crafted_weapons del jugador.
+          if (eventType !== 'equip_crafted') break;
+          matches = true;
+          break;
+        }
+
         default:
           // Tipo desconocido — ignorar silenciosamente
           break;
@@ -579,6 +587,17 @@ function trackExamine(playerId, player, objectKey = '') {
   return trackEvent(playerId, player, 'examine', { objectKey });
 }
 
+/**
+ * BUG-1381: Llamar cuando un jugador equipa un ítem que crafteó él mismo en esta sesión.
+ * @param {string} playerId
+ * @param {object} player
+ * @param {string} itemName — nombre del ítem equipado
+ * @returns {string}
+ */
+function trackEquipCrafted(playerId, player, itemName = '') {
+  return trackEvent(playerId, player, 'equip_crafted', { itemName });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -595,6 +614,7 @@ module.exports = {
   trackCurePoison,
   trackPoisonApplied,
   trackExamine,
+  trackEquipCrafted,
   // Exponer trackEvent por si se necesita para casos edge
   trackEvent,
 };

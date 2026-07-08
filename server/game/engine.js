@@ -6604,8 +6604,20 @@ function cmdEquip(player, itemQuery) {
     }
   }
 
+  // BUG-1381: Verificar si el arma equipada fue crafteada por el jugador (desafío equip_crafted)
+  let equipCraftedMsg = '';
+  try {
+    const freshForEquipCraft = db.getPlayer(player.id);
+    const seFresh = parseSE(freshForEquipCraft.status_effects);
+    const craftedWeapons = Array.isArray(seFresh.crafted_weapons) ? seFresh.crafted_weapons : [];
+    const nfnEquipCraft = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (craftedWeapons.includes(nfnEquipCraft(found))) {
+      equipCraftedMsg = challengeTracker.trackEquipCrafted(player.id, freshForEquipCraft, found);
+    }
+  } catch (_) { /* no interrumpir si falla */ }
+
   return {
-    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.\n${def.description}${magoHeavyFlavor}${critWarnMsg}${manaRegenWarnMsg}${swapMsg}`,
+    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.\n${def.description}${magoHeavyFlavor}${critWarnMsg}${manaRegenWarnMsg}${swapMsg}${equipCraftedMsg}`,
     event: `${player.username} empuña ${found}.`,
     eventRoomId: player.current_room_id,
   };
@@ -11550,6 +11562,22 @@ function cmdCraft(player, args) {
 
   // T115: Trackear crafteos para logro secreto Artesano
   db.addCraftsCount(player.id);
+
+  // BUG-1381: Guardar el nombre del ítem crafteado en status_effects (para desafío equip_crafted)
+  // Si el resultado es un arma, registrarlo en crafted_weapons para que cmdEquip pueda detectarlo.
+  try {
+    const craftedItemDefSE = crafting.CRAFTED_ITEMS[craftResult.result] || {};
+    if (craftedItemDefSE.type === 'weapon') {
+      const freshForSE = db.getPlayer(player.id);
+      const seCraft = parseSE(freshForSE.status_effects);
+      const craftedWeapons = Array.isArray(seCraft.crafted_weapons) ? seCraft.crafted_weapons : [];
+      const normResult = craftResult.result.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (!craftedWeapons.includes(normResult)) {
+        craftedWeapons.push(normResult);
+        db.updatePlayer(player.id, { status_effects: JSON.stringify({ ...seCraft, crafted_weapons: craftedWeapons }) });
+      }
+    }
+  } catch (_) { /* no interrumpir craft si falla el tracking */ }
 
   // T-1231: Tracking de desafíos diarios — crafteo
   try {
