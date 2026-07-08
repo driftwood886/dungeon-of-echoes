@@ -2141,7 +2141,8 @@ const LOOT_CHANCES = {
 // DIS-1007: Ítems que se entregan directamente al inventario del jugador al matar el boss,
 // en lugar de quedar en el suelo de la sala. Evita que otro jugador los recoja sin combatir.
 const BOSS_DIRECT_LOOT = {
-  8: ['alabarda de huesos', 'peto de huesos'], // Guardia Espectral — ítems épicos de progresión
+  8:  ['alabarda de huesos', 'peto de huesos'], // Guardia Espectral — ítems épicos de progresión
+  12: ['pergamino de velocidad'],               // DIS-1353: Campeón Espectral — ítem único de progresión; directo al inventario para evitar pérdida por inventario lleno
 };
 
 function dropLoot(monster, roomId, player) {
