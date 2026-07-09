@@ -7886,9 +7886,11 @@ function cmdMap(player) {
     'MAPA DEL DUNGEON',
     timeDecor,
     '',
+    // DIS-1417: Encabezado de zona principal para mayor claridad estructural
+    `── ZONA PRINCIPAL ──────────────────────────────────────────`,
     // BUG-881: Santuario (10) al ESTE del Trono (9) — conexión east/west correcta
     `${c(18)}---${c(9)}---${c(10)}---${c(11)}`,
-    `              |         |         ↓ (zona profunda)`,
+    `              |         |         ↓ bajar → ZONA PROFUNDA`,
     // Túnel (6) sur de Trono, Corredor (2) este de Túnel; Pozo (7) sur de Santuario
     (() => {
       // BUG-721: estado de la puerta norte del Pozo (→Santuario)
@@ -7910,9 +7912,11 @@ function cmdMap(player) {
     `            ${c(5)}---${c(1)}`,
     ``,
     // BUG-900: no repetir sala 11 — ya aparece en la fila superior. Solo mostrar flecha de descenso.
-    `── ZONA PROFUNDA (entrada: Galería [11] → bajar ↓) ──────────`,
-    `            ↓ (desde [11:Galería] — ver fila superior)`,
-    `              |   \\               ${cellTutorial(21)}---${cellTutorial(16)}`,
+    // DIS-1417: mejorar diagrama de acceso a zona profunda con indicación de comando
+    ``,
+    `── ZONA PROFUNDA ─── (ingreso: estando en [11:Galería] escribí "bajar") ──`,
+    `      │ ← acceso desde [11:Galería] en zona principal`,
+    `      │   \\               ${cellTutorial(21)}---${cellTutorial(16)}`,
     `            ${c(12)} ${c(13)}`,
     `                  \\  /`,
     `              ${c(14)}---${c(19)}---${c(15)}---${c(22)}`,
@@ -7921,7 +7925,8 @@ function cmdMap(player) {
     ``,
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
     `[18] = Fuente Eterna (sala de mid-dungeon — escribí "beber" para restaurar HP completo)`,
-    `↓  = zona profunda (bajar desde Galería [11], ya visible arriba)  ╎ = separación visual (sin conexión directa)`,
+    // DIS-1417: leyenda mejorada con estructura de dos zonas explícita
+    `↓  = comando "bajar" — acceso a ZONA PROFUNDA (desde sala 11 Galería)  ╎ = separación visual (sin conexión directa)`,
     // DIS-635: solo mencionar sala 8 como fuente de llave si ya fue visitada
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
