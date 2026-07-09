@@ -282,7 +282,19 @@ function formatAchievements(player) {
   let header = `Logros (${allEarned.length}/${totalPublic + secretAchs.length}):`;
   const result = `${header}\n${lines.join('\n')}`;
   if (secretPending > 0) {
-    return result + `\n  🔒 ${secretPending} logro(s) secreto(s) aún sin descubrir...`;
+    // DIS-1420: una pista por logro secreto no descubierto
+    const SECRET_HINTS = {
+      'temerario':              '🔒 Pista: no todos los héroes aprenden del miedo — a veces hay que caer varias veces.',
+      'mecenas':                '🔒 Pista: el mercader Aldric aprecia a los clientes generosos.',
+      'artesano':               '🔒 Pista: la alquimia premia la constancia, no el talento.',
+      'ultimo_aliento':         '🔒 Pista: algunos duelos se ganan al borde del abismo.',
+      'cartografo':             '🔒 Pista: hay partes del dungeon donde pocas luces llegan.',
+      'veterano_dungeon':       '🔒 Pista: el tiempo que pasás aquí no se borra fácilmente.',
+      'superviviente_implacable': '🔒 Pista: el modo más difícil premia a quienes llegan sin caer.',
+    };
+    const pendingSecretAchs = secretAchs.filter(a => !current.includes(a.id));
+    const hintLines = pendingSecretAchs.map(a => SECRET_HINTS[a.id] || '🔒 Logro secreto sin descubrir.');
+    return result + `\n${hintLines.join('\n')}`;
   }
   return result;
 }
