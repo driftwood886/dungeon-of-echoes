@@ -17841,6 +17841,54 @@ function cmdRunas(player) {
   lines.push('║  💡 USO: enchant <tipo>  — Encanta tu arma      ║');
   lines.push('║  equipada con 1 runa del tipo indicado.         ║');
   lines.push('║  Duración: 3 minutos. Ver efectos arriba.       ║');
+
+  // DIS-1395: recomendación de runas por clase y especialización
+  const cls = fresh.player_class || 'sin_clase';
+  const spec = fresh.specialization || null;
+
+  const RUNE_REC = {
+    // Guerrero
+    guerrero: {
+      default: { rune: 'sombra', emoji: '🌑', reason: '+DEF te hace más difícil de matar' },
+      paladin:  { rune: 'hielo',  emoji: '❄️',  reason: '+HP — ya tenés +2 DEF del Paladín' },
+      berserker: { rune: 'fuego',  emoji: '🔥', reason: '+ATK — amplifica tu daño berserker' },
+    },
+    // Pícaro
+    picaro: {
+      default: { rune: 'fuego', emoji: '🔥', reason: '+ATK para más daño en críticos' },
+      asesino:  { rune: 'fuego', emoji: '🔥', reason: '+ATK — cada crítico pega más fuerte' },
+      ladron:   { rune: 'sombra', emoji: '🌑', reason: '+DEF para sobrevivir y seguir robando' },
+    },
+    // Mago
+    mago: {
+      default: { rune: 'caos', emoji: '🌀', reason: '+maná = más hechizos por combate' },
+      evoker:   { rune: 'caos', emoji: '🌀', reason: '+maná — más explosiones, más daño' },
+    },
+    // Clérigo
+    clerigo: {
+      default: { rune: 'caos', emoji: '🌀', reason: '+maná para curar y lanzar más' },
+      sanador:  { rune: 'hielo', emoji: '❄️',  reason: '+HP — el sanador necesita aguante propio' },
+      juicio:   { rune: 'fuego', emoji: '🔥', reason: '+ATK — amplifica el bonus ATK del Juicio' },
+    },
+  };
+
+  const clsRecs = RUNE_REC[cls];
+  if (clsRecs) {
+    const rec = (spec && clsRecs[spec]) || clsRecs.default;
+    if (rec) {
+      const clsLabel = cls.charAt(0).toUpperCase() + cls.slice(1);
+      const specLabel = spec ? ` / ${spec.charAt(0).toUpperCase() + spec.slice(1)}` : '';
+      lines.push('╟' + '─'.repeat(44) + '╢');
+      lines.push('║  🎯 RECOMENDACIÓN PARA TU CLASE:               ║');
+      const clsLine = `  [${clsLabel}${specLabel}]`.padEnd(44);
+      lines.push('║' + clsLine + '║');
+      const recLine = `  Priorizar: ${rec.emoji} ${rec.rune.charAt(0).toUpperCase() + rec.rune.slice(1)}`.padEnd(44);
+      lines.push('║' + recLine + '║');
+      const reasonLine = `  ${rec.reason}`.padEnd(44);
+      lines.push('║' + reasonLine + '║');
+    }
+  }
+
   lines.push('╚' + '═'.repeat(44) + '╝');
 
   return { text: lines.join('\n') };
