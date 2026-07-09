@@ -4107,12 +4107,13 @@ function cmdAttack(player, targetName) {
 
   // ── Desafío diario (T141) ────────────────────────────────────────────────
   let challengeMsg = '';
+  let challengeResult = null; // DIS-1412: guardado para referencia cruzada con quest
   if (monsterDead) {
-    const cr = db.updateDailyChallengeProgress(player.id, 'kill', monster.name, 1, player.current_room_id);
-    if (cr && cr.reward) {
+    challengeResult = db.updateDailyChallengeProgress(player.id, 'kill', monster.name, 1, player.current_room_id);
+    if (challengeResult && challengeResult.reward) {
       challengeMsg = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
-    } else if (cr && !cr.challenge.done) {
-      challengeMsg = `\n📅 Desafío diario: ${cr.challenge.desc} (${cr.challenge.progress}/${cr.challenge.goal})`;
+    } else if (challengeResult && !challengeResult.challenge.done) {
+      challengeMsg = `\n📅 Desafío diario: ${challengeResult.challenge.desc} (${challengeResult.challenge.progress}/${challengeResult.challenge.goal})`;
     }
   }
 
@@ -4295,6 +4296,10 @@ function cmdAttack(player, targetName) {
       if (qResult.newQuest) {
         const nq = qResult.newQuest.questDef;
         questLines += `\n📜 Nueva quest disponible: "${nq.title}" — ${nq.description}`;
+      }
+      // DIS-1412: mostrar progreso del desafío diario relacionado (si aplica al mismo monstruo)
+      if (challengeResult && !challengeResult.reward && !challengeResult.challenge.done && challengeResult.challenge.progress > 0) {
+        questLines += `\n📅 Bonus: también avanzaste en tu Desafío del Día — ${challengeResult.challenge.desc} (${challengeResult.challenge.progress}/${challengeResult.challenge.goal})`;
       }
       // DIS-982: si el quest reward causó un level-up, chequear logros de nivel ahora
       // (el checkAchievements anterior fue antes de actualizar el nivel, por lo que
@@ -9571,6 +9576,13 @@ function cmdShop(player, args) {
   const shopHp  = `${player.hp || 0}/${player.max_hp || 30}`;
   lines.push(`📊 Tu equipo actual:  ⚔️ ${shopWeapon || '(sin arma)'}  🛡️ ${shopArmor || '(sin armadura)'}  ATK: ${shopAtk}  DEF: ${shopDef}  HP: ${shopHp}`);
   lines.push('');
+  // DIS-1410: si el jugador es nivel 5+ sin armadura, Aldric lo nota y recomienda una
+  if ((player.level || 1) >= 5 && !shopArmor) {
+    const armorRec = player.player_class === 'mago' ? 'túnica encantada' : 'cuero endurecido';
+    lines.push(`🛡️ Aldric te mira de arriba abajo. «${player.username}... llegaste al nivel ${player.level || 1} sin armadura.»`);
+    lines.push(`  «Eso explica las cicatrices. Mirá un "${armorRec}" — te va a cambiar la vida en los niveles siguientes.» (escribí 'tienda todo' para verlo en el catálogo)`);
+    lines.push('');
+  }
   if (clsShop) {
     // DIS-1383: detectar si el jugador tiene equipo épico/legendario para filtrar recomendaciones de armas básicas
     const equippedWeaponName = (player.equipped_weapon && player.equipped_weapon !== 'null') ? player.equipped_weapon.toLowerCase() : null;
