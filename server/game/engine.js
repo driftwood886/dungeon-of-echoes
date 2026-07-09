@@ -10559,8 +10559,18 @@ function _cmdFaccionElegir(player, args) {
   // Sin confirmación → mostrar tarjeta y pedir confirmación
   if (!hasConfirm) {
     const card = _buildFactionCard(lore, false);
+    // DIS-1389: el comando de confirmación va ANTES del card (prominente) y también al final
+    const confirmLine = `faccion elegir ${factionId} confirmar`;
+    const sep = '━'.repeat(56);
+    const confirmBlock = [
+      '',
+      sep,
+      `  ${lore.icon}  ¿Querés unirte a ${lore.name}?`,
+      `  ► Escribí exactamente: ${confirmLine}`,
+      sep,
+    ].join('\n');
     return {
-      text: card + `\n\n¿Querés unirte a ${lore.icon} ${lore.name}?\nEscribí: faccion elegir ${factionId} confirmar\n(o explorá otras opciones con: faccion elegir <nombre>)`,
+      text: confirmBlock + '\n\n' + card + `\n\n  ► Para confirmar: ${confirmLine}\n  (o explorá otras opciones con: faccion elegir <nombre>)`,
     };
   }
 
