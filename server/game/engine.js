@@ -2704,6 +2704,23 @@ function cmdInventory(player) {
     }
     return true;
   }
+  // DIS-1392: mapa de ítems intermedios — si el resultado de una receta es a su vez
+  // ingrediente en otra receta, marcarlo como "ingrediente intermedio" y mostrar el destino final.
+  // Ejemplo: "lanza espectral" → "lanza espectral reforzada"
+  const intermediateResultMap = new Map(); // result.toLowerCase() → Set(destinos)
+  for (const recipe of RECIPES) {
+    for (const otherRecipe of RECIPES) {
+      if (otherRecipe === recipe) continue;
+      const recipeResultLower = recipe.result.toLowerCase();
+      const isIngredientInOther = otherRecipe.ingredients.some(i => i.toLowerCase() === recipeResultLower);
+      if (isIngredientInOther) {
+        if (!intermediateResultMap.has(recipeResultLower)) {
+          intermediateResultMap.set(recipeResultLower, new Set());
+        }
+        intermediateResultMap.get(recipeResultLower).add(otherRecipe.result);
+      }
+    }
+  }
   // Un ítem tiene receta viable si existe al menos una receta en la que sea ingrediente
   // Y el otro ingrediente TAMBIÉN está en el inventario (con cantidad suficiente)
   const viableRecipeItems = new Set();
@@ -2729,13 +2746,27 @@ function cmdInventory(player) {
       const key = `${ing1}|${recipe.result}`;
       if (!shownLoneHints.has(key)) {
         shownLoneHints.add(key);
-        loneIngredientHints.push(`  💡 Tenés **${recipe.ingredients[0]}** — te falta **${recipe.ingredients[1]}** para craftear **${recipe.result}**`);
+        // DIS-1392: indicar si el resultado es ingrediente intermedio
+        const resultLower = recipe.result.toLowerCase();
+        const furtherRSet = intermediateResultMap.get(resultLower);
+        const furtherR = furtherRSet ? [...furtherRSet] : [];
+        const interNote = furtherR.length > 0
+          ? ` *(paso intermedio → ${furtherR.join(', ')})*`
+          : '';
+        loneIngredientHints.push(`  💡 Tenés **${recipe.ingredients[0]}** — te falta **${recipe.ingredients[1]}** para craftear **${recipe.result}**${interNote}`);
       }
     } else if (!hasIng1 && hasIng2) {
       const key = `${ing2}|${recipe.result}`;
       if (!shownLoneHints.has(key)) {
         shownLoneHints.add(key);
-        loneIngredientHints.push(`  💡 Tenés **${recipe.ingredients[1]}** — te falta **${recipe.ingredients[0]}** para craftear **${recipe.result}**`);
+        // DIS-1392: indicar si el resultado es ingrediente intermedio
+        const resultLower = recipe.result.toLowerCase();
+        const furtherRSet = intermediateResultMap.get(resultLower);
+        const furtherR = furtherRSet ? [...furtherRSet] : [];
+        const interNote = furtherR.length > 0
+          ? ` *(paso intermedio → ${furtherR.join(', ')})*`
+          : '';
+        loneIngredientHints.push(`  💡 Tenés **${recipe.ingredients[1]}** — te falta **${recipe.ingredients[0]}** para craftear **${recipe.result}**${interNote}`);
       }
     }
   }
@@ -2800,7 +2831,14 @@ function cmdInventory(player) {
       const key = recipe.result;
       if (!shownReadyRecipes.has(key)) {
         shownReadyRecipes.add(key);
-        readyRecipes.push(`  ✅ ${recipe.ingredients.join(' + ')} → **${recipe.result}** (escribí \`craftear ${recipe.result}\`)`);
+        // DIS-1392: si el resultado es ingrediente intermedio, indicar la cadena
+        const resultLower = recipe.result.toLowerCase();
+        const furtherRSet = intermediateResultMap.get(resultLower);
+        const furtherRecipes = furtherRSet ? [...furtherRSet] : [];
+        const intermediateNote = furtherRecipes.length > 0
+          ? ` *(ingrediente de: ${furtherRecipes.join(', ')})*`
+          : '';
+        readyRecipes.push(`  ✅ ${recipe.ingredients.join(' + ')} → **${recipe.result}**${intermediateNote} (escribí \`craftear ${recipe.result}\`)`);
       }
     }
   }
