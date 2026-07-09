@@ -12884,11 +12884,22 @@ function cmdBid(player, args) {
   }
 
   const auction = db.getAuction(auctionId);
+
+  // DIS-1403: helper para mostrar subastas activas como contexto
+  function activeAuctionsHint() {
+    try {
+      const active = db.getActiveAuctions();
+      if (!active || active.length === 0) return '\n\n(No hay subastas activas en este momento.)';
+      const lines = active.map(a => `  #${a.id} — ${a.item_name} (${a.current_bid}g mín. · vendedor: ${a.seller_name})`);
+      return `\n\nSubastas activas ahora:\n${lines.join('\n')}`;
+    } catch (_) { return ''; }
+  }
+
   if (!auction) {
-    return { text: `No existe la subasta #${auctionId}. Usá "subastas" para ver las activas.` };
+    return { text: `No existe ninguna subasta con ID #${auctionId}.${activeAuctionsHint()}` };
   }
   if (auction.closed) {
-    return { text: `La subasta #${auctionId} ya está cerrada.` };
+    return { text: `La subasta #${auctionId} ya está cerrada (el remate terminó).${activeAuctionsHint()}` };
   }
 
   const gold = player.gold || 0;
