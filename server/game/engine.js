@@ -1467,7 +1467,7 @@ function cmdMove(player, direction) {
                 // DIS-1387: dirección dinámica igual que en Túnel de Hongos
                 const dirNormNB1249 = dungeon.normalizeDirection(direction);
                 const dirEsNB1249 = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNormNB1249]) || dirNormNB1249 || 'la dirección indicada';
-                const currentRoomNB1249 = db.getRoom(player.room_id);
+                const currentRoomNB1249 = db.getRoom(player.current_room_id);
                 const currentRoomNameNB1249 = currentRoomNB1249 ? currentRoomNB1249.name : 'tu sala actual';
                 return {
                   text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance\n   • Derrotá al Espectro del Corredor dentro de esta sala (drop garantizado)\n   → Con la corona en mano, **desde ${currentRoomNameNB1249}**: escribí «desactivar trampa ${dirEsNB1249}»\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
@@ -2019,7 +2019,7 @@ function cmdMove(player, direction) {
           // DIS-1387: dirección dinámica y nombre de sala actual
           const dirNorm1249 = dungeon.normalizeDirection(direction);
           const dirEs1249 = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNorm1249]) || dirNorm1249 || 'la dirección indicada';
-          const currentRoom1249 = db.getRoom(player.room_id);
+          const currentRoom1249 = db.getRoom(player.current_room_id);
           const currentRoomName1249 = currentRoom1249 ? currentRoom1249.name : 'tu sala actual';
           return {
                   text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance\n   • Derrotá al Espectro del Corredor dentro de esta sala (drop garantizado)\n   → Con la corona en mano, **desde ${currentRoomName1249}**: escribí «desactivar trampa ${dirEs1249}»\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
