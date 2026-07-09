@@ -206,7 +206,7 @@ async function main() {
         name: adjRoom.name,
         monsters: adjMonsters.map(m => ({ name: m.name, hp: m.hp, max_hp: m.max_hp })),
         danger: adjMonsters.length > 0 ? (adjMonsters.some(m => m.max_hp >= 50) ? 'alta' : 'media') : 'ninguno',
-        locked: typeof target === 'object' && target.requires_key ? true : false,
+        locked: typeof target === 'object' && target.key ? true : false,
       });
     }
 
