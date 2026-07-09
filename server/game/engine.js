@@ -21355,6 +21355,18 @@ function cmdPray(player, args) {
   db.updatePlayer(player.id, updates);
   altarCooldowns.set(player.id, Date.now());
 
+  // BUG-1415: aviso cuando se consume corona rota en la Capilla (sala 5) — ítem de uso dual
+  // La corona rota también desactiva la trampa de frío de la Sala del Trono (sala 9).
+  // Al ofrecerla en el altar, el jugador puede perder esa opción sin saberlo.
+  if (foundLower === 'corona rota' && roomId === 5) {
+    resultLines.push(
+      `\n⚠️  Nota: la corona rota también servía para desactivar la trampa de frío de la Sala del Trono (sala 9). Fue consumida aquí.\n` +
+      `   Si necesitás otra para la trampa del Trono, podés:\n` +
+      `   • Derrotar al Espectro del Corredor en la Sala del Trono — drop garantizado\n` +
+      `   • Buscar en la Prisión Subterránea (sala 8) — 35% de chance`
+    );
+  }
+
   const altarName = roomId === 5 ? 'la Capilla Olvidada' : 'el Santuario Profano';
   return {
     text: `🙏 Ofrecés ${found} al altar de ${altarName}.\n\n${resultLines.join('\n')}`,
