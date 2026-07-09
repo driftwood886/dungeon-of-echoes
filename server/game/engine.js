@@ -3660,6 +3660,26 @@ function cmdAttack(player, targetName) {
     }
     // DIS-1096: verificar si hay un monstruo muerto con ese nombre — sugerir recoger loot
     try {
+      // DIS-1406: en sala 4 (tienda de Aldric), si el jugador intenta atacar al esqueleto guerrero,
+      // dar un mensaje especial en lugar del genérico "No hay ningún X aquí"
+      const normalTargetSk = targetName.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (player.current_room_id === 4 && (normalTargetSk.includes('esqueleto') || normalTargetSk.includes('guerrero'))) {
+        try {
+          const eventScheduler = require('./eventScheduler');
+          const activeEv = eventScheduler.getActiveEventInfo ? eventScheduler.getActiveEventInfo() : null;
+          const isMareaEspectral = activeEv && activeEv.event && activeEv.event.id === 'SPECTRAL_TIDE';
+          if (isMareaEspectral) {
+            const minLeft = activeEv.minutesRemaining || '?';
+            return { text: `🦴 El Esqueleto Guerrero está de pie junto a la puerta, inmóvil como siempre.\n\nEs el guardia personal de Aldric. No ataca a compradores — y durante la Marea Espectral, está demasiado ocupado protegiéndolo como para distraerse con vos. (~${minLeft} min hasta que el evento termine)\n\n💡 Si querés practicar combate, volvé a la Sala de Práctica (sala 1).` };
+          } else {
+            return { text: `🦴 El Esqueleto Guerrero es el guardia personal de Aldric. No te atacará mientras estés aquí como comprador — y atacarlo provocaría exactamente eso.\n\n💡 Si necesitás practicar combate, hay un maniquí en la Sala de Práctica (sala 1).` };
+          }
+        } catch (_) {
+          return { text: `🦴 El Esqueleto Guerrero es el guardia personal de Aldric. No te atacará si no lo provocás primero.` };
+        }
+      }
+    } catch (_) {}
+    try {
       const deadInRoom = db.getDeadMonstersForRoom(player.current_room_id);
       const normalTarget2 = targetName.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       const deadMatch = deadInRoom.find(m => {
