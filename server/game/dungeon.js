@@ -306,6 +306,9 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
       ? `Necesitás "${room.trap.item_needed}" para desactivarla.`
       : 'Escribí "desactivar trampa" con el ítem correcto.';
     lines.push(`\n⚠️  Esta sala tiene una trampa activa. ${trapItemHint}`);
+  } else if (room.trap && room.trap.active && (knownTraps[String(roomId)] || knownTraps[roomId])) {
+    // DIS-1394: si el jugador ya conoce la trampa pero sigue activa, indicar que no le afecta
+    lines.push(`\n🧠 Trampa activa — pero ya conocés el mecanismo. Ya no tomás daño al entrar.`);
   }
 
   // DIS-1178: Sala 1 (Entrada) — hint temprano sobre el mercader
