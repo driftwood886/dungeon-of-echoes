@@ -325,12 +325,37 @@ function formatQuest(player) {
     }
   }
 
+  // DIS-1405 Propuesta B: indicar en el panel si el objetivo está bloqueado por Marea Espectral
+  let spectralBlockHint = '';
+  if (quest.type === 'kill' && quest.target && !completed) {
+    try {
+      const eventScheduler = require('./eventScheduler');
+      const activeEv = eventScheduler.getActiveEventInfo ? eventScheduler.getActiveEventInfo() : null;
+      if (activeEv && activeEv.event && activeEv.event.id === 'SPECTRAL_TIDE') {
+        const normalize = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const targetNorm = normalize(quest.target);
+        // Verificar si el objetivo NO es espectral/undead (si fuera espectral, no estaría bloqueado)
+        const isSpectralTarget = targetNorm.includes('espectro') || targetNorm.includes('espectral') ||
+          targetNorm.includes('lich') || targetNorm.includes('sombra') || targetNorm.includes('fantasma') ||
+          targetNorm.includes('esqueleto') || targetNorm.includes('zombie') || targetNorm.includes('vampiro') ||
+          targetNorm.includes('momia') || targetNorm.includes('muerto');
+        if (!isSpectralTarget) {
+          const minLeft = activeEv.minutesRemaining || '?';
+          spectralBlockHint = `\n⚠️  [MAREA ESPECTRAL] El ${quest.target} huye durante el evento (~${minLeft} min restantes). Tu objetivo está temporalmente inaccesible.`;
+          if (quest.id === 'slayer_goblin') {
+            spectralBlockHint += '\n   💡 Alternativas: explorar Corredor de Sombras, desactivar trampas, o visitar la tienda de Aldric.';
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   return [
     `══ 📜 QUEST ACTIVA: ${quest.title} ══`,
     quest.description,
     `Progreso: ${bar} ${progress}/${goal} (faltan ${remaining})`,
     `Recompensa: ${rewardStr}`,
-  ].join('\n') + locationHint + accessHint;
+  ].join('\n') + locationHint + accessHint + spectralBlockHint;
 }
 
 module.exports = {

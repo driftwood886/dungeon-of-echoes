@@ -22,6 +22,7 @@ const xpSystem = require('./xp');   // DIS-D282: curva de XP cuadrática
 const eventScheduler = require('./eventScheduler'); // T-1227: eventos cíclicos globales (BD)
 const challengeTracker = require('./challengeTracker'); // T-1231: tracking de desafíos diarios
 const combatStates = require('./combatStates'); // EPIC-1291-F1: sistema de estados de combate
+const quests      = require('./quests');       // DIS-1405: hint de quest bloqueada por Marea Espectral
 
 // IDs de monstruos espectrales para SPECTRAL_TIDE
 const SPECTRAL_MONSTER_IDS = new Set([4, 8, 12, 13, 21, 22]); // Espectro Corredor, Guardia Espectral, Campeón Espectral, Lich, Eco Viviente, Sombra (id 11 era Krakeling Abismal — no espectral)
@@ -408,8 +409,26 @@ function attackRound(player, monster) {
         monsterNameLower.includes('muerto');
       if (!isSpectral && !isUndead) {
         const minLeft = newEvCheck.minutesRemaining;
+        // DIS-1405: detectar si la quest activa tiene a este monstruo como objetivo
+        let questHint = '';
+        try {
+          const activeQ = quests.getActiveQuest();
+          if (activeQ && activeQ.questDef && activeQ.questDef.type === 'kill' && activeQ.questDef.target) {
+            const normalize = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const monsterNorm = normalize(monster.name);
+            const targetNorm  = normalize(activeQ.questDef.target);
+            if (monsterNorm.includes(targetNorm) || targetNorm.includes(monsterNorm.split(' ')[0])) {
+              // El monstruo bloqueado ES el objetivo de la quest activa
+              if (activeQ.questDef.id === 'slayer_goblin') {
+                questHint = '\n💡 Tu quest requiere Goblins, que no están disponibles durante la Marea Espectral. Mientras dure (~' + minLeft + ' min más), podés:\n   • Explorar el Corredor de las Sombras (al sur): hay inscripciones antiguas e ítems de crafteo.\n   • Desactivar la trampa al oeste del Corredor con un hongo azul (si lo tenés).\n   • Visitar la tienda de Aldric (norte → este) para equiparte.';
+              } else {
+                questHint = '\n💡 Tu quest activa requiere este tipo de monstruo, pero huye por la Marea Espectral (~' + minLeft + ' min más). Mientras tanto, podés explorar otras zonas o prepararte.';
+              }
+            }
+          }
+        } catch (_) {}
         return {
-          lines: [`👻 MAREA ESPECTRAL — Solo los no-muertos están activos. El ${monster.name} huye ante la marea espectral y no puede ser combatido ahora. (Evento termina en ~${minLeft} min)`],
+          lines: [`👻 MAREA ESPECTRAL — Solo los no-muertos están activos. El ${monster.name} huye ante la marea espectral y no puede ser combatido ahora. (Evento termina en ~${minLeft} min)${questHint}`],
           monsterDead: false, playerDead: false, loot: [], spectralBlocked: true
         };
       }
