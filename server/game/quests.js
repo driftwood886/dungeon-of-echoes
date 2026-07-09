@@ -84,6 +84,7 @@ const QUEST_CATALOG = [
 // ─── Estado en memoria ─────────────────────────────────────────────────────────
 
 let activeQuest = null; // { questDef, startedAt, completedBy: Set<playerId> }
+let recentlyCompletedIds = []; // DIS-1409: pool rotation — últimas 2 quests completadas para evitar repetición
 
 // ─── Persistencia ─────────────────────────────────────────────────────────────
 
@@ -98,6 +99,10 @@ function loadQuest() {
           startedAt: raw.startedAt,
           completedBy: new Set(raw.completedBy || []),
         };
+        // DIS-1409: restaurar historial de quests recientes
+        if (Array.isArray(raw.recentlyCompletedIds)) {
+          recentlyCompletedIds = raw.recentlyCompletedIds;
+        }
         console.log(`[quests] Quest activa cargada: ${def.title}`);
         return;
       }
@@ -115,6 +120,7 @@ function saveQuest() {
       questId: activeQuest.questDef.id,
       startedAt: activeQuest.startedAt,
       completedBy: [...activeQuest.completedBy],
+      recentlyCompletedIds, // DIS-1409: persistir historial
     }));
   } catch (err) {
     console.error('[quests] Error al guardar quest:', err.message);
@@ -123,9 +129,19 @@ function saveQuest() {
 
 function startNewQuest(excludeId = null, maxPlayerLevel = 1) {
   // DIS-1128: Excluir quests con minLevel > maxPlayerLevel para no asignar quests imposibles
-  const choices = QUEST_CATALOG.filter(q => q.id !== excludeId && (q.minLevel || 1) <= Math.max(maxPlayerLevel, 5));
-  const pool = choices.length > 0 ? choices : QUEST_CATALOG.filter(q => q.id !== excludeId);
-  const def = pool[Math.floor(Math.random() * pool.length)];
+  // DIS-1409: Excluir también las últimas 2 quests completadas para diversidad
+  const excludedIds = new Set([excludeId, ...recentlyCompletedIds].filter(Boolean));
+  let choices = QUEST_CATALOG.filter(q => !excludedIds.has(q.id) && (q.minLevel || 1) <= Math.max(maxPlayerLevel, 5));
+  if (choices.length === 0) {
+    // fallback: solo excluir la quest actual
+    choices = QUEST_CATALOG.filter(q => q.id !== excludeId);
+    recentlyCompletedIds = []; // resetear historial si queda sin opciones
+  }
+  const def = choices[Math.floor(Math.random() * choices.length)];
+  // DIS-1409: registrar en historial de recientes (máx 2)
+  if (excludeId) {
+    recentlyCompletedIds = [excludeId, ...recentlyCompletedIds].slice(0, 2);
+  }
   activeQuest = {
     questDef: def,
     startedAt: new Date().toISOString(),
@@ -223,13 +239,15 @@ function recordProgress(player, type, data = {}) {
   const justCompleted = newProgress >= def.goal;
 
   let reward = null;
+  let newQuest = null; // DIS-1409: nueva quest rotada automáticamente
   if (justCompleted) {
     quest.completedBy.add(player.id);
     reward = def.reward;
-    saveQuest();
+    // DIS-1409: rotar inmediatamente a nueva quest para todos los jugadores
+    newQuest = startNewQuest(def.id, player.level || 1);
   }
 
-  return { newProgress, justCompleted, reward, questProgress: JSON.stringify(qp) };
+  return { newProgress, justCompleted, reward, questProgress: JSON.stringify(qp), newQuest };
 }
 
 /**
@@ -265,7 +283,7 @@ function formatQuest(player) {
       `══ 📜 QUEST ACTIVA: ${quest.title} ══`,
       quest.description,
       `✅ ¡Ya completaste esta quest! Recompensa recibida: ${rewardStr}`,
-      `(Una nueva quest llegará cuando esta expire o en la próxima sesión)`,
+      `(Una nueva quest comenzará pronto para los demás jugadores)`,
     ].join('\n');
   }
 

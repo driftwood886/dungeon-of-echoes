@@ -4291,6 +4291,11 @@ function cmdAttack(player, targetName) {
       }
       db.updatePlayer(player.id, questUpd);
       questLines = `\n\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.${questLevelUp ? ` ✨ ¡SUBÍS AL NIVEL ${questNewLevel}!` : ''}`;
+      // DIS-1409: anunciar la nueva quest que rotó automáticamente
+      if (qResult.newQuest) {
+        const nq = qResult.newQuest.questDef;
+        questLines += `\n📜 Nueva quest disponible: "${nq.title}" — ${nq.description}`;
+      }
       // DIS-982: si el quest reward causó un level-up, chequear logros de nivel ahora
       // (el checkAchievements anterior fue antes de actualizar el nivel, por lo que
       // logros basados en nivel (ej: nivel_5, nivel_10) no habrían disparado si el
@@ -4992,6 +4997,11 @@ function cmdPick(player, itemQuery) {
           const pickAllNewXp = (fqAll.xp || 0) + rAll.xp;
           db.updatePlayer(player.id, { gold: (fqAll.gold || 0) + rAll.gold, xp: pickAllNewXp, level: xpSystem.levelFromXp(pickAllNewXp) });
           pickAllQuestLine = `\n🎉 ¡Quest completada! Recibís ${rAll.gold}g y ${rAll.xp} XP de recompensa.`;
+          // DIS-1409: anunciar nueva quest rotada
+          if (qrPickAll.newQuest) {
+            const nqA = qrPickAll.newQuest.questDef;
+            pickAllQuestLine += `\n📜 Nueva quest disponible: "${nqA.title}" — ${nqA.description}`;
+          }
         } else if (!qrPickAll.justCompleted) {
           const activeQAll = quests.getActiveQuest();
           if (activeQAll && activeQAll.questDef && activeQAll.questDef.type === 'gold') {
@@ -5085,6 +5095,11 @@ function cmdPick(player, itemQuery) {
         const goldDepNewXp = (fq2.xp || 0) + r.xp;
         db.updatePlayer(player.id, { gold: (fq2.gold || 0) + r.gold, xp: goldDepNewXp, level: xpSystem.levelFromXp(goldDepNewXp) });
         goldQuestLine = `\n🎉 ¡Quest completada! Recibís ${r.gold}g y ${r.xp} XP de recompensa.`;
+        // DIS-1409: anunciar nueva quest rotada
+        if (qrGold.newQuest) {
+          const nqG = qrGold.newQuest.questDef;
+          goldQuestLine += `\n📜 Nueva quest disponible: "${nqG.title}" — ${nqG.description}`;
+        }
       } else if (!qrGold.justCompleted) {
         // DIS-D328: mostrar progreso actualizado de quest de oro activa
         const activeQ = quests.getActiveQuest();
