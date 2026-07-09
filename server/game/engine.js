@@ -2389,8 +2389,13 @@ function cmdMove(player, direction) {
       } // cierre del else { // (sala !== 20) — BUG-901
     } else if (roomEffect.type === 'heal') {
       const newHp = Math.min(player.max_hp, player.hp + roomEffect.amount);
-      db.updatePlayer(player.id, { hp: newHp });
-      effectText = `\n\n${roomEffect.msg} (${newHp}/${player.max_hp} HP)`;
+      const actualHeal = newHp - player.hp;
+      // BUG-1400: solo curar y mostrar mensaje si el jugador no está ya al máximo de HP
+      if (actualHeal > 0) {
+        db.updatePlayer(player.id, { hp: newHp });
+        effectText = `\n\n${roomEffect.msg} (+${actualHeal} HP restaurado. ${newHp}/${player.max_hp} HP)`;
+      }
+      // Si ya estaba al máximo, no mostrar mensaje (no curó nada)
     } else if (roomEffect.type === 'debuff') {
       // BUG-339: Si la trampa de esta sala fue esquivada por memoria o mascota,
       // no mostrar el debuff narrativo (el jugador evitó el peligro conscientemente).
