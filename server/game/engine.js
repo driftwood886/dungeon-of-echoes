@@ -1924,8 +1924,14 @@ function cmdMove(player, direction) {
         }
         const freshPlayer = db.getPlayer(player.id);
         const lookResult = cmdLook(freshPlayer);
+        // DIS-1421: mostrar nivel recomendado y nivel actual del jugador al pasar junto a un jefe
+        const BOSS_REC_LEVELS = { 4: 3, 5: 5, 8: 4, 10: 5, 12: 5, 13: 7, 21: 6, 22: 8 };
+        const bossRecLevel = BOSS_REC_LEVELS[bossInRoom.id];
+        const bossLevelHint = bossRecLevel
+          ? `\n⚠️  Nivel recomendado: ${bossRecLevel}+ (tu nivel: ${freshPlayer.level}). Regresá más fuerte cuando subas.`
+          : '';
         return {
-          text: `🚶 Pasás cerca del ${bossInRoom.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.${bossFullHpEffectText}${bossFullHpTrapText}\n\n${lookResult.text}`,
+          text: `🚶 Pasás cerca del ${bossInRoom.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.${bossFullHpEffectText}${bossFullHpTrapText}${bossLevelHint}\n\n${lookResult.text}`,
           event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
@@ -1940,9 +1946,15 @@ function cmdMove(player, direction) {
     if (fleeResult.fled && fleeResult.destRoomId) db.trackRoomVisit(player.id, fleeResult.destRoomId);
     // BUG-459 / BUG-550: aclarar que el movimiento inicia una huida, mostrar resultado después
     // BUG-565: solo mostrar "¡Huís!" si la huida realmente funcionó — si no, solo el mensaje de fallo
+    // DIS-1421: para el path bossAtFullHp, añadir nivel recomendado también
+    const BOSS_REC_LEVELS_FLEE = { 4: 3, 5: 5, 8: 4, 10: 5, 12: 5, 13: 7, 21: 6, 22: 8 };
+    const fleeBossRecLevel = bossAtFullHp && monster ? BOSS_REC_LEVELS_FLEE[monster.id] : null;
+    const fleeBossLevelHint = fleeBossRecLevel
+      ? `⚠️  Nivel recomendado: ${fleeBossRecLevel}+ (tu nivel: ${player.level}). Regresá más fuerte cuando subas.\n`
+      : '';
     const fleeNote = fleeResult.fled
       ? (bossAtFullHp
-          ? `🚶 Pasás cerca del ${monster.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.\n`
+          ? `🚶 Pasás cerca del ${monster.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.\n${fleeBossLevelHint}`
           : (aliveHere.length > 1
               ? `⚔️ ¡Huís de ${aliveHere.length} monstruos activos (${nameList})!\n`
               : `⚔️ ¡Huís del combate! (💡 También podés usar "flee" directamente.)\n`))
@@ -4781,8 +4793,14 @@ function cmdFlee(player, targetQuery) {
       db.trackRoomVisit(player.id, destId);
       const destRoom = db.getRoom(destId);
       const destName = destRoom ? destRoom.name : `sala ${destId}`;
+      // DIS-1421: mostrar nivel recomendado al pasar junto a jefe sin atacarlo (cmdFlee)
+      const BOSS_REC_LEVELS_CFLEE = { 4: 3, 5: 5, 8: 4, 10: 5, 12: 5, 13: 7, 21: 6, 22: 8 };
+      const cFleeRecLevel = BOSS_REC_LEVELS_CFLEE[bossFleeInRoom.id];
+      const cFleeLevelHint = cFleeRecLevel
+        ? `\n⚠️  Nivel recomendado: ${cFleeRecLevel}+ (tu nivel: ${player.level}). Regresá más fuerte cuando subas.`
+        : '';
       return {
-        text: `🚶 Pasás cerca del ${bossFleeInRoom.name} con cuidado. No lo atacaste, así que te deja pasar.\n\nTe movés a «${destName}».`,
+        text: `🚶 Pasás cerca del ${bossFleeInRoom.name} con cuidado. No lo atacaste, así que te deja pasar.${cFleeLevelHint}\n\nTe movés a «${destName}».`,
         event: `${player.username} se retira sin combatir.`,
         eventRoomId: room.id,
       };
