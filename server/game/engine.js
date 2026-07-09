@@ -808,6 +808,68 @@ Comandos más usados:
     }
   }
 
+  // DIS-1407: Sistema de hint de situación — si el jugador lleva 3+ acciones pasivas
+  // en la misma sala sin progresión, mostrar sugerencia contextual sutil.
+  // Solo aplica en comandos pasivos (look, status, inventory, map, etc.).
+  // Se resetea cuando el jugador se mueve, ataca con éxito, compra, vende, etc.
+  const STAGNATION_PASSIVE_CMDS = new Set(['look', 'status', 'inventory', 'map', 'who', 'score', 'help', 'history', 'time', 'enemies', 'compare', 'dungeon', 'guide', 'find', 'path', 'bestiary', 'journal', 'server', 'news', 'weather', 'world', 'challenge', 'rank', 'recent', 'records', 'read', 'lore', 'runas', 'emote', 'dice', 'junk', 'notes', 'profile', 'faction', 'worldgoals', 'macros', 'clear', 'afk']);
+  const STAGNATION_RESET_CMDS = new Set(['move', 'attack', 'pick', 'buy', 'sell', 'rest', 'forage', 'craft', 'use', 'drop', 'disarm', 'unlock', 'give', 'pay', 'loot', 'enchant', 'meditate', 'contract', 'ascender', 'recall', 'shop']);
+  // Hints contextuales por sala_id
+  const STAGNATION_HINTS = {
+    1:  '💭 Llevás un rato en la Entrada. El dungeon se extiende al norte (Corredor de las Sombras). Si necesitás equiparte, la tienda de Aldric está al norte y luego al este.',
+    2:  '💭 Estás dando vueltas en el Corredor. La tienda de Aldric está al este. Si el camino oeste tiene trampa, podés buscar un hongo azul en el Túnel o una cuerda en el Pozo (sur). Al sur también está la Sala de los Ecos.',
+    3:  '💭 La Sala de los Ecos puede ser un callejón sin salida si no tenés la cuerda para la trampa. La cuerda cuelga en algún lugar del Pozo (al oeste). Si estás bajo de HP, la Capilla al norte tiene un cuenco sanador.',
+    4:  '💭 La Cámara del Tesoro (tienda de Aldric) tiene ítems útiles — preguntale con «comprar» para ver el catálogo. Si necesitás explorar más, el norte lleva al Corredor, el sur a la Capilla.',
+    5:  '💭 La Capilla tiene un cuenco sagrado que restaura HP (usá «rezar» o «usar cuenco»). Si ya lo usaste, el norte lleva de vuelta al Corredor. Al norte del Corredor están más zonas por explorar.',
+    6:  '💭 El Túnel de los Hongos tiene esporas útiles. Si ya exploraste, al sur está el Corredor, al norte la Sala del Trono (trampa de frío — necesitás corona rota de la Prisión o del Espectro).',
+    7:  '💭 El Pozo Sin Fondo tiene una cuerda útil para la trampa del Corredor. Si ya la recogiste, explorá norte (Corredor) o busca otros caminos. También podés «descansar» para recuperar HP.',
+    8:  '💭 La Prisión Subterránea tiene una corona rota (buscar, 35% chance) para la trampa de la Sala del Trono. Si ya la conseguiste, la Sala del Trono está al sur.',
+    9:  '💭 La Sala del Trono es un nodo central. Al este está el Santuario Profano (zonas más profundas). El frío de la sala es ambiental — la corona rota desactiva la trampa, no el frío.',
+    10: '💭 El Santuario Profano conecta zonas avanzadas. Explorá sur (Galería de Hielo), norte (Taller de la Forja), o este (Catedral de la Oscuridad) si tu nivel lo permite.',
+    11: '💭 La Galería de Hielo es un buen lugar para descansar y encontrar ítems. Si buscaste y descansaste, el norte lleva al Santuario, el este a la Caverna Sumergida.',
+    12: '💭 El Taller de la Forja tiene crafteo disponible. Si ya exploraste, el sur lleva al Santuario Profano con más áreas por descubrir.',
+    13: '💭 La Caverna Sumergida tiene una trampa de inundación — la red de pesca la bloquea (buscar aquí, 45% chance, o comprá en la tienda de Aldric). Si ya la desactivaste, el oeste lleva a la Galería.',
+    14: '💭 El Coliseo de Huesos tiene combates difíciles. Si estás esperando que reaparezcan enemigos, podés ir al Taller (norte) o al Santuario Profano a explorar.',
+    15: '💭 La Catedral de la Oscuridad es la zona más profunda — el Lich está aquí. Asegurate de tener nivel alto y equipo antes de enfrentarlo.',
+  };
+  const DEFAULT_STAGNATION_HINT = '💭 Llevás un rato en esta zona. ¿Hay algo más que podés hacer aquí? Si no, explorar otras salas puede abrir nuevas opciones.';
+
+  try {
+    const isPassiveCmd = STAGNATION_PASSIVE_CMDS.has(action.command);
+    const isResetCmd = STAGNATION_RESET_CMDS.has(action.command);
+    const freshPlayerForStag = db.getPlayer(playerId);
+    const stagSe = freshPlayerForStag.status_effects ? (typeof freshPlayerForStag.status_effects === 'string' ? JSON.parse(freshPlayerForStag.status_effects) : freshPlayerForStag.status_effects) : {};
+    const currentRoomId = freshPlayerForStag.current_room_id;
+    const stagnation = stagSe.stagnation || { room_id: currentRoomId, passive_turns: 0 };
+
+    // Si el jugador cambió de sala, resetear automáticamente
+    const roomChanged = stagnation.room_id !== currentRoomId;
+
+    if (isResetCmd || roomChanged) {
+      // Reset del contador (movimiento o acción de progresión)
+      if (stagnation.passive_turns > 0 || roomChanged) {
+        db.updatePlayer(playerId, { status_effects: JSON.stringify({ ...stagSe, stagnation: { room_id: currentRoomId, passive_turns: 0 } }) });
+      }
+    } else if (isPassiveCmd) {
+      // Acción pasiva: incrementar contador
+      const newTurns = (roomChanged ? 0 : stagnation.passive_turns) + 1;
+      const HINT_THRESHOLD = 3;
+      const HINT_COOLDOWN = 5; // no repetir hint hasta después de N acciones pasivas más
+
+      let hintAdded = false;
+      if (newTurns >= HINT_THRESHOLD && newTurns % HINT_COOLDOWN === HINT_THRESHOLD % HINT_COOLDOWN) {
+        // Mostrar hint solo en comandos look (para que sea relevante y contextual)
+        if (action.command === 'look' || action.command === 'status') {
+          const hintText = STAGNATION_HINTS[currentRoomId] || DEFAULT_STAGNATION_HINT;
+          result = { ...result, text: result.text + '\n\n' + hintText };
+          hintAdded = true;
+        }
+      }
+
+      db.updatePlayer(playerId, { status_effects: JSON.stringify({ ...stagSe, stagnation: { room_id: currentRoomId, passive_turns: newTurns } }) });
+    }
+  } catch (_) { /* silencioso — el hint no es crítico */ }
+
   return result;
 }
 
