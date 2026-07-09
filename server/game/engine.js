@@ -3707,6 +3707,7 @@ function cmdAttack(player, targetName) {
   let quemarComboMsg = null;
   const qcFreshForAttack = db.getPlayer(player.id);
   const qcSEForAttack = parseSE(qcFreshForAttack.status_effects);
+  let savedQuemarComboEntry = null; // BUG-1398: guardar por si hay que revertir (Marea Espectral)
   if (qcSEForAttack.quemar_combo_activo) {
     const qcEntry = qcSEForAttack.quemar_combo_activo;
     const qcExp = qcEntry.expires_at ? new Date(qcEntry.expires_at) : null;
@@ -3716,6 +3717,7 @@ function cmdAttack(player, targetName) {
       player = { ...player, attack: Math.round((player.attack || 5) * quemarComboMult) };
       quemarComboMsg = `⚡ ¡COMBO QUEMADO! x${qcEntry.combo_original} → ×${quemarComboMult} de daño. ¡GOLPE DEVASTADOR!`;
     }
+    savedQuemarComboEntry = qcEntry; // BUG-1398: guardar antes de borrar para posible reversión
     // Consumir el estado (con o sin expiración)
     delete qcSEForAttack.quemar_combo_activo;
     db.updatePlayer(player.id, { status_effects: JSON.stringify(qcSEForAttack) });
@@ -3781,14 +3783,40 @@ function cmdAttack(player, targetName) {
   const combatResult = combat.attackRound(player, monster);
   const { lines, monsterDead, playerDead, globalEvent } = combatResult;
 
-  // EPIC-1302-F4: Agregar mensaje de quemar combo si aplica
-  if (quemarComboMsg) {
-    lines.unshift(quemarComboMsg);  // Al principio para que se vea antes del daño
-  }
-
-  // EPIC-1307-F5: Agregar mensaje de modo berserk si aplica
-  if (modoBerserkMsg) {
-    lines.unshift(modoBerserkMsg);
+  // BUG-1398: Si el ataque fue bloqueado por Marea Espectral (spectralBlocked),
+  // los recursos de habilidades NO deben consumirse — revertir decrementos.
+  if (combatResult.spectralBlocked) {
+    const freshMb = db.getPlayer(player.id);
+    const freshMbSE = parseSE(freshMb.status_effects);
+    let needsUpdate = false;
+    // Revertir turno de berserk si había sido decrementado
+    if (berserkTurnsRemaining > 0 && mbSE.modo_berserk_activo) {
+      // El turno ya fue decrementado en mbSE — restaurar a valor original
+      freshMbSE.modo_berserk_activo = freshMbSE.modo_berserk_activo || {};
+      freshMbSE.modo_berserk_activo.turns_remaining = berserkTurnsRemaining;
+      // Si se activó agotamiento prematuramente, quitarlo
+      delete freshMbSE.berserk_agotamiento;
+      needsUpdate = true;
+    }
+    // Revertir quemar_combo si fue consumido (no debería gastar el combo si no atacó)
+    if (savedQuemarComboEntry) {
+      // Restaurar quemar_combo_activo en la DB
+      freshMbSE.quemar_combo_activo = savedQuemarComboEntry;
+      needsUpdate = true;
+    }
+    if (needsUpdate) {
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(freshMbSE) });
+    }
+    // No agregar mensajes de habilidades — el ataque no ocurrió
+  } else {
+    // EPIC-1302-F4: Agregar mensaje de quemar combo si aplica
+    if (quemarComboMsg) {
+      lines.unshift(quemarComboMsg);  // Al principio para que se vea antes del daño
+    }
+    // EPIC-1307-F5: Agregar mensaje de modo berserk si aplica
+    if (modoBerserkMsg) {
+      lines.unshift(modoBerserkMsg);
+    }
   }
 
   // ── EPIC-1286-DEF: Acumulación de Sombra del Pícaro ───────────────────────
