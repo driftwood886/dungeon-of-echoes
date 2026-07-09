@@ -23473,9 +23473,21 @@ function cmdAscend(player, args, context) {
     db.updatePlayer(fresh.id, { status_effects: JSON.stringify(seUpd) });
   }
 
-  // Parsear argumentos: "ascender 1|2|3 [epitafio]"
+  // Parsear argumentos: "ascender 1|2|3 [epitafio]" o "ascender id_textual [epitafio]" (DIS-1408)
   const argStr = args ? args.join(' ').trim() : '';
-  const match = argStr.match(/^([123])\s*(.*)?$/);
+  let match = argStr.match(/^([123])\s*(.*)?$/);
+
+  // DIS-1408: si no matcheó número, intentar buscar por ID textual del legado
+  if (!match && argStr.length > 0) {
+    // El primer token podría ser el ID textual; el resto es epitafio
+    const parts = argStr.split(/\s+/);
+    const idCandidate = parts[0];
+    const choiceByIdIdx = choices.findIndex(c => c.id === idCandidate);
+    if (choiceByIdIdx !== -1) {
+      // Simular match: match[1] = índice 1-based como string, match[2] = epitafio
+      match = [null, String(choiceByIdIdx + 1), parts.slice(1).join(' ')];
+    }
+  }
 
   // Sin argumento — mostrar pantalla de opciones
   if (!match) {
