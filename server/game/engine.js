@@ -21208,6 +21208,11 @@ function cmdPray(player, args) {
   // Consumir el ítem del inventario
   const newInv = [...player.inventory];
   const idx = newInv.findIndex(i => i.toLowerCase() === foundLower);
+
+  // DIS-1402: si el ítem ofrecido restaura HP y el jugador está al máximo, no consumirlo
+  if (effect.hp && effect.hp > 0 && player.hp >= player.max_hp) {
+    return { text: `🙏 Ponés ${found} frente al altar...\n\n⚠️ Tu HP ya está al máximo (${player.hp}/${player.max_hp}). El altar no acepta la ofrenda cuando no hay heridas que sanar — la devolución sería desperdicio sagrado.\n\n(El ítem NO se consumió. Guardalo para cuando lo necesites.)` };
+  }
   if (idx !== -1) newInv.splice(idx, 1);
 
   const updates = { inventory: newInv };
