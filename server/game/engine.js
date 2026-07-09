@@ -16698,6 +16698,11 @@ function cmdUseSkill(player, args, context) {
       return _cmdTrainingFight(freshPlayer, target);
     }
     const freshAse = db.getPlayer(freshPlayer.id);
+    // DIS-1388: re-leer el monstruo para evitar race condition en multiplayer
+    const freshTargetAse = db.getMonster ? db.getMonster(target.id) : target;
+    if (freshTargetAse && freshTargetAse.hp <= 0) {
+      return { text: `🗡️ El ${target.name} ya fue derrotado antes de que pudieras emboscarlo.` };
+    }
     const baseDmgAse = freshAse.attack || 5;
     const rawDmgAse = Math.max(1, Math.floor(baseDmgAse * skill.dmg_multiplier));
     const variationAse = Math.floor(rawDmgAse * 0.15);
