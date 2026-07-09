@@ -10556,6 +10556,41 @@ function cmdFacciones(player) {
     lines.push(`║  Tu facción: ${(myFaction ? myFaction.icon + ' ' + myFaction.name : '???').padEnd(39)}║`);
     lines.push(`║  Tu contribución: ${String(myPts + ' pts esta semana').padEnd(34)}║`);
     lines.push(`║  Top: ${topNames.substring(0, 46).padEnd(46)}║`);
+
+    // DIS-1418: Misión semanal de la facción del jugador
+    const lore = FACTION_LORE[player.faction];
+    if (lore && lore.missions && lore.missions.length > 0) {
+      // Seleccionar misión determinista según número de semana
+      const missionIdx = weekNum % lore.missions.length;
+      const weeklyMission = lore.missions[missionIdx];
+      // Calcular horas hasta el lunes UTC (fin de semana de influencia)
+      const now = new Date();
+      const msUntilMonday = (() => {
+        const d = new Date(now);
+        const day = d.getUTCDay(); // 0=Dom, 1=Lun, ..., 6=Sáb
+        const daysUntilMonday = day === 0 ? 1 : (8 - day) % 7 || 7;
+        d.setUTCDate(d.getUTCDate() + daysUntilMonday);
+        d.setUTCHours(0, 0, 0, 0);
+        return d - now;
+      })();
+      const hoursLeft = Math.floor(msUntilMonday / 3600000);
+      const daysLeft = Math.floor(hoursLeft / 24);
+      const hoursRem = hoursLeft % 24;
+      const timeLeft = daysLeft > 0
+        ? `${daysLeft}d ${hoursRem}h restantes`
+        : `${hoursRem}h restantes`;
+      // Progreso proxy: influencia semanal del jugador vs objetivo (50 pts = completada)
+      const MISSION_GOAL = 50;
+      const missionProgress = Math.min(myPts, MISSION_GOAL);
+      const progressPct = Math.round((missionProgress / MISSION_GOAL) * 100);
+      const progressBar = '█'.repeat(Math.round((missionProgress / MISSION_GOAL) * 10)) + '░'.repeat(10 - Math.round((missionProgress / MISSION_GOAL) * 10));
+      const missionStatus = missionProgress >= MISSION_GOAL ? '✅ COMPLETADA' : `${missionProgress}/${MISSION_GOAL} pts (${progressPct}%)`;
+      lines.push(`╟──────────────────────────────────────────────────────╢`);
+      lines.push(`║  📋 MISIÓN SEMANAL                                    ║`);
+      lines.push(`║  ${weeklyMission.substring(0, 52).padEnd(52)}║`);
+      lines.push(`║  Progreso: [${progressBar}] ${missionStatus.padEnd(26)}║`);
+      lines.push(`║  ⏰ Plazo: ${timeLeft.padEnd(43)}║`);
+    }
   } else {
     lines.push(`║  No tenés facción aún.                                ║`);
     lines.push(`║  Elegí una con: faccion elegir <nombre>               ║`);
