@@ -2927,6 +2927,42 @@ function cmdInventory(player) {
     ? `\n✨ Listo para craftear ahora:\n${readyRecipes.join('\n')}`
     : '';
 
+  // DIS-1416: si el inventario supera los 18 slots usados, sugerir qué vender
+  // Seleccionamos ítems de menor valor de venta que NO sean equipados, ingrediente viable,
+  // weapon/armor equipable, ni ítem de misión/único.
+  let sellSuggestionNote = '';
+  if (usedSlots > 18) {
+    // Construir lista de todos los ítems ingredientes de recetas
+    const allRecipeIngredients = new Set();
+    for (const r of RECIPES) {
+      for (const ing of r.ingredients) allRecipeIngredients.add(ing.toLowerCase());
+    }
+    // Calcular precio de venta de cada ítem del inventario (no equipados)
+    const sellables = [];
+    for (const item of allItems) {
+      const itemLower = item.toLowerCase();
+      // Excluir: ítems equipables (weapon/armor), ingredientes de recetas viables, ítems raros+
+      const def = items.getItemDef(item);
+      if (def && (def.type === 'weapon' || def.type === 'armor')) continue; // equipable
+      const rarity = items.getItemRarity(item);
+      if (rarity === 'raro' || rarity === 'épico' || rarity === 'legendario') continue; // valioso
+      if (viableRecipeItems.has(itemLower)) continue; // parte de receta disponible
+      // Calcular precio de venta
+      const catalogEntry = SHOP_CATALOG.find(i => i.name.toLowerCase() === itemLower);
+      const basePrice = catalogEntry ? catalogEntry.price : 10;
+      const sellPrice = Math.max(1, Math.floor(basePrice * SELL_PRICE_RATIO));
+      sellables.push({ item, sellPrice });
+    }
+    // Ordenar de menor a mayor precio de venta
+    sellables.sort((a, b) => a.sellPrice - b.sellPrice);
+    // Tomar hasta 3 de menor valor
+    const topSellSuggestions = sellables.slice(0, 3);
+    if (topSellSuggestions.length > 0) {
+      const sellLines = topSellSuggestions.map(s => `  💰 \`sell ${s.item}\` → ${s.sellPrice}g en tienda de Aldric (sala 4)`);
+      sellSuggestionNote = `\n🏪 Inventario casi lleno — ítems de menor valor que podés vender:\n${sellLines.join('\n')}`;
+    }
+  }
+
   // DIS-1058: hint de ingredientes sueltos (solo si no hay ya una receta completa ✨)
   // Filtramos hints de ítems que ya aparecen como viables (no repetir la info)
   const filteredLoneHints = loneIngredientHints.filter(h => {
@@ -2940,7 +2976,7 @@ function cmdInventory(player) {
     ? `\n🔧 Casi listo (te falta un ingrediente):\n${filteredLoneHints.slice(0, 3).join('\n')}`
     : '';
 
-  return { text: `Inventario:\n${lines.join('\n')}\n${summary}\n${slotLine}${viableNote}${loneNote}` };
+  return { text: `Inventario:\n${lines.join('\n')}\n${summary}\n${slotLine}${viableNote}${loneNote}${sellSuggestionNote}` };
 }
 
 /**
