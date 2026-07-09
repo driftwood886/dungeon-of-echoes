@@ -22081,18 +22081,19 @@ function cmdBattlecry(player, args) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// T200: cmdVault — Bóveda personal (hasta 20 ítems, sala 1 o sala 17 o sala 19)
+// T200: cmdVault — Bóveda personal (hasta 20 ítems, sala 1, 4, 17 o 19)
 // DIS-506: ampliada de 10→20 slots, accesible también en Casa de Subastas (sala 17)
+// BUG-1384: sala 4 (Cámara del Tesoro de Aldric) también habilitada
 // ══════════════════════════════════════════════════════════════════════════════
 const VAULT_MAX = 20;
-const VAULT_ROOMS = new Set([1, 17, 19]); // Entrada + Casa de Subastas + Cámara del Eco (DIS-1252: acceso en zona profunda)
+const VAULT_ROOMS = new Set([1, 4, 17, 19]); // Entrada + Cámara del Tesoro de Aldric + Casa de Subastas + Cámara del Eco (DIS-1252: acceso en zona profunda; BUG-1384: sala 4)
 function cmdVault(player, args) {
   const W = 48;
   const vaultItems = JSON.parse(player.vault || '[]');
 
-  // Accesible solo en sala 1 (Entrada), sala 17 (Casa de Subastas) o sala 19 (Cámara del Eco)
+  // Accesible solo en sala 1 (Entrada), sala 4 (Cámara del Tesoro de Aldric), sala 17 (Casa de Subastas) o sala 19 (Cámara del Eco)
   if (!VAULT_ROOMS.has(player.current_room_id)) {
-    return { text: '🏛️  La bóveda es accesible en la Entrada (sala 1), la Casa de Subastas (sala 17) o la Cámara del Eco (sala 19).\n  Usá `recall` para volver a la Entrada.' };
+    return { text: '🏛️  La bóveda es accesible en la Entrada (sala 1), la Cámara del Tesoro de Aldric (sala 4), la Casa de Subastas (sala 17) o la Cámara del Eco (sala 19).\n  Usá `recall` para volver a la Entrada.' };
   }
 
   // Sin args: listar el contenido
