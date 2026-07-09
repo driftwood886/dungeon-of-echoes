@@ -114,6 +114,28 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
     } catch (_) { /* si la sala 22 no existe aún, no falla el servidor */ }
     return { globalEvent: broadcastMsg };
   } else {
+    // DIS-1393: consecuencias suaves de la muerte — pérdida de oro recuperable
+    // Si el jugador tiene más de 20g, pierde 15% (mínimo 5g, máximo 50g)
+    // El oro cae en la sala donde murió como ítem recuperable
+    const deathRoomId = freshP.current_room_id; // antes del respawn
+    const currentGold = freshP.gold || 0;
+    if (currentGold > 20) {
+      const lostGold = Math.min(50, Math.max(5, Math.floor(currentGold * 0.15)));
+      const freshAfterGoldLoss = db.getPlayer(playerId);
+      const newGold = Math.max(0, (freshAfterGoldLoss.gold || 0) - lostGold);
+      db.updatePlayer(playerId, { gold: newGold });
+      // Soltar bolsa de oro recuperable en la sala de la muerte
+      try {
+        const deathRoom = db.getRoom(deathRoomId);
+        if (deathRoom) {
+          const dropItem = `bolsa de monedas caídas (${lostGold}g)`;
+          db.updateRoomItems(deathRoomId, [...(deathRoom.items || []), dropItem]);
+          lines.push(`💸 Al caer, derramás tu bolsa. Perdiste ${lostGold}g — quedaron en ${deathRoom.name}.`);
+          lines.push(`   💡 Podés recuperarlas volviendo a esa sala.`);
+        }
+      } catch (e) { /* no interrumpir el respawn si la sala falla */ }
+    }
+
     // Muerte normal — DIS-D41: respawn con 25% del max_hp (mín 5)
     const respawnHp = Math.max(5, Math.floor((freshP.max_hp || 20) * 0.25));
     // DIS-D324: preservar trap_cd_* al morir — el jugador recuerda trampas entre muertes

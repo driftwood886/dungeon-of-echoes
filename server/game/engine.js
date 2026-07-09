@@ -4780,6 +4780,17 @@ function cmdPick(player, itemQuery) {
       // DIS-589: monedas se auto-convierten a oro sin ocupar inventario
       // BUG-880: usar comparación exacta para evitar falsos positivos (ej: 'corona rota'.includes('oro'))
       const itemLower = item.toLowerCase();
+      // DIS-1393: bolsa de monedas caídas (XXXg) al hacer pick todo
+      const droppedMatch = itemLower.match(/^bolsa de monedas caídas \((\d+)g\)$/);
+      if (droppedMatch) {
+        const droppedAmt = parseInt(droppedMatch[1], 10);
+        current = db.getPlayer(current.id);
+        db.updatePlayer(current.id, { gold: (current.gold || 0) + droppedAmt });
+        totalGoldConverted += droppedAmt;
+        pickedLines.push(`  💰 ${item} → +${droppedAmt}g (bolsa recuperada)`);
+        current = db.getPlayer(current.id);
+        continue;
+      }
       const goldKey = Object.keys(GOLD_ITEMS_ALL).find(k => itemLower === k);
       if (goldKey) {
         const amount = GOLD_ITEMS_ALL[goldKey];
@@ -4875,6 +4886,16 @@ function cmdPick(player, itemQuery) {
     'cofre de oro': 50,
   };
   const foundLower = found.toLowerCase();
+  // DIS-1393: bolsa de monedas caídas (XXXg) — oro perdido al morir, recuperable
+  const droppedGoldMatch = foundLower.match(/^bolsa de monedas caídas \((\d+)g\)$/);
+  if (droppedGoldMatch) {
+    const droppedAmount = parseInt(droppedGoldMatch[1], 10);
+    const newRoomItemsDrop = removeFirst(room.items, found);
+    db.updateRoomItems(room.id, newRoomItemsDrop);
+    const newGoldAfterRecov = (player.gold || 0) + droppedAmount;
+    db.updatePlayer(player.id, { gold: newGoldAfterRecov });
+    return { text: `💰 Recuperaste tu bolsa caída: +${droppedAmount}g (total: ${newGoldAfterRecov}g).\n   ¡Bien hecho — la próxima vez, cuidado con los monstruos.` };
+  }
   const goldKey = Object.keys(GOLD_ITEMS).find(k => foundLower === k);
 
   // DIS-D385: Chequear capacidad de inventario antes de recoger (solo para ítems no-moneda)
