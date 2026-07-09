@@ -15309,6 +15309,49 @@ function cmdSkills(player) {
 
   const lines = ['⚡ HABILIDADES ACTIVAS', '─'.repeat(40)];
 
+  // DIS-1422: Mini hoja de ruta de clase — siempre visible para dar sensación de anticipación
+  const cls = fresh.player_class;
+  if (cls && cls !== 'sin_clase') {
+    const roadmaps = {
+      guerrero: [
+        `Nivel 1 — Base: postura_defensiva, quemar_combo`,
+        `Nivel 3 — Golpetazo (smash): golpe ×1.8`,
+        `Nivel 5 — 🌟 Especialización: Paladín o Berserker`,
+        `Nivel 6 — Golpe de Escudo`,
+        `Nivel 10 — Arenga`,
+      ],
+      mago: [
+        `Nivel 1 — Drenar Arcano, hechizos (rayo, bola de fuego, curación, escudo)`,
+        `Nivel 3 — Bola de Fuego (cast bola_de_fuego) potenciado`,
+        `Nivel 5 — 🌟 Especialización: Arcanista o Elementalista`,
+        `Nivel 5 — Tormenta de Hielo (cast tormenta_de_hielo)`,
+      ],
+      picaro: [
+        `Nivel 1 — Veneno, Robar`,
+        `Nivel 3 — Golpe Sucio: ×1.3 + veneno 3 turnos`,
+        `Nivel 5 — 🌟 Especialización: Asesino o Emboscador`,
+        `Nivel 6 — Evasión: esquiva garantizada`,
+      ],
+      clerigo: [
+        `Nivel 1 — Heal (curación), Condenar`,
+        `Nivel 3 — Sanación Mayor, Escudo Sagrado`,
+        `Nivel 5 — 🌟 Especialización: Sanador o Inquisidor`,
+        `Nivel 6 — Bendición (bufa al grupo)`,
+        `Nivel 10 — Resurrección`,
+      ],
+    };
+    const roadmap = roadmaps[cls];
+    if (roadmap) {
+      lines.push(`📈 PROGRESIÓN — nivel actual: ${level}`);
+      for (const step of roadmap) {
+        const reqLevel = parseInt(step.match(/Nivel (\d+)/)?.[1] || '0');
+        const done = level >= reqLevel;
+        lines.push(`  ${done ? '✅' : '🔒'} ${step}`);
+      }
+      lines.push('─'.repeat(40));
+    }
+  }
+
   // Habilidades desbloqueadas
   if (unlocked.length === 0) {
     const cls = fresh.player_class;
