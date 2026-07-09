@@ -369,13 +369,13 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   // No agregar mensaje extra aquí para evitar duplicación.
 
   // DIS-1177: Sala 18 (Fuente Eterna) — gancho narrativo para salidas hacia zonas profundas
-  // La sala tiene salida 'down' → sala 20 (Abismo Eterno, nivel 7+)
+  // La sala tiene salida 'down' → sala 20 (Abismo Eterno, nivel 8+)
   // Jugadores de nivel bajo deben entender que hay algo ahí abajo y por qué volver.
   // DIS-1346: para veteranos que ya visitaron la sala, suprimir el texto guía (ya lo saben)
   if (roomId === 18 && !isVeteranPlayer) {
     const playerLevel = player ? (player.level || 1) : 1;
-    if (playerLevel < 7) {
-      lines.push(`\n🌀 Por la fisura en el suelo, junto a la base de la fuente, llega un rumor de combate y ecos metálicos desde las profundidades. El agua plateada cae hacia el Abismo Eterno — una zona donde habita la Sombra del Vacío, una entidad de oscuridad pura.\n   📌 Objetivo futuro: cuando llegues al nivel 7, podrás explorar el Abismo Eterno (abajo).`);
+    if (playerLevel < 8) { // DIS-1390: nivel recomendado 7→8
+      lines.push(`\n🌀 Por la fisura en el suelo, junto a la base de la fuente, llega un rumor de combate y ecos metálicos desde las profundidades. El agua plateada cae hacia el Abismo Eterno — una zona donde habita la Sombra del Vacío, una entidad de oscuridad pura.\n   📌 Objetivo futuro: cuando llegues al nivel 8, podrás explorar el Abismo Eterno (abajo).`);
     } else {
       lines.push(`\n🌀 La fisura en el suelo (abajo) comunica con el Abismo Eterno — territorio de la Sombra del Vacío. La fuente sigue enviando agua curativa hacia las profundidades.\n   ⚠️ La Sombra usa Oscuridad Paralizante: el primer turno siempre te impide atacar. Entrá con HP alto y pociones de salud.`);
     }

@@ -1048,7 +1048,7 @@ function cmdLook(player) {
     15: { name: 'el Lich Anciano',     level: 7, icon: '💀', roomName: 'Catedral de la Oscuridad', monsterId: 13, armorTip: 'Equipá cota de malla o mejor (DEF 6+).' },
     10: { name: 'el Gólem de Piedra',  level: 5, icon: '🪨', roomName: 'Santuario Profano',        monsterId: 5  },
     8:  { name: 'el Guardia Espectral',level: 4, icon: '👻', roomName: 'Prisión Subterránea',       monsterId: 8  },
-    20: { name: 'la Sombra del Vacío', level: 7, icon: '🌑', roomName: 'Abismo Eterno',             monsterId: 22 }, // DIS-606
+    20: { name: 'la Sombra del Vacío', level: 8, icon: '🌑', roomName: 'Abismo Eterno',             monsterId: 22 }, // DIS-606 / DIS-1390: nivel recomendado 7→8
     12: { name: 'el Golem de Forja',   level: 5, icon: '🔥', roomName: 'Taller de la Forja',        monsterId: 10 }, // DIS-631
     19: { name: 'el Eco Viviente',     level: 6, icon: '🔊', roomName: 'Cámara del Eco',            monsterId: 21 }, // DIS-637: boss que bloquea flee — agregar advertencia previa
   };
@@ -2412,7 +2412,7 @@ function cmdMove(player, direction) {
     12: '🔥 Antes de ver la forja, la sentís. No es solo calor — es algo más persistente, más profundo. Como la respiración de algo que no debería seguir vivo. El fuego en el centro no proyecta sombras normales. Las sombras se mueven solas.\n\n⚠️ Nivel recomendado: 5+. El Golem de Forja que custodia este lugar es un constructo imparable — una vez activado, no cesa.',
     14: '🦴 El Coliseo de Huesos te recibe con el silencio de mil batallas perdidas. Gradas de huesos apilados se elevan hacia la oscuridad. Podés sentir el peso de todos los gladiadores que murieron aquí — sus espíritus aún esperan un digno rival que los vengue.\n\n⚠️ Nivel recomendado: 5+ con buen equipo (6+ recomendado). El Campeón Espectral tiene escudo espectral que reduce crits — no lo matarás solo con golpes afortunados. Necesitás daño sostenido.',
     15: '⛪ A medida que cruzás el umbral de la Catedral de la Oscuridad, el eco de tus pasos revela la inmensidad del lugar. Las vidrieras rotas dejan entrar rayos de luz violácea. Sentís el peso de siglos de oscuridad posarse sobre tus hombros.\n\n⚠️ Nivel recomendado: 7+. El Lich Anciano es el señor del dungeon.\n🛡️ Armadura recomendada: cota de malla o mejor (DEF 6+). El Lich hace ~13-20 dmg/turno — sin armadura pesada, caerás en 3 golpes.\n💡 La cota de malla (60g) se compra con Aldric (sala 4). Si no tenés suficiente defensa, considerá farmear primero.',
-    20: '🕳️ Al asomarte al Abismo Eterno, el vacío te mira de vuelta. No hay fondo visible. Solo oscuridad infinita, y el certero presentimiento de que algo muy antiguo — y muy hambriento — acaba de notar tu presencia.\n\n⚠️ Nivel recomendado: 7+. La Sombra del Vacío que habita aquí no permite huida fácil.\n🌑 ADVERTENCIA — Oscuridad Paralizante: La Sombra puede envolverte en oscuridad absoluta, bloqueando tu capacidad de atacar durante ese turno. El primer turno de combate siempre activa esta parálisis. Vení con HP alto y pociones de salud — necesitarás aguantar sus ataques sin poder responder.\n💡 Cuando la Sombra alcanza el 50% de HP entra en Fase 2 y sus ataques aumentan. Curá antes de que sea tarde.',
+    20: '🕳️ Al asomarte al Abismo Eterno, el vacío te mira de vuelta. No hay fondo visible. Solo oscuridad infinita, y el certero presentimiento de que algo muy antiguo — y muy hambriento — acaba de notar tu presencia.\n\n⚠️ Nivel recomendado: 8+. La Sombra del Vacío que habita aquí no permite huida fácil. (DIS-1390: el salto desde el Eco Viviente es significativo — llegá con nivel 8 y equipo completo)\n🌑 ADVERTENCIA — Oscuridad Paralizante: La Sombra puede envolverte en oscuridad absoluta, bloqueando tu capacidad de atacar durante ese turno. El primer turno de combate siempre activa esta parálisis. Vení con HP alto y pociones de salud — necesitarás aguantar sus ataques sin poder responder.\n💡 Cuando la Sombra alcanza el 50% de HP entra en Fase 2 y sus ataques aumentan. Curá antes de que sea tarde.',
     22: '🪦 La Cripta de los Valientes te recibe en silencio. Las placas en las paredes murmuran nombres olvidados. Una voz que no existe te susurra: "¿Serás digno de ser recordado aquí, o morirás en el anonimato?"',
     19: '🔊 La Cámara del Eco no te recibe — te absorbe. El sonido de tus pasos no rebota: se multiplica, se distorsiona, regresa transformado en algo que no es exactamente tu pisada sino una versión de ella que tomó otro camino. El eco más largo que escuchás es el nombre de alguien que claramente no quiso que lo recordaran.\n\n💧 En la sala hay un cuenco de cristal que palpita con luz azulada. Usá \"use cuenco\" para recuperar hasta 50% HP (y maná si sos Mago/Clérigo). Los Clérigos reciben también una bendición que protege su maná del drenado del Lich (3 turnos).\n\n🗃️ Una grieta en la pared guarda una bóveda de ítems de aventureros caídos — usá \"vault\" para guardar y recuperar objetos.\n\nUna presencia se hace notar. El Eco Viviente.\n\n⚠️ Nivel recomendado: 6+. Este guardián no deja escapar a quien perturba la sala.',
   };
@@ -12196,7 +12196,7 @@ function cmdDrink(player) {
   const hpBar = buildBar(player.max_hp, player.max_hp, 20);
 
   return {
-    text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! (+${restored} HP recuperado)\n${hpBar} ${player.max_hp}/${player.max_hp} HP${manaBonus1114}\n\n⏳ La fuente empieza a atenuarse... necesitará 3 minutos para recargarse.\n\n⚠️ Esta sala tiene salidas peligrosas: el Gólem de Piedra (sur, nivel 5+) y la Sombra del Vacío (abajo, nivel 7+). Revisá tu equipo antes de avanzar.`,
+    text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! (+${restored} HP recuperado)\n${hpBar} ${player.max_hp}/${player.max_hp} HP${manaBonus1114}\n\n⏳ La fuente empieza a atenuarse... necesitará 3 minutos para recargarse.\n\n⚠️ Esta sala tiene salidas peligrosas: el Gólem de Piedra (sur, nivel 5+) y la Sombra del Vacío (abajo, nivel 8+). Revisá tu equipo antes de avanzar.`,
     event: `${player.username} bebe de la Fuente Eterna. Un resplandor plateado llena la sala.`,
     eventRoomId: FOUNTAIN_ROOM_ID,
   };
@@ -19327,7 +19327,7 @@ function cmdPath(player, args) {
     15: { name: 'Catedral de la Oscuridad', boss: 'Lich Anciano',       level: 7, icon: '💀' },
     10: { name: 'Santuario Profano',        boss: 'Gólem de Piedra',    level: 5, icon: '🪨' },
     8:  { name: 'Prisión Subterránea',      boss: 'Guardia Espectral',  level: 4, icon: '👻' },
-    20: { name: 'Abismo Eterno',            boss: 'Sombra del Vacío',   level: 7, icon: '🌑' },
+    20: { name: 'Abismo Eterno',            boss: 'Sombra del Vacío',   level: 8, icon: '🌑' }, // DIS-1390: 7→8
     12: { name: 'Taller de la Forja',       boss: 'Golem de Forja',     level: 5, icon: '🔥' },
     19: { name: 'Cámara del Eco',           boss: 'Eco Viviente',       level: 6, icon: '🔊' },
     14: { name: 'Coliseo de Huesos',        boss: 'Campeón Espectral',  level: 5, icon: '⚔️' }, // DIS-886: faltaba
