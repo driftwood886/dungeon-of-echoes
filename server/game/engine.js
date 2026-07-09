@@ -14133,9 +14133,28 @@ function cmdModoBerserk(player, context) {
   }
 
   // Solo en combate
-  const mbMonsters = db.getMonstersInRoom(freshMb.current_room_id).filter(m => m.hp > 0);
-  if (mbMonsters.length === 0) {
+  const mbMonstersRaw = db.getMonstersInRoom(freshMb.current_room_id).filter(m => m.hp > 0);
+  if (mbMonstersRaw.length === 0) {
     return { text: `🪓 Modo Berserk solo puede activarse en combate. No hay enemigos aquí.` };
+  }
+  // BUG-1399: verificar que al menos un monstruo sea atacable (considerar Marea Espectral)
+  const BERSERK_SPECTRAL_IDS = new Set([4, 8, 12, 13, 21, 22]);
+  const mbActiveEvCheck = (() => { try { return eventScheduler.getActiveEventInfo(); } catch(_) { return null; } })();
+  const mbIsSpectralTide = mbActiveEvCheck && mbActiveEvCheck.event && mbActiveEvCheck.event.id === 'SPECTRAL_TIDE';
+  const mbMonsters = mbMonstersRaw.filter(m => {
+    if (!mbIsSpectralTide) return true;
+    const mNameLower = (m.name || '').toLowerCase();
+    const isSpectral = BERSERK_SPECTRAL_IDS.has(m.id) ||
+      mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
+      mNameLower.includes('espectral') || mNameLower.includes('lich') || mNameLower.includes('sombra');
+    const isUndead = mNameLower.includes('esqueleto') || mNameLower.includes('zombie') ||
+      mNameLower.includes('zombi') || mNameLower.includes('vampiro') || mNameLower.includes('momia') ||
+      mNameLower.includes('óseo') || mNameLower.includes('muerto');
+    return isSpectral || isUndead;
+  });
+  if (mbMonsters.length === 0) {
+    const minLeft = mbActiveEvCheck ? mbActiveEvCheck.minutesRemaining : '?';
+    return { text: `🪓 Modo Berserk solo puede activarse en combate. No hay enemigos atacables.\n👻 MAREA ESPECTRAL activa — solo no-muertos y espectros pueden combatirse ahora. (Evento termina en ~${minLeft} min)` };
   }
 
   // Verificar cooldown
