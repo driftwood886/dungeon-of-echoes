@@ -187,10 +187,11 @@ const BOSS_MONSTERS = {
     lootBonus: [],
     // DIS-D423: Fase 2 al 50% HP — la Sombra se divide temporalmente
     // DIS-1070: mensaje más claro sobre la escalada de daño para dar agencia al jugador
+    // DIS-1386: atkBonus reducido de +4 a +3 (~15% menos daño en Fase 2) — era demasiado punitivo para nivel 7
     phase2: {
-      atkBonus: 4,
+      atkBonus: 3,
       defBonus: 2,
-      message: '🌑 ¡La SOMBRA DEL VACÍO se fragmenta y se reagrupa!\nSus bordes oscilan más rápido, volviéndose más densa y letal — sus ataques aumentan en intensidad. (FASE 2)\n⚠️ Sus golpes ahora infligen más daño. Curá antes de que sea tarde.',
+      message: '🌑 ¡La SOMBRA DEL VACÍO se fragmenta y se reagrupa!\nSus bordes oscilan más rápido, volviéndose más densa — sus ataques aumentan en intensidad. (FASE 2)\n⚠️ Sus golpes ahora infligen más daño. Curá antes de que sea tarde.',
     },
   },
   21: { // Eco Viviente — BUG-404: faltaba aquí, por eso podía huir (DIS-D364 no lo cubría)
@@ -552,14 +553,17 @@ function attackRound(player, monster) {
 
   // DIS-729/DIS-807: Oscuridad Paralizante — la Sombra del Vacío anula el turno del jugador
   // DIS-807: El primer turno es GARANTIZADO (no random) para que sea imposible trivializar en 2-3 turnos
-  // Los siguientes turnos tienen 35% de chance (aumentado de 25%)
+  // Los siguientes turnos tienen 25% de chance (DIS-1386: reducido de 35% — era demasiado punitivo)
   if (monster.name && monster.name.includes('Sombra del Vacío') && !monsterDead) {
     const freshForParalyze = db.getPlayer(player.id);
     const seParalyze = freshForParalyze.status_effects ? (typeof freshForParalyze.status_effects === 'string' ? JSON.parse(freshForParalyze.status_effects) : freshForParalyze.status_effects) : {};
     // DIS-807: Primer turno GARANTIZADO (shadow_attacked no seteado = primer ataque del jugador)
-    // Turnos siguientes: 35% de chance (era 25%)
+    // Turnos siguientes: 25% de chance (DIS-1386: era 35%)
     const shadowHasActed = seParalyze.shadow_attacked || false;
-    if (!shadowHasActed || Math.random() < 0.35) {
+    // DIS-1391: si el jugador tiene golpe_sombra_activo, la energía de sombra resiste la parálisis
+    // pero con potencia reducida (×1.5 en vez de ×3) — choque de oscuridades, narrativamente coherente
+    const hasSombraActivo = seParalyze.golpe_sombra_activo || false;
+    if ((!shadowHasActed || Math.random() < 0.25) && !hasSombraActivo) { // DIS-1386: reducido de 0.35 a 0.25; DIS-1391: sombra resiste parálisis
       lines.push(`🌑 ¡La OSCURIDAD PARALIZANTE te envuelve! No podés atacar este turno.`);
       // BUG-1013: setear shadow_attacked AQUÍ para que el flag quede guardado incluso cuando
       // la función retorna temprano (antes de llegar al bloque de línea ~1211).
@@ -589,6 +593,10 @@ function attackRound(player, monster) {
       }
       // BUG-1026: retornar paralyzed:true para que engine.js NO avance el combo
       return { lines, monsterDead: false, playerDead: false, loot: [], poisonSurvived: false, paralyzed: true };
+    }
+    // DIS-1391: si el jugador tiene golpe_sombra_activo, mostrar que la sombra repele la parálisis
+    if (hasSombraActivo) {
+      lines.push(`🌑 La Sombra del Vacío intenta envolverse en tu mente — pero la energía de tus sombras acumuladas choca contra su oscuridad y la repele. El golpe no se pierde.`);
     }
   }
 
