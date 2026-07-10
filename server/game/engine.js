@@ -3858,6 +3858,14 @@ function cmdAttack(player, targetName) {
         const esFem = inferFemenino(deadMatch.name);
         const art = esFem ? 'La' : 'El';
         const adj = esFem ? 'muerta' : 'muerto';
+        // DIS-1438: si hay otros monstruos vivos en la sala, redirigir el ataque en lugar de
+        // repetir "ya está muerto" — reduce ruido en scripts/bots y mejora UX general.
+        const aliveInRoom = db.getMonstersInRoom(player.current_room_id).filter(m => m.hp > 0);
+        if (aliveInRoom.length > 0) {
+          // Hay monstruos vivos — redirigir al primero (o al de menor HP)
+          const nextTarget = aliveInRoom.reduce((prev, cur) => (cur.hp < prev.hp ? cur : prev), aliveInRoom[0]);
+          return cmdAttack(player, nextTarget.name);
+        }
         return { text: `💀 ${art} ${deadMatch.name} ya está ${adj}.\n${lootHint}` };
       }
     } catch (_) { /* no romper attack si falla */ }
