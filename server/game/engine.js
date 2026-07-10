@@ -24181,6 +24181,12 @@ function cmdAscend(player, args, context) {
     }
   }
 
+  // DIS-1449: Comandos de cancelación explícita — devolver sin ascender
+  const CANCEL_KEYWORDS = new Set(['cancelar', 'salir', 'no ascender', 'no', 'volver', 'cancel', 'exit']);
+  if (!match && argStr.length > 0 && CANCEL_KEYWORDS.has(argStr.toLowerCase())) {
+    return { text: `✅ Bien. Tu personaje sigue activo.\n\nEl dungeon no tiene prisa. Cuando estés listo, escribí \`ascender\` para ver las opciones de legado.` };
+  }
+
   // Sin argumento — mostrar pantalla de opciones
   if (!match) {
     const charName = fresh.username;
@@ -24233,7 +24239,7 @@ function cmdAscend(player, args, context) {
     lines.push(`Con epitafio:   \`ascender 1 Que el eco de mis pasos perdure\``);
     lines.push(`                (El epitafio queda grabado en el Salón.)`);
     lines.push(``);
-    lines.push(`Si no querés ascender: tu personaje sigue activo.`);
+    lines.push(`Para cancelar:  \`ascender cancelar\` — volvés al juego sin ascender.`);
     lines.push(`El dungeon no tiene prisa. Pero el Lich volverá.`);
     lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 
