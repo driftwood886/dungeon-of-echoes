@@ -11039,13 +11039,17 @@ function _cmdFaccionElegir(player, args) {
   if (!hasConfirm) {
     const card = _buildFactionCard(lore, false);
     // DIS-1389: el comando de confirmación va ANTES del card (prominente) y también al final
-    const confirmLine = `faccion elegir ${factionId} confirmar`;
+    // DIS-1443: mostrar la variante con espacios (más natural) — ambas son aceptadas
+    const factionDisplayName = lore.name.toLowerCase(); // ej: "la orden del filo"
+    const confirmLine = `faccion elegir ${factionId} confirmar`; // variante con guión bajo
+    const confirmLineAlt = `faccion elegir ${factionDisplayName} confirmar`; // variante con espacios
     const sep = '━'.repeat(56);
     const confirmBlock = [
       '',
       sep,
       `  ${lore.icon}  ¿Querés unirte a ${lore.name}?`,
-      `  ► Escribí exactamente: ${confirmLine}`,
+      `  ► Escribí: ${confirmLine}`,
+      `  ► (o también: ${confirmLineAlt})`,
       sep,
     ].join('\n');
     return {
