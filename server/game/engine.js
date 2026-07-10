@@ -8032,13 +8032,17 @@ function cmdMap(player) {
     })(),
     `              |         |`,
     `            ${c(5)}---${c(1)}`,
+    // DIS-1432: mostrar salas de tutorial (21/16) conectadas desde sala 1 via 'abajo',
+    // no como parte de ZONA PROFUNDA (donde causaban confusión al aparecer junto a sala 11)
+    `                      ↓ abajo`,
+    `              ${cellTutorial(21)}---${cellTutorial(16)}  ← Práctica/Antesala (acceso: \"abajo\" desde Entrada)`,
     ``,
     // BUG-900: no repetir sala 11 — ya aparece en la fila superior. Solo mostrar flecha de descenso.
     // DIS-1417: mejorar diagrama de acceso a zona profunda con indicación de comando
     ``,
     `── ZONA PROFUNDA ─── (ingreso: estando en [11:Galería] escribí "bajar") ──`,
     `      │ ← acceso desde [11:Galería] en zona principal`,
-    `      │   \\               ${cellTutorial(21)}---${cellTutorial(16)}`,
+    `      │`,
     `            ${c(12)} ${c(13)}`,
     `                  \\  /`,
     `              ${c(14)}---${c(19)}---${c(15)}---${c(22)}`,
@@ -8048,7 +8052,8 @@ function cmdMap(player) {
     `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
     `[18] = Fuente Eterna (sala de mid-dungeon — escribí "beber" para restaurar HP completo)`,
     // DIS-1417: leyenda mejorada con estructura de dos zonas explícita
-    `↓  = comando "bajar" — acceso a ZONA PROFUNDA (desde sala 11 Galería)  ╎ = separación visual (sin conexión directa)`,
+    // DIS-1432: aclarar ambos usos de ↓/abajo para evitar confusión
+    `↓  = comando "bajar/abajo" — desde Entrada(1)→Práctica(21) · desde Galería(11)→ZONA PROFUNDA  ╎ = separación visual (sin conexión directa)`,
     // DIS-635: solo mencionar sala 8 como fuente de llave si ya fue visitada
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
