@@ -19700,37 +19700,69 @@ function cmdGoto(player, args, context) {
     return { text: `Ya estás en "${targetRoom.name}". No necesitás moverte.` };
   }
 
-  // Construir grafo BFS (igual que cmdPath)
-  const playerInventory = player.inventory || [];
-  const graph = {};
-  for (const room of allRooms) {
-    graph[room.id] = [];
-    const exits = room.exits || {};
-    for (const [dir, dest] of Object.entries(exits)) {
-      if (typeof dest === 'object' && dest.key) {
-        const hasKey = playerInventory.some(item => item.toLowerCase() === dest.key.toLowerCase());
-        if (!hasKey) continue;
-        if (dest.room_id) graph[room.id].push({ dir, toId: dest.room_id });
-      } else {
-        const destId = typeof dest === 'object' ? dest.room_id : dest;
-        if (destId) graph[room.id].push({ dir, toId: destId });
-      }
+  // BUG-1424: Pre-computar salas con bosses vivos para excluirlas del BFS
+  // (excepto la sala de origen y la sala de destino — queremos poder llegar al boss)
+  const bossBlockedRooms = new Set();
+  if (combat.BOSS_MONSTERS) {
+    for (const room of allRooms) {
+      if (room.id === startId || room.id === targetRoom.id) continue;
+      const monstersInRoom = db.getMonstersInRoom(room.id);
+      const hasAliveBoss = monstersInRoom.some(m => m.hp > 0 && combat.BOSS_MONSTERS[m.id]);
+      if (hasAliveBoss) bossBlockedRooms.add(room.id);
     }
   }
 
-  // BFS para encontrar la ruta más corta
-  const queue = [{ id: startId, path: [] }];
-  const visited = new Set([startId]);
-  let foundPath = null;
-  while (queue.length > 0) {
-    const { id, path } = queue.shift();
-    if (id === targetRoom.id) { foundPath = path; break; }
-    for (const edge of (graph[id] || [])) {
-      if (!visited.has(edge.toId)) {
-        visited.add(edge.toId);
-        queue.push({ id: edge.toId, path: [...path, { dir: edge.dir, toId: edge.toId }] });
+  // Construir grafo BFS (igual que cmdPath)
+  const playerInventory = player.inventory || [];
+  const buildGraph = (excludeRooms) => {
+    const g = {};
+    for (const room of allRooms) {
+      if (excludeRooms.has(room.id)) continue; // Saltar salas bloqueadas por bosses
+      g[room.id] = [];
+      const exits = room.exits || {};
+      for (const [dir, dest] of Object.entries(exits)) {
+        if (typeof dest === 'object' && dest.key) {
+          const hasKey = playerInventory.some(item => item.toLowerCase() === dest.key.toLowerCase());
+          if (!hasKey) continue;
+          if (dest.room_id && !excludeRooms.has(dest.room_id)) g[room.id].push({ dir, toId: dest.room_id });
+        } else {
+          const destId = typeof dest === 'object' ? dest.room_id : dest;
+          if (destId && !excludeRooms.has(destId)) g[room.id].push({ dir, toId: destId });
+        }
       }
     }
+    return g;
+  };
+
+  const bfsFindPath = (graph, fromId, toId) => {
+    const queue = [{ id: fromId, path: [] }];
+    const visited = new Set([fromId]);
+    while (queue.length > 0) {
+      const { id, path } = queue.shift();
+      if (id === toId) return path;
+      for (const edge of (graph[id] || [])) {
+        if (!visited.has(edge.toId)) {
+          visited.add(edge.toId);
+          queue.push({ id: edge.toId, path: [...path, { dir: edge.dir, toId: edge.toId }] });
+        }
+      }
+    }
+    return null;
+  };
+
+  // Intentar primero ruta que evita bosses
+  let foundPath = null;
+  let bossAvoidanceUsed = false;
+  if (bossBlockedRooms.size > 0) {
+    const safeGraph = buildGraph(bossBlockedRooms);
+    foundPath = bfsFindPath(safeGraph, startId, targetRoom.id);
+    if (foundPath) bossAvoidanceUsed = true;
+  }
+
+  // Si no hay ruta segura, intentar ruta directa (puede pasar por bosses)
+  if (!foundPath) {
+    const fullGraph = buildGraph(new Set());
+    foundPath = bfsFindPath(fullGraph, startId, targetRoom.id);
   }
 
   if (!foundPath) {
@@ -19740,6 +19772,9 @@ function cmdGoto(player, args, context) {
   // Ejecutar cada paso, acumulando la salida
   const sections = [];
   sections.push(`🧭 Viajando a: ${targetRoom.name} (${foundPath.length} paso${foundPath.length !== 1 ? 's' : ''})`);
+  if (bossAvoidanceUsed) {
+    sections.push(`🔀 Ruta alternativa — se evitaron salas con jefes vivos.`);
+  }
   sections.push('─'.repeat(46));
 
   let stoppedByMonster = false;
