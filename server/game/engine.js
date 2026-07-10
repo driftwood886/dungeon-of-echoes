@@ -3272,7 +3272,7 @@ function cmdStatus(player) {
             : (() => {
                 // DIS-1265: cambiar tono del hint de especialización según nivel
                 // Nivel 5: urgente (acabás de desbloquear). Nivel 6+: recordatorio suave, 1 vez.
-                // En nivel 8+: no mostrar (ya decidiste ignorarlo, no es un spam útil).
+                // DIS-1431: nivel 8+ también muestra recordatorio breve (persistente).
                 const lvl = player.level || 1;
                 if (lvl < 5) return '';
                 if (lvl === 5) return ' — ⚠️ elegí especialización: escribe "especializar"';
@@ -3287,7 +3287,8 @@ function cmdStatus(player) {
                   }
                   return ''; // ya se le recordó
                 }
-                return ''; // nivel 8+ — dejó de ser relevante spamearlo
+                // DIS-1431: nivel 8+ — recordatorio persistente breve para jugadores que ignoraron
+                return ' — ⚠️ sin especialización (escribí "especializar")';
               })();
           return `Clase:    ${clsObj.emoji || ''} ${clsObj.name || player.player_class}${specLine}`;
         })()
@@ -13046,8 +13047,9 @@ function cmdAuction(player, args) {
 
   // DIS-974: bloquear subasta de carta sellada si la quest de Aldric está activa
   // (si alguien la compra, la quest queda irresolvible — la sala 8 no regenera otra carta)
-  if (nfnAuction(realItemName || itemName).includes('carta sellada') && player.aldric_quest === 'active') {
-    return { text: `🔒 No podés subastar la carta sellada mientras tenés la misión de Aldric activa.\n  La carta es el objetivo de la quest — si alguien la compra, no podrás completarla.\n\n💡 Primero entregá la carta a Aldric (sala 4) para completar la quest.\n   Después podés hacer lo que quieras con los ítems que te recompense.` };
+  // DIS-1439: bloquear subasta de carta sellada siempre (quest o no) — ítem narrativo central
+  if (nfnAuction(realItemName || itemName).includes('carta sellada')) {
+    return { text: `🔒 La carta sellada no puede ser subastada.\n  Es un ítem narrativo especial — el Mercader Aldric (sala 4) reconoce ese sello.\n\n💡 Llevá la carta a Aldric (sala 4) y usá \`hablar aldric\` para descubrir su historia.` };
   }
 
   // Verificar que no tenga otra subasta activa con el mismo ítem

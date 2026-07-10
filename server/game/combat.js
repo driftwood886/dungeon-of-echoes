@@ -413,6 +413,18 @@ function attackRound(player, monster) {
 
   // ── Efecto de veneno (al inicio del turno) ───────────────────────────────
   const statusFx = player.status_effects || {};
+
+  // DIS-1437: Indicador de Luna de Sangre al inicio del combate (solo primer turno)
+  // Si el evento bloodmoon está activo y afecta este monstruo, mostrar banner visible
+  try {
+    const activeEvBloodmoon = worldEvents.getCurrentEvent();
+    const bmAffects = (activeEvBloodmoon && activeEvBloodmoon.id === 'bloodmoon' && activeEvBloodmoon.affectedIds && activeEvBloodmoon.affectedIds.has(monster.id));
+    const monsterSeForBm = monster.status_effects ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects) : {};
+    const isFirstCombatTurn = !monsterSeForBm.golem_turns && !monsterSeForBm.combat_turns_done;
+    if (bmAffects && isFirstCombatTurn) {
+      lines.push(`🌑 [LUNA DE SANGRE ACTIVA] Este monstruo está potenciado (+30% ATK, +75% XP).`);
+    }
+  } catch (_) { /* no romper combate si falla */ }
   if (statusFx.poisoned) {
     const p = statusFx.poisoned;
     const poisonDmg = p.damage || 2;
@@ -795,6 +807,16 @@ function attackRound(player, monster) {
   const monsterWeakenedFx = monster.status_effects ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects) : {};
   const weakenedDefReduction = monsterWeakenedFx.weakened ? (monsterWeakenedFx.weakened.amount || 0) : 0;
 
+  // DIS-1436: Escudo de Piedra — si el Gólem de Piedra tiene stone_shield activo, reducir el daño al 35%
+  let stoneShieldMult = 1.0;
+  let stoneShieldMsg = null;
+  if (monsterWeakenedFx.stone_shield && monNameLow.includes('gólem de piedra')) {
+    stoneShieldMult = 0.35;
+    stoneShieldMsg = `🪨 ¡El Escudo de Piedra absorbe el impacto! (daño reducido al 35%)`;
+    delete monsterWeakenedFx.stone_shield;
+    db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterWeakenedFx) });
+  }
+
   // EPIC-1303-F4: estado "condenado" del Clérigo — multiplicar el daño final ×1.30
   let condenadoMult = 1.0;
   let condenadoMsg = null;
@@ -810,12 +832,16 @@ function attackRound(player, monster) {
     db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterWeakenedFx) });
   }
 
-  const dmgToMonster = Math.max(1, Math.round(dmgAfterPhysResist * critResistMult * condenadoMult) - Math.max(0, Math.floor(monster.defense || 0) - weakenedDefReduction) - monsterVirtualDefBonus + spectralBonusDmg);
+  const dmgToMonster = Math.max(1, Math.round(dmgAfterPhysResist * critResistMult * condenadoMult * stoneShieldMult) - Math.max(0, Math.floor(monster.defense || 0) - weakenedDefReduction) - monsterVirtualDefBonus + spectralBonusDmg);
   monster.hp = Math.max(0, monster.hp - dmgToMonster);
 
   // Agregar mensaje de condenado si aplica
   if (condenadoMsg) {
     lines.push(condenadoMsg);
+  }
+  // DIS-1436: mensaje de Escudo de Piedra si aplica
+  if (stoneShieldMsg) {
+    lines.push(stoneShieldMsg);
   }
 
   // T190: mensaje de encantamiento activo en el primer golpe del turno
@@ -916,7 +942,7 @@ function attackRound(player, monster) {
 
   // DIS-778/DIS-810: Regeneración del Gólem de Piedra — cada 2 turnos regenera HP
   // DIS-810: Para jugadores nivel 7+, la regen es 12 HP (antes era 8 HP para todos)
-  // Crea presión de tiempo e incentiva el uso de recursos para terminar el combate rápido
+  // DIS-1436: regen aumentada (8→14 bajo niv7, 12→20 nivel7+) + mechanic de Escudo de Piedra cada 3 turnos
   if (monster.hp > 0 && monNameLow.includes('gólem de piedra')) {
     const golemFx = monster.status_effects
       ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects)
@@ -924,14 +950,19 @@ function attackRound(player, monster) {
     const golemTurns = (golemFx.golem_turns || 0) + 1;
     golemFx.golem_turns = golemTurns;
     if (golemTurns % 2 === 0) {
-      // Cada 2 turnos: regeneración — 12 HP para nivel 7+ (late game), 8 HP para nivel <7
-      const regenAmount = (player.level >= 7) ? 12 : 8;
+      // Cada 2 turnos: regeneración — 20 HP para nivel 7+ (late game), 14 HP para nivel <7 (DIS-1436)
+      const regenAmount = (player.level >= 7) ? 20 : 14;
       const newGolemHp = Math.min(monster.max_hp, monster.hp + regenAmount);
       const actualRegen = newGolemHp - monster.hp;
       if (actualRegen > 0) {
         monster.hp = newGolemHp;
         lines.push(`🪨 Los fragmentos del Gólem de Piedra se reensamblan — regenera ${actualRegen} HP. (${monster.hp}/${monster.max_hp} HP)`);
       }
+    }
+    // DIS-1436: Escudo de Piedra — cada 3 turnos el Gólem activa escudo (daño recibido ×0.35 el próximo ataque del jugador)
+    if (golemTurns % 3 === 0) {
+      golemFx.stone_shield = true;
+      lines.push(`🪨 El Gólem de Piedra endurece su exterior — ¡escudo de piedra activo! (próximo ataque reducido al 35%)`);
     }
     monster.status_effects = golemFx;
     db.updateMonster(monster.id, { hp: monster.hp, status_effects: JSON.stringify(golemFx) });

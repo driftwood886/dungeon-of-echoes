@@ -1,26 +1,28 @@
 /**
- * xp.js — Sistema de curva de XP/nivel (DIS-D282)
+ * xp.js — Sistema de curva de XP/nivel (DIS-D282, ajustado DIS-1433)
  *
- * Reemplaza la fórmula lineal "nivel = floor(xp/50) + 1" por una curva
- * cuadrática que hace que los niveles altos sean progresivamente más costosos.
+ * Fórmula ajustada (DIS-1433): curva más lenta en niveles bajos para que
+ * el jugador llegue a nivel 5 (especialización) con más exploración (~15
+ * combates en vez de ~10), dando tiempo a entender su clase.
  *
  * Fórmula:
- *   xpForLevel(L) = 10*(L-1)^2 + 40*(L-1)
+ *   xpForLevel(L) = 15*(L-1)^2 + 45*(L-1)
  *
  * Costo incremental por nivel (de L a L+1):
- *   20*L + 30
+ *   30*L + 30
  *
  * Ejemplos:
  *   Nivel 1 → 0 XP total
- *   Nivel 2 → 50 XP total     (+50)
- *   Nivel 3 → 120 XP total    (+70)
- *   Nivel 5 → 320 XP total    (+110)
- *   Nivel 9 → 960 XP total    (+170)
- *   Nivel 10 → 1170 XP total  (+210)
- *   Nivel 15 → 3220 XP total  (+310)
- *   Nivel 20 → 7220 XP total  (+410)
+ *   Nivel 2 → 60 XP total     (+60)
+ *   Nivel 3 → 150 XP total    (+90)
+ *   Nivel 5 → 420 XP total    (+150)
+ *   Nivel 9 → 1200 XP total   (+270)
+ *   Nivel 10 → 1470 XP total  (+330) [era: 1170]
+ *   Nivel 15 → 4200 XP total  (+480)
+ *   Nivel 20 → 9690 XP total  (+630)
  *
- * Un boss que da 315 XP en nivel 9 → sube a nivel 10 (no 7 niveles de una).
+ * Monstruo temprano típico (15 HP → 30 XP): llegar a nivel 5 requiere
+ * ~14-15 monstruos en vez de 10-11.
  */
 
 'use strict';
@@ -35,7 +37,7 @@ const MAX_LEVEL = 20;
 function xpForLevel(L) {
   if (L <= 1) return 0;
   const t = L - 1;
-  return 10 * t * t + 40 * t;
+  return 15 * t * t + 45 * t;
 }
 
 /**
@@ -46,8 +48,9 @@ function xpForLevel(L) {
  */
 function levelFromXp(xp) {
   if (xp <= 0) return 1;
-  // Despejando: 10t² + 40t = xp → (t+2)² = xp/10 + 4 → t = sqrt(xp/10+4) - 2
-  const level = Math.floor(Math.sqrt(xp / 10 + 4) - 2) + 1;
+  // Despejando: 15t² + 45t = xp → t = (-45 + sqrt(45² + 4*15*xp)) / (2*15)
+  const t = (-45 + Math.sqrt(45 * 45 + 4 * 15 * xp)) / (2 * 15);
+  const level = Math.floor(t) + 1;
   return Math.min(level, MAX_LEVEL);
 }
 
@@ -69,7 +72,7 @@ function xpIntoLevel(xp, level) {
  */
 function xpForNextLevel(level) {
   if (level >= MAX_LEVEL) return Infinity;
-  return 20 * level + 30;
+  return 30 * level + 30;
 }
 
 module.exports = { levelFromXp, xpForLevel, xpIntoLevel, xpForNextLevel, MAX_LEVEL };
