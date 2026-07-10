@@ -14720,9 +14720,28 @@ function cmdSombras(player, args) {
 
   // Verificar que hay un monstruo en la sala
   const monsters = db.getMonstersInRoom(player.current_room_id);
-  const alive = monsters.filter(m => m.hp > 0);
-  if (alive.length === 0) {
+  const aliveRaw = monsters.filter(m => m.hp > 0);
+  if (aliveRaw.length === 0) {
     return { text: `🌑 No hay enemigos en esta sala. Las sombras no tienen a quién devorar.` };
+  }
+
+  // BUG-1450: verificar Marea Espectral — no consumir cargas si no hay objetivo atacable
+  const SOMBRAS_SPECTRAL_IDS = new Set([4, 8, 12, 13, 21, 22]);
+  const sombraEvCheck = (() => { try { return eventScheduler.getActiveEventInfo(); } catch(_) { return null; } })();
+  const sombraIsSpectralTide = sombraEvCheck && sombraEvCheck.event && sombraEvCheck.event.id === 'SPECTRAL_TIDE';
+  const alive = sombraIsSpectralTide ? aliveRaw.filter(m => {
+    const mNameLower = (m.name || '').toLowerCase();
+    const isSpectral = SOMBRAS_SPECTRAL_IDS.has(m.id) ||
+      mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
+      mNameLower.includes('espectral') || mNameLower.includes('lich') || mNameLower.includes('sombra');
+    const isUndead = mNameLower.includes('esqueleto') || mNameLower.includes('zombie') ||
+      mNameLower.includes('zombi') || mNameLower.includes('vampiro') || mNameLower.includes('momia') ||
+      mNameLower.includes('óseo') || mNameLower.includes('muerto');
+    return isSpectral || isUndead;
+  }) : aliveRaw;
+  if (alive.length === 0) {
+    const minLeft = sombraEvCheck ? sombraEvCheck.minutesRemaining : '?';
+    return { text: `🌑 No podés activar el golpe desde las sombras — los enemigos presentes huyen ante la Marea Espectral.\n👻 MAREA ESPECTRAL activa — solo no-muertos y espectros pueden combatirse ahora. (Evento termina en ~${minLeft} min)\n\n⚠️ Tus cargas de sombra (●●●) se conservan.` };
   }
 
   // Leer shadow_points
