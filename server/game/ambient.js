@@ -113,27 +113,28 @@ const AMBIENT = {
     ],
   },
   generic: {
+    // DIS-1441: mensajes anteriores genéricos reemplazados por referencias al lore del dungeon
     morning:   [
-      'El dungeon despierta lentamente. Los primeros aventureros se oyen a la distancia.',
-      'Un nuevo día comienza. Las criaturas del dungeon aún están adormecidas.',
+      'Ecos de pasos resuenan desde los niveles superiores — alguien más exploró esta noche. No dejaron nada.',
+      'Las criaturas más antiguas de estas piedras aún duermen. Aprovechá antes de que eso cambie.',
       'El aire de la mañana es casi fresco aquí adentro. Casi.',
-      'Una quietud inusual reina en el dungeon a esta hora temprana.',
+      'Una quietud inusual reina en el dungeon a esta hora temprana. Casi como si esperara algo.',
     ],
     afternoon: [
       'La hora de mayor actividad. Pasos y gritos lejanos recorren los corredores.',
-      'El dungeon zumba con la energía de la tarde. Cuidado con lo que está despierto.',
+      'A esta hora los monstruos llevan horas despiertos. Sus territorios están bien marcados — y vos estás parado en uno.',
       'El calor de la tarde llega amortiguado hasta aquí, pero se siente.',
-      'Voces distantes rebotan entre las piedras — otros aventureros, en algún lugar.',
+      'Un grito amortiguado llega desde algún corredor lejano. Se corta abruptamente. No le das importancia.',
     ],
     evening:   [
-      'El dungeon se prepara para la noche. Los monstruos se vuelven más agresivos.',
+      'Las piedras del dungeon guardan el calor del día unos minutos más. Después el frío de las profundidades toma el control.',
       'Con la caída del sol exterior, algo cambia en el aire del dungeon. Más denso. Más cargado.',
       'Los sonidos del dungeon cambian al caer la tarde. Los gruñidos lejanos se multiplican.',
-      'Una tensión sutil llena el ambiente. El dungeon nocturno es distinto al diurno.',
+      'Una tensión sutil llena el ambiente. Los que sobreviven en este lugar saben que la noche es de ellos.',
       'Las sombras se alargan en los rincones. El atardecer favorece a las criaturas de este lugar.',
     ],
     midnight:  [
-      'La hora más peligrosa. El dungeon pertenece a las criaturas de la noche.',
+      'La hora más oscura. Kaelthas murió a medianoche, dicen las inscripciones. Nadie sabe si era advertencia.',
       'Medianoche en el dungeon — el momento en que el peligro y la recompensa alcanzan su pico.',
       'El silencio de medianoche es engañoso. Nada está realmente quieto aquí.',
       'A esta hora, incluso las antorchas parecen más tenues. El dungeon reclama su oscuridad.',
