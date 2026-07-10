@@ -5325,6 +5325,21 @@ function cmdPick(player, itemQuery) {
   // El hint completo (ambos ingredientes disponibles) sigue activo arriba.
   // El listado de crafts disponibles ya se muestra en el inventario.
 
+  // DIS-1435: hint genérico para ítems raros que son ingredientes de crafteo,
+  // pero el jugador aún no tiene el otro ingrediente (pickCraftHint está vacío).
+  // Mostrar solo una vez por ítem (flag: craft_ingredient_hint_<slug>).
+  if (!pickCraftHint && rarity !== 'común') {
+    const isIngredient = crafting.RECIPES.some(r =>
+      r.ingredients.some(ing => ing.toLowerCase().trim() === foundNormPick)
+    );
+    if (isIngredient) {
+      const hKeyIng = `craft_ingredient_hint_${foundNormPick.replace(/\s+/g, '_')}`;
+      if (!shownH2[hKeyIng]) {
+        pickCraftHint = `\n🧪 Este ítem es ingrediente de una receta. Escribí \`recetas\` para ver combinaciones posibles.`;
+        db.updatePlayer(freshP2.id, { status_effects: JSON.stringify({ ...shownH2, [hKeyIng]: true }) });
+      }
+    }
+  }
 
   // BUG-1170: si hay hint de crafteo para un ítem que TAMBIÉN acepta el altar (pray),
   // advertir que craftear lo consume y que hay alternativa — evita confusión post-crafteo.
