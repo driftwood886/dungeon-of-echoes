@@ -1024,6 +1024,23 @@ function completeTutorial(player) {
 // ─── Comandos ──────────────────────────────────────────────────────────────
 
 /**
+ * BUG-1428: Genera el hint de nivel recomendado al pasar junto a un boss.
+ * Si el jugador ya supera el nivel recomendado, muestra un mensaje distinto.
+ * @param {number} bossRecLevel — nivel recomendado del boss
+ * @param {number} playerLevel — nivel actual del jugador
+ * @param {string} [prefix] — prefijo opcional (ej: '\n' o '')
+ * @param {string} [suffix] — sufijo opcional (ej: '' o '\n')
+ * @returns {string}
+ */
+function bossLevelHintMsg(bossRecLevel, playerLevel, prefix = '\n', suffix = '') {
+  if (!bossRecLevel) return '';
+  if (playerLevel >= bossRecLevel) {
+    return `${prefix}⚔️  Nivel recomendado: ${bossRecLevel}+ (tu nivel: ${playerLevel}). Sos más que capaz — fue tu elección no atacar.${suffix}`;
+  }
+  return `${prefix}⚠️  Nivel recomendado: ${bossRecLevel}+ (tu nivel: ${playerLevel}). Regresá más fuerte cuando subas.${suffix}`;
+}
+
+/**
  * look — Describe la habitación actual.
  */
 function cmdLook(player) {
@@ -1926,11 +1943,10 @@ function cmdMove(player, direction) {
         const freshPlayer = db.getPlayer(player.id);
         const lookResult = cmdLook(freshPlayer);
         // DIS-1421: mostrar nivel recomendado y nivel actual del jugador al pasar junto a un jefe
+        // BUG-1428: mensaje diferente si el jugador ya supera el nivel recomendado
         const BOSS_REC_LEVELS = { 4: 3, 5: 5, 8: 4, 10: 5, 12: 5, 13: 7, 21: 6, 22: 8 };
         const bossRecLevel = BOSS_REC_LEVELS[bossInRoom.id];
-        const bossLevelHint = bossRecLevel
-          ? `\n⚠️  Nivel recomendado: ${bossRecLevel}+ (tu nivel: ${freshPlayer.level}). Regresá más fuerte cuando subas.`
-          : '';
+        const bossLevelHint = bossLevelHintMsg(bossRecLevel, freshPlayer.level);
         return {
           text: `🚶 Pasás cerca del ${bossInRoom.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.${bossFullHpEffectText}${bossFullHpTrapText}${bossLevelHint}\n\n${lookResult.text}`,
           event: `${player.username} sale de la sala.`,
@@ -1948,11 +1964,10 @@ function cmdMove(player, direction) {
     // BUG-459 / BUG-550: aclarar que el movimiento inicia una huida, mostrar resultado después
     // BUG-565: solo mostrar "¡Huís!" si la huida realmente funcionó — si no, solo el mensaje de fallo
     // DIS-1421: para el path bossAtFullHp, añadir nivel recomendado también
+    // BUG-1428: mensaje diferente si el jugador ya supera el nivel recomendado
     const BOSS_REC_LEVELS_FLEE = { 4: 3, 5: 5, 8: 4, 10: 5, 12: 5, 13: 7, 21: 6, 22: 8 };
     const fleeBossRecLevel = bossAtFullHp && monster ? BOSS_REC_LEVELS_FLEE[monster.id] : null;
-    const fleeBossLevelHint = fleeBossRecLevel
-      ? `⚠️  Nivel recomendado: ${fleeBossRecLevel}+ (tu nivel: ${player.level}). Regresá más fuerte cuando subas.\n`
-      : '';
+    const fleeBossLevelHint = bossLevelHintMsg(fleeBossRecLevel, player.level, '', '\n');
     const fleeNote = fleeResult.fled
       ? (bossAtFullHp
           ? `🚶 Pasás cerca del ${monster.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.\n${fleeBossLevelHint}`
@@ -4847,11 +4862,10 @@ function cmdFlee(player, targetQuery) {
       const destRoom = db.getRoom(destId);
       const destName = destRoom ? destRoom.name : `sala ${destId}`;
       // DIS-1421: mostrar nivel recomendado al pasar junto a jefe sin atacarlo (cmdFlee)
+      // BUG-1428: mensaje diferente si el jugador ya supera el nivel recomendado
       const BOSS_REC_LEVELS_CFLEE = { 4: 3, 5: 5, 8: 4, 10: 5, 12: 5, 13: 7, 21: 6, 22: 8 };
       const cFleeRecLevel = BOSS_REC_LEVELS_CFLEE[bossFleeInRoom.id];
-      const cFleeLevelHint = cFleeRecLevel
-        ? `\n⚠️  Nivel recomendado: ${cFleeRecLevel}+ (tu nivel: ${player.level}). Regresá más fuerte cuando subas.`
-        : '';
+      const cFleeLevelHint = bossLevelHintMsg(cFleeRecLevel, player.level);
       return {
         text: `🚶 Pasás cerca del ${bossFleeInRoom.name} con cuidado. No lo atacaste, así que te deja pasar.${cFleeLevelHint}\n\nTe movés a «${destName}».`,
         event: `${player.username} se retira sin combatir.`,
