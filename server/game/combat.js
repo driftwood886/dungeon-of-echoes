@@ -23,6 +23,7 @@ const eventScheduler = require('./eventScheduler'); // T-1227: eventos cíclicos
 const challengeTracker = require('./challengeTracker'); // T-1231: tracking de desafíos diarios
 const combatStates = require('./combatStates'); // EPIC-1291-F1: sistema de estados de combate
 const quests      = require('./quests');       // DIS-1405: hint de quest bloqueada por Marea Espectral
+const { articuloMonstruo, derrotadoMonstruo, MONSTER_GENERO_FEMENINO } = require('./gender'); // BUG-1427: centralizar género
 
 // IDs de monstruos espectrales para SPECTRAL_TIDE
 const SPECTRAL_MONSTER_IDS = new Set([4, 8, 12, 13, 21, 22]); // Espectro Corredor, Guardia Espectral, Campeón Espectral, Lich, Eco Viviente, Sombra (id 11 era Krakeling Abismal — no espectral)
@@ -276,32 +277,7 @@ const MONSTER_BASE_STATS = {
 };
 
 // BUG-1016: Mapa de géneros femeninos para artículos correctos.
-// Por defecto todos los monstruos usan "El"; los listados aquí usan "La".
-const MONSTER_GENERO_FEMENINO = new Set([
-  'Araña Tejedora',
-  'Rata Gigante',
-  'Sombra del Vacío',
-  'Guardia Espectral', // "La Guardia" es femenino
-]);
-
-/**
- * BUG-1016: Devuelve el artículo correcto (El/La) para un monstruo.
- * Maneja el prefijo ⭐ de monstruos élite (ej: "⭐ Araña Tejedora").
- * @param {string} name — nombre del monstruo (puede tener prefijo ⭐)
- * @returns {string} — "El" o "La"
- */
-function articuloMonstruo(name) {
-  const baseName = name.startsWith('⭐') ? name.slice(2).trim() : name;
-  return MONSTER_GENERO_FEMENINO.has(baseName) ? 'La' : 'El';
-}
-
-/**
- * BUG-1016: Devuelve "derrotada" o "derrotado" según el género del monstruo.
- */
-function derrotadoMonstruo(name) {
-  const baseName = name.startsWith('⭐') ? name.slice(2).trim() : name;
-  return MONSTER_GENERO_FEMENINO.has(baseName) ? 'derrotada' : 'derrotado';
-}
+// Movido a gender.js (BUG-1427). Ver require arriba.
 
 const MONSTER_SPECIALS = {
   'Lich Anciano': {
@@ -428,7 +404,7 @@ function attackRound(player, monster) {
           }
         } catch (_) {}
         return {
-          lines: [`👻 MAREA ESPECTRAL — Solo los no-muertos están activos. El ${monster.name} huye ante la marea espectral y no puede ser combatido ahora. (Evento termina en ~${minLeft} min)${questHint}`],
+          lines: [`👻 MAREA ESPECTRAL — Solo los no-muertos están activos. ${articuloMonstruo(monster.name)} ${monster.name} huye ante la marea espectral y no puede ser combatido ahora. (Evento termina en ~${minLeft} min)${questHint}`],
           monsterDead: false, playerDead: false, loot: [], spectralBlocked: true
         };
       }
@@ -2559,4 +2535,5 @@ module.exports = {
   WANDERING_MONSTER_IDS,
   BOSS_MONSTERS,
   MONSTER_SPECIALS,
+  articuloMonstruo,
 };

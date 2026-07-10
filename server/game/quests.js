@@ -13,6 +13,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { articuloMonstruo } = require('./gender'); // BUG-1427: artículo correcto según género
 
 // Archivo de quest activa (persiste en disco junto a la BD)
 const QUEST_FILE = path.join(__dirname, '../../db/quest.json');
@@ -359,7 +360,7 @@ function formatQuest(player) {
           targetNorm.includes('momia') || targetNorm.includes('muerto');
         if (!isSpectralTarget) {
           const minLeft = activeEv.minutesRemaining || '?';
-          spectralBlockHint = `\n⚠️  [MAREA ESPECTRAL] El ${quest.target} huye durante el evento (~${minLeft} min restantes). Tu objetivo está temporalmente inaccesible.`;
+          spectralBlockHint = `\n⚠️  [MAREA ESPECTRAL] ${articuloMonstruo(quest.target)} ${quest.target} huye durante el evento (~${minLeft} min restantes). Tu objetivo está temporalmente inaccesible.`;
           if (quest.id === 'slayer_goblin') {
             spectralBlockHint += '\n   💡 Alternativas: explorar Corredor de Sombras, desactivar trampas, o visitar la tienda de Aldric.';
           }
