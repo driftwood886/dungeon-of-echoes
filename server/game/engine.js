@@ -3804,7 +3804,23 @@ function cmdAttack(player, targetName) {
         const lootHint = hasLoot
           ? `💡 El monstruo está muerto. ¿Querés recoger el loot? Escribí: pick todo`
           : `💡 El monstruo está muerto y ya fue saqueado. Buscá la siguiente sala.`;
-        return { text: `💀 El ${deadMatch.name} ya está muerto.\n${lootHint}` };
+        // BUG-1425: inferir género para artículo y adjetivo correctos
+        const inferFemenino = (nombre) => {
+          const n = nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          // Palabras femeninas explícitas en el dungeon
+          const FEMENINAS = ['araña', 'serpiente', 'sombra', 'bruja', 'dama', 'reina', 'espectro femenino'];
+          if (FEMENINAS.some(f => n.includes(f))) return true;
+          // Terminaciones femeninas comunes en español
+          const ultima = n.split(' ').pop(); // última palabra del nombre
+          return /[aá]$/.test(ultima) ||       // termina en a/á
+                 /[aá]s$/.test(ultima) ||       // plural femenino
+                 /[io]ra$/.test(ultima) ||      // -ora, -ora (tejedora, etc.)
+                 /nte$/.test(ultima);           // -nte (serpiente, corriente)
+        };
+        const esFem = inferFemenino(deadMatch.name);
+        const art = esFem ? 'La' : 'El';
+        const adj = esFem ? 'muerta' : 'muerto';
+        return { text: `💀 ${art} ${deadMatch.name} ya está ${adj}.\n${lootHint}` };
       }
     } catch (_) { /* no romper attack si falla */ }
     return { text: `No hay ningún "${targetName}" aquí.` };
