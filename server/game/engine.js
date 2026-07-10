@@ -1522,8 +1522,9 @@ function cmdMove(player, direction) {
                 // T1274: usar dirección dinámica
                 const dirNormNB1244 = dungeon.normalizeDirection(direction);
                 const dirEsNB1244 = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNormNB1244]) || dirNormNB1244 || 'la dirección indicada';
+                // DIS-1454: simplificar warning — no revelar solución ni ítem necesario
                 return {
-                  text: `⚠️  Antes de entrar al Túnel de Hongos, notás esporas densas flotando en el umbral — una concentración antinatural que te arde en los ojos.\n\nLas esporas activan una trampa al cruzar. Perderás HP si entrás ahora.\n\n🍄 Si tenés un «hongo azul», podés neutralizarlas sin daño:\n   → Conseguilo con «buscar» en esta sala o al comprar en la tienda.\n   → Luego escribí «desactivar trampa ${dirEsNB1244}» para desactivarla desde aquí.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), volvé a enviar el comando de dirección.`,
+                  text: `⚠️  Al acercarte al umbral del Túnel de Hongos, notás esporas densas flotando en el aire — una concentración antinatural que te arde en los ojos.\n\nAlgo en ese umbral parece activo. Cruzar sin preparación podría costarte.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), volvé a enviar el comando de dirección.`,
                 };
               }
               // Segunda vez: limpiar flag y continuar
