@@ -307,6 +307,8 @@ const COMMAND_ALIASES = {
   stance: 'stance', postura: 'stance', combate_postura: 'stance',
   // path / ruta (T162)
   path: 'path', ruta: 'path', navegacion: 'path', navegar: 'path', 'como-llegar': 'path',
+  // goto / ir a (DIS-1419: autotravel multiroom)
+  goto: 'goto', 'ir_a': 'goto', viajar: 'goto', autoviajar: 'goto',
   // nick / apodo (T163)
   nick: 'nick', apodo: 'nick', alias: 'nick', sobrenombre: 'nick',
   // history / historial (T164)
@@ -497,9 +499,14 @@ function parse(input) {
   }
 
   // Para 'move', normalizar la dirección
+  // DIS-1419: si los args NO son una dirección válida, interpretar como goto (autotravel)
   if (canonical === 'move' && rest.length > 0) {
-    const dir = normalizeDirection(rest[0]) || rest[0];
-    return { command: 'move', args: [dir], raw: trimmed };
+    const dir = normalizeDirection(rest[0]);
+    if (dir) {
+      return { command: 'move', args: [dir], raw: trimmed };
+    }
+    // No es una dirección → es un destino de autotravel (ej: "ir tienda", "ir catedral")
+    return { command: 'goto', args: rest, raw: trimmed };
   }
 
   // BUG-549: "abrir <ítem>" → si el arg NO es una dirección, redirigir a 'use'

@@ -352,6 +352,7 @@ function execute(playerId, input, context) {
   switch (action.command) {
     case 'look':      result = cmdLook(player); break;
     case 'move':      result = cmdMove(player, action.args[0]); break;
+    case 'goto':      result = cmdGoto(player, action.args, context); break;  // DIS-1419: autotravel
     case 'inventory': result = cmdInventory(player); break;
     case 'status':    result = cmdStatus(player); break;
     case 'junk':      result = cmdJunk(player); break;
@@ -19554,6 +19555,237 @@ function cmdStance(player, args) {
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// DIS-1419: cmdGoto — Autotravel multiroom ("ir tienda", "ir catedral", etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+// Calcula la ruta BFS desde la sala actual hasta el destino y ejecuta los pasos
+// uno a uno, mostrando la descripción de cada sala intermedia. Se detiene si
+// hay un monstruo bloqueante (boss o normal vivo) en la sala actual entre pasos.
+
+/**
+ * cmdGoto — Mover al jugador automáticamente hasta un destino nombrado.
+ * Acepta los mismos alias de sala que cmdPath (tienda, mercader, catedral, etc.)
+ * y también nombres de sala parciales.
+ */
+function cmdGoto(player, args, context) {
+  player = db.getPlayer(player.id);
+  if (!args || args.length === 0) {
+    return { text: '¿A dónde querés ir? Ejemplo: ir tienda  /  ir catedral  /  ir jefe' };
+  }
+
+  const query = args.join(' ').trim().toLowerCase();
+  const allRooms = db.getAllRooms();
+
+  // Reutilizar la misma tabla de alias que cmdPath
+  const ROOM_ALIASES = {
+    'mercader': 4, 'aldric': 4, 'tienda': 4, 'shop': 4, 'tesoro': 4,
+    'subastas': 17, 'subasta': 17, 'auction': 17, 'escriba': 17,
+    'entrada': 1, 'inicio': 1, 'start': 1,
+    'trono': 9,
+    'santuario': 10,
+    'lich': 15, 'catedral': 15, 'final': 15,
+    'forja': 12,
+    'abismo': 20,
+    'coliseo': 14,
+    'eco': 19,
+    'fuente': 18,
+    'pozo': 7,
+    'prision': 8, 'prisión': 8, 'carcel': 8, 'cárcel': 8,
+  };
+
+  const BOSS_ROOM_IDS = [8, 9, 10, 12, 14, 15, 19, 20];
+
+  // Resolver alias de destino
+  let targetRoom = null;
+  const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // Alias dinámico "jefe": sala del boss más cercano vivo
+  if (query === 'jefe' || query === 'boss') {
+    const playerInv = player.inventory || [];
+    const graphTemp = {};
+    for (const room of allRooms) {
+      graphTemp[room.id] = [];
+      const exits = room.exits || {};
+      for (const [dir, dest] of Object.entries(exits)) {
+        if (typeof dest === 'object' && dest.key) {
+          const hasK = playerInv.some(item => item.toLowerCase() === dest.key.toLowerCase());
+          if (!hasK) continue;
+          if (dest.room_id) graphTemp[room.id].push(dest.room_id);
+        } else {
+          const dId = typeof dest === 'object' ? dest.room_id : dest;
+          if (dId) graphTemp[room.id].push(dId);
+        }
+      }
+    }
+    const bfsQ2 = [player.current_room_id];
+    const bfsVis2 = new Set([player.current_room_id]);
+    outer2: while (bfsQ2.length > 0) {
+      const cur2 = bfsQ2.shift();
+      if (BOSS_ROOM_IDS.includes(cur2) && cur2 !== player.current_room_id) {
+        const bossRoomFound = allRooms.find(r => r.id === cur2);
+        if (bossRoomFound) { targetRoom = bossRoomFound; break outer2; }
+      }
+      for (const next2 of (graphTemp[cur2] || [])) {
+        if (!bfsVis2.has(next2)) { bfsVis2.add(next2); bfsQ2.push(next2); }
+      }
+    }
+    if (!targetRoom) {
+      return { text: '🗺 No encontré ningún boss accesible desde tu posición actual.' };
+    }
+  }
+
+  if (!targetRoom) {
+    const aliasId = ROOM_ALIASES[query] || ROOM_ALIASES[norm(query)];
+    if (aliasId) targetRoom = allRooms.find(r => r.id === aliasId);
+  }
+
+  // Buscar por ID numérico
+  if (!targetRoom) {
+    const asNum = parseInt(query, 10);
+    if (!isNaN(asNum)) targetRoom = allRooms.find(r => r.id === asNum);
+  }
+
+  // Buscar por nombre parcial
+  if (!targetRoom) {
+    const normQuery = norm(query);
+    const STOP_WORDS = new Set(['de', 'del', 'el', 'la', 'los', 'las', 'un', 'una',
+                                'en', 'al', 'a', 'y', 'o', 'e', 'con', 'sin', 'por', 'para']);
+    const stripStop = words => words.filter(w => w.length > 0 && !STOP_WORDS.has(w));
+    const queryWords = stripStop(normQuery.split(/\s+/));
+    targetRoom = allRooms.find(r => norm(r.name) === normQuery)
+      || allRooms.find(r => norm(r.name).includes(normQuery));
+    if (!targetRoom && queryWords.length >= 1) {
+      const matches = allRooms.filter(r => {
+        const roomWords = norm(r.name).split(/\s+/);
+        return queryWords.every(qw => roomWords.some(rw => rw.includes(qw)));
+      });
+      if (matches.length === 1) targetRoom = matches[0];
+      else if (matches.length > 1) {
+        matches.sort((a, b) => {
+          const aWords = norm(a.name).split(/\s+/);
+          const bWords = norm(b.name).split(/\s+/);
+          const aScore = queryWords.filter(qw => aWords.some(rw => rw.includes(qw))).length;
+          const bScore = queryWords.filter(qw => bWords.some(rw => rw.includes(qw))).length;
+          return bScore - aScore;
+        });
+        targetRoom = matches[0];
+      }
+    }
+  }
+
+  if (!targetRoom) {
+    return { text: `No encontré ninguna sala llamada "${args.join(' ')}". Usá el nombre de un lugar (tienda, catedral, forja, etc.) o el ID numérico de sala.` };
+  }
+
+  const startId = player.current_room_id;
+  if (targetRoom.id === startId) {
+    return { text: `Ya estás en "${targetRoom.name}". No necesitás moverte.` };
+  }
+
+  // Construir grafo BFS (igual que cmdPath)
+  const playerInventory = player.inventory || [];
+  const graph = {};
+  for (const room of allRooms) {
+    graph[room.id] = [];
+    const exits = room.exits || {};
+    for (const [dir, dest] of Object.entries(exits)) {
+      if (typeof dest === 'object' && dest.key) {
+        const hasKey = playerInventory.some(item => item.toLowerCase() === dest.key.toLowerCase());
+        if (!hasKey) continue;
+        if (dest.room_id) graph[room.id].push({ dir, toId: dest.room_id });
+      } else {
+        const destId = typeof dest === 'object' ? dest.room_id : dest;
+        if (destId) graph[room.id].push({ dir, toId: destId });
+      }
+    }
+  }
+
+  // BFS para encontrar la ruta más corta
+  const queue = [{ id: startId, path: [] }];
+  const visited = new Set([startId]);
+  let foundPath = null;
+  while (queue.length > 0) {
+    const { id, path } = queue.shift();
+    if (id === targetRoom.id) { foundPath = path; break; }
+    for (const edge of (graph[id] || [])) {
+      if (!visited.has(edge.toId)) {
+        visited.add(edge.toId);
+        queue.push({ id: edge.toId, path: [...path, { dir: edge.dir, toId: edge.toId }] });
+      }
+    }
+  }
+
+  if (!foundPath) {
+    return { text: `No hay ruta accesible desde tu sala actual hasta "${targetRoom.name}". Puede haber puertas bloqueadas en el camino.` };
+  }
+
+  // Ejecutar cada paso, acumulando la salida
+  const sections = [];
+  sections.push(`🧭 Viajando a: ${targetRoom.name} (${foundPath.length} paso${foundPath.length !== 1 ? 's' : ''})`);
+  sections.push('─'.repeat(46));
+
+  let stoppedByMonster = false;
+  let stoppedRoom = null;
+  let stepsExecuted = 0;
+
+  for (const step of foundPath) {
+    // Verificar si hay BOSSES bloqueantes en la sala actual antes de avanzar
+    // (Los monstruos normales permiten huida garantizada en cmdMove — no detenemos en ellos)
+    const freshPlayer = db.getPlayer(player.id);
+    const monstersNow = db.getMonstersInRoom(freshPlayer.current_room_id);
+    const aliveBlocking = monstersNow.filter(m => m.hp > 0 && !NON_BLOCKING_MONSTER_IDS.has(m.id));
+    const hasBossBlocking = aliveBlocking.some(m => combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[m.id]);
+    if (hasBossBlocking) {
+      const bossName = aliveBlocking.find(m => combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[m.id]).name;
+      sections.push(`\n⚔️  Viaje interrumpido — el jefe "${bossName}" está bloqueando el paso.`);
+      sections.push(`💡 Necesitás derrotarlo o huir para continuar tu viaje a ${targetRoom.name}.`);
+      stoppedByMonster = true;
+      break;
+    }
+
+    // Ejecutar el movimiento
+    const roomBefore = freshPlayer.current_room_id;
+    let moveResult = cmdMove(freshPlayer, step.dir);
+
+    // DIS-1419: Si cmdMove devolvió un pre-move warning (trampa, frío, etc.) sin mover al jugador,
+    // volvemos a llamar para pasar el warning y efectuar el movimiento real.
+    // Detectamos esto comparando la sala antes/después.
+    const afterFirst = db.getPlayer(player.id);
+    if (afterFirst.current_room_id === roomBefore && moveResult && moveResult.text && !moveResult.text.startsWith('No hay salida') && !moveResult.text.startsWith('La salida')) {
+      // Pre-move warning activo — ejecutar de nuevo para avanzar
+      const freshPlayer2 = db.getPlayer(player.id);
+      const moveResult2 = cmdMove(freshPlayer2, step.dir);
+      // Incluir ambos mensajes en la salida (el warning + el movimiento real)
+      if (moveResult2 && moveResult2.text) {
+        sections.push(moveResult.text); // El warning informativo
+        sections.push('─'.repeat(46));
+        moveResult = moveResult2;
+      }
+    }
+
+    stepsExecuted++;
+
+    if (moveResult && moveResult.text) {
+      sections.push(moveResult.text);
+      if (stepsExecuted < foundPath.length && !stoppedByMonster) {
+        sections.push('─'.repeat(46));
+      }
+    }
+  }
+
+  // Mensaje final
+  if (!stoppedByMonster) {
+    const finalPlayer = db.getPlayer(player.id);
+    if (finalPlayer.current_room_id === targetRoom.id) {
+      sections.push(`\n✅ Llegaste a: ${targetRoom.name}`);
+    }
+  }
+
+  return {
+    text: sections.join('\n'),
+    fromRoomId: startId,
+  };
+}
+
 // T162: cmdPath — Ruta más corta a una sala (BFS)
 // ─────────────────────────────────────────────────────────────────────────────
 
