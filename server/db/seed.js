@@ -2430,21 +2430,18 @@ function migratePozoPistaDIS1453() {
   try {
     const room7 = db.getRoom(7);
     if (!room7) return;
-    const MARKER_DIS1453 = 'DIS1453_pista_vaga';
-    // Ya migrado
-    if (room7.description && room7.description.includes(MARKER_DIS1453)) {
-      console.log('[seed] migratePozoPistaDIS1453: ya migrado. ✓');
-      return;
-    }
     // Descripción base (sin pista de ruta)
     const descBase = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario.';
-    // Pista vaga — sin spoilear ruta ni trampas
-    const pistaNueva = ' (💡 Se dice que hay otra manera de llegar al Santuario sin llave. El dungeon siempre tiene rutas alternativas para quienes exploran con cuidado.) <!-- DIS1453_pista_vaga -->';
+    // Pista vaga — sin spoilear ruta ni trampas, sin marcador HTML visible (BUG-1461)
+    const pistaNueva = ' (💡 Se dice que hay otra manera de llegar al Santuario sin llave. El dungeon siempre tiene rutas alternativas para quienes exploran con cuidado.)';
     const descNueva = descBase + pistaNueva;
-    if (room7.description === descNueva) return;
+    if (room7.description === descNueva) {
+      console.log('[seed] migratePozoPistaDIS1453: ya correcto. ✓');
+      return;
+    }
     db.upsertRoom({ ...room7, description: descNueva });
     db.persist();
-    console.log('[seed] migratePozoPistaDIS1453: pista de ruta alternativa en sala 7 simplificada (sin spoilers). DIS-1453 ✓');
+    console.log('[seed] migratePozoPistaDIS1453: descripción de sala 7 corregida — comentario HTML eliminado (BUG-1461 ✓)');
   } catch (e) {
     console.warn('[seed] migratePozoPistaDIS1453:', e.message);
   }
