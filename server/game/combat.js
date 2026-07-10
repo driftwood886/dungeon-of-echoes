@@ -943,6 +943,8 @@ function attackRound(player, monster) {
   // DIS-778/DIS-810: Regeneración del Gólem de Piedra — cada 2 turnos regenera HP
   // DIS-810: Para jugadores nivel 7+, la regen es 12 HP (antes era 8 HP para todos)
   // DIS-1436: regen aumentada (8→14 bajo niv7, 12→20 nivel7+) + mechanic de Escudo de Piedra cada 3 turnos
+  // DIS-1459: regen ajustada — fase 1 (>50% HP): 8 HP bajo niv7 / 12 HP niv7+; fase 2 (<=50% HP): 14 HP bajo niv7 / 20 HP niv7+
+  //   El Gólem se vuelve más duro a medida que cae — tiene sentido narrativo (fragmentos energizados)
   if (monster.hp > 0 && monNameLow.includes('gólem de piedra')) {
     const golemFx = monster.status_effects
       ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects)
@@ -950,13 +952,21 @@ function attackRound(player, monster) {
     const golemTurns = (golemFx.golem_turns || 0) + 1;
     golemFx.golem_turns = golemTurns;
     if (golemTurns % 2 === 0) {
-      // Cada 2 turnos: regeneración — 20 HP para nivel 7+ (late game), 14 HP para nivel <7 (DIS-1436)
-      const regenAmount = (player.level >= 7) ? 20 : 14;
+      // DIS-1459: Cada 2 turnos: regeneración escalonada por fase del Gólem
+      // Fase 1 (>50% HP): regen baja — el Gólem aguanta pero es vencible
+      // Fase 2 (<=50% HP): regen alta — el Gólem "se energiza" al estar herido
+      const golemPhase2 = monster.hp <= (monster.max_hp / 2);
+      const regenAmount = (player.level >= 7)
+        ? (golemPhase2 ? 20 : 12)
+        : (golemPhase2 ? 14 : 8);
       const newGolemHp = Math.min(monster.max_hp, monster.hp + regenAmount);
       const actualRegen = newGolemHp - monster.hp;
       if (actualRegen > 0) {
         monster.hp = newGolemHp;
-        lines.push(`🪨 Los fragmentos del Gólem de Piedra se reensamblan — regenera ${actualRegen} HP. (${monster.hp}/${monster.max_hp} HP)`);
+        const regenMsg = golemPhase2
+          ? `🪨 ¡Los fragmentos del Gólem de Piedra se energizan! Regenera ${actualRegen} HP. (${monster.hp}/${monster.max_hp} HP)`
+          : `🪨 Los fragmentos del Gólem de Piedra se reensamblan — regenera ${actualRegen} HP. (${monster.hp}/${monster.max_hp} HP)`;
+        lines.push(regenMsg);
       }
     }
     // DIS-1436: Escudo de Piedra — cada 3 turnos el Gólem activa escudo (daño recibido ×0.35 el próximo ataque del jugador)
