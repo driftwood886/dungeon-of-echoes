@@ -19793,7 +19793,7 @@ function cmdStance(player, args) {
     const glovesCrit = (equippedWpn && equippedWpn.rogue_only_crit_bonus) ? equippedWpn.rogue_only_crit_bonus : 0;
     const baseCrit = 25 + glovesCrit; // crit en equilibrado
     const agresivoCrit = baseCrit - 2; // DIS-715: penalidad de -2%
-    stanceDesc += `\n\n💡 Con tus stats actuales: crit ${baseCrit}% → ${agresivoCrit}% en postura ofensiva. El +2 ATK fijo generalmente supera perder 2% de crit.`;
+    stanceDesc += `\n\n💡 En esta postura: crit ${agresivoCrit}% (−2% vs equilibrado) pero ganás +2 ATK fijo. El bonus de ataque generalmente supera la pérdida de crítico.`;
   }
   return {
     text: `${s.icon} Adoptás la postura **${s.label || target}**.\n${stanceDesc}`,
