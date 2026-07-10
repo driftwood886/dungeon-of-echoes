@@ -400,10 +400,11 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   // Mensajes en las paredes (T147 / DIS-1325)
   // El hint aparece si hay mensajes de jugadores O si hay lore hardcodeado para esta sala
   // DIS-1346: para veteranos que ya visitaron la sala, suprimir el hint de inscripciones (ya lo saben)
-  const LORE_ROOMS = new Set([2, 4, 8, 9, 15]); // salas con inscripciones de lore (DIS-1094/DIS-1325)
+  // DIS-1440: sala 22 (Pozo Sin Fondo) agregada — tiene notas de jugadores anteriores; hint siempre visible
+  const LORE_ROOMS = new Set([2, 4, 8, 9, 15, 22]); // salas con inscripciones de lore (DIS-1094/DIS-1325)
   const wallMsgs = db.getWallMessages(roomId);
-  if ((wallMsgs.length > 0 || LORE_ROOMS.has(roomId)) && !isVeteranPlayer) {
-    lines.push(`\n✍️ Alguien ha dejado inscripciones en la pared. (Escribí "read" para leerlas.)`);
+  if (wallMsgs.length > 0 || LORE_ROOMS.has(roomId)) {
+    lines.push(`\n✍️ Hay marcas en la pared. (Escribí "read" para leerlas.)`);
   }
 
   // EPIC-MR-1085: Texto ambiental de World State colectivo
