@@ -12320,6 +12320,36 @@ function cmdForage(player) {
   // DIS-1365: Prisión Subterránea (sala 8) — corona rota encontrable en celdas si trampa sala 9 activa
   // Resuelve el bootstrap paradox: la corona se necesita para desactivar la trampa del Trono ANTES de entrar,
   // pero el drop del Espectro sólo está disponible DENTRO de la sala con trampa.
+
+  // DIS-1445: Capilla Olvidada (sala 5) — hongo azul con alta probabilidad si trampa de sala 6 activa.
+  // La Capilla es adyacente al Túnel de Hongos. Si el jugador necesita el hongo azul para avanzar,
+  // tiene 65% de chance de encontrarlo aquí (evitando tener que entrar al Túnel y recibir daño).
+  if (player.current_room_id === 5) {
+    const room6_1445 = db.getRoom(6);
+    const inv_1445 = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+    const trapActive6 = room6_1445 && room6_1445.trap && room6_1445.trap.active;
+    const alreadyHasHongo = inv_1445.includes('hongo azul');
+    if (trapActive6 && !alreadyHasHongo) {
+      const hongoRoll = Math.random();
+      if (hongoRoll < 0.65) {
+        const newInv1445 = [...inv_1445, 'hongo azul'];
+        forageData[roomKey] = now;
+        db.updatePlayer(player.id, { inventory: JSON.stringify(newInv1445), forage_data: JSON.stringify(forageData) });
+        const cr1445 = db.updateDailyChallengeProgress(player.id, 'forage', null);
+        let chalMsg1445 = '';
+        if (cr1445 && cr1445.reward) chalMsg1445 = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+        const fresh1445 = db.getPlayer(player.id);
+        const q1445 = quests.recordProgress(fresh1445, 'pick', { itemName: 'hongo azul' });
+        if (q1445) db.updatePlayer(player.id, { quest_progress: q1445.questProgress });
+        return {
+          text: `Buscás entre las ofrendas viejas de la Capilla. Debajo del altar, mezclado con hierbas secas, encontrás un hongo que no pertenece aquí — azul oscuro, sin brillo, con olor neutralizante.\n\n🍄 ¡Encontrás: hongo azul! Se agrega a tu inventario.\n\n💡 Con este hongo podés desactivar la trampa del Túnel de Hongos (sala al norte) sin recibir daño:\n   → Desde la Capilla, escribí «desactivar trampa norte»${chalMsg1445}`,
+          event: null,
+        };
+      }
+      // Falló el roll — caer al forage normal (puede encontrar otra cosa o nada)
+    }
+  }
+
   if (player.current_room_id === 8) {
     const room9_1365 = db.getRoom(9);
     const inv_1365 = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
