@@ -796,7 +796,7 @@ Comandos más usados:
   if (hasAscensionPending && !ASCENSION_REMINDER_EXCLUDED.has(action.command)) {
     const reminderTick = playerSe.ascension_reminder_tick != null ? playerSe.ascension_reminder_tick : 0;
     if (reminderTick === 0) {
-      result = { ...result, text: result.text + '\n\n⚡ **El Lich cayó. El Dungeon de los Ecos es tuyo.**\n\nPodés ascender para heredar un bonus permanente a tu próximo personaje.\n• Conservás: el bonus de legado elegido + tu nombre en el Salón de los Caídos.\n• Perdés: este personaje (nivel, ítems, gold, progreso).\n• Obtenés: una ventaja permanente de inicio para el próximo ciclo.\n\nEscribí `ascender` para ver las opciones — o seguí explorando. El Lich volverá.' };
+      result = { ...result, text: result.text + '\n\n💀 **Recordatorio: Ya derrotaste al Lich Anciano.** El Dungeon de los Ecos es tuyo.\n\nPodés ascender para heredar un bonus permanente a tu próximo personaje.\n• Conservás: el bonus de legado elegido + tu nombre en el Salón de los Caídos.\n• Perdés: este personaje (nivel, ítems, gold, progreso).\n• Obtenés: una ventaja permanente de inicio para el próximo ciclo.\n\nEscribí `ascender` para ver las opciones — o seguí explorando. El Lich volverá.' };
       // Resetear tick a 15 (próximo recordatorio en 15 acciones)
       const freshSeForTick = db.getPlayer(playerId);
       const seForTick = freshSeForTick.status_effects ? (typeof freshSeForTick.status_effects === 'string' ? JSON.parse(freshSeForTick.status_effects) : freshSeForTick.status_effects) : {};
