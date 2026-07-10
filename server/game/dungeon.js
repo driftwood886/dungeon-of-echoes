@@ -13,6 +13,7 @@ const db      = require('../db/db');
 const ambient = require('./ambient');
 const weather = require('./weather'); // T166: clima del dungeon
 const items   = require('./items');
+const eventScheduler = require('./eventScheduler'); // DIS-1451: Marea Espectral en lista de criaturas
 
 // Nombres de dirección en español
 const DIR_NAMES = {
@@ -206,9 +207,26 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   if (monsters.length > 0) {
     // T166: Niebla densa — ocultar HP de los monstruos
     const foggy = weather.isFoggy();
+    // DIS-1451: Marea Espectral — marcar criaturas inactivas
+    const SPECTRAL_TIDE_IDS = new Set([4, 8, 12, 13, 21, 22]);
+    const spectralEvCheck = (() => { try { return eventScheduler.getActiveEventInfo(); } catch(_) { return null; } })();
+    const isSpectralTide = spectralEvCheck && spectralEvCheck.event && spectralEvCheck.event.id === 'SPECTRAL_TIDE';
     const monsterList = monsters.map(m => {
       if (foggy) {
         return `  • ${m.name} [🌁 oculto por la niebla]`;
+      }
+      // DIS-1451: si Marea Espectral activa y el monstruo no es espectral/undead, mostrarlo como inactivo
+      if (isSpectralTide) {
+        const mNameLower = (m.name || '').toLowerCase();
+        const isSpectral = SPECTRAL_TIDE_IDS.has(m.id) ||
+          mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
+          mNameLower.includes('espectral') || mNameLower.includes('lich') || mNameLower.includes('sombra');
+        const isUndead = mNameLower.includes('esqueleto') || mNameLower.includes('zombie') ||
+          mNameLower.includes('zombi') || mNameLower.includes('vampiro') || mNameLower.includes('momia') ||
+          mNameLower.includes('óseo') || mNameLower.includes('muerto');
+        if (!isSpectral && !isUndead) {
+          return `  • ${m.name} 👻 (huye / inactiva durante la Marea Espectral)`;
+        }
       }
       const pct = m.max_hp > 0 ? m.hp / m.max_hp : 0;
       const barLen = 10;
