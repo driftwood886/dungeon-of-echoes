@@ -888,7 +888,7 @@ function handleTutorialCommand(player, action, step) {
   if (step >= 2) {
     const goblinCheck = db.getMonster(20);
     const goblinDeadOrGone = !goblinCheck || goblinCheck.room_id !== 16 || (goblinCheck.hp <= 0) || !!(goblinCheck.respawn_at);
-    if (goblinDeadOrGone && cmd !== 'look' && cmd !== 'help' && cmd !== 'status' && cmd !== 'inventory' && cmd !== 'clear') {
+    if (goblinDeadOrGone && cmd !== 'look' && cmd !== 'help' && cmd !== 'status' && cmd !== 'inventory' && cmd !== 'clear' && cmd !== 'clase') {
       // El goblin ya no existe — el jugador lo mató. Completar tutorial.
       return completeTutorial(player);
     }
