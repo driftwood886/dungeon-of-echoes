@@ -2877,7 +2877,20 @@ function cmdInventory(player) {
     idx++;
   }
   // Luego el resto del inventario
+  // BUG-1429: agrupar ítems duplicados y mostrar (x2), (x3), etc.
+  // Preservar el orden de primera aparición para no reordenar el inventario.
+  const itemGroups = []; // [{ name, count }] en orden de primera aparición
+  const seenItems = new Map(); // name.toLowerCase() → índice en itemGroups
   for (const item of allItems) {
+    const key = item.toLowerCase();
+    if (seenItems.has(key)) {
+      itemGroups[seenItems.get(key)].count++;
+    } else {
+      seenItems.set(key, itemGroups.length);
+      itemGroups.push({ name: item, count: 1 });
+    }
+  }
+  for (const { name: item, count } of itemGroups) {
     const emoji = items.getRarityEmoji(item);
     const rarity = items.getItemRarity(item);
     const rarityLabel = rarity !== 'común' ? ` (${rarity})` : '';
@@ -2886,7 +2899,9 @@ function cmdInventory(player) {
     const craftTag = (def && def.description && (def.description.includes('crafteo') || def.description.includes('🔧'))) ? ' ⚗️' : '';
     // DIS-677: marcar ítems con receta viable usando ✨ (tenés los dos ingredientes)
     const viableTag = viableRecipeItems.has(item.toLowerCase()) ? ' ✨' : '';
-    lines.push(`  ${idx}. ${emoji} ${item}${rarityLabel}${craftTag}${viableTag}`);
+    // BUG-1429: mostrar cantidad si hay más de 1
+    const countTag = count > 1 ? ` (x${count})` : '';
+    lines.push(`  ${idx}. ${emoji} ${item}${rarityLabel}${craftTag}${viableTag}${countTag}`);
     idx++;
   }
 
@@ -2908,9 +2923,15 @@ function cmdInventory(player) {
   }
   const rareCount = allItems.filter(i => items.getItemRarity(i) !== 'común').length
     + equippedItems.filter(e => items.getItemRarity(e.name) !== 'común').length;
+  // BUG-1429: usar totalVisible para "entradas únicas" (ya que duplicados se colapsan con x2/x3)
+  // El summary muestra el total real de ítems (usedSlots) si difiere del número de líneas
+  const totalItems = allItems.length + equippedItems.length;
+  const summaryCount = totalItems !== totalVisible
+    ? `${totalVisible} entrada${totalVisible !== 1 ? 's' : ''} (${totalItems} ítems total)`
+    : `${totalVisible} ítem${totalVisible !== 1 ? 's' : ''}`;
   const summary = rareCount > 0
-    ? `─ ${totalVisible} ítem${totalVisible !== 1 ? 's' : ''} (${rareCount} no ${rareCount !== 1 ? 'comunes' : 'común'})`
-    : `─ ${totalVisible} ítem${totalVisible !== 1 ? 's' : ''}`;
+    ? `─ ${summaryCount} (${rareCount} no ${rareCount !== 1 ? 'comunes' : 'común'})`
+    : `─ ${summaryCount}`;
 
   // DIS-994: línea de slots de mochila
   const slotLine = `📦 Mochila: ${usedSlots}/${maxSlots} slots${slotHint}`;
