@@ -594,7 +594,7 @@ const challengePool = [
   {
     id: 'CHAL-E15',
     category: 'exploracion',
-    title: 'Inscripciones del Pasado',
+    title: 'Curioso y Precavido',
     description: 'Usá examine en 3 objetos distintos del dungeon en una sesión.',
     condition: { type: 'examine', target: null, amount: 3, extra: {} },
     reward: { xp: 40, gold: 6, rep: 0 },

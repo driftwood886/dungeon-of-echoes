@@ -364,7 +364,7 @@ function execute(playerId, input, context) {
     case 'drop':      result = cmdDrop(player, action.args.join(' ')); break;
     case 'examine': {
       result = cmdExamine(player, action.args.join(' '));
-      // BUG-1260: trackear challenge 'examine' (CHAL-E15 "Inscripciones del Pasado")
+      // BUG-1260: trackear challenge 'examine' (CHAL-E15 "Curioso y Precavido")
       if (result && result.text && !result.text.includes('No ves ningún')) {
         try {
           const freshForExamine = db.getPlayer(player.id);
@@ -1035,7 +1035,7 @@ function completeTutorial(player) {
 function bossLevelHintMsg(bossRecLevel, playerLevel, prefix = '\n', suffix = '') {
   if (!bossRecLevel) return '';
   if (playerLevel >= bossRecLevel) {
-    return `${prefix}⚔️  Nivel recomendado: ${bossRecLevel}+ (tu nivel: ${playerLevel}). Sos más que capaz — fue tu elección no atacar.${suffix}`;
+    return `${prefix}⚔️  Nivel recomendado: ${bossRecLevel}+ (tu nivel: ${playerLevel}).${suffix}`;
   }
   return `${prefix}⚠️  Nivel recomendado: ${bossRecLevel}+ (tu nivel: ${playerLevel}). Regresá más fuerte cuando subas.${suffix}`;
 }
@@ -1482,6 +1482,10 @@ function cmdMove(player, direction) {
           const seFleeBlockedDoor = parseSE(player.status_effects);
           const keyFleeFlag = `used_key_${requiredKeyFlee.toLowerCase().replace(/\s+/g, '_')}`;
           const alreadyUsedKeyFlee = seFleeBlockedDoor[keyFleeFlag] === true;
+          // DIS-1456: si el jugador ya cruzó Pozo→Santuario con la llave, la puerta queda desbloqueada
+          if (alreadyUsedKeyFlee && isPozo) {
+            // Caer a la lógica de movimiento — la puerta ya fue abierta por este jugador
+          } else {
           if (alreadyUsedKeyFlee && isSanctuarioSurFlee) {
             return {
               text: `La puerta al sur está bloqueada. 🔒\nUsaste la llave oxidada para entrar — se rompió al girar y ya no podés volver por aquí.\n\n🗺 Para salir del Santuario sin bajar al Pozo: oeste → Sala del Trono → sur → Túnel de Hongos → sur → Capilla → oeste → Entrada.`,
@@ -1490,6 +1494,7 @@ function cmdMove(player, direction) {
           return {
             text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${requiredKeyFlee}" para abrirla.${questPozoPreffix}${altRouteHint}`,
           };
+          } // end else (DIS-1456)
         }
       }
       // T1271: Consumir la llave en el path de huida (igual que en el path normal)
@@ -2016,6 +2021,11 @@ function cmdMove(player, direction) {
       const seBlockedDoor = parseSE(player.status_effects);
       const keyFlagName = `used_key_${key.toLowerCase().replace(/\s+/g, '_')}`;
       const alreadyUsedKey = seBlockedDoor[keyFlagName] === true;
+      // DIS-1456: si el jugador ya usó la llave para cruzar Pozo→Santuario, la puerta queda
+      // desbloqueada para él — no exigir la llave de nuevo (evita el 🔒 fantasma al volver)
+      if (alreadyUsedKey && isPozo) {
+        // Caer a la lógica de movimiento sin consumir nada
+      } else {
       // DIS-1179: si el jugador tiene la quest de arañas activa y está bloqueado en sala 7
       const spiderQuestActivePrincipal = (() => {
         try {
@@ -2042,6 +2052,7 @@ function cmdMove(player, direction) {
       return {
         text: `La salida hacia el ${dirName} está bloqueada. 🔒\nNecesitás: "${key}" para abrirla.${questPozoPrincipal}${altRouteHint}`,
       };
+      } // end else (not alreadyUsedKey || not isPozo)
     }
     // BUG-1187: consumir la llave al pasar (no solo al usar cmdUnlock)
     // La puerta sigue bloqueada para otros jugadores; usar cmdUnlock para abrirla permanentemente.
@@ -3865,7 +3876,11 @@ function cmdAttack(player, targetName) {
         if (aliveInRoom.length > 0) {
           // Hay monstruos vivos — redirigir al primero (o al de menor HP)
           const nextTarget = aliveInRoom.reduce((prev, cur) => (cur.hp < prev.hp ? cur : prev), aliveInRoom[0]);
-          return cmdAttack(player, nextTarget.name);
+          // DIS-1455: avisar al jugador del cambio de objetivo antes de ejecutar el ataque
+          const redirectMsg = `${art} ${deadMatch.name} ya ${esFem ? 'cayó' : 'cayó'} — apuntás al ${nextTarget.name}.`;
+          const attackResult = cmdAttack(player, nextTarget.name);
+          const combinedText = redirectMsg + '\n' + (attackResult.text || '');
+          return { ...attackResult, text: combinedText };
         }
         return { text: `💀 ${art} ${deadMatch.name} ya está ${adj}.\n${lootHint}` };
       }
