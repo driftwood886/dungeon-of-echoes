@@ -5442,6 +5442,20 @@ function cmdUse(player, itemQuery) {
         return { text: `🚪 No hay ninguna puerta bloqueada que puedas abrir aquí.\n💡 Para puertas bloqueadas con llave usá \`unlock <dirección>\` (ej: \`unlock norte\`).` };
       }
     }
+    // BUG-1426: antes del error genérico, verificar si el ítem está en el suelo de la sala
+    try {
+      const currentRoomForFloor = db.getRoom(player.current_room_id);
+      const floorItems = (currentRoomForFloor && currentRoomForFloor.items) ? currentRoomForFloor.items : [];
+      const queryLowerFloor = itemQuery.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const floorMatch = floorItems.find(it => {
+        const itNorm = it.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return itNorm.includes(queryLowerFloor) || queryLowerFloor.includes(itNorm);
+      });
+      if (floorMatch) {
+        const artFloor = /[aá]$/.test(floorMatch.trim().toLowerCase().split(' ').pop()) ? 'una' : 'un';
+        return { text: `No tenés ningún "${itemQuery}" en el inventario.\n💡 Hay ${artFloor} "${floorMatch}" en el suelo — recogelo con: pick ${floorMatch}` };
+      }
+    } catch (_) { /* no romper el flujo */ }
     return { text: `No tenés ningún "${itemQuery}" en el inventario.` };
   }
 
