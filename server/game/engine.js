@@ -2909,16 +2909,17 @@ function cmdInventory(player) {
   const totalVisible = lines.length;
   // DIS-994: Mostrar slots usados/totales del inventario
   const invBonus = player.inventory_bonus || 0;
-  const maxSlots = 25 + invBonus;
+  const maxSlots = 30 + invBonus; // DIS-1434: límite base 25→30
   // BUG-1192: incluir ítems equipados en el conteo de slots (igual que hace cmdGet en línea 4008)
   // Los ítems equipados se remueven de player.inventory y van a equipped_weapon/equipped_armor,
-  // pero ocupan slot en el límite total. Sin esto, el jugador ve "23/25" y luego "25/25 llena" al recoger.
+  // pero ocupan slot en el límite total. Sin esto, el jugador ve "28/30" y luego "30/30 llena" al recoger.
   const usedSlots = allItems.length + equippedItems.length;
-  // DIS-1037: solo mostrar hint de bolsa de lona cuando el inventario está casi lleno (>18/25 slots usados)
+  // DIS-1037: solo mostrar hint de bolsa de lona cuando el inventario está casi lleno (>23/30 slots usados)
+  // DIS-1434: umbrales ajustados al subir límite 25→30
   let slotHint = '';
-  if (invBonus === 0 && usedSlots > 18) {
+  if (invBonus === 0 && usedSlots > 23) {
     slotHint = ` · Ampliá con bolsa de lona (+4 slots, 20g en tienda de Aldric sala 4 — hacé "use bolsa de lona" al comprarla). En salas avanzadas: usá vault en sala 19.`;
-  } else if (invBonus < 8 && usedSlots > (18 + invBonus)) {
+  } else if (invBonus < 8 && usedSlots > (23 + invBonus)) {
     slotHint = ` · Podés comprar una 2da bolsa de lona (+4 slots más, 20g en tienda de Aldric sala 4). En salas avanzadas: usá vault en sala 19.`;
   }
   const rareCount = allItems.filter(i => items.getItemRarity(i) !== 'común').length
@@ -4747,7 +4748,7 @@ function cmdAttack(player, targetName) {
       // intente recoger el loot del boss y se frustre por no poder hacerlo.
       const freshForInv = db.getPlayer(player.id);
       const invCount = Array.isArray(freshForInv.inventory) ? freshForInv.inventory.length : 0;
-      const invMaxDisplay = 25 + (freshForInv.inventory_bonus || 0);
+      const invMaxDisplay = 30 + (freshForInv.inventory_bonus || 0); // DIS-1434
       if (invCount >= invMaxDisplay - 2) {
         lines.push(`║  ⚠️  Tu mochila tiene ${invCount}/${invMaxDisplay} ítems — hacé espacio      ║`);
         lines.push('║  con "drop <ítem>", "vault store <ítem>" (Entrada/Subastas/Cámara del Eco) o "subastar". ║');
@@ -5074,7 +5075,7 @@ function cmdPick(player, itemQuery) {
       const inv = Array.isArray(current.inventory) ? current.inventory : [];
       // BUG-489: contar equipados también para el límite real
       const eqCount = (current.equipped_weapon ? 1 : 0) + (current.equipped_armor ? 1 : 0);
-      const pickMaxInv = 25 + (current.inventory_bonus || 0); // DIS-634: usar límite dinámico (DIS-507/DIS-595)
+      const pickMaxInv = 30 + (current.inventory_bonus || 0); // DIS-1434 // DIS-634: usar límite dinámico (DIS-507/DIS-595)
       if (inv.length + eqCount >= pickMaxInv) {
         notPicked.push(item);
         continue; // BUG-707: no generar mensaje por ítem — condensar al final
@@ -5134,7 +5135,7 @@ function cmdPick(player, itemQuery) {
     // BUG-714: no presentar los ítems del suelo como "loot fresco del boss" — son todos los ítems del suelo (pueden ser pre-existentes de sesiones previas)
     if (notPicked.length > 0) {
       const freshFinal = db.getPlayer(player.id);
-      const finalMax = 25 + (freshFinal.inventory_bonus || 0);
+      const finalMax = 30 + (freshFinal.inventory_bonus || 0); // DIS-1434
       resultMsg += `\n\n⚠️ Inventario lleno (${finalMax}/${finalMax}) — siguen en el suelo (puede incluir ítems de sesiones previas):\n  ${notPicked.map(i => `❌ ${i}`).join('\n  ')}\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g, +4 slots) en la tienda de Aldric.`;
     }
     return { text: resultMsg };
@@ -5177,7 +5178,7 @@ function cmdPick(player, itemQuery) {
   // BUG-489: contar también ítems equipados (no están en player.inventory pero ocupan slot visual)
   const equippedCount = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
   const currentInvCount = (player.inventory || []).length + equippedCount;
-  const maxInvSingle = 25 + (player.inventory_bonus || 0); // DIS-595: bolsas de lona
+  const maxInvSingle = 30 + (player.inventory_bonus || 0); // DIS-1434 // DIS-595: bolsas de lona
   if (!goldKey && currentInvCount >= maxInvSingle) {
     return {
       text: `🎒 Tu mochila está llena (${currentInvCount}/${maxInvSingle} ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.\n💡 También podés usar la bóveda (vault) en la Entrada, Casa de Subastas o Cámara del Eco (sala 19).\n💡 Aldric vende bolsas de lona (20g) que amplían tu mochila +4 slots.`,
@@ -5370,7 +5371,7 @@ function cmdPick(player, itemQuery) {
   // DIS-1173: aviso proactivo de inventario casi lleno al recoger un ítem individual
   const freshForInvWarn = db.getPlayer(player.id);
   const invWarnCount = (freshForInvWarn.inventory || []).length + ((freshForInvWarn.equipped_weapon ? 1 : 0) + (freshForInvWarn.equipped_armor ? 1 : 0));
-  const invWarnMax = 25 + (freshForInvWarn.inventory_bonus || 0);
+  const invWarnMax = 30 + (freshForInvWarn.inventory_bonus || 0); // DIS-1434
   if (invWarnCount >= 20) {
     pickSingleMsg += `\n\n⚠️  Inventario casi lleno (${invWarnCount}/${invWarnMax}) — considerá vender ítems en la tienda de Aldric (sala 4) o guardarlos en la bóveda antes de enfrentar al Lich.`;
   }
@@ -5741,7 +5742,7 @@ function cmdUse(player, itemQuery) {
     const newBonus = Math.min(MAX_BAG_BONUS, currentBonus + def.slots);
     const newInvBag = removeFirst(freshBag.inventory, found);
     db.updatePlayer(player.id, { inventory: newInvBag, inventory_bonus: newBonus });
-    resultText = `🎒 Atás la bolsa de lona a tu mochila. Tu capacidad de carga aumenta +${def.slots} slots.\n📦 Inventario: ${freshBag.inventory.length - 1}/${25 + newBonus} slots disponibles.`;
+    resultText = `🎒 Atás la bolsa de lona a tu mochila. Tu capacidad de carga aumenta +${def.slots} slots.\n📦 Inventario: ${freshBag.inventory.length - 1}/${30 + newBonus} slots disponibles.`;
 
   } else {
     // DIS-D362: manejo especial de ítems sellados/abribles
@@ -7232,7 +7233,7 @@ function cmdLoot(player) {
 
   // Agregar solo ítems no-oro al inventario (BUG-469: respetar límite de 20)
   // BUG-504: contar también ítems equipados (no están en player.inventory pero ocupan slot)
-  const MAX_INVENTORY = 25 + (player.inventory_bonus || 0);  // DIS-507: ampliado de 20→25; DIS-595: +inventory_bonus por bolsas de lona
+  const MAX_INVENTORY = 30 + (player.inventory_bonus || 0);  // DIS-1434: base 25→30; DIS-507/DIS-595
   const equippedCountLoot = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
   const spaceAvailable = MAX_INVENTORY - player.inventory.length - equippedCountLoot;
   const itemsToPickup = nonGoldItems.slice(0, spaceAvailable);
@@ -7331,10 +7332,10 @@ function cmdLoot(player) {
     };
   }
 
-  // DIS-1173: aviso proactivo cuando inventario supera 20/MAX_INVENTORY
-  // (umbral ≥20 para alertar antes de llegar al Lich con inventario lleno)
+  // DIS-1173: aviso proactivo cuando inventario supera 25/MAX_INVENTORY (DIS-1434: umbral 20→25 al subir límite 25→30)
+  // (umbral ≥25 para alertar antes de llegar al Lich con inventario lleno)
   const usedAfterLoot = newInventory.length + equippedCountLoot;
-  const inventoryWarnLine = (usedAfterLoot >= 20 && itemsLeft.length === 0)
+  const inventoryWarnLine = (usedAfterLoot >= 25 && itemsLeft.length === 0)
     ? `\n\n⚠️  Inventario casi lleno (${usedAfterLoot}/${MAX_INVENTORY}) — considerá vender ítems en la tienda de Aldric (sala 4) o guardarlos en la bóveda antes de enfrentar al Lich.`
     : '';
 
@@ -8457,7 +8458,7 @@ function cmdRest(player, context) {
     const refreshedPlayer = db.getPlayer(player.id);
     const restInv = Array.isArray(refreshedPlayer.inventory) ? refreshedPlayer.inventory : [];
     const restEq = (refreshedPlayer.equipped_weapon ? 1 : 0) + (refreshedPlayer.equipped_armor ? 1 : 0);
-    const restMax = 25 + (refreshedPlayer.inventory_bonus || 0);
+    const restMax = 30 + (refreshedPlayer.inventory_bonus || 0); // DIS-1434
     if (restInv.length + restEq < restMax) { // DIS-634: verificar espacio antes de agregar
       const updatedInv = [...restInv, forageRoomData.item];
       db.updatePlayer(player.id, { inventory: updatedInv });
@@ -12201,7 +12202,7 @@ function cmdForage(player) {
   // DIS-634: Verificar capacidad de inventario antes de agregar cualquier ítem
   const _forageInv = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
   const _forageEq = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
-  const _forageMax = 25 + (player.inventory_bonus || 0);
+  const _forageMax = 30 + (player.inventory_bonus || 0); // DIS-1434
   const _forageUsed = _forageInv.length + _forageEq;
   if (_forageUsed >= _forageMax) {
     return { text: `🎒 Inventario lleno (${_forageUsed}/${_forageMax}) — no hay espacio para lo que podrías encontrar.\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g) en la tienda de Aldric para +4 slots.` };
@@ -22976,7 +22977,7 @@ function cmdVault(player, args) {
 
     const item = vaultItems[idx];
     const inv = JSON.parse(typeof player.inventory === 'string' ? player.inventory : JSON.stringify(player.inventory));
-    const maxInvVault = 25 + (player.inventory_bonus || 0); // DIS-595
+    const maxInvVault = 30 + (player.inventory_bonus || 0); // DIS-1434 DIS-595
     if (inv.length >= maxInvVault) return { text: `🎒 El inventario está lleno (${inv.length}/${maxInvVault}). Tirá algo primero.` };
 
     vaultItems.splice(idx, 1);
