@@ -19598,8 +19598,27 @@ function cmdGoto(player, args, context) {
   let targetRoom = null;
   const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
+  // Alias dinámico "mision"/"misión": sala del objetivo de la quest activa
+  if (query === 'mision' || query === 'misión' || query === 'quest' || query === 'objetivo') {
+    try {
+      const activeQM = quests.getActiveQuest();
+      if (activeQM && activeQM.questDef && activeQM.questDef.type === 'kill' && activeQM.questDef.target) {
+        const normM = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const allMonstersM = db.getAllMonsters ? db.getAllMonsters() : [];
+        const matchMon = allMonstersM.filter(m => normM(m.name).includes(normM(activeQM.questDef.target)));
+        if (matchMon.length > 0) {
+          const firstRoomId = matchMon[0].respawn_room_id || matchMon[0].room_id;
+          if (firstRoomId) targetRoom = allRooms.find(r => r.id === firstRoomId);
+        }
+      }
+    } catch (_) { /* no romper */ }
+    if (!targetRoom) {
+      return { text: '📜 No hay una quest activa con destino claro. Escribí «mision» para ver el estado de la quest.' };
+    }
+  }
+
   // Alias dinámico "jefe": sala del boss más cercano vivo
-  if (query === 'jefe' || query === 'boss') {
+  if (!targetRoom && (query === 'jefe' || query === 'boss')) {
     const playerInv = player.inventory || [];
     const graphTemp = {};
     for (const room of allRooms) {
