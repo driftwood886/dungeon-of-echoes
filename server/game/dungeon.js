@@ -178,6 +178,19 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
     lines.push(`\n${KAELTHAS_ROOM_HINTS[room.id]}`);
   }
 
+  // DIS-1444: En sala 18 (Fuente Eterna), mostrar cuánto HP restauraría para que el jugador
+  // sepa si vale la pena usarla antes de intentarlo.
+  if (room.id === 18 && player) {
+    try {
+      if (player.hp < player.max_hp) {
+        const toRestore = player.max_hp - player.hp;
+        lines.push(`\n💧 La fuente restaura HP al máximo al beber. Tenés ${player.hp}/${player.max_hp} HP (+${toRestore} si bebés ahora). Escribí "beber".`);
+      } else {
+        lines.push(`\n💧 La fuente restaura HP al máximo al beber. Tu HP ya está lleno.`);
+      }
+    } catch (_) { /* no romper describeRoom */ }
+  }
+
 
   const ambientLine = ambient.getAmbientText(room);
   if (ambientLine) {
