@@ -11870,6 +11870,18 @@ function getOrCreatePlayer(username) {
     player = db.getPlayer(player.id);
   }
 
+  // DIS-1448: Sincronizar nivel con XP al hacer login.
+  // Si la fórmula de XP cambió (DIS-1433) o el nivel se desincronizó, recalcular.
+  // Solo actualizamos hacia arriba (nunca bajar nivel — sería injusto).
+  try {
+    const computedLevel = xpSystem.levelFromXp(player.xp || 0);
+    if (computedLevel > (player.level || 1)) {
+      db.updatePlayer(player.id, { level: computedLevel });
+      player = db.getPlayer(player.id);
+      console.log(`[getOrCreatePlayer] DIS-1448: nivel de ${player.username} sincronizado: ${player.level} → ${computedLevel} (XP: ${player.xp})`);
+    }
+  } catch (e) { /* no romper login si falla la sincronización */ }
+
   // EPIC-964: Aplicar bonus de legado si hay uno pendiente (applied === false)
   // Esto ocurre cuando el personaje fue creado por una ascensión previa.
   try {
