@@ -378,7 +378,7 @@ function execute(playerId, input, context) {
     case 'unequip':   result = cmdUnequip(player, action.args.join(' ')); break;
     case 'wear':      result = cmdWear(player, action.args.join(' ')); break;
     case 'unwear':    result = cmdUnwear(player); break;
-    case 'map':       result = cmdMap(player); break;
+    case 'map':       result = cmdMap(player, action.args); break;
     case 'who':       result = cmdWho(); break;
     case 'score':     result = cmdScore(player, action.args, context); break;
     case 'give':      result = cmdGive(player, action.args); break;
@@ -7875,13 +7875,99 @@ function cmdInbox(player, args) {
 }
 
 
+// DIS-1442: Modo "mapa full" — lista legible de salas exploradas con nombres completos
+function cmdMapFull(player) {
+  const here = player.current_room_id;
+  let visitedRooms;
+  try {
+    const rawVisited = db.getPlayer(player.id).rooms_visited;
+    const rawArr = Array.isArray(rawVisited) ? rawVisited : JSON.parse(rawVisited || '[]');
+    visitedRooms = new Set(rawArr.map(Number));
+  } catch (_) {
+    visitedRooms = new Set();
+  }
+  visitedRooms.add(here);
+
+  const ALL_ROOMS = [
+    { id: 1,  name: 'Entrada al Dungeon',        zone: 'principal' },
+    { id: 2,  name: 'Corredor de Kaelthas',       zone: 'principal' },
+    { id: 3,  name: 'Sala de los Ecos',           zone: 'principal' },
+    { id: 4,  name: 'Cámara del Tesoro',          zone: 'principal' },
+    { id: 5,  name: 'Capilla Olvidada',           zone: 'principal' },
+    { id: 6,  name: 'Túnel de Hongos',            zone: 'principal' },
+    { id: 7,  name: 'El Pozo Sin Fondo',          zone: 'principal' },
+    { id: 8,  name: 'La Prisión',                 zone: 'principal' },
+    { id: 9,  name: 'Sala del Trono',             zone: 'principal' },
+    { id: 10, name: 'Santuario del Bosque',       zone: 'principal' },
+    { id: 11, name: 'Galería de los Caídos',      zone: 'principal' },
+    { id: 17, name: 'Sala de Subastas',           zone: 'principal' },
+    { id: 18, name: 'Fuente Eterna',              zone: 'principal' },
+    { id: 12, name: 'Taller de la Forja',         zone: 'profunda'  },
+    { id: 13, name: 'Caverna del Eco',            zone: 'profunda'  },
+    { id: 14, name: 'Coliseo Subterráneo',        zone: 'profunda'  },
+    { id: 19, name: 'Cámara del Eco Profundo',    zone: 'profunda'  },
+    { id: 15, name: 'Catedral Maldita',           zone: 'profunda'  },
+    { id: 20, name: 'El Abismo Eterno',           zone: 'profunda'  },
+    { id: 22, name: 'La Cripta Final',            zone: 'profunda'  },
+    { id: 16, name: 'Antesala de Práctica',       zone: 'tutorial'  },
+    { id: 21, name: 'Sala de Práctica',           zone: 'tutorial'  },
+  ];
+
+  const lines = ['📋 MAPA DETALLADO — Salas exploradas', ''];
+  const visited = ALL_ROOMS.filter(r => visitedRooms.has(r.id));
+  const notVisited = ALL_ROOMS.filter(r => !visitedRooms.has(r.id));
+
+  const printZone = (label, rooms) => {
+    if (rooms.length === 0) return;
+    lines.push(`── ${label} ──`);
+    for (const r of rooms) {
+      const marker = r.id === here ? ' ← ESTÁS AQUÍ' : '';
+      lines.push(`  [${String(r.id).padStart(2, ' ')}] ${r.name}${marker}`);
+    }
+    lines.push('');
+  };
+
+  const zones = [
+    { label: 'ZONA PRINCIPAL', ids: ['principal'] },
+    { label: 'ZONA PROFUNDA',  ids: ['profunda']  },
+    { label: 'TUTORIAL',       ids: ['tutorial']  },
+  ];
+
+  for (const z of zones) {
+    const zVisited = visited.filter(r => z.ids.includes(r.zone));
+    const zUnvisited = notVisited.filter(r => z.ids.includes(r.zone));
+    if (zVisited.length === 0 && zUnvisited.length === 0) continue;
+    lines.push(`── ${z.label} ──`);
+    for (const r of zVisited) {
+      const marker = r.id === here ? ' ← ESTÁS AQUÍ' : '';
+      lines.push(`  [${String(r.id).padStart(2, ' ')}] ${r.name}${marker}`);
+    }
+    if (zUnvisited.length > 0) {
+      lines.push(`  (sin explorar: ${zUnvisited.map(r => r.id).join(', ')})`);
+    }
+    lines.push('');
+  }
+
+  const totalMain = ALL_ROOMS.filter(r => r.zone !== 'tutorial').length;
+  const discoveredMain = visited.filter(r => r.zone !== 'tutorial').length;
+  lines.push(`🗺️ Exploración: ${discoveredMain}/${totalMain} salas descubiertas`);
+  lines.push(`💡 Usá "mapa" para volver al mapa ASCII o "ruta <número>" para navegar.`);
+
+  return { text: lines.join('\n') };
+}
+
 /**
  * map — Mostrar mapa ASCII del dungeon con la sala actual marcada.
  * El layout es fijo para el dungeon de 15 salas actual.
  * La sala del jugador se muestra como [★NN] en lugar de [ NN].
  * DIS-580: Las salas no visitadas aparecen como [??? ------] para añadir exploración.
+ * DIS-1442: con argumento "full" muestra lista completa de salas exploradas con nombres completos.
  */
-function cmdMap(player) {
+function cmdMap(player, args = []) {
+  // DIS-1442: "mapa full" — lista de salas exploradas con nombres completos
+  if (args && (args[0] === 'full' || args[0] === 'completo' || args[0] === 'lista')) {
+    return cmdMapFull(player);
+  }
   const here = player.current_room_id;
 
   // DIS-580: Salas visitadas (set para O(1) lookup)
@@ -8093,6 +8179,8 @@ function cmdMap(player) {
     `💡 ¿Perdido? Usá: ruta <sala>  —  Ej: ruta mercader  /  ruta tienda  /  ruta catedral  /  ruta jefe  /  ruta 4`,
     // DIS-1093: mostrar alias de sala en el mapa para que el jugador descubra rutas textuales
     `🗺  Alias de ruta: mercader/tienda=sala 4  |  jefe=sala 10  |  catedral=sala 15  |  santuario=sala 10  |  forja=sala 12`,
+    // DIS-1442: hint de modo detallado con nombres completos
+    `📋 ¿Querés ver los nombres completos? Escribí "mapa full"`,
     // BUG-894: nota explicativa de la puerta 🔑 del Pozo (sala 7) — va al pie, no inline en la grilla
     ...(() => {
       const room7 = db.getRoom(7);
