@@ -780,6 +780,18 @@ Comandos más usados:
       }
       break;
     case 'pronunciar':   result = cmdPronunciar(player, action.args.join(' ')); break; // DIS-487
+    case 'skip': {
+      // BUG-1493: el jugador escribe 'skip tutorial' (o solo 'skip') fuera del tutorial
+      // handleTutorialBlock ya intercepta esto si tutorialStep > 0 (dentro del tutorial).
+      // Aquí solo llegamos si el tutorial ya fue completado.
+      const arg = (action.args && action.args[0]) ? action.args[0].toLowerCase() : '';
+      if (arg === 'tutorial' || arg === '' || arg === 'tutorial') {
+        result = { text: `✅ El tutorial ya fue completado. Estás libre de explorar el dungeon.\n\nEscribí «look» para ver tu sala actual o «help» para ver los comandos disponibles.` };
+      } else {
+        result = { text: `Comando desconocido: "skip ${arg}". ¿Querías escribir «skip tutorial»? El tutorial ya fue completado.` };
+      }
+      break;
+    }
     case 'unknown':
       // BUG-445: Pozo Sin Fondo — interceptar comandos temáticos en sala 7
       if (player.current_room_id === 7 && action.input) {
@@ -8576,16 +8588,18 @@ function cmdDisarm(player, args) {
       };
     }
 
-    // Consumir ítem y desactivar trampa
+    // Consumir ítem y desactivar trampa adyacente
     const newInventory = [...inventory.slice(0, keyIdx), ...inventory.slice(keyIdx + 1)];
-    db.updatePlayer(player.id, { inventory: newInventory });
+    // BUG-1494: actualizar known_traps para que la memoria persista cuando la trampa se reactive
+    const updatedKnownDisarmAdj = { ...(player.known_traps || {}), [exit.targetId]: true };
+    db.updatePlayer(player.id, { inventory: JSON.stringify(newInventory), known_traps: JSON.stringify(updatedKnownDisarmAdj) });
 
     const respawnAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
     const newTrap = { ...trapAdj, active: false, respawn_at: respawnAt };
     db.updateRoomTrap(adjRoom.id, newTrap);
 
     return {
-      text: `${targetHeader}🔧 Desde el umbral, usás la ${trapAdj.item_needed} para neutralizar el mecanismo antes de entrar.\n✅ La trampa en ${adjRoom.name} está desactivada. Podés pasar sin peligro.`,
+      text: `${targetHeader}🔧 Desde el umbral, usás la ${trapAdj.item_needed} para neutralizar el mecanismo antes de entrar.\n✅ La trampa en ${adjRoom.name} está desactivada. Podés pasar sin peligro.\n🧠 Ahora conocés este mecanismo — si la trampa se reactiva, la esquivarás sin problema.`,
       event: `${player.username} desactiva una trampa desde el umbral.`,
       eventRoomId: player.current_room_id,
     };
@@ -8630,7 +8644,9 @@ function cmdDisarm(player, args) {
 
   // Consumir el ítem y desactivar la trampa
   const newInventory = [...inventory.slice(0, keyIdx), ...inventory.slice(keyIdx + 1)];
-  db.updatePlayer(player.id, { inventory: newInventory });
+  // BUG-1494: actualizar known_traps para que la memoria persista cuando la trampa se reactive
+  const updatedKnownDisarm = { ...(player.known_traps || {}), [room.id]: true };
+  db.updatePlayer(player.id, { inventory: JSON.stringify(newInventory), known_traps: JSON.stringify(updatedKnownDisarm) });
 
   // Desactivar trampa y programar reactivación en 10 minutos
   const respawnAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();

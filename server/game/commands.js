@@ -66,6 +66,8 @@ const COMMAND_ALIASES = {
   memorial: 'memorial', muro: 'memorial', homenaje: 'memorial', fallen: 'memorial', caidos: 'memorial',
   // EPIC-965: salon de los caidos (legados de ascensión)
   salon: 'salon', 'salón': 'salon', 'salon_caidos': 'salon', legados: 'salon', ascendidos: 'salon',
+  // skip tutorial (BUG-1493: dar respuesta coherente fuera del tutorial)
+  skip: 'skip',
   // give / dar
   give: 'give', dar: 'give', entregar: 'give', pasar: 'give', ofrecer: 'give',
   // pay / pagar / transferir oro
@@ -477,6 +479,9 @@ function parse(input) {
       'facción elegir':  { cmd: 'faccion', skillId: 'elegir' },
       'faccion cambiar': { cmd: 'faccion', skillId: 'cambiar' },
       'facción cambiar': { cmd: 'faccion', skillId: 'cambiar' },
+      // BUG-1493: skip tutorial / saltar tutorial → skip (para manejar fuera del tutorial)
+      'skip tutorial':   { cmd: 'skip',    skillId: 'tutorial' },
+      'saltar tutorial': { cmd: 'skip',    skillId: 'tutorial' },
     };
     const mwMatch = MULTI_WORD_ALIASES[twoWord];
     if (mwMatch) {
