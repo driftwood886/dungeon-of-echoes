@@ -95,10 +95,26 @@ function loadQuest() {
       const raw = JSON.parse(fs.readFileSync(QUEST_FILE, 'utf8'));
       const def = QUEST_CATALOG.find(q => q.id === raw.questId);
       if (def) {
+        // BUG-1495: Reconstruir completedBy desde la DB para evitar doble recompensa tras reinicio.
+        // El archivo puede no reflejar todos los jugadores que ya completaron la quest si hubo un crash.
+        const completedBySet = new Set(raw.completedBy || []);
+        try {
+          const db = require('../db/db');
+          const allPlayers = db.getAllPlayers();
+          for (const player of allPlayers) {
+            let qp;
+            try { qp = JSON.parse(player.quest_progress || '{}'); } catch (_) { qp = {}; }
+            if (qp.questId === def.id && (qp.progress || 0) >= def.goal) {
+              completedBySet.add(player.id);
+            }
+          }
+        } catch (dbErr) {
+          console.error('[quests] No se pudo reconstruir completedBy desde DB:', dbErr.message);
+        }
         activeQuest = {
           questDef: def,
           startedAt: raw.startedAt,
-          completedBy: new Set(raw.completedBy || []),
+          completedBy: completedBySet,
         };
         // DIS-1409: restaurar historial de quests recientes
         if (Array.isArray(raw.recentlyCompletedIds)) {
