@@ -16340,9 +16340,28 @@ function cmdUseSkill(player, args, context) {
     const freshBs = db.getPlayer(freshPlayer.id);
     // Verificar que hay monstruos (solo usable en combate)
     const monstersForRage = db.getMonstersInRoom(freshBs.current_room_id);
-    const aliveForRage = monstersForRage.filter(m => m.hp > 0);
-    if (aliveForRage.length === 0) {
+    const aliveForRageRaw = monstersForRage.filter(m => m.hp > 0);
+    if (aliveForRageRaw.length === 0) {
       return { text: '🪓 ¡La Furia solo puede desatarse en combate! No hay enemigos aquí.' };
+    }
+    // BUG-1473: verificar que al menos un monstruo sea atacable durante Marea Espectral
+    const FURIA_SPECTRAL_IDS = new Set([4, 8, 12, 13, 21, 22]);
+    const furiaActiveEv = (() => { try { return eventScheduler.getActiveEventInfo(); } catch(_) { return null; } })();
+    const furiaIsSpectralTide = furiaActiveEv && furiaActiveEv.event && furiaActiveEv.event.id === 'SPECTRAL_TIDE';
+    const aliveForRage = aliveForRageRaw.filter(m => {
+      if (!furiaIsSpectralTide) return true;
+      const mNameLower = (m.name || '').toLowerCase();
+      const isSpectral = FURIA_SPECTRAL_IDS.has(m.id) ||
+        mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
+        mNameLower.includes('espectral') || mNameLower.includes('lich') || mNameLower.includes('sombra');
+      const isUndead = mNameLower.includes('esqueleto') || mNameLower.includes('zombie') ||
+        mNameLower.includes('zombi') || mNameLower.includes('vampiro') || mNameLower.includes('momia') ||
+        mNameLower.includes('óseo') || mNameLower.includes('muerto');
+      return isSpectral || isUndead;
+    });
+    if (aliveForRage.length === 0) {
+      const minLeft = furiaActiveEv ? furiaActiveEv.minutesRemaining : '?';
+      return { text: `🪓 ¡La Furia solo puede desatarse en combate! No hay enemigos atacables.\n👻 MAREA ESPECTRAL activa — solo no-muertos y espectros pueden combatirse ahora. (Evento termina en ~${minLeft} min)` };
     }
     // Calcular costo en HP: 20% del HP máximo
     const maxHpBs = freshBs.max_hp || 30;
