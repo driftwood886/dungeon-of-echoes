@@ -4662,9 +4662,9 @@ function cmdAttack(player, targetName) {
 
   }
 
-  // ── DIS-P08: Hint de habilidades disponibles en combate activo ──────────────
-  // DIS-1315: mostrar solo al inicio del combate (primer turno) o cuando una
-  // habilidad pasa a estar disponible (su cooldown acaba de expirar).
+  // ── DIS-1486: HUD de cooldowns de habilidades en cada turno de combate ──────
+  // Muestra en cada turno el estado de las habilidades desbloqueadas:
+  // ✅ disponible | ⏱ en cooldown (Xs restantes)
   let skillHint = '';
   if (!monsterDead && !playerDead) {
     const freshForSkills = db.getPlayer(player.id);
@@ -4675,22 +4675,29 @@ function cmdAttack(player, targetName) {
           ? (typeof freshForSkills.skill_cooldowns === 'string' ? JSON.parse(freshForSkills.skill_cooldowns) : freshForSkills.skill_cooldowns)
           : {};
         const now = Date.now();
-        const available = unlockedSkills.filter(sk => {
+        // DIS-1486: construir HUD con estado de cada habilidad (✅ o ⏱ Xs)
+        const hudParts = unlockedSkills.map(sk => {
           const cd = cooldowns[sk.id];
-          return !cd || now > new Date(cd).getTime();
+          const expiresAt = cd ? new Date(cd).getTime() : 0;
+          if (!cd || now > expiresAt) {
+            return `✅\`${sk.aliases[0]}\``;
+          } else {
+            const remainSec = Math.ceil((expiresAt - now) / 1000);
+            return `⏱\`${sk.aliases[0]}\`(${remainSec}s)`;
+          }
         });
-        if (available.length > 0) {
-          const availableIds = available.map(sk => sk.id).sort().join(',');
-          const prevAvailableIds = prevCombo && prevCombo.monsterId === monster.id
-            ? (prevCombo.availableSkillIds || '')
-            : null;
-          // Mostrar hint solo si: es el primer turno (sin combo previo con este monstruo)
-          // O si la lista de disponibles cambió (una habilidad se recargó)
-          const isFirstTurn = prevAvailableIds === null;
-          const skillsChanged = prevAvailableIds !== null && prevAvailableIds !== availableIds;
-          if (isFirstTurn || skillsChanged) {
-            const skillNames = available.map(sk => `\`${sk.aliases[0]}\` (${sk.name})`).join(', ');
-            skillHint = `\n💡 Habilidades disponibles: ${skillNames} (o seguí con \`attack\`)`;
+        skillHint = `\n⚡ Habilidades: ${hudParts.join(' | ')}`;
+        // DIS-1315: también notificar si una habilidad acaba de recargarse
+        const available = unlockedSkills.filter(sk => { const cd = cooldowns[sk.id]; return !cd || now > new Date(cd).getTime(); });
+        const availableIds = available.map(sk => sk.id).sort().join(',');
+        const prevAvailableIds = prevCombo && prevCombo.monsterId === monster.id
+          ? (prevCombo.availableSkillIds || '')
+          : null;
+        const skillsChanged = prevAvailableIds !== null && prevAvailableIds !== availableIds;
+        if (skillsChanged && available.length > 0) {
+          const newlyAvail = available.filter(sk => !(prevAvailableIds || '').split(',').includes(sk.id));
+          if (newlyAvail.length > 0) {
+            skillHint += `\n   ↑ ¡${newlyAvail.map(sk => sk.name).join(', ')} lista para usar!`;
           }
         }
       }
