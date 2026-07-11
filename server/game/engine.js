@@ -12808,8 +12808,20 @@ function cmdDrink(player) {
 
   const hpBar = buildBar(player.max_hp, player.max_hp, 20);
 
+  // DIS-1469: verificar si los bosses adyacentes están vivos antes de advertir
+  const golems1469 = db.getMonster(5); // Gólem de Piedra (monsterId 5)
+  const shadow1469 = db.getMonster(22); // Sombra del Vacío (monsterId 22)
+  const golemAlive1469 = golems1469 && golems1469.room_id != null && (golems1469.hp || 0) > 0;
+  const shadowAlive1469 = shadow1469 && shadow1469.room_id != null && (shadow1469.hp || 0) > 0;
+  const dangerParts1469 = [];
+  if (golemAlive1469) dangerParts1469.push('el Gólem de Piedra (sur, nivel 5+)');
+  if (shadowAlive1469) dangerParts1469.push('la Sombra del Vacío (abajo, nivel 8+)');
+  const dangerMsg1469 = dangerParts1469.length > 0
+    ? `\n\n⚠️ Esta sala tiene salidas peligrosas: ${dangerParts1469.join(' y ')}. Revisá tu equipo antes de avanzar.`
+    : '';
+
   return {
-    text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! (+${restored} HP recuperado)\n${hpBar} ${player.max_hp}/${player.max_hp} HP${manaBonus1114}\n\n⏳ La fuente empieza a atenuarse... necesitará 3 minutos para recargarse.\n\n⚠️ Esta sala tiene salidas peligrosas: el Gólem de Piedra (sur, nivel 5+) y la Sombra del Vacío (abajo, nivel 8+). Revisá tu equipo antes de avanzar.`,
+    text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! (+${restored} HP recuperado)\n${hpBar} ${player.max_hp}/${player.max_hp} HP${manaBonus1114}\n\n⏳ La fuente empieza a atenuarse... necesitará 3 minutos para recargarse.${dangerMsg1469}`,
     event: `${player.username} bebe de la Fuente Eterna. Un resplandor plateado llena la sala.`,
     eventRoomId: FOUNTAIN_ROOM_ID,
   };
