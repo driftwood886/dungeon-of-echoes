@@ -14874,12 +14874,13 @@ function cmdModoBerserk(player, context) {
 
   // Activar modo berserk
   // DIS-1363: warning de confirmación la primera vez que se activa modo berserk
-  if (!mbSEFresh.berserk_warned) {
+  // DIS-1487: En combate activo, activar directamente en la primera vez también — mostrar
+  //           la advertencia junto con la activación para no perder un turno crítico.
+  //           El flag berserk_warned persiste para que futuras activaciones sean silenciosas.
+  const isFirstBerserk = !mbSEFresh.berserk_warned;
+  if (isFirstBerserk) {
     mbSEFresh.berserk_warned = true;
-    db.updatePlayer(freshMb.id, { status_effects: JSON.stringify(mbSEFresh) });
-    return {
-      text: `🪓 **MODO BERSERK** — Confirmación requerida (primera vez)\n\n⚠️  Al activar Modo Berserk:\n   ✅ +5 ATK por 3 turnos\n   ❌ No podés huir durante esos 3 turnos\n   ❌ No podés usar postura defensiva\n   ⚡ Al terminar: -2 ATK por 2 turnos (agotamiento)\n\n🔄 Si te encontrás en problemas, podés usar «calmar_furia» para cancelarlo (perdés 1 turno pero recuperás la huida).\n\n💡 Escribí «modo_berserk» de nuevo para confirmar y activarlo.`,
-    };
+    // No retornamos — continuamos con la activación directamente
   }
 
   // Activar modo berserk (ya confirmado o segunda vez en adelante)
@@ -14905,7 +14906,7 @@ function cmdModoBerserk(player, context) {
   }
 
   return {
-    text: `🪓 ¡MODO BERSERK ACTIVADO!\n   +5 ATK por 3 turnos. Sin postura defensiva. Sin huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento).\n   Usá "calmar_furia" para cancelar (perdés 1 turno pero podés huir). (Cooldown: 90s)`,
+    text: `🪓 ¡MODO BERSERK ACTIVADO!${isFirstBerserk ? '\n   ℹ️ Primera vez: +5 ATK por 3 turnos. Sin postura defensiva ni huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento). Usá "calmar_furia" para cancelar.\n   (Las próximas veces se activa directamente sin advertencia.)' : '\n   +5 ATK por 3 turnos. Sin postura defensiva. Sin huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento).\n   Usá "calmar_furia" para cancelar (perdés 1 turno pero podés huir).'} (Cooldown: 90s)`,
   };
 }
 
