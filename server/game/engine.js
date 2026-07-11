@@ -2240,6 +2240,7 @@ function cmdMove(player, direction) {
 
   // ── Verificar trampa en la sala destino ─────────────────────────────────
   let trapText = '';
+  let trapDamagePrefix = ''; // BUG-1462: mensaje de daño de trampa antes de la descripción de sala
   let trapWasAvoided = false; // BUG-339: trackear si la trampa fue esquivada para suprimir debuff de sala
   const targetRoomFull = db.getRoom(targetId);
   // T120: si el jugador tiene mascota, 15% de chance de avisar la trampa antes de activarse
@@ -2362,7 +2363,10 @@ function cmdMove(player, direction) {
       const disarmHint = TRAP_DISARM_HINT[targetId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
 
       const atmoPrefix = atmosphereHint ? `\n\n${atmosphereHint}` : '';
-      trapText = `${atmoPrefix}\n\n⚠️  ¡TRAMPA! ${trap.description}\n💥 Perdés ${variantDmg} HP. (${newHp}/${player.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).\n${disarmHint}`;
+      // BUG-1462: mostrar el daño de trampa ANTES de la descripción de sala (trapDamagePrefix) para que
+      // no quede enterrado al final de la descripción. trapText conserva el mensaje completo con tips.
+      trapDamagePrefix = `${atmoPrefix}\n\n⚠️  ¡TRAMPA! ${trap.description}\n💥 Perdés ${variantDmg} HP. (${newHp}/${player.max_hp} HP)`;
+      trapText = `\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).\n${disarmHint}`;
       if (newHp === 0) {
         // BUG-006 fix: usar handlePlayerDeath para registrar deaths correctamente
         const trapDeathLines = [];
@@ -2755,7 +2759,7 @@ function cmdMove(player, direction) {
     : '';
 
   return {
-    text: `${moveText}\n${passiveManaMsg}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}`,
+    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
