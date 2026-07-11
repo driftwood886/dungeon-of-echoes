@@ -9258,6 +9258,7 @@ const SHOP_CATALOG = [
   { name: 'cuerda',                  price: 10, description: 'Desactiva trampas de pinchos. 15m de largo.' },
   // DIS-1342: red de pesca disponible en tienda — alternativa para evitar el daño de la Caverna Sumergida en primera visita
   { name: 'red de pesca',             price: 15, description: 'Red de pesca resistente. Desactiva la trampa de inundación de la Caverna Sumergida (sala 13) sin necesidad de entrar primero.' },
+  { name: 'hacha rústica',            price: 8,  description: 'Un hacha de mano tosca pero funcional. +4 de ataque. También la llevan a veces los Goblins Merodeadores (sala 2).' }, // BUG-1471: ítem necesario para desafío diario "El Hacha y la Sala"
   { name: 'espada oxidada',          price: 15, description: 'Una espada vieja pero funcional. +3 ataque. Ingrediente para craftear espada de obsidiana.' },
   { name: 'llave oxidada',           price: 20, description: 'Abre la puerta al norte del Pozo Sin Fondo. El hierro está gastado por años de uso —quizás décadas. Algunos aventureros la encontraron en el suelo del Pozo, envuelta en seda: la Araña Tejedora la tomó de alguien que no salió. No sabés si ese alguien llegó más lejos que vos.' },
   // T152: Armaduras
@@ -18447,7 +18448,7 @@ function cmdRunas(player) {
   lines.push('║   ❄️  Hielo  → Gólem de Piedra (sala 10) BOSS  ║');
   lines.push('║              Elemental de Hielo (sala 11)      ║');
   lines.push('║   🌑 Sombra → Lich Anciano (sala 15) BOSS      ║');
-  lines.push('║              Sombra del Vacío (sala 11) BOSS   ║');
+  lines.push('║              Sombra del Vacío (sala 20) BOSS   ║');
   lines.push('║              Esqueletos (salas 4, 8)           ║');
   lines.push('║              Espectro del Corredor (sala 9)    ║');
   lines.push('║   ✨ Luz    → Campeón Espectral (sala 14) BOSS ║');

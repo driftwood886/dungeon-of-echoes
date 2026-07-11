@@ -2198,6 +2198,9 @@ const LOOT_CHANCES = {
   3: { // Rata Gigante — DIS-541: drop de hierba curativa para curación temprana (40%)
     'hierba curativa':    0.40, // 40% — rompe el ciclo "necesitás poción para craftear poción"
   },
+  1: { // Goblin Merodeador — BUG-1471: hacha rústica como drop para completar desafío diario "El Hacha y la Sala"
+    'hacha rústica':      0.15, // 15% — hace el ítem obtenible sin depender de la tienda
+  },
   // DIS-692: reducir drop de diente afilado — Murciélagos Vampiro en 3 salas × drop frecuente = acumulación excesiva
   6:  { 'diente afilado': 0.25 }, // Murciélago Vampiro (Capilla, sala 5) — antes: 100%
   26: { 'diente afilado': 0.25 }, // Murciélago Vampiro (Sala de los Ecos, sala 3) — antes: 100%
