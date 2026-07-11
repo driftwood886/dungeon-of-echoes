@@ -274,6 +274,7 @@ const MONSTER_BASE_STATS = {
   // BUG-697: Murciélagos extra de DIS-510 — sin entrada = élite acumula HP en cada ciclo
   26: { name: 'Murciélago Vampiro',    max_hp: 12, attack: 4  }, // sala 3 (Sala de los Ecos) — DIS-1324: ATK 3→4
   27: { name: 'Murciélago Vampiro',    max_hp: 12, attack: 4  }, // sala 6 (Túnel de Hongos) — DIS-1324: ATK 3→4
+  29: { name: 'Troll de las Cavernas', max_hp: 50, attack: 11 }, // DIS-1481: nuevo monstruo con regeneración — sala 12
 };
 
 // BUG-1016: Mapa de géneros femeninos para artículos correctos.
@@ -563,6 +564,30 @@ function attackRound(player, monster) {
     monster = { ...monster, attack: (monster.attack || 3) + monsterAtkScaleBonus };
   }
 
+  // DIS-1481: Escalado temprano para zonas avanzadas (salas 11-15).
+  // A nivel 4-5 con alabarda de huesos (+10 ATK), el jugador trivializa el combate en estas zonas.
+  // Solución: los monstruos de las salas de la expansión (11-15) ganan defensa virtual y ATK extra
+  // proporcional al nivel del jugador sobre 3. Escalado más suave que el nivel 10+ para no crear muros.
+  // Fórmula: por cada nivel sobre 3, monstruo en sala avanzada gana +2 def virtual y +0.8 ATK.
+  // A nivel 5 (el nivel del report) → +4 def virtual, +1.6→1 ATK (mínimo para sentir diferencia).
+  // A nivel 8 → +10 def virtual, +4 ATK (combate desafiante sin ser absurdo).
+  const ADVANCED_ROOMS = new Set([11, 12, 13, 14, 15, 20]); // zona de expansión
+  const monsterRoomForScale = monster.respawn_room_id || monster.room_id;
+  const isAdvancedZoneMonster = ADVANCED_ROOMS.has(monsterRoomForScale) && !isBossMonster;
+  if (isAdvancedZoneMonster && (player.level || 1) >= 4) {
+    const levelsAbove3 = (player.level || 1) - 3;
+    const earlyScaleDefBonus = Math.floor(levelsAbove3 * 2.0); // +2 def virtual por nivel sobre 3
+    const earlyScaleAtkBonus = Math.floor(levelsAbove3 * 0.8); // +0.8 ATK por nivel → entero
+    monsterVirtualDefBonus += earlyScaleDefBonus;
+    if (earlyScaleAtkBonus > 0) {
+      monster = { ...monster, attack: (monster.attack || 3) + earlyScaleAtkBonus };
+    }
+    // Solo informar al jugador si el escalado es notable (nivel 5+)
+    if ((player.level || 1) >= 5 && !lines.some(l => l.includes('zona profunda'))) {
+      lines.push(`🔱 [Zona profunda — nivel ${player.level}] Las criaturas aquí se fortalecen ante aventureros experimentados.`);
+    }
+  }
+
   // Miss extra por postura agresiva
   if (stanceMods.extraMiss > 0 && Math.random() < stanceMods.extraMiss) {
     lines.push(`⚔️ [Postura ofensiva] El ataque salvaje falla el blanco!`);
@@ -736,15 +761,18 @@ function attackRound(player, monster) {
   // Es un constructo pétrico: los golpes físicos se amortiguan en su cuerpo de piedra
   // DIS-688: El Golem de Forja tiene resistencia de fuego ×0.80 — constructo de metal candente
   // DIS-1015: El Elemental de Hielo tiene resistencia física ×0.80 — criatura inmaterial
+  // DIS-1481: El Troll de las Cavernas tiene resistencia física ×0.70 — piel gruesa, regeneración compensatoria
   const PHYS_RESISTANT_MONSTERS = ['gólem de piedra', 'elemental de hielo'];
   const FIRE_RESISTANT_MONSTERS  = ['golem de forja'];
   const monNameLow = monster.name.toLowerCase().replace('⭐ ', '');
   const physResist = monNameLow.includes('gólem de piedra') ? 0.75
     : monNameLow.includes('elemental de hielo') ? 0.80
+    : monNameLow.includes('troll de las cavernas') ? 0.70
     : FIRE_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? 0.80
     : 1.0;
   const physResistLabel = monNameLow.includes('gólem de piedra') ? '🪨 (el golpe rebota en la piedra)'
     : monNameLow.includes('elemental de hielo') ? '🧊 (tu golpe se disipa en la masa etérea)'
+    : monNameLow.includes('troll de las cavernas') ? '🟤 (la piel gruesa amortigua el golpe)'
     : FIRE_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? '🔥 (el calor absorbe parte del impacto)'
     : '';
   // DIS-936: La lanza espectral y sus variantes tienen bono real contra espectrales y criaturas mágicas
@@ -1550,6 +1578,20 @@ function attackRound(player, monster) {
   // El jugador debe usar el sigilo tácticamente: recuperar HP en un turno crítico.
   const STEALTH_RESISTANT_BOSSES = new Set([12, 21, 22]); // Campeón, Eco Viviente, Sombra (no el Lich)
   const bossBreaksStealth = stealthSurprise && STEALTH_RESISTANT_BOSSES.has(monster.id);
+
+  // DIS-1481: Regeneración del Troll de las Cavernas — se cura 5 HP al inicio de cada contraataque.
+  // Mecánica: si el Troll sigue vivo, se regenera ANTES de atacar (el jugador ve cómo se recupera).
+  // Esto fuerza una estrategia de DPS sostenido y uso de pociones para terminar la pelea rápido.
+  // La regeneración se detiene si el Troll muere en este turno.
+  if (!monsterDead && monster.name === 'Troll de las Cavernas') {
+    const trollRegen = 5;
+    const newTrollHp = Math.min(monster.max_hp, monster.hp + trollRegen);
+    if (newTrollHp > monster.hp) {
+      monster = { ...monster, hp: newTrollHp };
+      db.updateMonster(monster.id, { hp: newTrollHp });
+      lines.push(`🟤 ¡Las heridas del Troll de las Cavernas se CIERRAN ante tus ojos! (+${trollRegen} HP → ${newTrollHp}/${monster.max_hp} HP) Más rápido.`);
+    }
+  }
   if (stealthSurprise && !monsterDead && !bossBreaksStealth) {
     lines.push(`🥷 ${articuloMonstruo(monster.name)} ${monster.name} está aturdido por la sorpresa — no puede responder este turno.`);
     db.updatePlayer(player.id, { hp: player.hp });
