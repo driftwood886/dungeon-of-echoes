@@ -16271,9 +16271,54 @@ function cmdUseSkill(player, args, context) {
   // ── Golpetazo (smash) ─────────────────────────────────────────────────────
   if (skillId === 'smash') {
     const monsters = db.getMonstersInRoom(freshPlayer.current_room_id);
-    const alive = monsters.filter(m => m.hp > 0);
+    const aliveRaw = monsters.filter(m => m.hp > 0);
     const targetName = args.slice(1).join(' ').trim();
+
+    // BUG-1491: respetar filtro de Marea Espectral al resolver auto-target
+    // El mismo filtro que usa combat.js fightRound() para cmdAttack — aplicarlo aquí también
+    // para que smash sin argumento no seleccione monstruos inactivos durante el evento.
+    let alive = aliveRaw;
+    let smashSpectralBlockedMonster = null; // si el target pedido está bloqueado
+    try {
+      const smashEvCheck = require('./eventScheduler').getActiveEventInfo
+        ? require('./eventScheduler').getActiveEventInfo()
+        : null;
+      if (smashEvCheck && smashEvCheck.event && smashEvCheck.event.id === 'SPECTRAL_TIDE') {
+        const SMASH_SPECTRAL_MONSTER_IDS = new Set([4, 8, 12, 13, 21, 22]);
+        const isAttackableInSpectralTide = (m) => {
+          const n = (m.name || '').toLowerCase();
+          const isSpectral = SMASH_SPECTRAL_MONSTER_IDS.has(m.id) ||
+            n.includes('espectro') || n.includes('fantasma') ||
+            n.includes('espectral') || n.includes('lich') || n.includes('sombra');
+          const isUndead = n.includes('esqueleto') || n.includes('zombie') ||
+            n.includes('zombi') || n.includes('vampiro') || n.includes('momia') ||
+            n.includes('óseo') || n.includes('muerto');
+          return isSpectral || isUndead;
+        };
+        alive = aliveRaw.filter(isAttackableInSpectralTide);
+        // Si se especificó un target y está bloqueado por la marea, guardarlo para mensaje
+        if (targetName) {
+          const specTarget = combat.findMonsterInRoom(freshPlayer.current_room_id, targetName);
+          if (specTarget && specTarget.hp > 0 && !isAttackableInSpectralTide(specTarget)) {
+            smashSpectralBlockedMonster = specTarget;
+          }
+        }
+      }
+    } catch (_) {}
+
+    // Si el target especificado está bloqueado por Marea Espectral → mensaje descriptivo
+    if (smashSpectralBlockedMonster) {
+      const minLeftSp = (() => { try { return require('./eventScheduler').getActiveEventInfo().minutesRemaining; } catch(_) { return '?'; } })();
+      return { text: `👻 MAREA ESPECTRAL — Solo los no-muertos están activos. ${smashSpectralBlockedMonster.name} huye ante la marea espectral y no puede ser golpeado ahora. (~${minLeftSp} min restantes)` };
+    }
+
     if (alive.length === 0) {
+      // BUG-1491: si hay monstruos vivos pero bloqueados por Marea Espectral, dar mensaje apropiado
+      if (aliveRaw.length > 0) {
+        const minLeftSp2 = (() => { try { return require('./eventScheduler').getActiveEventInfo().minutesRemaining; } catch(_) { return '?'; } })();
+        const blockedNames = aliveRaw.map(m => m.name).join(', ');
+        return { text: `⚡ No hay objetivos atacables con Golpetazo.\n👻 MAREA ESPECTRAL activa — ${blockedNames} huye ante la marea espectral y no puede ser combatido. (~${minLeftSp2} min restantes)` };
+      }
       // DIS-1264: respuesta contextual si hay monstruos muertos en la sala
       const dead = monsters.filter(m => m.hp <= 0);
       if (dead.length > 0) {
