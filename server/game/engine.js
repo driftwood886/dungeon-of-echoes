@@ -13,6 +13,10 @@
 
 const db      = require('../db/db');
 const dungeon = require('./dungeon');
+
+// DIS-1480: Inventario base reducido a 20 slots (desde 30) — obliga a gestionar el inventario
+// Las bolsas de lona (20g en tienda) siguen dando +4 slots c/u (máx 2)
+const INV_BASE_SLOTS = 20;
 const { parse, HELP_TEXT, COMMAND_HELP } = require('./commands');
 const combat  = require('./combat');
 const items   = require('./items');
@@ -2962,17 +2966,17 @@ function cmdInventory(player) {
   const totalVisible = lines.length;
   // DIS-994: Mostrar slots usados/totales del inventario
   const invBonus = player.inventory_bonus || 0;
-  const maxSlots = 30 + invBonus; // DIS-1434: límite base 25→30
+  const maxSlots = INV_BASE_SLOTS + invBonus; // DIS-1480: límite base reducido a 20
   // BUG-1192: incluir ítems equipados en el conteo de slots (igual que hace cmdGet en línea 4008)
   // Los ítems equipados se remueven de player.inventory y van a equipped_weapon/equipped_armor,
   // pero ocupan slot en el límite total. Sin esto, el jugador ve "28/30" y luego "30/30 llena" al recoger.
   const usedSlots = allItems.length + equippedItems.length;
-  // DIS-1037: solo mostrar hint de bolsa de lona cuando el inventario está casi lleno (>23/30 slots usados)
-  // DIS-1434: umbrales ajustados al subir límite 25→30
+  // DIS-1037: solo mostrar hint de bolsa de lona cuando el inventario está casi lleno (>14/20 slots usados)
+  // DIS-1480: umbrales ajustados al bajar límite 30→20
   let slotHint = '';
-  if (invBonus === 0 && usedSlots > 23) {
+  if (invBonus === 0 && usedSlots > 14) {
     slotHint = ` · Ampliá con bolsa de lona (+4 slots, 20g en tienda de Aldric sala 4 — hacé "use bolsa de lona" al comprarla). En salas avanzadas: usá vault en sala 19.`;
-  } else if (invBonus < 8 && usedSlots > (23 + invBonus)) {
+  } else if (invBonus < 8 && usedSlots > (14 + invBonus)) {
     slotHint = ` · Podés comprar una 2da bolsa de lona (+4 slots más, 20g en tienda de Aldric sala 4). En salas avanzadas: usá vault en sala 19.`;
   }
   const rareCount = allItems.filter(i => items.getItemRarity(i) !== 'común').length
@@ -4820,7 +4824,7 @@ function cmdAttack(player, targetName) {
       // intente recoger el loot del boss y se frustre por no poder hacerlo.
       const freshForInv = db.getPlayer(player.id);
       const invCount = Array.isArray(freshForInv.inventory) ? freshForInv.inventory.length : 0;
-      const invMaxDisplay = 30 + (freshForInv.inventory_bonus || 0); // DIS-1434
+      const invMaxDisplay = INV_BASE_SLOTS + (freshForInv.inventory_bonus || 0); // DIS-1480
       if (invCount >= invMaxDisplay - 2) {
         lines.push(`║  ⚠️  Tu mochila tiene ${invCount}/${invMaxDisplay} ítems — hacé espacio      ║`);
         lines.push('║  con "drop <ítem>", "vault store <ítem>" (Entrada/Subastas/Cámara del Eco) o "subastar". ║');
@@ -5147,7 +5151,7 @@ function cmdPick(player, itemQuery) {
       const inv = Array.isArray(current.inventory) ? current.inventory : [];
       // BUG-489: contar equipados también para el límite real
       const eqCount = (current.equipped_weapon ? 1 : 0) + (current.equipped_armor ? 1 : 0);
-      const pickMaxInv = 30 + (current.inventory_bonus || 0); // DIS-1434 // DIS-634: usar límite dinámico (DIS-507/DIS-595)
+      const pickMaxInv = INV_BASE_SLOTS + (current.inventory_bonus || 0); // DIS-1480 // DIS-634: usar límite dinámico (DIS-507/DIS-595)
       if (inv.length + eqCount >= pickMaxInv) {
         notPicked.push(item);
         continue; // BUG-707: no generar mensaje por ítem — condensar al final
@@ -5207,7 +5211,7 @@ function cmdPick(player, itemQuery) {
     // BUG-714: no presentar los ítems del suelo como "loot fresco del boss" — son todos los ítems del suelo (pueden ser pre-existentes de sesiones previas)
     if (notPicked.length > 0) {
       const freshFinal = db.getPlayer(player.id);
-      const finalMax = 30 + (freshFinal.inventory_bonus || 0); // DIS-1434
+      const finalMax = INV_BASE_SLOTS + (freshFinal.inventory_bonus || 0); // DIS-1480
       resultMsg += `\n\n⚠️ Inventario lleno (${finalMax}/${finalMax}) — siguen en el suelo (puede incluir ítems de sesiones previas):\n  ${notPicked.map(i => `❌ ${i}`).join('\n  ')}\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g, +4 slots) en la tienda de Aldric.`;
     }
     return { text: resultMsg };
@@ -5250,7 +5254,7 @@ function cmdPick(player, itemQuery) {
   // BUG-489: contar también ítems equipados (no están en player.inventory pero ocupan slot visual)
   const equippedCount = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
   const currentInvCount = (player.inventory || []).length + equippedCount;
-  const maxInvSingle = 30 + (player.inventory_bonus || 0); // DIS-1434 // DIS-595: bolsas de lona
+  const maxInvSingle = INV_BASE_SLOTS + (player.inventory_bonus || 0); // DIS-1480 // DIS-595: bolsas de lona
   if (!goldKey && currentInvCount >= maxInvSingle) {
     return {
       text: `🎒 Tu mochila está llena (${currentInvCount}/${maxInvSingle} ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.\n💡 También podés usar la bóveda (vault) en la Entrada, Casa de Subastas o Cámara del Eco (sala 19).\n💡 Aldric vende bolsas de lona (20g) que amplían tu mochila +4 slots.`,
@@ -5458,8 +5462,8 @@ function cmdPick(player, itemQuery) {
   // DIS-1173: aviso proactivo de inventario casi lleno al recoger un ítem individual
   const freshForInvWarn = db.getPlayer(player.id);
   const invWarnCount = (freshForInvWarn.inventory || []).length + ((freshForInvWarn.equipped_weapon ? 1 : 0) + (freshForInvWarn.equipped_armor ? 1 : 0));
-  const invWarnMax = 30 + (freshForInvWarn.inventory_bonus || 0); // DIS-1434
-  if (invWarnCount >= 20) {
+  const invWarnMax = INV_BASE_SLOTS + (freshForInvWarn.inventory_bonus || 0); // DIS-1480
+  if (invWarnCount >= 16) {
     pickSingleMsg += `\n\n⚠️  Inventario casi lleno (${invWarnCount}/${invWarnMax}) — considerá vender ítems en la tienda de Aldric (sala 4) o guardarlos en la bóveda antes de enfrentar al Lich.`;
   }
 
@@ -5835,7 +5839,32 @@ function cmdUse(player, itemQuery) {
     const newBonus = Math.min(MAX_BAG_BONUS, currentBonus + def.slots);
     const newInvBag = removeFirst(freshBag.inventory, found);
     db.updatePlayer(player.id, { inventory: newInvBag, inventory_bonus: newBonus });
-    resultText = `🎒 Atás la bolsa de lona a tu mochila. Tu capacidad de carga aumenta +${def.slots} slots.\n📦 Inventario: ${freshBag.inventory.length - 1}/${30 + newBonus} slots disponibles.`;
+    resultText = `🎒 Atás la bolsa de lona a tu mochila. Tu capacidad de carga aumenta +${def.slots} slots.\n📦 Inventario: ${freshBag.inventory.length - 1}/${INV_BASE_SLOTS + newBonus} slots disponibles.`;
+
+  } else if (def.type === 'perm_atk') {
+    // DIS-1479: elixir de poder — +ATK permanente
+    const freshPPermAtk = db.getPlayer(player.id);
+    const newAtk = (freshPPermAtk.attack || 5) + def.amount;
+    const newInvPermAtk = removeFirst(freshPPermAtk.inventory, found);
+    db.updatePlayer(player.id, { attack: newAtk, inventory: newInvPermAtk });
+    resultText = `⚗️ Bebés el elixir de poder. Un calor intenso recorre tus músculos y no desaparece.\n⚔️ +${def.amount} ATK permanente. (Ataque total: ${newAtk})`;
+
+  } else if (def.type === 'perm_def') {
+    // DIS-1479: amuleto de protección — +DEF permanente (se pone como amuleto, no se equipa como armadura)
+    const freshPPermDef = db.getPlayer(player.id);
+    const newDef = (freshPPermDef.defense || 2) + def.amount;
+    const newInvPermDef = removeFirst(freshPPermDef.inventory, found);
+    db.updatePlayer(player.id, { defense: newDef, inventory: newInvPermDef });
+    resultText = `🔮 Colocás el amuleto de protección alrededor de tu cuello. La energía arcana se funde con tu piel.\n🛡️ +${def.amount} DEF permanente. (Defensa total: ${newDef})`;
+
+  } else if (def.type === 'perm_hp') {
+    // DIS-1479: grifo de vitalidad — +max_hp permanente
+    const freshPPermHp = db.getPlayer(player.id);
+    const newMaxHp = (freshPPermHp.max_hp || 30) + def.amount;
+    const newHpPermHp = Math.min(newMaxHp, (freshPPermHp.hp || 1) + Math.floor(def.amount / 2));
+    const newInvPermHp = removeFirst(freshPPermHp.inventory, found);
+    db.updatePlayer(player.id, { max_hp: newMaxHp, hp: newHpPermHp, inventory: newInvPermHp });
+    resultText = `💎 Bebés el grifo de vitalidad. Una energía dorada y cálida se expande por tu pecho.\n❤️ +${def.amount} HP máximo permanente. (HP: ${newHpPermHp}/${newMaxHp})`;
 
   } else {
     // DIS-D362: manejo especial de ítems sellados/abribles
@@ -7334,7 +7363,7 @@ function cmdLoot(player) {
 
   // Agregar solo ítems no-oro al inventario (BUG-469: respetar límite de 20)
   // BUG-504: contar también ítems equipados (no están en player.inventory pero ocupan slot)
-  const MAX_INVENTORY = 30 + (player.inventory_bonus || 0);  // DIS-1434: base 25→30; DIS-507/DIS-595
+  const MAX_INVENTORY = INV_BASE_SLOTS + (player.inventory_bonus || 0);  // DIS-1480: base reducido a 20; DIS-507/DIS-595
   const equippedCountLoot = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
   const spaceAvailable = MAX_INVENTORY - player.inventory.length - equippedCountLoot;
   const itemsToPickup = nonGoldItems.slice(0, spaceAvailable);
@@ -8660,7 +8689,7 @@ function cmdRest(player, context) {
     const refreshedPlayer = db.getPlayer(player.id);
     const restInv = Array.isArray(refreshedPlayer.inventory) ? refreshedPlayer.inventory : [];
     const restEq = (refreshedPlayer.equipped_weapon ? 1 : 0) + (refreshedPlayer.equipped_armor ? 1 : 0);
-    const restMax = 30 + (refreshedPlayer.inventory_bonus || 0); // DIS-1434
+    const restMax = INV_BASE_SLOTS + (refreshedPlayer.inventory_bonus || 0); // DIS-1480
     if (restInv.length + restEq < restMax) { // DIS-634: verificar espacio antes de agregar
       const updatedInv = [...restInv, forageRoomData.item];
       db.updatePlayer(player.id, { inventory: updatedInv });
@@ -9308,6 +9337,10 @@ const SHOP_CATALOG = [
   { name: 'veneno de contacto',      price: 20, description: '🗡️ (Pícaro) Vial de veneno aceitoso. Al aplicarlo en tu arma, los próximos 3 ataques tienen 40% de envenenar al objetivo. Se consume al agotar las cargas.' },
   // DIS-595: bolsa de lona — expande inventario +4 slots, máx 2 bolsas
   { name: 'bolsa de lona',           price: 20, description: 'Una bolsa de lona resistente con correas de cuero. Al usarla, amplía tu capacidad de inventario en 4 slots (+4 más si comprás una segunda). Máximo 2.' },
+  // DIS-1479: ítems premium de alto valor para crear tensión económica en el early/mid game
+  { name: 'elixir de poder',         price: 80,  description: '⚗️ Elixir concentrado de bestia. Da +2 ATK permanente al beberlo. Rarísimo — Aldric solo consigue uno por semana. Requiere farmear.' },
+  { name: 'amuleto de protección',   price: 90,  description: '🔮 Amuleto arcano de la cripta profunda. Da +3 DEF permanente. Aldric lo consiguió en el nivel 12. "Costó caro traerlo acá," dice.' },
+  { name: 'grifo de vitalidad',      price: 100, description: '💎 Frasco sellado con esencia de dragón. Da +15 HP máximo permanente. "Esto no lo doy a cualquiera," dice Aldric. "Sabés lo que vale."' },
   // DIS-585: materiales de loot con precios diferenciados (sellOnly — no aparecen en la tienda)
   { name: 'pelaje áspero',           price: 13,  sellOnly: true, description: 'Pelaje de rata gigante. Aldric lo compra para curtiembre.' },
   { name: 'garra de esqueleto',      price: 15,  sellOnly: true, description: 'Garra de esqueleto. Aldric la compra como material de armamento.' },
@@ -12435,7 +12468,7 @@ function cmdForage(player) {
   // DIS-634: Verificar capacidad de inventario antes de agregar cualquier ítem
   const _forageInv = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
   const _forageEq = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
-  const _forageMax = 30 + (player.inventory_bonus || 0); // DIS-1434
+  const _forageMax = INV_BASE_SLOTS + (player.inventory_bonus || 0); // DIS-1480
   const _forageUsed = _forageInv.length + _forageEq;
   if (_forageUsed >= _forageMax) {
     return { text: `🎒 Inventario lleno (${_forageUsed}/${_forageMax}) — no hay espacio para lo que podrías encontrar.\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g) en la tienda de Aldric para +4 slots.` };
@@ -23290,7 +23323,7 @@ function cmdVault(player, args) {
 
     const item = vaultItems[idx];
     const inv = JSON.parse(typeof player.inventory === 'string' ? player.inventory : JSON.stringify(player.inventory));
-    const maxInvVault = 30 + (player.inventory_bonus || 0); // DIS-1434 DIS-595
+    const maxInvVault = INV_BASE_SLOTS + (player.inventory_bonus || 0); // DIS-1480 DIS-595
     if (inv.length >= maxInvVault) return { text: `🎒 El inventario está lleno (${inv.length}/${maxInvVault}). Tirá algo primero.` };
 
     vaultItems.splice(idx, 1);

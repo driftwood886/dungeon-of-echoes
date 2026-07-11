@@ -161,6 +161,12 @@ const ITEM_CATALOG = {
   // ── Bolsas / expansión de inventario (DIS-595) ───────────────────────────
   'bolsa de lona':         { type: 'bag', slots: 4, description: 'Una bolsa de lona resistente con correas de cuero. Al usarla se conecta a tu mochila y amplía tu capacidad de carga en 4 slots adicionales. Hasta 2 bolsas simultáneas.' },
 
+  // ── DIS-1479: Ítems premium de alto valor (60-100g) ─────────────────────
+  // Crean tensión económica — el jugador necesita farmear para costearse mejoras permanentes
+  'elixir de poder':       { type: 'perm_atk', effect: 'perm_attack', amount: 2, description: 'Un elixir concentrado que fortalece los músculos permanentemente. Da +2 ATK permanente.' },
+  'amuleto de protección': { type: 'perm_def', effect: 'perm_defense', amount: 3, description: 'Un amuleto arcano que endurece la piel mágicamente. Da +3 DEF permanente.' },
+  'grifo de vitalidad':    { type: 'perm_hp', effect: 'perm_maxhp', amount: 15, description: 'Un frasco sellado con esencia de dragón. Da +15 HP máximo permanente.' },
+
   // ── Pergaminos mágicos (T153) ──────────────────────────────────────────────
   'pergamino de furia':    { type: 'scroll', effect: 'fury',    atk_bonus: 3, def_bonus: 0, duration: 60,  description: 'Un pergamino que irradia energía roja. Al leerlo, sentís una furia ardiente. (+3 ATK por 60s)' },
   'pergamino de escudo':   { type: 'scroll', effect: 'shield',  atk_bonus: 0, def_bonus: 3, duration: 60,  description: 'Runas protectoras grabadas en papel dorado. Una barrera mágica te envuelve. (+3 DEF por 60s)' },
