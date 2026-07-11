@@ -5613,7 +5613,7 @@ function cmdUse(player, itemQuery) {
     let bsPenalty = '';
     if (player.specialization === 'berserker' && healAmount < def.amount) {
       const penalty = def.amount - healAmount;
-      bsPenalty = ` (la poción cura ${def.amount} HP, pero el Berserker no sabe cuidarse — −${penalty} 🪓)`;
+      bsPenalty = ` (−${penalty} HP — instinto berserk 🪓)`; // DIS-1468: feedback claro del penalty
     }
     resultText = `Bebés ${articuloItem(found)} ${found}. Recuperás ${newHp - oldHp} HP${palBonus}${bsPenalty}. (${newHp}/${maxHp} HP)`;
 
