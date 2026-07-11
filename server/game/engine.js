@@ -264,7 +264,14 @@ function calcLevelUp(freshPlayer, xpGain) {
       }
     } catch (_) { /* no interrumpir */ }
   }
-  return { fields, levelUpMsg: levelUp ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}! +5 HP máx, +1 ataque${fields.hp ? `, +${fields.hp - (freshPlayer.hp || 1)} HP restaurado (${fields.hp}/${fields.max_hp} HP)` : ''}${newLevel === 5 && !freshPlayer.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.' : ''}${aldricCartaReminder}` : '' };
+  // DIS-1490: mensaje de level-up compacto (2-3 líneas) — el detalle completo se accede con `status`
+  const specLine = newLevel === 5 && !freshPlayer.specialization
+    ? '\n   ⚠️ Nivel 5 — elegí tu especialización: `especializar`'
+    : '';
+  const levelUpText = levelUp
+    ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}! +5 HP, +1 ATK.${fields.hp ? ` (${fields.hp}/${fields.max_hp} HP)` : ''}${specLine}${aldricCartaReminder}\n   → Escribí \`status\` para ver tus stats actualizados.`
+    : '';
+  return { fields, levelUpMsg: levelUpText };
 }
 
 /**
@@ -5707,26 +5714,9 @@ function cmdUse(player, itemQuery) {
     }
 
   } else if (def.type === 'weapon') {
-    // BUG-274: remover el arma nueva del inventario, devolver la anterior si había una
-    // BUG-1049: mantener funcionalidad pero indicar el comando correcto
-    const prevWeaponBonus = player.equipped_weapon ? (items.getItemDef(player.equipped_weapon)?.amount || 0) : 0;
-    const baseAttack = player.attack - prevWeaponBonus;
-    const newAttack = baseAttack + def.amount;
-
-    const invUse = [...player.inventory];
-    // BUG-785: usar findIndex con normalización NFD para que tildes no impidan encontrar el ítem
-    const nfnUse = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const foundIdxUse = invUse.findIndex(i => nfnUse(i) === nfnUse(found));
-    if (foundIdxUse !== -1) invUse.splice(foundIdxUse, 1);
-    // BUG-785: solo devolver el arma anterior si NO ya está en el inventario (previene duplicados)
-    if (player.equipped_weapon && !invUse.some(i => nfnUse(i) === nfnUse(player.equipped_weapon))) {
-      invUse.push(player.equipped_weapon); // devolver arma anterior
-    }
-
-    db.updatePlayer(player.id, { attack: newAttack, equipped_weapon: found, inventory: invUse });
-
-    const swapMsgUse = player.equipped_weapon ? ` (reemplaza ${player.equipped_weapon} → vuelve a tu mochila)` : '';
-    resultText = `Equipás ${found}${swapMsgUse}. Tu ataque sube a ${newAttack}.\n💡 Tip: para equipar armas usá el comando "equip ${found}" directamente.`;
+    // DIS-1489: `use` no equipa armas — redirigir al comando correcto
+    // `use` = consumir/activar efectos. `equip` = equipar arma/armadura.
+    return { text: `⚔️ "${found}" es un arma, no un ítem consumible.\n💡 Para equiparla: \`equip ${found}\`\n   Para usarla como proyectil u otro uso: especificá un objetivo (ej: \`attack goblin\` con el arma equipada).` };
 
   } else if (def.type === 'atk_potion' && def.effect === 'power') {
     // DIS-D382: poción de poder — buff temporal de ATK (similar a pergaminos)
@@ -5829,17 +5819,11 @@ function cmdUse(player, itemQuery) {
     resultText = `🧪 Frotás el veneno de contacto en tu arma. La hoja queda impregnada de toxina aceitosa.\n🗡️ Los próximos ${def.charges || 3} ataques tienen 40% de envenenar al objetivo. (Las cargas se consumen en cada golpe.)`;
 
   } else if (def.type === 'armor') {
-    // BUG-1049: 'use <armadura>' equipa la armadura mediante cmdWear
-    // (retrocompatibilidad — 'usar <armadura>' funciona igual que 'equip <armadura>')
-    const wearResult = cmdWear(player, found);
-    // BUG-1476: NO agregar tip "usá equip" si la armadura ya fue equipada exitosamente.
-    // El tip solo tiene sentido si el comando falló o el ítem no pudo equiparse.
-    // Detectamos éxito: cmdWear retorna "Te ponés X" cuando la armadura se equipa correctamente.
+    // DIS-1489: `use` no equipa armaduras — redirigir al comando correcto
+    // `use` = consumir/activar efectos. `equip` = equipar arma/armadura.
+    const wearResult = { text: `🛡️ "${found}" es una armadura, no un ítem consumible.\n💡 Para equiparla: \`equip ${found}\`` };
     if (wearResult && wearResult.text) {
-      const wearSucceeded = wearResult.text.startsWith('Te ponés');
-      if (!wearSucceeded) {
-        wearResult.text = `${wearResult.text}\n💡 Tip: para equipar armaduras usá el comando "equip ${found}" directamente.`;
-      }
+      // noop — solo redirección, no hay éxito/fracaso de cmdWear
     }
     // EPIC-1155-DEF: hook de expedición para ítems tipo armor (early return bypasaba el hook)
     // Verificar step antes de retornar, igual que el hook general al final de cmdUse
@@ -10325,15 +10309,49 @@ function cmdBuy(player, itemQuery) {
     }
   }
 
-  // STORY-008: Personalidad de Aldric — líneas de flavor al comprar
-  const buyFlavors = [
-    'Aldric no levanta la vista de sus cuentas mientras envuelve el ítem.',
-    'Aldric asiente sin decir nada. Ha visto demasiados aventureros para sorprenderse.',
-    '"Buena elección," dice Aldric. El tono sugiere que lo dice siempre.',
-    'Aldric guarda el oro con la misma velocidad con que desaparece en su interior.',
-    'Aldric examina el ítem antes de entregarlo. Breve. Profesional. Impenetrable.',
-  ];
-  const flavor = buyFlavors[Math.floor(Math.random() * buyFlavors.length)];
+  // DIS-1488: Líneas de flavor contextualizadas al tipo de ítem comprado
+  // STORY-008: Personalidad de Aldric — líneas de sabor por tipo de ítem
+  const boughtItemType = boughtWeapon ? boughtWeapon.type : null;
+  const isWeaponItem = boughtItemType === 'weapon';
+  const isArmorItem  = boughtItemType === 'armor';
+  const isPotion     = boughtItemType === 'consumable' || (item.name && item.name.toLowerCase().includes('poci'));
+
+  const flavorsByType = {
+    weapon: [
+      '"Acero bueno," dice Aldric evaluando el filo de reojo. "No lo desperdicies contra piedra."',
+      'Aldric envuelve el arma con cuero antes de entregártela. Sin decir nada. Solo hábito.',
+      '"Todo combate empieza antes del primer golpe," murmura Aldric mientras te la pasa. "Practicá el agarre."',
+      '"Vendí esa misma pieza tres veces esta semana." Pausa. "Los otros dos no volvieron."',
+      'Aldric la coloca sobre el mostrador sin ceremonia. "Hacela funcionar."',
+    ],
+    armor: [
+      '"Protección primero," dice Aldric sin levantar la vista. "El daño que no recibís no lo tenés que curar."',
+      'Aldric golpea suavemente la armadura antes de entregártela. "Sólida. Debería aguantar un par de mordidas."',
+      '"Esta pieza la usó un Clérigo de la Orden Norte." Pausa. "Volvió a pedir otra. Buena señal."',
+      'Aldric la dobla con precisión antes de entregártela. Un gesto profesional, sin comentarios.',
+      '"La mejor inversión que podés hacer," dice Aldric, "es la que te mantiene vivo para gastar más."',
+    ],
+    consumable: [
+      'Aldric entrega la poción con cuidado. "No la rompas. Limpiarlas es mi tiempo, no el tuyo."',
+      '"Bebela despacio si podés," dice Aldric. "Las que funcionan rápido también te marean."',
+      'Aldric la revisa contra la luz un instante antes de entregártela. Satisfecho. Sin palabras.',
+      '"Llevo cuarenta años vendiendo esto," murmura. "Nadie lee las instrucciones. Vos tampoco."',
+      '"Guardala hasta que la necesites de verdad." Aldric cierra el frasco con un golpe seco. "No como souvenir."',
+    ],
+    default: [
+      'Aldric no levanta la vista de sus cuentas mientras envuelve el ítem.',
+      'Aldric asiente sin decir nada. Ha visto demasiados aventureros para sorprenderse.',
+      '"Buena elección," dice Aldric. El tono sugiere que lo dice siempre.',
+      'Aldric guarda el oro con la misma velocidad con que desaparece en su interior.',
+      'Aldric examina el ítem antes de entregarlo. Breve. Profesional. Impenetrable.',
+    ],
+  };
+
+  const flavorPool = isWeaponItem ? flavorsByType.weapon
+    : isArmorItem               ? flavorsByType.armor
+    : isPotion                  ? flavorsByType.consumable
+    : flavorsByType.default;
+  const flavor = flavorPool[Math.floor(Math.random() * flavorPool.length)];
 
   // DIS-723: Si el jugador es Clérigo y no tiene la poción de bendición, Aldric la menciona al comprar
   const clsBuy = classes.getPlayerClass(freshBuyer);
