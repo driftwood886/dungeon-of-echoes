@@ -2275,13 +2275,23 @@ function processLoginStreak(playerId) {
   const goldReward = newStreak * 5;
   const xpReward   = newStreak * 3;
 
-  // Aplicar recompensa
-  updatePlayer(playerId, {
+  // Aplicar recompensa — BUG-1475: recalcular nivel para evitar desincronización
+  const newXpStreak = (player.xp || 0) + xpReward;
+  const newLevelStreak = xpSystem.levelFromXp(newXpStreak);
+  const streakUpdates = {
     login_streak: newStreak,
     last_login_date: todayStr,
     gold: (player.gold || 0) + goldReward,
-    xp:   (player.xp   || 0) + xpReward,
-  });
+    xp:   newXpStreak,
+    level: newLevelStreak,
+  };
+  if (newLevelStreak > (player.level || 1)) {
+    streakUpdates.max_hp = (player.max_hp || 30) + 5;
+    const healOnStreakUp = Math.ceil(streakUpdates.max_hp * 0.20);
+    streakUpdates.hp = Math.min(streakUpdates.max_hp, (player.hp || 1) + healOnStreakUp);
+    streakUpdates.attack = (player.attack || 5) + 1;
+  }
+  updatePlayer(playerId, streakUpdates);
 
   return {
     streak: newStreak,

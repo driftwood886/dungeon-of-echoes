@@ -5798,11 +5798,17 @@ function cmdUse(player, itemQuery) {
     resultText = `🧪 Frotás el veneno de contacto en tu arma. La hoja queda impregnada de toxina aceitosa.\n🗡️ Los próximos ${def.charges || 3} ataques tienen 40% de envenenar al objetivo. (Las cargas se consumen en cada golpe.)`;
 
   } else if (def.type === 'armor') {
-    // BUG-1049: 'use <armadura>' redirige al jugador al comando correcto 'equip'
-    // (mantiene retrocompatibilidad con BUG-429 pero ahora avisa del comando correcto)
+    // BUG-1049: 'use <armadura>' equipa la armadura mediante cmdWear
+    // (retrocompatibilidad — 'usar <armadura>' funciona igual que 'equip <armadura>')
     const wearResult = cmdWear(player, found);
+    // BUG-1476: NO agregar tip "usá equip" si la armadura ya fue equipada exitosamente.
+    // El tip solo tiene sentido si el comando falló o el ítem no pudo equiparse.
+    // Detectamos éxito: cmdWear retorna "Te ponés X" cuando la armadura se equipa correctamente.
     if (wearResult && wearResult.text) {
-      wearResult.text = `${wearResult.text}\n💡 Tip: para equipar armaduras usá el comando "equip ${found}" directamente.`;
+      const wearSucceeded = wearResult.text.startsWith('Te ponés');
+      if (!wearSucceeded) {
+        wearResult.text = `${wearResult.text}\n💡 Tip: para equipar armaduras usá el comando "equip ${found}" directamente.`;
+      }
     }
     // EPIC-1155-DEF: hook de expedición para ítems tipo armor (early return bypasaba el hook)
     // Verificar step antes de retornar, igual que el hook general al final de cmdUse
@@ -11939,15 +11945,25 @@ function getOrCreatePlayer(username) {
     player = db.getPlayer(player.id);
   }
 
-  // DIS-1448: Sincronizar nivel con XP al hacer login.
+  // DIS-1448 / BUG-1475: Sincronizar nivel con XP al hacer login.
   // Si la fórmula de XP cambió (DIS-1433) o el nivel se desincronizó, recalcular.
-  // Solo actualizamos hacia arriba (nunca bajar nivel — sería injusto).
+  // Subimos si el nivel calculado > guardado (normal progresión).
+  // Bajamos SOLO si la barra de XP sería negativa (xp total < xpForLevel(nivel_guardado)),
+  // lo que indica datos corruptos — no es una penalización sino una corrección de integridad.
   try {
     const computedLevel = xpSystem.levelFromXp(player.xp || 0);
-    if (computedLevel > (player.level || 1)) {
+    const currentLevel = player.level || 1;
+    const xpIntoCurrentLevel = xpSystem.xpIntoLevel(player.xp || 0, currentLevel);
+    if (computedLevel > currentLevel) {
+      // Nivel calculado mayor: sincronizar hacia arriba (progresión normal)
       db.updatePlayer(player.id, { level: computedLevel });
       player = db.getPlayer(player.id);
-      console.log(`[getOrCreatePlayer] DIS-1448: nivel de ${player.username} sincronizado: ${player.level} → ${computedLevel} (XP: ${player.xp})`);
+      console.log(`[getOrCreatePlayer] DIS-1448: nivel de ${player.username} sincronizado ↑: ${currentLevel} → ${computedLevel} (XP: ${player.xp})`);
+    } else if (xpIntoCurrentLevel < 0) {
+      // BUG-1475: barra de XP negativa = nivel inflado / datos corruptos → corregir hacia abajo
+      db.updatePlayer(player.id, { level: computedLevel });
+      player = db.getPlayer(player.id);
+      console.log(`[getOrCreatePlayer] BUG-1475: nivel de ${player.username} corregido ↓: ${currentLevel} → ${computedLevel} (XP: ${player.xp}, xpIntoLevel era ${xpIntoCurrentLevel})`);
     }
   } catch (e) { /* no romper login si falla la sincronización */ }
 
