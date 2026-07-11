@@ -11010,7 +11010,10 @@ function _buildFactionCard(lore, showConfirmHint = true) {
   if (showConfirmHint) {
     lines.push(`╟──────────────────────────────────────────────────────╢`);
     lines.push(`║  ¿Querés unirte? Escribí:                            ║`);
-    lines.push(`║    faccion elegir ${lore.id.padEnd(36)}║`);
+    // DIS-1467: usar nombre completo (más natural) en el hint de confirmación
+    const confirmCmd = `faccion elegir ${lore.name.toLowerCase()} confirmar`;
+    const confirmCmdShort = confirmCmd.length <= 36 ? confirmCmd : `faccion elegir ${lore.id} confirmar`;
+    lines.push(`║    ${confirmCmdShort.padEnd(50)}║`);
     lines.push(`║  O cancelá y explorá otras opciones.                 ║`);
   }
 
@@ -11104,20 +11107,21 @@ function _cmdFaccionElegir(player, args) {
     const card = _buildFactionCard(lore, false);
     // DIS-1389: el comando de confirmación va ANTES del card (prominente) y también al final
     // DIS-1443: mostrar la variante con espacios (más natural) — ambas son aceptadas
+    // DIS-1467: mostrar el nombre completo (natural) primero — el alias como alternativa
     const factionDisplayName = lore.name.toLowerCase(); // ej: "la orden del filo"
     const confirmLine = `faccion elegir ${factionId} confirmar`; // variante con guión bajo
-    const confirmLineAlt = `faccion elegir ${factionDisplayName} confirmar`; // variante con espacios
+    const confirmLineNatural = `faccion elegir ${factionDisplayName} confirmar`; // variante con espacios (natural)
     const sep = '━'.repeat(56);
     const confirmBlock = [
       '',
       sep,
       `  ${lore.icon}  ¿Querés unirte a ${lore.name}?`,
-      `  ► Escribí: ${confirmLine}`,
-      `  ► (o también: ${confirmLineAlt})`,
+      `  ► Escribí: ${confirmLineNatural}`,
+      `  ► (o también: ${confirmLine})`,
       sep,
     ].join('\n');
     return {
-      text: confirmBlock + '\n\n' + card + `\n\n  ► Para confirmar: ${confirmLine}\n  (o explorá otras opciones con: faccion elegir <nombre>)`,
+      text: confirmBlock + '\n\n' + card + `\n\n  ► Para confirmar: ${confirmLineNatural}\n  (o explorá otras opciones con: faccion elegir <nombre>)`,
     };
   }
 
