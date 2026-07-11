@@ -949,7 +949,7 @@ function handleTutorialCommand(player, action, step) {
           return completeTutorial(player);
         }
         const hint = tutorial.getStepMessage(step);
-        return { text: `¡Todavía no terminaste el entrenamiento!\nAntes de salir, atacá al Goblin de Práctica escribiendo:\n  attack goblin  (o «atacar goblin»)\n  (Magos: también podés usar  cast rayo  o  cast bola de fuego)\n\n${hint}` };
+        return { text: `¡Todavía no terminaste el entrenamiento!\nAntes de salir, atacá al Goblin de Práctica escribiendo:\n  attack goblin  (o «atacar goblin»)\n  (Magos: también podés usar  cast rayo  o  cast bola de fuego)\n\n💡 ¿Preferís saltar el tutorial? Escribí:  skip tutorial\n\n${hint}` };
       }
       // Completar tutorial: +10 XP, mover a sala 1, tutorial_step = 0
       return completeTutorial(player);
@@ -964,8 +964,11 @@ function handleTutorialCommand(player, action, step) {
     return null;
   }
 
-  // Comando 'skip' para saltarse el tutorial explícitamente
-  if (cmd === 'skip' || (cmd === 'tutorial' && action.args[0] === 'skip') || action.raw === 'skip tutorial' || action.raw === 'saltar tutorial') {
+  // Comando 'skip' para saltarse el tutorial explícitamente (DIS-1484: más visible)
+  if (cmd === 'skip' || cmd === 'saltar' ||
+      (cmd === 'tutorial' && action.args[0] === 'skip') ||
+      action.raw === 'skip tutorial' || action.raw === 'saltar tutorial' ||
+      action.raw === 'skip' || action.raw === 'saltar') {
     return completeTutorial(player);
   }
 

@@ -31,6 +31,8 @@ tesoros y otros aventureros.
 
 👁️  Primero: observá tu entorno.
 Escribí:  look   (o «mirar»)
+
+💡 ¿Ya sabés jugar? Escribí  skip tutorial  para saltar esto.
 ═══════════════════════════════════════`,
 
   2: `═══════════════════════════════════════
