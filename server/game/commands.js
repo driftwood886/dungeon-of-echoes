@@ -42,7 +42,7 @@ const COMMAND_ALIASES = {
   // heal (atajo: usar la primera poción del inventario)
   heal: 'heal', curar: 'heal', curarse: 'heal', recuperar: 'heal',
   // drop
-  drop: 'drop', tirar: 'drop', soltar: 'drop', dejar: 'drop',
+  drop: 'drop', tirar: 'drop', soltar: 'drop', dejar: 'drop', descartar: 'drop',
   // examine
   examine: 'examine', examinar: 'examine', inspeccionar: 'examine', x: 'examine',
   // equip

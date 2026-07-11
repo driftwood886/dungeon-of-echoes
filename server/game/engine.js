@@ -3056,7 +3056,14 @@ function cmdInventory(player) {
     ? `\n🔧 Casi listo (te falta un ingrediente):\n${filteredLoneHints.slice(0, 3).join('\n')}`
     : '';
 
-  return { text: `Inventario:\n${lines.join('\n')}\n${summary}\n${slotLine}${viableNote}${loneNote}${sellSuggestionNote}` };
+  // DIS-1470: hint de descartar cuando el inventario tiene muchos materiales junk
+  let discardHint = '';
+  const junkInInv = allItems.filter(i => items.isJunkItem(i));
+  if (junkInInv.length >= 3) {
+    discardHint = `\n🗑️ Tenés ${junkInInv.length} materiales descartables — usá \`drop junk\` para limpiarlos todos de una, o \`descartar <ítem>\` para uno específico.`;
+  }
+
+  return { text: `Inventario:\n${lines.join('\n')}\n${summary}\n${slotLine}${viableNote}${loneNote}${sellSuggestionNote}${discardHint}` };
 }
 
 /**

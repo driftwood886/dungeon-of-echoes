@@ -322,6 +322,7 @@ function getItemRarity(name) {
 // DIS-D44: Lista de ítems considerados "basura" (sin uso mecánico, vendibles o descartables)
 // No incluye ítems de desactivar trampas (hongo azul, corona rota, cuerda, red de pesca),
 // ni ítems de quest/lore, ni monedas, ni pociones/pergaminos.
+// DIS-1470: expandida con materiales de crafteo de bajo nivel que se acumulan sin uso
 const JUNK_ITEMS = new Set([
   'pelaje áspero',
   'cuchillo oxidado',
@@ -334,6 +335,17 @@ const JUNK_ITEMS = new Set([
   'cadenas rotas',
   'monedas de cobre',
   'monedas de plata',
+  // DIS-1470: materiales de crafteo básicos que se acumulan sin uso
+  'cristal fragmentado',
+  'garra de rata',
+  'garra de esqueleto',
+  'colmillo de murciélago',
+  'hueso de criatura',
+  'escoria de forja',
+  'polvo de piedra',
+  'tela raída',
+  'cuero desgastado',
+  'fragmento de cuero',
 ]);
 
 /**
