@@ -6857,6 +6857,14 @@ function cmdEquip(player, itemQuery) {
 
   const found = items.findItem(player.inventory, itemQuery.trim());
   if (!found) {
+    // BUG-1477: antes de reportar "no tenés X", verificar si ya está equipado como arma
+    if (player.equipped_weapon) {
+      const equippedNorm = player.equipped_weapon.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const queryNorm = itemQuery.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (equippedNorm.includes(queryNorm) || queryNorm.includes(equippedNorm)) {
+        return { text: `Ya tenés equipado "${player.equipped_weapon}" como arma. ⚔️\nUsá "unequip" para guardarlo primero, o "status" para ver tu equipo actual.` };
+      }
+    }
     return { text: `No tenés ningún "${itemQuery}" en el inventario.` };
   }
 
@@ -7489,6 +7497,14 @@ function cmdWear(player, itemQuery) {
 
   const found = items.findItem(player.inventory, itemQuery.trim());
   if (!found) {
+    // BUG-1477: antes de reportar "no tenés X", verificar si ya está equipada como armadura
+    if (player.equipped_armor) {
+      const equippedNorm = player.equipped_armor.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const queryNorm = itemQuery.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (equippedNorm.includes(queryNorm) || queryNorm.includes(equippedNorm)) {
+        return { text: `Ya tenés puesta "${player.equipped_armor}" como armadura. 🛡️\nUsá "unwear" para quitártela primero, o "status" para ver tu equipo actual.` };
+      }
+    }
     return { text: `No tenés ninguna "${itemQuery}" en el inventario.` };
   }
 
