@@ -1155,15 +1155,26 @@ function cmdLook(player, options = {}) {
           // DIS-1216: aclarar comportamiento real del boss — solo ataca si lo agredís o si entrás en combate
           const armorNote = danger.armorTip ? ` 🛡️ ${danger.armorTip}` : '';
           const bossAttackNote = ' Podés pasar sin atacarlo — solo iniciará combate si lo agredís primero.';
-          if (playerLevel < danger.level) {
-            dangerLines.push(`${danger.icon} PELIGRO ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}).${bossAttackNote}${armorNote}`);
+          const isUnderLevel = playerLevel < danger.level;
+          let line;
+          if (isUnderLevel) {
+            line = `${danger.icon} PELIGRO ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+, tu nivel: ${playerLevel}).${bossAttackNote}${armorNote}`;
           } else {
-            dangerLines.push(`${danger.icon} ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+).${bossAttackNote}${armorNote}`);
+            line = `${danger.icon} ${DIR_ES[dir] || dir}: ${danger.roomName} — ${danger.name} (jefe, nivel recomendado: ${danger.level}+).${bossAttackNote}${armorNote}`;
           }
+          dangerLines.push({ line, bossLevel: danger.level, isUnderLevel });
         }
       }
+      // DIS-1465: máximo 1 advertencia de boss por look — priorizar el más amenazante
+      // (jugadores sub-nivel primero, luego boss de nivel más alto)
       if (dangerLines.length > 0) {
-        adjacentDangerLine = '\n⚠️ ' + dangerLines.join('\n⚠️ ');
+        dangerLines.sort((a, b) => {
+          if (a.isUnderLevel !== b.isUnderLevel) return a.isUnderLevel ? -1 : 1;
+          return b.bossLevel - a.bossLevel;
+        });
+        const mainWarn = dangerLines[0].line;
+        const extra = dangerLines.length > 1 ? ` (+${dangerLines.length - 1} jefe${dangerLines.length > 2 ? 's' : ''} más en salas cercanas)` : '';
+        adjacentDangerLine = '\n⚠️ ' + mainWarn + extra;
       }
       // DIS-811: advertencia de trampa activa en Caverna Sumergida (sala 13) desde sala adyacente
       // La inundación aplica ~7 HP (con varianza ±1) en primera visita sin previo aviso
