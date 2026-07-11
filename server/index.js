@@ -17,6 +17,7 @@ const quests                 = require('./game/quests');
 const worldEvents            = require('./game/worldEvents');
 const weather                = require('./game/weather');
 const eventScheduler         = require('./game/eventScheduler'); // T-1225: scheduler de eventos cíclicos
+const auctionNPC             = require('./game/auctionNPC');      // DIS-1482: bots NPC en la Casa de Subastas
 const { registerHandlers, playerSockets, previousRoomMap, monsterTrackMap } = require('./socket/handlers');
 
 const PORT = process.env.PORT || 3000;
@@ -773,6 +774,11 @@ async function main() {
 
   // T-1225: Scheduler de eventos cíclicos globales (La Gaceta del Corredor)
   eventScheduler.init(db, io);
+
+  // DIS-1482: Bots NPC en la Casa de Subastas (Bertholdt, Melisandra, Drago)
+  auctionNPC.init(db, io);
+  // Tick cada 5 minutos: los bots subastan y pujan
+  setInterval(() => { auctionNPC.tick(); }, 5 * 60 * 1000);
 
   // 12. Auction resolution loop: resolver subastas expiradas cada 30 segundos
   setInterval(() => {

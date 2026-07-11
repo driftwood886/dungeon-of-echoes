@@ -13416,7 +13416,9 @@ function cmdAuctions() {
       const soldTo = last.bidder_name ? `a ${last.bidder_name}` : '(sin comprador)';
       historyLine = `\n\n📋 Último ítem subastado: **${last.item_name}** — ${soldFor} ${soldTo}`;
     }
-    return { text: `🔨 No hay subastas activas en este momento.${historyLine}\n\nPodés crear una con: subasta <ítem> <precio_mínimo>\n(Debés estar en la Casa de Subastas, sala 17, al este de la sala 4)` };
+    // DIS-1482: mencionar a los comerciantes NPC para dar vida a la sala
+    const npcHint = '\n\n🧹 Bertholdt el Trapero, 🔮 Melisandra la Hechicera y ⚒️ Drago el Herrero rondan la sala — en cualquier momento podrían poner algo a la venta.';
+    return { text: `🔨 No hay subastas activas en este momento.${historyLine}${npcHint}\n\nPodés crear una con: subasta <ítem> <precio_mínimo>\n(Debés estar en la Casa de Subastas, sala 17, al este de la sala 4)` };
   }
 
   const lines = auctions.map(a => {
@@ -13525,12 +13527,16 @@ function resolveExpiredAuctions(broadcastFn) {
   const messages = [];
 
   for (const auction of expired) {
+    // DIS-1482: si el vendedor es un bot NPC (ID negativo), manejar de forma especial
+    const isNPCSeller = auction.seller_id < 0;
+
     if (auction.current_bid > 0 && auction.bidder_id) {
       // Hay ganador: dar ítem al ganador, dar oro al vendedor
       const winner = db.getPlayer(auction.bidder_id);
-      const seller = db.getPlayer(auction.seller_id);
+      const seller = !isNPCSeller ? db.getPlayer(auction.seller_id) : null;
 
       if (winner) {
+        // El ganador es un jugador real — recibe el ítem
         const winnerInv = Array.isArray(winner.inventory) ? winner.inventory : JSON.parse(winner.inventory || '[]');
         winnerInv.push(auction.item_name);
         db.updatePlayer(winner.id, { inventory: JSON.stringify(winnerInv) });
@@ -13542,6 +13548,9 @@ function resolveExpiredAuctions(broadcastFn) {
         wmem.escriba.gold_volume_auctions = (wmem.escriba.gold_volume_auctions || 0) + auction.current_bid;
         db.updatePlayer(winner.id, { npc_memory: JSON.stringify(wmem) });
       }
+      // DIS-1482: si el ganador es un bot NPC (ID negativo), el ítem "desaparece" (el NPC se lo lleva)
+      // No necesita ningún tratamiento adicional — simplemente no se agrega a ningún inventario.
+
       if (seller) {
         db.updatePlayer(seller.id, { gold: (seller.gold || 0) + auction.current_bid });
         // EPIC-MR-1081: trackear auctions_sold y gold_volume del vendedor
@@ -13552,6 +13561,7 @@ function resolveExpiredAuctions(broadcastFn) {
         smem.escriba.gold_volume_auctions = (smem.escriba.gold_volume_auctions || 0) + auction.current_bid;
         db.updatePlayer(seller.id, { npc_memory: JSON.stringify(smem) });
       }
+      // DIS-1482: si el vendedor es un bot NPC, el oro lo "ingresa al mundo" — no hay jugador que cobrarlo
 
       const msg = `🔨 ¡REMATE CERRADO! "${auction.item_name}" vendida por ${auction.current_bid}g. Ganador: ${auction.bidder_name}. Vendedor: ${auction.seller_name} recibe ${auction.current_bid}g.`;
       messages.push(msg);
@@ -13593,14 +13603,22 @@ function resolveExpiredAuctions(broadcastFn) {
     } else {
       // Sin pujas en subasta normal: crear subasta pasiva de 30 min (DIS-535)
       // El Escriba Elfo registra el ítem para venta al Mercader
-      const seller = db.getPlayer(auction.seller_id);
-      db.createPassiveAuction(auction.seller_id, auction.seller_name, auction.item_name, auction.min_price);
-      if (seller) {
-        db.addJournalEntry(seller.id, 'system', `🔨 La subasta de "${auction.item_name}" cerró sin postores. El Escriba Elfo lo puso en el mercado pasivo — el Mercader lo comprará en 30 min por ${Math.max(1, Math.floor(auction.min_price * 0.5))}g si nadie puja.`);
+      // DIS-1482: si el vendedor es un bot NPC, no crear mercado pasivo — el ítem vuelve al stock del bot
+      if (isNPCSeller) {
+        // Solo broadcast sin mercado pasivo; el bot volverá a subastarlo en el próximo ciclo
+        const msg = `🔨 Subasta sin pujas: "${auction.item_name}" de ${auction.seller_name} no encontró comprador — el ítem vuelve al comerciante.`;
+        messages.push(msg);
+        if (broadcastFn) broadcastFn(msg);
+      } else {
+        const seller = db.getPlayer(auction.seller_id);
+        db.createPassiveAuction(auction.seller_id, auction.seller_name, auction.item_name, auction.min_price);
+        if (seller) {
+          db.addJournalEntry(seller.id, 'system', `🔨 La subasta de "${auction.item_name}" cerró sin postores. El Escriba Elfo lo puso en el mercado pasivo — el Mercader lo comprará en 30 min por ${Math.max(1, Math.floor(auction.min_price * 0.5))}g si nadie puja.`);
+        }
+        const msg = `🔨 Subasta sin pujas: "${auction.item_name}" de ${auction.seller_name} pasa al mercado pasivo (venta al Mercader en 30 min a 50%).`;
+        messages.push(msg);
+        if (broadcastFn) broadcastFn(msg);
       }
-      const msg = `🔨 Subasta sin pujas: "${auction.item_name}" de ${auction.seller_name} pasa al mercado pasivo (venta al Mercader en 30 min a 50%).`;
-      messages.push(msg);
-      if (broadcastFn) broadcastFn(msg);
     }
   }
 
