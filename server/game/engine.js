@@ -1043,7 +1043,7 @@ function bossLevelHintMsg(bossRecLevel, playerLevel, prefix = '\n', suffix = '')
 /**
  * look — Describe la habitación actual.
  */
-function cmdLook(player) {
+function cmdLook(player, options = {}) {
   // BUG-503: correr checkRespawns antes de describir la sala para que monstruos
   // recién respawneados sean visibles sin que el jugador tenga que salir y volver a entrar.
   try {
@@ -1273,7 +1273,9 @@ function cmdLook(player) {
   }
 
   // DIS-852: mostrar evento global activo en la descripción de sala
+  // DIS-1463: mostrar solo al entrar a sala nueva (options.showEvent === true), no en look/combate
   let activeEventLine = '';
+  if (options.showEvent) {
   try {
     const currentEv = worldEvents.getCurrentEvent();
     if (currentEv) {
@@ -1296,6 +1298,7 @@ function cmdLook(player) {
       }
     } catch (_) { /* no romper look si eventScheduler falla */ }
   }
+  } // fin if (options.showEvent)
 
   return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + practicaPosturaHint + activeEventLine };
 }
@@ -1947,7 +1950,7 @@ function cmdMove(player, direction) {
           }
         }
         const freshPlayer = db.getPlayer(player.id);
-        const lookResult = cmdLook(freshPlayer);
+        const lookResult = cmdLook(freshPlayer, { showEvent: true });
         // DIS-1421: mostrar nivel recomendado y nivel actual del jugador al pasar junto a un jefe
         // BUG-1428: mensaje diferente si el jugador ya supera el nivel recomendado
         const BOSS_REC_LEVELS = { 4: 3, 5: 5, 8: 4, 10: 5, 12: 5, 13: 7, 21: 6, 22: 8 };
@@ -2758,8 +2761,31 @@ function cmdMove(player, direction) {
     ? `\n✨ La consagración se disipa al abandonar la sala.`
     : '';
 
+  // DIS-1463: banner de evento global solo al entrar a sala nueva (no en look/combate)
+  let moveEventLine = '';
+  try {
+    const currentEvMove = worldEvents.getCurrentEvent();
+    if (currentEvMove) {
+      const evMoveMin = Math.floor(currentEvMove.remainingMs / 60000);
+      const evMoveSec = Math.floor((currentEvMove.remainingMs % 60000) / 1000);
+      const evMoveStr = evMoveMin > 0 ? `${evMoveMin}m ${evMoveSec}s` : `${evMoveSec}s`;
+      moveEventLine = `\n${currentEvMove.name} — ${currentEvMove.description} (⏱ ${evMoveStr} restantes)`;
+    }
+  } catch (_) {}
+  if (!moveEventLine) {
+    try {
+      const newEvMove = eventScheduler.getActiveEventInfo();
+      if (newEvMove && newEvMove.event) {
+        const evMoveMin2 = newEvMove.minutesRemaining;
+        const evMoveSec2 = newEvMove.secondsRemaining;
+        const evMoveStr2 = evMoveMin2 > 0 ? `${evMoveMin2}m ${evMoveSec2}s` : `${evMoveSec2}s`;
+        moveEventLine = `\n${newEvMove.event.name} — ${newEvMove.event.description} (⏱ ${evMoveStr2} restantes)`;
+      }
+    } catch (_) {}
+  }
+
   return {
-    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}`,
+    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${moveEventLine}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
@@ -8721,7 +8747,7 @@ function cmdBack(player, context) {
   const fromRoomId = player.current_room_id;
   db.updatePlayer(player.id, { current_room_id: prevRoomId });
 
-  const lookResult = cmdLook(db.getPlayer(player.id));
+  const lookResult = cmdLook(db.getPlayer(player.id), { showEvent: true });
   return {
     text: `🔙 Retrocedés hacia ${targetRoom.name}.\n\n${lookResult.text}`,
     event: `${player.username} da marcha atrás.`,
@@ -8774,7 +8800,7 @@ function cmdChase(player, context) {
   db.updatePlayer(player.id, { active_scrolls: JSON.stringify(scrolls) });
 
   const updatedPlayer = db.getPlayer(player.id);
-  const lookResult = cmdLook(updatedPlayer);
+  const lookResult = cmdLook(updatedPlayer, { showEvent: true });
 
   // Ver si el monstruo sigue ahí
   const monsters = db.getMonstersInRoom(targetRoomId);
