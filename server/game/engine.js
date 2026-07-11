@@ -3919,7 +3919,7 @@ function cmdAttack(player, targetName) {
           const combinedText = redirectMsg + '\n' + (attackResult.text || '');
           return { ...attackResult, text: combinedText };
         }
-        return { text: `💀 ${art} ${deadMatch.name} ya está ${adj}.\n${lootHint}` };
+        return { text: `💀 ${art} ${deadMatch.name} ya está ${adj}.\n${lootHint}\n(Si querés buscar otro enemigo, moveté a otra sala.)` }; // DIS-1466
       }
     } catch (_) { /* no romper attack si falla */ }
     return { text: `No hay ningún "${targetName}" aquí.` };
