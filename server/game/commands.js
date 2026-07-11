@@ -267,8 +267,8 @@ const COMMAND_ALIASES = {
   perseguir: 'chase', chase: 'chase', seguir: 'chase', pursue: 'chase',
   // trade / intercambio (T129)
   trade: 'trade', intercambiar: 'trade', intercambio: 'trade', trueque: 'trade', cambiar: 'trade',
-  // lore / enciclopedia de ítems (T137)
-  lore: 'lore', enciclopedia: 'lore', info: 'lore', descripcion: 'lore', descripción: 'lore',
+  // lore / enciclopedia de ítems (T137) — DIS-1485: sin args muestra fragmentos narrativos
+  lore: 'lore', enciclopedia: 'lore', info: 'lore', descripcion: 'lore', descripción: 'lore', narrativa: 'lore', fragmentos: 'lore',
   // peek / espiar (T139)
   peek: 'peek', espiar: 'peek', asomarse: 'peek', mirar_dir: 'peek', atisbar: 'peek',
   // project / proyectar — Habilidad exclusiva de Mago: inspección mágica de sala adyacente (DIS-450)
@@ -704,7 +704,7 @@ const COMMAND_HELP = {
     recall:    'recall / volver / retornar\\\\\\\\n  Teletransportarse a la entrada del dungeon (sala 1).\\\\\\\\n  Costo: 5 HP. Cooldown: 10 minutos.\\\\\\\\n  Útil para escapar de zonas peligrosas o volver rápido al mercader.',
     back:      'back / atrás / anterior / regresar\\\\n  Volver a la sala anterior sin costo ni cooldown.\\\\n  Solo funciona si la sala anterior es adyacente a tu posición actual.\\\\n  Útil para exploración de ida y vuelta.',
     trade:     'trade <jugador> <ítem> / intercambiar <jugador> <ítem>\\\\n  Proponer un intercambio seguro de ítems con otro jugador en la misma sala.\\\\n  El jugador destino puede responder con:\\\\n    trade accept — aceptar el trueque (se intercambian los ítems)\\\\n    trade cancel/decline — rechazar la propuesta\\\\n  La propuesta expira en 30 segundos.\\\\n  Diferencia con give: trade requiere que ambos estén de acuerdo.',
-  lore:      'lore <item> / enciclopedia <item>',
+  lore:      'lore / lore <item>\\\\n  Sin argumentos: muestra tu Diario de Lore — fragmentos narrativos sobre la historia del dungeon que descubriste explorando (inscripciones, objetos misteriosos, NPC).\\\\n  Con argumento: consultar la enciclopedia de ítems.\\\\n  Ejemplo: lore   (ver fragmentos)   |   lore espada de obsidiana   (info de ítem)\\\\n  Rarezas: ⬜ común  🔵 raro  🟣 épico  🟡 legendario',
   peek:      'peek <dirección> / espiar <dirección> / asomarse <dirección>\\\\\\\\n  Espiar en una dirección sin moverse.\\\\\\\\n  Muestra el nombre de la sala adyacente, si hay monstruos (sin detalles de HP) y si hay ítems en el suelo.\\\\\\\\n  No funciona si la salida está bloqueada con llave.\\\\\\\\n  Útil para scouting antes de entrar a una sala peligrosa.',
   afk:       'afk / ausente / ocupado / away\\\\\\\\\\\\\\\\n  Activar o desactivar el modo ausente (AFK).\\\\\\\\\\\\\\\\n  Mientras estés AFK, todos tus comandos quedarán bloqueados (excepto afk).\\\\\\\\\\\\\\\\n  En la lista de jugadores (who) aparecerás con 💤 junto a tu nombre.\\\\\\\\\\\\\\\\n  Si intentás atacar a un monstruo, el modo AFK se cancela automáticamente.\\\\\\\\\\\\\\\\n  Cooldown de 10 segundos entre toggles.',
   write:     'write <mensaje> / escribir <mensaje> / grabar <mensaje>\\\\\\\\n  Grabar un mensaje en la pared de la sala actual (máx 80 caracteres).\\\\\\\\n  Máximo 10 mensajes por sala. Los más viejos se borran cuando se supera el límite.\\\\\\\\n  Todos los jugadores que entren a la sala verán el indicador y pueden leerlo con "read".',

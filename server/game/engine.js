@@ -508,7 +508,7 @@ function execute(playerId, input, context) {
     case 'back':         result = cmdBack(player, context); break;
     case 'chase':        result = cmdChase(player, context); break;
     case 'trade':        result = cmdTrade(player, action.args); break;
-    case 'lore':         result = cmdLore(action.args.join(' ')); break;
+    case 'lore':         result = cmdLore(player, action.args.join(' ')); break;
     case 'peek':         result = cmdPeek(player, action.args); break;
     case 'project':      result = cmdProject(player, action.args); break;
     case 'runas':        result = cmdRunas(player); break;
@@ -6676,6 +6676,14 @@ function cmdExamine(player, query) {
             seKae[kaeKey] = true;
             const kaeCount = (seKae.kaelthas_menciones || 0) + 1;
             seKae.kaelthas_menciones = kaeCount;
+            // DIS-1485: primera mención de la pared en sala 2 → agregar al diario inmediatamente
+            const isParedSala2 = (key === 'pared' || key === 'inscripciones') && player.current_room_id === 2;
+            if (isParedSala2 && !seKae.kaelthas_nota_pared_2) {
+              seKae.kaelthas_nota_pared_2 = true;
+              db.updatePlayer(player.id, { status_effects: JSON.stringify(seKae) });
+              db.addJournalEntry(player.id, 'lore', '🏛️ Corredor de las Sombras — La inscripción protegida por cera: "KAELTHAS — EL QUE NO QUISO MORIR GOBERNÓ DESDE LAS SOMBRAS". El nombre está grabado dos veces: en runas antiguas y en letra cursiva perfecta. Alguien quiere que no se olvide.');
+              return { text: val.text + '\n\n📕 *Fragmento narrativo guardado en tu diario de lore. Escribí `lore` para ver lo que descubriste.*' };
+            }
             db.updatePlayer(player.id, { status_effects: JSON.stringify(seKae) });
             if (kaeCount === 2 && !seKae.kaelthas_nota_diario) {
               // Segunda mención → agregar nota al diario
@@ -6750,17 +6758,63 @@ function cmdExamine(player, query) {
  * lore <ítem> — Consultar la enciclopedia del dungeon sobre un ítem (T137).
  * Funciona con cualquier ítem del catálogo, no necesitás tenerlo.
  */
-function cmdLore(query) {
+function cmdLore(player, query) {
+  // DIS-1485: sin argumentos → mostrar tracker narrativo (fragmentos de Kaelthas descubiertos)
   if (!query || !query.trim()) {
-    return {
-      text: [
-        'Enciclopedia del Dungeon — consultá el lore de cualquier ítem.',
-        'Uso: lore <nombre del ítem>',
-        'Ejemplo: lore espada de obsidiana',
-        '',
-        'Rarezas: ⬜ común  🔵 raro  🟣 épico  🟡 legendario',
-      ].join('\n'),
-    };
+    const fresh = db.getPlayer(player.id);
+    const journal = fresh && fresh.journal ? JSON.parse(fresh.journal) : [];
+    const loreEntries = journal.filter(e => e.type === 'lore');
+
+    if (loreEntries.length === 0) {
+      return {
+        text: [
+          '📕 **Diario de Lore — Fragmentos Narrativos**',
+          '',
+          'Todavía no descubriste ningún fragmento narrativo.',
+          '',
+          'El dungeon guarda secretos sobre su historia. Explorá, leé inscripciones,',
+          'examiná objetos misteriosos y hablá con los NPC para descubrir la historia',
+          'de Kaelthas Vorn y el reino de Valdrath.',
+          '',
+          '💡 Tip: Examiná la pared en el Corredor de las Sombras (sala 2).',
+          '',
+          'Para ver el catálogo de ítems: lore <nombre del ítem>',
+          'Ejemplo: lore espada de obsidiana',
+        ].join('\n'),
+      };
+    }
+
+    const W = 52;
+    const lines = [
+      `╔${'═'.repeat(W)}╗`,
+      `║  📕 DIARIO DE LORE — FRAGMENTOS NARRATIVOS${''.padEnd(W - 43)}║`,
+      `╟${'─'.repeat(W)}╢`,
+    ];
+
+    for (const e of loreEntries) {
+      const dateStr = e.at ? new Date(e.at).toISOString().replace('T', ' ').slice(0, 16) : '??';
+      lines.push(`║  ${dateStr.padEnd(W - 4)}║`);
+      // Partir el mensaje en líneas de W-4 caracteres
+      const msg = e.message || '';
+      const words = msg.split(' ');
+      let currentLine = '';
+      for (const word of words) {
+        if ((currentLine + ' ' + word).trim().length > W - 6) {
+          lines.push(`║    ${currentLine.trim().padEnd(W - 5)}║`);
+          currentLine = word;
+        } else {
+          currentLine = currentLine ? currentLine + ' ' + word : word;
+        }
+      }
+      if (currentLine) lines.push(`║    ${currentLine.trim().padEnd(W - 5)}║`);
+      lines.push(`╟${'─'.repeat(W)}╢`);
+    }
+    lines[lines.length - 1] = `╚${'═'.repeat(W)}╝`;
+    lines.push(`(${loreEntries.length} fragmento(s) descubierto(s) · más se revelan explorando)`);
+    lines.push('');
+    lines.push('Para el catálogo de ítems: lore <nombre>  |  Para el diario completo: journal');
+
+    return { text: lines.join('\n') };
   }
 
   const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -17902,6 +17956,7 @@ function cmdJournal(player, args) {
     achievement: '🏅 Logro',
     level:       '⬆️  Nivel',
     death:       '💀 Muerte',
+    lore:        '📕 Lore',
   };
 
   const W = 50;
