@@ -19435,6 +19435,41 @@ function cmdReadWall(player) {
     db.addFactionInfluence(player.id, 1);
   }
 
+  // DIS-1492: registrar fragmentos de lore en el diario al leer inscripciones narrativas
+  // Las salas con inscripciones de Kaelthas deben guardar en el diario, igual que 'examine pared' en sala 2.
+  // Solo la primera vez por sala, usando el mismo sistema de status_effects para deduplicar.
+  if (loreForRoom.length > 0) {
+    try {
+      const READ_LORE_ROOMS = {
+        9: {
+          seKey: 'kaelthas_nota_trono_9_read',
+          journalMsg: '📖 Sala del Trono — Las inscripciones en la pared revelan dos voces:\n\nTorvin: "El trono huele a magia vieja y a traición. Las runas dicen: el que se sienta en el trono gobernará en la muerte tanto como en la vida."\n\nHermana Vela: "Kaelthas fue un rey justo hasta que encontró el libro. El libro que prometía derrotar a la muerte. Sus restos están en el santuario — pero lo que lo habita ya no es él."',
+        },
+        8: {
+          seKey: 'kaelthas_nota_prision_8_read',
+          journalMsg: '📖 Prisión Subterránea — Inscripción de un prisionero: "Kaelthas nos encerraba aquí a los que resistíamos su dominio. Decía que necesitaba recipientes. Nunca entendí qué quería decir. Ahora soy un eco y entiendo demasiado."',
+        },
+        15: {
+          seKey: 'lore_catedral_15_read',
+          journalMsg: '📖 Catedral de la Oscuridad — Letra temblorosa en la pared: "La voz del Lich cuando muere dice siempre lo mismo. En el idioma antiguo significa \'volveré\'. No sé si es una advertencia o una promesa. Quizás ambas."',
+        },
+      };
+
+      const roomLore = READ_LORE_ROOMS[player.current_room_id];
+      if (roomLore) {
+        const freshForLore = db.getPlayer(player.id);
+        const seLore = parseSE(freshForLore ? freshForLore.status_effects : player.status_effects);
+        if (!seLore[roomLore.seKey]) {
+          seLore[roomLore.seKey] = true;
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(seLore) });
+          db.addJournalEntry(player.id, 'lore', roomLore.journalMsg);
+          // Agregar nota al final del output
+          lines.push('\n📕 *Fragmento narrativo guardado en tu diario de lore. Escribí `lore` para ver lo que descubriste.*');
+        }
+      }
+    } catch (_) {}
+  }
+
   return { text: lines.join('\n') };
 }
 
