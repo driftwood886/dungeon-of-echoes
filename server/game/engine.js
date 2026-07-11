@@ -5342,7 +5342,7 @@ function cmdPick(player, itemQuery) {
 
   // DIS-D280: hint de crafteo — si el nuevo inventario completa una receta, sugerir (1 vez por receta)
   const freshP2 = db.getPlayer(player.id);
-  const shownH2 = freshP2.status_effects || {};
+  const shownH2 = parseSE(freshP2.status_effects); // DIS-1464: usar parseSE para evitar bug con string JSON
   const invNorm2 = newInventory.map(i => i.toLowerCase().trim());
   // DIS-889: también considerar el arma/armadura equipada en el chequeo de ingredientes
   const equippedWpnNorm = (freshP2.equipped_weapon && freshP2.equipped_weapon !== 'null') ? freshP2.equipped_weapon.toLowerCase().trim() : null;
@@ -7372,7 +7372,7 @@ function cmdLoot(player) {
   const { RECIPES } = crafting;
   const invNormalized = newInventory.map(i => i.toLowerCase().trim());
   const freshPlayer = db.getPlayer(player.id);
-  const shownHints = freshPlayer.status_effects || {};
+  const shownHints = parseSE(freshPlayer.status_effects); // DIS-1464: usar parseSE para leer flags correctamente
   let craftHintLine = '';
   for (const recipe of RECIPES) {
     const [ingA, ingB] = recipe.ingredients;
