@@ -3621,7 +3621,24 @@ function cmdStatus(player) {
     runesStatusLine = `\nRunas:    ${runePartsStatus.join(' | ')}  (usá "runas" para más detalle)`;
   }
 
-  return { text: text + runesStatusLine + '\n' + achLine + questChangeLine };
+  // DIS-1483: mostrar quests activas con progreso en status
+  let questStatusLine = '';
+  const activeQStatus = quests.getActiveQuest();
+  if (activeQStatus) {
+    let qpStatus;
+    try { qpStatus = JSON.parse(player.quest_progress || '{}'); } catch (_) { qpStatus = {}; }
+    const qProgressStatus = (qpStatus.questId === activeQStatus.questDef.id) ? (qpStatus.progress || 0) : 0;
+    const qGoalStatus = activeQStatus.questDef.goal;
+    const qTitleStatus = activeQStatus.questDef.title;
+    const qBarLen = 8;
+    const qFilled = Math.round((qProgressStatus / qGoalStatus) * qBarLen);
+    const qBar = '█'.repeat(qFilled) + '░'.repeat(qBarLen - qFilled);
+    const qDone = qProgressStatus >= qGoalStatus;
+    const qStatusIcon = qDone ? '✅' : '📜';
+    questStatusLine = `\n${qStatusIcon} Quest:    "${qTitleStatus}" [${qBar}] ${qProgressStatus}/${qGoalStatus}${qDone ? ' — COMPLETADA (escribí \"quest\" para ver recompensa)' : ''}`;
+  }
+
+  return { text: text + runesStatusLine + '\n' + achLine + questChangeLine + questStatusLine };
 }
 
 // T143: IDs de maniquíes de entrenamiento (sala 21)
