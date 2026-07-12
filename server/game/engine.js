@@ -2184,6 +2184,46 @@ function cmdMove(player, direction) {
   }
 
   // DIS-1361: Pre-move warning para Taller de la Forja (sala 12) — calor ambiente primera visita (path principal)
+
+  // DIS-1504: Pre-move warning preventivo para salas con boss de nivel alto
+  // Si el jugador es 2+ niveles por debajo del nivel recomendado del boss, la primera vez
+  // que intente entrar, se muestra un aviso y se frena. El segundo intento deja pasar.
+  // Solo aplica si el boss está vivo y el jugador nunca visitó esa sala antes.
+  const BOSS_ROOM_DANGER_PREMOVE = {
+    8:  { name: 'el Guardia Espectral', level: 4, icon: '👻', roomName: 'Prisión Subterránea' },
+    10: { name: 'el Gólem de Piedra',   level: 5, icon: '🪨', roomName: 'Santuario Profano'   },
+    12: { name: 'el Golem de Forja',    level: 5, icon: '🔥', roomName: 'Taller de la Forja'  },
+    19: { name: 'el Eco Viviente',      level: 6, icon: '🔊', roomName: 'Cámara del Eco'      },
+    20: { name: 'la Sombra del Vacío',  level: 8, icon: '🌑', roomName: 'Abismo Eterno'       },
+  };
+  const boss1504 = BOSS_ROOM_DANGER_PREMOVE[targetId];
+  if (boss1504) {
+    const playerLevel1504 = player.level || 1;
+    const underLevel1504 = playerLevel1504 < boss1504.level - 1; // 2+ niveles por debajo
+    if (underLevel1504) {
+      const visitedRooms1504 = (() => { try { return JSON.parse(player.rooms_visited || '[]'); } catch (_) { return []; } })();
+      const neverVisited1504 = !visitedRooms1504.includes(targetId);
+      if (neverVisited1504) {
+        const se1504 = parseSE(player.status_effects);
+        const warnKey1504 = `danger_warning_room_${targetId}`;
+        if (!se1504[warnKey1504]) {
+          // Primera vez: mostrar warning sin mover al jugador
+          const newSe1504 = { ...se1504, [warnKey1504]: true };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1504) });
+          const dirNorm1504 = dungeon.normalizeDirection(direction);
+          const dirEs1504 = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNorm1504]) || dirNorm1504 || 'la dirección indicada';
+          return {
+            text: `⚠️  ${boss1504.icon} Antes de entrar a ${boss1504.roomName}, algo te detiene — el aire se vuelve más denso, más peligroso.\n\n**${boss1504.name}** aguarda dentro. Nivel recomendado: ${boss1504.level}+ (tu nivel actual: ${playerLevel1504}).\n\nEntrar ahora es un riesgo considerable. Conviene explorar más, subir de nivel o conseguir mejores equipos antes.\n\n💡 Si aun así querés entrar, escribí «${dirEs1504}» de nuevo.`,
+          };
+        }
+        // Segunda vez: limpiar flag y dejar pasar
+        const clearedSe1504 = { ...se1504 };
+        delete clearedSe1504[warnKey1504];
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe1504) });
+      }
+    }
+  }
+
   // No hay trampa desactivable, pero el jugador merece saber que va a recibir daño antes de entrar.
   if (targetId === 12) {
     const fresh1361 = db.getPlayer(player.id);
