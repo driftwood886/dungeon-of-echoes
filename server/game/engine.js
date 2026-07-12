@@ -16002,14 +16002,17 @@ function cmdBestiary(player) {
     `╠════════════════════════════════════════╣`,
   ];
   const maxKills = Math.max(...entries.map(e => e.kills), 1);
-  // Escalar la barra relativa al máximo de kills del jugador (mínimo 5 para mostrar al menos algo con 1 kill)
-  const barMax = Math.max(maxKills, 5);
+  // DIS-1520: la barra relativa era confusa (escala según máximo del jugador, no absoluta).
+  // Ahora se muestra kills directamente con iconos de progreso claros.
   for (const entry of entries) {
-    const bar = buildBar(Math.min(entry.kills, barMax), barMax, 10);
+    // Estrellas: 1 ★ por cada 5 kills, hasta 6 estrellas (30+ kills)
+    const starsFull = Math.min(Math.floor(entry.kills / 5), 6);
+    const starsEmpty = 6 - starsFull;
+    const starsBar = '★'.repeat(starsFull) + '☆'.repeat(starsEmpty);
     const firstDate = entry.first_kill ? entry.first_kill.slice(0, 10) : '?';
     const skull = entry.kills >= 20 ? '💀' : entry.kills >= 10 ? '☠' : entry.kills >= 5 ? '⚔' : '·';
     lines.push(`║ ${skull} ${entry.name.padEnd(20).slice(0, 20)} × ${String(entry.kills).padStart(3)} kills ║`);
-    lines.push(`║   ${bar}  (desde ${firstDate}) ║`);
+    lines.push(`║   ${starsBar}  (primera vez: ${firstDate}) ║`);
     // STORY-002: nombre canónico del Lich revelado al haberlo matado
     if (entry.name === 'Lich Anciano') {
       lines.push(`║   🔮 Nombre verdadero: Kaelthas Valdrath    ║`);
