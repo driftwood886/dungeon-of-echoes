@@ -336,6 +336,24 @@ function trackEvent(playerId, player, eventType, params = {}) {
           break;
         }
 
+        case 'buy': {
+          // DIS-1526: faltaba este case — el tipo 'buy' nunca matcheaba
+          if (eventType !== 'buy') break;
+          // Sin target = cualquier compra
+          if (cond.target) {
+            matches = norm(params.itemName) === norm(cond.target);
+          } else {
+            matches = true;
+          }
+          break;
+        }
+
+        case 'buy_specific': {
+          if (eventType !== 'buy') break;
+          matches = norm(params.itemName) === norm(cond.target);
+          break;
+        }
+
         case 'sell_weapon': {
           if (eventType !== 'sell') break;
           // Venta de arma (y opcionalmente también compró un arma)

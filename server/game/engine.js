@@ -1411,16 +1411,9 @@ function cmdMove(player, direction) {
     }
 
     // EPIC-1286-DEF: Al moverse, resetear shadow_points del Pícaro a 0
-    const shadowClassMove = classes.getPlayerClass(player);
-    if (shadowClassMove && shadowClassMove.name === 'Pícaro') {
-      const fxForShadow = parseSE(player.status_effects);
-      if (fxForShadow['shadow_points'] && fxForShadow['shadow_points'].value > 0) {
-        delete fxForShadow['shadow_points'];
-        fxChanged = true;
-        player.status_effects = fxForShadow;
-        player._shadowWasReset = true; // EPIC-1299-F3: marcar para agregar notificación en texto de salida
-      }
-    }
+    // DIS-1524: el reset se hace DESPUÉS de conocer targetId (ver más abajo en la función),
+    // para poder verificar si la sala destino tiene monstruos vivos y preservar sombras.
+    // (marcador previo eliminado de este bloque)
 
     // EPIC-1309-F5: Al moverse, limpiar consagracion_sala del Paladín (y de todos en la sala anterior)
     const csMovePlayer = db.getPlayer(player.id);
@@ -2061,6 +2054,28 @@ function cmdMove(player, direction) {
   const exit = exitCheck; // ya validado arriba (BUG-287)
 
   const { targetId, key } = exit;
+
+  // EPIC-1286-DEF + DIS-1524: resetear shadow_points del Pícaro al moverse entre salas.
+  // DIS-1524: NO resetear si la sala destino tiene monstruos vivos (el jugador los busca activamente).
+  // Esto hace que las sombras acumuladas sean útiles entre salas cuando hay combate inmediato.
+  try {
+    const shadowClassMovePost = classes.getPlayerClass(player);
+    if (shadowClassMovePost && shadowClassMovePost.name === 'Pícaro') {
+      const fxForShadowPost = parseSE(player.status_effects);
+      if (fxForShadowPost['shadow_points'] && fxForShadowPost['shadow_points'].value > 0) {
+        const monstersInTarget = db.getMonstersInRoom(targetId) || [];
+        const hasLivingMonstersInTarget = monstersInTarget.some(m => m.hp > 0);
+        if (!hasLivingMonstersInTarget) {
+          // Sala vacía → resetear sombras (se disipan sin combate)
+          delete fxForShadowPost['shadow_points'];
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(fxForShadowPost) });
+          player.status_effects = fxForShadowPost;
+          player._shadowWasReset = true; // EPIC-1299-F3: marcar para notificación en texto de salida
+        }
+        // Si hay monstruos → preservar sombras (sin mensaje)
+      }
+    }
+  } catch (_) { /* no romper movimiento si falla */ }
 
   // DIS-527: Si el jugador está en sala 15 (Catedral) y quiere ir "abajo" con el Lich vivo,
   // dar mensaje explicativo antes de procesar la huida normal.
@@ -11315,6 +11330,20 @@ function cmdFaccion(player, args) {
   const sub = args[0].toLowerCase();
   const nameArg = args.slice(1).join(' ').trim().toLowerCase().replace(/\s+/g, '_');
 
+  // ── DIS-1528: faccion confirmar — confirmar elección pendiente ──────────────
+  if (sub === 'confirmar' || sub === 'si' || sub === 'sí') {
+    const se = parseSE(player.status_effects);
+    const pendingFactionId = se.faction_pending;
+    if (!pendingFactionId) {
+      return { text: '❓ No tenés una elección de facción pendiente. Usá: faccion elegir <nombre>' };
+    }
+    // Limpiar el pending
+    delete se.faction_pending;
+    db.updatePlayer(player.id, { status_effects: JSON.stringify(se) });
+    // Redirigir a _cmdFaccionElegir con confirmación
+    return _cmdFaccionElegir(player, [pendingFactionId, 'confirmar']);
+  }
+
   // ── faccion elegir <nombre> ─────────────────────────────────────────────────
   if (sub === 'elegir') {
     return _cmdFaccionElegir(player, args.slice(1));
@@ -11485,23 +11514,22 @@ function _cmdFaccionElegir(player, args) {
   // Sin confirmación → mostrar tarjeta y pedir confirmación
   if (!hasConfirm) {
     const card = _buildFactionCard(lore, false);
-    // DIS-1389: el comando de confirmación va ANTES del card (prominente) y también al final
-    // DIS-1443: mostrar la variante con espacios (más natural) — ambas son aceptadas
-    // DIS-1467: mostrar el nombre completo (natural) primero — el alias como alternativa
-    const factionDisplayName = lore.name.toLowerCase(); // ej: "la orden del filo"
-    const confirmLine = `faccion elegir ${factionId} confirmar`; // variante con guión bajo
-    const confirmLineNatural = `faccion elegir ${factionDisplayName} confirmar`; // variante con espacios (natural)
+    // DIS-1528: guardar facción pendiente en status_effects para aceptar "faccion confirmar" luego
+    // Si había un pending anterior de otra facción, reemplazarlo.
+    const sePending = parseSE(player.status_effects);
+    sePending.faction_pending = factionId;
+    db.updatePlayer(player.id, { status_effects: JSON.stringify(sePending) });
     const sep = '━'.repeat(56);
     const confirmBlock = [
       '',
       sep,
       `  ${lore.icon}  ¿Querés unirte a ${lore.name}?`,
-      `  ► Escribí: ${confirmLineNatural}`,
-      `  ► (o también: ${confirmLine})`,
+      `  ► Escribí: faccion confirmar`,
+      `  ► (o cancelá con: faccion elegir <otra>)`,
       sep,
     ].join('\n');
     return {
-      text: confirmBlock + '\n\n' + card + `\n\n  ► Para confirmar: ${confirmLineNatural}\n  (o explorá otras opciones con: faccion elegir <nombre>)`,
+      text: confirmBlock + '\n\n' + card + `\n\n  ► Para confirmar: faccion confirmar\n  (o explorá otras opciones con: faccion elegir <nombre>)`,
     };
   }
 
@@ -15781,18 +15809,31 @@ function cmdClase(player, args) {
   // Aplicar la clase — BUG-009 fix: preservar stats acumulados por level-ups.
   // Se toma Math.max(stat_clase, stat_actual) para que elegir clase nunca
   // reduzca HP/ATK/DEF/maná que el jugador ya ganó subiendo de nivel.
+  // DIS-1523: excepción para primera clase — el jugador no tiene stats reales,
+  // tiene los defaults del DB. Usar stats de clase directamente para evitar
+  // que el default de 30 hp "bloquee" clases con HP base menor (ej. Pícaro 28).
   const clsStats = classes.getClassStats(className);
   const freshForClass = db.getPlayer(player.id);
-  const newMaxHp   = Math.max(clsStats.max_hp,   freshForClass.max_hp   || 30);
-  const newAttack  = Math.max(clsStats.attack,    freshForClass.attack   || 5);
-  const newDefense = Math.max(clsStats.defense,   freshForClass.defense  || 3);
-  const newMaxMana = Math.max(clsStats.max_mana,  freshForClass.max_mana || 20);
+  // DIS-491: Dar 25g de inicio al elegir clase por primera vez (DIS-993: subido de 10 a 25)
+  const isFirstClass = currentClass === 'sin_clase';
+  let newMaxHp, newAttack, newDefense, newMaxMana;
+  if (isFirstClass) {
+    // Primera clase: usar stats de clase directamente
+    newMaxHp   = clsStats.max_hp;
+    newAttack  = clsStats.attack;
+    newDefense = clsStats.defense;
+    newMaxMana = clsStats.max_mana;
+  } else {
+    // Cambio de clase (período de prueba): preservar ganancias de nivel
+    newMaxHp   = Math.max(clsStats.max_hp,   freshForClass.max_hp   || 30);
+    newAttack  = Math.max(clsStats.attack,    freshForClass.attack   || 5);
+    newDefense = Math.max(clsStats.defense,   freshForClass.defense  || 3);
+    newMaxMana = Math.max(clsStats.max_mana,  freshForClass.max_mana || 20);
+  }
   // BUG-1077 fix: al elegir clase el jugador recibe HP completo (newMaxHp).
   // Antes: Math.min(currentHp, newMaxHp) dejaba el HP sin curar, mostrando ej. 30/35.
   const newHp      = newMaxHp;
   const newMana    = Math.min(freshForClass.mana || newMaxMana, newMaxMana);
-  // DIS-491: Dar 25g de inicio al elegir clase por primera vez (DIS-993: subido de 10 a 25)
-  const isFirstClass = currentClass === 'sin_clase';
   const startingGold = isFirstClass ? (freshForClass.gold || 0) + 25 : (freshForClass.gold || 0);
 
   db.updatePlayer(player.id, {
@@ -22603,8 +22644,27 @@ function cmdPray(player, args) {
   const idx = newInv.findIndex(i => i.toLowerCase() === foundLower);
 
   // DIS-1402: si el ítem ofrecido restaura HP y el jugador está al máximo, no consumirlo
+  // DIS-1530: excepción — si es SOLO HP (sin otros buffs), convertir en bendición de ATK temporal en vez de rechazar
   if (effect.hp && effect.hp > 0 && player.hp >= player.max_hp) {
-    return { text: `🙏 Ponés ${found} frente al altar...\n\n⚠️ Tu HP ya está al máximo (${player.hp}/${player.max_hp}). El altar no acepta la ofrenda cuando no hay heridas que sanar — la devolución sería desperdicio sagrado.\n\n(El ítem NO se consumió. Guardalo para cuando lo necesites.)` };
+    const hasBuff = effect.atk || effect.def || effect.mana || effect.duration;
+    if (hasBuff) {
+      // Tiene otros buffs — dejar pasar (el altar aplica el buff aunque no cura)
+    } else {
+      // Solo HP — convertir en bendición de ATK temporal (DIS-1530)
+      // Consumir el ítem y dar +1 ATK por 90 segundos
+      const di1530Inv = [...player.inventory];
+      const di1530Idx = di1530Inv.findIndex(i => i.toLowerCase() === foundLower);
+      if (di1530Idx !== -1) di1530Inv.splice(di1530Idx, 1);
+      const di1530SE = parseSE(player.status_effects);
+      const di1530Expires = new Date(Date.now() + 90000).toISOString();
+      di1530SE['altar_blessing'] = { atk_bonus: 1, expires: di1530Expires };
+      db.updatePlayer(player.id, { inventory: di1530Inv, status_effects: JSON.stringify(di1530SE) });
+      return {
+        text: `🙏 Ponés ${found} frente al altar... el altar evalúa la ofrenda.\n\n✨ Tu HP ya está completo — no hay heridas que sanar. Pero la energía sagrada de la ofrenda puede hacer algo más.\n\nEl altar acepta la ofrenda y te otorga: Bendición Menor (+1 ATK por 90s). El calor sagrado se disipa lentamente en tu arma.\n\n(El ítem fue consumido. Buff activo: +1 ATK por 90 segundos.)`,
+        event: `${player.username} reza ante el altar.`,
+        eventRoomId: player.current_room_id,
+      };
+    }
   }
   if (idx !== -1) newInv.splice(idx, 1);
 

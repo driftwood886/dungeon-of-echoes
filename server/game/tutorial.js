@@ -4,8 +4,8 @@
  * Sala 16: "Antesala del Dungeon" — sala especial accesible solo en el tutorial.
  * El tutorial tiene 3 pasos guiados:
  *   Paso 1: mirar la sala (look)
- *   Paso 2: moverse (move south hacia sala 1)
- *   Paso 3: atacar al Goblin de Práctica
+ *   Paso 2: atacar al Goblin de Práctica
+ *   Paso 3: terminar el combate / salir al dungeon
  *
  * Un jugador está en tutorial si tiene tutorial_step > 0 (nunca completó).
  * Al completar el tercer paso: +10 XP, teletransporta a sala 1, tutorial_step = 0.
@@ -36,7 +36,7 @@ Escribí:  look   (o «mirar»)
 ═══════════════════════════════════════`,
 
   2: `═══════════════════════════════════════
-🎓 TUTORIAL — Paso 2 de 3: MOVERSE
+🎓 TUTORIAL — Paso 2 de 3: ATACAR
 ═══════════════════════════════════════
 ¡Bien! Así es como te orientás en el dungeon.
 

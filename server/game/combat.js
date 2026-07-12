@@ -576,7 +576,12 @@ function attackRound(player, monster) {
     ? (typeof freshForAtkDebuff.status_effects === 'string' ? JSON.parse(freshForAtkDebuff.status_effects) : freshForAtkDebuff.status_effects)
     : {};
   const atkDebuffAmt = atkDebuffFx.atk_debuffed ? (atkDebuffFx.atk_debuffed.amount || 0) : 0;
-  const effectiveAtk = Math.max(1, player.attack + petBonus + scrollAtkBonus + stanceMods.atkMod - atkDebuffAmt);
+  // DIS-1530: bonus de ATK por bendición del altar
+  const altarBlessingFx = atkDebuffFx['altar_blessing'];
+  const altarAtkBonus = (altarBlessingFx && altarBlessingFx.expires && new Date(altarBlessingFx.expires).getTime() > Date.now())
+    ? (altarBlessingFx.atk_bonus || 0)
+    : 0;
+  const effectiveAtk = Math.max(1, player.attack + petBonus + scrollAtkBonus + stanceMods.atkMod - atkDebuffAmt + altarAtkBonus);
   let effectiveDef = (player.defense || 0) + scrollDefBonus + stanceMods.defMod;
   // EPIC-1309-F5: bonus de consagración de sala del Paladín
   const consagracionFx = atkDebuffFx['consagracion_sala'];

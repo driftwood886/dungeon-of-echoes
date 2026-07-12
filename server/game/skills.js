@@ -32,9 +32,9 @@ const SKILLS = {
     cooldown_seconds: 30,  // DIS-1106: reducido de 45s a 30s para permitir usarlo 2 veces en peleas largas con jefes que regeneran
     type: 'attack',
     dmg_multiplier: 1.8,
-    description: 'Un golpe devastador que hace ×1.8 del daño normal. Cooldown: 30s. No disponible contra enemigos con muy poco HP.',
+    description: 'Un golpe devastador que hace ×1.8 del daño normal. Cooldown: 30s. No disponible contra enemigos con muy poco HP. Solo Guerrero (o sin clase aún).',
     combat_only: true,
-    excluded_classes: ['mago', 'clerigo', 'picaro'],  // DIS-D304: Mago usa hechizos; DIS-612: Clérigo tiene habilidades propias; DIS-616: Pícaro tiene habilidades propias
+    excluded_classes: ['mago', 'clerigo', 'picaro'],  // DIS-D304: Mago usa hechizos; DIS-612: Clérigo tiene habilidades propias; DIS-616/DIS-1529: Pícaro tiene habilidades propias
   },
   shield_bash: {
     id: 'shield_bash',
@@ -79,15 +79,14 @@ const SKILLS = {
     id: 'veneno',
     name: 'Veneno',
     aliases: ['veneno', 'envenenar', 'poison', 'impregnar', 'aplicar_veneno'],
-    required_level: 1,
-    required_class: 'picaro',
-    cooldown_seconds: 90,
+    required_class: 'picaro', required_level: 1,
+    cooldown_seconds: 45,  // DIS-1525: reducido de 90s a 45s (era igual que habilidades Lv3+, demasiado alto para habilidad básica)
     type: 'picaro_poison_weapon',
     poison_charges: 3,
     poison_chance: 0.50,  // 50% de chance de envenenar por ataque (mejor que ítem de tienda 40%)
     poison_damage: 3,
     poison_turns: 3,
-    description: 'Arte del Pícaro: impregnás tu arma con veneno extraído de tus suministros. Los próximos 3 ataques tienen 50% de envenenar al objetivo (3 dmg × 3 turnos). Cooldown: 90s. Solo Pícaro Lv1.',
+    description: 'Arte del Pícaro: impregnás tu arma con veneno extraído de tus suministros. Los próximos 3 ataques tienen 50% de envenenar al objetivo (3 dmg × 3 turnos). Cooldown: 45s. Solo Pícaro Lv1.',
     combat_only: false,  // se puede aplicar fuera de combate también
   },
   golpe_sucio: {
@@ -405,6 +404,16 @@ function canUseSkill(player, skillId) {
       const classNames = { picaro: 'Pícaro', mago: 'Mago', guerrero: 'Guerrero', clerigo: 'Clérigo' };
       const requiredName = classNames[skill.required_class] || skill.required_class;
       return { ok: false, error: `${skill.name} es una habilidad exclusiva del ${requiredName}.` };
+    }
+  }
+
+  // DIS-1529: verificar clases excluidas (ej: smash no disponible para Pícaro/Mago/Clérigo)
+  if (skill.excluded_classes) {
+    const playerClass = player.player_class || player.class || null;
+    if (playerClass && skill.excluded_classes.includes(playerClass)) {
+      const classNames = { picaro: 'Pícaro', mago: 'Mago', guerrero: 'Guerrero', clerigo: 'Clérigo' };
+      const playerClassName = classNames[playerClass] || playerClass;
+      return { ok: false, error: `${skill.name} no está disponible para la clase ${playerClassName}.` };
     }
   }
 
