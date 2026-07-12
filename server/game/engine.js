@@ -13616,7 +13616,7 @@ function cmdAuctions() {
   const totalCount = auctions.length + passiveAuctions.length;
 
   return {
-    text: `🔨 Subastas activas (${auctions.length}) + mercado pasivo (${passiveAuctions.length}):\n\n${allLines.join('\n')}\n\nPara pujar: pujar <id> <monto>  |  Para detalle: help subasta`,
+    text: `🔨 Subastas activas (${auctions.length}) + mercado pasivo (${passiveAuctions.length}):\n\n${allLines.join('\n')}\n\nPara pujar: pujar <id> <monto>  |  También: pujar <nombre_ítem> <monto>  |  Para detalle: help subasta`,
   };
 }
 
@@ -13634,11 +13634,40 @@ function cmdBid(player, args) {
   const auctionId = parseInt(args[0], 10);
   const amount = parseInt(args[1], 10);
 
-  if (isNaN(auctionId) || isNaN(amount) || amount < 1) {
-    return { text: 'Argumentos inválidos. Ejemplo: pujar 3 50' };
+  // DIS-1506: si args[0] no es un ID numérico, buscar por nombre de ítem
+  if (isNaN(auctionId)) {
+    // El último arg es el monto, todo lo demás es el nombre
+    const rawAmount = parseInt(args[args.length - 1], 10);
+    if (isNaN(rawAmount) || rawAmount < 1) {
+      return { text: 'Uso: pujar <nombre_ítem> <monto>\nEjemplo: pujar cuchillo 50\n\nUsá "subastas" para ver los remates activos.' };
+    }
+    const itemNameQuery = args.slice(0, args.length - 1).join(' ').toLowerCase().trim();
+    let activeAuctions = [];
+    try { activeAuctions = db.getActiveAuctions() || []; } catch (_) {}
+    const matches = activeAuctions.filter(a => a.item_name.toLowerCase().includes(itemNameQuery));
+    if (matches.length === 0) {
+      const hint = activeAuctions.length > 0
+        ? `\n\nSubastas activas:\n${activeAuctions.map(a => `  #${a.id} — ${a.item_name}`).join('\n')}`
+        : '\n\n(No hay subastas activas en este momento.)';
+      return { text: `No hay ninguna subasta activa con un ítem que coincida con "${itemNameQuery}".${hint}` };
+    }
+    if (matches.length > 1) {
+      const lista = matches.map(a => `  #${a.id} — ${a.item_name} (${a.current_bid}g mín. · vendedor: ${a.seller_name})`).join('\n');
+      return { text: `Hay ${matches.length} subastas activas con ese ítem. Usá el ID para especificar cuál:\n${lista}\n\nEjemplo: pujar ${matches[0].id} ${rawAmount}` };
+    }
+    // Exactamente 1 match — redirigir con su ID
+    const matchedAuction = matches[0];
+    // Reutilizar la lógica del bid con el ID encontrado
+    args = [String(matchedAuction.id), String(rawAmount)];
+    // (fall-through: recomputar auctionId/amount con los nuevos args)
+    return cmdBid(player, args);
   }
 
   const auction = db.getAuction(auctionId);
+
+  if (isNaN(amount) || amount < 1) {
+    return { text: 'Monto inválido. Ejemplo: pujar 3 50' };
+  }
 
   // DIS-1403: helper para mostrar subastas activas como contexto
   function activeAuctionsHint() {
