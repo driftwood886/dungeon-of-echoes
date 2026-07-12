@@ -390,6 +390,39 @@ function execute(playerId, input, context) {
           if (examineChMsg) result = { ...result, text: result.text + examineChMsg };
         } catch (_) {}
       }
+      // DIS-1532: hook de expedición filacteria_del_lich (paso 2: examinar cristales en sala 19)
+      try {
+        const freshForExpExamine = db.getPlayer(player.id);
+        if (freshForExpExamine) {
+          const expExamResult = expeditionEngine.checkStep(freshForExpExamine, 'command', {
+            command: 'examine',
+            args: action.args,
+            roomId: player.current_room_id,
+          });
+          if (expExamResult.message && result) {
+            result = { ...result, text: result.text + '\n\n' + expExamResult.message };
+            // Si avanzó el paso 2 de filacteria_del_lich, colocar la filacteria rota en sala 19
+            if (expExamResult.advanced && player.current_room_id === 19) {
+              const activeExp = db.getActiveExpedition(freshForExpExamine.id);
+              if (activeExp && activeExp.expedition_id === 'filacteria_del_lich') {
+                try {
+                  const room19 = db.getRoom(19);
+                  if (room19) {
+                    const floorItems = Array.isArray(room19.floor_items)
+                      ? [...room19.floor_items]
+                      : (() => { try { return JSON.parse(room19.floor_items || '[]'); } catch (_) { return []; } })();
+                    if (!floorItems.some(i => (typeof i === 'string' ? i : i.name || '').toLowerCase().includes('filacteria'))) {
+                      floorItems.push('filacteria rota');
+                      db.raw().run('UPDATE rooms SET floor_items = ? WHERE id = 19', [JSON.stringify(floorItems)]);
+                      result = { ...result, text: result.text + '\n\n💀 El cristal se quiebra en tu mano — y algo sólido y frío cae al suelo. Es la **filacteria rota**. Podés recogerla con `recoger filacteria`.' };
+                    }
+                  }
+                } catch (_) {}
+              }
+            }
+          }
+        }
+      } catch (_) {}
       break;
     }
     case 'equip':     result = cmdEquip(player, action.args.join(' ')); break;
@@ -4985,6 +5018,12 @@ function cmdAttack(player, targetName) {
         lines.push('   Tu aventura puede terminar aquí, y comenzar de nuevo.');
         lines.push('   (O continuá explorando — podés ascender cuando quieras.)');
         lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        lines.push('');
+        lines.push('📜 NUEVA EXPEDICIÓN DESBLOQUEADA: "La Filacteria del Lich"');
+        lines.push('   El Lich cayó, pero su alma sigue atrapada en algún lugar.');
+        lines.push('   Hablá con Aldric (sala 4) sobre la filacteria — escribí:');
+        lines.push('   `hablar aldric filacteria`');
+        lines.push('   (o escribí `expedicion` para ver el estado de tus misiones)');
         lines.push('');
         lines.push('🌑 El dungeon sigue... hay 3 salas sin explorar en las');
         lines.push('   profundidades: la Sombra del Vacío (Abismo Eterno),');
@@ -9937,6 +9976,21 @@ function cmdTalk(player, target) {
     if (expTalkResult.message) expeditionTalkCmdMsg = '\n\n' + expTalkResult.message;
   }
 
+  // DIS-1532: diálogo especial de Aldric sobre la filacteria (si el jugador lo pregunta explícitamente)
+  if (tLow.includes('filacteria')) {
+    const lichKillsForFil = player.lich_kills || 0;
+    if (lichKillsForFil < 1) {
+      return { text: 'Aldric te mira con cara de no entender.\n\n\"¿Fila... qué?\" Una pausa. \"Primero derrotá al Lich. Después hablamos de lo que queda de él.\"' + expeditionTalkCmdMsg };
+    }
+    // Si ya completó la expedición filacteria, responder en consecuencia
+    const completedExps = db.getCompletedExpeditions ? db.getCompletedExpeditions(player.id) : [];
+    if (completedExps.includes('filacteria_del_lich')) {
+      return { text: 'Aldric asiente despacio, como si esperara esta pregunta.\n\n\"Ya lo hiciste. Lo que sea que hayas decidido con ella... era tuyo decidir.\" Una pausa. \"No preguntes si fue la elección correcta. Esa pregunta no tiene respuesta — solo tiene consecuencias.\"' + expeditionTalkCmdMsg };
+    }
+    // Jugador mató al Lich, expedición activa o no iniciada
+    return { text: 'Aldric baja la voz sin dejar de revisar el libro de cuentas.\n\n\"La filacteria.\" No es una pregunta. \"Sabía que alguien la iba a buscar eventualmente.\" Cierra el libro.\n\n\"La filacteria del Lich es el recipiente de su alma inmortal. Sin ella, cada vez que lo matan, vuelve en horas. Con ella destruida... no volvería.\" Pausa. \"O eso dicen los libros.\"\n\n\"Está vinculada a los cristales resonantes de la Cámara del Eco — sala 19, al sur de la Catedral. Los cristales allí no resuenan tus pasos. Resuenan algo más antiguo.\" Vuelve a abrir el libro.\n\n\"Si encontrás el cristal que vibra diferente, sabés qué hacer. Pero la decisión es tuya.\"' + expeditionTalkCmdMsg };
+  }
+
   const questState = player.aldric_quest || 'none';
   const level = player.level || 1;
 
@@ -10923,6 +10977,41 @@ function cmdExpedicion(player, args) {
       }
       memLlave.santuario.profano_abierto = true;
       db.updatePlayer(player.id, { npc_memory: JSON.stringify(memLlave) });
+    }
+    // DIS-1532: aplicar world_effects de la expedición filacteria_del_lich
+    if (resolution.worldEffect === 'filacteria_destruida' || resolution.worldEffect === 'filacteria_conservada') {
+      const freshWEFil = db.getPlayer(player.id);
+      const seFil = {};
+      try { Object.assign(seFil, JSON.parse(freshWEFil.status_effects || '{}')); } catch (_) {}
+      const memFil = {};
+      try { Object.assign(memFil, JSON.parse(freshWEFil.npc_memory || '{}')); } catch (_) {}
+      if (!memFil.lich) memFil.lich = {};
+      if (resolution.worldEffect === 'filacteria_destruida') {
+        // Destruyó la filacteria: el Lich tardará más en respawnear (bonus narrativo)
+        seFil.filacteria_destruida = true;
+        memFil.lich.filacteria_decision = 'destruir';
+        rewardLines += `\n💀 La filacteria del Lich fue destruida. Su respawn tardará más de lo habitual.`;
+      } else if (resolution.worldEffect === 'filacteria_conservada') {
+        // Conservó la filacteria: bonus de oro adicional (la vendés después si querés)
+        seFil.filacteria_conservada = true;
+        memFil.lich.filacteria_decision = 'conservar';
+        rewardLines += `\n🔮 La filacteria en tu inventario tiene valor... y peso.`;
+      }
+      // Entregar el ítem reward directamente al inventario del jugador
+      if (resolution.reward && resolution.reward.item) {
+        const invFil = Array.isArray(freshWEFil.inventory)
+          ? [...freshWEFil.inventory]
+          : (() => { try { return JSON.parse(freshWEFil.inventory || '[]'); } catch (_) { return []; } })();
+        const MAX_INV = freshWEFil.max_inventory_slots || 20;
+        if (invFil.length < MAX_INV) {
+          invFil.push(resolution.reward.item);
+          db.updatePlayer(player.id, { inventory: JSON.stringify(invFil) });
+        }
+      }
+      db.updatePlayer(player.id, {
+        status_effects: JSON.stringify(seFil),
+        npc_memory: JSON.stringify(memFil),
+      });
     }
     return {
       text: `${resolution.message}\n\n✅ **Expedición completada: ${resolution.title}**${rewardLines}`,

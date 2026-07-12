@@ -460,6 +460,76 @@ const EXPEDITION_POOL = [
     world_effect: 'santuario_profano_abierto',
     unlock_condition: { min_level: 3 },
     eligible_classes: ['guerrero', 'paladin']
+  },
+
+  // ─── DIS-1532: Expedición post-endgame — se desbloquea al matar al Lich por primera vez ─
+  {
+    id: 'filacteria_del_lich',
+    title: 'La Filacteria del Lich',
+    intro: [
+      'El Lich cayó. Pero el dungeon no festeja.',
+      'En algún lugar existe su filacteria — el recipiente de su alma inmortal.',
+      'Mientras exista, volverá. Aldric sabe algo. Y la Cámara del Eco guarda el último secreto.'
+    ].join(' '),
+    steps: [
+      {
+        n: 1,
+        objective: 'Hablar con Aldric (sala 4) — preguntale sobre la filacteria: escribí `hablar aldric filacteria`',
+        trigger: 'command',
+        condition: (player, ctx) => {
+          const cmd = (ctx.command || '').toLowerCase();
+          // args puede llegar como string (cmdTalk) o array (otros hooks)
+          const argsRaw = ctx.args || '';
+          const args = Array.isArray(argsRaw) ? argsRaw.join(' ').toLowerCase() : String(argsRaw).toLowerCase();
+          return (cmd === 'hablar' || cmd === 'talk' || cmd === 'npc') &&
+            (args.includes('aldric') || ctx.roomId === 4) &&
+            args.includes('filacteria');
+        },
+        message: '🧙 Aldric baja la voz: "Eso que estás buscando... existe. La filacteria del Lich está vinculada a los cristales resonantes de la Cámara del Eco. Hace siglos, el Lich escondió su alma ahí, sabiendo que nadie llegaría tan lejos. Pero vos llegaste. Ve a la Cámara y buscá los cristales que vibren diferente."'
+      },
+      {
+        n: 2,
+        objective: 'Ir a la Cámara del Eco (sala 19) y examinar los cristales: escribí `examinar cristales` allí',
+        trigger: 'command',
+        condition: (player, ctx) => {
+          const cmd = (ctx.command || '').toLowerCase();
+          const args = (ctx.args || []).join(' ').toLowerCase();
+          const inEcho = ctx.roomId === 19;
+          return inEcho && (cmd === 'examinar' || cmd === 'examine' || cmd === 'look') &&
+            (args.includes('cristal') || args === '');
+        },
+        message: '🔮 Uno de los cristales del suelo vibra a un ritmo diferente. No resuena tu voz — resuena algo más antiguo. Al tocarlo, sentís un frío que no viene de la temperatura. Dentro del cristal, atrapada como un insecto en ámbar, palpita una luz oscura. La filacteria del Lich.'
+      },
+      {
+        n: 3,
+        objective: 'Recoger la filacteria del Lich del suelo de la Cámara del Eco',
+        trigger: 'pickup',
+        condition: (player, ctx) => {
+          const name = (ctx.itemName || '').toLowerCase();
+          return name.includes('filacteria');
+        },
+        message: '💀 La tomás con ambas manos. El frío sube por tus brazos. Algo dentro del cristal se mueve — te reconoce. Sentís el peso de una vida inmortal en tus palmas. Ahora podés destruirla... o conservarla.'
+      }
+    ],
+    decision: {
+      prompt: '⚡ Decisión final: ¿Destruís la filacteria del Lich para que nunca regrese, o la conservás como trofeo — sabiendo que algún día podría despertar? Escribí **decidir destruir** o **decidir conservar**.',
+      choices: {
+        a: {
+          label: 'destruir',
+          message: '💥 La aplastás contra el suelo de cristal. Un grito silencioso llena la sala — y luego, nada. Por primera vez en siglos, el dungeon respira. Aldric, al escuchar lo que hiciste, te ofrece su gratitud más antigua: \"Bien hecho, aventurero. Bien hecho.\" Pero sus ojos dicen otra cosa: \"¿Y ahora quién lo guardará?\"',
+          effect: 'filacteria_destruida'
+        },
+        b: {
+          label: 'conservar',
+          message: '🔮 La envolvés con cuidado y la guardás. Sentís que algo dentro de ella te observa. Días después, notás que tus sueños son más oscuros. Aldric te mira raro cuando volvés: \"Trajiste eso aquí.\" No es una pregunta. \"No te olvides que la decisión fue tuya.\"',
+          effect: 'filacteria_conservada'
+        }
+      }
+    },
+    reward: { xp: 400, gold: 150, item: 'filacteria rota' },
+    world_effect: 'lich_filacteria_resuelta',
+    unlock_condition: { min_level: 8, requires_lich_kill: true },
+    eligible_classes: 'all'
   }
 ];
 
@@ -478,6 +548,11 @@ function normalizeClass(playerClass) {
  */
 function isEligible(player, expedition) {
   if (player.level < expedition.unlock_condition.min_level) return false;
+  // DIS-1532: requires_lich_kill — solo disponible si el jugador ya mató al Lich
+  if (expedition.unlock_condition.requires_lich_kill) {
+    const lichKills = player.lich_kills || 0;
+    if (lichKills < 1) return false;
+  }
   if (expedition.eligible_classes === 'all') return true;
   const pc = normalizeClass(player.player_class);
   return expedition.eligible_classes.includes(pc);
