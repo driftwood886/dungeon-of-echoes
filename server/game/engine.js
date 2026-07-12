@@ -4666,6 +4666,29 @@ function cmdAttack(player, targetName) {
         const info = quests.getPlayerProgress(db.getPlayer(player.id));
         if (info && !info.completed) {
           questLines = `\n📜 Quest: ${qResult.newProgress}/${info.goal} — ¡Seguí así!`;
+          // DIS-1512: al progresar en quest de kill, indicar en qué salas quedan más objetivos
+          if (info.quest.type === 'kill' && info.quest.target && info.remaining > 0) {
+            try {
+              const allMonsters1512 = db.getAllMonsters();
+              const allRooms1512 = db.getAllRooms ? db.getAllRooms() : [];
+              const normalize1512 = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              const targetNorm1512 = normalize1512(info.quest.target);
+              const matchMonsters1512 = allMonsters1512.filter(m => {
+                if (m.id === 20) return false; // excluir Goblin de Práctica
+                return normalize1512(m.name).includes(targetNorm1512);
+              });
+              if (matchMonsters1512.length > 0) {
+                const roomIds1512 = [...new Set(matchMonsters1512.map(m => m.respawn_room_id || m.room_id).filter(Boolean))];
+                const roomNames1512 = roomIds1512.map(rid => {
+                  const r = allRooms1512.find(rm => rm.id === rid);
+                  return r ? `sala ${rid} (${r.name})` : `sala ${rid}`;
+                });
+                if (roomNames1512.length > 0) {
+                  questLines += `\n   📍 ${info.quest.target} encontrado en: ${roomNames1512.join(', ')}`;
+                }
+              }
+            } catch (_) { /* no romper si falla la búsqueda de salas */ }
+          }
         }
       }
     }
