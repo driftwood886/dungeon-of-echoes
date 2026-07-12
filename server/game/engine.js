@@ -2778,6 +2778,42 @@ function cmdMove(player, direction) {
     } catch (_) {}
   }
 
+  // DIS-1507: Al llegar a sala 4 (Cámara del Tesoro), avisar si el jugador tiene ítems equipables sin usar
+  let unequippedGearMsg = '';
+  if (targetId === 4) {
+    try {
+      const freshForGear = db.getPlayer(player.id) || player;
+      const equippedW = freshForGear.equipped_weapon && freshForGear.equipped_weapon !== 'null' && freshForGear.equipped_weapon !== null
+        ? freshForGear.equipped_weapon : null;
+      const equippedA = freshForGear.equipped_armor && freshForGear.equipped_armor !== 'null' && freshForGear.equipped_armor !== null
+        ? freshForGear.equipped_armor : null;
+      // Solo avisar si le falta al menos uno de los dos slots
+      const needsWeapon = !equippedW;
+      const needsArmor  = !equippedA;
+      if (needsWeapon || needsArmor) {
+        const inv1507 = freshForGear.inventory || [];
+        const unequippedGear = inv1507.filter(itemName => {
+          try {
+            const def = items.getItemDef(itemName);
+            if (!def) return false;
+            if (needsWeapon && def.type === 'weapon') return true;
+            if (needsArmor  && def.type === 'armor')  return true;
+            return false;
+          } catch (_) { return false; }
+        });
+        if (unequippedGear.length > 0) {
+          const seGear = parseSE(freshForGear.status_effects);
+          if (!seGear.unequipped_gear_warned) {
+            const newSeGear = { ...seGear, unequipped_gear_warned: true };
+            db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeGear) });
+            const gearList = unequippedGear.map(n => `«${n}»`).join(', ');
+            unequippedGearMsg = `\n\n⚠️ Tenés equipo sin usar en el inventario: ${gearList}. Escribí \`equipar <ítem>\` antes de adentrarte más al dungeon.`;
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   // DIS-1102: Recordatorio de especialización pendiente — 1 vez por sesión al moverse entre salas
   let specReminderMsg = '';
   {
@@ -2877,7 +2913,7 @@ function cmdMove(player, direction) {
   }
 
   return {
-    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${moveEventLine}`,
+    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${moveEventLine}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
