@@ -2094,6 +2094,11 @@ function cmdMove(player, direction) {
       };
       } // end else (not alreadyUsedKey || not isPozo)
     }
+    // BUG-1496: si el jugador ya usó la llave para este paso (used_key flag), no consumir nada más
+    // ni mostrar el mensaje "Usás la llave" — ya cruzó, la puerta está desbloqueada para él.
+    if (!hasKey) {
+      // Llegamos aquí solo si alreadyUsedKey && isPozo — caer a movimiento sin consumir
+    } else {
     // BUG-1187: consumir la llave al pasar (no solo al usar cmdUnlock)
     // La puerta sigue bloqueada para otros jugadores; usar cmdUnlock para abrirla permanentemente.
     const newInventoryKey = [...inventory.slice(0, keyIdx), ...inventory.slice(keyIdx + 1)];
@@ -2108,6 +2113,7 @@ function cmdMove(player, direction) {
     player.status_effects = JSON.stringify(seAfterKey);
     // T1271: Marcar la llave consumida para inyectar feedback en el move response
     player._usedKeyName = key;
+    } // end if (hasKey)
   }
 
   const targetRoom = db.getRoom(targetId);

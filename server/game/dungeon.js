@@ -109,13 +109,21 @@ function exitsText(room, player = null) {
   const playerInventory = player
     ? (Array.isArray(player.inventory) ? player.inventory : (() => { try { return JSON.parse(player.inventory || '[]'); } catch(_) { return []; } })())
     : [];
+  // BUG-1496: también verificar el flag used_key_* para puertas que ya cruzó con llave consumida
+  const playerSE = player
+    ? (() => { try { const s = player.status_effects; if (!s) return {}; if (typeof s === 'object' && !Array.isArray(s)) return s; return JSON.parse(s); } catch(_) { return {}; } })()
+    : {};
   return dirs.map(d => {
     const exitVal = room.exits[d];
     const requiredKey = (typeof exitVal === 'object' && exitVal !== null) ? exitVal.key : null;
     const label = DIR_NAMES[d] || d;
     if (!requiredKey) return label;
     const hasKey = playerInventory.some(item => item.toLowerCase() === requiredKey.toLowerCase());
-    return hasKey ? `${label} 🔓` : `${label} 🔒`;
+    if (hasKey) return `${label} 🔓`;
+    // BUG-1496: si ya usó la llave (cruzó con consumo), la puerta está abierta para este jugador
+    const usedKeyFlag = `used_key_${requiredKey.toLowerCase().replace(/\s+/g, '_')}`;
+    if (playerSE[usedKeyFlag] === true) return `${label} 🔓`;
+    return `${label} 🔒`;
   }).join(', ');
 }
 
@@ -141,8 +149,18 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   let roomDesc = room.description;
   if (room.id === 7) {
     const northExit = room.exits ? room.exits['north'] : undefined;
-    const puertaAbierta = northExit !== undefined && northExit !== null && typeof northExit !== 'object';
-    if (puertaAbierta) {
+    const puertaAbiertaGlobal = northExit !== undefined && northExit !== null && typeof northExit !== 'object';
+    // BUG-1496: también verificar si el jugador específico ya usó la llave (consumida al cruzar)
+    const puertaAbiertaParaJugador = (() => {
+      if (!player) return false;
+      try {
+        const se = player.status_effects;
+        if (!se) return false;
+        const seObj = (typeof se === 'object' && !Array.isArray(se)) ? se : JSON.parse(se);
+        return seObj['used_key_llave_oxidada'] === true;
+      } catch(_) { return false; }
+    })();
+    if (puertaAbiertaGlobal || puertaAbiertaParaJugador) {
       roomDesc = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, la puerta de hierro macizo está abierta 🔓 —la llave oxidada hizo su trabajo. El Santuario Profano te espera al otro lado.';
     }
   }
