@@ -2349,7 +2349,12 @@ function cmdMove(player, direction) {
 
   // Construir respuesta
   const moveText = `Vas hacia el ${dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction}.`;
-  const roomDesc = dungeon.describeRoom(targetId, player.id, player);
+  // DIS-1518: pasar freshForCartog (tiene rooms_visited actualizado) para que describeRoom
+  // pueda detectar si es revisita y suprimir mensajes narrativos redundantes.
+  // En revisitas, suppressNarrativeEvents=true elimina el mini-evento narrativo (visible en `look`).
+  const freshPlayerForDesc = freshForCartog || player;
+  const isRevisitForDesc = !firstVisitEver;
+  const roomDesc = dungeon.describeRoom(targetId, player.id, freshPlayerForDesc, { suppressNarrativeEvents: isRevisitForDesc });
 
   // ── Verificar trampa en la sala destino ─────────────────────────────────
   let trapText = '';

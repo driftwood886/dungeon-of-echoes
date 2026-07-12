@@ -136,8 +136,11 @@ function exitsText(room, player = null) {
  * describeRoom — Devuelve una descripción textual de la habitación.
  * @param {number} roomId
  * @param {string|null} excludePlayerId — no listar este jugador (el observador)
+ * @param {object|null} player — objeto jugador completo (para contexto personalizado)
+ * @param {object} opts — opciones extra
+ * @param {boolean} opts.suppressNarrativeEvents — si true, suprimir mini-eventos narrativos (DIS-1518: al moverse en revisitas)
  */
-function describeRoom(roomId, excludePlayerId = null, player = null) {
+function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) {
   const data = getRoomFull(roomId);
   if (!data) return 'Esa habitación no existe.';
 
@@ -180,14 +183,17 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   }
   lines.push(roomDesc);
 
-  // DIS-1208: pistas visuales directas en salas clave de la narrativa de Kaelthas
-  // DIS-1346: suprimir para jugadores veteranos (nivel 3+) que ya visitaron la sala
-  const isVeteranPlayer = player && (player.level || 1) >= 3 && (() => {
+  // DIS-1518: calcular si el jugador ya visitó esta sala (para suprimir mensajes narrativos repetitivos)
+  const alreadyVisited = player && (() => {
     try {
       const vis = JSON.parse(player.rooms_visited || '[]');
       return vis.includes(room.id) || vis.includes(String(room.id));
     } catch (_) { return false; }
   })();
+
+  // DIS-1208: pistas visuales directas en salas clave de la narrativa de Kaelthas
+  // DIS-1346: suprimir para jugadores veteranos (nivel 3+) que ya visitaron la sala
+  const isVeteranPlayer = alreadyVisited && (player.level || 1) >= 3;
   const KAELTHAS_ROOM_HINTS = {
     2:  '🔍 Una inscripción en la pared del corredor llama tu atención — el barniz de cera la protege del tiempo. (Escribí "examine pared" o "examine inscripciones" para leerla.)',
     5:  '🕯️ Sobre el altar hay un escudo sin emblema y velas que arden pese al polvo centenario — alguien estuvo aquí recientemente. (Escribí "examine altar" o "examine escudo" para inspeccionar.)',
@@ -217,7 +223,9 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
   }
 
   // T168: Mini-evento narrativo (15% de chance, inocuo, pura atmósfera)
-  const narrativeEvent = ambient.getNarrativeEvent(room);
+  // DIS-1518: suprimir en revisitas cuando se mueve (suppressNarrativeEvents=true) — el jugador
+  // ya conoce la sala. Al hacer `look` explícitamente sí se muestra.
+  const narrativeEvent = !opts.suppressNarrativeEvents && !alreadyVisited && ambient.getNarrativeEvent(room);
   if (narrativeEvent) {
     lines.push(`\n💭 ${narrativeEvent}`);
   }
