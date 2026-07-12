@@ -11444,7 +11444,7 @@ function _cmdFaccionElegir(player, args) {
   const welcomeMsg = WELCOME_MSGS[factionId] || `Te uniste a ${lore.icon} ${lore.name}.`;
 
   return {
-    text: `${welcomeMsg}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.\n\nCada acción tuya en el dungeon acumula influencia para tu facción. Usá "facciones" para ver el estado semanal.`,
+    text: `${welcomeMsg}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá "facciones" para ver el estado semanal y quién lidera.`,
   };
 }
 
