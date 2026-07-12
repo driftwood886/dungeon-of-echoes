@@ -12813,9 +12813,26 @@ function cmdForage(player) {
     5: ['murciélago vampiro'],  // Capilla: el murciélago está en el techo
   };
   const ignoredMonsters = FORAGE_IGNORE_MONSTERS[player.current_room_id] || [];
-  const activeMonsters = monsters.filter(m =>
-    !ignoredMonsters.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
-  );
+  // BUG-1531: Durante Marea Espectral, los monstruos no espectrales/no-muertos quedan inactivos
+  // y no pueden ser atacados — tampoco deberían bloquear el forage.
+  const FORAGE_SPECTRAL_IDS = new Set([4, 8, 12, 13, 21, 22]);
+  const forageActiveEv = (() => { try { return eventScheduler.getActiveEventInfo(); } catch(_) { return null; } })();
+  const forageIsSpectralTide = forageActiveEv && forageActiveEv.event && forageActiveEv.event.id === 'SPECTRAL_TIDE';
+  const activeMonsters = monsters.filter(m => {
+    if (ignoredMonsters.some(name => m.name.toLowerCase().includes(name.toLowerCase()))) return false;
+    // BUG-1531: si hay Marea Espectral, solo los espectrales/no-muertos son activos
+    if (forageIsSpectralTide) {
+      const mNameLower = (m.name || '').toLowerCase();
+      const isSpectral = FORAGE_SPECTRAL_IDS.has(m.id) ||
+        mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
+        mNameLower.includes('espectral') || mNameLower.includes('lich') || mNameLower.includes('sombra');
+      const isUndead = mNameLower.includes('esqueleto') || mNameLower.includes('zombie') ||
+        mNameLower.includes('zombi') || mNameLower.includes('vampiro') || mNameLower.includes('momia') ||
+        mNameLower.includes('óseo') || mNameLower.includes('muerto');
+      return isSpectral || isUndead;
+    }
+    return true;
+  });
   if (activeMonsters.length > 0) {
     const names = activeMonsters.map(m => m.name).join(', ');
     return { text: `⚠️ No podés buscar mientras hay monstruos en la sala (${names}). Derrotalos o huí primero.` };
