@@ -54,7 +54,7 @@ const QUEST_CATALOG = [
   {
     id: 'gold_collector',
     title: 'Acumulador de Riquezas',
-    description: 'El mercader busca aventureros ricos. Acumula 50 monedas de oro (cantidad total, no neta).',
+    description: 'El mercader busca aventureros ricos. Ganá 50 monedas de oro en total (cuenta todo el oro acumulado durante la sesión, no importa si ya lo gastaste).',
     type: 'gold',
     goal: 50,
     minLevel: 1,
@@ -411,10 +411,18 @@ function formatQuest(player) {
     } catch (_) {}
   }
 
+  // DIS-1521: para quests de oro, mostrar progreso con texto explicativo en lugar de solo "N/50"
+  let progressLine;
+  if (quest.type === 'gold') {
+    progressLine = `Progreso: ${bar} ${progress}/${goal}g ganados (te faltan ${remaining}g más — contás el total acumulado, no lo que tenés ahora)`;
+  } else {
+    progressLine = `Progreso: ${bar} ${progress}/${goal} (faltan ${remaining})`;
+  }
+
   return [
     `══ 📜 QUEST ACTIVA: ${quest.title} ══`,
     quest.description,
-    `Progreso: ${bar} ${progress}/${goal} (faltan ${remaining})`,
+    progressLine,
     `Recompensa: ${rewardStr}`,
   ].join('\n') + locationHint + accessHint + spectralBlockHint;
 }
