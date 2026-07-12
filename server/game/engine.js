@@ -11013,6 +11013,13 @@ function cmdFacciones(player) {
     lines.push(`║  No tenés facción aún.                                ║`);
     lines.push(`║  Elegí una con: faccion elegir <nombre>               ║`);
     lines.push(`║  (disponible en nivel 3)                              ║`);
+    lines.push(`╟──────────────────────────────────────────────────────╢`);
+    lines.push(`║  🗡️  Orden del Filo      → combate                    ║`);
+    lines.push(`║     Tuyo: misiones de caza · escarapela de élite      ║`);
+    lines.push(`║  🔮  Cónclave Arcano     → exploración                ║`);
+    lines.push(`║     Tuyo: misiones de lore · título en leaderboard    ║`);
+    lines.push(`║  🪙  Hermandad Mercado   → economía                   ║`);
+    lines.push(`║     Tuyo: misiones de comercio · sello Aldric         ║`);
   }
   lines.push(`╚══════════════════════════════════════════════════════╝`);
 
@@ -11036,6 +11043,7 @@ const FACTION_LORE = {
       'Guerreros, mercenarios y cazarrecompensas que creen que quien más mata, más merece.\n' +
       'Si entrás a un nivel nuevo, ellos ya limpias las salas antes de que llegues.',
     playstyle: 'Orientada al combate. Matar monstruos genera influencia directamente.',
+    member_perks: 'Misiones semanales de caza · Escarapela de élite (cosmético)',
     bonuses: 'Bosses dropean doble loot · Monstruos +20% XP cuando tu facción controla',
     missions: [
       '⚔️  "Purgar la Sala de los Ecos" — Matar 15 monstruos esta semana',
@@ -11057,6 +11065,7 @@ const FACTION_LORE = {
       'explorás, lees inscripciones, investigás el lore de Kaelthas Vorn.\n' +
       'Son pacientes, metódicos, y están convencidos de que el dungeon oculta algo mucho más grande.',
     playstyle: 'Orientada a exploración y conocimiento. Leer inscripciones, descubrir salas y completar quests de lore genera influencia.',
+    member_perks: 'Misiones de lore exclusivas · Pergamino del Cónclave (título en leaderboard)',
     bonuses: 'Crafteo sin costo secundario · Hechizos +15% daño cuando tu facción controla',
     missions: [
       '📜  "Investigación de campo" — Leer 5 inscripciones de lore esta semana',
@@ -11078,6 +11087,7 @@ const FACTION_LORE = {
       'Comerciantes, pícaros y especuladores que controlan el flujo de oro.\n' +
       'Mientras los demás pelean, ellos venden el loot a los dos bandos.',
     playstyle: 'Orientada a la economía. Comerciar, vender en la subasta y acumular oro genera influencia.',
+    member_perks: 'Misiones de comercio exclusivas · Sello de descuento con Aldric (cosmético)',
     bonuses: 'Subasta sin comisión · Tienda 10% descuento cuando tu facción controla',
     missions: [
       '🪙  "Flujo de capital" — Completar 3 transacciones en la subasta esta semana',
@@ -11162,6 +11172,9 @@ function _buildFactionCard(lore, showConfirmHint = true) {
   lines.push(`╟──────────────────────────────────────────────────────╢`);
   lines.push(`║  Playstyle: ${lore.playstyle.substring(0, 43).padEnd(43)}║`);
   lines.push(`║  Bonus activo: ${lore.bonuses.substring(0, 40).padEnd(40)}║`);
+  if (lore.member_perks) {
+    lines.push(`║  Tuyo (miembro): ${lore.member_perks.substring(0, 38).padEnd(38)}║`);
+  }
 
   lines.push(`╟──────────────────────────────────────────────────────╢`);
   lines.push(`║  📋 Misiones de facción:                             ║`);
@@ -11239,8 +11252,11 @@ function _cmdFaccionElegir(player, args) {
     const lines = [
       '¿A qué facción querés unirte?\n',
       '  🗡️  orden_filo        — La Orden del Filo (combate)',
+      '     Tuyo: misiones de caza semanales · escarapela de élite',
       '  🔮  conclave_arcano  — El Cónclave Arcano (exploración)',
-      '  🪙  hermandad_mercado — La Hermandad del Mercado (economía)\n',
+      '     Tuyo: misiones de lore exclusivas · título en leaderboard',
+      '  🪙  hermandad_mercado — La Hermandad del Mercado (economía)',
+      '     Tuyo: misiones de comercio exclusivas · sello de descuento Aldric\n',
       'Para ver descripción completa: faccion elegir <nombre>',
       'Para unirte directamente:      faccion elegir <nombre> confirmar',
     ];
