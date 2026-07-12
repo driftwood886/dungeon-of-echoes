@@ -10502,21 +10502,12 @@ function cmdSell(player, itemQuery) {
   const newGold = (player.gold || 0) + sellPrice;
   db.updatePlayer(player.id, { gold: newGold, inventory: newInventory });
 
-  // Si era el arma equipada, desequipar
-  if (player.equipped_weapon === found) {
-    const soldWeaponDef = items.getItemDef(found);
-    const soldWeaponBonus = soldWeaponDef?.amount || 0;
-    const baseAttackAfterSell = player.attack - soldWeaponBonus;
-    db.updatePlayer(player.id, { attack: baseAttackAfterSell, equipped_weapon: null });
-  }
-
-  // Si era la armadura equipada, desequipar
-  if (player.equipped_armor === found) {
-    const soldArmorDef = items.getItemDef(found);
-    const soldArmorBonus = soldArmorDef?.amount || 0;
-    const baseDefenseAfterSell = player.defense - soldArmorBonus;
-    db.updatePlayer(player.id, { defense: baseDefenseAfterSell, equipped_armor: null });
-  }
+  // BUG-1497: NO desequipar el arma/armadura aquí aunque el nombre coincida.
+  // Si llegamos a este punto es porque el ítem estaba en el inventario (path "found").
+  // Los ítems puramente equipados (sin copia en inventario) son vendidos por el path
+  // "!found" más arriba (líneas ~10438-10491). Si el jugador tiene un duplicado legítimo
+  // (ítem equipado + copia en inventario del mismo nombre), vender la copia del inventario
+  // NO debe desequipar el ítem equipado.
 
   // STORY-008: línea especial al vender ítems épicos/legendarios
   const soldRarity = items.ITEM_RARITY ? items.ITEM_RARITY[found] : null;
