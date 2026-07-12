@@ -394,7 +394,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null) {
     lines.push(`\n🏪 Aldric el Mercader está aquí, sentado detrás de un improvisado mostrador de cajas.\n   "Bienvenido. Escribí 'tienda' para ver mis artículos."`);
     if (!isVeteranPlayer) {
       // DIS-1178: nota que el Esqueleto es guardia de Aldric y no ataca primero
-      lines.push(`\n⚔️  El Esqueleto Guerrero en la sala es el guardia personal de Aldric. No te atacará si no lo provocás — llegaste como comprador, no como invasor.`);
+      lines.push(`\n⚔️  El Esqueleto Guerrero en la sala es el guardia personal de Aldric. No te atacará si no lo provocás — llegaste como comprador, no como invasor. (Si lo atacás, Aldric lo notará.)`);
       // DIS-1097: hint sobre acceso a la Casa de Subastas sin pelear
       lines.push(`\n🏛️ Pista: Al norte de esta sala (Prisión) podés acceder a la Casa de Subastas (sala 17).\n   Los espectros de la Prisión dejan pasar si no los provocás — movete sin atacar.`);
     }
