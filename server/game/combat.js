@@ -338,13 +338,42 @@ const MONSTER_SPECIALS = {
  *
  * @param {object} player  — objeto jugador de la BD
  * @param {object} monster — objeto monstruo de la BD
- * @returns {{
- *   lines: string[],   // log del combate línea a línea
- *   monsterDead: boolean,
- *   playerDead:  boolean,
- *   loot:        string[],  // ítems soltados (solo si monsterDead)
- * }}
- */
+ * @returns {{\n *   lines: string[],   // log del combate línea a línea\n *   monsterDead: boolean,\n *   playerDead:  boolean,\n *   loot:        string[],  // ítems soltados (solo si monsterDead)\n * }}\n */
+
+// DIS-1500: Devuelve mensajes de notificación para habilidades desbloqueadas al subir al nivel `lvl`.
+// Considera la clase y especialización del jugador para mostrar solo las skills relevantes.
+function _getSkillUnlockMessages(lvl, playerClass, playerSpec) {
+  const msgs = [];
+  // Tabla: { nivel: [{ clases, texto }] }
+  const UNLOCK_TABLE = {
+    3: [
+      { clases: ['guerrero', 'sin_clase', null], texto: '🔓 Nueva habilidad desbloqueada: Golpetazo (smash) — ataque ×1.8 de daño. Usalo en combate con: `smash`' },
+      { clases: ['picaro'],   texto: '🔓 Nueva habilidad desbloqueada: Golpe Sucio (golpe_sucio) — ×1.3 daño + veneno (3dmg×3 turnos). Usalo en combate con: `golpe_sucio`' },
+      { clases: ['clerigo'],  texto: '🔓 Nueva habilidad desbloqueada: Sanación Mayor (sanacion_mayor) — cura ~45 HP. Usala con: `sanacion_mayor`' },
+      { clases: ['mago'],     texto: '🔓 Nueva habilidad desbloqueada: Bola de Fuego (fireball) — daño de área mágico. Usala con: `fireball`' },
+    ],
+    6: [
+      { clases: ['guerrero', 'sin_clase', null], texto: '🔓 Nueva habilidad desbloqueada: Golpe de Escudo (bash) — daño normal + aturde al monstruo 1 turno. Usalo con: `bash`' },
+      { clases: ['picaro'],   texto: '🔓 Nueva habilidad desbloqueada: Evasión (evasion) — esquiva garantizada el próximo ataque. Usala con: `evasion`' },
+      { clases: ['clerigo'],  texto: '🔓 Nueva habilidad desbloqueada: Bendición (bendicion) — +2 DEF a todos en sala por 60s. Usala con: `bendicion`' },
+    ],
+    10: [
+      { clases: ['guerrero', 'sin_clase', null], texto: '🔓 Nueva habilidad desbloqueada: Arenga (rally) — +2 ATK a tu grupo por 60s. Usala con: `rally`' },
+      { clases: ['picaro'],   texto: '🔓 Nueva habilidad desbloqueada: Golpe en la Sombra (golpe_sombra) — ×2.5 daño si el monstruo no atacó este turno. Usalo con: `golpe_sombra`' },
+      { clases: ['clerigo'],  texto: '🔓 Nueva habilidad desbloqueada: Resurrección (resurreccion) — revive a un aliado caído al 50% HP (una vez por sesión). Usala con: `resurreccion`' },
+    ],
+  };
+  const forLevel = UNLOCK_TABLE[lvl];
+  if (!forLevel) return msgs;
+  const cls = (playerClass || 'sin_clase').toLowerCase();
+  for (const entry of forLevel) {
+    if (entry.clases.includes(cls) || entry.clases.includes(null)) {
+      msgs.push(entry.texto);
+    }
+  }
+  return msgs;
+}
+
 function attackRound(player, monster) {
   const lines = [];
   let monsterDead = false;
@@ -1075,6 +1104,9 @@ function attackRound(player, monster) {
             updatesPet.hp = Math.min(updatesPet.max_hp, (freshPPet.hp || 1) + healPet);
             updatesPet.attack = (freshPPet.attack || 5) + 1;
             lines.push(`✨ ¡Subiste al nivel ${newLevelPet}! +5 HP máx, +1 ataque, +${healPet} HP restaurado.`);
+            // DIS-1500: Notificación de habilidades desbloqueadas
+            const skillMsgsPet = _getSkillUnlockMessages(newLevelPet, freshPPet.player_class || 'sin_clase', freshPPet.specialization || null);
+            for (const msg of skillMsgsPet) lines.push(msg);
           }
           lines.push(`⭐ +${xpGainPet} XP (kills: ${newKillsPet} | nivel: ${newLevelPet})`);
           db.updatePlayer(player.id, updatesPet);
@@ -1140,6 +1172,9 @@ function attackRound(player, monster) {
                 updates2.hp = Math.min(updates2.max_hp, (freshPl2.hp || 1) + heal2);
                 updates2.attack = (freshPl2.attack || 5) + 1;
                 lines.push(`✨ ¡Subiste al nivel ${newLevel2}! +5 HP máx, +1 ataque, +${heal2} HP restaurado.`);
+                // DIS-1500: Notificación de habilidades desbloqueadas
+                const skillMsgs2 = _getSkillUnlockMessages(newLevel2, freshPl2.player_class || 'sin_clase', freshPl2.specialization || null);
+                for (const msg of skillMsgs2) lines.push(msg);
               }
               lines.push(`⭐ +${xpGain2} XP (kills: ${newKills2} | nivel: ${newLevel2})`);
               db.updatePlayer(player.id, updates2);
@@ -1220,6 +1255,9 @@ function attackRound(player, monster) {
           updates3.hp = Math.min(updates3.max_hp, (freshPl3.hp || 1) + heal3);
           updates3.attack = (freshPl3.attack || 5) + 1;
           lines.push(`✨ ¡Subiste al nivel ${newLevel3}! +5 HP máx, +1 ataque, +${heal3} HP restaurado.`);
+          // DIS-1500: Notificación de habilidades desbloqueadas
+          const skillMsgs3 = _getSkillUnlockMessages(newLevel3, freshPl3.player_class || 'sin_clase', freshPl3.specialization || null);
+          for (const msg of skillMsgs3) lines.push(msg);
         }
         lines.push(`⭐ +${xpGain3} XP (kills: ${newKills3} | nivel: ${newLevel3})`);
         db.updatePlayer(player.id, updates3);
@@ -1382,6 +1420,11 @@ function attackRound(player, monster) {
       updates.hp     = Math.min(updates.max_hp, (freshPlayer.hp || 1) + healOnLevelUp);
       updates.attack = (freshPlayer.attack || 5) + 1;
       lines.push(`✨ ¡Subiste al nivel ${newLevel}! +5 HP máx, +1 ataque, +${healOnLevelUp} HP restaurado.`);
+      // DIS-1500: Notificación de habilidades desbloqueadas al subir de nivel
+      const playerClass = freshPlayer.player_class || 'sin_clase';
+      const playerSpec  = freshPlayer.specialization || null;
+      const skillUnlockMessages = _getSkillUnlockMessages(newLevel, playerClass, playerSpec);
+      for (const msg of skillUnlockMessages) lines.push(msg);
       // DIS-914/DIS-1282: Prompt de especialización al llegar al nivel 5
       // DIS-1282: mensaje más prominente con ⚠️ para que el jugador no se lo pierda
       if (newLevel === 5 && freshPlayer.player_class && freshPlayer.player_class !== 'sin_clase' && !freshPlayer.specialization) {
