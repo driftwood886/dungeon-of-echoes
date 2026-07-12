@@ -6716,8 +6716,8 @@ function cmdExamine(player, query) {
       // Tiene la carta pero no activó la quest con Aldric — ir a Aldric primero
       baseText = '\n\n🔍 Recordás algo que leíste: \"Lo grabé en la base del trono. Mirá abajo, no arriba.\" Agachás la vista hacia la base del trono. Hay letras grabadas con algo oscuro —casi ilegibles— pero podés distinguir un nombre incompleto. El resto está borrado por el tiempo o protegido por algo.\n\n💡 Siguiente paso: hablá con **Aldric** en la tienda (sala 4) — preguntale sobre Kaelthas. Tiene información que completará lo que ves aquí.';
     } else {
-      // No sabe nada todavía
-      baseText = '\n\n🔍 En la base del trono, casi invisible por el tiempo y la suciedad, hay letras grabadas con algo oscuro —no tinta. Un nombre, casi ilegible. La curiosidad tira, pero no podés descifrar lo que dice.';
+      // No sabe nada todavía — DIS-1513: dar fragmento parcial en lugar de dead-end puro
+      baseText = '\n\n🔍 En la base del trono, casi invisible por el tiempo y la suciedad, hay letras grabadas con algo oscuro —no tinta. El nombre está en gran parte borrado, pero podés distinguir las últimas letras: **...THAS**.\n\nAlguien se tomó el trabajo de grabar esto con algo que no es tinta. Y alguien más se tomó el trabajo de borrarlo casi por completo.\n\n💡 Aldric, el mercader de la sala 4, lleva décadas en este dungeon. Preguntale sobre lo que viste.';
     }
     // Rastrear mención Kaelthas
     const seKae = parseSE(player.status_effects);
