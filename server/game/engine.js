@@ -4286,8 +4286,10 @@ function cmdAttack(player, targetName) {
       }
     }
   }
-  // DIS-1501: reacción narrativa de Aldric si el jugador mata al Esqueleto Guerrero guardia (id=2, sala 4)
-  if (monsterDead && monster.id === 2 && player.current_room_id === 4) {
+  // DIS-1501: reacción narrativa de Aldric si el jugador mata al Esqueleto Guerrero guardia (id=2)
+  // BUG-1505: La condición original chequeaba sala 4, pero el Esqueleto (id=2) vive en sala 3.
+  // Fix: verificar solo monster.id === 2, independientemente de la sala donde murió.
+  if (monsterDead && monster.id === 2) {
     lines.push(`\n🏪 Aldric deja de ordenar los estantes y te mira fijamente.\n\n"...Era mi guardia." Pausa larga. "Supongo que en el dungeon todo termina así."\n\nSu tono no es hostil — pero tampoco amistoso. Vuelve a sus cajas sin decir más.\n\n_(El esqueleto reaparecerá cuando respawnee)_`);
   }
   // ── Metas globales (T194) — contabilizar kill ─────────────────────────────
