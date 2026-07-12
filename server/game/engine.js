@@ -10218,17 +10218,46 @@ function cmdShop(player, args) {
     const recs = CLASS_RECS[clsShop.name];
     if (recs) {
       // DIS-1383: filtrar recomendaciones de armas/armaduras básicas si el jugador ya tiene equipo superior
-      const filteredRecs = recs.filter(name => {
-        if (hasEpicWeapon && BASIC_SHOP_WEAPONS.has(name)) return false;
-        if (hasEpicArmor  && BASIC_SHOP_ARMORS.has(name))  return false;
-        return true;
+      // DIS-1517: también excluir ítems que el jugador ya tiene equipados o en inventario
+      const playerEquippedSet = new Set();
+      if (player.equipped_weapon && player.equipped_weapon !== 'null') playerEquippedSet.add(player.equipped_weapon.toLowerCase());
+      if (player.equipped_armor && player.equipped_armor !== 'null') playerEquippedSet.add(player.equipped_armor.toLowerCase());
+      let playerInvList = [];
+      try { playerInvList = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]'); } catch (_) {}
+      playerInvList.forEach(i => { if (typeof i === 'string') playerEquippedSet.add(i.toLowerCase()); });
+
+      // DIS-1517: mapa de "siguiente tier" para las armas/armaduras básicas
+      const NEXT_TIER = {
+        'espada de hierro':  'espada de acero',
+        'espada de acero':   null, // arma tope de tienda
+        'escudo de madera':  'escudo de gladiador',
+        'cuero endurecido':  'cota de cuero',
+        'cota de cuero':     'cota de malla',
+        'cota de malla':     'armadura de placas',
+        'guantes de cuero fino': null,
+        'vara de energía':   null,
+        'símbolo sagrado':   null,
+        'daga envenenada':   null,
+      };
+
+      const filteredRecs = recs.flatMap(name => {
+        if (hasEpicWeapon && BASIC_SHOP_WEAPONS.has(name)) return [];
+        if (hasEpicArmor  && BASIC_SHOP_ARMORS.has(name))  return [];
+        // DIS-1517: si el jugador ya tiene este ítem equipado/en inventario, mostrar el siguiente tier
+        if (playerEquippedSet.has(name.toLowerCase())) {
+          const nextTier = NEXT_TIER[name.toLowerCase()];
+          return nextTier ? [nextTier] : []; // reemplazar con el siguiente tier, o silenciar
+        }
+        return [name];
       });
+      // Deduplicar (si el siguiente tier ya estaba en la lista)
+      const filteredRecsUniq = [...new Set(filteredRecs)];
       // Si se filtraron armas, agregar consumibles útiles para veteranos
       const weaponsWereFiltered = hasEpicWeapon && recs.some(n => BASIC_SHOP_WEAPONS.has(n));
       const VETERAN_CONSUMABLES = ['poción mayor de salud', 'antídoto', 'poción de maná mayor'];
       const finalRecs = weaponsWereFiltered
-        ? [...filteredRecs, ...VETERAN_CONSUMABLES.filter(n => !filteredRecs.includes(n))].slice(0, 4)
-        : filteredRecs;
+        ? [...filteredRecsUniq, ...VETERAN_CONSUMABLES.filter(n => !filteredRecsUniq.includes(n))].slice(0, 4)
+        : filteredRecsUniq;
 
       const recItems = finalRecs.map(name => {
         const cat = SHOP_CATALOG.find(i => i.name === name && !i.sellOnly);
