@@ -507,7 +507,7 @@ function execute(playerId, input, context) {
     case 'clase':        result = cmdClase(player, action.args); break;
     case 'especializar': result = cmdSpecialize(player, action.args); break;
     case 'bestiary':     result = cmdBestiary(player); break;
-    case 'profile':      result = cmdProfile(player); break;
+    case 'profile':      result = cmdProfile(player, context); break;
     case 'journal':      result = cmdJournal(player, action.args); break;
     case 'skills':       result = cmdSkills(player); break;
     case 'useSkill':     result = cmdUseSkill(player, action.args, context); break;
@@ -16070,7 +16070,7 @@ module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAucti
 /**
  * T109: cmdProfile — Tarjeta de aventurero completa en formato ASCII enmarcado.
  */
-function cmdProfile(player) {
+function cmdProfile(player, context) {
   const fresh = db.getPlayer(player.id);
   if (!fresh) return { text: 'Error al leer tu perfil.' };
 
@@ -16145,7 +16145,7 @@ function cmdProfile(player) {
     `║${line('Logros   ', `${achCount} desbloqueados`)}║`,
     `║  ${achIcons.slice(0, W - 2)}║`,
     `║${line('Bestiario', `${bestiaryCount} tipos cazados · ${totalBestiaryKills} kills totales`)}║`,
-    `║${line('Tiempo   ', (() => { const t = fresh.playtime_minutes || 0; const h = Math.floor(t/60); const m = t%60; return h > 0 ? `${h}h ${m}m` : `${m}m`; })())}║`,
+    `║${line('Tiempo   ', (() => { const dbT = fresh.playtime_minutes || 0; const sessD = context && context.sessionData; const sessMin = sessD && sessD.startTime ? Math.floor((Date.now() - sessD.startTime) / 60000) : 0; const t = dbT + sessMin; const h = Math.floor(t/60); const m = t%60; return h > 0 ? `${h}h ${m}m` : `${m}m`; })())}║`,
     `╚${'═'.repeat(W)}╝`,
   ];
 
