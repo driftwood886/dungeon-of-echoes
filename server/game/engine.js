@@ -1568,8 +1568,10 @@ function cmdMove(player, direction) {
                 const dirNormNB1244 = dungeon.normalizeDirection(direction);
                 const dirEsNB1244 = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNormNB1244]) || dirNormNB1244 || 'la dirección indicada';
                 // DIS-1454: simplificar warning — no revelar solución ni ítem necesario
+                // DIS-1499: revertir parcialmente — mencionar el hongo azul para resolver el chicken-and-egg
+                // (el jugador no puede saber que necesita el hongo si nunca entró al Túnel)
                 return {
-                  text: `⚠️  Al acercarte al umbral del Túnel de Hongos, notás esporas densas flotando en el aire — una concentración antinatural que te arde en los ojos.\n\nAlgo en ese umbral parece activo. Cruzar sin preparación podría costarte.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), volvé a enviar el comando de dirección.`,
+                  text: `⚠️  Al acercarte al umbral del Túnel de Hongos, notás esporas densas flotando en el aire — una concentración antinatural que te arde en los ojos.\n\nLas esporas afectan a todo el que entra sin protección. Sin embargo, los hongos azules que crecen en las primeras salas del Túnel neutralizan el efecto: si lográs recoger uno rápido, el resto del camino no te afectará.\n\n💡 Si aun así querés entrar (asumiendo el riesgo inicial), volvé a enviar el comando de dirección.`,
                 };
               }
               // Segunda vez: limpiar flag y continuar
