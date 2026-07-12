@@ -8446,12 +8446,16 @@ function cmdMap(player, args = []) {
     // pueda hacer "ruta NN" hacia ella. Formato: [?NN:··········] (16 chars fijo).
     // DIS-1337: si la sala no está visitada pero es adyacente a una visitada,
     // mostrar las primeras 4 letras del nombre con '?' al final (ej: [?19:Cm.E?····])
+    // DIS-1527: simplificar salas no exploradas — usar ░ en vez de · para indicar
+    // neblina de exploración de forma más clara y compacta visualmente.
     if (!visitedRooms.has(id)) {
       if (discoveredRooms.has(id)) {
-        const hint = (NAMES[id] || `S${id}`).substring(0, 4).padEnd(4, '·');
-        return `[?${String(id).padStart(2, ' ')}:${hint}?·····]`;
+        // Sala detectada (adyacente): mostrar nombre abreviado + niebla
+        const hint = (NAMES[id] || `S${id}`).substring(0, 5).padEnd(5, '░');
+        return `[?${String(id).padStart(2, ' ')}:${hint}░░░░]`;
       }
-      return `[?${String(id).padStart(2, ' ')}:··········]`;
+      // Sala totalmente desconocida: solo el número + neblina densa
+      return `[?${String(id).padStart(2, ' ')} ░░░░░░░░░]`;
     }
     const label = (NAMES[id] || `Sala${id}`).substring(0, 9).padEnd(9, ' ');
     const marker = id === here ? '★' : ' ';
@@ -8547,7 +8551,7 @@ function cmdMap(player, args = []) {
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
       : `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda del Mercader)`,
-    `[?NN:··········] = sala aún no explorada (usá "ruta NN" para llegar)  [?NN:XXXX?·····] = sala detectada (adyacente)  [16/21] = salas de tutorial`,
+    `[?NN ░░░░░░░░░] = sala no explorada (usá "ruta NN" para llegar)  [?NN:Nom░░░░] = sala detectada (adyacente)  [16/21] = salas de tutorial`,
     // DIS-921: conteo de salas exploradas al pie del mapa
     (() => {
       const MAP_DUNGEON_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18,19,20,22];
