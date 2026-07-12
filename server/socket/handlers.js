@@ -106,11 +106,18 @@ function registerHandlers(io) {
       // Auto-look al entrar
       const lookResult = engine.execute(player.id, 'look');
 
-      // Si el jugador está en el tutorial, agregar mensaje introductorio
+      // Si el jugador está en el tutorial, agregar mensaje introductorio del paso actual
+      // DIS-1533: mostrar el paso actual (no siempre paso 1) para jugadores que reconectan en paso 2 o 3
       let welcomeText = lookResult.text;
       if (player.tutorial_step && player.tutorial_step > 0) {
         const tutModule = require('../game/tutorial');
-        welcomeText = tutModule.getStepMessage(1) + '\n\n' + lookResult.text;
+        // Usar el paso actual del jugador — si ya está en paso 2 o 3, no mostrar el paso 1 de nuevo
+        const currentTutorialStep = player.tutorial_step;
+        const tutMsg = tutModule.getStepMessage(currentTutorialStep);
+        // Solo anteponer el mensaje si lookResult no lo incluye ya (evitar duplicados al avanzar paso 1→2)
+        if (tutMsg && !lookResult.text.includes(tutMsg.substring(0, 30))) {
+          welcomeText = tutMsg + '\n\n' + lookResult.text;
+        }
       }
 
       // T106: Mensaje "bienvenida de regreso" si estuvo ausente más de 1 hora
