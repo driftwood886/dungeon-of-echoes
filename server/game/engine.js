@@ -5471,6 +5471,16 @@ function cmdPick(player, itemQuery) {
     }
   }
 
+  // DIS-1502: hint especial para el diente afilado — es común (no dispara DIS-1435) pero
+  // tiene recetas de crafteo. Indicar las dos opciones con pista de dónde conseguir hilo de seda.
+  if (!pickCraftHint && foundNormPick === 'diente afilado') {
+    const hKeyDiente = 'craft_ingredient_hint_diente_afilado';
+    if (!shownH2[hKeyDiente]) {
+      pickCraftHint = `\n🔧 Este colmillo tiene usos de artesanía:\n   • diente afilado + hilo de seda → collar de garras (+2 DEF) — el hilo lo dropean las arañas (zona Pozo)\n   • diente afilado + hongo azul → veneno de colmillo (40% envenenar)`;
+      db.updatePlayer(freshP2.id, { status_effects: JSON.stringify({ ...shownH2, [hKeyDiente]: true }) });
+    }
+  }
+
   // BUG-1170: si hay hint de crafteo para un ítem que TAMBIÉN acepta el altar (pray),
   // advertir que craftear lo consume y que hay alternativa — evita confusión post-crafteo.
   // Nota: esta lista debe mantenerse sincronizada con ALTAR_OFFERINGS (definida más abajo).

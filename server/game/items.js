@@ -78,7 +78,7 @@ const ITEM_CATALOG = {
   'hongo azul':          { type: 'misc', description: 'Un hongo luminiscente de color azul profundo. Tiene propiedades alquímicas. 🔧 Pista: combinalo con veneno concentrado → brebaje del hongo, o con diente afilado → veneno de colmillo (40% de envenenar). 🙏 Ofrenda al altar: Resonancia Fúngica (+1 ATK, +8 maná, 90s).' },
   'hongo rojo':          { type: 'misc', description: 'Un hongo de color carmesí con venas luminiscentes. El calor que irradia es extraño para una criatura tan pequeña. 🔧 Combinalo con pelaje áspero → ungüento de bestia (+18 HP). 🙏 Ofrenda al altar: Espora Vital (+10 HP).' },
   'hongo verde':         { type: 'misc', description: 'Un hongo de tonalidad verde esmeralda con textura aterciopelada. Huele a tierra mojada y algo más. 🔧 Combinalo con pelaje áspero → cuero silvestre (+3 DEF), o con garra de esqueleto → polvo de hueso (+2 DEF 120s). 🙏 Ofrenda al altar: Resistencia Esporácea (+1 DEF, 90s).' },
-  'hilo de seda':        { type: 'misc', description: 'Hilo de seda de araña, increíblemente resistente. Se usa en armaduras mágicas.' },
+  'hilo de seda':        { type: 'misc', description: 'Hilo de seda de araña, increíblemente resistente. Lo dropean las arañas del Pozo. 🔧 Crafteo: hilo de seda + diente afilado → collar de garras (+2 DEF) | hilo de seda + cuerda → red de pesca.' },
   'veneno concentrado':  { type: 'misc', description: 'Un vial con el veneno de la Araña Tejedora. Peligroso si se derrama.' },
 
   // ── Misc / coleccionables (dungeon expandido) ─────────────────────────────
