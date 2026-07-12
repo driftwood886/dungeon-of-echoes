@@ -5588,6 +5588,26 @@ function cmdPick(player, itemQuery) {
     }
   }
 
+  // DIS-1511: hint discreto para ítems comunes (o raros sin hint previo) que son ingredientes de receta
+  // Solo cuando falta el otro ingrediente y aún no se mostró un hint mejor para este ítem.
+  if (!pickCraftHint) {
+    const hKeyIng1511 = `craft_ingredient_hint_${foundNormPick.replace(/\s+/g, '_')}`;
+    if (!shownH2[hKeyIng1511]) {
+      for (const recipe of crafting.RECIPES) {
+        const normIngA = recipe.ingredients[0].toLowerCase().trim();
+        const normIngB = recipe.ingredients[1].toLowerCase().trim();
+        const foundIsIngredient = foundNormPick === normIngA || foundNormPick === normIngB;
+        if (!foundIsIngredient) continue;
+        // No mostrar si ya tiene ambos ingredientes (ese caso ya fue cubierto arriba)
+        const hasAll = invWithEquipped.includes(normIngA) && invWithEquipped.includes(normIngB);
+        if (hasAll) continue;
+        pickCraftHint = `\n⚗️ Ingrediente de receta: ${recipe.ingredients[0]} + ${recipe.ingredients[1]} → ${recipe.result}`;
+        db.updatePlayer(freshP2.id, { status_effects: JSON.stringify({ ...shownH2, [hKeyIng1511]: true }) });
+        break;
+      }
+    }
+  }
+
   // BUG-1170: si hay hint de crafteo para un ítem que TAMBIÉN acepta el altar (pray),
   // advertir que craftear lo consume y que hay alternativa — evita confusión post-crafteo.
   // Nota: esta lista debe mantenerse sincronizada con ALTAR_OFFERINGS (definida más abajo).
