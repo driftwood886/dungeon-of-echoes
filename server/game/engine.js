@@ -1596,7 +1596,7 @@ function cmdMove(player, direction) {
                 // DIS-1499: revertir parcialmente — mencionar el hongo azul para resolver el chicken-and-egg
                 // (el jugador no puede saber que necesita el hongo si nunca entró al Túnel)
                 return {
-                  text: `⚠️  Al acercarte al umbral del Túnel de Hongos, notás esporas densas flotando en el aire — una concentración antinatural que te arde en los ojos.\n\nLas esporas afectan a todo el que entra sin protección. Sin embargo, los hongos azules que crecen en las primeras salas del Túnel neutralizan el efecto: si lográs recoger uno rápido, el resto del camino no te afectará.\n\n💡 Si aun así querés entrar (asumiendo el riesgo inicial), volvé a enviar el comando de dirección.`,
+                  text: `⚠️  Olor a esporas al entrar al Túnel de Hongos — una concentración antinatural que arde en los ojos.\n\n🍄 Si tenés un «hongo azul», desactivala sin daño: escribí «desactivar trampa ${dirEsNB1244}».\n💡 Si querés entrar igual (asumiendo el riesgo), volvé a enviar el comando de dirección.`,
                 };
               }
               // Segunda vez: limpiar flag y continuar
@@ -2166,7 +2166,7 @@ function cmdMove(player, direction) {
           const dirNorm1244 = dungeon.normalizeDirection(direction);
           const dirEs1244 = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNorm1244]) || dirNorm1244 || 'la dirección indicada';
           return {
-            text: `⚠️  Antes de entrar al Túnel de Hongos, notás esporas densas flotando en el umbral — una concentración antinatural que te arde en los ojos.\n\nLas esporas activan una trampa al cruzar. Perderás HP si entrás ahora.\n\n🍄 Si tenés un «hongo azul», podés neutralizarlas sin daño:\n   → Conseguilo con «buscar» en esta sala o al comprar en la tienda.\n   → Luego escribí «desactivar trampa ${dirEs1244}» para desactivarla desde aquí.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), escribí «${dirEs1244}» de nuevo.`,
+            text: `⚠️  Olor a esporas al entrar al Túnel de Hongos — una concentración antinatural que arde en los ojos.\n\n🍄 Si tenés un «hongo azul», desactivala sin daño: escribí «desactivar trampa ${dirEs1244}».\n💡 Si querés entrar igual (asumiendo el riesgo), escribí «${dirEs1244}» de nuevo.`,
           };
         }
         // Segunda vez: limpiar el flag y continuar con el movimiento normal (recibirá daño de trampa)
