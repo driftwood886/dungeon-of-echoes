@@ -434,9 +434,9 @@ function attackRound(player, monster) {
             if (monsterNorm.includes(targetNorm) || targetNorm.includes(monsterNorm.split(' ')[0])) {
               // El monstruo bloqueado ES el objetivo de la quest activa
               if (activeQ.questDef.id === 'slayer_goblin') {
-                questHint = '\n💡 Tu quest requiere Goblins, que no están disponibles durante la Marea Espectral. Mientras dure (~' + minLeft + ' min más), podés:\n   • Explorar el Corredor de las Sombras (al sur): hay inscripciones antiguas e ítems de crafteo.\n   • Desactivar la trampa al oeste del Corredor con un hongo azul (si lo tenés).\n   • Visitar la tienda de Aldric (norte → este) para equiparte.';
+                questHint = '\n💡 Tu quest requiere Goblins, que huyen durante la Marea Espectral (~' + minLeft + ' min más).\n   Aprovechá el evento:\n   • Los espectros del Corredor de las Sombras (sur) otorgan 2× XP ahora.\n   • Explorá la Capilla (este → norte) o la Sala del Trono para avanzar en el mapa.\n   • Visitá la tienda de Aldric (norte → este) para equiparte mejor.\n   • Usá `quest` para ver el progreso cuando los Goblins vuelvan.';
               } else {
-                questHint = '\n💡 Tu quest activa requiere este tipo de monstruo, pero huye por la Marea Espectral (~' + minLeft + ' min más). Mientras tanto, podés explorar otras zonas o prepararte.';
+                questHint = '\n💡 Tu quest activa requiere este tipo de monstruo, pero huye por la Marea Espectral (~' + minLeft + ' min más).\n   Mientras tanto, los espectros y no-muertos activos otorgan 2× XP. Aprovechá para explorar o equiparte.';
               }
             }
           }

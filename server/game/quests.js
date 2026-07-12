@@ -149,6 +149,30 @@ function startNewQuest(excludeId = null, maxPlayerLevel = 1) {
   // DIS-1409: Excluir también las últimas 2 quests completadas para diversidad
   const excludedIds = new Set([excludeId, ...recentlyCompletedIds].filter(Boolean));
   let choices = QUEST_CATALOG.filter(q => !excludedIds.has(q.id) && (q.minLevel || 1) <= Math.max(maxPlayerLevel, 5));
+
+  // DIS-1515: Evitar asignar quests con objetivos bloqueados por la Marea Espectral
+  // Si SPECTRAL_TIDE está activo con >3 minutos restantes, excluir quests con objetivos
+  // no-espectrales ni undead — no tiene sentido asignar "matar Goblins" si estarán ausentes.
+  try {
+    const eventScheduler = require('./eventScheduler');
+    const activeEv = eventScheduler.getActiveEventInfo ? eventScheduler.getActiveEventInfo() : null;
+    if (activeEv && activeEv.event && activeEv.event.id === 'SPECTRAL_TIDE' && activeEv.minutesRemaining > 3) {
+      const SPECTRAL_TARGETS = new Set(['espectro', 'espectral', 'lich', 'sombra', 'fantasma',
+        'esqueleto', 'zombie', 'zombi', 'vampiro', 'momia', 'muerto']);
+      const isTargetBlocked = (q) => {
+        if (q.type !== 'kill' || !q.target) return false;
+        const tNorm = q.target.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return !Array.from(SPECTRAL_TARGETS).some(s => tNorm.includes(s));
+      };
+      const notBlockedChoices = choices.filter(q => !isTargetBlocked(q));
+      if (notBlockedChoices.length > 0) {
+        choices = notBlockedChoices;
+        console.log(`[quests] DIS-1515: Marea Espectral activa (~${activeEv.minutesRemaining} min) — se excluyeron quests con objetivos bloqueados.`);
+      }
+      // Si no hay alternativas, dejar el pool original (fallback silencioso)
+    }
+  } catch (_) {}
+
   if (choices.length === 0) {
     // fallback: solo excluir la quest actual
     choices = QUEST_CATALOG.filter(q => q.id !== excludeId);
@@ -378,7 +402,9 @@ function formatQuest(player) {
           const minLeft = activeEv.minutesRemaining || '?';
           spectralBlockHint = `\n⚠️  [MAREA ESPECTRAL] ${articuloMonstruo(quest.target)} ${quest.target} huye durante el evento (~${minLeft} min restantes). Tu objetivo está temporalmente inaccesible.`;
           if (quest.id === 'slayer_goblin') {
-            spectralBlockHint += '\n   💡 Alternativas: explorar Corredor de Sombras, desactivar trampas, o visitar la tienda de Aldric.';
+            spectralBlockHint += '\n   💡 Aprovechá la Marea: espectros y no-muertos activos otorgan 2× XP.\n   • Corredor de las Sombras (sur): Espectros del Corredor.\n   • Capilla (este → norte) o Sala del Trono: no-muertos y esqueletos.';
+          } else {
+            spectralBlockHint += '\n   💡 Espectros y no-muertos activos otorgan 2× XP durante la Marea.';
           }
         }
       }
