@@ -1292,6 +1292,12 @@ function cmdLook(player, options = {}) {
       const boss = db.getMonster(inRoomDanger.monsterId);
       const bossAlive = boss && boss.room_id !== null && (boss.hp || 0) > 0;
       if (bossAlive) {
+        // DIS-1509: si el jugador ya estuvo aquí (nivel 3+), suprimir el aviso in-sala del boss
+        const isVetInRoom = (player.level || 1) >= 3;
+        const alreadyHereInRoom = visitedRoomsLook.includes(Number(player.current_room_id)) || visitedRoomsLook.includes(String(player.current_room_id));
+        if (isVetInRoom && alreadyHereInRoom) {
+          // Boss conocido — no mostrar aviso de nuevo
+        } else {
         const playerLevel = player.level || 1;
         // DIS-1216: aclarar comportamiento real — el boss no ataca al pasar, solo si lo agredís
         const bossAttackNote = 'Podés pasar o ignorarlo — solo iniciará combate si lo agredís primero.';
@@ -1300,6 +1306,7 @@ function cmdLook(player, options = {}) {
         } else {
           inRoomBossLine = `\n${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. ${bossAttackNote}`;
         }
+        } // end else (not veteran+alreadyHere)
       }
     }
   } catch (_) {}
@@ -1344,7 +1351,18 @@ function cmdLook(player, options = {}) {
   }
   } // fin if (options.showEvent)
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + practicaPosturaHint + activeEventLine };
+  // DIS-1509: Consolidar hints en una sección "Notas del explorador" cuando hay múltiples
+  // Agrupar adjacentDangerLine + lichStatusLine + inRoomBossLine bajo un header si hay 2+
+  const rawNotes = [adjacentDangerLine, lichStatusLine, inRoomBossLine].filter(s => s && s.trim().length > 0);
+  let notesBlock = '';
+  if (rawNotes.length >= 2) {
+    notesBlock = '\n\n💡 Notas del explorador:' + rawNotes.join('');
+    adjacentDangerLine = '';
+    lichStatusLine = '';
+    inRoomBossLine = '';
+  }
+
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + activeEventLine };
 }
 
 /**
