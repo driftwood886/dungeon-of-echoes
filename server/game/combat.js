@@ -25,6 +25,14 @@ const combatStates = require('./combatStates'); // EPIC-1291-F1: sistema de esta
 const quests      = require('./quests');       // DIS-1405: hint de quest bloqueada por Marea Espectral
 const { articuloMonstruo, derrotadoMonstruo, MONSTER_GENERO_FEMENINO } = require('./gender'); // BUG-1427: centralizar género
 
+// DIS-1514: helper para mensaje de XP con progreso de nivel
+function xpProgressSuffix(newXp, newLevel) {
+  if (newLevel >= xpSystem.MAX_LEVEL) return '';
+  const into = xpSystem.xpIntoLevel(newXp, newLevel);
+  const needed = xpSystem.xpForNextLevel(newLevel);
+  return ` → ${into}/${needed} para niv.${newLevel + 1}`;
+}
+
 // IDs de monstruos espectrales para SPECTRAL_TIDE
 const SPECTRAL_MONSTER_IDS = new Set([4, 8, 12, 13, 21, 22]); // Espectro Corredor, Guardia Espectral, Campeón Espectral, Lich, Eco Viviente, Sombra (id 11 era Krakeling Abismal — no espectral)
 
@@ -1108,7 +1116,7 @@ function attackRound(player, monster) {
             const skillMsgsPet = _getSkillUnlockMessages(newLevelPet, freshPPet.player_class || 'sin_clase', freshPPet.specialization || null);
             for (const msg of skillMsgsPet) lines.push(msg);
           }
-          lines.push(`⭐ +${xpGainPet} XP (kills: ${newKillsPet} | nivel: ${newLevelPet})`);
+          lines.push(`⭐ +${xpGainPet} XP (kills: ${newKillsPet} | nivel: ${newLevelPet})${xpProgressSuffix(newXpPet, newLevelPet)}`);
           db.updatePlayer(player.id, updatesPet);
           return { lines, monsterDead, playerDead, loot, globalEvent: petGlobalEvent || null };
         }
@@ -1176,7 +1184,7 @@ function attackRound(player, monster) {
                 const skillMsgs2 = _getSkillUnlockMessages(newLevel2, freshPl2.player_class || 'sin_clase', freshPl2.specialization || null);
                 for (const msg of skillMsgs2) lines.push(msg);
               }
-              lines.push(`⭐ +${xpGain2} XP (kills: ${newKills2} | nivel: ${newLevel2})`);
+              lines.push(`⭐ +${xpGain2} XP (kills: ${newKills2} | nivel: ${newLevel2})${xpProgressSuffix(newXp2, newLevel2)}`);
               db.updatePlayer(player.id, updates2);
               return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
             }
@@ -1259,7 +1267,7 @@ function attackRound(player, monster) {
           const skillMsgs3 = _getSkillUnlockMessages(newLevel3, freshPl3.player_class || 'sin_clase', freshPl3.specialization || null);
           for (const msg of skillMsgs3) lines.push(msg);
         }
-        lines.push(`⭐ +${xpGain3} XP (kills: ${newKills3} | nivel: ${newLevel3})`);
+        lines.push(`⭐ +${xpGain3} XP (kills: ${newKills3} | nivel: ${newLevel3})${xpProgressSuffix(newXp3, newLevel3)}`);
         db.updatePlayer(player.id, updates3);
         return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
       }
@@ -1440,7 +1448,7 @@ function attackRound(player, monster) {
         } catch (_) { /* no interrumpir si falla */ }
       }
     }
-    lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})${impulsoXpMult > 1.0 ? ' ✨[+20% Impulso]' : ''}`);
+    lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})${impulsoXpMult > 1.0 ? ' ✨[+20% Impulso]' : ''}${xpProgressSuffix(newXp, newLevel)}`);
     // T190: Encantamiento de luz — +3 HP al matar
     if (enchantActive && enchantData.type === 'luz') {
       const hpOnKill = enchantData.hp_on_kill || 3;

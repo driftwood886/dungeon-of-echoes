@@ -38,6 +38,13 @@ const challengeTracker = require('./challengeTracker');  // T-1231: tracking de 
 const challengeAssigner = require('./challengeAssigner'); // T-1232: asignación y lectura de los 3 desafíos diarios
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
+// DIS-1514: helper para mensaje de progreso de XP dentro del nivel actual
+function xpProgressSuffix(newXp, newLevel) {
+  if (newLevel >= xpSystem.MAX_LEVEL) return '';
+  const into = xpSystem.xpIntoLevel(newXp, newLevel);
+  const needed = xpSystem.xpForNextLevel(newLevel);
+  return ` → ${into}/${needed} para niv.${newLevel + 1}`;
+}
 // Cada sala puede tener un efecto que se aplica al entrar.
 // type: 'damage' | 'heal' | 'buff' | 'debuff'
 const ROOM_EFFECTS = {
@@ -14488,7 +14495,7 @@ function cmdCast(player, args) {
         db.updatePlayer(player.id, { mana: resonMana });
         lines.push(`⚡ [Evoker] ¡Resonancia mágica! La muerte de ${target.name} te devuelve 2 maná. (${resonMana}/${freshForReson.max_mana || 35})`);
       }
-      lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})`);
+      lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})${xpProgressSuffix(newXp, newLevel)}`);
       broadcastEvent = `🔥 ¡${player.username} incineró a ${target.name} con ${spellName}!`;
       // Bestiario
       db.addBestiaryKill(player.id, target.name);
@@ -16493,7 +16500,7 @@ function cmdUseSkill(player, args, context) {
         smashUpd.attack = (freshPlayer.attack || 5) + 1;
       }
       db.updatePlayer(freshPlayer.id, smashUpd);
-      text += `\n⭐ +${xpGain} XP (kills: ${smashUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
+      text += `\n⭐ +${xpGain} XP (kills: ${smashUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}${xpProgressSuffix(newXp, newLevel)}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       if (levelUp) {
         // DIS-1281: mensaje contextualizado con sala, kills y habilidad
@@ -16840,7 +16847,7 @@ function cmdUseSkill(player, args, context) {
         skillUpd.attack = (freshPlayer.attack || 5) + 1;
       }
       db.updatePlayer(freshPlayer.id, skillUpd);
-      text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
+      text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}${xpProgressSuffix(newXp, newLevel)}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       // DIS-1281: Registrar subida de nivel en el diario (Golpe de Escudo)
       if (levelUp) {
@@ -17089,7 +17096,7 @@ function cmdUseSkill(player, args, context) {
         skillUpd.attack = (freshPlayer.attack || 5) + 1;
       }
       db.updatePlayer(freshPlayer.id, skillUpd);
-      text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`;
+      text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}${xpProgressSuffix(newXp, newLevel)}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       const gsBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
       const gsLichKill = target.id === 13; // solo el Lich Anciano real
@@ -17511,7 +17518,7 @@ function cmdUseSkill(player, args, context) {
         skillUpdSh.attack = (freshPicSh.attack || 5) + 1;
       }
       db.updatePlayer(freshPicSh.id, skillUpdSh);
-      textSh += `\n⭐ +${xpGainSh} XP (kills: ${skillUpdSh.kills} | nivel: ${newLevelSh})${levelUpSh ? ` ✨ ¡SUBE AL NIVEL ${newLevelSh}!` : ''}`;
+      textSh += `\n⭐ +${xpGainSh} XP (kills: ${skillUpdSh.kills} | nivel: ${newLevelSh})${levelUpSh ? ` ✨ ¡SUBE AL NIVEL ${newLevelSh}!` : ''}${xpProgressSuffix(newXpSh, newLevelSh)}`;
       db.addBestiaryKill(freshPicSh.id, target.name);
       const shBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
       const shLichKill = target.id === 13;
@@ -17647,7 +17654,7 @@ function cmdUseSkill(player, args, context) {
         updPal.attack = (freshPal.attack || 5) + 1;
       }
       db.updatePlayer(freshPal.id, updPal);
-      textPal += `\n⭐ +${xpGainPal} XP (kills: ${updPal.kills} | nivel: ${newLevelPal})${levelUpPal ? ` ✨ ¡SUBE AL NIVEL ${newLevelPal}!` : ''}`;
+      textPal += `\n⭐ +${xpGainPal} XP (kills: ${updPal.kills} | nivel: ${newLevelPal})${levelUpPal ? ` ✨ ¡SUBE AL NIVEL ${newLevelPal}!` : ''}${xpProgressSuffix(newXpPal, newLevelPal)}`;
       db.addBestiaryKill(freshPal.id, target.name);
       const freshForPalAch = db.getPlayer(freshPal.id);
       if (freshForPalAch) {
@@ -17790,7 +17797,7 @@ function cmdUseSkill(player, args, context) {
         updAse.attack = (freshAse.attack || 5) + 1;
       }
       db.updatePlayer(freshAse.id, updAse);
-      textAse += `\n⭐ +${xpGainAse} XP (kills: ${updAse.kills} | nivel: ${newLevelAse})${levelUpAse ? ` ✨ ¡SUBE AL NIVEL ${newLevelAse}!` : ''}`;
+      textAse += `\n⭐ +${xpGainAse} XP (kills: ${updAse.kills} | nivel: ${newLevelAse})${levelUpAse ? ` ✨ ¡SUBE AL NIVEL ${newLevelAse}!` : ''}${xpProgressSuffix(newXpAse, newLevelAse)}`;
       db.addBestiaryKill(freshAse.id, target.name);
       const freshForAseAch = db.getPlayer(freshAse.id);
       if (freshForAseAch) {
@@ -17998,7 +18005,7 @@ function cmdUseSkill(player, args, context) {
         updJu.attack = (freshJu.attack || 5) + 1;
       }
       db.updatePlayer(freshJu.id, updJu);
-      textJu += `\n⭐ +${xpGainJu} XP (kills: ${updJu.kills} | nivel: ${newLevelJu})${levelUpJu ? ` ✨ ¡SUBE AL NIVEL ${newLevelJu}!` : ''}`;
+      textJu += `\n⭐ +${xpGainJu} XP (kills: ${updJu.kills} | nivel: ${newLevelJu})${levelUpJu ? ` ✨ ¡SUBE AL NIVEL ${newLevelJu}!` : ''}${xpProgressSuffix(newXpJu, newLevelJu)}`;
       db.addBestiaryKill(freshJu.id, target.name);
       const freshForJuAch = db.getPlayer(freshJu.id);
       if (freshForJuAch) {
