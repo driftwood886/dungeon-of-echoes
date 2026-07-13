@@ -70,7 +70,7 @@ const NPC_BOTS = [
     name: 'Drago el Herrero',
     emoji: '⚒️',
     catalogue: [
-      { item: 'espada de hierro',        minPrice: 18 },
+      { item: 'espada de hierro',        minPrice: 8 }  // DIS-1554: ajustado junto con precio tienda 20g→10g,
       { item: 'hacha de guerra',         minPrice: 22 },
       { item: 'escudo de hierro',        minPrice: 16 },
       { item: 'cota de malla',           minPrice: 20 },

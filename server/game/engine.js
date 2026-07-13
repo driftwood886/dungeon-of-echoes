@@ -9755,7 +9755,7 @@ const SHOP_CATALOG = [
   { name: 'poción de salud',         price: 15, description: 'Recupera 15 HP. Esencial para aventureros.' },
   { name: 'poción mayor de salud',   price: 35, description: 'Recupera 50 HP. Para las situaciones desesperadas.' },
   { name: 'antídoto',                price: 20, description: 'Cura el veneno al instante.' },
-  { name: 'espada de hierro',        price: 20, description: 'Arma sólida. Daño base +8.' },
+  { name: 'espada de hierro',        price: 10, description: 'Arma de iniciación. +8 ATK — ideal para los primeros combates. Las mazmorras profundas tienen mejores armas como drops de boss.' },  // DIS-1554: 20g→10g — repositionada como arma de transición barata; el jugador no siente que "tiró" el oro cuando el primer boss dropea algo mejor
   { name: 'daga envenenada',         price: 45, description: 'Daño +4, aplica veneno al enemigo.' },
   // DIS-855: espada de acero para level 6-8 (gap entre espada de hierro +8 y armas épicas crafteable)
   { name: 'espada de acero',         price: 70, description: 'Acero templado. +10 de ataque. La mejor opción de compra para aventureros de élite (nivel 6+).' },
@@ -10711,7 +10711,7 @@ function cmdBuy(player, itemQuery) {
   // DIS-827: tampoco mostrar si es ítem mágico de clase (vara de energía, pergamino, símbolo sagrado) — un Mago no necesita el tip de armadura
   const isBoughtItemDefensive = boughtWeapon && (boughtWeapon.rogue_only_crit_bonus || boughtWeapon.defense_bonus || boughtWeapon.mage_only_bonus || boughtWeapon.cleric_only_bonus);
   const armorTip = (boughtWeapon && boughtWeapon.type === 'weapon' && noArmor && !isBoughtItemDefensive)
-    ? '\n"Una espada sin protección es invitación al funeral." Aldric señala el cuero endurecido. "20 monedas — más barato que respawnear."'
+    ? '\n"Una espada sin protección es invitación al funeral." Aldric señala el cuero endurecido. "15 monedas — más barato que respawnear."'
     : '';
 
   // DIS-1263: Compra → autoequip hint contextual
@@ -20692,6 +20692,12 @@ function cmdStance(player, args) {
       const active = name === currentStance ? ' ◄' : '  ';
       lines.push(`║ ${data.icon} ${name.padEnd(12)}  ATK${data.atkMod >= 0 ? '+' : ''}${data.atkMod} DEF${data.defMod >= 0 ? '+' : ''}${data.defMod}${active.padEnd(2)} ║`);
     }
+    lines.push(`╠════════════════════════════════════════╣`);
+    lines.push(`║ Cuándo usar cada postura:              ║`); // DIS-1552
+    lines.push(`║  ⚡Agresivo → monstruos débiles o      ║`);
+    lines.push(`║            cuando querés terminar rápido║`);
+    lines.push(`║  🛡Defensivo → bosses o cuando          ║`);
+    lines.push(`║            estás bajo de HP            ║`);
     lines.push(`╠════════════════════════════════════════╣`);
     lines.push(`║ Cambiá con: stance agresivo/defensivo  ║`); // DIS-1056
     lines.push(`║            stance equilibrado          ║`);
