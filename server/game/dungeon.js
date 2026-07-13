@@ -409,7 +409,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
   // NPC Mercader en sala 4
   // DIS-1346: para veteranos, solo mostrar que Aldric está presente (útil), suprimir hints instructivos
   if (roomId === 4) {
-    lines.push(`\n🏪 Aldric el Mercader está aquí, sentado detrás de un improvisado mostrador de cajas.\n   "Bienvenido. Escribí 'tienda' para ver mis artículos."`);
+    lines.push(`\n🏪 Aldric el Mercader está aquí, sentado detrás de un improvisado mostrador de cajas.\n   "Bienvenido. Escribí 'tienda' (o 'shop') para ver mis artículos."`);
     if (!isVeteranPlayer) {
       // DIS-1178: nota que el Esqueleto es guardia de Aldric y no ataca primero
       lines.push(`\n⚔️  El Esqueleto Guerrero en la sala es el guardia personal de Aldric. No te atacará si no lo provocás — llegaste como comprador, no como invasor. (Si lo atacás, Aldric lo notará.)`);

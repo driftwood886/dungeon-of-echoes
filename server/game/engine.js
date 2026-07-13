@@ -11784,25 +11784,26 @@ function _cmdFaccionElegir(player, args) {
     };
   }
 
-  // Sin confirmación → mostrar tarjeta y pedir confirmación
+  // Sin confirmación → mostrar tarjeta y pedir confirmación inline (DIS-1564)
   if (!hasConfirm) {
     const card = _buildFactionCard(lore, false);
-    // DIS-1528: guardar facción pendiente en status_effects para aceptar "faccion confirmar" luego
-    // Si había un pending anterior de otra facción, reemplazarlo.
+    // Guardar pending como fallback (para "faccion confirmar" si el jugador lo prefiere)
     const sePending = parseSE(player.status_effects);
     sePending.faction_pending = factionId;
     db.updatePlayer(player.id, { status_effects: JSON.stringify(sePending) });
     const sep = '━'.repeat(56);
+    // DIS-1564: mostrar comando inline completo (un solo paso) en lugar de "faccion confirmar"
+    const confirmCmd = `faccion elegir ${factionId} confirmar`;
     const confirmBlock = [
       '',
       sep,
       `  ${lore.icon}  ¿Querés unirte a ${lore.name}?`,
-      `  ► Escribí: faccion confirmar`,
-      `  ► (o cancelá con: faccion elegir <otra>)`,
+      `  ► Escribí: ${confirmCmd}`,
+      `  ► (o explorá otras: faccion elegir <nombre>)`,
       sep,
     ].join('\n');
     return {
-      text: confirmBlock + '\n\n' + card + `\n\n  ► Para confirmar: faccion confirmar\n  (o explorá otras opciones con: faccion elegir <nombre>)`,
+      text: card + '\n' + confirmBlock,
     };
   }
 
