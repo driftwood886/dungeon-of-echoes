@@ -3207,7 +3207,13 @@ function cmdInventory(player) {
     : `─ ${summaryCount}`;
 
   // DIS-994: línea de slots de mochila
-  const slotLine = `📦 Mochila: ${usedSlots}/${maxSlots} slots${slotHint}`;
+  // DIS-1558: si el jugador está sobre el límite (estado legacy pre-cap), mostrar warning claro
+  let slotLine;
+  if (usedSlots > maxSlots) {
+    slotLine = `📦 Mochila: ${usedSlots}/${maxSlots} slots ⚠️ SOBRE EL LÍMITE — no podés recoger ítems nuevos. Tirá algo con \`drop <ítem>\` o guardalo con \`vault store <ítem>\`.`;
+  } else {
+    slotLine = `📦 Mochila: ${usedSlots}/${maxSlots} slots${slotHint}`;
+  }
 
   // DIS-1266: Separar hints en dos secciones claras:
   // "✅ Listo para craftear" vs "🔧 Casi listo (te falta X)"
@@ -24135,7 +24141,9 @@ function cmdVault(player, args) {
     const item = vaultItems[idx];
     const inv = JSON.parse(typeof player.inventory === 'string' ? player.inventory : JSON.stringify(player.inventory));
     const maxInvVault = INV_BASE_SLOTS + (player.inventory_bonus || 0); // DIS-1480 DIS-595
-    if (inv.length >= maxInvVault) return { text: `🎒 El inventario está lleno (${inv.length}/${maxInvVault}). Tirá algo primero.` };
+    // DIS-1558: contar ítems equipados en el check de capacidad (igual que cmdInventory y cmdGet)
+    const equippedCountVault = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
+    if (inv.length + equippedCountVault >= maxInvVault) return { text: `🎒 El inventario está lleno (${inv.length + equippedCountVault}/${maxInvVault}). Tirá algo primero.` };
 
     vaultItems.splice(idx, 1);
     inv.push(item);
