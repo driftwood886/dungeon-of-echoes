@@ -5194,7 +5194,41 @@ function cmdFlee(player, targetQuery) {
   const room = db.getRoom(player.current_room_id);
   // BUG-302: Excluir maniquíes de entrenamiento del comando huir
   // BUG-309: Excluir también el Goblin de Práctica de la Antesala (id=20)
-  const monsters = db.getMonstersInRoom(player.current_room_id).filter(m => !NON_BLOCKING_MONSTER_IDS.has(m.id));
+  let monsters = db.getMonstersInRoom(player.current_room_id).filter(m => !NON_BLOCKING_MONSTER_IDS.has(m.id));
+
+  // BUG-1546: Durante SPECTRAL_TIDE, filtrar monstruos bloqueados (no-espectrales, no-muertos)
+  // de la lista de huida — igual que en combat.js para cmdAttack.
+  try {
+    const fleeActiveEv = eventScheduler.getActiveEventInfo();
+    if (fleeActiveEv && fleeActiveEv.event && fleeActiveEv.event.id === 'SPECTRAL_TIDE') {
+      const isEarlyZone = player.current_room_id <= 5;
+      if (!isEarlyZone) {
+        const FLEE_SPECTRAL_IDS = new Set([4, 8, 12, 13, 21, 22]);
+        const activeMonsters = monsters.filter(m => {
+          const mNameLow = (m.name || '').toLowerCase();
+          const isSpectral = FLEE_SPECTRAL_IDS.has(m.id) ||
+            mNameLow.includes('espectro') ||
+            mNameLow.includes('fantasma') ||
+            mNameLow.includes('espectral') ||
+            mNameLow.includes('lich') ||
+            mNameLow.includes('sombra');
+          const isUndead = mNameLow.includes('esqueleto') ||
+            mNameLow.includes('zombie') ||
+            mNameLow.includes('zombi') ||
+            mNameLow.includes('vampiro') ||
+            mNameLow.includes('momia') ||
+            mNameLow.includes('óseo') ||
+            mNameLow.includes('muerto');
+          return isSpectral || isUndead;
+        });
+        if (activeMonsters.length === 0) {
+          const minLeft = fleeActiveEv.minutesRemaining || '?';
+          return { text: `👻 MAREA ESPECTRAL — Los monstruos de esta sala están inactivos por la marea espectral. No hay nada de lo que huir ahora. (Evento termina en ~${minLeft} min)\n\n💡 Podés moverte libremente — usá \"move <dirección>\" para salir de la sala.` };
+        }
+        monsters = activeMonsters;
+      }
+    }
+  } catch (_) {}
 
   if (monsters.length === 0) {
     return { text: 'No hay nada de lo que huir aquí.' };
