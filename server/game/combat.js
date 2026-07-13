@@ -1331,6 +1331,24 @@ function attackRound(player, monster) {
         lines.push(`${articuloMonstruo(monster.name)} ${monster.name} no deja nada.`);
       }
       if (ln936) lines.push(ln936);
+
+      // DIS-1548: Aviso prominente al matar boss con loot en el suelo e inventario lleno.
+      // El jugador novato puede no saber que los ítems quedan en la sala y puede salir sin recogerlos.
+      if (isBossMonster && loot.length > 0) {
+        const freshPForInv = db.getPlayer(player.id);
+        const invNow = Array.isArray(freshPForInv.inventory)
+          ? freshPForInv.inventory
+          : JSON.parse(freshPForInv.inventory || '[]');
+        const eqCount = (freshPForInv.equipped_weapon ? 1 : 0) + (freshPForInv.equipped_armor ? 1 : 0);
+        const slotsUsed = invNow.length + eqCount;
+        const maxSlots = 20 + (freshPForInv.inventory_bonus || 0);
+        if (slotsUsed >= maxSlots) {
+          lines.push(`\n⚠️  [LOOT ÉPICO EN RIESGO] Tu inventario está LLENO (${slotsUsed}/${maxSlots}).`);
+          lines.push(`   Los ítems del boss quedaron en el suelo de esta sala.`);
+          lines.push(`   La sala se preserva mientras sigas aquí — si salís, pueden perderse.`);
+          lines.push(`   Hacé espacio con \`drop <ítem>\` y luego recogé con \`loot\`.`);
+        }
+      }
     }
 
     // Actualizar kills y XP del jugador
