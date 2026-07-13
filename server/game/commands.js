@@ -520,6 +520,13 @@ function parse(input) {
     return { command: 'use', args: rest, raw: trimmed };
   }
 
+  // BUG-1556: "guardar <ítem>" → vault store <ítem>
+  // El alias "guardar" estaba mapeado a unequip, pero el jugador intuitivamente lo usa para guardar en bóveda.
+  // Si viene con args, redirigir a vault store. Sin args, seguir como unequip (enfundar arma).
+  if (canonical === 'unequip' && first === 'guardar' && rest.length > 0) {
+    return { command: 'vault', args: ['store', ...rest], raw: trimmed };
+  }
+
   // Para 'gesture', pasar el alias como primer arg (para saber qué gesto es)
   if (canonical === 'gesture') {
     const GESTURE_MAP = {
