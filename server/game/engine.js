@@ -9090,6 +9090,9 @@ function cmdRest(player, context) {
     return { text: `💤 Ya estás al máximo de HP (${player.hp}/${player.max_hp}). No necesitás descansar.\n   💡 El maná se regenera automáticamente con el tiempo.` };
   }
 
+  // DIS-1560: la fórmula es max(5, 10% de max_hp). La advertencia de "HP casi lleno"
+  // se agrega en el mensaje de resultado (ver línea de return más abajo).
+
   // Verificar que no haya monstruos en la sala
   const monsters = db.getMonstersInRoom(player.current_room_id);
   if (monsters.length > 0) {
@@ -9218,7 +9221,7 @@ function cmdRest(player, context) {
   }
 
   return {
-    text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP.${coldSuffix}${partyBonusText} ${hpBar} ${newHp}/${player.max_hp} HP${forageRestText}${restManaText}${manaNoteNonMage}`,
+    text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP.${restored < baseHeal ? ` (tenías HP casi lleno — se recuperó menos de lo posible)` : ''}${coldSuffix}${partyBonusText} ${hpBar} ${newHp}/${player.max_hp} HP${forageRestText}${restManaText}${manaNoteNonMage}`,
   };
 }
 
