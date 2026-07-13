@@ -5878,6 +5878,19 @@ function cmdUse(player, itemQuery) {
 
   player = db.getPlayer(player.id);
 
+  // BUG-1557: "usar <ítem> en <enemigo>" — parsear separando ítem de target.
+  // Si el query contiene " en " y el ítem completo no está en el inventario,
+  // intentar con la parte antes de " en " como nombre del ítem.
+  let itemQuery_ = itemQuery.trim();
+  const enIdx = itemQuery_.toLowerCase().indexOf(' en ');
+  if (enIdx !== -1 && !items.findItem(player.inventory, itemQuery_)) {
+    const possibleItem = itemQuery_.slice(0, enIdx).trim();
+    if (items.findItem(player.inventory, possibleItem)) {
+      itemQuery_ = possibleItem;
+    }
+  }
+  itemQuery = itemQuery_;
+
   const found = items.findItem(player.inventory, itemQuery.trim());
   if (!found) {
     // BUG-484: elementos de sala — "use fuente" en sala 18 debería beber de la fuente
