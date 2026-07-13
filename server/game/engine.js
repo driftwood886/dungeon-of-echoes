@@ -4943,6 +4943,7 @@ function cmdAttack(player, targetName) {
   // ── DIS-1486: HUD de cooldowns de habilidades en cada turno de combate ──────
   // Muestra en cada turno el estado de las habilidades desbloqueadas:
   // ✅ disponible | ⏱ en cooldown (Xs restantes)
+  // DIS-1559: cuando el jugador fue paralizado, mostrar HUD con 🌑 para indicar que está paralizado
   let skillHint = '';
   if (!monsterDead && !playerDead) {
     const freshForSkills = db.getPlayer(player.id);
@@ -4954,17 +4955,24 @@ function cmdAttack(player, targetName) {
           : {};
         const now = Date.now();
         // DIS-1486: construir HUD con estado de cada habilidad (✅ o ⏱ Xs)
+        // DIS-1559: si el jugador fue paralizado este turno, mostrar 🌑 en lugar de ✅ (bloqueado por oscuridad)
         const hudParts = unlockedSkills.map(sk => {
           const cd = cooldowns[sk.id];
           const expiresAt = cd ? new Date(cd).getTime() : 0;
           if (!cd || now > expiresAt) {
-            return `✅\`${sk.aliases[0]}\``;
+            // DIS-1559: si fue paralizado, las habilidades "disponibles" se muestran como bloqueadas por oscuridad
+            const availIcon = combatResult.paralyzed ? '🌑' : '✅';
+            return `${availIcon}\`${sk.aliases[0]}\``;
           } else {
             const remainSec = Math.ceil((expiresAt - now) / 1000);
             return `⏱\`${sk.aliases[0]}\`(${remainSec}s)`;
           }
         });
-        skillHint = `\n⚡ Habilidades: ${hudParts.join(' | ')}`;
+        // DIS-1559: prefijo diferente si está paralizado
+        const hudPrefix = combatResult.paralyzed
+          ? `\n🌑 Paralizad@: `
+          : `\n⚡ Habilidades: `;
+        skillHint = `${hudPrefix}${hudParts.join(' | ')}`;
         // DIS-1315: también notificar si una habilidad acaba de recargarse
         const available = unlockedSkills.filter(sk => { const cd = cooldowns[sk.id]; return !cd || now > new Date(cd).getTime(); });
         const availableIds = available.map(sk => sk.id).sort().join(',');
