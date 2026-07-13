@@ -6343,6 +6343,17 @@ function cmdUse(player, itemQuery) {
         // Fuera de la Capilla: mensaje orientativo (no consumir el ítem)
         resultText = `🍄 Sostenés el brebaje. Los vapores violetas se disipan en el aire de esta sala sin efecto.\n💡 Este brebaje tiene propósitos rituales: llevalo al altar de la Capilla Olvidada (sala 5) y escribí "usar ${found}" allí para ofrendarlo.`;
       }
+    // DIS-1567: hongo azul fuera del altar — mensaje claro de uso en vez de descripción
+    } else if (found === 'hongo azul') {
+      const roomId_hongoAzul = player.current_room_id;
+      const ALTAR_ROOMS_HONGO = new Set([5, 10]);
+      if (ALTAR_ROOMS_HONGO.has(roomId_hongoAzul)) {
+        // En sala de altar — redirigir a pray
+        return cmdPray(player, [found]);
+      } else {
+        // Fuera del altar — no consumir, orientar al jugador
+        resultText = `🍄 Sostenés el hongo azul. Pulsa suavemente en tu mano, pero no tiene efecto aquí.\n\n💡 Usos del hongo azul:\n   • «desactivar trampa <dir>» — neutraliza la trampa de esporas del Túnel de Hongos (sala 6)\n   • «pray hongo azul» — ofrenda en el altar de la Capilla (sala 5) → Resonancia Fúngica (+1 ATK, +8 maná)\n   • Crafteo: hongo azul + veneno concentrado → brebaje del hongo\n              diente afilado + hongo azul → veneno de colmillo (40% envenenar)`;
+      }
     } else {
       // DIS-1551: si el ítem es una llave y hay salidas bloqueadas en la sala actual, intentar usarla
       // En lugar de solo describir el ítem, ejecutar el movimiento por la puerta correspondiente
@@ -24110,7 +24121,7 @@ function cmdVault(player, args) {
     lines.push(`║  vault store <ítem>  — guardar un ítem`.padEnd(W + 2) + `║`);
     lines.push(`║  vault take <ítem>   — sacar un ítem`.padEnd(W + 2) + `║`);
     lines.push(`╠${'═'.repeat(W)}╣`);
-    lines.push(`║  Accesible en sala 1 (Entrada), sala 17 (Subastas) y sala 19 (Cámara del Eco)`.padEnd(W + 2) + `║`);
+    lines.push(`║  Accesible en sala 1 (Entrada), sala 4 (Cámara del Tesoro), sala 17 (Subastas) y sala 19 (Cámara del Eco)`.padEnd(W + 2) + `║`);
     lines.push(`╚${'═'.repeat(W)}╝`);
     return { text: lines.join('\n') };
   }
