@@ -164,7 +164,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
       } catch(_) { return false; }
     })();
     if (puertaAbiertaGlobal || puertaAbiertaParaJugador) {
-      roomDesc = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, la puerta de hierro macizo está abierta 🔓 —la llave oxidada hizo su trabajo. El Santuario Profano te espera al otro lado.';
+      roomDesc = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde —la inscripción en la pared dice que nadie que intentó bajar volvió para contarlo. Al norte, la puerta de hierro macizo está abierta 🔓 —la llave oxidada hizo su trabajo. El Santuario Profano te espera al otro lado.';
     }
   }
   // DIS-1002: Salas con boss — omitir mención del boss en la descripción si ya está muerto

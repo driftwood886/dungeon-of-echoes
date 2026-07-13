@@ -72,7 +72,7 @@ const ROOMS = [
   {
     id: 7,
     name: 'Pozo Sin Fondo',
-    description: 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario. (💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)',
+    description: 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde —la inscripción en la pared dice que nadie que intentó bajar volvió para contarlo. Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario. (💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)',
     exits: { east: 3, north: 10 },
     items: ['cuerda', 'gancho de hierro'],
   },
@@ -224,7 +224,7 @@ function migrateDoors() {
       ...exits7,
       north: { room_id: exits7.north, key: 'llave oxidada' },
     };
-    const newDesc = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde. ¿Qué habrá abajo? Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario. (💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)';
+    const newDesc = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde —la inscripción en la pared dice que nadie que intentó bajar volvió para contarlo. Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario. (💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)';
     db.upsertRoom({ ...room7, exits: newExits, description: newDesc });
     console.log('[seed] migrateDoors: Sala 7 actualizada — norte hacia sala 10 requiere llave oxidada 🔒');
   }
@@ -644,7 +644,7 @@ function migrateCorredorHintDIS1107() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562 };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -2532,6 +2532,24 @@ function migrateTrollForjaDIS1481() {
     console.log('[seed] migrateTrollForjaDIS1481: Troll de las Cavernas (id 29) creado en Taller de la Forja (sala 12). DIS-1481 ✓');
   } catch (e) {
     console.warn('[seed] migrateTrollForjaDIS1481:', e.message);
+  }
+}
+
+function migratePozoDescDIS1562() {
+  // DIS-1562: actualizar descripción de sala 7 (Pozo Sin Fondo) para cerrar expectativas
+  // de la cuerda como dead end — "¿Qué habrá abajo?" reemplazado por referencia a inscripción
+  try {
+    const room7 = db.getRoom(7);
+    if (!room7) return;
+    const newDesc = 'Un pozo en el centro de la sala emite un viento frío desde las profundidades. Una cuerda cuelga al borde —la inscripción en la pared dice que nadie que intentó bajar volvió para contarlo. Al norte, una puerta de hierro macizo con una cerradura oxidada bloquea el paso al Santuario. (💡 Si no tenés la llave, hay otra ruta al Santuario: volvé a la Entrada, tomá el este hacia la Capilla, sigue norte por los Hongos y el Trono.)';
+    if (room7.description && room7.description.includes('¿Qué habrá abajo?')) {
+      db.upsertRoom({ ...room7, description: newDesc });
+      console.log('[seed] migratePozoDescDIS1562: Sala 7 descripción actualizada — dead end cerrado con closure. DIS-1562 ✓');
+    } else {
+      console.log('[seed] migratePozoDescDIS1562: Ya estaba actualizada. ✓');
+    }
+  } catch (e) {
+    console.warn('[seed] migratePozoDescDIS1562:', e.message);
   }
 }
 
