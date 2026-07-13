@@ -4496,6 +4496,15 @@ function cmdAttack(player, targetName) {
   let challengeResult = null; // DIS-1412: guardado para referencia cruzada con quest
   if (monsterDead) {
     challengeResult = db.updateDailyChallengeProgress(player.id, 'kill', monster.name, 1, player.current_room_id);
+    // BUG-1544: trackear kill en el nuevo sistema de desafíos (challengePool)
+    try {
+      const freshForTrack = db.getPlayer(player.id);
+      const tkMsg = challengeTracker.trackKill(player.id, freshForTrack, monster, {
+        equippedWeapon: player.equipped_weapon || null,
+        playerHp: player.hp || 0,
+      });
+      if (tkMsg) challengeMsg += tkMsg;
+    } catch (_) { /* no romper combate */ }
     if (challengeResult && challengeResult.reward) {
       // DIS-1538: recompensa de runa garantizada al completar desafío diario.
       // Dar una runa del tipo más acumulado (o aleatorio si no hay ninguna).
@@ -14890,6 +14899,8 @@ function cmdCast(player, args) {
       }
       // BUG-017: registrar progreso de desafío diario al matar con hechizo
       const crCast = db.updateDailyChallengeProgress(player.id, 'kill', target.name);
+      // BUG-1544: trackear kill en el nuevo sistema (challengePool)
+      try { const freshForCastTk = db.getPlayer(player.id); const castTkMsg = challengeTracker.trackKill(player.id, freshForCastTk, target); if (castTkMsg) lines.push(castTkMsg); } catch (_) {}
       if (crCast && crCast.reward) {
         lines.push(`   🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`);
       } else if (crCast && crCast.challenge && !crCast.challenge.done) {
@@ -16907,7 +16918,8 @@ function cmdUseSkill(player, args, context) {
       const qSmashResult = quests.recordProgress(freshForSmashQuest, 'kill', { monsterName: target.name });
       // BUG-017: registrar progreso de desafío diario al matar con smash
       const crSmash = db.updateDailyChallengeProgress(freshPlayer.id, 'kill', target.name);
-      // BUG-043: registrar progreso de contrato semanal al matar con smash
+      // BUG-1544: trackear kill en el nuevo sistema (challengePool)
+      try { const freshForSmashTk = db.getPlayer(freshPlayer.id); const smashTkMsg = challengeTracker.trackKill(freshPlayer.id, freshForSmashTk, target); if (smashTkMsg) text += smashTkMsg; } catch (_) {}
       const wcrSmash = db.updateWeeklyContractProgress(freshPlayer.id, target.name);
       if (wcrSmash && wcrSmash.reward) {
         text += `\n📜 ¡CONTRATO DE CAZA COMPLETADO! +${wcrSmash.reward.xp} XP · +${wcrSmash.reward.gold}g · Recibís: ${wcrSmash.reward.item}`;
@@ -17256,6 +17268,8 @@ function cmdUseSkill(player, args, context) {
       const qBashResult = quests.recordProgress(freshForBashQuest, 'kill', { monsterName: target.name });
       // BUG-017: registrar progreso de desafío diario al matar con shield_bash
       const crBash = db.updateDailyChallengeProgress(freshPlayer.id, 'kill', target.name);
+      // BUG-1544: trackear kill en el nuevo sistema (challengePool)
+      try { const freshForBashTk = db.getPlayer(freshPlayer.id); const bashTkMsg = challengeTracker.trackKill(freshPlayer.id, freshForBashTk, target); if (bashTkMsg) text += bashTkMsg; } catch (_) {}
       // BUG-043: registrar progreso de contrato semanal al matar con shield_bash
       const wcrBash = db.updateWeeklyContractProgress(freshPlayer.id, target.name);
       if (wcrBash && wcrBash.reward) {
@@ -17490,6 +17504,8 @@ function cmdUseSkill(player, args, context) {
       const freshForGsQuest = db.getPlayer(freshPlayer.id);
       const qGsResult = quests.recordProgress(freshForGsQuest, 'kill', { monsterName: target.name });
       const crGs = db.updateDailyChallengeProgress(freshPlayer.id, 'kill', target.name);
+      // BUG-1544: trackear kill en el nuevo sistema (challengePool)
+      try { const freshForGsTk = db.getPlayer(freshPlayer.id); const gsTkMsg = challengeTracker.trackKill(freshPlayer.id, freshForGsTk, target); if (gsTkMsg) text += gsTkMsg; } catch (_) {}
       const wcrGs = db.updateWeeklyContractProgress(freshPlayer.id, target.name);
       if (wcrGs && wcrGs.reward) text += `\n📜 ¡CONTRATO COMPLETADO! +${wcrGs.reward.xp} XP · +${wcrGs.reward.gold}g`;
       if (crGs && crGs.reward) text += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙`;
@@ -17911,6 +17927,8 @@ function cmdUseSkill(player, args, context) {
       const freshForShQuest = db.getPlayer(freshPicSh.id);
       const qShResult = quests.recordProgress(freshForShQuest, 'kill', { monsterName: target.name });
       const crSh = db.updateDailyChallengeProgress(freshPicSh.id, 'kill', target.name);
+      // BUG-1544: trackear kill en el nuevo sistema (challengePool)
+      try { const freshForShTk = db.getPlayer(freshPicSh.id); const shTkMsg = challengeTracker.trackKill(freshPicSh.id, freshForShTk, target); if (shTkMsg) text += shTkMsg; } catch (_) {}
       const wcrSh = db.updateWeeklyContractProgress(freshPicSh.id, target.name);
       if (wcrSh && wcrSh.reward) textSh += `\n📜 ¡CONTRATO COMPLETADO! +${wcrSh.reward.xp} XP · +${wcrSh.reward.gold}g`;
       if (crSh && crSh.reward) textSh += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙`;
@@ -18041,6 +18059,8 @@ function cmdUseSkill(player, args, context) {
       const freshForPalQuest = db.getPlayer(freshPal.id);
       const qPalResult = quests.recordProgress(freshForPalQuest, 'kill', { monsterName: target.name });
       const crPal = db.updateDailyChallengeProgress(freshPal.id, 'kill', target.name);
+      // BUG-1544: trackear kill en el nuevo sistema (challengePool)
+      try { const freshForPalTk = db.getPlayer(freshPal.id); const palTkMsg = challengeTracker.trackKill(freshPal.id, freshForPalTk, target); if (palTkMsg) textPal += palTkMsg; } catch (_) {}
       const wcrPal = db.updateWeeklyContractProgress(freshPal.id, target.name);
       if (wcrPal && wcrPal.reward) textPal += `\n📜 ¡CONTRATO COMPLETADO! +${wcrPal.reward.xp} XP · +${wcrPal.reward.gold}g`;
       if (crPal && crPal.reward) textPal += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙`;
@@ -18184,6 +18204,8 @@ function cmdUseSkill(player, args, context) {
       const freshForAseQuest = db.getPlayer(freshAse.id);
       const qAseResult = quests.recordProgress(freshForAseQuest, 'kill', { monsterName: target.name });
       const crAse = db.updateDailyChallengeProgress(freshAse.id, 'kill', target.name);
+      // BUG-1544: trackear kill en el nuevo sistema (challengePool)
+      try { const freshForAseTk = db.getPlayer(freshAse.id); const aseTkMsg = challengeTracker.trackKill(freshAse.id, freshForAseTk, target); if (aseTkMsg) textAse += aseTkMsg; } catch (_) {}
       const wcrAse = db.updateWeeklyContractProgress(freshAse.id, target.name);
       if (wcrAse && wcrAse.reward) textAse += `\n📜 ¡CONTRATO COMPLETADO! +${wcrAse.reward.xp} XP · +${wcrAse.reward.gold}g`;
       if (crAse && crAse.reward) textAse += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙`;
@@ -18392,6 +18414,8 @@ function cmdUseSkill(player, args, context) {
       const freshForJuQuest = db.getPlayer(freshJu.id);
       const qJuResult = quests.recordProgress(freshForJuQuest, 'kill', { monsterName: target.name });
       const crJu = db.updateDailyChallengeProgress(freshJu.id, 'kill', target.name);
+      // BUG-1544: trackear kill en el nuevo sistema (challengePool)
+      try { const freshForJuTk = db.getPlayer(freshJu.id); const juTkMsg = challengeTracker.trackKill(freshJu.id, freshForJuTk, target); if (juTkMsg) textJu += juTkMsg; } catch (_) {}
       const wcrJu = db.updateWeeklyContractProgress(freshJu.id, target.name);
       if (wcrJu && wcrJu.reward) textJu += `\n📜 ¡CONTRATO COMPLETADO! +${wcrJu.reward.xp} XP · +${wcrJu.reward.gold}g`;
       if (crJu && crJu.reward) textJu += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙`;

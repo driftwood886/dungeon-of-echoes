@@ -155,7 +155,7 @@ const challengePool = [
     id: 'CHAL-C13',
     category: 'combate',
     title: 'La Prueba Final',
-    description: 'Derrota al Lich Anciano (sala 14). Solo los más valientes sobreviven.',
+    description: 'Derrota al Lich Anciano (sala 15). Solo los más valientes sobreviven.',
     condition: { type: 'kill', target: 'Lich Anciano', amount: 1, extra: {} },
     reward: { xp: 400, gold: 80, rep: 5 },
     min_level: 7, max_level: 99,
