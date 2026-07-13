@@ -1879,7 +1879,7 @@ function cmdMove(player, direction) {
           }
         }
         return {
-          text: `🚶 Te movés a «${destName}».${moveHintText}${noBossEffectText}${noBossTrapText}${player._usedKeyName ? `\n\n🔑 Usás la "${player._usedKeyName}" para abrir la puerta. La llave se rompe al girar — ya no te sirve, pero la puerta cedió. Una sola vez.` : ''}`,
+          text: `🚶 Te movés a «${destName}».${moveHintText}${noBossEffectText}${noBossTrapText}${player._usedKeyName ? `\n\n🔑 Usás la "${player._usedKeyName}" para abrir la puerta. La llave se rompe al girar — ya no te sirve, pero la puerta cedió. Una sola vez.` : ''}${(() => { try { const ev = worldEvents.getCurrentEvent(); if (ev && ev.id === 'curse') { const fr = db.getPlayer(player.id); if (fr && fr.hp > 1) { db.updatePlayer(fr.id, { hp: fr.hp - 1 }); return `\n💀 La Maldición del Lich drena tu vitalidad. (-1 HP · ${fr.hp - 1}/${fr.max_hp} HP)`; } else if (fr) { return `\n💀 La Maldición del Lich intenta drenar tu vitalidad, pero tu llama se resiste. (1/${fr.max_hp} HP)`; } } } catch (_) {} return ''; })()}`,
           event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
@@ -2047,7 +2047,7 @@ function cmdMove(player, direction) {
         const bossRecLevel = BOSS_REC_LEVELS[bossInRoom.id];
         const bossLevelHint = bossLevelHintMsg(bossRecLevel, freshPlayer.level);
         return {
-          text: `🚶 Pasás cerca del ${bossInRoom.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.${bossFullHpEffectText}${bossFullHpTrapText}${bossLevelHint}\n\n${lookResult.text}`,
+          text: `🚶 Pasás cerca del ${bossInRoom.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.${bossFullHpEffectText}${bossFullHpTrapText}${bossLevelHint}${(() => { try { const ev = worldEvents.getCurrentEvent(); if (ev && ev.id === 'curse') { const fr = db.getPlayer(player.id); if (fr && fr.hp > 1) { db.updatePlayer(fr.id, { hp: fr.hp - 1 }); return `\n💀 La Maldición del Lich drena tu vitalidad. (-1 HP · ${fr.hp - 1}/${fr.max_hp} HP)`; } else if (fr) { return `\n💀 La Maldición del Lich intenta drenar tu vitalidad, pero tu llama se resiste. (1/${fr.max_hp} HP)`; } } } catch (_) {} return ''; })()}\n\n${lookResult.text}`,
           event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
@@ -2960,6 +2960,23 @@ function cmdMove(player, direction) {
     ? `\n✨ La consagración se disipa al abandonar la sala.`
     : '';
 
+  // BUG-1547: Maldición del Lich — drenar -1 HP por sala al moverse (path principal)
+  let curseDrainMsg = '';
+  try {
+    const curseEv = worldEvents.getCurrentEvent();
+    if (curseEv && curseEv.id === 'curse') {
+      const freshForCurse = db.getPlayer(player.id);
+      if (freshForCurse && freshForCurse.hp > 1) {
+        const newHpCurse = freshForCurse.hp - 1;
+        db.updatePlayer(freshForCurse.id, { hp: newHpCurse });
+        curseDrainMsg = `\n💀 La Maldición del Lich drena tu vitalidad al cambiar de sala. (-1 HP · ${newHpCurse}/${freshForCurse.max_hp} HP)`;
+      } else if (freshForCurse && freshForCurse.hp <= 1) {
+        // Ya al mínimo — solo mostrar mensaje sin matar
+        curseDrainMsg = `\n💀 La Maldición del Lich intenta drenar tu vitalidad, pero tu llama se resiste. (1/${freshForCurse.max_hp} HP)`;
+      }
+    }
+  } catch (_) { /* no romper move si falla */ }
+
   // DIS-1463: banner de evento global solo al entrar a sala nueva (no en look/combate)
   let moveEventLine = '';
   try {
@@ -2984,7 +3001,7 @@ function cmdMove(player, direction) {
   }
 
   return {
-    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${moveEventLine}`,
+    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${moveEventLine}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
