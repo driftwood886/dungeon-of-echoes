@@ -8706,6 +8706,13 @@ function cmdMap(player, args = []) {
   // Nota: La sala 18 (Fuente) conecta tanto al este (→9 Trono) como al sur (→10 Santuario).
   //
 
+  // DIS-1561: estado de la puerta norte del Pozo (sala 7 → sala 10 Santuario)
+  // Determinar ANTES de construir lines[] para poder usarlo en el conector vertical (row 8717)
+  const _room7ForMap = db.getRoom(7);
+  const _northExit7 = _room7ForMap && _room7ForMap.exits ? _room7ForMap.exits['north'] : undefined;
+  const _isPuertaNorteAbierta = _northExit7 !== undefined && _northExit7 !== null && typeof _northExit7 !== 'object';
+  const lockMarkMap = _isPuertaNorteAbierta ? '🔓' : '🔑';
+
   const lines = [
     'MAPA DEL DUNGEON',
     timeDecor,
@@ -8714,24 +8721,24 @@ function cmdMap(player, args = []) {
     `── ZONA PRINCIPAL ──────────────────────────────────────────`,
     // BUG-881: Santuario (10) al ESTE del Trono (9) — conexión east/west correcta
     `${c(18)}---${c(9)}---${c(10)}---${c(11)}`,
-    `              |         |         ↓ bajar → ZONA PROFUNDA`,
+    // DIS-1561: la segunda barra | (sala 10 Santuario → sala 7 Pozo) se reemplaza
+    // por lockMarkMap para indicar que la puerta bloqueada es la salida NORTE del Pozo.
+    `              |         ${lockMarkMap}        ↓ bajar → ZONA PROFUNDA`,
     // Túnel (6) sur de Trono, Corredor (2) este de Túnel; Pozo (7) sur de Santuario
     (() => {
-      // BUG-721: estado de la puerta norte del Pozo (→Santuario)
-      const room7 = db.getRoom(7);
-      const northExit7 = room7 && room7.exits ? room7.exits['north'] : undefined;
-      const isPuertaAbierta = northExit7 !== undefined && northExit7 !== null && typeof northExit7 !== 'object';
-      // BUG-894: lockMark debe ser CORTO para no romper el formato ASCII de la grilla
-      // El texto explicativo se agrega como nota al pie del mapa (ver lockHint abajo)
-      const lockMark = isPuertaAbierta ? '🔓' : '🔑';
       // BUG-1099: corregido layout — sala 8 (Prisión) está al NORTE de sala 4 (Tesoro),
       // no al este. Sala 17 (Subastas) está al este de sala 4 Y al este de sala 8.
       // Se muestran sala 8 y 17 en una fila encima de sala 4, con conector vertical.
-      const row1 = `            ${c(6)}---${c(2)}  ╎  ${c(7)}${lockMark}---${c(3)}---${c(4)}---${c(17)}`;
+      // DIS-1561: lockMark QUITADO del horizontal (c(7)---c(3)) — ahora aparece en
+      // el conector VERTICAL entre sala 10 y sala 7 (más abajo), indicando correctamente
+      // que la puerta bloqueada es la salida NORTE del Pozo, no la salida ESTE.
+      const row1 = `            ${c(6)}---${c(2)}  ╎  ${c(7)}---${c(3)}---${c(4)}---${c(17)}`;
       const row2 = `                                                               |         |`;
       const row3 = `                                                         ${c(8)}---+`;
       return [row1, row2, row3].join('\n');
     })(),
+    // DIS-1561: restaurar conector vertical simple entre sala 6/Túnel y sala 5/Capilla
+    // (la puerta bloqueada ya está indicada arriba con lockMarkMap)
     `              |         |`,
     `            ${c(5)}---${c(1)}`,
     // DIS-1432: mostrar salas de tutorial (21/16) conectadas desde sala 1 via 'abajo',
