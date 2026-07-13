@@ -1407,7 +1407,16 @@ function attackRound(player, monster) {
       }
     }
     const eliteXpMult = isEliteMonster ? 1.75 : 1.0;
-    const xpBase = Math.max(5, Math.floor(monster.max_hp * 2));
+    // DIS-1549: override de XP base para monstruos cuya fórmula max_hp×2 da valores desproporcionados
+    // El Guardia Espectral (id 8) tiene max_hp 55 → 110 XP sin cap, o 192 con elite ×1.75
+    // Eso catapulta al jugador nivel 3→4 de un solo kill, rompiendo la curva early game
+    // Override a 50 XP base → con elite mult queda en ~87 XP, consistente con zona de Prisión Subterránea
+    const XP_BASE_OVERRIDE = {
+      8: 50, // Guardia Espectral — DIS-1549: 110 XP → 50 XP base (87 con elite mult)
+    };
+    const xpBase = XP_BASE_OVERRIDE[monster.id] !== undefined
+      ? XP_BASE_OVERRIDE[monster.id]
+      : Math.max(5, Math.floor(monster.max_hp * 2));
     // Bonus de XP si hay evento invasión o luna de sangre (DIS-852) o clima de calma arcana (T166)
     const activeEv = worldEvents.getCurrentEvent();
     const invasionMult = (activeEv && activeEv.id === 'invasion') ? 1.5 : 1.0;
