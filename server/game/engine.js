@@ -5499,8 +5499,16 @@ function cmdPick(player, itemQuery) {
   const currentInvCount = (player.inventory || []).length + equippedCount;
   const maxInvSingle = INV_BASE_SLOTS + (player.inventory_bonus || 0); // DIS-1480 // DIS-595: bolsas de lona
   if (!goldKey && currentInvCount >= maxInvSingle) {
+    // DIS-1535: contextualizar el mensaje según nivel del jugador
+    const playerLevelForInv = player.level || 1;
+    const invHintVault = playerLevelForInv <= 4
+      ? '' // jugador early: no mencionar vault como opción principal
+      : '\n💡 También podés guardar ítems en la bóveda (vault) en la Entrada, Casa de Subastas o Cámara del Eco (sala 19).';
+    const invHintAldric = playerLevelForInv <= 4
+      ? '\n💡 Vendé ítems en la tienda de Aldric (sala 4) — es la forma más rápida de hacer espacio ahora.'
+      : '\n💡 Vendé en la tienda de Aldric (sala 4) o usá el mercado (subastar) para hacer espacio.';
     return {
-      text: `🎒 Tu mochila está llena (${currentInvCount}/${maxInvSingle} ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.\n💡 También podés usar la bóveda (vault) en la Entrada, Casa de Subastas o Cámara del Eco (sala 19).\n💡 Aldric vende bolsas de lona (20g) que amplían tu mochila +4 slots.`,
+      text: `🎒 Tu mochila está llena (${currentInvCount}/${maxInvSingle} ítems).\n💡 Podés hacer espacio: tirá algo con \`drop <ítem>\` o vendelo con \`subastar <ítem> <precio>\`.${invHintAldric}${invHintVault}\n💡 Aldric también vende bolsas de lona (20g) que amplían tu mochila +4 slots.`,
     };
   }
 
@@ -7759,8 +7767,13 @@ function cmdLoot(player) {
   // BUG-532: si no se recogió nada (mochila llena, sin oro), mostrar mensaje directo sin "0 ítems"
   if (totalItems === 0 && itemsLeft.length > 0) {
     const usedSlots = player.inventory.length + equippedCountLoot;
+    // DIS-1535: mensaje contextualizado por nivel
+    const lootPlayerLevel = player.level || 1;
+    const lootVaultHint = lootPlayerLevel <= 4
+      ? ''
+      : ' También guardá en la bóveda (vault) en sala 1, 17 o 19.';
     return {
-      text: `🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada.\nQuedaron en el suelo:\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}\n\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g) en la tienda de Aldric para +4 slots.`,
+      text: `🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada.\nQuedaron en el suelo:\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}\n\n💡 Hacé espacio con \`drop <ítem>\` o vendé en la tienda de Aldric (sala 4).${lootVaultHint} Podés comprar una **bolsa de lona** (20g) en Aldric para +4 slots.`,
       event: null,
       eventRoomId: room.id,
     };
