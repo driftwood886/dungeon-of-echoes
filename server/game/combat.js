@@ -2361,6 +2361,20 @@ function dropLoot(monster, roomId, player) {
     }
   }
 
+  // DIS-1540: Ítems únicos narrativos — no dropear si el jugador ya los tiene.
+  // El sello del carcelero y la carta sellada son ítems únicos de progresión narrativa.
+  // Si el jugador ya tiene uno en el inventario, suprimir el drop para evitar acumulación.
+  const UNIQUE_NARRATIVE_ITEMS = ['sello del carcelero', 'carta sellada'];
+  if (player && UNIQUE_NARRATIVE_ITEMS.some(u => allLoot.includes(u))) {
+    const playerInvUnique = Array.isArray(player.inventory)
+      ? player.inventory
+      : JSON.parse(player.inventory || '[]');
+    for (const uniqueItem of UNIQUE_NARRATIVE_ITEMS) {
+      if (allLoot.includes(uniqueItem) && playerInvUnique.some(i => i.toLowerCase() === uniqueItem)) {
+        allLoot = allLoot.filter(i => i !== uniqueItem);
+      }
+    }
+  }
   if (allLoot.length > 0) {
     // DIS-1007: Separar ítems directos (van al inventario del jugador) del loot de suelo.
     const directItemsForMonster = BOSS_DIRECT_LOOT[monster.id] || [];
