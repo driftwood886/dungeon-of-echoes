@@ -12910,7 +12910,8 @@ function cmdForage(player) {
   const activeMonsters = monsters.filter(m => {
     if (ignoredMonsters.some(name => m.name.toLowerCase().includes(name.toLowerCase()))) return false;
     // BUG-1531: si hay Marea Espectral, solo los espectrales/no-muertos son activos
-    if (forageIsSpectralTide) {
+    // DIS-1534: excepción para zona early (salas 1-5)
+    if (forageIsSpectralTide && !(player && player.current_room_id <= 5)) {
       const mNameLower = (m.name || '').toLowerCase();
       const isSpectral = FORAGE_SPECTRAL_IDS.has(m.id) ||
         mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
@@ -15248,6 +15249,8 @@ function cmdModoBerserk(player, context) {
   const mbIsSpectralTide = mbActiveEvCheck && mbActiveEvCheck.event && mbActiveEvCheck.event.id === 'SPECTRAL_TIDE';
   const mbMonsters = mbMonstersRaw.filter(m => {
     if (!mbIsSpectralTide) return true;
+    // DIS-1534: zona early (salas 1-5) — no aplica filtro espectral
+    if (player && player.current_room_id <= 5) return true;
     const mNameLower = (m.name || '').toLowerCase();
     const isSpectral = BERSERK_SPECTRAL_IDS.has(m.id) ||
       mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
@@ -15385,7 +15388,7 @@ function cmdSombras(player, args) {
   const SOMBRAS_SPECTRAL_IDS = new Set([4, 8, 12, 13, 21, 22]);
   const sombraEvCheck = (() => { try { return eventScheduler.getActiveEventInfo(); } catch(_) { return null; } })();
   const sombraIsSpectralTide = sombraEvCheck && sombraEvCheck.event && sombraEvCheck.event.id === 'SPECTRAL_TIDE';
-  const alive = sombraIsSpectralTide ? aliveRaw.filter(m => {
+  const alive = (sombraIsSpectralTide && !(player && player.current_room_id <= 5)) ? aliveRaw.filter(m => {
     const mNameLower = (m.name || '').toLowerCase();
     const isSpectral = SOMBRAS_SPECTRAL_IDS.has(m.id) ||
       mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
@@ -16693,7 +16696,10 @@ function cmdUseSkill(player, args, context) {
         : null;
       if (smashEvCheck && smashEvCheck.event && smashEvCheck.event.id === 'SPECTRAL_TIDE') {
         const SMASH_SPECTRAL_MONSTER_IDS = new Set([4, 8, 12, 13, 21, 22]);
+        // DIS-1534: zona early (salas 1-5) queda fuera del efecto espectral
+        const smashInEarlyZone = player && player.current_room_id <= 5;
         const isAttackableInSpectralTide = (m) => {
+          if (smashInEarlyZone) return true;
           const n = (m.name || '').toLowerCase();
           const isSpectral = SMASH_SPECTRAL_MONSTER_IDS.has(m.id) ||
             n.includes('espectro') || n.includes('fantasma') ||
@@ -16986,6 +16992,8 @@ function cmdUseSkill(player, args, context) {
     const furiaIsSpectralTide = furiaActiveEv && furiaActiveEv.event && furiaActiveEv.event.id === 'SPECTRAL_TIDE';
     const aliveForRage = aliveForRageRaw.filter(m => {
       if (!furiaIsSpectralTide) return true;
+      // DIS-1534: zona early (salas 1-5) queda fuera del efecto espectral
+      if (player && player.current_room_id <= 5) return true;
       const mNameLower = (m.name || '').toLowerCase();
       const isSpectral = FURIA_SPECTRAL_IDS.has(m.id) ||
         mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||

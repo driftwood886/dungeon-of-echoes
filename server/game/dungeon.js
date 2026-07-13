@@ -242,7 +242,9 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
         return `  • ${m.name} [🌁 oculto por la niebla]`;
       }
       // DIS-1451: si Marea Espectral activa y el monstruo no es espectral/undead, mostrarlo como inactivo
-      if (isSpectralTide) {
+      // DIS-1534: excepción — salas early (1-5) quedan fuera del epicentro espectral
+      const isEarlyZone = room.id <= 5;
+      if (isSpectralTide && !isEarlyZone) {
         const mNameLower = (m.name || '').toLowerCase();
         const isSpectral = SPECTRAL_TIDE_IDS.has(m.id) ||
           mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
@@ -253,6 +255,9 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
         if (!isSpectral && !isUndead) {
           return `  • ${m.name} 👻 (huye / inactiva durante la Marea Espectral)`;
         }
+      } else if (isSpectralTide && isEarlyZone) {
+        // DIS-1534: zona early — las criaturas siguen activas, pero con nota narrativa
+        // (sin mensaje extra para no saturar, el jugador ve su HP normal)
       }
       const pct = m.max_hp > 0 ? m.hp / m.max_hp : 0;
       const barLen = 10;
@@ -265,6 +270,11 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
       return `  • ${m.name} ${bar} ${m.hp}/${m.max_hp} HP ${cond}${eliteNote}`;
     }).join('\n');
     lines.push(`\nCriaturas:\n${monsterList}`);
+    // DIS-1534: si hay Marea Espectral pero estamos en zona early, agregar contexto narrativo
+    if (isSpectralTide && room.id <= 5) {
+      const minLeftEarly = spectralEvCheck && spectralEvCheck.minutesRemaining ? spectralEvCheck.minutesRemaining : '?';
+      lines.push(`\n👻 Las profundidades del dungeon están envueltas en la Marea Espectral — aquí en las cuevas exteriores las criaturas siguen activas. (~${minLeftEarly} min)`);
+    }
   } else {
     // DIS-508: mostrar criaturas en respawn para dar contexto al jugador
     try {

@@ -421,7 +421,10 @@ function attackRound(player, monster) {
         monsterNameLower.includes('momia') ||
         monsterNameLower.includes('óseo') ||
         monsterNameLower.includes('muerto');
-      if (!isSpectral && !isUndead) {
+      // DIS-1534: en salas early (1-5) la Marea Espectral no paraliza criaturas —
+      // las cuevas exteriores están demasiado lejos del epicentro espectral.
+      const isEarlyZone = player && player.current_room_id <= 5;
+      if (!isSpectral && !isUndead && !isEarlyZone) {
         const minLeft = newEvCheck.minutesRemaining;
         // DIS-1405: detectar si la quest activa tiene a este monstruo como objetivo
         let questHint = '';
