@@ -311,8 +311,8 @@ async function main() {
         level: p.level || 1,
         xp: p.xp || 0,
         kills: p.kills || 0,
-        hp: p.hp,
-        max_hp: p.max_hp,
+        // DIS-1536: HP omitido — no aporta contexto útil en el ranking histórico.
+        // Un jugador con HP baja puede ser una cuenta inactiva, no alguien "casi muerto".
       })),
     });
   });

@@ -39,8 +39,8 @@ const NPC_BOTS = [
     // Cuánto sube sobre el precio actual al pujar (porcentaje + base fija)
     bidOverpay: { pct: 0.05, flat: 1 },
     // Cada cuántos minutos puede subastar un ítem nuevo (aleatorio entre min y max)
-    cooldownMin: 25,
-    cooldownMax: 60,
+    cooldownMin: 10,
+    cooldownMax: 30,
     // Tiempo de la última subasta (en ms), gestionado en memoria
     lastAuctionAt: 0,
   },
@@ -61,8 +61,8 @@ const NPC_BOTS = [
     buysKeywords: ['pergamino', 'cristal', 'esencia', 'poción', 'ojo', 'mana'],
     bidChance: 55,
     bidOverpay: { pct: 0.12, flat: 2 },
-    cooldownMin: 30,
-    cooldownMax: 75,
+    cooldownMin: 12,
+    cooldownMax: 35,
     lastAuctionAt: 0,
   },
   {
@@ -82,8 +82,8 @@ const NPC_BOTS = [
     buysKeywords: ['espada', 'hacha', 'escudo', 'armadura', 'cota', 'martillo', 'daga', 'lanza', 'arco'],
     bidChance: 35,
     bidOverpay: { pct: 0.08, flat: 2 },
-    cooldownMin: 35,
-    cooldownMax: 90,
+    cooldownMin: 15,
+    cooldownMax: 40,
     lastAuctionAt: 0,
   },
 ];
@@ -232,15 +232,37 @@ function init(dbInstance, ioInstance = null) {
 
   // Arrancar con cooldowns escalonados para que los bots no subasten todos a la vez
   // al reiniciar el servidor. Le damos a cada bot un "lastAuctionAt" en el pasado
-  // pero no demasiado en el pasado — primer subasta entre 5 y 20 min tras arranque.
+  // pero no demasiado en el pasado — primer subasta entre 1 y 5 min tras arranque.
   const now = Date.now();
   NPC_BOTS.forEach((bot, i) => {
-    const delayMin = 5 + i * 5; // 5, 10, 15 min de delay inicial
+    const delayMin = 1 + i * 2; // 1, 3, 5 min de delay inicial (era 5, 10, 15)
     const delayMs = delayMin * 60 * 1000;
     // Simular que la "última subasta" fue hace (cooldownMax - delayMin) minutos
     // para que el primer tick que ocurra después del delay la dispare
     bot.lastAuctionAt = now - (bot.cooldownMax * 60 * 1000) + delayMs;
   });
+
+  // DIS-1537: Si no hay ninguna subasta activa de NPC al arrancar,
+  // crear una inmediatamente para que el mercado nunca se vea vacío.
+  // Esto resuelve el problema de Render.com reiniciando el servidor frecuentemente:
+  // cada reinicio garantiza al menos 1 subasta NPC visible.
+  setTimeout(() => {
+    try {
+      const active = db.getActiveAuctions();
+      const hasNpcAuction = active.some(a => a.seller_id < 0);
+      if (!hasNpcAuction) {
+        // Forzar primera subasta del primer bot disponible
+        const bot = NPC_BOTS[0];
+        bot.lastAuctionAt = 0; // resetear para que pase el check de cooldown
+        maybeAuction(bot);
+        console.log('[auctionNPC] Sin subastas NPC activas al arrancar — subasta inicial creada.');
+      } else {
+        console.log('[auctionNPC] Subastas NPC activas encontradas al arrancar, no es necesario crear una inicial.');
+      }
+    } catch (err) {
+      console.error('[auctionNPC] Error en subasta inicial de arranque:', err.message);
+    }
+  }, 30 * 1000); // 30 segundos después del arranque (esperar que la DB esté lista)
 
   console.log('[auctionNPC] Iniciado. 3 NPCs activos en la Casa de Subastas.');
   console.log('[auctionNPC] Bots:', NPC_BOTS.map(b => b.name).join(', '));
