@@ -4497,7 +4497,29 @@ function cmdAttack(player, targetName) {
   if (monsterDead) {
     challengeResult = db.updateDailyChallengeProgress(player.id, 'kill', monster.name, 1, player.current_room_id);
     if (challengeResult && challengeResult.reward) {
-      challengeMsg = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+      // DIS-1538: recompensa de runa garantizada al completar desafío diario.
+      // Dar una runa del tipo más acumulado (o aleatorio si no hay ninguna).
+      // Esto garantiza al menos 1 progreso útil hacia un set por día.
+      let bonusRuneMsg = '';
+      try {
+        const freshForRune = db.getPlayer(player.id);
+        const playerRunes = freshForRune ? (JSON.parse(freshForRune.runes || '{}')) : {};
+        const RUNE_TYPES_LOCAL = ['fuego', 'hielo', 'sombra', 'luz', 'caos'];
+        // Buscar el tipo con más runas (sin superar 2, porque 3 = fusión automática)
+        let bestType = null;
+        let bestCount = -1;
+        for (const t of RUNE_TYPES_LOCAL) {
+          const c = playerRunes[t] || 0;
+          if (c < 3 && c > bestCount) { // no completados y el más acumulado
+            bestCount = c;
+            bestType = t;
+          }
+        }
+        if (!bestType) bestType = RUNE_TYPES_LOCAL[Math.floor(Math.random() * RUNE_TYPES_LOCAL.length)];
+        const bonusRune = db.addRuneOfType(player.id, bestType);
+        if (bonusRune) bonusRuneMsg = `\n   🔮 Bonus: ${bonusRune}`;
+      } catch (_) { /* no romper si falla */ }
+      challengeMsg = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación${bonusRuneMsg}`;
     } else if (challengeResult && !challengeResult.challenge.done) {
       challengeMsg = `\n📅 Desafío diario: ${challengeResult.challenge.desc} (${challengeResult.challenge.progress}/${challengeResult.challenge.goal})`;
     }

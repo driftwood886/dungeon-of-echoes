@@ -1466,7 +1466,36 @@ function getPlayerRunes(playerId) {
   try { return JSON.parse(player.runes || '{}'); } catch (_) { return {}; }
 }
 
-// ─── Daily Challenge (T141) ───────────────────────────────────────────────────
+/**
+ * DIS-1538: Agrega una runa de un tipo específico al jugador.
+ * Si alcanza 3, se fusionan automáticamente igual que en tryAddRune.
+ * Devuelve un mensaje breve para mostrar en el chat, o null si falla.
+ */
+function addRuneOfType(playerId, type) {
+  const player = getPlayer(playerId);
+  if (!player) return null;
+  let runes;
+  try { runes = JSON.parse(player.runes || '{}'); } catch (_) { runes = {}; }
+
+  const current = runes[type] || 0;
+  if (current >= 2) {
+    // Fusión
+    delete runes[type];
+    updatePlayer(playerId, { runes: JSON.stringify(runes) });
+    const bonus = RUNE_BONUSES[type];
+    const pFresh = getPlayer(playerId);
+    const newVal = (pFresh[bonus.stat] || 0) + bonus.amount;
+    updatePlayer(playerId, { [bonus.stat]: newVal });
+    return `Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]} — ¡SET COMPLETO! → ${bonus.label}`;
+  } else {
+    runes[type] = current + 1;
+    updatePlayer(playerId, { runes: JSON.stringify(runes) });
+    const needed = 3 - (current + 1);
+    return `Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]} (${current + 1}/3)${needed === 1 ? ' — ¡Solo 1 más para fusionar!' : ''}`;
+  }
+}
+
+
 
 const DAILY_CHALLENGE_TYPES = [
   { type: 'kill',  target: 'Goblin Merodeador',      goal: 3,  desc: 'Matar 3 Goblins Merodeadores',               minLevel: 1 },
@@ -2944,7 +2973,7 @@ module.exports = {
   // T115: logros secretos
   trackRoomVisit, addGoldSpent, addCraftsCount,
   // T140: runas coleccionables
-  tryAddRune, getPlayerRunes, RUNE_TYPES, RUNE_EMOJIS, RUNE_BONUSES,
+  tryAddRune, getPlayerRunes, addRuneOfType, RUNE_TYPES, RUNE_EMOJIS, RUNE_BONUSES,
   // T141: desafío diario personal
   getDailyChallenge, updateDailyChallengeProgress,
   getWeeklyContract, updateWeeklyContractProgress,
