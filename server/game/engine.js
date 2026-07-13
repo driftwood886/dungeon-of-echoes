@@ -239,19 +239,23 @@ function makeLevelUpJournalMsg(newLevel, { monsterName = null, kills = null, roo
 function calcLevelUp(freshPlayer, xpGain) {
   const newXp = (freshPlayer.xp || 0) + xpGain;
   const newLevel = xpSystem.levelFromXp(newXp);
-  const levelUp = newLevel > (freshPlayer.level || 1);
+  const oldLevel = freshPlayer.level || 1;
+  const levelUp = newLevel > oldLevel;
+  const levelsGained = newLevel - oldLevel; // DIS-1553: puede ser > 1 en un solo kill
   const fields = { xp: newXp, level: newLevel };
   if (levelUp) {
-    fields.max_hp = (freshPlayer.max_hp || 30) + 5;
+    // DIS-1553: sumar stats por CADA nivel ganado, no solo uno
+    fields.max_hp = (freshPlayer.max_hp || 30) + (5 * levelsGained);
     const heal = Math.ceil(fields.max_hp * 0.20);
     fields.hp = Math.min(fields.max_hp, (freshPlayer.hp || 1) + heal);
     if (freshPlayer.player_class === 'mago' || freshPlayer.player_class === 'clerigo') {
-      fields.max_mana = (freshPlayer.max_mana || 20) + 3;
+      fields.max_mana = (freshPlayer.max_mana || 20) + (3 * levelsGained);
     }
-    fields.attack = (freshPlayer.attack || 5) + 1;
-    // DIS-1237: al subir a nivel 5 con especialización pendiente, marcar spec_reminder_shown
-    // para que no se repita al mover entre salas
-    if (newLevel === 5 && freshPlayer.player_class && freshPlayer.player_class !== 'sin_clase' && !freshPlayer.specialization) {
+    fields.attack = (freshPlayer.attack || 5) + (1 * levelsGained);
+    // DIS-1237 / DIS-1553: chequear TODOS los niveles intermedios (oldLevel+1 ... newLevel)
+    // para capturar unlocks que ocurren en cualquier nivel saltado
+    const passedThroughLevel5 = (oldLevel < 5 && newLevel >= 5);
+    if (passedThroughLevel5 && freshPlayer.player_class && freshPlayer.player_class !== 'sin_clase' && !freshPlayer.specialization) {
       try {
         const se = freshPlayer.status_effects
           ? (typeof freshPlayer.status_effects === 'string' ? JSON.parse(freshPlayer.status_effects) : freshPlayer.status_effects)
@@ -263,7 +267,8 @@ function calcLevelUp(freshPlayer, xpGain) {
   // DIS-1323: si el jugador llega a nivel 5 con la carta sellada pero la quest de Aldric aún no inició,
   // recordarle que hable con Aldric (sala 4) — el hint del pick solo se muestra una vez al recoger.
   let aldricCartaReminder = '';
-  if (levelUp && newLevel === 5 && (freshPlayer.aldric_quest || 'none') === 'none') {
+  const passedLevel5ForAldric = levelUp && (freshPlayer.level || 1) < 5 && newLevel >= 5;
+  if (passedLevel5ForAldric && (freshPlayer.aldric_quest || 'none') === 'none') {
     try {
       const inv5 = Array.isArray(freshPlayer.inventory) ? freshPlayer.inventory : JSON.parse(freshPlayer.inventory || '[]');
       if (inv5.some(i => i.toLowerCase().includes('carta sellada'))) {
@@ -272,11 +277,20 @@ function calcLevelUp(freshPlayer, xpGain) {
     } catch (_) { /* no interrumpir */ }
   }
   // DIS-1490: mensaje de level-up compacto (2-3 líneas) — el detalle completo se accede con `status`
-  const specLine = newLevel === 5 && !freshPlayer.specialization
-    ? '\n   ⚠️ Nivel 5 — elegí tu especialización: `especializar`'
-    : '';
+  // DIS-1553: Si se saltaron varios niveles, mostrar TODOS los unlocks de cada nivel intermedio
+  let unlockLines = '';
+  if (levelUp) {
+    for (let lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
+      if (lvl === 5 && !freshPlayer.specialization) {
+        unlockLines += `\n   ⚠️ Nivel 5 — elegí tu especialización: \`especializar\``;
+      }
+      // Aquí se pueden agregar más unlocks futuros de niveles específicos
+    }
+  }
+  const multiLevelNote = levelsGained > 1 ? ` (¡+${levelsGained} niveles de un golpe!)` : '';
+  const statsNote = levelsGained > 1 ? ` +${5 * levelsGained} HP, +${levelsGained} ATK` : ` +5 HP, +1 ATK`;
   const levelUpText = levelUp
-    ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}! +5 HP, +1 ATK.${fields.hp ? ` (${fields.hp}/${fields.max_hp} HP)` : ''}${specLine}${aldricCartaReminder}\n   → Escribí \`status\` para ver tus stats actualizados.`
+    ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}!${multiLevelNote}${statsNote}.${fields.hp ? ` (${fields.hp}/${fields.max_hp} HP)` : ''}${unlockLines}${aldricCartaReminder}\n   → Escribí \`status\` para ver tus stats actualizados.`
     : '';
   return { fields, levelUpMsg: levelUpText };
 }

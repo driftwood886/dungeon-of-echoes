@@ -1018,34 +1018,45 @@ function attackRound(player, monster) {
   // DIS-1436: regen aumentada (8→14 bajo niv7, 12→20 nivel7+) + mechanic de Escudo de Piedra cada 3 turnos
   // DIS-1459: regen ajustada — fase 1 (>50% HP): 8 HP bajo niv7 / 12 HP niv7+; fase 2 (<=50% HP): 14 HP bajo niv7 / 20 HP niv7+
   //   El Gólem se vuelve más duro a medida que cae — tiene sentido narrativo (fragmentos energizados)
+  // DIS-1550: anti-loop infinito — (a) no regen en el mismo turno que activa escudo; (b) cap total = max_hp de la criatura
   if (monster.hp > 0 && monNameLow.includes('gólem de piedra')) {
     const golemFx = monster.status_effects
       ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects)
       : {};
     const golemTurns = (golemFx.golem_turns || 0) + 1;
     golemFx.golem_turns = golemTurns;
+    // DIS-1436: Escudo de Piedra — cada 3 turnos el Gólem activa escudo (daño recibido ×0.35 el próximo ataque del jugador)
+    const shieldActivatedThisTurn = (golemTurns % 3 === 0);
+    if (shieldActivatedThisTurn) {
+      golemFx.stone_shield = true;
+      lines.push(`🪨 El Gólem de Piedra endurece su exterior — ¡escudo de piedra activo! (próximo ataque reducido al 35%)`);
+    }
     if (golemTurns % 2 === 0) {
       // DIS-1459: Cada 2 turnos: regeneración escalonada por fase del Gólem
       // Fase 1 (>50% HP): regen baja — el Gólem aguanta pero es vencible
       // Fase 2 (<=50% HP): regen alta — el Gólem "se energiza" al estar herido
-      const golemPhase2 = monster.hp <= (monster.max_hp / 2);
-      const regenAmount = (player.level >= 7)
-        ? (golemPhase2 ? 20 : 12)
-        : (golemPhase2 ? 14 : 8);
-      const newGolemHp = Math.min(monster.max_hp, monster.hp + regenAmount);
-      const actualRegen = newGolemHp - monster.hp;
-      if (actualRegen > 0) {
-        monster.hp = newGolemHp;
-        const regenMsg = golemPhase2
-          ? `🪨 ¡Los fragmentos del Gólem de Piedra se energizan! Regenera ${actualRegen} HP. (${monster.hp}/${monster.max_hp} HP)`
-          : `🪨 Los fragmentos del Gólem de Piedra se reensamblan — regenera ${actualRegen} HP. (${monster.hp}/${monster.max_hp} HP)`;
-        lines.push(regenMsg);
+      // DIS-1550: dos protecciones contra loop infinito:
+      //   (a) Sin regen en el mismo turno que activa el escudo (no acumular dos ventajas simultáneas)
+      //   (b) Cap de regen total — el Gólem no puede recuperar más que su propio max_hp durante toda la pelea
+      const regenCapHit = (golemFx.regen_total || 0) >= monster.max_hp;
+      if (!shieldActivatedThisTurn && !regenCapHit) {
+        const golemPhase2 = monster.hp <= (monster.max_hp / 2);
+        const regenAmount = (player.level >= 7)
+          ? (golemPhase2 ? 20 : 12)
+          : (golemPhase2 ? 14 : 8);
+        const newGolemHp = Math.min(monster.max_hp, monster.hp + regenAmount);
+        const actualRegen = newGolemHp - monster.hp;
+        if (actualRegen > 0) {
+          monster.hp = newGolemHp;
+          golemFx.regen_total = (golemFx.regen_total || 0) + actualRegen;
+          const regenMsg = golemPhase2
+            ? `🪨 ¡Los fragmentos del Gólem de Piedra se energizan! Regenera ${actualRegen} HP. (${monster.hp}/${monster.max_hp} HP)`
+            : `🪨 Los fragmentos del Gólem de Piedra se reensamblan — regenera ${actualRegen} HP. (${monster.hp}/${monster.max_hp} HP)`;
+          lines.push(regenMsg);
+        }
+      } else if (regenCapHit) {
+        lines.push(`🪨 El Gólem de Piedra intenta regenerarse, pero sus reservas de energía se han agotado.`);
       }
-    }
-    // DIS-1436: Escudo de Piedra — cada 3 turnos el Gólem activa escudo (daño recibido ×0.35 el próximo ataque del jugador)
-    if (golemTurns % 3 === 0) {
-      golemFx.stone_shield = true;
-      lines.push(`🪨 El Gólem de Piedra endurece su exterior — ¡escudo de piedra activo! (próximo ataque reducido al 35%)`);
     }
     monster.status_effects = golemFx;
     db.updateMonster(monster.id, { hp: monster.hp, status_effects: JSON.stringify(golemFx) });
