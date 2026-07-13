@@ -6317,7 +6317,41 @@ function cmdUse(player, itemQuery) {
         resultText = `🍄 Sostenés el brebaje. Los vapores violetas se disipan en el aire de esta sala sin efecto.\n💡 Este brebaje tiene propósitos rituales: llevalo al altar de la Capilla Olvidada (sala 5) y escribí "usar ${found}" allí para ofrendarlo.`;
       }
     } else {
-      resultText = `Examinás ${found}: ${def.description}`;
+      // DIS-1551: si el ítem es una llave y hay salidas bloqueadas en la sala actual, intentar usarla
+      // En lugar de solo describir el ítem, ejecutar el movimiento por la puerta correspondiente
+      const isKeyItem = found.toLowerCase().includes('llave');
+      if (isKeyItem) {
+        try {
+          const currentRoomForKey = db.getRoom(player.current_room_id);
+          let keyExits = {};
+          try { keyExits = JSON.parse(currentRoomForKey.exits || '{}'); } catch (_) { keyExits = {}; }
+          const lockedExitEntries = Object.entries(keyExits).filter(([, v]) => v && typeof v === 'object' && v.locked);
+          if (lockedExitEntries.length > 0) {
+            // Hay una puerta bloqueada — intentar cruzarla como si el jugador hubiera escrito "move <dir>"
+            const [targetDir] = lockedExitEntries[0];
+            const moveResult = cmdMove(player, [targetDir]);
+            if (moveResult && moveResult.text && !moveResult.text.includes('bloqueada') && !moveResult.text.includes('🔒')) {
+              // El movimiento funcionó — la llave fue usada exitosamente
+              return moveResult;
+            }
+            // El movimiento falló (quizás no era la llave correcta) — mostrar mensaje útil
+            const keyNeeded = lockedExitEntries[0][1].key || 'llave correcta';
+            if (found.toLowerCase() !== keyNeeded.toLowerCase()) {
+              resultText = `🔑 Intentás usar ${found} en la cerradura, pero no encaja.\n💡 Esta puerta requiere: \"${keyNeeded}\". Revisá tu inventario con \`inventario\`.`;
+            } else {
+              // La llave es la correcta pero el movimiento falló por otra razón
+              return moveResult;
+            }
+          } else {
+            // No hay puerta bloqueada en esta sala
+            resultText = `🔑 Sostenés la ${found}. No hay ninguna cerradura que abrir aquí.\n${def.description}\n💡 La llave abre una puerta en otra sala — usá \`mapa\` para orientarte.`;
+          }
+        } catch (_) {
+          resultText = `Examinás ${found}: ${def.description}`;
+        }
+      } else {
+        resultText = `Examinás ${found}: ${def.description}`;
+      }
     }
   }
 
