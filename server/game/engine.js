@@ -10731,6 +10731,16 @@ function cmdShop(player, args) {
   lines.push('Comandos: "buy <ítem>" para comprar, "sell <ítem>" para vender.');
   lines.push(`Podés vender tus ítems al ${Math.round(SELL_PRICE_RATIO * 100)}% de su valor original.`);
 
+  // DIS-1603: mencionar runas si el jugador aún no tiene ninguna — visibilidad anticipada del mechanic
+  try {
+    const shopInv = Array.isArray(player.inventory) ? player.inventory : [];
+    const hasAnyRune = shopInv.some(item => typeof item === 'string' && item.toLowerCase().startsWith('runa de'));
+    if (!hasAnyRune) {
+      lines.push('');
+      lines.push('💎 «Ah, una cosa.» Aldric baja la voz. «Al matar monstruos, a veces dejan runas mágicas — fuego, hielo, sombra, luz o caos. No te las vendo yo, las encontrás vos. Tres del mismo tipo se fusionan solas y te dan +1 ATK permanente. Una sola te sirve para encantar tu arma por unos minutos. Escribí `runas` cuando tengas alguna.»');
+    }
+  } catch (_) {}
+
   return { text: lines.join('\n') };
 }
 
