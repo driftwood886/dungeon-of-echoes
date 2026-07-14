@@ -2565,8 +2565,17 @@ function cmdMove(player, direction) {
       const atmoPrefix = atmosphereHint ? `\n\n${atmosphereHint}` : '';
       // BUG-1462: mostrar el daño de trampa ANTES de la descripción de sala (trapDamagePrefix) para que
       // no quede enterrado al final de la descripción. trapText conserva el mensaje completo con tips.
-      trapDamagePrefix = `${atmoPrefix}\n\n⚠️  ¡TRAMPA! ${trap.description}\n💥 Perdés ${variantDmg} HP. (${newHp}/${player.max_hp} HP)`;
-      trapText = `\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).\n${disarmHint}`;
+      // DIS-1586: si el jugador ya fue advertido (flag trap_warned_<id> activo), mensaje más corto y directo
+      const warnKey = `trap_warned_${targetId}`;
+      const warnExpiry = statusEff[warnKey] ? new Date(statusEff[warnKey]).getTime() : 0;
+      const wasWarnedBefore = warnExpiry > Date.now();
+      if (wasWarnedBefore) {
+        trapDamagePrefix = `\n\n⚡ Cruzás la trampa a propósito. El golpe llega.\n💥 Perdés ${variantDmg} HP. (${newHp}/${player.max_hp} HP)`;
+        trapText = `\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte.\n${disarmHint}`;
+      } else {
+        trapDamagePrefix = `${atmoPrefix}\n\n⚠️  ¡TRAMPA! ${trap.description}\n💥 Perdés ${variantDmg} HP. (${newHp}/${player.max_hp} HP)`;
+        trapText = `\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).\n${disarmHint}`;
+      }
       if (newHp === 0) {
         // BUG-006 fix: usar handlePlayerDeath para registrar deaths correctamente
         const trapDeathLines = [];
@@ -2964,6 +2973,24 @@ function cmdMove(player, direction) {
     }
     if (trapLinesMove.length > 0) {
       adjacentTrapMoveMsg = '\n⚠️ ' + trapLinesMove.join('\n⚠️ ');
+      // DIS-1586: guardar flag de "fue advertido" en status_effects con TTL 3 min
+      // Si el jugador entra de todas formas, el mensaje de trampa será más corto y deliberado
+      try {
+        const freshForWarn = db.getPlayer(player.id);
+        const seForWarn = parseSE(freshForWarn.status_effects);
+        const warnedUpdates = {};
+        for (const [dir, destId] of Object.entries(curExitsMove)) {
+          if (TRAP_ROOM_DANGER_MOVE[destId]) {
+            const visitedCheck = visitedArrMove.some(v => v == destId);
+            if (!visitedCheck) {
+              warnedUpdates[`trap_warned_${destId}`] = new Date(Date.now() + 3 * 60 * 1000).toISOString();
+            }
+          }
+        }
+        if (Object.keys(warnedUpdates).length > 0) {
+          db.updatePlayer(player.id, { status_effects: JSON.stringify({ ...seForWarn, ...warnedUpdates }) });
+        }
+      } catch (_) { /* no romper move */ }
     }
   } catch (_) {}
 
