@@ -5,6 +5,13 @@
  * el jugador llegue a nivel 5 (especialización) con más exploración (~15
  * combates en vez de ~10), dando tiempo a entender su clase.
  *
+ * DIS-1583: XP de exploración escalonada para reducir grind inicial.
+ * Las primeras 5 salas exploradas dan 10 XP c/u (50 XP total de exploración
+ * en las salas iniciales), el resto dan 3 XP. Con kills de ~16-30 XP, el
+ * jugador alcanza nivel 2 (60 XP) en 2-3 kills + exploración, y nivel 3
+ * (150 XP) en ~5-6 kills + exploración de las primeras salas.
+ * Nivel 3 → acceso a facciones y quests.
+ *
  * Fórmula:
  *   xpForLevel(L) = 15*(L-1)^2 + 45*(L-1)
  *

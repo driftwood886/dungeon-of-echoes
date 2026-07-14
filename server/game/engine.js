@@ -2389,12 +2389,17 @@ function cmdMove(player, direction) {
   const roomsCr = db.updateDailyChallengeProgress(player.id, 'rooms', targetId);
 
   // ── T160/DIS-D372: XP por exploración permanente ──────────────────────────
-  // +2 XP la primera vez que se visita una sala (permanente, no por sesión)
+  // DIS-1583: XP de exploración escalonada — primeras 5 salas dan 10 XP (bonus de
+  // descubrimiento temprano para reducir grind inicial hacia nivel 3/facciones),
+  // salas 6+ dan 3 XP (antes eran 2 XP fijas).
   // visitResult.isNew indica si es la primera vez en total (usa rooms_visited en BD)
   let explorationMsg = '';
   if (firstVisitEver) {
     const freshExp = db.getPlayer(player.id);
-    const newXp = (freshExp.xp || 0) + 2;
+    // visitResult.visited.length ya incluye la sala actual; prevVisitedCount es el count ANTES de esta visita
+    const prevVisitedCount = visitResult.visited.length - 1;
+    const exploXp = prevVisitedCount < 5 ? 10 : 3;
+    const newXp = (freshExp.xp || 0) + exploXp;
     const newLevel = xpSystem.levelFromXp(newXp);
     const levelUp = newLevel > (freshExp.level || 1);
     const upd = { xp: newXp, level: newLevel };
@@ -2419,7 +2424,7 @@ function cmdMove(player, direction) {
         }
       } catch (_) { /* no interrumpir */ }
     }
-    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +2 XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${newLevel === 5 && !freshExp.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.' : ''}${expAldricReminder}` : ''}`;
+    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${exploXp} XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${newLevel === 5 && !freshExp.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.' : ''}${expAldricReminder}` : ''}`;
     // EPIC-1373: Influencia de facción por exploración (nueva sala)
     db.addFactionInfluence(player.id, 2);
   }
