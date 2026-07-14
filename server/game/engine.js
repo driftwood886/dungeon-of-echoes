@@ -3029,8 +3029,22 @@ function cmdMove(player, direction) {
     } catch (_) {}
   }
 
+  // EPIC-QD (IMPL-QD-1576): hook de quests — notificar exploración
+  let questExploreMsg = '';
+  try {
+    if (!player.is_bot) {
+      const freshForQE = db.getPlayer(player.id);
+      if (freshForQE) {
+        const qeResult = questEngine.onExplore(freshForQE, targetId, firstVisitEver);
+        if (qeResult && qeResult.text) {
+          questExploreMsg = '\n\n' + qeResult.text;
+        }
+      }
+    }
+  } catch (_) { /* no romper movimiento si falla questEngine */ }
+
   return {
-    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${moveEventLine}`,
+    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${moveEventLine}${questExploreMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,

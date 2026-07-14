@@ -359,15 +359,116 @@ function onKill(player, monster) {
  * Notificar exploración de sala al QuestEngine.
  * Actualiza progreso de quests de tipo 'explore' activas del jugador.
  *
- * TODO (IMPL-QD-1576): implementar.
  * @param {Object} player
  * @param {number} roomId
+ * @param {boolean} isNew — true si es la primera vez que el jugador visita esta sala
  * @returns {null | { text: string }}
  */
-function onExplore(player, roomId) {
+function onExplore(player, roomId, isNew = false) {
   if (player.is_bot) return null;
-  // TODO: buscar quests explore activas, verificar condición, actualizar progreso
-  return null;
+
+  const rawDb = db.raw();
+  const messages = [];
+
+  // Buscar quests explore activas
+  const questsResult = rawDb.exec(
+    `SELECT pq.id, pq.quest_id, pq.progress, qd.condition, qd.reward, qd.name
+     FROM player_quests pq
+     JOIN quest_definitions qd ON qd.id = pq.quest_id
+     WHERE pq.player_id = ? AND pq.status = 'active' AND qd.type = 'explore'`,
+    [player.id]
+  );
+  if (!questsResult.length || !questsResult[0].values.length) return null;
+
+  const cols = questsResult[0].columns;
+  const rows = questsResult[0].values.map(r => Object.fromEntries(cols.map((c, i) => [c, r[i]])));
+
+  for (const row of rows) {
+    try {
+      const cond = JSON.parse(row.condition || '{}');
+      const progress = JSON.parse(row.progress || '{}');
+
+      // Caso 1: sala específica a visitar
+      if (cond.target_room_id !== undefined && cond.target_room_id !== null) {
+        if (roomId !== cond.target_room_id) continue;
+        // require_not_visited: solo si es primera vez
+        if (cond.require_not_visited && !isNew) continue;
+
+        const already = progress.explored === true;
+        if (already) continue;
+
+        // Completar quest
+        const reward = JSON.parse(row.reward || '{}');
+        const now = new Date().toISOString();
+        rawDb.run(
+          `UPDATE player_quests SET status = 'completed', progress = ?, completed_at = ? WHERE id = ?`,
+          [JSON.stringify({ explored: true }), now, row.id]
+        );
+        const updates = {};
+        if (reward.gold) updates.gold = (player.gold || 0) + reward.gold;
+        if (reward.xp)   updates.xp   = (player.xp   || 0) + reward.xp;
+        if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
+        if (reward.aldric_rep) { try { db.addAldricRep(player.id, reward.aldric_rep); } catch (_) {} }
+        if (reward.faction_influence && player.faction) { try { db.addFactionInfluence(player.id, reward.faction_influence); } catch (_) {} }
+
+        let completionMsg = `✅ **¡Quest completada!** "${row.name}"\n`;
+        const rewardParts = [];
+        if (reward.gold) rewardParts.push(`+${reward.gold} 💰 gold`);
+        if (reward.xp)   rewardParts.push(`+${reward.xp} ⭐ XP`);
+        if (reward.aldric_rep) rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
+        if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
+        if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
+        messages.push(completionMsg);
+
+        try { const fp = db.getPlayer(player.id); if (fp) assignQuests(fp); } catch (_) {}
+
+      // Caso 2: descubrir N salas nuevas
+      } else if (cond.new_rooms_count !== undefined) {
+        if (!isNew) continue; // solo cuenta salas nuevas
+
+        const current = progress.rooms_discovered || 0;
+        const needed  = cond.new_rooms_count || 1;
+        const newCount = current + 1;
+
+        if (newCount >= needed) {
+          const reward = JSON.parse(row.reward || '{}');
+          const now = new Date().toISOString();
+          rawDb.run(
+            `UPDATE player_quests SET status = 'completed', progress = ?, completed_at = ? WHERE id = ?`,
+            [JSON.stringify({ rooms_discovered: newCount }), now, row.id]
+          );
+          const updates = {};
+          if (reward.gold) updates.gold = (player.gold || 0) + reward.gold;
+          if (reward.xp)   updates.xp   = (player.xp   || 0) + reward.xp;
+          if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
+          if (reward.aldric_rep) { try { db.addAldricRep(player.id, reward.aldric_rep); } catch (_) {} }
+          if (reward.faction_influence && player.faction) { try { db.addFactionInfluence(player.id, reward.faction_influence); } catch (_) {} }
+
+          let completionMsg = `✅ **¡Quest completada!** "${row.name}"\n`;
+          const rewardParts = [];
+          if (reward.gold) rewardParts.push(`+${reward.gold} 💰 gold`);
+          if (reward.xp)   rewardParts.push(`+${reward.xp} ⭐ XP`);
+          if (reward.aldric_rep) rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
+          if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
+          if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
+          messages.push(completionMsg);
+
+          try { const fp = db.getPlayer(player.id); if (fp) assignQuests(fp); } catch (_) {}
+        } else {
+          rawDb.run(
+            `UPDATE player_quests SET progress = ? WHERE id = ?`,
+            [JSON.stringify({ rooms_discovered: newCount }), row.id]
+          );
+          messages.push(`📋 Quest "${row.name}": ${newCount}/${needed} salas nuevas`);
+        }
+      }
+    } catch (e) {
+      console.error('[questEngine] Error en onExplore:', e.message);
+    }
+  }
+
+  if (!messages.length) return null;
+  return { text: messages.join('\n') };
 }
 
 /**
