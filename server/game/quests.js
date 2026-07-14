@@ -7,9 +7,16 @@
  *
  * Columna `quest_progress` en players: JSON con { questId, progress }
  * La quest activa se guarda en memoria + se persiste en un archivo JSON.
+ *
+ * BUG-1581: Este sistema (global) es reemplazado por questEngine.js (individual por jugador).
+ * Mantener el código en caso de rollback, pero desactivar para que no coexista con el nuevo.
  */
 
 'use strict';
+
+// BUG-1581: Desactivar sistema viejo — el nuevo questEngine.js lo reemplaza.
+// Para reactivar: cambiar a false (o eliminar este bloque).
+const QUEST_SYSTEM_DISABLED = true;
 
 const fs   = require('fs');
 const path = require('path');
@@ -199,6 +206,7 @@ function startNewQuest(excludeId = null, maxPlayerLevel = 1) {
  * Obtener la quest activa.
  */
 function getActiveQuest() {
+  if (QUEST_SYSTEM_DISABLED) return null;
   if (!activeQuest) loadQuest();
   return activeQuest;
 }
@@ -237,6 +245,7 @@ function getPlayerProgress(player) {
  * Devuelve { newProgress, justCompleted, reward } o null si no aplica.
  */
 function recordProgress(player, type, data = {}) {
+  if (QUEST_SYSTEM_DISABLED) return null;
   const quest = getActiveQuest();
   if (!quest) return null;
 
@@ -296,6 +305,7 @@ function recordProgress(player, type, data = {}) {
  * Retorna la nueva quest si rotó, null si no.
  */
 function maybeRotateQuest() {
+  if (QUEST_SYSTEM_DISABLED) return null;
   if (!activeQuest) return null;
   const ageMs = Date.now() - new Date(activeQuest.startedAt).getTime();
   const thirtyMin = 30 * 60 * 1000;

@@ -490,6 +490,9 @@ async function init() {
     },
   ];
 
+  // BUG-1580: sql.js requiere que las keys de named params tengan el prefijo '@'
+  // (ej: {"@id": val} en vez de {id: val}). Sin el prefijo, todos los params
+  // bindean como NULL y el INSERT falla silenciosamente por NOT NULL en 'name'.
   const _insertQuest = db.prepare(`
     INSERT OR IGNORE INTO quest_definitions
       (id, name, description, type, slot, condition, reward,
@@ -500,9 +503,14 @@ async function init() {
        @require_level, @require_faction, @require_class,
        @chain_id, @chain_step, @chain_prev_id, @weekly_seed_group, @is_active)
   `);
+  let _questsSeeded = 0;
   for (const _q of QUEST_POOL_SEED) {
-    _insertQuest.run(_q);
+    // Transformar keys: {id: ...} → {"@id": ...}
+    const _qPrefixed = Object.fromEntries(Object.entries(_q).map(([k, v]) => [`@${k}`, v]));
+    _insertQuest.run(_qPrefixed);
+    _questsSeeded++;
   }
+  console.log(`[db] EPIC-QD: ${_questsSeeded} quests en pool (INSERT OR IGNORE — idempotente)`);
 
   const migrations = [
     `ALTER TABLE players ADD COLUMN xp     INTEGER NOT NULL DEFAULT 0`,
