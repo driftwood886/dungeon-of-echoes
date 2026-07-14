@@ -11712,7 +11712,7 @@ function cmdFaccion(player, args) {
       const display = lore ? `${lore.icon} ${lore.name}` : player.faction;
       return { text: `Pertenecés a ${display}.\n\nComandos disponibles:\n  faccion elegir <nombre>  — elegir/cambiar facción\n  faccion cambiar <nombre> — cambiar facción (100g + cooldown 7 días)\n  facciones                — ver influencia semanal\n\nFacciones disponibles: orden_filo, conclave_arcano, hermandad_mercado` };
     }
-    return { text: `No tenés facción. Elegí una con: faccion elegir <nombre>\n\nFacciones disponibles:\n  🗡️  orden_filo        — La Orden del Filo (combate)\n  🔮  conclave_arcano  — El Cónclave Arcano (exploración)\n  🪙  hermandad_mercado — La Hermandad del Mercado (economía)\n\n(Disponible en nivel 3+)` };
+    return { text: `No tenés facción. Elegí una con: faccion elegir <nombre>\n\nFacciones disponibles:\n  🗡️  orden_filo        — La Orden del Filo (combate)\n  🔮  conclave_arcano  — El Cónclave Arcano (exploración)\n  🪙  hermandad_mercado — La Hermandad del Mercado (economía)\n\n${(player.level || 1) < 3 ? `⚔️ Disponible en nivel 3+ (sos nivel ${player.level || 1} — seguí explorando).` : 'Usá: faccion elegir <nombre> para ver la ficha completa y unirte.'}` };
   }
 
   const sub = args[0].toLowerCase();
@@ -11720,6 +11720,10 @@ function cmdFaccion(player, args) {
 
   // ── DIS-1528: faccion confirmar — confirmar elección pendiente ──────────────
   if (sub === 'confirmar' || sub === 'si' || sub === 'sí') {
+    // DIS-1601: verificar nivel 3+ antes de procesar el pending (puede haberse guardado antes de nivel requerido)
+    if ((player.level || 1) < 3) {
+      return { text: '⚔️ Las facciones del dungeon solo aceptan aventureros con experiencia probada (nivel 3+).\n\nSeguí explorando — el dungeon tiene más secretos que revelar.' };
+    }
     const se = parseSE(player.status_effects);
     const pendingFactionId = se.faction_pending;
     if (!pendingFactionId) {
