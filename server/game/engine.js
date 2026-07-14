@@ -36,6 +36,7 @@ const xpSystem = require('./xp');      // DIS-D282: curva de XP cuadrática
 const expeditionEngine = require('./expedition_engine'); // EPIC-1158: sistema de expediciones
 const challengeTracker = require('./challengeTracker');  // T-1231: tracking de desafíos diarios
 const challengeAssigner = require('./challengeAssigner'); // T-1232: asignación y lectura de los 3 desafíos diarios
+const questEngine = require('./questEngine'); // EPIC-QD: sistema de quests dinámicas (IMPL-QD-1573)
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // DIS-1514: helper para mensaje de progreso de XP dentro del nivel actual
@@ -575,6 +576,20 @@ function execute(playerId, input, context) {
     case 'runas':        result = cmdRunas(player); break;
     case 'challenge':    result = cmdChallenge(player); break;
     case 'contract':     result = cmdContract(player); break;
+    case 'quests':       result = questEngine.getQuestsDisplay(player); break;           // EPIC-QD: quests activas
+    case 'quest': {                                                                        // EPIC-QD: detalle/abandon/historial
+      const questSub = (action.args && action.args[0] || '').toLowerCase();
+      if (questSub === 'info' && action.args.length > 1) {
+        result = questEngine.getQuestDetail(player, action.args.slice(1).join(' '));
+      } else if (questSub === 'abandonar' && action.args.length > 1) {
+        result = questEngine.abandonQuest(player, action.args.slice(1).join(' '));
+      } else if (questSub === 'historial') {
+        result = questEngine.getHistory(player);
+      } else {
+        result = questEngine.getQuestsDisplay(player);
+      }
+      break;
+    }
     case 'macro':        result = cmdMacro(player, action.args, context); break;
     case 'afk':          result = cmdAfk(player, action.args); break;
     case 'logout':       result = { text: '🚪 Para salir del juego, cerrá la pestaña del navegador o hacé clic en el botón "Salir" de la interfaz.\n\n💡 Tu progreso se guarda automáticamente — podés volver cuando quieras.' }; break; // DIS-1003

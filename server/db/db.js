@@ -114,6 +114,48 @@ async function init() {
     )
   `);
 
+  // EPIC-QD: Tablas del Sistema de Quests Dinámicas (IMPL-QD-1572)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS quest_definitions (
+      id                TEXT PRIMARY KEY,
+      name              TEXT NOT NULL,
+      description       TEXT NOT NULL,
+      type              TEXT NOT NULL,
+      slot              TEXT NOT NULL,
+      condition         TEXT NOT NULL,
+      reward            TEXT NOT NULL,
+      require_level     INTEGER NOT NULL DEFAULT 1,
+      require_faction   TEXT,
+      require_class     TEXT,
+      chain_id          TEXT,
+      chain_step        INTEGER,
+      chain_prev_id     TEXT,
+      weekly_seed_group TEXT,
+      is_active         INTEGER NOT NULL DEFAULT 1,
+      created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS player_quests (
+      id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+      player_id            TEXT NOT NULL,
+      quest_id             TEXT NOT NULL,
+      status               TEXT NOT NULL DEFAULT 'active',
+      progress             TEXT NOT NULL DEFAULT '{}',
+      assigned_at          TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at         TEXT,
+      abandoned_at         TEXT,
+      abandon_cooldown_until TEXT,
+      slot                 TEXT NOT NULL
+    )
+  `);
+
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_player_quests_player_status
+      ON player_quests(player_id, status)
+  `);
+
   const migrations = [
     `ALTER TABLE players ADD COLUMN xp     INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE players ADD COLUMN level  INTEGER NOT NULL DEFAULT 1`,
