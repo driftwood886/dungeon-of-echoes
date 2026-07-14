@@ -16,6 +16,20 @@ const db = require('../db/db.js');
 // ─── Helpers internos ─────────────────────────────────────────────────────────
 
 /**
+ * Normalizar texto para búsqueda: minúsculas + sin diacríticos/tildes.
+ * Permite buscar "El Contrato de Elite" y encontrar "El Contrato de Élite".
+ *
+ * @param {string} str
+ * @returns {string}
+ */
+function _normalizeSearch(str) {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
  * Obtener quests activas de un jugador desde la BD.
  * Retorna rows completas (player_quests JOIN quest_definitions).
  * @param {string} playerId
@@ -925,8 +939,8 @@ function getQuestDetail(player, questName) {
   const activeQuests = _getActiveQuests(player.id);
   if (!activeQuests.length) return { text: 'No tenés quests activas.' };
 
-  const query = questName.toLowerCase();
-  const q = activeQuests.find(aq => aq.name.toLowerCase().includes(query));
+  const query = _normalizeSearch(questName);
+  const q = activeQuests.find(aq => _normalizeSearch(aq.name).includes(query));
 
   if (!q) {
     return {
@@ -986,8 +1000,8 @@ function abandonQuest(player, questName) {
   const activeQuests = _getActiveQuests(player.id);
   if (!activeQuests.length) return { text: 'No tenés quests activas para abandonar.' };
 
-  const query = questName.toLowerCase();
-  const q = activeQuests.find(aq => aq.name.toLowerCase().includes(query));
+  const query = _normalizeSearch(questName);
+  const q = activeQuests.find(aq => _normalizeSearch(aq.name).includes(query));
 
   if (!q) {
     return {
