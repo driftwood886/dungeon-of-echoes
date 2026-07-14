@@ -162,8 +162,8 @@ async function init() {
     // ── KILL QUESTS (4) ──────────────────────────────────────────────────────
     {
       id: 'kill_goblin_generic',
-      name: 'La Caza del Merodeador',
-      description: 'Los goblins del Corredor de las Sombras han estado robando provisiones. Aldric necesita garras de goblin para un encantamiento de protección. Encontrarás a los merodeadores hacia el este desde la entrada.',
+      name: 'La Caza en el Corredor', // DIS-1590: renombrado para reflejar que acepta cualquier goblin del Corredor de las Sombras
+      description: 'Los goblins del Corredor de las Sombras han estado robando provisiones. Aldric necesita garras de goblin para un encantamiento de protección. Merodeadores, Exploradores — cualquiera sirve. Los encontrarás hacia el este desde la entrada.',
       type: 'kill',
       slot: 'secundaria',
       condition: JSON.stringify({ event: 'kill', target_type: 'goblin', count: 5 }),

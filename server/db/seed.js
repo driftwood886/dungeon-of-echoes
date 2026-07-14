@@ -644,7 +644,7 @@ function migrateCorredorHintDIS1107() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590 };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -2571,6 +2571,43 @@ function migrateEcosHubDescDIS1584() {
     console.log('[seed] migrateEcosHubDescDIS1584: Sala 3 descripción actualizada con señales de hub. DIS-1584 ✓');
   } catch (e) {
     console.warn('[seed] migrateEcosHubDescDIS1584:', e.message);
+  }
+}
+
+/**
+ * DIS-1590: Quest "La Caza del Merodeador" renombrada a "La Caza en el Corredor".
+ * La condición target_type='goblin' ya aceptaba correctamente tanto al Goblin Merodeador
+ * como al Goblin Explorador (sala 2). El nombre y la descripción originales implicaban
+ * que solo contaban los Merodeadores, lo cual era confuso. Fix: actualizar nombre y
+ * descripción en quest_definitions para comunicar correctamente que cualquier goblin
+ * del Corredor de las Sombras cuenta.
+ * INSERT OR IGNORE en db.js solo aplica al primer seed — esta migración actualiza
+ * registros ya existentes en la BD.
+ */
+function migrateQuestGoblinDIS1590() {
+  try {
+    const rawDb = db.raw();
+    const exists = rawDb.exec(`SELECT id FROM quest_definitions WHERE id = 'kill_goblin_generic'`);
+    if (!exists || !exists[0] || !exists[0].values || exists[0].values.length === 0) {
+      console.log('[seed] migrateQuestGoblinDIS1590: quest kill_goblin_generic no encontrada — sin cambios. ✓');
+      return;
+    }
+    const current = rawDb.exec(`SELECT name FROM quest_definitions WHERE id = 'kill_goblin_generic'`);
+    const currentName = current[0].values[0][0];
+    if (currentName === 'La Caza en el Corredor') {
+      console.log('[seed] migrateQuestGoblinDIS1590: quest ya tiene nombre actualizado — sin cambios. ✓');
+      return;
+    }
+    rawDb.run(
+      `UPDATE quest_definitions SET name = ?, description = ? WHERE id = 'kill_goblin_generic'`,
+      [
+        'La Caza en el Corredor',
+        'Los goblins del Corredor de las Sombras han estado robando provisiones. Aldric necesita garras de goblin para un encantamiento de protección. Merodeadores, Exploradores — cualquiera sirve. Los encontrarás hacia el este desde la entrada.',
+      ]
+    );
+    console.log('[seed] migrateQuestGoblinDIS1590: quest "La Caza del Merodeador" → "La Caza en el Corredor". DIS-1590 ✓');
+  } catch (e) {
+    console.warn('[seed] migrateQuestGoblinDIS1590:', e.message);
   }
 }
 
