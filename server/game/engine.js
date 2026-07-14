@@ -283,7 +283,7 @@ function calcLevelUp(freshPlayer, xpGain) {
   if (levelUp) {
     for (let lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
       if (lvl === 5 && !freshPlayer.specialization) {
-        unlockLines += `\n   ⚠️ Nivel 5 — elegí tu especialización: \`especializar\``;
+        unlockLines += `\n   ⚠️ Nivel 5 — elegí tu especialización: \`especializar\` (podés hacerlo ahora o más tarde, no hay límite de tiempo)`;
       }
       // Aquí se pueden agregar más unlocks futuros de niveles específicos
     }
@@ -2437,7 +2437,7 @@ function cmdMove(player, direction) {
         }
       } catch (_) { /* no interrumpir */ }
     }
-    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${exploXp} XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${newLevel === 5 && !freshExp.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.' : ''}${expAldricReminder}` : ''}`;
+    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${exploXp} XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${newLevel === 5 && !freshExp.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.\n   💡 No hay límite de tiempo — podés hacerlo ahora o cuando estés listo.' : ''}${expAldricReminder}` : ''}`;
     // EPIC-1373: Influencia de facción por exploración (nueva sala)
     db.addFactionInfluence(player.id, 2);
   }
