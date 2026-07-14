@@ -10909,8 +10909,16 @@ function cmdBuy(player, itemQuery) {
     }
   }
 
+  // ── EPIC-QD-1578: hook de quest — onTrade (buy) ─────────────────────────
+  let questBuyMsg = '';
+  try {
+    const freshForQBuy = db.getPlayer(player.id);
+    const qbResult = questEngine.onTrade(freshForQBuy || player, 'buy', finalPrice);
+    if (qbResult && qbResult.text) questBuyMsg = '\n\n' + qbResult.text;
+  } catch (_) { /* no romper buy si falla questEngine */ }
+
   return {
-    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}${craftAlternativeHint}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${equipTip}${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}`,
+    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}${craftAlternativeHint}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${equipTip}${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}${questBuyMsg}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
@@ -11050,8 +11058,16 @@ function cmdSell(player, itemQuery) {
     sellChallengeMsg = challengeTracker.trackSell(player.id, freshForSellChallenge, found, 1);
   } catch (_) { /* no interrumpir venta si falla tracker */ }
 
+  // ── EPIC-QD-1578: hook de quest — onTrade (sell) ─────────────────────────
+  let questSellMsg = '';
+  try {
+    const freshForQSell = db.getPlayer(player.id);
+    const qsResult = questEngine.onTrade(freshForQSell || player, 'sell', sellPrice);
+    if (qsResult && qsResult.text) questSellMsg = '\n\n' + qsResult.text;
+  } catch (_) { /* no romper sell si falla questEngine */ }
+
   return {
-    text: `🏪 Aldric examina el objeto.${rareFlavorLine}${materialFlavorLine}\n"Te doy ${sellPrice}g por eso."\n💰 Vendiste: ${found} por ${sellPrice}g. Total: ${newGold}g.${sellQuestLine}${sellChallengeMsg ? '\n' + sellChallengeMsg.trim() : ''}`,
+    text: `🏪 Aldric examina el objeto.${rareFlavorLine}${materialFlavorLine}\n"Te doy ${sellPrice}g por eso."\n💰 Vendiste: ${found} por ${sellPrice}g. Total: ${newGold}g.${sellQuestLine}${sellChallengeMsg ? '\n' + sellChallengeMsg.trim() : ''}${questSellMsg}`,
     event: `${player.username} vende algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
@@ -13029,10 +13045,17 @@ function cmdCraft(player, args) {
       if (expCraftResult.message) expeditionCraftMsg = '\n\n' + expCraftResult.message;
     } catch (_) { /* no romper craft si falla expedición */ }
 
+    // ── EPIC-QD-1578: hook de quest — onCraft ────────────────────────────────
+    let questCraftMsg = '';
+    try {
+      const qcResult = questEngine.onCraft(freshCrafter, craftResult.result);
+      if (qcResult && qcResult.text) questCraftMsg = '\n\n' + qcResult.text;
+    } catch (_) { /* no romper craft si falla questEngine */ }
+
     if (craftAchLines) {
-      return { text: craftResult.text + craftAchLines + craftChallengeMsg + guildCraftMsg + craftGoalMsg + expeditionCraftMsg };
+      return { text: craftResult.text + craftAchLines + craftChallengeMsg + guildCraftMsg + craftGoalMsg + expeditionCraftMsg + questCraftMsg };
     }
-    return { text: craftResult.text + craftChallengeMsg + guildCraftMsg + craftGoalMsg + expeditionCraftMsg };
+    return { text: craftResult.text + craftChallengeMsg + guildCraftMsg + craftGoalMsg + expeditionCraftMsg + questCraftMsg };
   }
 
   return { text: craftResult.text + craftChallengeMsg + guildCraftMsg + craftGoalMsg };
@@ -23107,8 +23130,17 @@ function cmdPray(player, args) {
   }
 
   const altarName = roomId === 5 ? 'la Capilla Olvidada' : 'el Santuario Profano';
+
+  // ── EPIC-QD-1578: hook de quest — onRitual (pray) ─────────────────────────
+  let questPrayMsg = '';
+  try {
+    const freshForQPray = db.getPlayer(player.id);
+    const qpResult = questEngine.onRitual(freshForQPray || player, 'pray');
+    if (qpResult && qpResult.text) questPrayMsg = '\n\n' + qpResult.text;
+  } catch (_) { /* no romper pray si falla questEngine */ }
+
   return {
-    text: `🙏 Ofrecés ${found} al altar de ${altarName}.\n\n${resultLines.join('\n')}`,
+    text: `🙏 Ofrecés ${found} al altar de ${altarName}.\n\n${resultLines.join('\n')}${questPrayMsg}`,
     event: `${player.username} reza ante el altar.`,
     eventRoomId: roomId,
   };

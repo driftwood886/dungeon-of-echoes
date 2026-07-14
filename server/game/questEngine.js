@@ -475,22 +475,93 @@ function onExplore(player, roomId, isNew = false) {
  * Notificar crafteo al QuestEngine.
  * Actualiza progreso de quests de tipo 'craft' activas del jugador.
  *
- * TODO (IMPL-QD-1578): implementar.
  * @param {Object} player
- * @param {string} itemName
+ * @param {string} itemName — nombre del ítem crafteado (resultado de la receta)
  * @returns {null | { text: string }}
  */
 function onCraft(player, itemName) {
   if (player.is_bot) return null;
-  // TODO: implementar
-  return null;
+
+  const rawDb = db.raw();
+  const messages = [];
+
+  const questsResult = rawDb.exec(
+    `SELECT pq.id, pq.quest_id, pq.progress, qd.condition, qd.reward, qd.name
+     FROM player_quests pq
+     JOIN quest_definitions qd ON qd.id = pq.quest_id
+     WHERE pq.player_id = ? AND pq.status = 'active' AND qd.type = 'craft'`,
+    [player.id]
+  );
+  if (!questsResult.length || !questsResult[0].values.length) return null;
+
+  const cols = questsResult[0].columns;
+  const rows = questsResult[0].values.map(r => Object.fromEntries(cols.map((c, i) => [c, r[i]])));
+
+  const itemNorm = (itemName || '').toLowerCase().trim();
+
+  for (const row of rows) {
+    try {
+      const cond     = JSON.parse(row.condition || '{}');
+      const progress = JSON.parse(row.progress || '{}');
+
+      // Verificar target_item: nombre parcial del resultado (case-insensitive) o 'any'
+      const targetItem = (cond.target_item || 'any').toLowerCase();
+      if (targetItem !== 'any' && !itemNorm.includes(targetItem)) continue;
+
+      // Verificar target_category si está presente (ej: 'weapon', 'armor', 'pocion')
+      if (cond.target_category) {
+        const cat = cond.target_category.toLowerCase();
+        if (!itemNorm.includes(cat)) continue;
+      }
+
+      const current = progress.crafted || 0;
+      const needed  = cond.count || 1;
+      const newCount = current + 1;
+
+      if (newCount >= needed) {
+        const reward = JSON.parse(row.reward || '{}');
+        const now = new Date().toISOString();
+        rawDb.run(
+          `UPDATE player_quests SET status = 'completed', progress = ?, completed_at = ? WHERE id = ?`,
+          [JSON.stringify({ crafted: newCount }), now, row.id]
+        );
+        const updates = {};
+        if (reward.gold) updates.gold = (player.gold || 0) + reward.gold;
+        if (reward.xp)   updates.xp   = (player.xp   || 0) + reward.xp;
+        if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
+        if (reward.aldric_rep) { try { db.addAldricRep(player.id, reward.aldric_rep); } catch (_) {} }
+        if (reward.faction_influence && player.faction) { try { db.addFactionInfluence(player.id, reward.faction_influence); } catch (_) {} }
+
+        let completionMsg = `✅ **¡Quest completada!** "${row.name}"\n`;
+        const rewardParts = [];
+        if (reward.gold) rewardParts.push(`+${reward.gold} 💰 gold`);
+        if (reward.xp)   rewardParts.push(`+${reward.xp} ⭐ XP`);
+        if (reward.aldric_rep) rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
+        if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
+        if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
+        messages.push(completionMsg);
+
+        try { const fp = db.getPlayer(player.id); if (fp) assignQuests(fp); } catch (_) {}
+      } else {
+        rawDb.run(
+          `UPDATE player_quests SET progress = ? WHERE id = ?`,
+          [JSON.stringify({ crafted: newCount }), row.id]
+        );
+        messages.push(`📋 Quest "${row.name}": ${newCount}/${needed} crafteos`);
+      }
+    } catch (e) {
+      console.error('[questEngine] Error en onCraft:', e.message);
+    }
+  }
+
+  if (!messages.length) return null;
+  return { text: messages.join('\n') };
 }
 
 /**
  * Notificar transacción al QuestEngine.
  * Actualiza progreso de quests de tipo 'trade' activas del jugador.
  *
- * TODO (IMPL-QD-1578): implementar.
  * @param {Object} player
  * @param {string} action  - 'buy' | 'sell' | 'auction'
  * @param {number} value   - valor en gold de la transacción
@@ -498,23 +569,193 @@ function onCraft(player, itemName) {
  */
 function onTrade(player, action, value) {
   if (player.is_bot) return null;
-  // TODO: implementar
-  return null;
+
+  const rawDb = db.raw();
+  const messages = [];
+
+  const questsResult = rawDb.exec(
+    `SELECT pq.id, pq.quest_id, pq.progress, qd.condition, qd.reward, qd.name
+     FROM player_quests pq
+     JOIN quest_definitions qd ON qd.id = pq.quest_id
+     WHERE pq.player_id = ? AND pq.status = 'active' AND qd.type = 'trade'`,
+    [player.id]
+  );
+  if (!questsResult.length || !questsResult[0].values.length) return null;
+
+  const cols = questsResult[0].columns;
+  const rows = questsResult[0].values.map(r => Object.fromEntries(cols.map((c, i) => [c, r[i]])));
+
+  for (const row of rows) {
+    try {
+      const cond     = JSON.parse(row.condition || '{}');
+      const progress = JSON.parse(row.progress || '{}');
+
+      // Verificar action: 'buy', 'sell', 'auction', o 'any'
+      const requiredAction = (cond.action || 'any').toLowerCase();
+      if (requiredAction !== 'any' && requiredAction !== action) continue;
+
+      // Modo 1: contar transacciones
+      if (cond.count !== undefined) {
+        const current  = progress.trades || 0;
+        const needed   = cond.count;
+        const newCount = current + 1;
+
+        if (newCount >= needed) {
+          const reward = JSON.parse(row.reward || '{}');
+          const now = new Date().toISOString();
+          rawDb.run(
+            `UPDATE player_quests SET status = 'completed', progress = ?, completed_at = ? WHERE id = ?`,
+            [JSON.stringify({ trades: newCount }), now, row.id]
+          );
+          const updates = {};
+          if (reward.gold) updates.gold = (player.gold || 0) + reward.gold;
+          if (reward.xp)   updates.xp   = (player.xp   || 0) + reward.xp;
+          if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
+          if (reward.aldric_rep) { try { db.addAldricRep(player.id, reward.aldric_rep); } catch (_) {} }
+          if (reward.faction_influence && player.faction) { try { db.addFactionInfluence(player.id, reward.faction_influence); } catch (_) {} }
+
+          let completionMsg = `✅ **¡Quest completada!** "${row.name}"\n`;
+          const rewardParts = [];
+          if (reward.gold) rewardParts.push(`+${reward.gold} 💰 gold`);
+          if (reward.xp)   rewardParts.push(`+${reward.xp} ⭐ XP`);
+          if (reward.aldric_rep) rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
+          if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
+          if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
+          messages.push(completionMsg);
+
+          try { const fp = db.getPlayer(player.id); if (fp) assignQuests(fp); } catch (_) {}
+        } else {
+          rawDb.run(
+            `UPDATE player_quests SET progress = ? WHERE id = ?`,
+            [JSON.stringify({ trades: newCount }), row.id]
+          );
+          messages.push(`📋 Quest "${row.name}": ${newCount}/${needed} transacciones`);
+        }
+
+      // Modo 2: acumular gold gastado/recibido
+      } else if (cond.gold_amount !== undefined) {
+        const current    = progress.gold_spent || 0;
+        const needed     = cond.gold_amount;
+        const newTotal   = current + (value || 0);
+
+        if (newTotal >= needed) {
+          const reward = JSON.parse(row.reward || '{}');
+          const now = new Date().toISOString();
+          rawDb.run(
+            `UPDATE player_quests SET status = 'completed', progress = ?, completed_at = ? WHERE id = ?`,
+            [JSON.stringify({ gold_spent: newTotal }), now, row.id]
+          );
+          const updates = {};
+          if (reward.gold) updates.gold = (player.gold || 0) + reward.gold;
+          if (reward.xp)   updates.xp   = (player.xp   || 0) + reward.xp;
+          if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
+          if (reward.aldric_rep) { try { db.addAldricRep(player.id, reward.aldric_rep); } catch (_) {} }
+          if (reward.faction_influence && player.faction) { try { db.addFactionInfluence(player.id, reward.faction_influence); } catch (_) {} }
+
+          let completionMsg = `✅ **¡Quest completada!** "${row.name}"\n`;
+          const rewardParts = [];
+          if (reward.gold) rewardParts.push(`+${reward.gold} 💰 gold`);
+          if (reward.xp)   rewardParts.push(`+${reward.xp} ⭐ XP`);
+          if (reward.aldric_rep) rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
+          if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
+          if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
+          messages.push(completionMsg);
+
+          try { const fp = db.getPlayer(player.id); if (fp) assignQuests(fp); } catch (_) {}
+        } else {
+          rawDb.run(
+            `UPDATE player_quests SET progress = ? WHERE id = ?`,
+            [JSON.stringify({ gold_spent: newTotal }), row.id]
+          );
+          messages.push(`📋 Quest "${row.name}": ${newTotal}/${needed}g`);
+        }
+      }
+    } catch (e) {
+      console.error('[questEngine] Error en onTrade:', e.message);
+    }
+  }
+
+  if (!messages.length) return null;
+  return { text: messages.join('\n') };
 }
 
 /**
  * Notificar ritual al QuestEngine.
  * Actualiza progreso de quests de tipo 'ritual' activas del jugador.
  *
- * TODO (IMPL-QD-1578): implementar.
  * @param {Object} player
  * @param {string} action  - 'pray' | 'use_bowl' | 'use_altar'
  * @returns {null | { text: string }}
  */
 function onRitual(player, action) {
   if (player.is_bot) return null;
-  // TODO: implementar
-  return null;
+
+  const rawDb = db.raw();
+  const messages = [];
+
+  const questsResult = rawDb.exec(
+    `SELECT pq.id, pq.quest_id, pq.progress, qd.condition, qd.reward, qd.name
+     FROM player_quests pq
+     JOIN quest_definitions qd ON qd.id = pq.quest_id
+     WHERE pq.player_id = ? AND pq.status = 'active' AND qd.type = 'ritual'`,
+    [player.id]
+  );
+  if (!questsResult.length || !questsResult[0].values.length) return null;
+
+  const cols = questsResult[0].columns;
+  const rows = questsResult[0].values.map(r => Object.fromEntries(cols.map((c, i) => [c, r[i]])));
+
+  for (const row of rows) {
+    try {
+      const cond     = JSON.parse(row.condition || '{}');
+      const progress = JSON.parse(row.progress || '{}');
+
+      // Verificar action: 'pray', 'use_bowl', 'use_altar', o 'any'
+      const requiredAction = (cond.action || 'any').toLowerCase();
+      if (requiredAction !== 'any' && requiredAction !== action) continue;
+
+      const current  = progress.count || 0;
+      const needed   = cond.count || 1;
+      const newCount = current + 1;
+
+      if (newCount >= needed) {
+        const reward = JSON.parse(row.reward || '{}');
+        const now = new Date().toISOString();
+        rawDb.run(
+          `UPDATE player_quests SET status = 'completed', progress = ?, completed_at = ? WHERE id = ?`,
+          [JSON.stringify({ count: newCount }), now, row.id]
+        );
+        const updates = {};
+        if (reward.gold) updates.gold = (player.gold || 0) + reward.gold;
+        if (reward.xp)   updates.xp   = (player.xp   || 0) + reward.xp;
+        if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
+        if (reward.aldric_rep) { try { db.addAldricRep(player.id, reward.aldric_rep); } catch (_) {} }
+        if (reward.faction_influence && player.faction) { try { db.addFactionInfluence(player.id, reward.faction_influence); } catch (_) {} }
+
+        let completionMsg = `✅ **¡Quest completada!** "${row.name}"\n`;
+        const rewardParts = [];
+        if (reward.gold) rewardParts.push(`+${reward.gold} 💰 gold`);
+        if (reward.xp)   rewardParts.push(`+${reward.xp} ⭐ XP`);
+        if (reward.aldric_rep) rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
+        if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
+        if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
+        messages.push(completionMsg);
+
+        try { const fp = db.getPlayer(player.id); if (fp) assignQuests(fp); } catch (_) {}
+      } else {
+        rawDb.run(
+          `UPDATE player_quests SET progress = ? WHERE id = ?`,
+          [JSON.stringify({ count: newCount }), row.id]
+        );
+        messages.push(`📋 Quest "${row.name}": ${newCount}/${needed} rituales`);
+      }
+    } catch (e) {
+      console.error('[questEngine] Error en onRitual:', e.message);
+    }
+  }
+
+  if (!messages.length) return null;
+  return { text: messages.join('\n') };
 }
 
 /**
