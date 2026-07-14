@@ -467,7 +467,7 @@ function execute(playerId, input, context) {
     case 'talk':      result = cmdTalk(player, action.args.join(' ')); break;
     case 'achievements': result = cmdAchievements(player); break;
     case 'inspect':      result = cmdInspect(player, action.args.join(' ')); break;
-    case 'quest':        result = cmdQuest(player); break;
+    case 'quest_legacy': result = cmdQuest(player); break;  // EPIC-QD: renombrado — reemplazado por questEngine
     case 'expedicion':        result = cmdExpedicion(player, action.args); break;
     case 'expediciones_list': result = cmdExpedicionesList(player); break;
     case 'guild':        result = cmdGuild(player, action.args); break;

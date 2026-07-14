@@ -6,7 +6,7 @@
  * Ver schema en: disenos/epic-quests-dinamicas-schema.md
  *
  * Epic: EPIC-QD (iniciado 2026-07-14)
- * Implementado: IMPL-QD-1574 (assignQuests), IMPL-QD-1573 (stubs)
+ * Implementado: IMPL-QD-1574 (assignQuests), IMPL-QD-1573 (stubs), IMPL-QD-1575 (onKill), IMPL-QD-1576 (onExplore), IMPL-QD-1577 (getQuestsDisplay+UI)
  */
 
 'use strict';
@@ -518,58 +518,254 @@ function onRitual(player, action) {
 }
 
 /**
+ * Ícono por tipo de quest.
+ * @param {string} type
+ * @param {string} slot
+ * @returns {string}
+ */
+function _questIcon(type, slot) {
+  if (slot === 'narrativa') return '📜';
+  const ICONS = { kill: '🗡️', explore: '🗺️', craft: '🔧', trade: '💰', ritual: '🙏', boss: '💀' };
+  return ICONS[type] || '📋';
+}
+
+/**
+ * Generar texto de progreso legible para una quest activa.
+ * @param {Object} qd - quest_definition row
+ * @param {string} progressJson
+ * @returns {string}
+ */
+function _progressText(qd, progressJson) {
+  try {
+    const cond     = JSON.parse(qd.condition || '{}');
+    const progress = JSON.parse(progressJson || '{}');
+
+    if (qd.type === 'kill') {
+      const current = progress.kills || 0;
+      const needed  = cond.count || 1;
+      return `${current}/${needed}`;
+    } else if (qd.type === 'explore') {
+      if (cond.target_room_id !== undefined) {
+        return progress.explored ? 'completada' : 'pendiente';
+      }
+      const current = progress.rooms_discovered || 0;
+      const needed  = cond.new_rooms_count || 1;
+      return `${current}/${needed} salas`;
+    } else if (qd.type === 'craft') {
+      const current = progress.crafted || 0;
+      const needed  = cond.count || 1;
+      return needed === 1 ? 'pendiente' : `${current}/${needed}`;
+    } else if (qd.type === 'trade') {
+      const current = progress.trades || progress.gold_spent || 0;
+      const needed  = cond.count || cond.gold_amount || 1;
+      return `${current}/${needed}`;
+    } else if (qd.type === 'ritual') {
+      const current = progress.count || 0;
+      const needed  = cond.count || 1;
+      return needed === 1 ? 'pendiente' : `${current}/${needed}`;
+    }
+    return 'pendiente';
+  } catch (_) {
+    return 'pendiente';
+  }
+}
+
+/**
  * Obtener el display de quests activas del jugador (comando `quests`).
+ * Implementado según diseño §Decisiones D1 y D6.
  *
- * TODO (IMPL-QD-1577): implementar display completo.
+ * Formato:
+ *   [PRINCIPAL]  🗡️ "Derrota 5 esqueletos en postura agresiva" — 3/5
+ *   [SECUNDARIA] 🗺️ "Explora la Sala del Oráculo" — pendiente
+ *   [NARRATIVA]  📜 "Las Velas del Altar — Paso 1" (si está activa)
+ *
  * @param {Object} player
  * @returns {{ text: string }}
  */
 function getQuestsDisplay(player) {
   if (player.is_bot) return { text: 'Los bots no reciben quests.' };
 
-  // Placeholder hasta implementación real
-  const hasFaction = !!player.faction;
-  const noFactionHint = hasFaction ? '' :
-    '\n💡 Sin facción activa — uniéndote a una, recibirías quests especiales de tu gremio.';
+  const rawDb = db.raw();
+  const activeQuests = _getActiveQuests(player.id);
 
-  return {
-    text: `📋 **QUESTS ACTIVAS**\n\n(Sistema en construcción — próximamente disponible)${noFactionHint}\n\nPara unirte a una facción: \`facciones\``
+  const lines = ['📋 **QUESTS ACTIVAS**\n'];
+
+  if (!activeQuests.length) {
+    // Sin quests activas — mensaje orientativo
+    lines.push('  No tenés quests activas en este momento.');
+    lines.push('  (Al hacer login se te asignan quests según tu clase y facción.)\n');
+    if (!player.faction) {
+      lines.push('💡 Sin facción activa — uniéndote a una, recibirías misiones especiales de tu gremio.');
+      lines.push('   Comando: `facciones`');
+    }
+    return { text: lines.join('\n') };
+  }
+
+  // Ordenar por slot: principal → secundaria → narrativa
+  const SLOT_ORDER = { principal: 0, secundaria: 1, narrativa: 2 };
+  activeQuests.sort((a, b) => (SLOT_ORDER[a.slot] ?? 9) - (SLOT_ORDER[b.slot] ?? 9));
+
+  const SLOT_LABELS = {
+    principal:  '[PRINCIPAL] ',
+    secundaria: '[SECUNDARIA]',
+    narrativa:  '[NARRATIVA] ',
   };
+
+  for (const q of activeQuests) {
+    const icon      = _questIcon(q.type, q.slot);
+    const label     = SLOT_LABELS[q.slot] || '[QUEST]     ';
+    const progress  = _progressText(q, q.progress);
+    lines.push(`  ${label} ${icon} "${q.name}" — ${progress}`);
+  }
+
+  lines.push('');
+  lines.push('Comandos: `quest info <nombre>` · `quest historial` · `quest abandonar <nombre>`');
+
+  if (!player.faction) {
+    lines.push('\n💡 Sin facción activa — uniéndote a una, recibirías quests especiales de tu gremio.');
+  }
+
+  return { text: lines.join('\n') };
 }
 
 /**
  * Obtener detalle de una quest por nombre (comando `quest info <nombre>`).
+ * Busca por coincidencia parcial case-insensitive en el nombre de la quest activa.
  *
- * TODO (IMPL-QD-1577): implementar.
  * @param {Object} player
  * @param {string} questName
  * @returns {{ text: string }}
  */
 function getQuestDetail(player, questName) {
-  return { text: `Quest "${questName}": información no disponible aún.` };
+  if (!questName) return { text: 'Uso: `quest info <nombre>`' };
+
+  const activeQuests = _getActiveQuests(player.id);
+  if (!activeQuests.length) return { text: 'No tenés quests activas.' };
+
+  const query = questName.toLowerCase();
+  const q = activeQuests.find(aq => aq.name.toLowerCase().includes(query));
+
+  if (!q) {
+    return {
+      text: `No encontré una quest activa llamada "${questName}".\nTus quests activas: ${activeQuests.map(aq => `"${aq.name}"`).join(', ')}`
+    };
+  }
+
+  const lines = [];
+  const icon = _questIcon(q.type, q.slot);
+  lines.push(`${icon} **${q.name}**`);
+  lines.push('');
+  lines.push(q.description || '(sin descripción)');
+  lines.push('');
+
+  // Progreso
+  const progressText = _progressText(q, q.progress);
+  lines.push(`**Progreso:** ${progressText}`);
+
+  // Recompensa
+  try {
+    const reward = JSON.parse(q.reward || '{}');
+    const rewardParts = [];
+    if (reward.gold)             rewardParts.push(`${reward.gold} 💰 gold`);
+    if (reward.xp)               rewardParts.push(`${reward.xp} ⭐ XP`);
+    if (reward.aldric_rep)       rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
+    if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
+    if (rewardParts.length) lines.push(`**Recompensa:** ${rewardParts.join(', ')}`);
+  } catch (_) {}
+
+  // Hint según condición (D5: hint para quests de crafteo si falta ingrediente)
+  try {
+    const cond = JSON.parse(q.condition || '{}');
+    if (q.type === 'craft' && cond.item_hint) {
+      lines.push(`\n🔧 *${cond.item_hint}*`);
+    }
+    if (q.type === 'explore' && cond.location_hint) {
+      lines.push(`\n🗺️ *${cond.location_hint}*`);
+    }
+  } catch (_) {}
+
+  lines.push(`\nSlot: ${q.slot}`);
+
+  return { text: lines.join('\n') };
 }
 
 /**
  * Abandonar una quest activa del jugador.
+ * Implementa cooldown: no puede volver a recibir la misma quest en 7 días.
  *
- * TODO (IMPL-QD-1577): implementar con cooldown.
  * @param {Object} player
  * @param {string} questName
  * @returns {{ text: string }}
  */
 function abandonQuest(player, questName) {
-  return { text: `No podés abandonar quests aún — el sistema está en construcción.` };
+  if (!questName) return { text: 'Uso: `quest abandonar <nombre>`' };
+
+  const activeQuests = _getActiveQuests(player.id);
+  if (!activeQuests.length) return { text: 'No tenés quests activas para abandonar.' };
+
+  const query = questName.toLowerCase();
+  const q = activeQuests.find(aq => aq.name.toLowerCase().includes(query));
+
+  if (!q) {
+    return {
+      text: `No encontré una quest activa llamada "${questName}".\nTus quests activas: ${activeQuests.map(aq => `"${aq.name}"`).join(', ')}`
+    };
+  }
+
+  try {
+    const rawDb = db.raw();
+    const now = new Date().toISOString();
+    rawDb.run(
+      `UPDATE player_quests SET status = 'abandoned', completed_at = ? WHERE id = ?`,
+      [now, q.id]
+    );
+    return { text: `Quest "${q.name}" abandonada.\n⚠️ No podrás recibir esta quest nuevamente por 7 días.` };
+  } catch (e) {
+    console.error('[questEngine] Error en abandonQuest:', e.message);
+    return { text: 'Error al abandonar la quest. Intentá de nuevo.' };
+  }
 }
 
 /**
  * Obtener historial de quests completadas del jugador.
  *
- * TODO (IMPL-QD-1577): implementar.
  * @param {Object} player
  * @returns {{ text: string }}
  */
 function getHistory(player) {
-  return { text: `📜 Historial de quests: (sin registros aún)` };
+  if (player.is_bot) return { text: 'Los bots no tienen historial.' };
+
+  try {
+    const rawDb = db.raw();
+    const result = rawDb.exec(
+      `SELECT pq.completed_at, qd.name, qd.type
+       FROM player_quests pq
+       JOIN quest_definitions qd ON qd.id = pq.quest_id
+       WHERE pq.player_id = ? AND pq.status = 'completed'
+       ORDER BY pq.completed_at DESC
+       LIMIT 20`,
+      [player.id]
+    );
+
+    if (!result.length || !result[0].values.length) {
+      return { text: '📜 **Historial de quests**\n\nAún no completaste ninguna quest.' };
+    }
+
+    const cols = result[0].columns;
+    const rows = result[0].values.map(r => Object.fromEntries(cols.map((c, i) => [c, r[i]])));
+
+    const lines = [`📜 **Historial de quests** (últimas ${rows.length})\n`];
+    for (const row of rows) {
+      const icon = _questIcon(row.type, null);
+      const date = row.completed_at ? row.completed_at.slice(0, 10) : '?';
+      lines.push(`  ${icon} ${row.name}  _(${date})_`);
+    }
+
+    return { text: lines.join('\n') };
+  } catch (e) {
+    console.error('[questEngine] Error en getHistory:', e.message);
+    return { text: '📜 Historial de quests: error al consultar.' };
+  }
 }
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
