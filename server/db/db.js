@@ -1333,7 +1333,7 @@ function getLeaderboardByGold(limit = 10) {
   return all(
     `SELECT username, level, gold, kills
      FROM players
-     WHERE is_archived = 0
+     WHERE is_archived = 0 AND (is_bot IS NULL OR is_bot = 0)
      ORDER BY gold DESC, level DESC
      LIMIT ?`,
     [limit]
@@ -1344,7 +1344,7 @@ function getLeaderboardByDuels(limit = 10) {
   return all(
     `SELECT username, level, duel_wins, duel_losses, kills
      FROM players
-     WHERE is_archived = 0
+     WHERE is_archived = 0 AND (is_bot IS NULL OR is_bot = 0)
      ORDER BY duel_wins DESC, level DESC
      LIMIT ?`,
     [limit]
@@ -1355,7 +1355,7 @@ function getLeaderboardByReputation(limit = 10) {
   return all(
     `SELECT username, level, reputation, kills
      FROM players
-     WHERE is_archived = 0
+     WHERE is_archived = 0 AND (is_bot IS NULL OR is_bot = 0)
      ORDER BY reputation DESC, level DESC
      LIMIT ?`,
     [limit]
@@ -1367,7 +1367,7 @@ function getLeaderboardByCrafts(limit = 10) {
   return all(
     `SELECT username, level, crafts_count, kills
      FROM players
-     WHERE is_archived = 0
+     WHERE is_archived = 0 AND (is_bot IS NULL OR is_bot = 0)
      ORDER BY crafts_count DESC, level DESC
      LIMIT ?`,
     [limit]
@@ -2374,7 +2374,7 @@ function getLeaderboardByPlaytime(limit = 10) {
   return all(
     `SELECT username, level, playtime_minutes, kills
      FROM players
-     WHERE is_archived = 0
+     WHERE is_archived = 0 AND (is_bot IS NULL OR is_bot = 0)
      ORDER BY playtime_minutes DESC, level DESC
      LIMIT ?`,
     [limit]

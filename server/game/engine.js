@@ -22388,9 +22388,9 @@ function cmdRank(player, arg) {
   const rawDb = db.raw();
   if (!rawDb) return { text: 'Error de base de datos.' };
 
-  // Obtener todos los jugadores ordenados desc por la columna
+  // Obtener todos los jugadores ordenados desc por la columna (excluyendo bots y archivados)
   const results = rawDb.exec(
-    `SELECT id, username, ${chosen.col} FROM players ORDER BY ${chosen.col} DESC, username ASC`
+    `SELECT id, username, ${chosen.col} FROM players WHERE is_archived = 0 AND (is_bot IS NULL OR is_bot = 0) ORDER BY ${chosen.col} DESC, username ASC`
   );
   if (!results.length) return { text: 'No hay datos de jugadores todavía.' };
 
