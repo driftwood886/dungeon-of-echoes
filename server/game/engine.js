@@ -5066,6 +5066,20 @@ function cmdAttack(player, targetName) {
     } catch (_) { /* no romper combate si falla expedición */ }
   }
 
+  // EPIC-QD (IMPL-QD-1575): hook de quests — notificar kill
+  let questKillMsg = '';
+  if (monsterDead && !player.is_bot && monster.id !== 20) {
+    try {
+      const freshForQuest = db.getPlayer(player.id);
+      if (freshForQuest) {
+        const qResult = questEngine.onKill(freshForQuest, monster);
+        if (qResult && qResult.text) {
+          questKillMsg = '\n\n' + qResult.text;
+        }
+      }
+    } catch (_) { /* no romper combate si falla questEngine */ }
+  }
+
   const bossVictoryBlock = lichKill
     ? (() => {
       const freshVictory = db.getPlayer(player.id);
@@ -5219,7 +5233,7 @@ function cmdAttack(player, targetName) {
     }
   }
 
-  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg;
+  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg;
 
   if (tutorialCompletionResult) {
     return {
@@ -12681,6 +12695,18 @@ function getOrCreatePlayer(username) {
     }
   } catch (e) {
     console.error('[getOrCreatePlayer] Error al aplicar legacy_bonus:', e);
+  }
+
+  // EPIC-QD (IMPL-QD-1574): Asignar quests en login si hay slots vacíos
+  try {
+    if (!player.is_bot) {
+      const qResult = questEngine.assignQuests(player);
+      if (qResult.assigned.length > 0) {
+        console.log(`[questEngine] assignQuests para ${player.username}: ${qResult.assigned.join(', ')}`);
+      }
+    }
+  } catch (e) {
+    console.error('[getOrCreatePlayer] Error en assignQuests:', e);
   }
 
   return player;
