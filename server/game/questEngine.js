@@ -828,7 +828,7 @@ function _progressText(qd, progressJson) {
       const needed  = cond.count || 1;
       return `${current}/${needed}`;
     } else if (qd.type === 'explore') {
-      if (cond.target_room_id !== undefined) {
+      if (cond.target_room_id != null) {
         return progress.explored ? 'completada' : 'pendiente';
       }
       const current = progress.rooms_discovered || 0;

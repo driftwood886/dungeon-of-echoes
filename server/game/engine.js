@@ -1931,7 +1931,7 @@ function cmdMove(player, direction) {
       if (destId) {
         db.updatePlayer(player.id, { current_room_id: destId });
         // BUG-790: registrar sala visitada incluso en el path bossAtFullHp (early return)
-        db.trackRoomVisit(player.id, destId);
+        const bfhVisitResult = db.trackRoomVisit(player.id, destId);
         // T-1231: Tracking de desafíos — visita de sala
         try { challengeTracker.trackVisitRoom(player.id, player, destId); } catch (_) {}
         const destRoom = db.getRoom(destId);
@@ -2070,13 +2070,26 @@ function cmdMove(player, direction) {
         }
         const freshPlayer = db.getPlayer(player.id);
         const lookResult = cmdLook(freshPlayer, { showEvent: true });
+        // BUG-1598: llamar onExplore en path bossAtFullHp (igual que el path normal)
+        let bfhQuestExploreMsg = '';
+        try {
+          if (!player.is_bot) {
+            const freshForBfhQE = db.getPlayer(player.id);
+            if (freshForBfhQE) {
+              const bfhQeResult = questEngine.onExplore(freshForBfhQE, destId, bfhVisitResult.isNew);
+              if (bfhQeResult && bfhQeResult.text) {
+                bfhQuestExploreMsg = '\n\n' + bfhQeResult.text;
+              }
+            }
+          }
+        } catch (_) { /* no romper movimiento si falla questEngine */ }
         // DIS-1421: mostrar nivel recomendado y nivel actual del jugador al pasar junto a un jefe
         // BUG-1428: mensaje diferente si el jugador ya supera el nivel recomendado
         const BOSS_REC_LEVELS = { 4: 3, 5: 5, 8: 4, 10: 5, 12: 5, 13: 7, 21: 6, 22: 8 };
         const bossRecLevel = BOSS_REC_LEVELS[bossInRoom.id];
         const bossLevelHint = bossLevelHintMsg(bossRecLevel, freshPlayer.level);
         return {
-          text: `🚶 Pasás cerca del ${bossInRoom.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.${bossFullHpEffectText}${bossFullHpTrapText}${bossLevelHint}${(() => { try { const ev = worldEvents.getCurrentEvent(); if (ev && ev.id === 'curse') { const fr = db.getPlayer(player.id); if (fr && fr.hp > 1) { db.updatePlayer(fr.id, { hp: fr.hp - 1 }); return `\n💀 La Maldición del Lich drena tu vitalidad. (-1 HP · ${fr.hp - 1}/${fr.max_hp} HP)`; } else if (fr) { return `\n💀 La Maldición del Lich intenta drenar tu vitalidad, pero tu llama se resiste. (1/${fr.max_hp} HP)`; } } } catch (_) {} return ''; })()}\n\n${lookResult.text}`,
+          text: `🚶 Pasás cerca del ${bossInRoom.name} con cuidado. No lo atacaste, así que te deja pasar por ahora.${bossFullHpEffectText}${bossFullHpTrapText}${bossLevelHint}${(() => { try { const ev = worldEvents.getCurrentEvent(); if (ev && ev.id === 'curse') { const fr = db.getPlayer(player.id); if (fr && fr.hp > 1) { db.updatePlayer(fr.id, { hp: fr.hp - 1 }); return `\n💀 La Maldición del Lich drena tu vitalidad. (-1 HP · ${fr.hp - 1}/${fr.max_hp} HP)`; } else if (fr) { return `\n💀 La Maldición del Lich intenta drenar tu vitalidad, pero tu llama se resiste. (1/${fr.max_hp} HP)`; } } } catch (_) {} return ''; })()}\n\n${lookResult.text}${bfhQuestExploreMsg}`,
           event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
