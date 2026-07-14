@@ -17087,10 +17087,10 @@ function cmdUseSkill(player, args, context) {
     // Evita desperdiciar smash en monstruos a punto de morir, pero sin bloquear vs monstruos débiles con vida plena
     // BUG-1262: la versión anterior usaba player.max_hp como threshold, bloqueando smash contra monstruos
     //           de HP máximo bajo (ej. Araña Tejedora 8 HP) aunque tuvieran vida completa.
+    // DIS-1600: eliminar el bloqueo — era anti-fun especialmente con Berserker. El mensaje de "agoniza" se mantiene
+    //           como flavor text pero ya no impide el ataque.
     const smashThreshold = Math.ceil((target.max_hp || target.hp || 1) * 0.25);
-    if (target.hp <= smashThreshold) {
-      return { text: `⚡ ${target.name} agoniza con ${target.hp} HP — no merece tu Golpetazo. Rematalo con \`attack\`.\n💡 El Golpetazo requiere un rival que aún represente una amenaza real.` };
-    }
+    const smashIsOverkill = target.hp <= smashThreshold; // solo para flavor text
 
     const baseDmg = freshPlayer.attack || 5;
     // DIS-679: aplicar entumecimiento espectral (atk_debuffed) igual que en combat.js
@@ -17133,7 +17133,8 @@ function cmdUseSkill(player, args, context) {
 
     const dead = newHp <= 0;
     const smashResistNote = smashPhysResist < 1.0 ? ` ${smashResistLabel}` : '';
-    let text = `⚡ ¡GOLPETAZO! Golpeás al ${target.name} con toda tu fuerza causando ${finalDmg} de daño (×1.8)!${smashResistNote}`;
+    const smashOverkillNote = smashIsOverkill ? ` *(excesivo, pero eficaz)*` : '';
+    let text = `⚡ ¡GOLPETAZO! Golpeás al ${target.name} con toda tu fuerza causando ${finalDmg} de daño (×1.8)!${smashResistNote}${smashOverkillNote}`;
     if (dead) {
       text += `\n💀 El ${target.name} sucumbe ante tu brutal ataque.`;
       // Loot via dropLoot (igual que cmdAttack) — incluye loot bonus de boss
