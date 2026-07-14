@@ -89,6 +89,17 @@ function _factionName(factionId) {
  * @param {Object} player
  * @returns {{ assigned: string[], messages: string[] }}
  */
+// DIS-1595: helper para re-asignar y retornar mensaje de nueva quest al jugador
+function _tryAssignAndGetMsg(playerId) {
+  try {
+    const fp = db.getPlayer(playerId);
+    if (!fp) return null;
+    const res = assignQuests(fp);
+    if (res && res.messages && res.messages.length > 0) return res.messages[0];
+  } catch (_) {}
+  return null;
+}
+
 function assignQuests(player) {
   if (player.is_bot) return { assigned: [], messages: [] };
 
@@ -333,9 +344,16 @@ function onKill(player, monster) {
         messages.push(completionMsg);
 
         // Intentar asignar nueva quest al slot liberado (no crashear si falla)
+        // DIS-1595: capturar mensajes de la nueva quest asignada para mostrarlos al jugador
         try {
           const freshPlayer = db.getPlayer(player.id);
-          if (freshPlayer) assignQuests(freshPlayer);
+          if (freshPlayer) {
+            const assignResult = assignQuests(freshPlayer);
+            if (assignResult && assignResult.messages && assignResult.messages.length > 0) {
+              // Agregar separador + notificación de nueva quest
+              completionMsg += `\n\n🔄 **Nueva misión disponible:**\n${assignResult.messages[0]}`;
+            }
+          }
         } catch (_) {}
 
       } else {
@@ -420,7 +438,11 @@ function onExplore(player, roomId, isNew = false) {
         if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
         messages.push(completionMsg);
 
-        try { const fp = db.getPlayer(player.id); if (fp) assignQuests(fp); } catch (_) {}
+        // DIS-1595: notificar al jugador si se asigna nueva quest al liberarse el slot
+        const _newQuestMsg = _tryAssignAndGetMsg(player.id);
+        if (_newQuestMsg) {
+          messages[messages.length - 1] += `\n\n🔄 **Nueva misión disponible:**\n${_newQuestMsg}`;
+        }
 
       // Caso 2: descubrir N salas nuevas
       } else if (cond.new_rooms_count !== undefined) {
@@ -453,7 +475,11 @@ function onExplore(player, roomId, isNew = false) {
           if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
           messages.push(completionMsg);
 
-          try { const fp = db.getPlayer(player.id); if (fp) assignQuests(fp); } catch (_) {}
+          // DIS-1595: notificar al jugador si se asigna nueva quest al liberarse el slot
+        const _newQuestMsg = _tryAssignAndGetMsg(player.id);
+        if (_newQuestMsg) {
+          messages[messages.length - 1] += `\n\n🔄 **Nueva misión disponible:**\n${_newQuestMsg}`;
+        }
         } else {
           rawDb.run(
             `UPDATE player_quests SET progress = ? WHERE id = ?`,
@@ -541,7 +567,11 @@ function onCraft(player, itemName) {
         if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
         messages.push(completionMsg);
 
-        try { const fp = db.getPlayer(player.id); if (fp) assignQuests(fp); } catch (_) {}
+        // DIS-1595: notificar al jugador si se asigna nueva quest al liberarse el slot
+        const _newQuestMsg = _tryAssignAndGetMsg(player.id);
+        if (_newQuestMsg) {
+          messages[messages.length - 1] += `\n\n🔄 **Nueva misión disponible:**\n${_newQuestMsg}`;
+        }
       } else {
         rawDb.run(
           `UPDATE player_quests SET progress = ? WHERE id = ?`,
@@ -623,7 +653,11 @@ function onTrade(player, action, value) {
           if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
           messages.push(completionMsg);
 
-          try { const fp = db.getPlayer(player.id); if (fp) assignQuests(fp); } catch (_) {}
+          // DIS-1595: notificar al jugador si se asigna nueva quest al liberarse el slot
+        const _newQuestMsg = _tryAssignAndGetMsg(player.id);
+        if (_newQuestMsg) {
+          messages[messages.length - 1] += `\n\n🔄 **Nueva misión disponible:**\n${_newQuestMsg}`;
+        }
         } else {
           rawDb.run(
             `UPDATE player_quests SET progress = ? WHERE id = ?`,
@@ -661,7 +695,11 @@ function onTrade(player, action, value) {
           if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
           messages.push(completionMsg);
 
-          try { const fp = db.getPlayer(player.id); if (fp) assignQuests(fp); } catch (_) {}
+          // DIS-1595: notificar al jugador si se asigna nueva quest al liberarse el slot
+        const _newQuestMsg = _tryAssignAndGetMsg(player.id);
+        if (_newQuestMsg) {
+          messages[messages.length - 1] += `\n\n🔄 **Nueva misión disponible:**\n${_newQuestMsg}`;
+        }
         } else {
           rawDb.run(
             `UPDATE player_quests SET progress = ? WHERE id = ?`,
@@ -741,7 +779,11 @@ function onRitual(player, action) {
         if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
         messages.push(completionMsg);
 
-        try { const fp = db.getPlayer(player.id); if (fp) assignQuests(fp); } catch (_) {}
+        // DIS-1595: notificar al jugador si se asigna nueva quest al liberarse el slot
+        const _newQuestMsg = _tryAssignAndGetMsg(player.id);
+        if (_newQuestMsg) {
+          messages[messages.length - 1] += `\n\n🔄 **Nueva misión disponible:**\n${_newQuestMsg}`;
+        }
       } else {
         rawDb.run(
           `UPDATE player_quests SET progress = ? WHERE id = ?`,

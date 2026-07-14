@@ -11895,12 +11895,16 @@ function _cmdFaccionElegir(player, args) {
     db.updatePlayer(player.id, { status_effects: JSON.stringify(sePending) });
     const sep = '━'.repeat(56);
     // DIS-1564: mostrar comando inline completo (un solo paso) en lugar de "faccion confirmar"
+    // DIS-1591: bloque de confirmación más explícito — dejar claro que NO se unió aún
     const confirmCmd = `faccion elegir ${factionId} confirmar`;
     const confirmBlock = [
       '',
       sep,
-      `  ${lore.icon}  ¿Querés unirte a ${lore.name}?`,
-      `  ► Escribí: ${confirmCmd}`,
+      `  ⚠️  Todavía NO te uniste a ${lore.name}.`,
+      ``,
+      `  Para CONFIRMAR tu ingreso, escribí:`,
+      `     ${confirmCmd}`,
+      ``,
       `  ► (o explorá otras: faccion elegir <nombre>)`,
       sep,
     ].join('\n');
@@ -17060,6 +17064,12 @@ function cmdUseSkill(player, args, context) {
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
 
+    // DIS-1593: si no se especificó target y hay múltiples vivos, elegir el de mayor HP
+    // (evita que smash ataque al monstruo equivocado — usa el enemigo principal del jugador)
+    if (!targetName && alive.length > 1) {
+      target = alive.reduce((prev, cur) => (cur.hp > prev.hp ? cur : prev), alive[0]);
+    }
+
     // DIS-1062: smash no está disponible contra enemigos que ya están agonizando (HP ≤ 25% de su propio máximo)
     // Evita desperdiciar smash en monstruos a punto de morir, pero sin bloquear vs monstruos débiles con vida plena
     // BUG-1262: la versión anterior usaba player.max_hp como threshold, bloqueando smash contra monstruos
@@ -17287,6 +17297,16 @@ function cmdUseSkill(player, args, context) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
         `⚡ ${freshPlayer.username} usa Golpetazo sobre el ${target.name}! (-${finalDmg} HP)`);
     }
+    // DIS-1594: llamar questEngine.onKill al matar con smash (igual que en cmdAttack)
+    if (dead) {
+      try {
+        const freshForSmashQE = db.getPlayer(freshPlayer.id);
+        if (freshForSmashQE) {
+          const qeSmashResult = questEngine.onKill(freshForSmashQE, target);
+          if (qeSmashResult && qeSmashResult.text) text += '\n\n' + qeSmashResult.text;
+        }
+      } catch (_) {}
+    }
     return { text };
   }
 
@@ -17424,6 +17444,10 @@ function cmdUseSkill(player, args, context) {
     // Buscar monstruo por nombre si se especificó, si no usar el primero
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
+    // DIS-1593: si no se especificó target y hay múltiples vivos, elegir el de mayor HP
+    if (!targetName && alive.length > 1) {
+      target = alive.reduce((prev, cur) => (cur.hp > prev.hp ? cur : prev), alive[0]);
+    }
     const baseDmg = freshPlayer.attack || 5;
     const variation = Math.floor(baseDmg * 0.2);
     const rawDmg = baseDmg + Math.floor(Math.random() * (variation * 2 + 1)) - variation;
@@ -17595,6 +17619,16 @@ function cmdUseSkill(player, args, context) {
     if (context && context.broadcastToRoom) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
         `🛡️ ${freshPlayer.username} usa Golpe de Escudo sobre el ${target.name}! (-${finalDmg} HP, aturdido)`);
+    }
+    // DIS-1594: llamar questEngine.onKill al matar con shield_bash (igual que en cmdAttack)
+    if (dead) {
+      try {
+        const freshForBashQE = db.getPlayer(freshPlayer.id);
+        if (freshForBashQE) {
+          const qeBashResult = questEngine.onKill(freshForBashQE, target);
+          if (qeBashResult && qeBashResult.text) text += '\n\n' + qeBashResult.text;
+        }
+      } catch (_) {}
     }
     return { text };
   }
@@ -20164,12 +20198,12 @@ function cmdReadWall(player) {
   }
 
   // Luego los mensajes de jugadores reales
+  // DIS-1596: filtrar mensajes de bots — rompen la inmersión narrativa
   for (const m of msgs) {
     const date = m.created_at ? m.created_at.slice(5, 16).replace('T', ' ') : '';
     const isBot = isBotWallName(m.player_name);
-    // DIS-498: marcar visualmente inscripciones de bots con tono más tenue
-    const prefix = isBot ? '  🤖' : '  ✍️';
-    lines.push(`${prefix} ${m.player_name} [${date}]: ${m.message}`);
+    if (isBot) continue; // DIS-1596: omitir inscripciones de bots completamente
+    lines.push(`  ✍️ ${m.player_name} [${date}]: ${m.message}`);
   }
 
   // EPIC-1373: Influencia de facción por leer inscripción

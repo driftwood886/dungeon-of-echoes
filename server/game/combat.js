@@ -1676,17 +1676,18 @@ function attackRound(player, monster) {
   const STEALTH_RESISTANT_BOSSES = new Set([12, 21, 22]); // Campeón, Eco Viviente, Sombra (no el Lich)
   const bossBreaksStealth = stealthSurprise && STEALTH_RESISTANT_BOSSES.has(monster.id);
 
-  // DIS-1481: Regeneración del Troll de las Cavernas — se cura 5 HP al inicio de cada contraataque.
+  // DIS-1481: Regeneración del Troll de las Cavernas — se cura HP al inicio de cada contraataque.
   // Mecánica: si el Troll sigue vivo, se regenera ANTES de atacar (el jugador ve cómo se recupera).
   // Esto fuerza una estrategia de DPS sostenido y uso de pociones para terminar la pelea rápido.
   // La regeneración se detiene si el Troll muere en este turno.
+  // DIS-1592: reducida de 5 a 3 HP/turno — con arma nivel 1 (7-13 dmg), el net era demasiado bajo
   if (!monsterDead && monster.name === 'Troll de las Cavernas') {
-    const trollRegen = 5;
+    const trollRegen = 3;
     const newTrollHp = Math.min(monster.max_hp, monster.hp + trollRegen);
     if (newTrollHp > monster.hp) {
       monster = { ...monster, hp: newTrollHp };
       db.updateMonster(monster.id, { hp: newTrollHp });
-      lines.push(`🟤 ¡Las heridas del Troll de las Cavernas se CIERRAN ante tus ojos! (+${trollRegen} HP → ${newTrollHp}/${monster.max_hp} HP) Más rápido.`);
+      lines.push(`🟤 Las heridas del Troll de las Cavernas se cierran levemente. (+${trollRegen} HP → ${newTrollHp}/${monster.max_hp} HP)`);
     }
   }
   if (stealthSurprise && !monsterDead && !bossBreaksStealth) {
