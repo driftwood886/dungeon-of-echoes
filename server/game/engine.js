@@ -11880,6 +11880,15 @@ function _cmdFaccionElegir(player, args) {
   // ── CON confirmación: unirse a la facción ─────────────────────────────────
   db.setPlayerFaction(player.id, factionId);
 
+  // BUG-1582: assignQuests solo se llamaba en login — llamarlo también al unirse a facción
+  // para que el slot principal se llene con la quest de facción inmediatamente
+  try {
+    const freshForFaction = db.getPlayer(player.id);
+    if (freshForFaction) {
+      questEngine.assignQuests(freshForFaction);
+    }
+  } catch (_) { /* no romper unión a facción si falla questEngine */ }
+
   // Mensaje narrativo de bienvenida según facción
   const WELCOME_MSGS = {
     orden_filo:
