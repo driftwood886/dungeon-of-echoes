@@ -644,7 +644,7 @@ function migrateCorredorHintDIS1107() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605 };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -2575,7 +2575,43 @@ function migrateEcosHubDescDIS1584() {
 }
 
 /**
- * DIS-1590: Quest "La Caza del Merodeador" renombrada a "La Caza en el Corredor".
+ * DIS-1605: Quest "La Purga de la Orden" diferenciada de "El Contrato de Élite".
+ * Ambas eran kill de cualquier monstruo en postura agresiva (4 vs 5). Ahora "La Purga"
+ * es una caza de espectros (target_type: 'espectro', any stance, count: 3) — tipo específico
+ * de enemigo, diferente al Contrato de Élite que requiere postura agresiva en cualquier monstruo.
+ */
+function migrateQuestPurgaOrdenDIS1605() {
+  try {
+    const rawDb = db.raw();
+    const exists = rawDb.exec(`SELECT id, condition FROM quest_definitions WHERE id = 'faccion_orden_filo_purga'`);
+    if (!exists || !exists[0] || !exists[0].values || exists[0].values.length === 0) {
+      console.log('[seed] migrateQuestPurgaOrdenDIS1605: quest faccion_orden_filo_purga no encontrada — sin cambios. ✓');
+      return;
+    }
+    const currentCond = exists[0].values[0][1];
+    const parsed = JSON.parse(currentCond || '{}');
+    if (parsed.target_type === 'espectro') {
+      console.log('[seed] migrateQuestPurgaOrdenDIS1605: quest ya tiene target_type=espectro — sin cambios. ✓');
+      return;
+    }
+    const newCondition = JSON.stringify({ event: 'kill', target_type: 'espectro', require_stance: null, count: 3 });
+    const newDescription = 'Las presencias espectrales del dungeon no son monstruos ordinarios — son una contaminación que la Orden del Filo tiene el deber de erradicar. Tu misión: eliminá 3 espectros. Espectros del Corredor, Guardia Espectral — todos cuentan. La postura es tuya, el resultado es lo que importa.';
+    rawDb.run(
+      `UPDATE quest_definitions SET description = ?, condition = ?, reward = ? WHERE id = 'faccion_orden_filo_purga'`,
+      [
+        newDescription,
+        newCondition,
+        JSON.stringify({ gold: 50, xp: 40, faction_influence: 6 }),
+      ]
+    );
+    console.log('[seed] migrateQuestPurgaOrdenDIS1605: "La Purga de la Orden" → caza de espectros (target_type=espectro, count=3). DIS-1605 ✓');
+  } catch (e) {
+    console.warn('[seed] migrateQuestPurgaOrdenDIS1605:', e.message);
+  }
+}
+
+
+/**
  * La condición target_type='goblin' ya aceptaba correctamente tanto al Goblin Merodeador
  * como al Goblin Explorador (sala 2). El nombre y la descripción originales implicaban
  * que solo contaban los Merodeadores, lo cual era confuso. Fix: actualizar nombre y

@@ -4320,7 +4320,19 @@ function cmdAttack(player, targetName) {
         delete mbSE.modo_berserk_activo;
         mbSE.berserk_agotamiento = { turns_remaining: 2, atk_penalty: 2 };
         db.updatePlayer(player.id, { status_effects: JSON.stringify(mbSE) });
-        modoBerserkMsg = `🪓 MODO BERSERK (turno final) +5 ATK → ¡La rabia se agota! Agotamiento: -2 ATK por 2 turnos.`;
+        // DIS-1602: detectar si el gólem tiene escudo activo para aviso adicional
+        let golemShieldWarning = '';
+        try {
+          const roomMonstersNow = db.getMonstersInRoom(player.current_room_id).filter(m => m.hp > 0);
+          const golemNow = roomMonstersNow.find(m => (m.name || '').toLowerCase().includes('gólem de piedra'));
+          if (golemNow) {
+            const gfx = golemNow.status_effects
+              ? (typeof golemNow.status_effects === 'string' ? JSON.parse(golemNow.status_effects) : golemNow.status_effects)
+              : {};
+            if (gfx.stone_shield) golemShieldWarning = ' ⚠️ Gólem: escudo activo este turno.';
+          }
+        } catch (_) {}
+        modoBerserkMsg = `🪓 MODO BERSERK (turno final) +5 ATK → ¡La rabia se agota! Agotamiento: -2 ATK por 2 turnos.${golemShieldWarning}`;
       } else {
         db.updatePlayer(player.id, { status_effects: JSON.stringify(mbSE) });
         modoBerserkMsg = `🪓 MODO BERSERK activo: +5 ATK (${newTurns}t restantes)`;
@@ -15653,8 +15665,32 @@ function cmdModoBerserk(player, context) {
       `🪓 ${freshMb.username} entra en MODO BERSERK — ¡la rabia pura lo consume!`);
   }
 
+  // DIS-1602: hint estratégico si hay un Gólem de Piedra en la sala
+  let golemBerserkHint = '';
+  try {
+    const golemInRoom = mbMonstersRaw.find(m => (m.name || '').toLowerCase().includes('gólem de piedra'));
+    if (golemInRoom) {
+      const golemFxNow = golemInRoom.status_effects
+        ? (typeof golemInRoom.status_effects === 'string' ? JSON.parse(golemInRoom.status_effects) : golemInRoom.status_effects)
+        : {};
+      const golemTurnsNow = golemFxNow.golem_turns || 0;
+      // El escudo se activa en turnos múltiplos de 3 (desde el inicio del combate con el gólem)
+      const turnsUntilShield = 3 - (golemTurnsNow % 3);
+      // La regen es cada 2 turnos (en turnos pares), pero no si hay escudo ese turno
+      if (golemFxNow.stone_shield) {
+        golemBerserkHint = '\n   🪨 ⚠️ Gólem: ¡Escudo de Piedra activo ahora! (próximo ataque reducido al 35%)';
+      } else if (turnsUntilShield === 3) {
+        golemBerserkHint = '\n   🪨 Gólem: regen en turno 2, escudo en turno 3 — el Berserk encaja perfecto si lo terminás en 2 turnos.';
+      } else if (turnsUntilShield === 2) {
+        golemBerserkHint = '\n   🪨 Gólem: regen en próximo turno, escudo en 2 — intentá terminar antes de que se active.';
+      } else if (turnsUntilShield === 1) {
+        golemBerserkHint = '\n   🪨 ⚠️ Gólem: ¡escudo se activa este turno! Considerá usar \"calmar_furia\" si no podés terminarlo ahora.';
+      }
+    }
+  } catch (_) { /* silenciar errores de hint — no romper el flujo */ }
+
   return {
-    text: `🪓 ¡MODO BERSERK ACTIVADO!${isFirstBerserk ? '\n   ℹ️ Primera vez: +5 ATK por 3 turnos. Sin postura defensiva ni huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento). Usá "calmar_furia" para cancelar.\n   (Las próximas veces se activa directamente sin advertencia.)' : '\n   +5 ATK por 3 turnos. Sin postura defensiva. Sin huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento).\n   Usá "calmar_furia" para cancelar (perdés 1 turno pero podés huir).'} (Cooldown: 90s)`,
+    text: `🪓 ¡MODO BERSERK ACTIVADO!${isFirstBerserk ? '\n   ℹ️ Primera vez: +5 ATK por 3 turnos. Sin postura defensiva ni huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento). Usá "calmar_furia" para cancelar.\n   (Las próximas veces se activa directamente sin advertencia.)' : '\n   +5 ATK por 3 turnos. Sin postura defensiva. Sin huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento).\n   Usá "calmar_furia" para cancelar (perdés 1 turno pero podés huir).'}${golemBerserkHint} (Cooldown: 90s)`,
   };
 }
 
