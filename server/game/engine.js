@@ -3370,7 +3370,8 @@ function cmdInventory(player) {
   let discardHint = '';
   const junkInInv = allItems.filter(i => items.isJunkItem(i));
   if (junkInInv.length >= 3) {
-    discardHint = `\n🗑️ Tenés ${junkInInv.length} materiales descartables — usá \`drop junk\` para limpiarlos todos de una, o \`descartar <ítem>\` para uno específico.`;
+    const junkNames = junkInInv.slice(0, 5).join(', ') + (junkInInv.length > 5 ? ` y ${junkInInv.length - 5} más` : '');
+    discardHint = `\n🗑️ Tenés ${junkInInv.length} materiales descartables (${junkNames}) — usá \`drop junk\` para limpiarlos todos de una, o \`descartar <ítem>\` para uno específico.`;
   }
 
   return { text: `Inventario:\n${lines.join('\n')}\n${summary}\n${slotLine}${viableNote}${loneNote}${sellSuggestionNote}${discardHint}` };
