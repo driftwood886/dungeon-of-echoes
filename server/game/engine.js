@@ -11940,24 +11940,43 @@ function _cmdFaccionElegir(player, args) {
 
   // Sin confirmación → mostrar tarjeta y pedir confirmación inline (DIS-1564)
   if (!hasConfirm) {
-    const card = _buildFactionCard(lore, false);
-    // Guardar pending como fallback (para "faccion confirmar" si el jugador lo prefiere)
     const sePending = parseSE(player.status_effects);
+    const alreadySawCard = sePending.faction_pending === factionId;
+    // Guardar pending como fallback (para "faccion confirmar" si el jugador lo prefiere)
     sePending.faction_pending = factionId;
     db.updatePlayer(player.id, { status_effects: JSON.stringify(sePending) });
     const sep = '━'.repeat(56);
     // DIS-1564: mostrar comando inline completo (un solo paso) en lugar de "faccion confirmar"
     // DIS-1591: bloque de confirmación más explícito — dejar claro que NO se unió aún
+    // DIS-1619: si el jugador ya vio la tarjeta (faction_pending ya era esta facción),
+    //           mostrar SOLO el CTA de confirmación, sin repetir la tarjeta larga
     const confirmCmd = `faccion elegir ${factionId} confirmar`;
+    if (alreadySawCard) {
+      return {
+        text: [
+          sep,
+          `  ${lore.icon}  ${lore.name}`,
+          ``,
+          `  ⚠️  Todavía NO te uniste. Para confirmar tu ingreso:`,
+          ``,
+          `     ✅  ${confirmCmd}`,
+          ``,
+          `  (Si querés ver otra facción: faccion elegir <nombre>)`,
+          sep,
+        ].join('\n'),
+      };
+    }
+    const card = _buildFactionCard(lore, false);
     const confirmBlock = [
       '',
       sep,
       `  ⚠️  Todavía NO te uniste a ${lore.name}.`,
       ``,
-      `  Para CONFIRMAR tu ingreso, escribí:`,
-      `     ${confirmCmd}`,
+      `  Para CONFIRMAR tu ingreso, escribí exactamente:`,
       ``,
-      `  ► (o explorá otras: faccion elegir <nombre>)`,
+      `     ✅  ${confirmCmd}`,
+      ``,
+      `  (Si querés explorar otras facciones: faccion elegir <nombre>)`,
       sep,
     ].join('\n');
     return {
