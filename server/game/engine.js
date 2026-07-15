@@ -6495,6 +6495,9 @@ function cmdUse(player, itemQuery) {
         } catch (_) {
           resultText = `Examinás ${found}: ${def.description}`;
         }
+      } else if (def && def.type === 'misc') {
+        // DIS-1617: ítems pasivos (misc) sin handler específico — mensaje claro
+        resultText = `✨ ${found} es un ítem pasivo — funciona automáticamente mientras lo llevés en el inventario. No necesitás usarlo activamente.`;
       } else {
         resultText = `Examinás ${found}: ${def.description}`;
       }
