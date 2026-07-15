@@ -10067,7 +10067,7 @@ function cmdParty(player, args) {
   if (!sub || sub === 'info') {
     player = db.getPlayer(player.id);
     if (!player.party_id) {
-      return { text: 'No estás en ningún grupo.\nUsá "party <nombre_jugador>" para invitar a alguien de tu sala.' };
+      return { text: 'No estás en ningún grupo.\nUsá "party invite <nombre_jugador>" para invitar a alguien de tu sala.' };
     }
     const members = db.getPartyMembers(player.party_id);
     if (members.length === 0) {
@@ -10087,7 +10087,7 @@ function cmdParty(player, args) {
       lines.push(`  ${m.username.padEnd(16)} Lv${m.level || 1} ${hpBar} ${m.hp}/${m.max_hp}  📍${roomName}${leaderTag}${followTag}`);
     }
     lines.push('');
-    lines.push('Comandos: party follow / party unfollow | p <mensaje> | party leave | party disband');
+    lines.push('Comandos: party invite <jugador> | party follow / unfollow | p <mensaje> | party leave | party disband');
     return { text: lines.join('\n') };
   }
 
@@ -10218,13 +10218,18 @@ function cmdParty(player, args) {
   }
 
   // ── Invitar a un jugador ──────────────────────────────────────────────────
-  const targetName = args.join(' ').toLowerCase();
+  // BUG-1644: soportar alias "party invite <nombre>" además de "party <nombre>"
+  const inviteArgs = (sub === 'invite' || sub === 'invitar') ? args.slice(1) : args;
+  if (inviteArgs.length === 0) {
+    return { text: 'Indicá a quién querés invitar. Ej: \"party invite Kaela\" o \"party Kaela\".' };
+  }
+  const targetName = inviteArgs.join(' ').toLowerCase();
   const roomPlayers = db.getPlayersInRoom(player.current_room_id);
   const target = roomPlayers.find(
     p => p.username.toLowerCase().includes(targetName) && p.id !== player.id
   );
   if (!target) {
-    return { text: `No hay ningún jugador llamado "${args.join(' ')}" en esta sala.` };
+    return { text: `No hay ningún jugador llamado "${inviteArgs.join(' ')}" en esta sala.` };
   }
   if (target.party_id) {
     return { text: `${target.username} ya está en un grupo.` };
