@@ -983,7 +983,20 @@ function attackRound(player, monster) {
   // Actualizar monstruo en BD
   db.updateMonster(monster.id, { hp: monster.hp });
 
-  // DIS-834: guardar el ATK del monstruo ANTES de activar la Fase 2.
+  // IMPL-PARTY-1637: Guardar lastAttackedByPlayerId en el monstruo (aggro tracking de party)
+  // Se actualiza en cada ataque para que siempre refleje el último atacante.
+  // Usado en futuras features (AOE del monstruo, eventos de sala) para determinar el target.
+  try {
+    const monSeFreshAggro = monster.status_effects
+      ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : { ...monster.status_effects })
+      : {};
+    if (monSeFreshAggro.lastAttackedByPlayerId !== player.id) {
+      monSeFreshAggro.lastAttackedByPlayerId = player.id;
+      db.updateMonster(monster.id, { status_effects: JSON.stringify(monSeFreshAggro) });
+      monster.status_effects = monSeFreshAggro; // sincronizar referencia local
+    }
+  } catch (_) { /* no romper combate si falla el tracking de aggro */ }
+
   // El contraataque del mismo turno debe usar el ATK anterior — no el boost de Fase 2.
   // Esto evita que el jugador reciba el daño de Fase 2 en el mismo turno que activa la transición.
   const _atkBeforePhase2 = monster.attack;
