@@ -7637,7 +7637,7 @@ function cmdEquip(player, itemQuery) {
     const prevRegenBonus = player.equipped_weapon === 'vara de energía' ? 2 : 0;
     const newRegenBonus  = found === 'vara de energía' ? 2 : 0;
     if (prevRegenBonus > newRegenBonus) {
-      manaRegenWarnMsg = `\n⚠️ Perdés el bono de regen de maná de ${player.equipped_weapon} (-${prevRegenBonus} maná/min). Regenerarás ${6} maná/min en lugar de ${6 + prevRegenBonus}.`;
+      manaRegenWarnMsg = `\n⚠️ Perdés el bono de regen de maná de ${player.equipped_weapon} (-${prevRegenBonus} maná/min). Regenerarás ${10} maná/min en lugar de ${10 + prevRegenBonus}.`;
     }
   }
 
@@ -14534,11 +14534,14 @@ const SPELL_CATALOG = {
 function getManaRegenRate(player, clsData) {
   const c = clsData || classes.getPlayerClass(player);
   let rate = 1; // base: 1/min para no-casters
-  if (c && c.name === 'Mago') rate = 6;
+  // DIS-1607: Mago subido de 6→10/min — la curva era demasiado restrictiva en early game
+  // Con 35 maná y hechizos de 7-14, el mago se quedaba sin maná en 2-3 hechizos.
+  // A 10/min recarga completo en ~3.5 min, sostenible en sesión de 10-15 min.
+  if (c && c.name === 'Mago') rate = 10;
   else if (c && c.name === 'Clérigo') rate = 6;
   // DIS-576: la vara de energía equipada da +2 maná/min de regen extra al Mago
   if (c && c.name === 'Mago' && player.equipped_weapon === 'vara de energía') {
-    rate += 2; // 6 → 8 maná/min con vara equipada
+    rate += 2; // 10 → 12 maná/min con vara equipada
   }
   return rate;
 }

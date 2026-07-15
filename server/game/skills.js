@@ -311,7 +311,7 @@ const SKILLS = {
     aliases: ['drenar arcano', 'drenar_arcano', 'drain_mana', 'drenar', 'absorber_mana', 'absorber_arcano', 'robar_mana', 'siphon', 'drenar_energia', 'drenar energía'],
     required_level: 1,
     required_class: 'mago',
-    cooldown_seconds: 45,
+    cooldown_seconds: 25, // DIS-1607: reducido de 45→25s — válvula de escape del mago sin maná
     type: 'mago_drain',
     mana_recover_min: 2,
     mana_recover_max: 4,
