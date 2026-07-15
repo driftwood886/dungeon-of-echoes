@@ -1380,7 +1380,9 @@ function attackRound(player, monster) {
         const slotsUsed = invNow.length + eqCount;
         const maxSlots = 20 + (freshPForInv.inventory_bonus || 0);
         if (slotsUsed >= maxSlots) {
+          const slotsNeeded = Math.max(0, loot.length - (maxSlots - slotsUsed));
           lines.push(`\n⚠️  [LOOT ÉPICO EN RIESGO] Tu inventario está LLENO (${slotsUsed}/${maxSlots}).`);
+          lines.push(`   El boss soltó ${loot.length} ítem${loot.length !== 1 ? 's' : ''} — liberá al menos ${slotsNeeded} slot${slotsNeeded !== 1 ? 's' : ''} con \`drop <ítem>\`.`);
           lines.push(`   Los ítems del boss quedaron en el suelo de esta sala.`);
           lines.push(`   La sala se preserva mientras sigas aquí — si salís, pueden perderse.`);
           lines.push(`   Hacé espacio con \`drop <ítem>\` y luego recogé con \`loot\`.`);
