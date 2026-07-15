@@ -461,6 +461,7 @@ function execute(playerId, input, context) {
     case 'emote':     result = cmdEmote(player, action.args.join(' ')); break;
     case 'dice':      result = cmdDice(player, action.args.join(' ')); break;
     case 'party':     result = cmdParty(player, action.args); break;
+    case 'partychat': result = cmdPartyChat(player, action.args.join(' ')); break;
     case 'shop':      result = cmdShop(player, action.args.join(' ')); break;
     case 'buy':       result = cmdBuy(player, action.args.join(' ')); break;
     case 'sell':      result = cmdSell(player, action.args.join(' ')); break;
@@ -780,6 +781,7 @@ Para todos los comandos: help todo
           auctions: 'auctions', subastas: 'auctions', pujas: 'auctions',
           dice: 'dice', dado: 'dice', dados: 'dice', roll: 'dice',
           party: 'party', grupo: 'party', equipo: 'party',
+          partychat: 'partychat', p: 'partychat',  // IMPL-PARTY-1633: chat de party
           drink: 'drink', beber: 'drink', tomar: 'drink',
           study: 'study', estudiar: 'study', analizar: 'study', investigar: 'study',
           wear: 'wear', ponerse: 'wear', vestir: 'wear',
@@ -10033,6 +10035,31 @@ function cmdParty(player, args) {
     targetPlayerMsg: `📨 ${player.username} te invita a unirse a su grupo. Escribí "party accept" para aceptar o "party decline" para rechazar. (60s)`,
     // IMPL-PARTY-1631: Si es la primera vez que crea party, unirlo al party room
     partyJoin: !wasInParty ? partyId : undefined,
+  };
+}
+
+/**
+ * p <mensaje> — Chat de party (IMPL-PARTY-1633).
+ *
+ * Envía un mensaje a todos los miembros de la party vía Socket.io party room.
+ * El result incluye partyRoomMsg + partyRoomId para que handlers.js use io.to().
+ */
+function cmdPartyChat(player, message) {
+  player = db.getPlayer(player.id);
+  if (!player.party_id) {
+    return { text: '❌ No estás en ningún grupo. Usá "party <jugador>" para invitar a alguien.' };
+  }
+  if (!message || !message.trim()) {
+    return { text: '❌ Escribí un mensaje. Ej: "p Vamos al norte."' };
+  }
+  const msg = message.trim().slice(0, 300);  // límite de longitud
+  const formatted = `🟢 [Party] ${player.username}: ${msg}`;
+  db.touchParty(player.party_id);
+  return {
+    text: formatted,   // el que habla también ve su propio mensaje
+    partyRoomMsg: formatted,
+    partyRoomId: player.party_id,
+    partyRoomExcludeSelf: player.id,  // no enviar de vuelta al que lo mandó (ya lo ve en text)
   };
 }
 
@@ -22432,6 +22459,7 @@ function cmdGuide(args) {
       '  guild create/join — Crear o unirse a hermandad',
       '  duel <jugador>    — Retar a duelo (apuestas de oro)',
       '  party <jugador>   — Grupo para compartir XP (party leave/disband/info)',
+      '  p <mensaje>       — Chat de party (solo lo ven los miembros del grupo)',
       '  inspect <jugador> — Ver estadísticas de otro jugador',
       '',
       'MISC:',

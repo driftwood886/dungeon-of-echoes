@@ -402,6 +402,15 @@ function registerHandlers(io) {
         if (otherSocket) otherSocket.join(`party-${result.partyJoinOtherPartyId}`);
       }
 
+      // IMPL-PARTY-1633: Chat de party — broadcast a todo el party room vía io.to()
+      if (result.partyRoomMsg && result.partyRoomId) {
+        // Emitir a todos en el room de party excepto al emisor (que ya recibió su respuesta)
+        io.to(`party-${result.partyRoomId}`).except(socket.id).emit('event', {
+          type: 'party_chat',
+          message: result.partyRoomMsg,
+        });
+      }
+
       // Si el jugador cambió de habitación, actualizar rooms de Socket.io
       const player = db.getPlayer(currentPlayerId);
       if (player && player.current_room_id !== currentRoomId) {
