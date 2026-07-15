@@ -81,6 +81,11 @@ function registerHandlers(io) {
       currentPlayerId = player.id;
       currentRoomId   = player.current_room_id;
 
+      // BUG-1645: Detectar si es reconexión (el jugador ya tenía socket registrado).
+      // En reconexiones, el auto-look del join se omite para evitar duplicar la
+      // descripción de sala si el cliente aún está procesando el ack de un move reciente.
+      const isReconnect = playerSockets.has(currentPlayerId);
+
       // Registrar socket del jugador para mensajes directos
       playerSockets.set(currentPlayerId, socket);
 
@@ -110,12 +115,17 @@ function registerHandlers(io) {
       });
 
       // Auto-look al entrar
-      const lookResult = engine.execute(player.id, 'look');
+      // BUG-1645: En reconexiones, omitir el auto-look para no duplicar la descripción
+      // de sala si el cliente aún está procesando el ack de un move reciente.
+      const lookResult = isReconnect
+        ? { text: '🔄 Reconectado. Escribí "look" para ver tu entorno actual.' }
+        : engine.execute(player.id, 'look');
 
       // Si el jugador está en el tutorial, agregar mensaje introductorio del paso actual
       // DIS-1533: mostrar el paso actual (no siempre paso 1) para jugadores que reconectan en paso 2 o 3
+      // BUG-1645: En reconexiones omitir el tutorial (el jugador ya sabe dónde está)
       let welcomeText = lookResult.text;
-      if (player.tutorial_step && player.tutorial_step > 0) {
+      if (!isReconnect && player.tutorial_step && player.tutorial_step > 0) {
         const tutModule = require('../game/tutorial');
         // Usar el paso actual del jugador — si ya está en paso 2 o 3, no mostrar el paso 1 de nuevo
         const currentTutorialStep = player.tutorial_step;
