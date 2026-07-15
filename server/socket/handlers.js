@@ -387,6 +387,20 @@ function registerHandlers(io) {
         }
       }
 
+      // IMPL-PARTY-1636: Output compartido de combate — notificar a compañeros de party en la sala
+      if (result.partyCombatMsg && Array.isArray(result.partyCombatMemberIds)) {
+        for (const memberId of result.partyCombatMemberIds) {
+          const memberSocket = playerSockets.get(memberId);
+          if (memberSocket) {
+            memberSocket.emit('event', {
+              type: 'party_combat',
+              message: result.partyCombatMsg,
+            });
+          }
+        }
+      }
+
+
       // IMPL-PARTY-1631: Gestión de party rooms en Socket.io
       // partyJoin: el socket actual se une al party room (cuando se crea o acepta una party)
       if (result.partyJoin) {

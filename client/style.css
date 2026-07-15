@@ -275,6 +275,9 @@ html, body {
 .msg-line.msg-combat  { color: #ff7744; }
 .msg-line.msg-loot    { color: #ffdd44; }
 .msg-line.msg-separator { color: var(--border-bright); }
+.msg-line.msg-party_event  { color: #55eebb; font-style: italic; border-left: 2px solid #22bb88; padding-left: 4px; }
+.msg-line.msg-party_chat   { color: #55eebb; border-left: 2px solid #22bb88; padding-left: 4px; }
+.msg-line.msg-party_combat { color: #ff9944; font-style: italic; border-left: 2px solid #cc6622; padding-left: 4px; }
 
 /* Timestamp */
 .msg-ts {

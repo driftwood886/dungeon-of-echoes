@@ -424,6 +424,12 @@ function initSocket() {
       addMsg(data.message, 'system');
     } else if (data.type === 'friend_online') {
       addMsg(data.message, 'system');
+    } else if (data.type === 'party_event') {
+      addMsg(data.message, 'party_event');
+    } else if (data.type === 'party_chat') {
+      addMsg(data.message, 'party_chat');
+    } else if (data.type === 'party_combat') {
+      addMsg(data.message, 'party_combat');
     } else if (data.type === 'session_summary') {
       addSeparator();
       addMsg(data.message, 'system');

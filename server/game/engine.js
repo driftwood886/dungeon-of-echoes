@@ -5366,6 +5366,35 @@ function cmdAttack(player, targetName) {
     };
   }
 
+  // ── IMPL-PARTY-1636: Output compartido de combate entre miembros de party ─────
+  // Si el atacante está en party, notificar a compañeros en la misma sala.
+  let partyCombatMsg = null;
+  let partyCombatMemberIds = [];
+  try {
+    const freshForParty1636 = db.getPlayer(player.id);
+    if (freshForParty1636 && freshForParty1636.party_id && !combatResult.spectralBlocked) {
+      const allPartyMembers1636 = db.getPartyMembers(freshForParty1636.party_id);
+      const companionsInRoom1636 = allPartyMembers1636.filter(
+        m => m.id !== player.id && m.current_room_id === freshForParty1636.current_room_id
+      );
+      if (companionsInRoom1636.length > 0) {
+        // Construir mensaje informativo para los compañeros
+        let partyCombatActionDesc;
+        if (monsterDead) {
+          partyCombatActionDesc = `derrota al ${monster.name}`;
+        } else if (playerDead) {
+          partyCombatActionDesc = `es derrotado por el ${monster.name}`;
+        } else {
+          // Extraer el daño causado de combatResult si está disponible
+          // (isCrit viene en combatResult, y el daño está en las lines)
+          partyCombatActionDesc = `ataca al ${monster.name} (${monster.hp}/${monster.max_hp} HP)`;
+        }
+        partyCombatMsg = `⚔ [Party] ${player.username} ${partyCombatActionDesc}.`;
+        partyCombatMemberIds = companionsInRoom1636.map(m => m.id);
+      }
+    }
+  } catch (_) { /* no romper combate si falla party broadcast */ }
+
   return {
     text: baseText,
     event: battlecryEvent || eventText,
@@ -5376,6 +5405,11 @@ function cmdAttack(player, targetName) {
     ...(combatResult.guildBroadcast ? {
       guildBroadcast: combatResult.guildBroadcast,
       guildBroadcastMsg: combatResult.guildBroadcastMsg,
+    } : {}),
+    // IMPL-PARTY-1636: broadcast de combate a compañeros de party en la misma sala
+    ...(partyCombatMsg && partyCombatMemberIds.length > 0 ? {
+      partyCombatMsg,
+      partyCombatMemberIds,
     } : {}),
   };
 }
