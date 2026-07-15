@@ -364,6 +364,19 @@ function registerHandlers(io) {
         }
       }
 
+      // IMPL-PARTY-1630: Broadcast a miembros de party (leave, disband, accept, etc.)
+      if (result.partyBroadcastMsg && Array.isArray(result.partyBroadcastMemberIds)) {
+        for (const memberId of result.partyBroadcastMemberIds) {
+          const memberSocket = playerSockets.get(memberId);
+          if (memberSocket) {
+            memberSocket.emit('event', {
+              type: 'party_event',
+              message: result.partyBroadcastMsg,
+            });
+          }
+        }
+      }
+
       // Si el jugador cambió de habitación, actualizar rooms de Socket.io
       const player = db.getPlayer(currentPlayerId);
       if (player && player.current_room_id !== currentRoomId) {

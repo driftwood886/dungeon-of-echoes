@@ -9840,17 +9840,21 @@ function cmdDice(player, notation) {
 }
 
 /**
- * party [<subcomando>] — Gestionar grupo de aventureros (T102).
+ * party [<subcomando>] — Gestionar grupo de aventureros (T102, IMPL-PARTY-1630).
  *
  * Subcomandos:
- *   party <nombre>   — Invitar a alguien de la misma sala (o unirse a invitación pendiente)
+ *   party <nombre>   — Invitar a alguien de la misma sala
  *   party leave      — Abandonar el grupo actual
+ *   party disband    — Disolver el grupo (solo el líder)
  *   party           — Ver miembros del grupo
  *   party accept     — Aceptar la invitación pendiente de party
  *   party decline    — Rechazar la invitación
  *
  * Mecánica de XP compartido: al matar un monstruo, si el player está en un grupo,
  * la XP se divide entre los miembros presentes en la misma sala.
+ *
+ * Broadcast: el resultado puede incluir partyBroadcastMsg + partyBroadcastMemberIds
+ * para que handlers.js envíe el mensaje a todos los miembros conectados.
  */
 function cmdParty(player, args) {
   const sub = (args[0] || '').toLowerCase();
@@ -9866,12 +9870,16 @@ function cmdParty(player, args) {
       db.updatePlayer(player.id, { party_id: null });
       return { text: 'Tu grupo se disolvió (nadie más está en él).' };
     }
+    db.touchParty(player.party_id);
+    const partyRow = db.getParty(player.party_id);
+    const leaderId = partyRow ? partyRow.leader_id : null;
     const lines = ['⚔ Grupo de aventureros:'];
     for (const m of members) {
       const hpBar = buildBar(m.hp, m.max_hp, 8);
       const room = db.getRoom(m.current_room_id);
       const roomName = room ? room.name : '???';
-      lines.push(`  ${m.username.padEnd(16)} Lv${m.level || 1} ${hpBar} ${m.hp}/${m.max_hp}  📍${roomName}`);
+      const leaderTag = m.id === leaderId ? ' 👑' : '';
+      lines.push(`  ${m.username.padEnd(16)} Lv${m.level || 1} ${hpBar} ${m.hp}/${m.max_hp}  📍${roomName}${leaderTag}`);
     }
     return { text: lines.join('\n') };
   }
@@ -9882,11 +9890,58 @@ function cmdParty(player, args) {
     if (!player.party_id) {
       return { text: 'No estás en ningún grupo.' };
     }
-    db.updatePlayer(player.id, { party_id: null });
+    const partyId = player.party_id;
+    const partyRow = db.getParty(partyId);
+    const members = db.getPartyMembers(partyId);
+    const remaining = members.filter(m => m.id !== player.id);
+
+    if (remaining.length === 0) {
+      // Era el único miembro — disolver
+      db.dissolveParty(partyId);
+      return { text: 'Abandonaste el grupo. El grupo se disolvió (estabas solo).' };
+    }
+
+    if (partyRow && partyRow.leader_id === player.id) {
+      // Es el líder — transferir liderazgo al miembro más antiguo (primero en la lista)
+      const newLeader = remaining[0];
+      db.updatePartyLeader(partyId, newLeader.id);
+      db.updatePlayer(player.id, { party_id: null });
+      const broadcastMsg = `🚪 ${player.username} abandonó el grupo. ${newLeader.username} es el nuevo líder.`;
+      return {
+        text: 'Abandonaste el grupo. El liderazgo pasó a ' + newLeader.username + '.',
+        partyBroadcastMsg: broadcastMsg,
+        partyBroadcastMemberIds: remaining.map(m => m.id),
+      };
+    } else {
+      // No es líder — simplemente salir
+      db.updatePlayer(player.id, { party_id: null });
+      db.touchParty(partyId);
+      const broadcastMsg = `🚪 ${player.username} abandonó el grupo.`;
+      return {
+        text: 'Abandonaste el grupo.',
+        partyBroadcastMsg: broadcastMsg,
+        partyBroadcastMemberIds: remaining.map(m => m.id),
+      };
+    }
+  }
+
+  // ── disband / disolver — solo el líder ───────────────────────────────────
+  if (sub === 'disband' || sub === 'disolver') {
+    player = db.getPlayer(player.id);
+    if (!player.party_id) {
+      return { text: 'No estás en ningún grupo.' };
+    }
+    const partyRow = db.getParty(player.party_id);
+    if (!partyRow || partyRow.leader_id !== player.id) {
+      return { text: '❌ Solo el líder puede disolver el grupo.' };
+    }
+    const members = db.getPartyMembers(player.party_id);
+    const otherIds = members.filter(m => m.id !== player.id).map(m => m.id);
+    db.dissolveParty(player.party_id);
     return {
-      text: 'Abandonaste el grupo.',
-      event: `${player.username} abandona el grupo.`,
-      eventRoomId: player.current_room_id,
+      text: '💔 Disolviste el grupo.',
+      partyBroadcastMsg: `💔 El líder ${player.username} disolvió el grupo.`,
+      partyBroadcastMemberIds: otherIds,
     };
   }
 
@@ -9900,14 +9955,18 @@ function cmdParty(player, args) {
     pendingPartyInvites.delete(player.id);
 
     // Unirse al grupo del invitador
-    db.updatePlayer(player.id,      { party_id: invite.partyId });
+    db.updatePlayer(player.id,       { party_id: invite.partyId });
     db.updatePlayer(invite.inviterId, { party_id: invite.partyId }); // por si acaso
+    db.touchParty(invite.partyId);
+
     const members = db.getPartyMembers(invite.partyId);
     const names = members.map(m => m.username).join(', ');
+    const allIds = members.map(m => m.id);
+    const joinMsg = `✅ ${player.username} se unió al grupo. Miembros: ${names}`;
     return {
       text: `✅ Te uniste al grupo de ${invite.inviterUsername}.\nMiembros: ${names}`,
-      targetPlayerId: invite.inviterId,
-      targetPlayerMsg: `✅ ${player.username} aceptó unirse a tu grupo.`,
+      partyBroadcastMsg: joinMsg,
+      partyBroadcastMemberIds: allIds.filter(id => id !== player.id),
     };
   }
 
@@ -9944,9 +10003,12 @@ function cmdParty(player, args) {
     return { text: '❌ El grupo está lleno (máximo 4 miembros).' };
   }
 
-  // Asegurar que el invitador tenga el party_id
+  // Asegurar que el invitador tenga party_id y que la party exista en DB
   if (!player.party_id) {
+    db.createParty(player.id, partyId);   // IMPL-PARTY-1630: persiste en tabla parties
     db.updatePlayer(player.id, { party_id: partyId });
+  } else {
+    db.touchParty(player.party_id);
   }
 
   // Guardar invitación (válida por 60s)
@@ -22359,7 +22421,7 @@ function cmdGuide(args) {
       'SOCIAL:',
       '  guild create/join — Crear o unirse a hermandad',
       '  duel <jugador>    — Retar a duelo (apuestas de oro)',
-      '  party <jugador>   — Grupo para compartir XP',
+      '  party <jugador>   — Grupo para compartir XP (party leave/disband/info)',
       '  inspect <jugador> — Ver estadísticas de otro jugador',
       '',
       'MISC:',
