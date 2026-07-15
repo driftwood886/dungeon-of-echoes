@@ -114,6 +114,19 @@ async function init() {
     )
   `);
 
+  // EPIC-PARTY-1626: Tabla del Sistema de Party
+  db.run(`
+    CREATE TABLE IF NOT EXISTS parties (
+      id           TEXT PRIMARY KEY,
+      leader_id    TEXT NOT NULL,
+      created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+      status       TEXT NOT NULL DEFAULT 'active',
+      dissolved_at TEXT,
+      last_active  TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_parties_status ON parties(status)`);
+
   // EPIC-QD: Tablas del Sistema de Quests Dinámicas (IMPL-QD-1572)
   db.run(`
     CREATE TABLE IF NOT EXISTS quest_definitions (
@@ -704,6 +717,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN faction_week_influence INTEGER NOT NULL DEFAULT 0`,     // EPIC-1373: contribución a su facción esta semana (resetea lunes UTC)
     `ALTER TABLE players ADD COLUMN faction_changed_at TEXT`,                               // EPIC-1373: timestamp del último cambio de facción (cooldown 7 días)
     `ALTER TABLE players ADD COLUMN faction_notified INTEGER NOT NULL DEFAULT 0`,           // EPIC-1373: 1 si ya recibió el mensaje narrativo de invitación a facciones (nivel 3)
+    `ALTER TABLE players ADD COLUMN party_follow INTEGER NOT NULL DEFAULT 0`,               // EPIC-PARTY-1626: 1 si está siguiendo al líder automáticamente (Fase 3: movimiento sincronizado)
     ];
   for (const sql of migrations) {
     try { db.run(sql); } catch (_) { /* columna ya existe */ }
@@ -1237,6 +1251,77 @@ function getPartyMembers(partyId) {
   if (!partyId) return [];
   return all('SELECT id, username, hp, max_hp, level, current_room_id, kills, party_id FROM players WHERE party_id = ?', [partyId]);
 }
+
+// ─── Party (EPIC-PARTY-1626) ─────────────────────────────────────────────────
+
+/**
+ * Crea una party en la tabla parties y asigna party_id al líder.
+ * @param {string} leaderId
+ * @param {string} partyId  — formato 'party-{leaderId}-{timestamp}'
+ * @returns {object} la party creada
+ */
+function createParty(leaderId, partyId) {
+  db.run(
+    `INSERT OR IGNORE INTO parties (id, leader_id) VALUES (?, ?)`,
+    [partyId, leaderId]
+  );
+  return getParty(partyId);
+}
+
+/**
+ * Obtiene una party por ID.
+ * @param {string} partyId
+ * @returns {object|null}
+ */
+function getParty(partyId) {
+  if (!partyId) return null;
+  return one('SELECT * FROM parties WHERE id = ?', [partyId]) || null;
+}
+
+/**
+ * Actualiza el líder de una party.
+ * @param {string} partyId
+ * @param {string} newLeaderId
+ */
+function updatePartyLeader(partyId, newLeaderId) {
+  db.run(`UPDATE parties SET leader_id = ? WHERE id = ?`, [newLeaderId, partyId]);
+}
+
+/**
+ * Marca una party como disuelta y quita party_id a todos sus miembros.
+ * @param {string} partyId
+ */
+function dissolveParty(partyId) {
+  db.run(
+    `UPDATE parties SET status = 'dissolved', dissolved_at = datetime('now') WHERE id = ?`,
+    [partyId]
+  );
+  db.run(`UPDATE players SET party_id = NULL WHERE party_id = ?`, [partyId]);
+}
+
+/**
+ * Actualiza last_active de la party (llamar en cada acción de un miembro).
+ * @param {string} partyId
+ */
+function touchParty(partyId) {
+  if (!partyId) return;
+  db.run(`UPDATE parties SET last_active = datetime('now') WHERE id = ?`, [partyId]);
+}
+
+/**
+ * Retorna parties activas que llevan más de `minutesInactive` minutos inactivas.
+ * Usado para auto-disolución (30 min de inactividad).
+ * @param {number} minutesInactive
+ * @returns {object[]}
+ */
+function getStaleParties(minutesInactive) {
+  return all(
+    `SELECT * FROM parties WHERE status = 'active' AND last_active < datetime('now', ? || ' minutes')`,
+    [`-${minutesInactive}`]
+  );
+}
+
+
 
 // ─── Rooms ───────────────────────────────────────────────────────────────────
 
@@ -3466,6 +3551,8 @@ module.exports = {
   logEvent, getRecentEvents,
   // offline messages (tell)
   saveOfflineMessage, getPendingMessages, markMessagesDelivered, countPendingMessages, getRecentMessages,
+  // party (EPIC-PARTY-1626)
+  createParty, getParty, updatePartyLeader, dissolveParty, touchParty, getStaleParties,
   // guilds
   getGuild, getGuildMembers, createGuild, deleteGuild, setPlayerGuild, getAllGuilds,
   // guild quests (T189)
