@@ -880,7 +880,13 @@ function _progressText(qd, progressJson) {
  * @returns {{ text: string }}
  */
 function getQuestsDisplay(player) {
-  if (player.is_bot) return { text: 'Los bots no reciben quests.' };
+  // BUG-1616: si el jugador es bot pero tiene quests activas en DB, mostrarlas igual
+  // (ayuda al debugging de playtest y evita confusión si el nombre matchea patrones de bot)
+  if (player.is_bot) {
+    const activeQuestsCheck = _getActiveQuests(player.id);
+    if (!activeQuestsCheck.length) return { text: 'Los bots no reciben quests.' };
+    // Tiene quests activas — continuar con el display normal
+  }
 
   const rawDb = db.raw();
   const activeQuests = _getActiveQuests(player.id);
