@@ -2358,7 +2358,8 @@ function updateWeeklyContractProgress(playerId, killedMonsterName) {
  * Descuenta el oro del poster inmediatamente.
  */
 function addBounty(posterId, posterName, targetId, targetName, amount) {
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  // BUG-1643: usar formato SQLite para expires_at (datetime('now') retorna 'YYYY-MM-DD HH:MM:SS')
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString().replace('T', ' ').split('.')[0];
   db.run(
     `INSERT INTO bounties (poster_id, poster_name, target_id, target_name, amount, expires_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
@@ -2373,7 +2374,7 @@ function addBounty(posterId, posterName, targetId, targetName, amount) {
  * Obtiene todas las bounties activas (no reclamadas, no expiradas) sobre un jugador.
  */
 function getBountiesOnPlayer(targetId) {
-  const now = new Date().toISOString();
+  const now = new Date().toISOString().replace('T', ' ').split('.')[0];
   const rows = db.exec(
     `SELECT * FROM bounties WHERE target_id = ? AND claimed = 0 AND expires_at > ? ORDER BY created_at DESC`,
     [targetId, now]
@@ -2386,7 +2387,7 @@ function getBountiesOnPlayer(targetId) {
  * Obtiene todas las bounties activas en el dungeon.
  */
 function getAllActiveBounties() {
-  const now = new Date().toISOString();
+  const now = new Date().toISOString().replace('T', ' ').split('.')[0];
   const rows = db.exec(
     `SELECT * FROM bounties WHERE claimed = 0 AND expires_at > ? ORDER BY amount DESC, created_at DESC`,
     [now]
@@ -2422,7 +2423,8 @@ function claimBounty(targetId, claimerId, claimerName) {
  * Retorna cuántas se expiraron.
  */
 function expireOldBounties() {
-  const now = new Date().toISOString();
+  // BUG-1643: usar formato SQLite para comparar contra expires_at
+  const now = new Date().toISOString().replace('T', ' ').split('.')[0];
   const rows = db.exec(
     `SELECT * FROM bounties WHERE claimed = 0 AND expires_at <= ?`,
     [now]
@@ -2630,7 +2632,8 @@ function getFallenHardcorePlayers() {
 // ─── T181: Mercado de jugadores (precio fijo) ─────────────────────────────────
 
 function createMarketListing(sellerId, sellerName, itemName, price, durationMs = 60 * 60 * 1000) {
-  const expiresAt = new Date(Date.now() + durationMs).toISOString();
+  // BUG-1643: usar formato SQLite para expires_at (las queries usan datetime('now') para comparar)
+  const expiresAt = new Date(Date.now() + durationMs).toISOString().replace('T', ' ').split('.')[0];
   run(
     `INSERT INTO market_listings (seller_id, seller_name, item_name, price, expires_at)
      VALUES (?, ?, ?, ?, ?)`,
@@ -2677,7 +2680,8 @@ function expireOldMarketListings() {
 // ─── T188: Tablón global de anuncios ─────────────────────────────────────────
 
 function addBulletinPost(authorId, authorName, message) {
-  const expiresAt = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(); // 6 horas
+  // BUG-1643: usar formato SQLite para expires_at (getBulletinPosts usa datetime('now'))
+  const expiresAt = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString().replace('T', ' ').split('.')[0]; // 6 horas
   run(
     `INSERT INTO bulletin_board (author_id, author_name, message, expires_at) VALUES (?, ?, ?, ?)`,
     [authorId, authorName, message, expiresAt]
