@@ -1237,7 +1237,9 @@ function addJournalEntry(playerId, type, message) {
 function getPlayersInRoom(roomId) {
   // Fix DIS-P07: solo mostrar jugadores activos en los últimos 15 minutos para evitar fantasmas
   // EPIC-962: excluir personajes archivados (ascendidos)
-  const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  // BUG-1642: usar formato SQLite (YYYY-MM-DD HH:MM:SS) en lugar de ISO 8601 (con T y Z)
+  // porque datetime('now') en SQLite usa espacio, no T, y la comparación de strings falla.
+  const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString().replace('T', ' ').split('.')[0];
   return all('SELECT * FROM players WHERE current_room_id = ? AND last_seen > ? AND is_archived = 0', [roomId, cutoff])
     .map(p => ({ ...p, inventory: JSON.parse(p.inventory), status_effects: p.status_effects ? JSON.parse(p.status_effects) : {} }));
 }
