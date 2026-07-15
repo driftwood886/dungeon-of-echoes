@@ -2249,30 +2249,31 @@ function tryFlee(player, monster, room, preferredDirection = null) {
   player.hp = Math.max(0, player.hp - dmgToPlayer);
   db.updatePlayer(player.id, { hp: player.hp });
 
-  // DIS-453: feedback narrativo sobre qué tan cerca estuvo la huida
-  // DIS-470: los bosses tienen mensajes diferenciados que refuerzan su peligro
   // DIS-574: mostrar % de éxito de huida para bosses, para que el jugador pueda planificar
   const wasClose = margin < 0.15; // menos de 15% de diferencia → estuvo cerca
+  // DIS-1608: mostrar resultado explícito (FALLO) y % de chance para evitar confusión
+  const pctDisplayFlee = Math.round(fleeChance * 100);
+  const fleeResultLabel = `FALLO — ${pctDisplayFlee}% de chance`;
   let fleeNarrative;
   if (isBossFlee) {
     fleeNarrative = wasClose
-      ? `${monster.name} te deja escapar... y luego te atrapa antes de que llegues a la salida.`
-      : `${monster.name} te corta el paso. Un boss no deja que te vayas tan fácil.`;
+      ? `${monster.name} casi te deja escapar... pero te atrapa antes de llegar a la salida.`
+      : `${monster.name} te corta el paso antes de que llegues a la salida.`;
   } else {
     fleeNarrative = wasClose
       ? `${articuloMonstruo(monster.name)} ${monster.name} casi te deja ir — por poco.`
       : `${articuloMonstruo(monster.name)} ${monster.name} te bloqueó sin esfuerzo.`;
   }
 
-  let line = `🏃 Intentás huir pero ${fleeNarrative} Te golpea (${dmgToPlayer} dmg). Tu HP: ${player.hp}/${player.max_hp}.`;
+  let line = `🏃 Intentás huir. [${fleeResultLabel}] ${fleeNarrative} Te golpea: ${dmgToPlayer} dmg. HP: ${player.hp}/${player.max_hp}.`;
 
-  // DIS-574: para bosses, indicar el % de éxito de huida y cómo mejorarlo
+  // DIS-574 + DIS-1608: para bosses, indicar cómo mejorar las chances de huida
   if (isBossFlee) {
-    const pctActual = Math.round(fleeChance * 100);
+    const pctActual = pctDisplayFlee;
     let nextPct = pctActual;
     if (monsterHpPct > 50) nextPct = isBossFlee ? 55 : 65;
     else if (monsterHpPct > 25) nextPct = isBossFlee ? 70 : 80;
-    line += `\n💡 Chance de huida actual: ${pctActual}% (${monsterHpDesc}). Si bajás al boss a <${monsterHpPct > 50 ? '50' : '25'}% HP → ${nextPct}% de chance.`;
+    line += `\n💡 Si bajás al boss a <${monsterHpPct > 50 ? '50' : '25'}% HP → ${nextPct}% de chance de huida.`;
   }
 
   if (player.hp <= 0) {
