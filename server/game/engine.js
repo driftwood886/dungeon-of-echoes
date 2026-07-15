@@ -9911,6 +9911,7 @@ function cmdParty(player, args) {
         text: 'Abandonaste el grupo. El liderazgo pasó a ' + newLeader.username + '.',
         partyBroadcastMsg: broadcastMsg,
         partyBroadcastMemberIds: remaining.map(m => m.id),
+        partyLeave: partyId,  // IMPL-PARTY-1631
       };
     } else {
       // No es líder — simplemente salir
@@ -9921,6 +9922,7 @@ function cmdParty(player, args) {
         text: 'Abandonaste el grupo.',
         partyBroadcastMsg: broadcastMsg,
         partyBroadcastMemberIds: remaining.map(m => m.id),
+        partyLeave: partyId,  // IMPL-PARTY-1631
       };
     }
   }
@@ -9937,11 +9939,14 @@ function cmdParty(player, args) {
     }
     const members = db.getPartyMembers(player.party_id);
     const otherIds = members.filter(m => m.id !== player.id).map(m => m.id);
+    const disbandedPartyId = player.party_id;
     db.dissolveParty(player.party_id);
     return {
       text: '💔 Disolviste el grupo.',
       partyBroadcastMsg: `💔 El líder ${player.username} disolvió el grupo.`,
       partyBroadcastMemberIds: otherIds,
+      partyLeave: disbandedPartyId,      // IMPL-PARTY-1631: el líder abandona el room
+      partyLeaveAll: disbandedPartyId,   // IMPL-PARTY-1631: todos los otros miembros también
     };
   }
 
@@ -9967,6 +9972,8 @@ function cmdParty(player, args) {
       text: `✅ Te uniste al grupo de ${invite.inviterUsername}.\nMiembros: ${names}`,
       partyBroadcastMsg: joinMsg,
       partyBroadcastMemberIds: allIds.filter(id => id !== player.id),
+      // IMPL-PARTY-1631: el que acepta se une al party room de Socket.io
+      partyJoin: invite.partyId,
     };
   }
 
@@ -10004,6 +10011,7 @@ function cmdParty(player, args) {
   }
 
   // Asegurar que el invitador tenga party_id y que la party exista en DB
+  const wasInParty = !!player.party_id;
   if (!player.party_id) {
     db.createParty(player.id, partyId);   // IMPL-PARTY-1630: persiste en tabla parties
     db.updatePlayer(player.id, { party_id: partyId });
@@ -10023,6 +10031,8 @@ function cmdParty(player, args) {
     text: `📨 Invitaste a ${target.username} a unirse a tu grupo. (Esperando respuesta...)`,
     targetPlayerId: target.id,
     targetPlayerMsg: `📨 ${player.username} te invita a unirse a su grupo. Escribí "party accept" para aceptar o "party decline" para rechazar. (60s)`,
+    // IMPL-PARTY-1631: Si es la primera vez que crea party, unirlo al party room
+    partyJoin: !wasInParty ? partyId : undefined,
   };
 }
 

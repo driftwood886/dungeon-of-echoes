@@ -97,6 +97,12 @@ function registerHandlers(io) {
       // Unirse al room de Socket.io de la habitación actual
       socket.join(`room_${currentRoomId}`);
 
+      // IMPL-PARTY-1631: Si el jugador está en una party, unirse al room de party
+      const freshForParty = db.getPlayer(currentPlayerId);
+      if (freshForParty && freshForParty.party_id) {
+        socket.join(`party-${freshForParty.party_id}`);
+      }
+
       // Notificar a los demás jugadores de la sala
       socket.to(`room_${currentRoomId}`).emit('event', {
         type: 'player_join',
@@ -373,8 +379,27 @@ function registerHandlers(io) {
               type: 'party_event',
               message: result.partyBroadcastMsg,
             });
+            // IMPL-PARTY-1631: Si hay partyLeave, los otros miembros también salen del room
+            if (result.partyLeaveAll) {
+              memberSocket.leave(`party-${result.partyLeaveAll}`);
+            }
           }
         }
+      }
+
+      // IMPL-PARTY-1631: Gestión de party rooms en Socket.io
+      // partyJoin: el socket actual se une al party room (cuando se crea o acepta una party)
+      if (result.partyJoin) {
+        socket.join(`party-${result.partyJoin}`);
+      }
+      // partyLeave: el socket actual abandona el party room (leave/disband)
+      if (result.partyLeave) {
+        socket.leave(`party-${result.partyLeave}`);
+      }
+      // partyJoinOther: otro jugador (el invitador) necesita unirse al room en su primer invite
+      if (result.partyJoinOther) {
+        const otherSocket = playerSockets.get(result.partyJoinOther);
+        if (otherSocket) otherSocket.join(`party-${result.partyJoinOtherPartyId}`);
       }
 
       // Si el jugador cambió de habitación, actualizar rooms de Socket.io
