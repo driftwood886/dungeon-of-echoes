@@ -1685,7 +1685,7 @@ function cmdMove(player, direction) {
                 const currentRoomNB1249 = db.getRoom(player.current_room_id);
                 const currentRoomNameNB1249 = currentRoomNB1249 ? currentRoomNB1249.name : 'tu sala actual';
                 return {
-                  text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance\n   • Derrotá al Espectro del Corredor dentro de esta sala (drop garantizado)\n   → Con la corona en mano, **desde ${currentRoomNameNB1249}**: escribí «desactivar trampa ${dirEsNB1249}»\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+                  text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance\n   • Derrotá al Espectro del Corredor en la Sala del Trono (sala 9) — drop garantizado\n   → Con la corona en mano, **desde ${currentRoomNameNB1249}**: escribí «desactivar trampa ${dirEsNB1249}»\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
                 };
               }
               // Segunda vez: limpiar flag y continuar
@@ -2294,7 +2294,7 @@ function cmdMove(player, direction) {
           const currentRoom1249 = db.getRoom(player.current_room_id);
           const currentRoomName1249 = currentRoom1249 ? currentRoom1249.name : 'tu sala actual';
           return {
-                  text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance\n   • Derrotá al Espectro del Corredor dentro de esta sala (drop garantizado)\n   → Con la corona en mano, **desde ${currentRoomName1249}**: escribí «desactivar trampa ${dirEs1249}»\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+                  text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance\n   • Derrotá al Espectro del Corredor en la Sala del Trono (sala 9) — drop garantizado\n   → Con la corona en mano, **desde ${currentRoomName1249}**: escribí «desactivar trampa ${dirEs1249}»\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
           };
         }
         // Segunda vez: limpiar el flag y continuar con el movimiento normal (recibirá daño de trampa)
@@ -9048,7 +9048,7 @@ function cmdUnlock(player, direction) {
 // DIS-740: Mapa de origen de ítems de desactivación — se muestra cuando el jugador no tiene el ítem
 const TRAP_ITEM_SOURCE = {
   'hongo azul':  'Los hongos azules crecen principalmente en el Túnel de los Hongos (sala 6) — probá "buscar" allí. También: algunos asoman en la Capilla Olvidada (sala 5, al sur del Túnel) — podés buscarlos ANTES de entrar al Túnel.',
-  'corona rota': 'La podés conseguir de tres formas: (1) derrota al Espectro del Corredor en sala 9 — la droppea como loot, (2) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, o (3) buscá con "buscar" en el Corredor del Espectro (sala 10).',
+  'corona rota': 'La podés conseguir de tres formas: (1) derrota al Espectro del Corredor en sala 9 — la droppea como loot, (2) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, o (3) buscá con "buscar" en la Sala del Trono (sala 9).',
   'cuerda':      'Disponible en la tienda del Mercader Aldric (sala 4). También puede aparecer con "buscar".',
   'red de pesca':'Podés encontrarla con "buscar" en la Caverna Sumergida (sala 13).',
 };
