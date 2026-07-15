@@ -1431,7 +1431,20 @@ function cmdLook(player, options = {}) {
     inRoomBossLine = '';
   }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + activeEventLine };
+  // IMPL-PARTY-1632: Mostrar compañeros de party en la misma sala
+  let partyMembersLine = '';
+  try {
+    if (player.party_id) {
+      const partyMembers = db.getPartyMembers(player.party_id);
+      const sameRoom = partyMembers.filter(m => m.id !== player.id && m.current_room_id === player.current_room_id);
+      if (sameRoom.length > 0) {
+        const memberList = sameRoom.map(m => `${m.username} (Lv${m.level || 1}, ${m.hp}/${m.max_hp} HP)`).join(', ');
+        partyMembersLine = `\n🟢 Compañeros de party: ${memberList}`;
+      }
+    }
+  } catch (_) { /* no romper look si falla */ }
+
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + activeEventLine + partyMembersLine };
 }
 
 /**
