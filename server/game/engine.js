@@ -4249,9 +4249,11 @@ function cmdAttack(player, targetName) {
           // Hay monstruos vivos — redirigir al primero (o al de menor HP)
           const nextTarget = aliveInRoom.reduce((prev, cur) => (cur.hp < prev.hp ? cur : prev), aliveInRoom[0]);
           // DIS-1455: avisar al jugador del cambio de objetivo antes de ejecutar el ataque
-          const redirectMsg = `${art} ${deadMatch.name} ya ${esFem ? 'cayó' : 'cayó'} — apuntás al ${nextTarget.name}.`;
+          // DIS-1623: el redirectMsg va al INICIO del ataque al nuevo target (como introducción)
+          //           para que el streakMsg del nuevo kill quede al final sin cortarse visualmente
+          const redirectMsg = `💀 ${deadMatch.name} ya cayó — apuntás al ${nextTarget.name}.\n`;
           const attackResult = cmdAttack(player, nextTarget.name);
-          const combinedText = redirectMsg + '\n' + (attackResult.text || '');
+          const combinedText = redirectMsg + (attackResult.text || '');
           return { ...attackResult, text: combinedText };
         }
         return { text: `💀 ${art} ${deadMatch.name} ya está ${adj}.\n${lootHint}\n(Si querés buscar otro enemigo, moveté a otra sala.)` }; // DIS-1466
