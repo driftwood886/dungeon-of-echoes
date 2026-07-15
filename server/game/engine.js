@@ -8587,6 +8587,7 @@ function cmdInbox(player, args) {
 
 
 // DIS-1442: Modo "mapa full" — lista legible de salas exploradas con nombres completos
+// DIS-1622: también mostrar conexiones entre salas visitadas
 function cmdMapFull(player) {
   const here = player.current_room_id;
   let visitedRooms;
@@ -8623,20 +8624,31 @@ function cmdMapFull(player) {
     { id: 16, name: 'Antesala de Práctica',       zone: 'tutorial'  },
     { id: 21, name: 'Sala de Práctica',           zone: 'tutorial'  },
   ];
+  const roomById = Object.fromEntries(ALL_ROOMS.map(r => [r.id, r]));
 
-  const lines = ['📋 MAPA DETALLADO — Salas exploradas', ''];
+  // DIS-1622: leer exits reales de BD para mostrar conexiones
+  const DIR_LABELS = { north: 'norte', south: 'sur', east: 'este', west: 'oeste', up: 'arriba', down: 'abajo' };
+  const getExitLines = (roomId) => {
+    try {
+      const roomData = db.getRoom(roomId);
+      if (!roomData || !roomData.exits) return [];
+      const exitParts = [];
+      for (const [dir, exitData] of Object.entries(roomData.exits)) {
+        const targetId = typeof exitData === 'number' ? exitData : exitData?.targetId;
+        if (!targetId) continue;
+        const targetRoom = roomById[targetId];
+        const targetName = targetRoom ? targetRoom.name : `sala ${targetId}`;
+        const dirLabel = DIR_LABELS[dir] || dir;
+        const explored = visitedRooms.has(targetId) ? '' : ' [?]';
+        exitParts.push(`${dirLabel} → ${targetName}${explored}`);
+      }
+      return exitParts;
+    } catch (_) { return []; }
+  };
+
+  const lines = ['📋 MAPA DETALLADO — Salas exploradas y conexiones', ''];
   const visited = ALL_ROOMS.filter(r => visitedRooms.has(r.id));
   const notVisited = ALL_ROOMS.filter(r => !visitedRooms.has(r.id));
-
-  const printZone = (label, rooms) => {
-    if (rooms.length === 0) return;
-    lines.push(`── ${label} ──`);
-    for (const r of rooms) {
-      const marker = r.id === here ? ' ← ESTÁS AQUÍ' : '';
-      lines.push(`  [${String(r.id).padStart(2, ' ')}] ${r.name}${marker}`);
-    }
-    lines.push('');
-  };
 
   const zones = [
     { label: 'ZONA PRINCIPAL', ids: ['principal'] },
@@ -8652,6 +8664,11 @@ function cmdMapFull(player) {
     for (const r of zVisited) {
       const marker = r.id === here ? ' ← ESTÁS AQUÍ' : '';
       lines.push(`  [${String(r.id).padStart(2, ' ')}] ${r.name}${marker}`);
+      // DIS-1622: mostrar salidas de esta sala
+      const exitLines = getExitLines(r.id);
+      if (exitLines.length > 0) {
+        lines.push(`       Salidas: ${exitLines.join(' | ')}`);
+      }
     }
     if (zUnvisited.length > 0) {
       lines.push(`  (sin explorar: ${zUnvisited.map(r => r.id).join(', ')})`);
@@ -8663,6 +8680,7 @@ function cmdMapFull(player) {
   const discoveredMain = visited.filter(r => r.zone !== 'tutorial').length;
   lines.push(`🗺️ Exploración: ${discoveredMain}/${totalMain} salas descubiertas`);
   lines.push(`💡 Usá "mapa" para volver al mapa ASCII o "ruta <número>" para navegar.`);
+  lines.push(`   [?] = sala conectada aún no visitada`);
 
   return { text: lines.join('\n') };
 }
