@@ -400,6 +400,19 @@ function registerHandlers(io) {
         }
       }
 
+      // IMPL-PARTY-1639: Mensajes de loot de party — notificar a cada miembro su loot
+      if (Array.isArray(result.partyLootMsgs)) {
+        for (const { memberId, msg } of result.partyLootMsgs) {
+          const memberSocket = playerSockets.get(memberId);
+          if (memberSocket) {
+            memberSocket.emit('event', {
+              type: 'party_loot',
+              message: msg,
+            });
+          }
+        }
+      }
+
 
       // IMPL-PARTY-1631: Gestión de party rooms en Socket.io
       // partyJoin: el socket actual se une al party room (cuando se crea o acepta una party)

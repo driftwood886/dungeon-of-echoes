@@ -400,6 +400,37 @@ function attackRound(player, monster) {
     }
   } catch (_) {}
 
+  // IMPL-PARTY-1640: Escalado de HP de monstruos en party
+  // Si 2+ miembros de la misma party están en la sala con el monstruo, aplicar
+  // multiplicador de HP: ×(1 + 0.4 × (miembros_en_sala - 1)). Solo en el primer ataque.
+  try {
+    if (player.party_id) {
+      const monSeScale = monster.status_effects
+        ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : { ...monster.status_effects })
+        : {};
+      if (!monSeScale.partyScaled) {
+        const partyMembersScale = db.getPartyMembers(player.party_id);
+        const membersInRoomScale = partyMembersScale.filter(
+          m => m.current_room_id === player.current_room_id
+        );
+        if (membersInRoomScale.length >= 2) {
+          const scaleMult = 1 + 0.4 * (membersInRoomScale.length - 1);
+          const newMaxHp = Math.round(monster.max_hp * scaleMult);
+          const newHp = Math.round(monster.hp * scaleMult);
+          db.updateMonster(monster.id, { max_hp: newMaxHp, hp: newHp });
+          monSeScale.partyScaled = true;
+          monSeScale.partyScaleMult = scaleMult;
+          db.updateMonster(monster.id, { status_effects: JSON.stringify(monSeScale) });
+          monster.max_hp = newMaxHp;
+          monster.hp = newHp;
+          monster.status_effects = monSeScale;
+          const pctLabel = Math.round((scaleMult - 1) * 100);
+          lines.push(`⚔ [Party] El monstruo se fortalece ante la presencia de ${membersInRoomScale.length} aventureros (+${pctLabel}% HP).`);
+        }
+      }
+    }
+  } catch (_) { /* no romper combate si falla el escalado de party */ }
+
   // T-1227: SPECTRAL_TIDE — bloquear combate con no-espectros/no-muertos durante el evento
   // DIS-1335: También permitir monstruos undead (esqueletos, zombis, vampiros, momias) ya que el
   // anuncio dice "solo los no-muertos están activos" — no solo los espectrales puros.

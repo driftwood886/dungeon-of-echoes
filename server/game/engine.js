@@ -3115,6 +3115,12 @@ function cmdMove(player, direction) {
   let partyMoveNotifyIds = [];
   let partyFollowMemberIds = [];
   try {
+    // IMPL-PARTY-1641: Al moverse manualmente, desactivar party_follow automáticamente.
+    // El movimiento "follow" lo hace handlers.js via db.updatePlayer directo, no cmdMove.
+    if (player.party_id && player.party_follow === 1) {
+      db.updatePlayer(player.id, { party_follow: 0 });
+      player = db.getPlayer(player.id); // refrescar
+    }
     if (player.party_id) {
       const dirLabel = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
       const destRoomForParty = db.getRoom(targetId);
@@ -5044,6 +5050,131 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // ── IMPL-PARTY-1639: Loot dividido en kills de party ────────────────────
+  // Cuando un monstruo muere en combate de party, distribuir el loot en round-robin
+  // entre todos los miembros presentes en la sala. El oro se divide equitativamente.
+  let partyLootMsgs = []; // [{memberId, msg}] — para broadcast via handlers.js
+  if (monsterDead) {
+    try {
+      const freshForLoot = db.getPlayer(player.id);
+      if (freshForLoot && freshForLoot.party_id) {
+        const allMembersForLoot = db.getPartyMembers(freshForLoot.party_id);
+        // Incluir al atacante + compañeros en la misma sala
+        const membersInRoom = allMembersForLoot.filter(
+          m => m.current_room_id === freshForLoot.current_room_id
+        );
+        if (membersInRoom.length > 1) {
+          // Obtener el loot que ya está en el suelo (puesto por dropLoot en combat.js)
+          const rawLoot = Array.isArray(combatResult.loot) ? combatResult.loot : [];
+          if (rawLoot.length > 0) {
+            // Tabla de ítems de oro con sus valores
+            const PARTY_GOLD_ITEMS = {
+              'monedas de oro': 10,
+              'monedas de plata': 5,
+              'monedas de cobre': 1,
+              'monedas': 5,
+              'oro': 15,
+              'bolsa de monedas': 25,
+              'cofre de oro': 50,
+            };
+            // Separar oro de ítems normales
+            const goldItems = rawLoot.filter(i => {
+              const lower = i.toLowerCase();
+              return Object.keys(PARTY_GOLD_ITEMS).some(k => lower === k);
+            });
+            const normalItems = rawLoot.filter(i => {
+              const lower = i.toLowerCase();
+              return !Object.keys(PARTY_GOLD_ITEMS).some(k => lower === k);
+            });
+
+            // Calcular total de oro
+            let totalGold = 0;
+            for (const gi of goldItems) {
+              const key = Object.keys(PARTY_GOLD_ITEMS).find(k => gi.toLowerCase() === k);
+              if (key) totalGold += PARTY_GOLD_ITEMS[key];
+            }
+
+            // Quitar el loot del suelo de la sala (ya fue puesto por dropLoot)
+            if (rawLoot.length > 0) {
+              const currentRoomForLoot = db.getRoom(freshForLoot.current_room_id);
+              if (currentRoomForLoot) {
+                let floorItems = Array.isArray(currentRoomForLoot.items) ? [...currentRoomForLoot.items] : [];
+                // Quitar exactamente los ítems del loot (uno por uno, en orden)
+                for (const lootItem of rawLoot) {
+                  const idx = floorItems.indexOf(lootItem);
+                  if (idx !== -1) floorItems.splice(idx, 1);
+                }
+                db.updateRoomItems(freshForLoot.current_room_id, floorItems);
+              }
+            }
+
+            // Distribuir oro equitativamente (redondeado hacia arriba para el primero)
+            const memberMessages = {}; // memberId → lines[]
+            for (const m of membersInRoom) memberMessages[m.id] = [];
+
+            if (totalGold > 0) {
+              const perMember = Math.floor(totalGold / membersInRoom.length);
+              const remainder = totalGold - perMember * membersInRoom.length;
+              for (let i = 0; i < membersInRoom.length; i++) {
+                const m = membersInRoom[i];
+                const myGold = perMember + (i === 0 ? remainder : 0);
+                if (myGold > 0) {
+                  const freshM = db.getPlayer(m.id);
+                  if (freshM) {
+                    db.updatePlayer(m.id, { gold: (freshM.gold || 0) + myGold });
+                    memberMessages[m.id].push(`💰 [Party] Oro: +${myGold}g`);
+                  }
+                }
+              }
+            }
+
+            // Distribuir ítems normales en round-robin
+            const roomForOverflow = []; // ítems que no caben en ningún inventario
+            for (let i = 0; i < normalItems.length; i++) {
+              const m = membersInRoom[i % membersInRoom.length];
+              const freshM = db.getPlayer(m.id);
+              if (!freshM) { roomForOverflow.push(normalItems[i]); continue; }
+              const INV_BASE = 10; // mismo que el resto del engine
+              const invSlots = INV_BASE + (freshM.inventory_bonus || 0);
+              const inv = Array.isArray(freshM.inventory) ? freshM.inventory : [];
+              const eqCount = (freshM.equipped_weapon ? 1 : 0) + (freshM.equipped_armor ? 1 : 0);
+              if (inv.length + eqCount >= invSlots) {
+                // Inventario lleno — el ítem cae al suelo
+                roomForOverflow.push(normalItems[i]);
+                memberMessages[m.id].push(`💰 [Party] Loot: ${normalItems[i]} (inventario lleno — quedó en el suelo)`);
+              } else {
+                db.updatePlayer(m.id, { inventory: [...inv, normalItems[i]] });
+                memberMessages[m.id].push(`💰 [Party] Loot: vos recibís ${normalItems[i]}`);
+              }
+            }
+
+            // Si quedaron ítems sin lugar, volver al suelo
+            if (roomForOverflow.length > 0) {
+              const roomAfter = db.getRoom(freshForLoot.current_room_id);
+              if (roomAfter) {
+                const floorAfter = Array.isArray(roomAfter.items) ? roomAfter.items : [];
+                db.updateRoomItems(freshForLoot.current_room_id, [...floorAfter, ...roomForOverflow]);
+              }
+            }
+
+            // Construir mensajes para los compañeros (el atacante recibe su mensaje en lines[])
+            for (const m of membersInRoom) {
+              const memberLines = memberMessages[m.id];
+              if (memberLines.length === 0) continue;
+              const msg = memberLines.join('\n');
+              if (m.id === player.id) {
+                // El atacante: agregar al output de combate
+                lines.push(msg);
+              } else {
+                // Compañeros: enviar via partyLootMsgs
+                partyLootMsgs.push({ memberId: m.id, msg });
+              }
+            }
+          }
+        }
+      }
+    } catch (_) { /* no romper combate si falla la distribución de loot de party */ }
+  }
 
   // ── T159: Killing Spree ──────────────────────────────────────────────────
   let streakMsg = '';
@@ -5421,6 +5552,8 @@ function cmdAttack(player, targetName) {
       partyCombatMsg,
       partyCombatMemberIds,
     } : {}),
+    // IMPL-PARTY-1639: mensajes de loot para cada miembro de party
+    ...(partyLootMsgs.length > 0 ? { partyLootMsgs } : {}),
   };
 }
 
@@ -9950,8 +10083,11 @@ function cmdParty(player, args) {
       const room = db.getRoom(m.current_room_id);
       const roomName = room ? room.name : '???';
       const leaderTag = m.id === leaderId ? ' 👑' : '';
-      lines.push(`  ${m.username.padEnd(16)} Lv${m.level || 1} ${hpBar} ${m.hp}/${m.max_hp}  📍${roomName}${leaderTag}`);
+      const followTag = m.party_follow === 1 ? ' 🔗' : '';
+      lines.push(`  ${m.username.padEnd(16)} Lv${m.level || 1} ${hpBar} ${m.hp}/${m.max_hp}  📍${roomName}${leaderTag}${followTag}`);
     }
+    lines.push('');
+    lines.push('Comandos: party follow / party unfollow | p <mensaje> | party leave | party disband');
     return { text: lines.join('\n') };
   }
 
@@ -10058,6 +10194,27 @@ function cmdParty(player, args) {
       targetPlayerId: invite.inviterId,
       targetPlayerMsg: `${player.username} rechazó unirse a tu grupo.`,
     };
+  }
+
+  // ── follow / unfollow — IMPL-PARTY-1641 ─────────────────────────────────
+  if (sub === 'follow' || sub === 'seguir') {
+    player = db.getPlayer(player.id);
+    if (!player.party_id) {
+      return { text: '❌ No estás en ningún grupo.' };
+    }
+    db.updatePlayer(player.id, { party_follow: 1 });
+    db.touchParty(player.party_id);
+    return { text: '🟢 [Party] Seguimiento activado. Te moverás automáticamente cuando un compañero se mueva.\n   Usá \"party unfollow\" para desactivarlo, o movete manualmente (también lo desactiva).' };
+  }
+
+  if (sub === 'unfollow' || sub === 'noseguir' || sub === 'dejar de seguir') {
+    player = db.getPlayer(player.id);
+    if (!player.party_id) {
+      return { text: '❌ No estás en ningún grupo.' };
+    }
+    db.updatePlayer(player.id, { party_follow: 0 });
+    db.touchParty(player.party_id);
+    return { text: '⬛ [Party] Seguimiento desactivado. Te moverás de forma independiente.' };
   }
 
   // ── Invitar a un jugador ──────────────────────────────────────────────────
