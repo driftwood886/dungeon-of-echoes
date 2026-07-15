@@ -19512,7 +19512,8 @@ function cmdChangelog() {
  */
 function cmdServerStats() {
   try {
-    const cutoff5min = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    // BUG-1642-follow: usar formato SQLite (YYYY-MM-DD HH:MM:SS) para comparar contra last_seen
+    const cutoff5min = new Date(Date.now() - 5 * 60 * 1000).toISOString().replace('T', ' ').split('.')[0];
     const rawDb = db.raw();
 
     const totalPlayersR = rawDb.exec('SELECT COUNT(*) FROM players')[0];

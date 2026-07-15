@@ -395,7 +395,8 @@ async function main() {
    */
   app.get('/api/stats', (req, res) => {
     try {
-      const cutoff5min = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      // BUG-1642-follow: usar formato SQLite (YYYY-MM-DD HH:MM:SS) para comparar contra last_seen
+      const cutoff5min = new Date(Date.now() - 5 * 60 * 1000).toISOString().replace('T', ' ').split('.')[0];
       const totalPlayers = db.raw().exec('SELECT COUNT(*) as cnt FROM players')[0];
       const activePlayers = db.raw().exec(
         `SELECT COUNT(*) as cnt FROM players WHERE last_seen >= '${cutoff5min}'`

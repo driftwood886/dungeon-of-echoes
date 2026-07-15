@@ -2544,7 +2544,8 @@ function getPlayerSessions(playerId, limit = 5) {
 
 // T208: Estadísticas semanales de un jugador (últimos 7 días)
 function getWeeklyStats(playerId) {
-  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // BUG-1642-follow: sessions.start_time usa formato SQLite (YYYY-MM-DD HH:MM:SS), no ISO 8601
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().replace('T', ' ').split('.')[0];
   const rows = all(
     `SELECT duration_min, kills, xp_gained, gold_gained, commands
      FROM sessions
@@ -2586,7 +2587,8 @@ function getLeaderboardByPlaytime(limit = 10) {
  * - O no han tenido actividad en los últimos N días
  */
 function getTestPlayers({ olderThanDays = 7, includeTestNames = true } = {}) {
-  const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
+  // BUG-1642-follow: usar formato SQLite para comparar contra last_seen
+  const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString().replace('T', ' ').split('.')[0];
   const rows = all(
     `SELECT id, username, level, kills, last_seen, current_room_id
      FROM players
