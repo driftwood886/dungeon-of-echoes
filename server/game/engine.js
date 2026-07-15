@@ -8817,7 +8817,7 @@ function cmdMap(player, args = []) {
   // Layout (BUG-881: Santuario (10) al ESTE del Trono, no al sur):
   //
   // [18:Fuente]---[9:Trono]---[10:Santuario]---[11:Galería]
-  //                   |              |               ↓ (bajar)
+  //                   |              |           norte/este
   //              [6:Túnel]---[2:Corr] [7:Pozo]🔑---[3:Ecos]---[4:Tesoro]---[8:Prisión]---[17:Sub]
   //                   |          |
   //              [5:Cap]---[1:Entr]
@@ -8842,7 +8842,7 @@ function cmdMap(player, args = []) {
     `${c(18)}---${c(9)}---${c(10)}---${c(11)}`,
     // DIS-1561: la segunda barra | (sala 10 Santuario → sala 7 Pozo) se reemplaza
     // por lockMarkMap para indicar que la puerta bloqueada es la salida NORTE del Pozo.
-    `              |         ${lockMarkMap}        ↓ bajar → ZONA PROFUNDA`,
+    `              |         ${lockMarkMap}        → norte/este`,
     // Túnel (6) sur de Trono, Corredor (2) este de Túnel; Pozo (7) sur de Santuario
     (() => {
       // BUG-1099: corregido layout — sala 8 (Prisión) está al NORTE de sala 4 (Tesoro),
@@ -8867,9 +8867,10 @@ function cmdMap(player, args = []) {
     ``,
     // BUG-900: no repetir sala 11 — ya aparece en la fila superior. Solo mostrar flecha de descenso.
     // DIS-1417: mejorar diagrama de acceso a zona profunda con indicación de comando
+    // DIS-1614: corrección — desde Galería(11) se accede via norte(→12) o este(→13), no "bajar"
     ``,
-    `── ZONA PROFUNDA ─── (ingreso: estando en [11:Galería] escribí "bajar") ──`,
-    `      │ ← acceso desde [11:Galería] en zona principal`,
+    `── ZONA PROFUNDA ─── (ingreso: desde [11:Galería] escribí "norte" o "este") ──`,
+    `      │ ← acceso desde [11:Galería] (norte → Forja · este → Caverna)`,
     `      │`,
     `            ${c(12)} ${c(13)}`,
     `                  \\  /`,
@@ -8881,7 +8882,8 @@ function cmdMap(player, args = []) {
     `[18] = Fuente Eterna (sala de mid-dungeon — escribí "beber" para restaurar HP completo)`,
     // DIS-1417: leyenda mejorada con estructura de dos zonas explícita
     // DIS-1432: aclarar ambos usos de ↓/abajo para evitar confusión
-    `↓  = comando "bajar/abajo" — desde Entrada(1)→Práctica(21) · desde Galería(11)→ZONA PROFUNDA  ╎ = separación visual (sin conexión directa)`,
+    // DIS-1614: corregida leyenda — zona profunda se accede por norte/este desde Galería(11), no "bajar"
+    `↓  = comando "bajar/abajo" — desde Entrada(1)→Práctica(21)  ╎ = separación visual (sin conexión directa)`,
     // DIS-635: solo mencionar sala 8 como fuente de llave si ya fue visitada
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
