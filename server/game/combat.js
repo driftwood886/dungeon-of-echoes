@@ -616,13 +616,20 @@ function attackRound(player, monster) {
   // Fórmula: por cada nivel sobre 3, monstruo en sala avanzada gana +2 def virtual y +0.8 ATK.
   // A nivel 5 (el nivel del report) → +4 def virtual, +1.6→1 ATK (mínimo para sentir diferencia).
   // A nivel 8 → +10 def virtual, +4 ATK (combate desafiante sin ser absurdo).
+  // BUG-1613: cap de defensa virtual para monstruos con regeneración: máx 12 pts de earlyScale
+  // para evitar que el combo regeneración+defBonus los haga inmortales en niveles altos.
+  const REGEN_MONSTERS = new Set(['troll de las cavernas']); // monstruos con regeneración pasiva
+  const monNameForRegen = (monster.name || '').toLowerCase();
+  const isRegenMonster = REGEN_MONSTERS.has(monNameForRegen);
   const ADVANCED_ROOMS = new Set([11, 12, 13, 14, 15, 20]); // zona de expansión
   const monsterRoomForScale = monster.respawn_room_id || monster.room_id;
   const isAdvancedZoneMonster = ADVANCED_ROOMS.has(monsterRoomForScale) && !isBossMonster;
   if (isAdvancedZoneMonster && (player.level || 1) >= 4) {
     const levelsAbove3 = (player.level || 1) - 3;
-    const earlyScaleDefBonus = Math.floor(levelsAbove3 * 2.0); // +2 def virtual por nivel sobre 3
+    let earlyScaleDefBonus = Math.floor(levelsAbove3 * 2.0); // +2 def virtual por nivel sobre 3
     const earlyScaleAtkBonus = Math.floor(levelsAbove3 * 0.8); // +0.8 ATK por nivel → entero
+    // BUG-1613: para monstruos regeneradores, cap de defensa virtual en 12 (evitar inmortalidad)
+    if (isRegenMonster) earlyScaleDefBonus = Math.min(earlyScaleDefBonus, 12);
     monsterVirtualDefBonus += earlyScaleDefBonus;
     if (earlyScaleAtkBonus > 0) {
       monster = { ...monster, attack: (monster.attack || 3) + earlyScaleAtkBonus };
@@ -1700,8 +1707,9 @@ function attackRound(player, monster) {
   // Esto fuerza una estrategia de DPS sostenido y uso de pociones para terminar la pelea rápido.
   // La regeneración se detiene si el Troll muere en este turno.
   // DIS-1592: reducida de 5 a 3 HP/turno — con arma nivel 1 (7-13 dmg), el net era demasiado bajo
+  // BUG-1613: reducida de 3→2 HP/turno — la combinación con earlyScale en niveles altos lo hacía inmortal
   if (!monsterDead && monster.name === 'Troll de las Cavernas') {
-    const trollRegen = 3;
+    const trollRegen = 2;
     const newTrollHp = Math.min(monster.max_hp, monster.hp + trollRegen);
     if (newTrollHp > monster.hp) {
       monster = { ...monster, hp: newTrollHp };
