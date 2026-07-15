@@ -12498,7 +12498,8 @@ function cmdGuild(player, args) {
     }
     const lines = [
       '=== HERMANDADES ACTIVAS ===',
-      ...guilds.map(g => `  [${g.name}]  Líder: ${g.leader_name || '?'}  Miembros: ${g.member_count}`),
+      // BUG-1646: mostrar '(cuenta eliminada)' si el líder ya no existe en players
+      ...guilds.map(g => `  [${g.name}]  Líder: ${g.leader_name || '(cuenta eliminada)'}  Miembros: ${g.member_count}`),
     ];
     return { text: lines.join('\n') };
   }
@@ -12515,7 +12516,16 @@ function cmdGuild(player, args) {
       return { text: 'Tu hermandad ya no existe. Tu afiliación fue removida.' };
     }
     const members = db.getGuildMembers(player.guild);
-    const leaderName = members.find(m => m.id === guild.leader_id)?.username || '(desconocido)';
+    // BUG-1646/1647: el líder puede no estar en members si fue eliminado de players.
+    // Buscar directamente por ID para resolverlo aunque no sea miembro activo.
+    const leaderMember = members.find(m => m.id === guild.leader_id);
+    let leaderName;
+    if (leaderMember) {
+      leaderName = leaderMember.username;
+    } else {
+      const leaderPlayer = db.getPlayer(guild.leader_id);
+      leaderName = leaderPlayer?.username || '(cuenta eliminada)';
+    }
     const memberLines = members.map(m => {
       const tag = m.id === guild.leader_id ? ' 👑' : '';
       return `  ${m.username}${tag}  Lv${m.level || 1}  ❤${m.hp}/${m.max_hp}`;

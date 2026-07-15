@@ -644,7 +644,7 @@ function migrateCorredorHintDIS1107() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateOrphanedGuildsBUG1646 };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -2644,6 +2644,45 @@ function migrateQuestGoblinDIS1590() {
     console.log('[seed] migrateQuestGoblinDIS1590: quest "La Caza del Merodeador" → "La Caza en el Corredor". DIS-1590 ✓');
   } catch (e) {
     console.warn('[seed] migrateQuestGoblinDIS1590:', e.message);
+  }
+}
+
+/**
+ * BUG-1646/1647: Limpiar guilds huérfanas (leader_id sin match en players).
+ * - Guilds sin miembros ni líder válido: eliminarlas.
+ * - Guilds con miembros pero sin líder válido: promover al primer miembro como líder.
+ */
+function migrateOrphanedGuildsBUG1646() {
+  try {
+    const rawDb = db.raw();
+    const guildsResult = rawDb.exec(`SELECT g.id, g.name, g.leader_id FROM guilds g LEFT JOIN players p ON p.id = g.leader_id WHERE p.id IS NULL`);
+    if (!guildsResult || !guildsResult[0] || !guildsResult[0].values || guildsResult[0].values.length === 0) {
+      console.log('[seed] migrateOrphanedGuildsBUG1646: sin guilds huérfanas. BUG-1646/1647 ✓');
+      return;
+    }
+    const orphans = guildsResult[0].values;
+    let dissolved = 0;
+    let promoted = 0;
+    for (const [guildId, guildName, leaderId] of orphans) {
+      // Ver si tiene miembros activos
+      const membersResult = rawDb.exec(`SELECT id, username FROM players WHERE guild = ? LIMIT 1`, [guildName]);
+      if (!membersResult || !membersResult[0] || !membersResult[0].values || membersResult[0].values.length === 0) {
+        // Sin miembros y sin líder válido → disolver
+        rawDb.run(`DELETE FROM guilds WHERE name = ?`, [guildName]);
+        dissolved++;
+        console.log(`[seed] migrateOrphanedGuildsBUG1646: hermandad [${guildName}] disuelta (sin miembros, líder eliminado). BUG-1646 ✓`);
+      } else {
+        // Tiene miembros → promover al primero como líder
+        const [newLeaderId, newLeaderName] = membersResult[0].values[0];
+        rawDb.run(`UPDATE guilds SET leader_id = ? WHERE name = ?`, [newLeaderId, guildName]);
+        promoted++;
+        console.log(`[seed] migrateOrphanedGuildsBUG1646: hermandad [${guildName}] — líder inexistente reemplazado por ${newLeaderName}. BUG-1647 ✓`);
+      }
+    }
+    db.persist();
+    console.log(`[seed] migrateOrphanedGuildsBUG1646: ${dissolved} guilds disueltas, ${promoted} líderes actualizados. BUG-1646/1647 ✓`);
+  } catch (e) {
+    console.warn('[seed] migrateOrphanedGuildsBUG1646:', e.message);
   }
 }
 
