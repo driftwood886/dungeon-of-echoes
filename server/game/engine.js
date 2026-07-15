@@ -9066,9 +9066,34 @@ function cmdDisarm(player, args) {
       if (trappedAdjacentDirs.length > 0) {
         suggestionMsg = `\n⚠️  Las trampas activas desde aquí están hacia: ${trappedAdjacentDirs.join(', ')}.\n💡 Intentá "desactivar trampa ${trappedAdjacentDirs[0]}" si querés desactivar la correcta.`;
       } else {
-        suggestionMsg = '\n💡 Solo podés desactivar trampas de salas directamente adyacentes (una sola puerta de distancia).';
+        // DIS-1620: buscar en el mapa qué salas tienen acceso a trampas activas en la dirección indicada
+        let accessHint = '';
+        try {
+          const allRoomsDIS1620 = db.getAllRooms ? db.getAllRooms() : [];
+          const accessRooms = [];
+          for (const r of allRoomsDIS1620) {
+            if (!r.exits) continue;
+            const exitInDir = r.exits[normalized2];
+            if (!exitInDir) continue;
+            const targetRId = typeof exitInDir === 'number' ? exitInDir : exitInDir?.targetId;
+            if (!targetRId) continue;
+            const targetR = allRoomsDIS1620.find(x => x.id === targetRId);
+            if (targetR && targetR.trap && targetR.trap.active) {
+              accessRooms.push({ from: r.name, to: targetR.name });
+            }
+          }
+          if (accessRooms.length > 0) {
+            const hints = accessRooms.slice(0, 2).map(x => `"${x.from}" (trampa: ${x.to})`).join(', ');
+            accessHint = `\n💡 Para desactivar trampas al ${dirLabel2}, deberías estar en: ${hints}.\n   Navegá hasta esa sala y repetí el comando.`;
+          } else {
+            accessHint = '\n💡 Solo podés desactivar trampas de salas directamente adyacentes (una sola puerta de distancia).';
+          }
+        } catch (_) {
+          accessHint = '\n💡 Solo podés desactivar trampas de salas directamente adyacentes (una sola puerta de distancia).';
+        }
+        suggestionMsg = accessHint;
       }
-      return { text: `No hay salida hacia el ${dirLabel2} desde tu sala actual.${suggestionMsg}` };
+      return { text: `No hay salida hacia el ${dirLabel2} desde tu sala actual (${room.name}).${suggestionMsg}` };
     }
 
     const adjRoom = db.getRoom(exit.targetId);
