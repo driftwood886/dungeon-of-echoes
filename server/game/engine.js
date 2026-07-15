@@ -3110,12 +3110,37 @@ function cmdMove(player, direction) {
     }
   } catch (_) { /* no romper movimiento si falla questEngine */ }
 
+  // IMPL-PARTY-1635: Notificación de movimiento de party y party_follow
+  let partyMoveMsg = null;
+  let partyMoveNotifyIds = [];
+  let partyFollowMemberIds = [];
+  try {
+    if (player.party_id) {
+      const dirLabel = dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction;
+      const destRoomForParty = db.getRoom(targetId);
+      const destRoomNameForParty = destRoomForParty ? destRoomForParty.name : `sala ${targetId}`;
+      partyMoveMsg = `🚶 [Party] ${player.username} se movió ${dirLabel} (${destRoomNameForParty}).`;
+      const partyMembersForNotify = db.getPartyMembers(player.party_id);
+      for (const member of partyMembersForNotify) {
+        if (member.id === player.id) continue;
+        partyMoveNotifyIds.push(member.id);
+        if (member.party_follow === 1) {
+          partyFollowMemberIds.push(member.id);
+        }
+      }
+    }
+  } catch (_) {}
+
   return {
     text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${moveEventLine}${questExploreMsg}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
     fromRoomEvent: `${player.username} se marcha hacia el ${dungeon.DIR_NAMES[dungeon.normalizeDirection(direction)] || direction}.`,
+    partyMoveMsg: partyMoveMsg || undefined,
+    partyMoveNotifyIds: partyMoveNotifyIds.length ? partyMoveNotifyIds : undefined,
+    partyFollowMemberIds: partyFollowMemberIds.length ? partyFollowMemberIds : undefined,
+    partyMoveToRoomId: partyMoveMsg ? targetId : undefined,
   };
 }
 

@@ -428,6 +428,50 @@ function registerHandlers(io) {
           message: `${player.username} entra a la sala.`,
         });
 
+        // IMPL-PARTY-1635: Notificación de movimiento de party y party_follow
+        if (result.partyMoveMsg && Array.isArray(result.partyMoveNotifyIds)) {
+          const destRoomForPartyHandlers = result.partyMoveToRoomId;
+          // Notificar a todos los miembros de party del movimiento
+          for (const memberId of result.partyMoveNotifyIds) {
+            const memberSocket = playerSockets.get(memberId);
+            if (memberSocket) {
+              memberSocket.emit('event', {
+                type: 'party_event',
+                message: result.partyMoveMsg,
+              });
+            }
+          }
+          // Mover automáticamente a los miembros con party_follow = 1
+          if (Array.isArray(result.partyFollowMemberIds) && destRoomForPartyHandlers) {
+            for (const followMemberId of result.partyFollowMemberIds) {
+              const followMemberPlayer = db.getPlayer(followMemberId);
+              if (!followMemberPlayer) continue;
+              const prevFollowRoomId = followMemberPlayer.current_room_id;
+              db.updatePlayer(followMemberId, { current_room_id: destRoomForPartyHandlers });
+              const followMemberSocket = playerSockets.get(followMemberId);
+              if (followMemberSocket) {
+                followMemberSocket.leave(`room_${prevFollowRoomId}`);
+                followMemberSocket.join(`room_${destRoomForPartyHandlers}`);
+                let followText = `🔗 [Party] Seguís automáticamente a ${player.username} (party_follow activo).`;
+                // Avisar si la sala destino tiene trampa activa
+                try {
+                  const destRoomData = db.getRoom(destRoomForPartyHandlers);
+                  if (destRoomData && destRoomData.trap && destRoomData.trap.active) {
+                    followText += `\n⚠ Entraste siguiendo a tu compañero — hay una trampa activa en esta sala.`;
+                  }
+                } catch (_) {}
+                followMemberSocket.emit('event', { type: 'party_event', message: followText });
+                const followLookResult = engine.execute(followMemberId, 'look', { broadcastToRoom: () => {}, playerSockets, followMap });
+                followMemberSocket.emit('event', { type: 'action', message: followLookResult.text });
+                followMemberSocket.to(`room_${destRoomForPartyHandlers}`).emit('event', {
+                  type: 'player_join',
+                  message: `${followMemberPlayer.username} entra siguiendo a su compañero de party.`,
+                });
+              }
+            }
+          }
+        }
+
         // T204: Mover seguidores — buscar jugadores que siguen a este jugador
         for (const [followerId, targetId] of followMap.entries()) {
           if (targetId !== currentPlayerId) continue;
