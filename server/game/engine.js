@@ -24379,6 +24379,11 @@ function cmdVault(player, args) {
   const subcmd = args[0].toLowerCase();
   const itemArg = args.slice(1).join(' ').trim();
 
+  // DIS-1615: "vault lista" equivale a "vault" sin args — mostrar contenido de la bóveda
+  if (subcmd === 'lista' || subcmd === 'list' || subcmd === 'listar') {
+    return cmdVault(player, []); // recursión con args vacíos → muestra la bóveda
+  }
+
   if (subcmd === 'store' || subcmd === 'guardar' || subcmd === 'depositar') {
     if (!itemArg) return { text: '¿Qué ítem querés guardar? Ej: vault store espada oxidada' };
     if (vaultItems.length >= VAULT_MAX) return { text: `🏛️  La bóveda está llena (${VAULT_MAX}/${VAULT_MAX}). Sacá algo primero.` };
