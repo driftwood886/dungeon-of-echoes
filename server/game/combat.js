@@ -1328,12 +1328,31 @@ function attackRound(player, monster) {
       globalEvent = dropGlobalEvent;
 
       // DIS-1007: ítems directos van al inventario del jugador sin pasar por el suelo
+      // BUG-1612: verificar capacidad antes de insertar; si no hay espacio, caen al suelo
       if (directLootItems && directLootItems.length > 0) {
         const freshPlayer2 = db.getPlayer(player.id);
         const inv2 = Array.isArray(freshPlayer2.inventory) ? freshPlayer2.inventory : JSON.parse(freshPlayer2.inventory || '[]');
-        const newInv2 = [...inv2, ...directLootItems];
-        db.updatePlayer(player.id, { inventory: JSON.stringify(newInv2) });
-        lines.push(`⚔️ ${articuloMonstruo(monster.name)} ${monster.name} suelta directamente: **${directLootItems.join(', ')}** (ya en tu inventario).`);
+        const eqCount2 = (freshPlayer2.equipped_weapon ? 1 : 0) + (freshPlayer2.equipped_armor ? 1 : 0);
+        const maxSlots2 = 20 + (freshPlayer2.inventory_bonus || 0);
+        const freeSlots2 = Math.max(0, maxSlots2 - inv2.length - eqCount2);
+
+        const fitsInInv = directLootItems.slice(0, freeSlots2);
+        const goesToFloor = directLootItems.slice(freeSlots2);
+
+        if (fitsInInv.length > 0) {
+          const newInv2 = [...inv2, ...fitsInInv];
+          db.updatePlayer(player.id, { inventory: JSON.stringify(newInv2) });
+          lines.push(`⚔️ ${articuloMonstruo(monster.name)} ${monster.name} suelta directamente: **${fitsInInv.join(', ')}** (ya en tu inventario).`);
+        }
+
+        if (goesToFloor.length > 0) {
+          // Inventario lleno — los ítems restantes caen al suelo
+          const currentRoom = db.getRoom(player.current_room_id);
+          const roomItems = Array.isArray(currentRoom.items) ? currentRoom.items : (currentRoom.items ? JSON.parse(currentRoom.items) : []);
+          db.updateRoomItems(player.current_room_id, [...roomItems, ...goesToFloor]);
+          loot = [...loot, ...goesToFloor];
+          lines.push(`⚠️ Inventario lleno — **${goesToFloor.join(', ')}** quedaron en el suelo. Usá \`loot\` para recogerlos.`);
+        }
       }
 
       if (loot.length > 0) {
