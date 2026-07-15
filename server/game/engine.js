@@ -4995,7 +4995,7 @@ function cmdAttack(player, targetName) {
     }
   }
 
-  // ── XP compartido con el grupo (T102) ────────────────────────────────────
+  // ── XP compartido con el grupo (T102 / IMPL-PARTY-1638) ─────────────────
   let partyXpLines = '';
   if (monsterDead) {
     const freshP = db.getPlayer(player.id);
@@ -5004,9 +5004,11 @@ function cmdAttack(player, targetName) {
       // Solo los que están en la misma sala (excluir al jugador que ya recibió XP)
       const companions = allMembers.filter(m => m.id !== player.id && m.current_room_id === player.current_room_id);
       if (companions.length > 0) {
-        // XP compartido: 75% de lo que recibió el atacante (bonus por cooperar)
+        // IMPL-PARTY-1638: bonus de cooperación — ×1.08 por cada miembro adicional
         const xpBase = Math.max(5, Math.floor(monster.max_hp * 2));
-        const sharedXp = Math.max(1, Math.floor(xpBase * 0.75));
+        const cooperationBonus = Math.pow(1.08, companions.length); // 1 compañero → ×1.08, 2 → ×1.166
+        const bonusPct = Math.round((cooperationBonus - 1) * 100); // porcentaje display (8%, 16.6%...)
+        const sharedXp = Math.max(1, Math.floor(xpBase * cooperationBonus));
         const bonusLines = [];
         for (const comp of companions) {
           const freshComp = db.getPlayer(comp.id);
@@ -5026,7 +5028,14 @@ function cmdAttack(player, targetName) {
             upd.attack = (freshComp.attack || 5) + 1;
           }
           db.updatePlayer(comp.id, upd);
-          bonusLines.push(`  ${comp.username}: +${sharedXp} XP${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`);
+          bonusLines.push(`  ${comp.username}: +${sharedXp} XP (party bonus +${bonusPct}%)${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}`);
+          // IMPL-PARTY-1638: quest progress para los compañeros en la sala
+          try {
+            const freshCompForQ = db.getPlayer(comp.id);
+            if (freshCompForQ && questEngine && questEngine.onKill) {
+              questEngine.onKill(freshCompForQ, monster);
+            }
+          } catch (_) { /* no romper si falla questEngine para compañero */ }
         }
         if (bonusLines.length > 0) {
           partyXpLines = `\n⚔ XP de grupo compartida:\n${bonusLines.join('\n')}`;
@@ -5034,6 +5043,7 @@ function cmdAttack(player, targetName) {
       }
     }
   }
+
 
   // ── T159: Killing Spree ──────────────────────────────────────────────────
   let streakMsg = '';
