@@ -196,7 +196,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
   const isVeteranPlayer = alreadyVisited && (player.level || 1) >= 3;
   const KAELTHAS_ROOM_HINTS = {
     2:  '🔍 Una inscripción en la pared del corredor llama tu atención — el barniz de cera la protege del tiempo. (Escribí "examine pared" o "examine inscripciones" para leerla.)',
-    5:  '🕯️ Sobre el altar hay un escudo sin emblema y velas que arden pese al polvo centenario — alguien estuvo aquí recientemente. (Escribí "examine altar" o "examine escudo" para inspeccionar.)',
+    5:  '🕯️ Sobre el altar hay un escudo sin emblema y velas que arden pese al polvo centenario — alguien estuvo aquí recientemente.',
     9:  '👑 El trono tiene marcas en los apoyabrazos — dedos que se aferraron muchas veces. Algo grabado en la piedra del respaldo parece diferente al resto de la decoración. (Escribí "examine trono" para investigar.)',
   };
   if (KAELTHAS_ROOM_HINTS[room.id] && !isVeteranPlayer) {
