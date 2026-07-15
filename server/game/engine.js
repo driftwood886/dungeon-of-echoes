@@ -7589,10 +7589,10 @@ function cmdEquip(player, itemQuery) {
     } else if (isMagicWeapon) {
       magoHeavyFlavor = `\n✨ (Tu maná resuena con el arma. Esto sí es lo que estudiaste.)`;
     } else if (isHeavyWeapon) {
-      magoHeavyFlavor = `\n💬 (Empuñás esto con ambas manos. No es lo que un mago estudia, pero nadie dijo que no podés.)`;
+      magoHeavyFlavor = `\n💬 (Empuñás esto con ambas manos. No es lo que un mago estudia, pero nadie dijo que no podés.)\n⚠️ Penalidad: -5% de daño mágico con arma no-mago (DIS-1611). Equipá vara de energía para anularla.`;
     } else if (def.type === 'weapon' && !isMagicWeapon) {
       // DIS-771: Mago equipando arma física sin bonus mágico — contextualizar sin bloquear
-      magoHeavyFlavor = `\n💬 (Como Mago, tu poder real está en los hechizos. Esta arma da +${def.amount} ATK físico sin bonificación mágica. Si buscás potencia para hechizos, considerá la vara de energía (40g en Aldric: +5 ATK +2 Mago).)`;
+      magoHeavyFlavor = `\n💬 (Como Mago, tu poder real está en los hechizos. Esta arma da +${def.amount} ATK físico sin bonificación mágica.)\n⚠️ Penalidad: -5% de daño mágico con arma no-mago (DIS-1611). Equipá vara de energía (40g en Aldric) para anularla.`;
     }
   } else if (isGuerreroEquip && isMagicWeapon) {
     // DIS-561: mensajes negativos para Guerrero intentando equipar ítems mágicos
@@ -14900,7 +14900,18 @@ function cmdCast(player, args) {
       db.updatePlayer(player.id, { status_effects: JSON.stringify(pSEForSteam) });
       steamExpNote = ` 💨[+50% Explosión de Vapor]`;
     }
-    const rawDmg = Math.round(dmg * spellPower * magicResist * arcaneSurgeMult * evokerMult * elementalMult * steamExpMult);
+    // DIS-1611: si el Mago equipa arma no-mágica (física), -5% de daño mágico
+    // Similar a la penalidad de Clérigo con arma no-sagrada (DIS-722, ×0.9)
+    // Lista de armas mágicas del Mago (exentas de penalidad)
+    const NON_MAGE_WEAPON_PENALTY_EXEMPTIONS = ['vara de energía', 'catalizador', 'grimorio', 'cristal mágico', 'espectral', 'del eco', 'arcano', 'arcana', 'mística', 'mágica'];
+    const castClassName1611 = player.player_class;
+    const equippedWeapon1611 = (player.equipped_weapon || '').toLowerCase();
+    const isMagoClass1611 = castClassName1611 === 'mago';
+    const hasPhysicalWeapon1611 = isMagoClass1611 && equippedWeapon1611 &&
+      !NON_MAGE_WEAPON_PENALTY_EXEMPTIONS.some(kw => equippedWeapon1611.includes(kw));
+    const nonMageWeaponMult = hasPhysicalWeapon1611 ? 0.95 : 1.0;
+    const nonMageWeaponNote = hasPhysicalWeapon1611 ? ` ⚔️[-5% arma no-mago]` : '';
+    const rawDmg = Math.round(dmg * spellPower * magicResist * arcaneSurgeMult * evokerMult * elementalMult * steamExpMult * nonMageWeaponMult);
     const finalDmg = elementalMult === 0.0 ? 0 : Math.max(1, rawDmg);
 
     // EPIC-1303-F4: estado "condenado" del Clérigo en hechizos — multiplicar daño ×1.30 y consumir
@@ -14944,7 +14955,7 @@ function cmdCast(player, args) {
     const arcaneSurgeNoteNew = (newArcaneSurgeBonus > 0 && newArcaneSurgeBonus >= arcaneSurgeBonus) ? ` ⚡(+${Math.round(newArcaneSurgeBonus * 100)}% Carga Arcana [evento])` : arcaneSurgeNote;
     const evokerNote = evokerBonus > 0 ? ` ⚡[Evoker +25%]` : '';
     const finalArcaneSurgeNote = arcaneSurgeNoteNew || arcaneSurgeNote;
-    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${finalArcaneSurgeNote}${evokerNote}${elementalNote}${steamExpNote})` : (magicResistNote + finalArcaneSurgeNote + evokerNote + elementalNote + steamExpNote) || '';
+    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${finalArcaneSurgeNote}${evokerNote}${elementalNote}${steamExpNote}${nonMageWeaponNote})` : (magicResistNote + finalArcaneSurgeNote + evokerNote + elementalNote + steamExpNote + nonMageWeaponNote) || '';
     lines.push(`   ${target.name} recibe ${finalDmgCondenado} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
     if (spellCondenadoMsg) { lines.push(spellCondenadoMsg); }  // EPIC-1303-F4: mensaje de marca condenado
 
