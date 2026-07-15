@@ -1102,6 +1102,13 @@ function completeTutorial(player) {
     updateData.hp = Math.min(newMaxHp, (player.hp || 30) + heal);
   }
   db.updatePlayer(player.id, updateData);
+  // DIS-1609: dar 2 hierbas curativas al completar el tutorial como "provisiones del guardia"
+  // Esto da contexto inmediato al sistema de inventario y da un ítem útil de arranque.
+  try {
+    const freshForItems = db.getPlayer(player.id);
+    const currentInv = freshForItems.inventory || [];
+    db.updatePlayer(player.id, { inventory: [...currentInv, 'hierba curativa', 'hierba curativa'] });
+  } catch (_) { /* silencioso — no bloquear tutorial por esto */ }
   // DIS-799: registrar sala 1 como visitada — completeTutorial setea current_room_id=1 pero
   // nunca llamaba trackRoomVisit, así que sala 1 aparecía como ?? en el mapa siempre.
   try { db.trackRoomVisit(player.id, 1); } catch (_) { /* silencioso */ }
