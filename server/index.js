@@ -792,6 +792,32 @@ async function main() {
     });
   }, 30000);
 
+  // IMPL-PARTY-1634: Auto-disolución de parties inactivas (cada 5 minutos)
+  // Disuelve parties con más de 30 minutos de inactividad y notifica a miembros conectados.
+  setInterval(() => {
+    try {
+      const staleParties = db.getStaleParties(30);
+      for (const party of staleParties) {
+        // Obtener miembros antes de disolver (para notificarles)
+        const members = db.getPartyMembers(party.id);
+        db.dissolveParty(party.id);
+        console.log(`[party] Party ${party.id} disuelta por inactividad (30 min).`);
+        // Notificar a los miembros que estén conectados
+        for (const member of members) {
+          const sock = playerSockets.get(member.id);
+          if (sock) {
+            sock.emit('event', {
+              type: 'warning',
+              text: '⚠️ Tu party se disolvió por inactividad (30 min sin actividad del grupo).',
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[party] Error en auto-disolución:', err.message);
+    }
+  }, 5 * 60 * 1000);
+
   // 13. T130: Regeneración periódica de sala sagrada (sala 1 — Entrada del Dungeon)
   // Cada 10s, los jugadores con HP < max que estén en la sala sagrada recuperan 1 HP.
   const SACRED_ROOM_ID = 1;
