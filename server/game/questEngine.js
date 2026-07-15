@@ -880,11 +880,13 @@ function _progressText(qd, progressJson) {
  * @returns {{ text: string }}
  */
 function getQuestsDisplay(player) {
-  // BUG-1616: si el jugador es bot pero tiene quests activas en DB, mostrarlas igual
-  // (ayuda al debugging de playtest y evita confusión si el nombre matchea patrones de bot)
+  // BUG-1616/BUG-1618: si el jugador es bot pero tiene quests activas en DB, mostrarlas igual.
+  // Las quests pueden estar en player_quests (slots normal/narrativa/secundaria) O
+  // en players.aldric_quest ('active') — hay que verificar ambos paths.
   if (player.is_bot) {
     const activeQuestsCheck = _getActiveQuests(player.id);
-    if (!activeQuestsCheck.length) return { text: 'Los bots no reciben quests.' };
+    const hasAldricQuest = (player.aldric_quest || 'none') === 'active';
+    if (!activeQuestsCheck.length && !hasAldricQuest) return { text: 'Los bots no reciben quests.' };
     // Tiene quests activas — continuar con el display normal
   }
 
@@ -894,6 +896,13 @@ function getQuestsDisplay(player) {
   const lines = ['📋 **QUESTS ACTIVAS**\n'];
 
   if (!activeQuests.length) {
+    // Verificar si hay quest de Aldric activa (sistema legacy: players.aldric_quest)
+    if ((player.aldric_quest || 'none') === 'active') {
+      lines.push('  [NARRATIVA]  📜 "El Sello de las Dos Llaves" — Encontrá la carta sellada en Sala 8 y traésela a Aldric (Sala 4).');
+      lines.push('');
+      lines.push('Comandos: `quest info <nombre>` · `quest historial` · `quest abandonar <nombre>`');
+      return { text: lines.join('\n') };
+    }
     // Sin quests activas — mensaje orientativo
     lines.push('  No tenés quests activas en este momento.');
     lines.push('  (Al hacer login se te asignan quests según tu clase y facción.)\n');
@@ -919,6 +928,11 @@ function getQuestsDisplay(player) {
     const label     = SLOT_LABELS[q.slot] || '[QUEST]     ';
     const progress  = _progressText(q, q.progress);
     lines.push(`  ${label} ${icon} "${q.name}" — ${progress}`);
+  }
+
+  // BUG-1618: quest de Aldric usa sistema legacy (players.aldric_quest), no player_quests
+  if ((player.aldric_quest || 'none') === 'active') {
+    lines.push('  [NARRATIVA]  📜 "El Sello de las Dos Llaves" — Encontrá la carta sellada en Sala 8 y traésela a Aldric (Sala 4).');
   }
 
   lines.push('');
