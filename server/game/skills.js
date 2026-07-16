@@ -408,6 +408,11 @@ function canUseSkill(player, skillId) {
 
   const level = player.level || 1;
   if (level < skill.required_level) {
+    // DIS-1683: si el jugador intenta golpe_sombra (nivel 10) siendo Pícaro de nivel < 10,
+    // sugerir el comando alternativo `sombras` disponible desde nivel 1.
+    if (skillId === 'golpe_sombra' && (player.player_class === 'picaro')) {
+      return { ok: false, error: `Necesitás nivel ${skill.required_level} para usar ${skill.name}. (Sos nivel ${level})\n   💡 Usá \`sombras\` para el golpe básico desde las sombras (disponible desde nivel 1).` };
+    }
     return { ok: false, error: `Necesitás nivel ${skill.required_level} para usar ${skill.name}. (Sos nivel ${level})` };
   }
 

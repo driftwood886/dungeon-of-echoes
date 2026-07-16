@@ -4633,7 +4633,7 @@ function cmdAttack(player, targetName) {
       const newDots  = dotsMap[newPoints]  || '●●●';
       if (newPoints !== prevPoints) {
         const gainNote = critHit && gainedPoints === 2 ? ' (crit +2)' : '';
-        lines.push(`🌑 Sombra: ${prevDots} → ${newDots}${gainNote}${newPoints === 3 ? '  ⚡ ¡Podés activar golpe desde las sombras!' : ''}`);
+        lines.push(`🌑 Sombra: ${prevDots} → ${newDots}${gainNote}${newPoints === 3 ? '  ⚡ ¡Podés activar **`sombras`** para un golpe devastador!' : ''}`);
         // DIS-1660: al primer punto de sombra acumulado, explicar la mecánica de disipación
         if (prevPoints === 0 && newPoints >= 1) {
           lines.push(`   💡 Las sombras se acumulan atacando (3 puntos = golpe sombra). Se disipan al moverse a salas sin monstruos. ¡Planificá la ruta!`);
@@ -17506,12 +17506,23 @@ function cmdSkills(player) {
         `Nivel 5 — 🌟 Especialización: Arcanista o Elementalista`,
         `Nivel 5 — Tormenta de Hielo (cast tormenta_de_hielo)`,
       ],
-      picaro: [
-        `Nivel 1 — Veneno, Robar`,
-        `Nivel 3 — Golpe Sucio: ×1.3 + veneno 3 turnos`,
-        `Nivel 5 — 🌟 Especialización: Asesino (emboscar + emboscada_oscura) o Emboscador`,
-        `Nivel 6 — Evasión: esquiva garantizada`,
-      ],
+      picaro: (() => {
+        // BUG-1681: mostrar la especialización ya elegida en lugar de las opciones
+        let nivel5Line;
+        if (fresh.specialization === 'asesino') {
+          nivel5Line = `Nivel 5 — 🌟 Especialización elegida: ✅ Asesino (emboscar + emboscada_oscura)`;
+        } else if (fresh.specialization === 'emboscador') {
+          nivel5Line = `Nivel 5 — 🌟 Especialización elegida: ✅ Emboscador`;
+        } else {
+          nivel5Line = `Nivel 5 — 🌟 Especialización: Asesino (emboscar + emboscada_oscura) o Emboscador`;
+        }
+        return [
+          `Nivel 1 — Veneno, Robar`,
+          `Nivel 3 — Golpe Sucio: ×1.3 + veneno 3 turnos`,
+          nivel5Line,
+          `Nivel 6 — Evasión: esquiva garantizada`,
+        ];
+      })(),
       clerigo: [
         `Nivel 1 — Heal (curación), Condenar`,
         `Nivel 3 — Sanación Mayor, Escudo Sagrado`,
