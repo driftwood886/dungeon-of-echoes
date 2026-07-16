@@ -766,6 +766,12 @@ function onRitual(player, action) {
       const requiredAction = (cond.action || 'any').toLowerCase();
       if (requiredAction !== 'any' && requiredAction !== action) continue;
 
+      // Verificar sala si se requiere (BUG-1654: quest de ritual en zona específica)
+      if (cond.target_room_id !== undefined && cond.target_room_id !== null) {
+        const playerRoom = player.current_room_id;
+        if (playerRoom !== cond.target_room_id) continue;
+      }
+
       const current  = progress.count || 0;
       const needed   = cond.count || 1;
       const newCount = current + 1;

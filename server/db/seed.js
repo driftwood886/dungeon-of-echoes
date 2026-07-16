@@ -644,7 +644,7 @@ function migrateCorredorHintDIS1107() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateOrphanedGuildsBUG1646 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646 };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -2646,6 +2646,43 @@ function migrateQuestGoblinDIS1590() {
     console.warn('[seed] migrateQuestGoblinDIS1590:', e.message);
   }
 }
+
+/**
+ * BUG-1654: Quest "Ritual en la Oscuridad" (Cónclave Arcano) era type='explore'.
+ * Se completaba al entrar a sala 10, no al rezar como prometía la descripción.
+ * Fix: type='ritual', condition action='pray', count=1.
+ * Actualizar también cualquier instancia activa de la quest para reasignar condition+type.
+ */
+function migrateQuestRitualOscuridadBUG1654() {
+  try {
+    const rawDb = db.raw();
+    const exists = rawDb.exec(`SELECT id, type FROM quest_definitions WHERE id = 'faccion_conclave_ritual_profundo'`);
+    if (!exists || !exists[0] || !exists[0].values || exists[0].values.length === 0) {
+      console.log('[seed] migrateQuestRitualOscuridadBUG1654: quest no encontrada — sin cambios. ✓');
+      return;
+    }
+    const currentType = exists[0].values[0][1];
+    if (currentType === 'ritual') {
+      console.log('[seed] migrateQuestRitualOscuridadBUG1654: quest ya tiene type=ritual — sin cambios. ✓');
+      return;
+    }
+    const newCondition = JSON.stringify({ action: 'pray', count: 1, target_room_id: 10 });
+    const newDescription = 'El Cónclave estudia los patrones mágicos del dungeon. Para esta semana: andá al Santuario Profano (sala 10) y rezá ante el altar de la estatua de diez brazos. Ofrendá cualquier ítem con `pray <ítem>`. Los datos rituales que recopiles serán invaluables para la investigación arcana.';
+    rawDb.run(
+      `UPDATE quest_definitions SET type = 'ritual', condition = ?, description = ? WHERE id = 'faccion_conclave_ritual_profundo'`,
+      [newCondition, newDescription]
+    );
+    // Resetear progreso de instancias activas de esta quest para que puedan completarse con el nuevo trigger
+    rawDb.run(
+      `UPDATE player_quests SET progress = '{}' WHERE quest_id = 'faccion_conclave_ritual_profundo' AND status = 'active'`
+    );
+    db.persist();
+    console.log('[seed] migrateQuestRitualOscuridadBUG1654: "Ritual en la Oscuridad" → type=ritual, action=pray. BUG-1654 ✓');
+  } catch (e) {
+    console.warn('[seed] migrateQuestRitualOscuridadBUG1654:', e.message);
+  }
+}
+
 
 /**
  * BUG-1646/1647: Limpiar guilds huérfanas (leader_id sin match en players).

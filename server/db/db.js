@@ -488,13 +488,16 @@ async function init() {
       is_active: 1,
     },
     // Cónclave Arcano: ritual en zona peligrosa
+    // BUG-1654: era type='explore' — se completaba al entrar a sala 10, no al rezar.
+    // La descripción prometía "rezar ante su altar" pero el trigger era onExplore.
+    // Fix: type='ritual', condition action='pray', count=1.
     {
       id: 'faccion_conclave_ritual_profundo',
       name: 'Ritual en la Oscuridad',
-      description: 'El Cónclave estudia los patrones mágicos del dungeon. Para esta semana: visitá el Santuario Profano (zona restringida) y rezá ante su altar. Los datos que recopiles serán invaluables para la investigación arcana.',
-      type: 'explore',
+      description: 'El Cónclave estudia los patrones mágicos del dungeon. Para esta semana: andá al Santuario Profano (sala 10) y rezá ante el altar de la estatua de diez brazos. Ofrendá cualquier ítem con `pray <ítem>`. Los datos rituales que recopiles serán invaluables para la investigación arcana.',
+      type: 'ritual',
       slot: 'principal',
-      condition: JSON.stringify({ event: 'explore', target_room_id: 10 }),
+      condition: JSON.stringify({ action: 'pray', count: 1, target_room_id: 10 }),
       reward: JSON.stringify({ gold: 50, xp: 60, faction_influence: 8 }),
       require_level: 3,
       require_faction: 'conclave_arcano',
