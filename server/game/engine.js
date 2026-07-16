@@ -17491,7 +17491,7 @@ function cmdSkills(player) {
         `Nivel 10 — Arenga`,
       ],
       mago: [
-        `Nivel 1 — Drenar Arcano, hechizos (rayo, bola de fuego, curación, escudo)`,
+        `Nivel 1 — Drenar Arcano, hechizos (rayo menor/chispa ⚡, rayo, bola de fuego, curación, escudo)`,
         `Nivel 3 — Bola de Fuego (cast bola_de_fuego) potenciado`,
         `Nivel 5 — 🌟 Especialización: Arcanista o Elementalista`,
         `Nivel 5 — Tormenta de Hielo (cast tormenta_de_hielo)`,
@@ -17531,7 +17531,7 @@ function cmdSkills(player) {
     } else if (cls === 'mago') {
       lines.push('  Los Magos no usan habilidades físicas.');
       lines.push('  Tu poder está en los hechizos: usá "hechizos" para verlos.');
-      lines.push('  (cast bola de fuego / cast rayo / cast curación / cast escudo)');
+      lines.push('  (cast rayo menor / cast rayo / cast bola de fuego / cast curación / cast escudo)');
     } else if (cls === 'clerigo') {
       lines.push('  Aún no desbloqueaste ninguna habilidad.');
       lines.push('  (Nivel 3: sanacion_mayor · condenar · escudo_sagrado · Nivel 6: bendicion · Nivel 10: resurreccion)');
