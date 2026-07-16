@@ -318,6 +318,20 @@ const SKILLS = {
     description: 'Golpeás al monstruo con tu báculo y absorbés su esencia mágica (recuperás 2-4 maná). Útil cuando el maná llega a 0 para volver al combate arcano. Cooldown: 45s. Solo Mago.',
     combat_only: true,
   },
+  // DIS-1675: Condenar — habilidad de debuff del Clérigo (todos los Clérigos, nivel 1)
+  // Implementada como cmdCondenar en engine.js pero faltaba la entrada en skills.js para aparecer en `skills`
+  condenar: {
+    id: 'condenar',
+    name: 'Condenar',
+    aliases: ['condenar', 'condemn', 'marcar', 'marcar_objetivo', 'condena_divina'],
+    required_level: 1,
+    required_class: 'clerigo',
+    cooldown_seconds: 20,
+    type: 'clerigo_debuff',
+    mana_cost: 6,
+    description: 'Marcás al monstruo con la condena divina. El próximo ataque de cualquier jugador contra él causa ×1.30 daño. Dura 30s o hasta el primer golpe. Costo: 6 maná. Cooldown: 20s. Solo Clérigo.',
+    combat_only: true,
+  },
   // DIS-1072: Rayo Divino — skill del Clérigo especialización Juicio
   rayo_divino: {
     id: 'rayo_divino',
