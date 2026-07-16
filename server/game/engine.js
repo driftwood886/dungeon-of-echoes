@@ -15952,11 +15952,17 @@ function cmdCast(player, args) {
           }
         }
       }
+      // BUG-1672: llamar questEngine.onKill al matar con hechizo (igual que smash/shield_bash, DIS-1594)
+      try {
+        const freshForCastQE = db.getPlayer(player.id);
+        if (freshForCastQE) {
+          const qeCastResult = questEngine.onKill(freshForCastQE, target);
+          if (qeCastResult && qeCastResult.text) lines.push(qeCastResult.text);
+        }
+      } catch (_) {}
     } else {
       db.updateMonster(target.id, { hp: newHp });
     }
-
-    // BUG-698: Verificar si el stun se aplicó en ESTE turno para evitar el contraataque
     // El stun (rayo/escarcha) debe cancelar el ataque del turno en que se aplica,
     // no solo del siguiente turno.
     let castStunAppliedThisTurn = false;
@@ -18282,10 +18288,18 @@ function cmdUseSkill(player, args, context) {
       context.broadcastToRoom(freshDr.current_room_id, freshDr.id,
         `🔮 ${freshDr.username} drena la esencia arcana del ${targetDr.name}!`);
     }
+    // BUG-1672: llamar questEngine.onKill al matar con drenar_arcano (igual que smash/shield_bash, DIS-1594)
+    if (deadDr) {
+      try {
+        const freshForDrQE = db.getPlayer(freshDr.id);
+        if (freshForDrQE) {
+          const qeDrResult = questEngine.onKill(freshForDrQE, targetDr);
+          if (qeDrResult && qeDrResult.text) textDr += '\n\n' + qeDrResult.text;
+        }
+      } catch (_) {}
+    }
     return { text: textDr };
   }
-
-  // ── Golpe de Escudo (shield_bash) ─────────────────────────────────────────
   if (skillId === 'shield_bash') {
     const monsters = db.getMonstersInRoom(freshPlayer.current_room_id);
     const alive = monsters.filter(m => m.hp > 0);
@@ -18700,10 +18714,18 @@ function cmdUseSkill(player, args, context) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
         `🗡️ ${freshPlayer.username} usa Golpe Sucio sobre el ${target.name}! (-${finalDmg} HP + veneno)`);
     }
+    // BUG-1672: llamar questEngine.onKill al matar con golpe_sucio (igual que smash/shield_bash, DIS-1594)
+    if (dead) {
+      try {
+        const freshForGsSucioQE = db.getPlayer(freshPlayer.id);
+        if (freshForGsSucioQE) {
+          const qeGsSucioResult = questEngine.onKill(freshForGsSucioQE, target);
+          if (qeGsSucioResult && qeGsSucioResult.text) text += '\n\n' + qeGsSucioResult.text;
+        }
+      } catch (_) {}
+    }
     return { text };
   }
-
-  // ── Robar (robar) — Pícaro Lv1 ───────────────────────────────────────────
   if (skillId === 'robar') {
     const monsters = db.getMonstersInRoom(freshPlayer.current_room_id);
     const alive = monsters.filter(m => m.hp > 0);
@@ -19127,10 +19149,18 @@ function cmdUseSkill(player, args, context) {
       context.broadcastToRoom(freshPlayer.current_room_id, freshPlayer.id,
         `🌑 ${freshPlayer.username} emerge de las sombras y golpea al ${target.name}! (-${finalDmgSh} HP)`);
     }
+    // BUG-1672: llamar questEngine.onKill al matar con golpe_sombra (igual que smash/shield_bash, DIS-1594)
+    if (deadSh) {
+      try {
+        const freshForGsSombraQE = db.getPlayer(freshPlayer.id);
+        if (freshForGsSombraQE) {
+          const qeGsSombraResult = questEngine.onKill(freshForGsSombraQE, target);
+          if (qeGsSombraResult && qeGsSombraResult.text) textSh += '\n\n' + qeGsSombraResult.text;
+        }
+      } catch (_) {}
+    }
     return { text: textSh };
   }
-
-  // ── Imposición de Fe (imposition) — Paladín Lv5 ─────────────────────────
   if (skillId === 'imposition') {
     const monsters = db.getMonstersInRoom(freshPlayer.current_room_id);
     const alive = monsters.filter(m => m.hp > 0);
