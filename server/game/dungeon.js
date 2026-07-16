@@ -442,6 +442,21 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
   // DIS-D344: Pista ruta alternativa ya incluida en la descripción de la sala 7 (seed.js)
   // No agregar mensaje extra aquí para evitar duplicación.
 
+  // DIS-1650: Santuario Profano (sala 10) — advertencia sobre regeneración del Gólem de Piedra
+  // La mecánica de regen era invisible antes del combate: el jugador descubría que el Gólem sanaba
+  // a mitad de pelea con el HP subiendo de sorpresa. Mostrar pista narrativa al entrar.
+  if (roomId === 10 && !isVeteranPlayer) {
+    const golemAlive = (() => {
+      try {
+        const monsters = db.getMonstersInRoom(10);
+        return monsters.some(m => m.hp > 0 && (m.name || '').toLowerCase().includes('gólem de piedra'));
+      } catch (_) { return true; } // si falla, asumir que está vivo
+    })();
+    if (golemAlive) {
+      lines.push(`\n🪨 Las marcas en el suelo del Santuario muestran el patrón de un constructo antiguo que se repara a sí mismo. Los fragmentos dispersos de piedra no están en el suelo por accidente — se reensamblan. Atacarlo sin daño sostenido es inútil.`);
+    }
+  }
+
   // DIS-1177: Sala 18 (Fuente Eterna) — gancho narrativo para salidas hacia zonas profundas
   // La sala tiene salida 'down' → sala 20 (Abismo Eterno, nivel 8+)
   // Jugadores de nivel bajo deben entender que hay algo ahí abajo y por qué volver.
