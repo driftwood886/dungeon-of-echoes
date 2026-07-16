@@ -4008,6 +4008,19 @@ function cmdStatus(player) {
     player.guild ? `Hermandad: [${player.guild}]` : `Hermandad: (sin guild)`,
     player.pet   ? `Mascota:   ${player.pet}` : `Mascota:   (sin compañero)`,
     (() => {
+      // DIS-1666: mostrar facción e influencia semanal en status (impacto visible al unirse)
+      if (!player.faction) return null;
+      const FACTION_DISPLAY = {
+        orden_filo:         { icon: '🗡️', name: 'Orden del Filo' },
+        conclave_arcano:    { icon: '🔮', name: 'Cónclave Arcano' },
+        hermandad_mercado:  { icon: '🪙', name: 'Hermandad del Mercado' },
+      };
+      const fd = FACTION_DISPLAY[player.faction];
+      if (!fd) return `Facción:  ${player.faction}`;
+      const influence = player.faction_week_influence || 0;
+      return `Facción:  ${fd.icon} ${fd.name} — ${influence} pts de influencia esta semana`;
+    })(),
+    (() => {
       const streak = killStreakMap.get(player.id) || 0;
       return streak >= 3 ? `Racha:    🔥 ${streak} kills consecutivos` : null;
     })(),
@@ -12547,8 +12560,36 @@ function _cmdFaccionElegir(player, args) {
 
   const welcomeMsg = WELCOME_MSGS[factionId] || `Te uniste a ${lore.icon} ${lore.name}.`;
 
+  // DIS-1666 + DIS-1669: dar ítem de bienvenida según facción (impacto inmediato visible)
+  const factionWelcomeItems = {
+    conclave_arcano:    'bitácora del arcano',
+    orden_filo:         'pergamino de furia',
+    hermandad_mercado:  'pergamino de velocidad',
+  };
+  const welcomeItemName = factionWelcomeItems[factionId];
+  let welcomeItemLine = '';
+  if (welcomeItemName) {
+    try {
+      const freshForItem = db.getPlayer(player.id);
+      if (freshForItem) {
+        const currentInv = Array.isArray(freshForItem.inventory)
+          ? freshForItem.inventory
+          : JSON.parse(freshForItem.inventory || '[]');
+        const MAX_INV = 20;
+        if (currentInv.length < MAX_INV) {
+          currentInv.push(welcomeItemName);
+          db.updatePlayer(player.id, { inventory: JSON.stringify(currentInv) });
+          welcomeItemLine = `\n\n📦 Recibiste: **${welcomeItemName}** (ahora en tu inventario).`;
+          if (factionId === 'conclave_arcano') {
+            welcomeItemLine += `\n   Usá \`use bitácora del arcano\` o \`mapa\` para ver tu progreso de exploración.`;
+          }
+        }
+      }
+    } catch (_) { /* no romper unión si falla el ítem */ }
+  }
+
   return {
-    text: `${welcomeMsg}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá "facciones" para ver el estado semanal y quién lidera.`,
+    text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
   };
 }
 
@@ -15087,6 +15128,16 @@ const SPELL_CATALOG = {
     aliases: ['curar', 'heal', 'sanación', 'sanacion', 'regenerar', 'vida'],
     icon: '✨',
   },
+  // DIS-1664: rayo menor — hechizo de bajo coste para Mago en early game (niveles 1-3).
+  // Mantiene al mago activo mágicamente mientras recarga maná para el rayo completo.
+  'rayo menor': {
+    cost: 6,
+    type: 'damage',
+    amount: 7,
+    description: 'Descarga un pequeño arco eléctrico. 7 de daño base. Bajo coste de maná — ideal para mantenerse activo cuando el maná es escaso.',
+    aliases: ['rayo_menor', 'mini rayo', 'mini_rayo', 'arco electrico', 'arco eléctrico', 'chispa'],
+    icon: '⚡',
+  },
   'rayo': {
     cost: 14, // EPIC-1294-F2: subido de 12→14 para compensar que el stun ahora es 100% determinista
     type: 'damage',
@@ -15227,7 +15278,8 @@ function regenHp(player) {
 function findSpell(query) {
   // BUG-007 fix: normalizar tildes/acentos con NFD (misma familia que DIS-P15)
   // BUG-048 fix: normalizar guiones a espacios ("bola-de-fuego" → "bola de fuego")
-  const normalize = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/-/g, ' ');
+  // DIS-1668 fix: normalizar underscores a espacios ("bola_de_fuego" → "bola de fuego")
+  const normalize = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_]/g, ' ');
   const q = normalize(query);
   for (const [key, spell] of Object.entries(SPELL_CATALOG)) {
     if (normalize(key) === q || spell.aliases.some(a => normalize(a) === q) || normalize(key).startsWith(q)) {
@@ -15260,7 +15312,7 @@ function cmdCast(player, args) {
 
   // DIS-783: Los Clérigos solo pueden usar hechizos divinos (curación, escudo)
   // Los hechizos de ataque arcano (bola de fuego, rayo, escarcha) son exclusivos del Mago
-  const MAGO_ONLY_SPELLS = ['bola de fuego', 'rayo', 'escarcha'];
+  const MAGO_ONLY_SPELLS = ['bola de fuego', 'rayo menor', 'rayo', 'escarcha'];
   if (castClassName === 'Clérigo') {
     // Resolver el nombre del hechizo antes de verificar restricción
     const testSpellQuery = args ? args.join(' ').toLowerCase().trim() : '';
@@ -16863,7 +16915,7 @@ function cmdSpells(player) {
   for (const [name, spell] of Object.entries(SPELL_CATALOG)) {
     const canCast = currentMana >= spell.cost ? '✓' : '✗';
     // DIS-783: Para Clérigos, marcar hechizos de Mago como no disponibles por clase
-    if (spellClassName === 'Clérigo' && ['bola de fuego', 'rayo', 'escarcha'].includes(name)) {
+    if (spellClassName === 'Clérigo' && ['bola de fuego', 'rayo menor', 'rayo', 'escarcha'].includes(name)) {
       lines.push(`  🔒 ${spell.icon} ${name.padEnd(16)} — (Arcano — solo Mago)`);
     } else {
       // BUG-816: Para Clérigos, curación muestra el valor efectivo (×1.5) en vez del base
@@ -17570,6 +17622,14 @@ function cmdSkills(player) {
     lines.push(`  💥 Quemar Combo [quemar_combo]`);
     lines.push(`     Consumís el combo (x3+) para un golpe masivo. ×3→×2.5dmg · ×4→×3.0 · ×5→×3.5`);
     lines.push(`     Estado: ${quemarStatus}`);
+    // DIS-1665: explicar la mecánica de Combo acumulado (antes era invisible)
+    lines.push('─'.repeat(40));
+    lines.push('⚡ MECÁNICA: COMBO (todos los Guerreros)');
+    lines.push(`  Al atacar consecutivamente al mismo objetivo, acumulás un bonus:`);
+    lines.push(`    ×1 (base) → ×2 (+1 dmg) → ×3 (+2 dmg) → ×4 (+3 dmg) → ×5 máx (+4 dmg)`);
+    lines.push(`  El combo se RESETEA si: cambiás de objetivo · recibís daño · usás quemar_combo.`);
+    lines.push(`  Combo actual: ×${comboCount}`);
+    lines.push(`  Consejo: mantené el foco en el mismo enemigo para escalar el daño antes de rematar.`);
   } else if (playerClassMec === 'clerigo') {
     const seClerico = fresh.status_effects ? (typeof fresh.status_effects === 'string' ? JSON.parse(fresh.status_effects) : fresh.status_effects) : {};
     lines.push('─'.repeat(40));
@@ -20695,6 +20755,16 @@ function cmdChallenge(player) {
       : `${grand.progress}/${grand.condition.amount}`;
     lines.push('║' + `      [${gBar}] ${gStatus}`.padEnd(W) + '║');
     lines.push('║' + `      Recompensa: ${rewardStr(grand.reward)}`.padEnd(W) + '║');
+    // DIS-1667: si no hay actividad reciente de otros jugadores, agregar nota contextual
+    try {
+      const recentCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      const recentPlayers = db.getActivePlayers(recentCutoff);
+      const othersActive = recentPlayers.filter(p => p.id !== player.id).length;
+      if (!grand.completed && othersActive === 0) {
+        const soloNote = '      👤 Jugás solo ahora — tu contribución cuenta igual.';
+        lines.push('║' + soloNote.padEnd(W) + '║');
+      }
+    } catch (_) { /* no romper si falla la consulta */ }
   }
 
   // Pie

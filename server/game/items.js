@@ -147,6 +147,8 @@ const ITEM_CATALOG = {
   // ── DIS-558: Ítems específicos de clase Mago ─────────────────────────────
   'vara de energía':       { type: 'weapon', effect: 'attack_bonus', amount: 5, mage_only_bonus: 2, description: 'Una vara de madera oscura grabada con runas arcanas. Canaliza la energía mágica del portador. +5 de ataque. Los Magos reciben +2 de ataque adicional y +2 maná/min de regeneración extra al empuñarla.' },
   'pergamino de hechizo':  { type: 'spell_scroll', effect: 'free_spell', description: 'Un pergamino cubierto de ecuaciones mágicas y símbolos arcanos. Al usarlo, podés lanzar tu próximo hechizo sin coste de maná. El pergamino se consume en el proceso.' },
+  // DIS-1669: ítem de bienvenida del Cónclave Arcano — actúa como alias de `mapa`
+  'bitácora del arcano':  { type: 'misc', effect: 'faction_map', description: 'Un cuaderno de cuero azul con anotaciones en lenguaje arcano. Al abrirlo (usá `use bitácora del arcano` o `mapa`), muestra las salas visitadas del dungeon y sus conexiones. Regalo del Cónclave Arcano al unirte.' },
 
   // ── DIS-610: Ítems específicos de clase Clérigo ──────────────────────────
   'símbolo sagrado':       { type: 'weapon', effect: 'attack_bonus', amount: 2, cleric_only_bonus: 2, cleric_pray_cooldown: 3, description: 'Un símbolo sagrado de madera bendecida con relieves de deidades antiguas. +2 de ataque. Los Clérigos reciben +2 de ataque adicional y reducen el cooldown de pray a 3 minutos.' },
