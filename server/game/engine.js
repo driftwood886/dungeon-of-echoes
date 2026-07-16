@@ -13584,6 +13584,20 @@ function cmdCraft(player, args) {
   const craftResult = crafting.craft(player, itemA, itemB);
 
   if (!craftResult.ok) {
+    // BUG-1662: si el error es de ítem faltante, verificar si está en subasta activa del jugador
+    // para dar un mensaje más claro que "No tenés X en el inventario"
+    if (craftResult.text && craftResult.text.includes('en el inventario')) {
+      const nfnCraft = s => (s || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const activeAuctions = db.getActiveAuctions();
+      const playerAuctions = activeAuctions.filter(a => a.seller_id === player.id);
+      for (const missingItem of [itemA, itemB]) {
+        const missingNorm = nfnCraft(missingItem);
+        const inAuction = playerAuctions.find(a => nfnCraft(a.item_name) === missingNorm);
+        if (inAuction) {
+          return { text: `⚠️ No podés usar «${inAuction.item_name}» — está en una subasta activa (#${inAuction.id}).\n💡 Cancelá la subasta con el encargado de la Casa de Subastas y luego reintentá el crafteo.\n   (Los ítems en subasta son retirados del inventario hasta que el remate cierre.)` };
+        }
+      }
+    }
     return { text: craftResult.text };
   }
 
