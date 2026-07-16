@@ -4621,6 +4621,10 @@ function cmdAttack(player, targetName) {
       if (newPoints !== prevPoints) {
         const gainNote = critHit && gainedPoints === 2 ? ' (crit +2)' : '';
         lines.push(`🌑 Sombra: ${prevDots} → ${newDots}${gainNote}${newPoints === 3 ? '  ⚡ ¡Podés activar golpe desde las sombras!' : ''}`);
+        // DIS-1660: al primer punto de sombra acumulado, explicar la mecánica de disipación
+        if (prevPoints === 0 && newPoints >= 1) {
+          lines.push(`   💡 Las sombras se acumulan atacando (3 puntos = golpe sombra). Se disipan al moverse a salas sin monstruos. ¡Planificá la ruta!`);
+        }
       }
     } catch (e) { /* silenciar errores de shadow */ }
   } else if (shadowClassName === 'Pícaro' && !playerDead && monsterDead) {
