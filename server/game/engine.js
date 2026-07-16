@@ -23743,7 +23743,9 @@ function cmdPray(player, args) {
   }
 
   // Identificar el ítem ofrecido
-  const offering = args.join(' ').trim().toLowerCase();
+  // DIS-1658: filtrar la palabra 'confirmar' de los args (permite "pray corona rota confirmar")
+  const argsFiltered = args.filter(a => a.toLowerCase() !== 'confirmar');
+  const offering = argsFiltered.join(' ').trim().toLowerCase();
 
   if (!offering) {
     const altarName = roomId === 5 ? 'Altar de la Capilla' : 'Estatua del Santuario';
@@ -23848,6 +23850,20 @@ function cmdPray(player, args) {
   const found = items.findItem(player.inventory, offering);
   if (!found) {
     return { text: `🙏 No tenés ningún "${offering}" en el inventario para ofrecer.\n  💡 Si tenés oro, podés también usar: pray Xg (ej: pray 5g)` };
+  }
+
+  // DIS-1658: Si el jugador ofrece la corona rota en la Capilla Y la trampa del Trono sigue activa,
+  // advertir antes de consumir el ítem. Usar "pray corona rota confirmar" para proceder igual.
+  const foundLower0 = found.toLowerCase();
+  if (foundLower0 === 'corona rota') {
+    const room9DIS1658 = db.getRoom(9);
+    const trap9Active = room9DIS1658 && room9DIS1658.trap && room9DIS1658.trap.active;
+    const confirming = args.map(a => a.toLowerCase()).includes('confirmar');
+    if (trap9Active && !confirming) {
+      return {
+        text: `🙏 El altar reconoce la corona rota y está dispuesto a recibirla.\n\n⚠️  **Advertencia:** La corona rota también desactiva la **trampa de frío de la Sala del Trono** (sala 9). Si la ofrecés aquí, ya no podrás usarla para evitar ese daño.\n\n• Para ofrecer igualmente: \`pray corona rota confirmar\`\n• Para conservarla para la trampa: guardala y usá \`desactivar trampa norte\` desde la sala adyacente (sala 6, Túnel de Hongos).`,
+      };
+    }
   }
 
   // Verificar si el ítem tiene efecto en el altar
