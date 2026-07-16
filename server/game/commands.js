@@ -245,6 +245,8 @@ const COMMAND_ALIASES = {
   emboscar: 'useSkill', emboscada: 'useSkill', ataque_sorpresa: 'useSkill', surprise_attack: 'useSkill',
   chain_heal: 'useSkill', cadena_curacion: 'useSkill', cadena_curación: 'useSkill', curacion_grupal: 'useSkill', curación_grupal: 'useSkill', aura_sanadora: 'useSkill',
   escudo_sagrado: 'useSkill', 'escudo sagrado': 'useSkill', sacred_shield: 'useSkill', barrera_sagrada: 'useSkill', 'barrera sagrada': 'useSkill', holy_shield: 'useSkill', burbuja: 'useSkill', bubble: 'useSkill',
+  // BUG-1674: Rayo Divino del Clérigo/Juicio — faltaba en el mapa de aliases
+  rayo_divino: 'useSkill', divine_ray: 'useSkill', divine_smite: 'useSkill', condena: 'useSkill', rayo_sagrado: 'useSkill',
   // DIS-620: Sigilo del Pícaro (nivel 1)
   sigilo: 'sigilo', hide: 'sigilo', stealth: 'sigilo', ocultarse: 'sigilo', esconderse: 'sigilo',
   // note / apunte (T116)
@@ -453,6 +455,11 @@ function parse(input) {
       'absorber mana':  { cmd: 'useSkill', skillId: 'drenar_arcano' },
       'drenar energía': { cmd: 'useSkill', skillId: 'drenar_arcano' },
       'drenar energia': { cmd: 'useSkill', skillId: 'drenar_arcano' },
+      // BUG-1674: variantes multi-palabra de rayo_divino del Clérigo/Juicio
+      'rayo divino':    { cmd: 'useSkill', skillId: 'rayo_divino' },
+      'rayo sagrado':   { cmd: 'useSkill', skillId: 'rayo_divino' },
+      'divine ray':     { cmd: 'useSkill', skillId: 'rayo_divino' },
+      'divine smite':   { cmd: 'useSkill', skillId: 'rayo_divino' },
       // BUG-286: "tienda vender X" / "tienda comprar X" → sell/buy
       'tienda vender':  { cmd: 'sell',    skillId: null },
       'tienda comprar': { cmd: 'buy',     skillId: null },
