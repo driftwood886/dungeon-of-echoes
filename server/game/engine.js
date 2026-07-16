@@ -17766,12 +17766,18 @@ function cmdSpecialize(player, args) {
     db.updatePlayer(fresh.id, { status_effects: currentSE });
   }
   // Juicio: +2 ATK permanente, −15 HP máximo (DIS-1072)
+  // DIS-1676: guardar valores anteriores para el feedback explícito de HP
+  let juicioFeedback = null;
   if (specId === 'juicio') {
     const freshForJu = db.getPlayer(fresh.id);
-    const newAtkJu = (freshForJu.attack || 5) + (mods.atk_bonus || 2);
-    const newMaxHpJu = Math.max(15, (freshForJu.max_hp || 30) - (mods.max_hp_penalty || 15));
-    const newHpJu = Math.min(newMaxHpJu, freshForJu.hp || 15);
+    const oldAtkJu = freshForJu.attack || 5;
+    const oldMaxHpJu = freshForJu.max_hp || 30;
+    const oldHpJu = freshForJu.hp || 15;
+    const newAtkJu = oldAtkJu + (mods.atk_bonus || 2);
+    const newMaxHpJu = Math.max(15, oldMaxHpJu - (mods.max_hp_penalty || 15));
+    const newHpJu = Math.min(newMaxHpJu, oldHpJu);
     db.updatePlayer(fresh.id, { attack: newAtkJu, max_hp: newMaxHpJu, hp: newHpJu });
+    juicioFeedback = `⚠️ Tu voto de Juicio te cuesta ${mods.max_hp_penalty || 15} HP máximo. (${oldMaxHpJu} → ${newMaxHpJu} HP máx)\n   HP actual: ${oldHpJu} → ${newHpJu} · ATK: ${oldAtkJu} → ${newAtkJu}`;
   }
 
   const lines = [
@@ -17782,6 +17788,11 @@ function cmdSpecialize(player, args) {
     'Bonuses activos desde ahora:',
   ];
   for (const p of specObj.passives) lines.push(`  • ${p}`);
+  // DIS-1676: feedback explícito de HP si la especialización aplica penalidad de HP
+  if (juicioFeedback) {
+    lines.push('');
+    lines.push(juicioFeedback);
+  }
   lines.push('');
   lines.push(`Nuevos comandos desbloqueados: ${specObj.new_commands.join(', ')}`);
   lines.push('');
