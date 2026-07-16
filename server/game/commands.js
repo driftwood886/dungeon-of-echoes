@@ -482,6 +482,9 @@ function parse(input) {
       // BUG-1493: skip tutorial / saltar tutorial → skip (para manejar fuera del tutorial)
       'skip tutorial':   { cmd: 'skip',    skillId: 'tutorial' },
       'saltar tutorial': { cmd: 'skip',    skillId: 'tutorial' },
+      // DIS-1657: vender basura — venta masiva automática de ítems no valiosos
+      'vender basura':   { cmd: 'sell_junk', skillId: null },
+      'sell junk':       { cmd: 'sell_junk', skillId: null },
     };
     const mwMatch = MULTI_WORD_ALIASES[twoWord];
     if (mwMatch) {

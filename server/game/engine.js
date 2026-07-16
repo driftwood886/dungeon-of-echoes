@@ -389,6 +389,7 @@ function execute(playerId, input, context) {
     case 'inventory': result = cmdInventory(player); break;
     case 'status':    result = cmdStatus(player); break;
     case 'junk':      result = cmdJunk(player); break;
+    case 'sell_junk': result = cmdSellJunk(player); break;  // DIS-1657
     case 'attack':    result = cmdAttack(player, action.args.join(' ')); break;
     case 'flee':      result = cmdFlee(player, action.args ? action.args.join(' ') : ''); break;
     case 'pick':      result = cmdPick(player, action.args.join(' ')); break;
@@ -3550,7 +3551,108 @@ function cmdJunk(player) {
     return acc + 4;
   }, 0);
 
-  return { text: `🧹 Ítems descartables (sin receta, no equipables):\n${lines.join('\n')}\n─ ${junkItems.length} ítem${junkItems.length !== 1 ? 's' : ''} · ~${totalEstimate}g potenciales de venta\n💡 Usá 'vender <ítem>' en la Cámara del Tesoro (sala 4) para deshacerte de ellos.` };
+  return { text: `🧹 Ítems descartables (sin receta, no equipables):\n${lines.join('\n')}\n─ ${junkItems.length} ítem${junkItems.length !== 1 ? 's' : ''} · ~${totalEstimate}g potenciales de venta\n💡 Usá 'vender basura' en la Cámara del Tesoro (sala 4) para deshacerte de todos de un golpe.` };  // DIS-1657: actualizado
+}
+
+/**
+ * cmdSellJunk — DIS-1657: venta masiva automática de ítems no valiosos.
+ * Solo funciona en la Cámara del Tesoro (sala del mercader).
+ * Vende todo lo que cmdJunk considera "basura" de una sola vez.
+ */
+function cmdSellJunk(player) {
+  player = db.getPlayer(player.id) || player;
+
+  if (player.current_room_id !== MERCHANT_ROOM_ID) {
+    const sellRouteHint = player.current_room_id === 1
+      ? '💡 Ruta desde la Entrada: norte → norte → este'
+      : '💡 Usá `ruta tesoro` para obtener el camino desde tu posición actual.';
+    return { text: `🏪 Aldric no está aquí. El mercader vive en la Cámara del Tesoro (sala 4).\n  ${sellRouteHint}\n\n💡 Tip: una vez que estés con Aldric, escribí "vender basura" para vender de golpe todos los ítems sin valor.` };
+  }
+
+  const inv = player.inventory || [];
+  if (inv.length === 0) return { text: 'Tu inventario está vacío. ¡Nada que vender!' };
+
+  const { RECIPES } = require('./crafting');
+  const recipeIngredients = new Set();
+  for (const r of RECIPES) {
+    for (const ing of r.ingredients) recipeIngredients.add(ing.toLowerCase());
+  }
+
+  // Determinar ítems basura — misma lógica que cmdJunk
+  const junkItems = [];
+  for (const item of inv) {
+    const def = items.getItemDef(item);
+    if (def && (def.type === 'weapon' || def.type === 'armor')) continue;
+    const rarity = items.getItemRarity(item);
+    if (rarity === 'raro' || rarity === 'épico' || rarity === 'legendario') continue;
+    if (recipeIngredients.has(item.toLowerCase())) continue;
+    if (def && (def.type === 'consumable' || def.type === 'potion' || def.type === 'mana_potion' ||
+                def.type === 'atk_potion' || def.type === 'scroll' || def.type === 'key' ||
+                def.type === 'blessing_potion')) continue;
+    junkItems.push(item);
+  }
+
+  if (junkItems.length === 0) {
+    return { text: `🧹 No hay basura que vender.\nTodos tus ítems son equipables, consumibles, ingredientes de receta o de valor especial.\n💡 Usá 'basura' para ver qué podés descartar.` };
+  }
+
+  // Calcular precio total y vender
+  const ladronBonus = player.specialization === 'ladron' ? 0.20 : 0;
+  let totalGold = 0;
+  const soldLines = [];
+
+  for (const item of junkItems) {
+    const catalogEntry = SHOP_CATALOG.find(i => i.name.toLowerCase() === item.toLowerCase());
+    let salePrice;
+    if (catalogEntry) {
+      salePrice = Math.max(1, Math.floor(catalogEntry.price * (SELL_PRICE_RATIO + ladronBonus)));
+    } else {
+      const d = items.getItemDef(item);
+      if (d && d.amount) {
+        const rarityMult = { épico: 5, raro: 4, común: 3 }[items.getItemRarity(item)] || 3;
+        salePrice = Math.max(1, Math.floor(d.amount * rarityMult * (SELL_PRICE_RATIO + ladronBonus)));
+      } else {
+        salePrice = 2;
+      }
+    }
+    totalGold += salePrice;
+    soldLines.push(`  • ${item} → ${salePrice}g`);
+  }
+
+  // Eliminar ítems basura del inventario y sumar oro
+  let newInventory = [...inv];
+  for (const item of junkItems) {
+    newInventory = removeFirst(newInventory, item);
+  }
+  const newGold = (player.gold || 0) + totalGold;
+  db.updatePlayer(player.id, { gold: newGold, inventory: newInventory });
+
+  // Registrar progreso de quest de oro
+  let questLine = '';
+  const freshPlayer = db.getPlayer(player.id);
+  const qrSell = quests.recordProgress(freshPlayer, 'gold', { amount: totalGold });
+  if (qrSell) {
+    db.updatePlayer(player.id, { quest_progress: qrSell.questProgress });
+    if (qrSell.justCompleted && qrSell.reward) {
+      const rr = qrSell.reward;
+      const fq = db.getPlayer(player.id);
+      const newXp = (fq.xp || 0) + rr.xp;
+      db.updatePlayer(player.id, { gold: (fq.gold || 0) + rr.gold, xp: newXp, level: xpSystem.levelFromXp(newXp) });
+      questLine = `\n🎉 ¡Quest completada! Recibís ${rr.gold}g y ${rr.xp} XP de recompensa.`;
+    } else if (!qrSell.justCompleted) {
+      const activeQ = quests.getActiveQuest();
+      if (activeQ && activeQ.questDef && activeQ.questDef.type === 'gold') {
+        questLine = `\n📜 Quest: ${activeQ.questDef.title} — ${qrSell.newProgress}/${activeQ.questDef.goal}g`;
+      }
+    }
+  }
+
+  const ladronNote = player.specialization === 'ladron' ? ' (bonus Ladrón de Sombras aplicado)' : '';
+  return {
+    text: `🧹 Aldric revisa el montón de cachivaches.\n"Basura de calidad media, pero basura al fin."\n\n${soldLines.join('\n')}\n─ ${junkItems.length} ítem${junkItems.length !== 1 ? 's' : ''} vendidos${ladronNote} · +${totalGold}g\n💰 Oro total: ${newGold}g.${questLine}`,
+    event: `${player.username} vende basura al mercader.`,
+    eventRoomId: player.current_room_id,
+  };
 }
 
 /**
@@ -6212,7 +6314,7 @@ function cmdPick(player, itemQuery) {
   const invWarnCount = (freshForInvWarn.inventory || []).length + ((freshForInvWarn.equipped_weapon ? 1 : 0) + (freshForInvWarn.equipped_armor ? 1 : 0));
   const invWarnMax = INV_BASE_SLOTS + (freshForInvWarn.inventory_bonus || 0); // DIS-1480
   if (invWarnCount >= 16) {
-    pickSingleMsg += `\n\n⚠️  Inventario casi lleno (${invWarnCount}/${invWarnMax}) — considerá vender ítems en la tienda de Aldric (sala 4) o guardarlos en la bóveda antes de enfrentar al Lich.`;
+    pickSingleMsg += `\n\n⚠️  Inventario casi lleno (${invWarnCount}/${invWarnMax}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`;  // DIS-1657
   }
 
   // ── EPIC-1158: hook de expedición — trigger 'pickup' ─────────────────────
@@ -8315,7 +8417,7 @@ function cmdLoot(player) {
   // (umbral ≥25 para alertar antes de llegar al Lich con inventario lleno)
   const usedAfterLoot = newInventory.length + equippedCountLoot;
   const inventoryWarnLine = (usedAfterLoot >= 25 && itemsLeft.length === 0)
-    ? `\n\n⚠️  Inventario casi lleno (${usedAfterLoot}/${MAX_INVENTORY}) — considerá vender ítems en la tienda de Aldric (sala 4) o guardarlos en la bóveda antes de enfrentar al Lich.`
+    ? `\n\n⚠️  Inventario casi lleno (${usedAfterLoot}/${MAX_INVENTORY}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`  // DIS-1657
     : '';
 
   return {
@@ -11164,6 +11266,7 @@ function cmdShop(player, args) {
   }
   lines.push('Comandos: "buy <ítem>" para comprar, "sell <ítem>" para vender.');
   lines.push(`Podés vender tus ítems al ${Math.round(SELL_PRICE_RATIO * 100)}% de su valor original.`);
+  lines.push('💡 "vender basura" vende todos los ítems sin valor de un solo golpe.');  // DIS-1657
 
   // DIS-1603: mencionar runas si el jugador aún no tiene ninguna — visibilidad anticipada del mechanic
   try {
