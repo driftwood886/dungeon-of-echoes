@@ -433,6 +433,10 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
       // HP normal + no veterano: hint informativo
       lines.push(`\n🙏 En el centro de la sala hay un cuenco de piedra negra lleno de agua fría.\n   ("cuenco" para beber — recupera 40% HP, cooldown personal 5 min)`);
     }
+    // DIS-1649: hint de inscripción en pared norte (sutil — solo para no-veteranos)
+    if (!isVeteranPlayer) {
+      lines.push(`\n🪨 Hay algo grabado en la pared norte. ("examine inscripcion" para leerlo)`);
+    }
   }
 
   // DIS-D344: Pista ruta alternativa ya incluida en la descripción de la sala 7 (seed.js)
