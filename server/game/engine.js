@@ -12212,24 +12212,34 @@ function _buildFactionCard(lore, showConfirmHint = true) {
   }
 
   lines.push(`╟──────────────────────────────────────────────────────╢`);
-  lines.push(`║  Playstyle: ${lore.playstyle.substring(0, 43).padEnd(43)}║`);
-  lines.push(`║  Bonus activo: ${lore.bonuses.substring(0, 40).padEnd(40)}║`);
+  // DIS-1651: usar _wrapText en playstyle, bonuses y member_perks en vez de truncar con substring
+  for (const wl of _wrapText(`Playstyle: ${lore.playstyle}`, 52)) {
+    lines.push(`║  ${wl.padEnd(52)}║`);
+  }
+  for (const wl of _wrapText(`Bonus activo: ${lore.bonuses}`, 52)) {
+    lines.push(`║  ${wl.padEnd(52)}║`);
+  }
   if (lore.member_perks) {
-    lines.push(`║  Tuyo (miembro): ${lore.member_perks.substring(0, 38).padEnd(38)}║`);
+    for (const wl of _wrapText(`Tuyo (miembro): ${lore.member_perks}`, 52)) {
+      lines.push(`║  ${wl.padEnd(52)}║`);
+    }
   }
 
   lines.push(`╟──────────────────────────────────────────────────────╢`);
   lines.push(`║  📋 Misiones de facción:                             ║`);
   for (const m of lore.missions) {
-    const mShort = m.substring(0, 52);
-    lines.push(`║  ${mShort.padEnd(52)}║`);
+    // DIS-1651: wrap también en misiones e ítems exclusivos
+    for (const wl of _wrapText(m, 52)) {
+      lines.push(`║  ${wl.padEnd(52)}║`);
+    }
   }
 
   lines.push(`╟──────────────────────────────────────────────────────╢`);
   lines.push(`║  🎁 Beneficios exclusivos:                           ║`);
   for (const item of lore.exclusive_items) {
-    const iShort = item.substring(0, 52);
-    lines.push(`║  ${iShort.padEnd(52)}║`);
+    for (const wl of _wrapText(item, 52)) {
+      lines.push(`║  ${wl.padEnd(52)}║`);
+    }
   }
 
   if (showConfirmHint) {
