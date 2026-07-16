@@ -17423,7 +17423,7 @@ function cmdSkills(player) {
       picaro: [
         `Nivel 1 — Veneno, Robar`,
         `Nivel 3 — Golpe Sucio: ×1.3 + veneno 3 turnos`,
-        `Nivel 5 — 🌟 Especialización: Asesino o Emboscador`,
+        `Nivel 5 — 🌟 Especialización: Asesino (emboscar + emboscada_oscura) o Emboscador`,
         `Nivel 6 — Evasión: esquiva garantizada`,
       ],
       clerigo: [
@@ -17494,7 +17494,18 @@ function cmdSkills(player) {
       lines.push('   Bonuses pasivos:');
       for (const p of specObj.passives) lines.push(`     • ${p}`);
       lines.push('   Comandos nuevos desbloqueados:');
-      for (const cmd of specObj.new_commands) lines.push(`     • ${cmd}`);
+      for (const cmd of specObj.new_commands) {
+        // DIS-1659: mostrar cooldown de la habilidad si existe en la lista desbloqueada
+        const skDIS1659 = unlocked.find(sk => sk.id === cmd || sk.aliases.includes(cmd));
+        if (skDIS1659) {
+          const expDIS1659 = cooldowns[skDIS1659.id];
+          const remDIS1659 = expDIS1659 ? Math.max(0, Math.ceil((new Date(expDIS1659) - now) / 1000)) : 0;
+          const statusDIS1659 = remDIS1659 > 0 ? `⏳ ${remDIS1659}s cooldown` : '✅ Lista';
+          lines.push(`     • ${cmd} — ${skDIS1659.description.slice(0, 60)}... [${statusDIS1659}]`);
+        } else {
+          lines.push(`     • ${cmd}`);
+        }
+      }
     }
   } else if (level >= 5 && fresh.player_class && fresh.player_class !== 'sin_clase') {
     const availableSpecs = getSpecsForClass(fresh.player_class);
