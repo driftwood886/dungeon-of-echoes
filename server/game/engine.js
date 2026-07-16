@@ -18668,6 +18668,8 @@ function cmdUseSkill(player, args, context) {
       for (const [key, msg] of Object.entries(beastMessages)) {
         if (targetNameLow.includes(key)) { beastMsg = `🃏 ${msg}`; break; }
       }
+      // DIS-1661: aclarar que el cooldown no se consume y el monstruo no contraataca
+      beastMsg += `\n   (El cooldown de robar no se consume — la habilidad no se activó. El ${target.name} no contraatacó.)`;
       return { text: beastMsg };
     }
 
