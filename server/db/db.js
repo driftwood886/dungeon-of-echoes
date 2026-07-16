@@ -1958,7 +1958,7 @@ const RUNE_BONUSES = {
   hielo:  { stat: 'max_hp',  amount: 5,  label: '+5 HP máximo permanente' },
   sombra: { stat: 'defense', amount: 1,  label: '+1 DEF permanente' },
   luz:    { stat: 'max_hp',  amount: 3,  label: '+3 HP máximo permanente' },
-  caos:   { stat: 'mana',    amount: 3,  label: '+3 maná máximo permanente' },
+  caos:   { stat: 'max_mana', amount: 3,  label: '+3 maná máximo permanente' },
 };
 
 // DIS-1364: afinidades temáticas de monstruos normales (no-boss)
