@@ -14951,6 +14951,16 @@ const SPELL_CATALOG = {
     icon: '☄️',
     required_specialization: 'evoker',
   },
+  // DIS-1648: tormenta_de_hielo — hechizo exclusivo del Elementalista. AoE de hielo que ralentiza a todos.
+  'tormenta de hielo': {
+    cost: 20,
+    type: 'aoe_slow',
+    amount: 8,
+    description: 'Desata una tormenta de hielo sobre la sala. Inflige 8 de daño a TODOS los monstruos y los ralentiza (slowed) por 2 turnos. Solo disponible con especialización Elementalista.',
+    aliases: ['tormenta_de_hielo', 'tormenta hielo', 'blizzard', 'ventisca', 'tempestad de hielo'],
+    icon: '🌨️',
+    required_specialization: 'elementalista',
+  },
 };
 
 /**
@@ -15140,7 +15150,7 @@ function cmdCast(player, args) {
   if (spell.required_specialization) {
     const playerSpec = player.specialization || null;
     if (playerSpec !== spell.required_specialization) {
-      const specNames = { evoker: 'Evoker', paladin: 'Paladín', asesino: 'Asesino', sanador: 'Sanador' };
+      const specNames = { evoker: 'Evoker', elementalista: 'Elementalista', paladin: 'Paladín', asesino: 'Asesino', sanador: 'Sanador' };
       const specName = specNames[spell.required_specialization] || spell.required_specialization;
       if (!playerSpec) {
         return {
@@ -15259,6 +15269,23 @@ function cmdCast(player, args) {
     const EVOKER_DIRECT_DAMAGE_SPELLS = ['rayo', 'bola de fuego', 'fireball', 'lightning', 'escarcha', 'ice', 'frost', 'meteoro'];
     const evokerBonus = (player.specialization === 'evoker' && EVOKER_DIRECT_DAMAGE_SPELLS.includes(spellName)) ? 0.25 : 0;
     const evokerMult = 1 + evokerBonus;
+    // DIS-1648: Elementalista — sinergia elemental: +20% daño si objetivo tiene slowed Y burning simultáneos
+    let elementalistaBonus = 0;
+    let elementalistaSinergiaNote = '';
+    if (player.specialization === 'elementalista') {
+      try {
+        const targetSEForSin = typeof target.status_effects === 'string'
+          ? JSON.parse(target.status_effects || '{}')
+          : (target.status_effects || {});
+        const hasSlowed = !!targetSEForSin['slowed'];
+        const hasBurning = !!targetSEForSin['burning'];
+        if (hasSlowed && hasBurning) {
+          elementalistaBonus = 0.20;
+          elementalistaSinergiaNote = ' 🌪️[Elementalista +20% sinergia]';
+        }
+      } catch (_) {}
+    }
+    const elementalistaMult = 1 + elementalistaBonus;
     // DIS-562: Resistencia mágica para bosses/élites — reducen el daño mágico al 65%
     // Afecta a criaturas físicas/pétricas que resistirían la magia
     // DIS-826: Eco Viviente agregado — sus ecos amplifican y absorben magia (nivel 6+ no debería caer en 3 hechizos nivel 3)
@@ -15333,7 +15360,7 @@ function cmdCast(player, args) {
       !NON_MAGE_WEAPON_PENALTY_EXEMPTIONS.some(kw => equippedWeapon1611.includes(kw));
     const nonMageWeaponMult = hasPhysicalWeapon1611 ? 0.95 : 1.0;
     const nonMageWeaponNote = hasPhysicalWeapon1611 ? ` ⚔️[-5% arma no-mago]` : '';
-    const rawDmg = Math.round(dmg * spellPower * magicResist * arcaneSurgeMult * evokerMult * elementalMult * steamExpMult * nonMageWeaponMult);
+    const rawDmg = Math.round(dmg * spellPower * magicResist * arcaneSurgeMult * evokerMult * elementalistaMult * elementalMult * steamExpMult * nonMageWeaponMult);
     const finalDmg = elementalMult === 0.0 ? 0 : Math.max(1, rawDmg);
 
     // EPIC-1303-F4: estado "condenado" del Clérigo en hechizos — multiplicar daño ×1.30 y consumir
@@ -15377,7 +15404,7 @@ function cmdCast(player, args) {
     const arcaneSurgeNoteNew = (newArcaneSurgeBonus > 0 && newArcaneSurgeBonus >= arcaneSurgeBonus) ? ` ⚡(+${Math.round(newArcaneSurgeBonus * 100)}% Carga Arcana [evento])` : arcaneSurgeNote;
     const evokerNote = evokerBonus > 0 ? ` ⚡[Evoker +25%]` : '';
     const finalArcaneSurgeNote = arcaneSurgeNoteNew || arcaneSurgeNote;
-    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${finalArcaneSurgeNote}${evokerNote}${elementalNote}${steamExpNote}${nonMageWeaponNote})` : (magicResistNote + finalArcaneSurgeNote + evokerNote + elementalNote + steamExpNote + nonMageWeaponNote) || '';
+    const dmgNote = spellPower > 1.0 ? ` (${dmg}×${spellPower} daño mágico de Mago${magicResistNote}${finalArcaneSurgeNote}${evokerNote}${elementalistaSinergiaNote}${elementalNote}${steamExpNote}${nonMageWeaponNote})` : (magicResistNote + finalArcaneSurgeNote + evokerNote + elementalistaSinergiaNote + elementalNote + steamExpNote + nonMageWeaponNote) || '';
     lines.push(`   ${target.name} recibe ${finalDmgCondenado} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
     if (spellCondenadoMsg) { lines.push(spellCondenadoMsg); }  // EPIC-1303-F4: mensaje de marca condenado
 
@@ -15410,11 +15437,13 @@ function cmdCast(player, args) {
     // DIS-D29 / EPIC-1290-F1: escarcha ralentiza SIEMPRE (determinista) si el monstruo sobrevive
     // Cambio: slow_chance probabilístico → applyDebuff('slowed') determinista
     // 'slowed' es semánticamente diferente a 'stunned' — base para sinergia frozen (EPIC-1293-F2)
+    // DIS-1648: Elementalista aplica slowed por 2 turnos (era 1)
     if (spell.slow_chance && newHp > 0) {
+      const slowTurns = (player.specialization === 'elementalista') ? 2 : 1;
       try {
         const mStatus2 = JSON.parse(target.status_effects || '{}');
         const slowTarget = { status_effects: mStatus2 };
-        const { applied, lines: slowLines, evokerSinergia: slowEvoSin } = combatStates.applyDebuff(slowTarget, 'slowed', { source: 'escarcha', turns: 1, isBoss: targetIsBoss, isEvoker: playerIsEvoker });
+        const { applied, lines: slowLines, evokerSinergia: slowEvoSin } = combatStates.applyDebuff(slowTarget, 'slowed', { source: 'escarcha', turns: slowTurns, isBoss: targetIsBoss, isEvoker: playerIsEvoker });
         // EPIC-1306-F5: manejar COLAPSO ARCANO
         if (slowEvoSin) {
           const postColHp2 = Math.max(0, (target.hp || 0) - slowEvoSin.directDmg);
@@ -15428,11 +15457,13 @@ function cmdCast(player, args) {
     }
 
     // EPIC-1293-F2: bola de fuego aplica burning (DoT 3 dmg/turno) si el monstruo sobrevive
+    // DIS-1648: Elementalista aplica burning por 4 turnos (era 2)
     if (spellName === 'bola de fuego' && newHp > 0) {
+      const burnTurns = (player.specialization === 'elementalista') ? 4 : 2;
       try {
         const mStatusBurn = JSON.parse(target.status_effects || '{}');
         const burnTarget = { status_effects: mStatusBurn };
-        const { applied, lines: burnLines, evokerSinergia: burnEvoSin } = combatStates.applyDebuff(burnTarget, 'burning', { source: 'bola de fuego', turns: 2, dmg_per_turn: 3, isBoss: targetIsBoss, isEvoker: playerIsEvoker });
+        const { applied, lines: burnLines, evokerSinergia: burnEvoSin } = combatStates.applyDebuff(burnTarget, 'burning', { source: 'bola de fuego', turns: burnTurns, dmg_per_turn: 3, isBoss: targetIsBoss, isEvoker: playerIsEvoker });
         // EPIC-1306-F5: manejar COLAPSO ARCANO
         if (burnEvoSin) {
           const postColHp3 = Math.max(0, (target.hp || 0) - burnEvoSin.directDmg);
@@ -15828,6 +15859,84 @@ function cmdCast(player, args) {
 
     lines.push(`🪄 Invocás ${spell.icon} un escudo mágico.`);
     lines.push(`   El próximo ataque que recibas absorberá ${spell.amount} puntos de daño.`);
+    lines.push(`   💧 Maná restante: ${newMana}/${maxMana}`);
+
+  } else if (spell.type === 'aoe_slow') {
+    // DIS-1648: Tormenta de Hielo — Elementalista exclusivo. AoE: daño + slowed a todos los monstruos de la sala.
+    const aoeMonsters = db.getMonstersInRoom(player.current_room_id).filter(m => m.hp > 0);
+    if (aoeMonsters.length === 0) {
+      return { text: `🪄 No hay monstruos en la sala para atacar con ${spell.icon} ${spellName}.` };
+    }
+
+    db.updatePlayer(player.id, { mana: newMana, last_mana_regen: player.last_mana_regen || new Date().toISOString() });
+
+    lines.push(`🪄 ¡Desatás ${spell.icon} **Tormenta de Hielo** sobre la sala!`);
+    lines.push(`   La tormenta azota a TODOS los enemigos:`);
+
+    const playerClsAoe = classes.getPlayerClass(player);
+    const aoeSpellPower = playerClsAoe ? (playerClsAoe.spell_power || 1.0) : 1.0;
+    const aoeDmgBase = spell.amount; // 8 daño base
+    const playerIsEvokerAoe = (player.specialization === 'elementalista');
+
+    for (const aoeTarget of aoeMonsters) {
+      const rawAoeDmg = Math.round(aoeDmgBase * aoeSpellPower);
+      const finalAoeDmg = Math.max(1, rawAoeDmg);
+      const newAoeHp = Math.max(0, aoeTarget.hp - finalAoeDmg);
+      db.updateMonster(aoeTarget.id, { hp: newAoeHp });
+      lines.push(`   • ${aoeTarget.name}: −${finalAoeDmg} HP (${aoeTarget.hp} → ${newAoeHp})`);
+
+      // Aplicar slowed 2 turnos a cada monstruo superviviente
+      if (newAoeHp > 0) {
+        try {
+          const aoeTargetSE = typeof aoeTarget.status_effects === 'string'
+            ? JSON.parse(aoeTarget.status_effects || '{}')
+            : (aoeTarget.status_effects || {});
+          const aoeSlowTarget = { status_effects: aoeTargetSE };
+          const aoeTargetIsBoss = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[aoeTarget.id]);
+          const { lines: aoeSlowLines } = combatStates.applyDebuff(aoeSlowTarget, 'slowed', {
+            source: 'tormenta de hielo', turns: 2, isBoss: aoeTargetIsBoss, isEvoker: false,
+          });
+          db.updateMonster(aoeTarget.id, { status_effects: JSON.stringify(aoeSlowTarget.status_effects) });
+          for (const l of aoeSlowLines) lines.push(`     ${l}`);
+        } catch (_) {}
+      }
+
+      if (newAoeHp <= 0) {
+        // Monstruo muerto — manejar respawn simple (sin XP/drops — la tormenta de hielo es control, no kill)
+        try {
+          const EARLY_GAME_MONSTER_IDS_AOE = new Set([1, 3, 4, 6, 7, 26, 27]);
+          const isBossAoe = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[aoeTarget.id]);
+          const respawnMinutesAoe = isBossAoe ? (combat.BOSS_MONSTERS[aoeTarget.id].respawnMinutes || 30)
+            : EARLY_GAME_MONSTER_IDS_AOE.has(aoeTarget.id) ? 3 : 5;
+          db.updateMonster(aoeTarget.id, {
+            hp: 0,
+            room_id: null,
+            respawn_at: new Date(Date.now() + respawnMinutesAoe * 60 * 1000).toISOString(),
+            status_effects: '{}',
+          });
+          const { droppedLoot: aoeLoot } = combat.dropLoot(aoeTarget, player.current_room_id);
+          lines.push(`   💀 ¡${aoeTarget.name} cae derrotado por la tormenta!`);
+          if (aoeLoot.length > 0) lines.push(`   💰 ${aoeTarget.name} suelta: ${aoeLoot.join(', ')}.`);
+          const aoeXp = Math.floor(5 + (aoeTarget.max_hp || 10) / 2);
+          const aoeNewKills = (player.kills || 0) + 1;
+          const aoeNewXp = (player.xp || 0) + aoeXp;
+          const aoeNewLevel = xpSystem.levelFromXp(aoeNewXp);
+          const aoeUpd = { kills: aoeNewKills, xp: aoeNewXp, level: aoeNewLevel };
+          if (aoeNewLevel > (player.level || 1)) {
+            aoeUpd.max_hp = (player.max_hp || 30) + 5;
+            const aoeHealPct = Math.ceil(aoeUpd.max_hp * 0.20);
+            aoeUpd.hp = Math.min(aoeUpd.max_hp, (player.hp || 1) + aoeHealPct);
+            aoeUpd.attack = (player.attack || 5) + 1;
+            lines.push(`   ✨ ¡Subiste al nivel ${aoeNewLevel}!`);
+          }
+          db.updatePlayer(player.id, aoeUpd);
+          player = { ...player, ...aoeUpd }; // actualizar referencias locales de kills/xp/level
+          lines.push(`   ⭐ +${aoeXp} XP (kills: ${aoeNewKills})${xpProgressSuffix(aoeNewXp, aoeNewLevel)}`);
+          db.addBestiaryKill(player.id, aoeTarget.name);
+        } catch (_) {}
+      }
+    }
+
     lines.push(`   💧 Maná restante: ${newMana}/${maxMana}`);
   }
 
@@ -16625,7 +16734,7 @@ function cmdSpells(player) {
     const playerLevel = player.level || 1;
     if (player.specialization) {
       // Ya tiene especialización — mostrar qué desbloquea
-      const specNames = { evoker: 'Evoker', paladin: 'Paladín', asesino: 'Asesino', sanador: 'Sanador' };
+      const specNames = { evoker: 'Evoker', elementalista: 'Elementalista', paladin: 'Paladín', asesino: 'Asesino', sanador: 'Sanador' };
       const mySpecName = specNames[player.specialization] || player.specialization;
       lines.push(``);
       lines.push(`🌟 Especialización: **${mySpecName}** (activa)`);

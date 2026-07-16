@@ -421,7 +421,7 @@ function canUseSkill(player, skillId) {
   if (skill.required_specialization) {
     const playerSpec = player.specialization || null;
     if (playerSpec !== skill.required_specialization) {
-      const specNames = { paladin: 'Paladín', evoker: 'Evoker', asesino: 'Asesino', sanador: 'Sanador', berserker: 'Berserker', ladron: 'Ladrón de Sombras' };
+      const specNames = { paladin: 'Paladín', evoker: 'Evoker', elementalista: 'Elementalista', asesino: 'Asesino', sanador: 'Sanador', berserker: 'Berserker', ladron: 'Ladrón de Sombras' };
       const requiredName = specNames[skill.required_specialization] || skill.required_specialization;
       if (!playerSpec) {
         return { ok: false, error: `${skill.name} requiere la especialización ${requiredName}. Elegí tu especialización con "especializar" al nivel 5.` };

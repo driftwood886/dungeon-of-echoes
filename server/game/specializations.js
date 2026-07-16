@@ -94,6 +94,30 @@ const SPECIALIZATIONS = {
     },
   },
 
+  // DIS-1648: segunda especialización para el Mago — Elementalista
+  elementalista: {
+    id: 'elementalista',
+    class: 'mago',
+    name: 'Elementalista',
+    emoji: '🌪️',
+    description: 'El mago que domina los efectos de estado. El Elementalista no mata de golpe — congela, quema y aplasta en capas. Sus hechizos encadenan debuffs para maximizar el daño total. Más control que el Evoker, pero cada decisión importa.',
+    flavor: '🌪️ Los elementos responden a tu voluntad. Escarcha y fuego entrelazados, hielo y calor en tu palma. Sos un Elementalista — no matás a los monstruos, los desarmás primero.',
+    passives: [
+      'Escarcha aplica `slowed` durante 2 turnos (era 1)',
+      'Bola de fuego aplica `burning` durante 4 turnos (era 2) — más daño de DoT acumulado',
+      'Sinergia elemental: si el objetivo tiene `slowed` Y `burning` simultáneamente, todos tus hechizos hacen +20% daño',
+      '`cast tormenta_de_hielo`: AoE de hielo que ralentiza a TODOS los monstruos de la sala (costo: 20 maná)',
+      'Escarcha de emergencia (≤30% maná) cuesta 0 maná — umbral ampliado del 20% al 30%',
+    ],
+    new_commands: ['cast tormenta_de_hielo'],
+    combat_modifiers: {
+      escarcha_slow_turns: 2,          // escarcha ralentiza 2 turnos (era 1)
+      burning_turns: 4,               // bola de fuego quema 4 turnos (era 2)
+      elemental_sinergia_bonus: 0.20, // +20% daño cuando slowed+burning simultáneos
+      channeling_threshold: 0.30,     // escarcha de emergencia a ≤30% maná (igual que Evoker)
+    },
+  },
+
   // ─── PÍCARO ──────────────────────────────────────────────────────────────────
 
   asesino: {
@@ -206,8 +230,11 @@ const SPEC_ALIASES = {
   berserker:  'berserker',
   berserk:    'berserker',
   furia:      'berserker',
-  evoker:     'evoker',
-  evocador:   'evoker',
+  evoker:        'evoker',
+  evocador:      'evoker',
+  elementalista: 'elementalista',
+  elemental:     'elementalista',
+  arcanista:     'elementalista',   // alias alternativo — muchos jugadores usarán este nombre
   asesino:    'asesino',
   assassin:   'asesino',
   sanador:    'sanador',
