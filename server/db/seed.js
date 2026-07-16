@@ -715,11 +715,11 @@ function migrateNarrativeLore() {
     db.upsertRoom({ ...room2, description: 'Un pasillo largo y estrecho. Las paredes de piedra sudan humedad. Inscripciones ilegibles cubren cada centímetro —excepto una línea en el centro del corredor, protegida por cera endurecida. (Podés usar examine pared para leerla.)' });
     console.log('[seed] migrateNarrativeLore: Sala 2 actualizada con pista narrativa.');
   }
-  // STORY-004: Sala 5 — cera fresca en el altar
+  // STORY-004: Sala 5 — cera fresca en el altar + pista de inscripción (DIS-1680)
   const room5 = db.getRoom(5);
-  if (room5 && !room5.description.includes('cera derretida')) {
-    db.upsertRoom({ ...room5, description: 'Un altar de piedra negra domina la sala. Velas apagadas desde hace siglos —pero en la base del altar hay cera derretida fresca. Alguien estuvo aquí recientemente. (Usá examine altar para más detalles.)' });
-    console.log('[seed] migrateNarrativeLore: Sala 5 actualizada con cera fresca en altar.');
+  if (room5 && (!room5.description.includes('cera derretida') || !room5.description.includes('inscripción'))) {
+    db.upsertRoom({ ...room5, description: 'Un altar de piedra negra domina la sala. Velas apagadas desde hace siglos —pero en la base del altar hay cera derretida fresca. Alguien estuvo aquí recientemente. (Usá examine altar para más detalles.)\n📜 Una inscripción en la pared norte llama tu atención. (examine inscripcion)' });
+    console.log('[seed] migrateNarrativeLore: Sala 5 actualizada con cera fresca en altar + pista inscripción.');
   }
   // STORY-005: Sala 9 — trono sin polvo
   const room9 = db.getRoom(9);

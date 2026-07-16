@@ -15279,10 +15279,19 @@ function findSpell(query) {
   // BUG-007 fix: normalizar tildes/acentos con NFD (misma familia que DIS-P15)
   // BUG-048 fix: normalizar guiones a espacios ("bola-de-fuego" → "bola de fuego")
   // DIS-1668 fix: normalizar underscores a espacios ("bola_de_fuego" → "bola de fuego")
+  // DIS-1678 fix: dos pasadas — primero exact match (key o alias), luego startsWith.
+  //   Esto evita que "cast rayo" resuelva como "rayo menor" por ser prefijo.
   const normalize = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_]/g, ' ');
   const q = normalize(query);
+  // Pasada 1: match exacto por key o alias
   for (const [key, spell] of Object.entries(SPELL_CATALOG)) {
-    if (normalize(key) === q || spell.aliases.some(a => normalize(a) === q) || normalize(key).startsWith(q)) {
+    if (normalize(key) === q || spell.aliases.some(a => normalize(a) === q)) {
+      return { key, spell };
+    }
+  }
+  // Pasada 2: match por prefijo (fallback para abreviaciones como "bola" → "bola de fuego")
+  for (const [key, spell] of Object.entries(SPELL_CATALOG)) {
+    if (normalize(key).startsWith(q)) {
       return { key, spell };
     }
   }
@@ -15436,7 +15445,8 @@ function cmdCast(player, args) {
     // Hechizo de daño — necesita un monstruo
     if (monsters.length === 0) {
       return {
-        text: `🪄 No hay ningún monstruo en la sala para atacar con ${spell.icon} ${spellName}.`,
+        // DIS-1679: sugerir alternativas útiles sin monstruos (curación, escudo)
+        text: `🪄 No hay ningún monstruo en la sala para atacar con ${spell.icon} ${spellName}.\n   💡 Sin enemigos, podés usar: \`cast curación\` (restaura HP) o \`cast escudo\` (protección preventiva).`,
       };
     }
 
