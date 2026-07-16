@@ -3110,6 +3110,36 @@ function cmdMove(player, direction) {
     }
   } catch (_) { /* no romper movimiento si falla questEngine */ }
 
+  // DIS-1653: recordatorio de quest kill activa al moverse entre salas
+  // Si hay una quest activa de tipo kill y el jugador tiene progreso parcial,
+  // mostrar recordatorio sutil al entrar a cualquier sala (con o sin monstruo objetivo).
+  let questMoveHint = '';
+  try {
+    const activeQMove = quests.getActiveQuest();
+    if (activeQMove && activeQMove.questDef && activeQMove.questDef.type === 'kill' && activeQMove.questDef.target) {
+      const freshForQMove = db.getPlayer(player.id);
+      const alreadyCompletedMove = activeQMove.completedBy && activeQMove.completedBy.has(player.id);
+      if (!alreadyCompletedMove && freshForQMove) {
+        const qpMove = (() => { try { return JSON.parse(freshForQMove.quest_progress || '{}'); } catch(_) { return {}; } })();
+        const progressMove = (qpMove.questId === activeQMove.questDef.id) ? (qpMove.progress || 0) : 0;
+        const goalMove = activeQMove.questDef.goal;
+        if (progressMove > 0 && progressMove < goalMove) {
+          // Progreso parcial — ver si el objetivo está en esta sala
+          const normQ = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const questTargetMove = normQ(activeQMove.questDef.target);
+          const monstersMove = db.getMonstersInRoom(targetId);
+          const hasTargetMove = monstersMove.some(m => normQ(m.name).includes(questTargetMove));
+          if (hasTargetMove) {
+            questMoveHint = `\n📋 Quest activa: "${activeQMove.questDef.title}" — ${progressMove}/${goalMove} (¡objetivo aquí!)`;
+          } else {
+            // Sin objetivo en esta sala — recordatorio más suave
+            questMoveHint = `\n📋 Quest activa: "${activeQMove.questDef.title}" — ${progressMove}/${goalMove} ${activeQMove.questDef.target}s.`;
+          }
+        }
+      }
+    }
+  } catch (_) { /* no romper movimiento si falla */ }
+
   // IMPL-PARTY-1635: Notificación de movimiento de party y party_follow
   let partyMoveMsg = null;
   let partyMoveNotifyIds = [];
@@ -3138,7 +3168,7 @@ function cmdMove(player, direction) {
   } catch (_) {}
 
   return {
-    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${moveEventLine}${questExploreMsg}`,
+    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${moveEventLine}${questExploreMsg}${questMoveHint}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
