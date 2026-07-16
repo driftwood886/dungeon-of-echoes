@@ -75,7 +75,7 @@ const CLASSES = {
 
 const CLASS_ALIASES = {
   guerrero: 'guerrero', warrior: 'guerrero', 'war': 'guerrero',
-  mago: 'mago', mage: 'mago', wizard: 'mago', maga: 'mago',
+  mago: 'mago', mage: 'mago', wizard: 'mago', maga: 'mago', hechicero: 'mago', sorcerer: 'mago', brujo: 'mago', arcanista: 'mago', // DIS-1652
   picaro: 'picaro', pícaro: 'picaro', rogue: 'picaro', ladron: 'picaro', ladrón: 'picaro',
   clerigo: 'clerigo', clérigo: 'clerigo', cleric: 'clerigo', sanador: 'clerigo', healer: 'clerigo', sacerdote: 'clerigo',
 };
