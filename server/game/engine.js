@@ -23710,7 +23710,8 @@ function cmdGesture(player, gestureType) {
 
 const ALTAR_ROOMS = new Set([5, 10]);
 
-// Cooldown por jugador para evitar spam: 5 minutos
+// Cooldown por jugador y por altar para evitar spam: 5 minutos
+// DIS-1663: clave compuesta `${player_id}_${room_id}` para que cada altar tenga su propio cooldown
 const altarCooldowns = new Map();
 
 // Buffs del altar (en memoria, como los pergaminos)
@@ -23757,8 +23758,9 @@ function cmdPray(player, args) {
     return { text: '🙏 No hay ningún altar aquí para rezar.\n  Los altares se encuentran en la Capilla Olvidada (sala 5) y el Santuario Profano (sala 10).' };
   }
 
-  // Verificar cooldown
-  const lastPray = altarCooldowns.get(player.id) || 0;
+  // Verificar cooldown — DIS-1663: clave por jugador+altar para cooldowns independientes por altar
+  const altarKey = `${player.id}_${roomId}`;
+  const lastPray = altarCooldowns.get(altarKey) || 0;
   // DIS-610: Clérigo con símbolo sagrado equipado tiene cooldown reducido a 3 min
   const isClericoPray = player.player_class === 'clerigo';
   const hasSimboloSagrado = isClericoPray && player.equipped_weapon && player.equipped_weapon.toLowerCase().includes('símbolo sagrado');
@@ -23866,7 +23868,7 @@ function cmdPray(player, args) {
     resultLinesGold.push(`💰 Oro restante: ${player.gold - amount}g`);
 
     db.updatePlayer(player.id, updatesGold);
-    altarCooldowns.set(player.id, Date.now());
+    altarCooldowns.set(altarKey, Date.now());
 
     const altarNameGold = roomId === 5 ? 'la Capilla Olvidada' : 'el Santuario Profano';
     return {
@@ -23925,7 +23927,7 @@ function cmdPray(player, args) {
         resultLinesG.push(`⚡ ${genericEffect.label}: +${genericEffect.atk} ATK por ${genericEffect.duration}s`);
       }
       db.updatePlayer(player.id, updatesG);
-      altarCooldowns.set(player.id, Date.now());
+      altarCooldowns.set(altarKey, Date.now());
       const altarNameG = roomId === 5 ? 'la Capilla Olvidada' : 'el Santuario Profano';
       return {
         text: `🙏 Ofrecés ${found} al altar de ${altarNameG}.\n\n${resultLinesG.join('\n')}`,
@@ -24003,7 +24005,7 @@ function cmdPray(player, args) {
   }
 
   db.updatePlayer(player.id, updates);
-  altarCooldowns.set(player.id, Date.now());
+  altarCooldowns.set(altarKey, Date.now());
 
   // BUG-1415: aviso cuando se consume corona rota en la Capilla (sala 5) — ítem de uso dual
   // La corona rota también desactiva la trampa de frío de la Sala del Trono (sala 9).
