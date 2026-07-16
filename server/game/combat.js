@@ -375,7 +375,11 @@ function _getSkillUnlockMessages(lvl, playerClass, playerSpec) {
   if (!forLevel) return msgs;
   const cls = (playerClass || 'sin_clase').toLowerCase();
   for (const entry of forLevel) {
-    if (entry.clases.includes(cls) || entry.clases.includes(null)) {
+    // BUG-1655: la condición original incluía `|| entry.clases.includes(null)` que era
+    // always-true para la entrada del guerrero (que tiene null en su array), mostrando
+    // 'smash' a magos/clérigos/pícaros. Fix: solo verificar cls, null ya está cubierto
+    // porque cuando playerClass es null, cls='sin_clase' (que está en el array guerrero).
+    if (entry.clases.includes(cls)) {
       msgs.push(entry.texto);
     }
   }
