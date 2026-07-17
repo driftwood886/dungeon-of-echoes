@@ -4770,6 +4770,19 @@ function cmdAttack(player, targetName) {
   // Fix: verificar solo monster.id === 2, independientemente de la sala donde murió.
   if (monsterDead && monster.id === 2) {
     lines.push(`\n🏪 Aldric deja de ordenar los estantes y te mira fijamente.\n\n"...Era mi guardia." Pausa larga. "Supongo que en el dungeon todo termina así."\n\nSu tono no es hostil — pero tampoco amistoso. Vuelve a sus cajas sin decir más.\n\n_(El esqueleto reaparecerá cuando respawnee)_`);
+    // DIS-1691: marcar en npc_memory que el jugador mató al guardia de Aldric (para diálogo de seguimiento)
+    try {
+      const freshForAldric = db.getPlayer(player.id) || player;
+      let aldricMem = {};
+      try { aldricMem = (JSON.parse(freshForAldric.npc_memory || '{}')).aldric || {}; } catch (_) {}
+      if (!aldricMem.killed_guard_count) aldricMem.killed_guard_count = 0;
+      aldricMem.killed_guard_count += 1;
+      aldricMem.killed_guard_last_ts = Date.now();
+      const fullMem = {};
+      try { Object.assign(fullMem, JSON.parse(freshForAldric.npc_memory || '{}')); } catch (_) {}
+      fullMem.aldric = aldricMem;
+      db.updatePlayer(player.id, { npc_memory: JSON.stringify(fullMem) });
+    } catch (_) {}
   }
   // ── Metas globales (T194) — contabilizar kill ─────────────────────────────
   let worldGoalMsg = '';
@@ -10882,6 +10895,29 @@ function cmdTalk(player, target) {
 
   const questState = player.aldric_quest || 'none';
   const level = player.level || 1;
+
+  // DIS-1691: diálogo de seguimiento si el jugador mató al Esqueleto Guerrero guardia (id=2)
+  let aldricGuardMem1691 = {};
+  try { aldricGuardMem1691 = (JSON.parse(player.npc_memory || '{}')).aldric || {}; } catch (_) {}
+  const killedGuardCount1691 = aldricGuardMem1691.killed_guard_count || 0;
+  const guardDialogSeen1691  = aldricGuardMem1691.guard_dialog_seen  || false;
+
+  if (killedGuardCount1691 > 0 && !guardDialogSeen1691 && !tLow.includes('filacteria')) {
+    // Primera visita post-kill al guardia: Aldric reconoce al jugador y propone la quest
+    const countNote = killedGuardCount1691 > 1
+      ? `\n\n"Ya van ${killedGuardCount1691} veces que lo hacés," agrega sin mirarte. "El dungeon lo trae de vuelta igual. Me pregunto cuántas veces hace falta para que aprenda."`
+      : '';
+    try {
+      const fullMem1691 = {};
+      try { Object.assign(fullMem1691, JSON.parse(player.npc_memory || '{}')); } catch (_) {}
+      if (!fullMem1691.aldric) fullMem1691.aldric = {};
+      fullMem1691.aldric.guard_dialog_seen = true;
+      // Preservar killed_guard_count
+      fullMem1691.aldric.killed_guard_count = killedGuardCount1691;
+      db.updatePlayer(player.id, { npc_memory: JSON.stringify(fullMem1691) });
+    } catch (_) {}
+    return { text: `🏪 Aldric te mira cuando entrás. No dice nada de inmediato —deja que el silencio ocupe el espacio.\n\n"Así que fuiste vos." No es acusación. Es reconocimiento.\n\nSe apoya sobre el mostrador con los brazos cruzados. "El esqueleto que guardaba este corredor. Llevaba aquí desde antes de que yo llegara a montar la tienda.${countNote}"\n\n"Podría pagarte por el trabajo que ya hiciste." Una pausa. "O pedirte algo más." Te mira directamente por primera vez. "La sala de los ecos necesita alguien que mate lo que aparezca ahí con regularidad. Tres kills y te paso algo de lo que no pongo en el catálogo."\n\n_💡 Pista: matá 3 monstruos en cualquier sala del corredor y volvé a hablar con Aldric para la recompensa._` + expeditionTalkCmdMsg };
+  }
 
   // EPIC-MR-1079: Leer memoria de Aldric y preparar sufijo de diálogo
   let aldricMem = {};
