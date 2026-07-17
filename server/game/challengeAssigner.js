@@ -173,6 +173,14 @@ function ensureWeeklyChallengeInitialized() {
 
   db.setWeeklyChallenge(weekKey, challengeId, target, reward, expiresAt);
   console.log(`[challengeAssigner] Desafío semanal ${weekKey}: ${challenge.title} (target: ${target})`);
+
+  // IMPL-WM-1710: también inicializar las 3 Misiones de Guerra si no existen para esta semana
+  try {
+    db.ensureWarMissionsForWeek();
+    console.log(`[challengeAssigner] Misiones de Guerra inicializadas para semana ${weekKey}`);
+  } catch (e) {
+    console.error('[challengeAssigner] Error al inicializar Misiones de Guerra:', e.message);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

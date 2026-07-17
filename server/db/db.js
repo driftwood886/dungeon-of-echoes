@@ -1118,6 +1118,25 @@ async function init() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_faction_missions_faction_week_status ON faction_missions(faction, week, status)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_faction_missions_status ON faction_missions(status, week)`);
 
+  // IMPL-WM-1710: Misiones de Guerra Semanal — tabla colectiva por facción
+  db.run(`
+    CREATE TABLE IF NOT EXISTS faction_war_missions (
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      faction               TEXT NOT NULL,
+      week                  TEXT NOT NULL,
+      objective_type        TEXT NOT NULL,
+      target_name           TEXT,
+      target_global         INTEGER NOT NULL DEFAULT 0,
+      progress_global       INTEGER NOT NULL DEFAULT 0,
+      completed             INTEGER NOT NULL DEFAULT 0,
+      completed_at          TEXT,
+      reward_xp_per_member  INTEGER NOT NULL DEFAULT 100,
+      created_at            TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_fwm_faction_week ON faction_war_missions(faction, week)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_fwm_week ON faction_war_missions(week)`);
+
   // EPIC Facciones Vivas: seed del pool de misiones (9 misiones, 3 por facción) — IMPL-FM-1705
   try {
     const fmSeed = [
@@ -1287,6 +1306,12 @@ async function init() {
   } catch (e) {
     console.error('[db] EPIC-FM: Error al seed pool misiones:', e.message);
   }
+
+  // IMPL-WM-1710: Seed de definiciones de Misiones de Guerra Semanal (pool estático de objetivos)
+  // Las filas activas se crean semana a semana en ensureWarMissionsForWeek(), NO aquí.
+  // Este bloque solo registra los tipos disponibles en world_state para que el motor los lea.
+  // (No hay tabla de definiciones separada — los 3 tipos están hardcodeados en ensureWarMissionsForWeek)
+  console.log('[db] IMPL-WM-1710: faction_war_missions tabla lista (seed dinámico vía ensureWarMissionsForWeek)');
 
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });
@@ -3786,6 +3811,176 @@ function setFactionNotified(playerId) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// IMPL-WM-1710/1711: Misiones de Guerra Semanal
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Retorna la ISO week key actual (ej: '2026-W29').
+ * Usamos el mismo formato que challengeAssigner para consistencia.
+ */
+function getWarWeekKey() {
+  const now = new Date();
+  const jan4 = new Date(now.getFullYear(), 0, 4);
+  const week1Monday = new Date(jan4);
+  week1Monday.setDate(jan4.getDate() - (jan4.getDay() || 7) + 1);
+  const diffMs = now - week1Monday;
+  const weekNum = Math.floor(diffMs / (7 * 24 * 3600 * 1000)) + 1;
+  return `${now.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+/**
+ * Definiciones estáticas de los objetivos de Misión de Guerra por facción.
+ * Cada semana se crean filas con estos datos + target escalado.
+ * @param {number} weekNumber — usado para escalar targets (semana 1 = base, +10% por semana)
+ * @returns {Array<object>}
+ */
+function getWarMissionDefs(weekNumber = 1) {
+  const scale = 1 + Math.floor((weekNumber - 1) * 0.1); // escala de a 10% por semana, mínimo 1
+  return [
+    {
+      faction: 'orden_filo',
+      objective_type: 'kill_collective',
+      target_name: null,
+      target_global: Math.round(50 * scale),
+      reward_xp_per_member: 100,
+    },
+    {
+      faction: 'conclave_arcano',
+      objective_type: 'explore_collective',
+      target_name: null,
+      target_global: Math.round(20 * scale),
+      reward_xp_per_member: 100,
+    },
+    {
+      faction: 'hermandad_mercado',
+      objective_type: 'buy_collective',
+      target_name: null,
+      target_global: Math.round(30 * scale),
+      reward_xp_per_member: 100,
+    },
+  ];
+}
+
+/**
+ * Crea las 3 Misiones de Guerra de la semana actual si no existen todavía.
+ * Idempotente — usa INSERT OR IGNORE.
+ */
+function ensureWarMissionsForWeek() {
+  const weekKey = getWarWeekKey();
+  // Calcular número de semana para escalar
+  const now = new Date();
+  const jan1 = new Date(now.getFullYear(), 0, 1);
+  const weekNumber = Math.ceil(((now - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+
+  const defs = getWarMissionDefs(weekNumber);
+  for (const d of defs) {
+    try {
+      run(
+        `INSERT OR IGNORE INTO faction_war_missions
+           (faction, week, objective_type, target_name, target_global, progress_global, completed, reward_xp_per_member)
+         VALUES (?, ?, ?, ?, ?, 0, 0, ?)`,
+        [d.faction, weekKey, d.objective_type, d.target_name || null, d.target_global, d.reward_xp_per_member]
+      );
+    } catch (e) {
+      console.error('[db] ensureWarMissionsForWeek error:', e.message);
+    }
+  }
+  return weekKey;
+}
+
+/**
+ * Obtener la Misión de Guerra activa de una facción para la semana actual.
+ * @param {string} faction
+ * @returns {object|null}
+ */
+function getWarMission(faction) {
+  const weekKey = getWarWeekKey();
+  try {
+    const rows = db.exec(
+      `SELECT * FROM faction_war_missions WHERE faction = ? AND week = ? LIMIT 1`,
+      [faction, weekKey]
+    );
+    if (!rows.length || !rows[0].values.length) return null;
+    const cols = rows[0].columns;
+    const vals = rows[0].values[0];
+    const obj = {};
+    cols.forEach((c, i) => { obj[c] = vals[i]; });
+    return obj;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Incrementar el progreso colectivo de la Misión de Guerra de una facción.
+ * @param {string} faction
+ * @param {number} amount
+ * @returns {{ completed: boolean, newProgress: number, target: number }}
+ */
+function incrementWarMissionProgress(faction, amount = 1) {
+  const weekKey = getWarWeekKey();
+  try {
+    run(
+      `UPDATE faction_war_missions
+       SET progress_global = MIN(progress_global + ?, target_global)
+       WHERE faction = ? AND week = ? AND completed = 0`,
+      [amount, faction, weekKey]
+    );
+    const mission = getWarMission(faction);
+    if (!mission) return { completed: false, newProgress: 0, target: 0 };
+    return {
+      completed: mission.completed === 1,
+      newProgress: mission.progress_global,
+      target: mission.target_global,
+    };
+  } catch (e) {
+    console.error('[db] incrementWarMissionProgress error:', e.message);
+    return { completed: false, newProgress: 0, target: 0 };
+  }
+}
+
+/**
+ * Marcar la Misión de Guerra de una facción como completada.
+ * @param {string} faction
+ */
+function completeWarMission(faction) {
+  const weekKey = getWarWeekKey();
+  try {
+    run(
+      `UPDATE faction_war_missions
+       SET completed = 1, completed_at = datetime('now')
+       WHERE faction = ? AND week = ? AND completed = 0`,
+      [faction, weekKey]
+    );
+  } catch (e) {
+    console.error('[db] completeWarMission error:', e.message);
+  }
+}
+
+/**
+ * Obtener todas las Misiones de Guerra de la semana actual.
+ * @returns {Array<object>}
+ */
+function getAllWarMissions() {
+  const weekKey = getWarWeekKey();
+  try {
+    const rows = db.exec(
+      `SELECT * FROM faction_war_missions WHERE week = ?`,
+      [weekKey]
+    );
+    if (!rows.length) return [];
+    const cols = rows[0].columns;
+    return rows[0].values.map(vals => {
+      const obj = {};
+      cols.forEach((c, i) => { obj[c] = vals[i]; });
+      return obj;
+    });
+  } catch (_) {
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
   init, persist,
@@ -3862,4 +4057,7 @@ module.exports = {
   getPlayerFaction, getFaction, getAllFactions, getWeeklyLeaders, getFactionTopContributors,
   setPlayerFaction, recordFactionChange, addFactionInfluence, resetWeeklyFactionInfluence,
   setFactionNotified, getCurrentISOWeekKey,
+  // IMPL-WM-1710/1711: Misiones de Guerra Semanal
+  ensureWarMissionsForWeek, getWarMission, getAllWarMissions,
+  incrementWarMissionProgress, completeWarMission, getWarWeekKey,
   };
