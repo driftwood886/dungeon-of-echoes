@@ -9244,9 +9244,11 @@ function cmdMap(player, args = []) {
       // DIS-1561: lockMark QUITADO del horizontal (c(7)---c(3)) — ahora aparece en
       // el conector VERTICAL entre sala 10 y sala 7 (más abajo), indicando correctamente
       // que la puerta bloqueada es la salida NORTE del Pozo, no la salida ESTE.
+      // BUG-1685: row3 extendida para mostrar que sala 8 conecta TAMBIÉN con sala 17
+      // vía este (y 17→8 vía norte), formando un loop 4↔8↔17↔4.
       const row1 = `            ${c(6)}---${c(2)}  ╎  ${c(7)}---${c(3)}---${c(4)}---${c(17)}`;
       const row2 = `                                                               |         |`;
-      const row3 = `                                                         ${c(8)}---+`;
+      const row3 = `                                                         ${c(8)}---------+`;
       return [row1, row2, row3].join('\n');
     })(),
     // DIS-1561: restaurar conector vertical simple entre sala 6/Túnel y sala 5/Capilla
@@ -9313,6 +9315,11 @@ function cmdMap(player, args = []) {
     ...(visitedRooms.has(9) || visitedRooms.has(7)) && !visitedRooms.has(10)
       ? [`🗺  Ruta al Santuario sin llave: Entrada → este → Capilla → norte → Túnel → norte → Trono → este → Santuario`]
       : [],
+    // BUG-1685: nota de conexión 8↔17 (Prisión ↔ Casa de Subastas)
+    // Solo mostrar si el jugador visitó sala 8 o sala 17 para evitar confusión prematura
+    ...((visitedRooms.has(8) || visitedRooms.has(17))
+      ? [`🔗 Prisión (sala 8) ↔ Casa de Subastas (sala 17): conectadas por un pasillo corto (este desde Prisión / norte desde Subastas). Forman un loop con el Tesoro (sala 4).`]
+      : []),
   ];
 
   return { text: lines.join('\n') };
