@@ -4505,9 +4505,14 @@ function cmdAttack(player, targetName) {
   // Calcular nivel de combo ANTES del ataque, para aplicar bonus al daño
   const prevCombo = comboMap.get(player.id);
   let comboCount = 0;
+  // DIS-1686: mensaje de combo roto al cambiar de objetivo
+  let comboBrokenMsg = '';
   if (prevCombo && prevCombo.monsterId === monster.id) {
     comboCount = Math.min(COMBO_MAX, prevCombo.count + 1);
   } else {
+    if (prevCombo && prevCombo.count >= 2) {
+      comboBrokenMsg = `\n💔 COMBO ROTO — cambiaste de objetivo (perdiste ×${prevCombo.count}).`;
+    }
     comboCount = 1;
   }
   // Aplicar bonus de combo como modificador temporal al ataque del jugador
@@ -4727,6 +4732,8 @@ function cmdAttack(player, targetName) {
   if (!playerDead && !combatResult.paralyzed && !combatResult.spectralBlocked && comboCount >= 2) {
     comboMsg = '\n' + (COMBO_MSGS[comboCount] || `⚡ ¡COMBO x${comboCount}!`) + ` (+${comboBonusDmg} dmg)`;
   }
+  // DIS-1686: añadir mensaje de combo roto si aplica (cambiaste de objetivo con combo activo)
+  if (comboBrokenMsg) comboMsg = comboBrokenMsg + comboMsg;
 
   let eventText = null;
   if (monsterDead) {
