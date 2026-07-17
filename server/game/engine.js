@@ -1703,7 +1703,10 @@ function cmdMove(player, direction) {
         // DIS-1249: Pre-move warning para Sala del Trono (sala 9) — path sin-boss
         if (destId === 9) {
           const room9WarnNB = db.getRoom(9);
-          if (room9WarnNB && room9WarnNB.trap && room9WarnNB.trap.active) {
+          // BUG-1716: verificar known_traps antes del warning — si el jugador ya conoce la trampa, no mostrar aviso
+          const knownTrapsNB1249 = player.known_traps || {};
+          const trapAlreadyKnownNB1249 = knownTrapsNB1249[9] === true || knownTrapsNB1249['9'] === true;
+          if (room9WarnNB && room9WarnNB.trap && room9WarnNB.trap.active && !trapAlreadyKnownNB1249) {
             const invNB1249 = (player.inventory || []).map(i => i.toLowerCase().trim());
             const hasCoronaNB = invNB1249.includes('corona rota');
             // DIS-1689: aviso cuando el jugador TIENE la corona — se va a consumir automáticamente
@@ -2326,7 +2329,11 @@ function cmdMove(player, direction) {
   // Misma mecánica que DIS-1244: primera vez frena con aviso, segunda vez deja pasar con daño.
   if (targetId === 9) {
     const room9ForWarn = db.getRoom(9);
-    if (room9ForWarn && room9ForWarn.trap && room9ForWarn.trap.active) {
+    // BUG-1716: verificar known_traps antes del warning — si el jugador ya conoce la trampa,
+    // no mostrar el aviso (la trampa se esquiva automáticamente por memoria en el path principal)
+    const knownTraps1249check = player.known_traps || {};
+    const trapAlreadyKnown1249 = knownTraps1249check[9] === true || knownTraps1249check['9'] === true;
+    if (room9ForWarn && room9ForWarn.trap && room9ForWarn.trap.active && !trapAlreadyKnown1249) {
       const inv1249 = (player.inventory || []).map(i => i.toLowerCase().trim());
       const hasCoronaRota1249 = inv1249.includes('corona rota');
       // DIS-1689: aviso cuando el jugador TIENE la corona — se va a consumir automáticamente
