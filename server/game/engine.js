@@ -11484,6 +11484,16 @@ function cmdBuy(player, itemQuery) {
     return { text: `💰 No tenés suficiente oro. Necesitás ${finalPrice}g, tenés ${gold}g.` };
   }
 
+  // BUG-1695: verificar límite de inventario antes de comprar
+  {
+    const buyInvMax = INV_BASE_SLOTS + (player.inventory_bonus || 0);
+    const buyEqCount = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
+    const buyUsedSlots = (player.inventory || []).length + buyEqCount;
+    if (buyUsedSlots >= buyInvMax) {
+      return { text: `🎒 Tu inventario está lleno (${buyUsedSlots}/${buyInvMax}). Vendé algo, usá el vault (sala 1, 17 o 19) o comprá una bolsa de lona (+4 slots).` };
+    }
+  }
+
   // DIS-1331: Hint de crafteo equivalente — si el jugador tiene materiales para craftear algo igual o mejor, avisar
   let craftAlternativeHint = '';
   try {
@@ -11660,6 +11670,16 @@ function cmdBuy(player, itemQuery) {
       expeditionBuyMsg = '\n\n' + expBuyResult.message;
     }
   }
+
+  // BUG-1696: trigger 'pickup' al comprar — sello_carcelero paso 1 (y cualquier expedición con trigger 'pickup')
+  try {
+    const freshForExpPickBuy = db.getPlayer(player.id);
+    const expPickBuyResult = expeditionEngine.checkStep(freshForExpPickBuy, 'pickup', {
+      itemName: item.name,
+      roomId: player.current_room_id,
+    });
+    if (expPickBuyResult.message) expeditionBuyMsg += '\n\n' + expPickBuyResult.message;
+  } catch (_) { /* no interrumpir compra si falla el hook de expedición */ }
 
   // ── EPIC-QD-1578: hook de quest — onTrade (buy) ─────────────────────────
   let questBuyMsg = '';
