@@ -6601,6 +6601,10 @@ function cmdUse(player, itemQuery) {
       bsPenalty = ` (−${penalty} HP — instinto berserk 🪓)`; // DIS-1468: feedback claro del penalty
     }
     resultText = `Bebés ${articuloItem(found)} ${found}. Recuperás ${newHp - oldHp} HP${palBonus}${bsPenalty}. (${newHp}/${maxHp} HP)`;
+    // DIS-1698: si hay penalización berserk, añadir hint pedagógico para nuevos jugadores
+    if (bsPenalty) {
+      resultText += `\n   💡 (El Berserker descuida la autosanación — sus pociones curan ${healAmount} HP en vez de ${def.amount}. Es parte del tradeoff de la clase.)`;
+    }
 
   } else if (def.type === 'mana_potion' && def.effect === 'restore_mana') {
     // T104: Pociones de maná

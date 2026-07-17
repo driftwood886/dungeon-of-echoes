@@ -1418,6 +1418,7 @@ function attackRound(player, monster) {
       if (ln936) lines.push(ln936);
 
       // DIS-1548: Aviso prominente al matar boss con loot en el suelo e inventario lleno.
+      // DIS-1697: También avisar cuando el inventario está casi lleno y no entran todos los ítems del boss.
       // El jugador novato puede no saber que los ítems quedan en la sala y puede salir sin recogerlos.
       if (isBossMonster && loot.length > 0) {
         const freshPForInv = db.getPlayer(player.id);
@@ -1427,13 +1428,17 @@ function attackRound(player, monster) {
         const eqCount = (freshPForInv.equipped_weapon ? 1 : 0) + (freshPForInv.equipped_armor ? 1 : 0);
         const slotsUsed = invNow.length + eqCount;
         const maxSlots = 20 + (freshPForInv.inventory_bonus || 0);
-        if (slotsUsed >= maxSlots) {
-          const slotsNeeded = Math.max(0, loot.length - (maxSlots - slotsUsed));
-          lines.push(`\n⚠️  [LOOT ÉPICO EN RIESGO] Tu inventario está LLENO (${slotsUsed}/${maxSlots}).`);
-          lines.push(`   El boss soltó ${loot.length} ítem${loot.length !== 1 ? 's' : ''} — liberá al menos ${slotsNeeded} slot${slotsNeeded !== 1 ? 's' : ''} con \`drop <ítem>\`.`);
-          lines.push(`   Los ítems del boss quedaron en el suelo de esta sala.`);
-          lines.push(`   La sala se preserva mientras sigas aquí — si salís, pueden perderse.`);
-          lines.push(`   Hacé espacio con \`drop <ítem>\` y luego recogé con \`loot\`.`);
+        const slotsLibres = maxSlots - slotsUsed;
+        // DIS-1697: avisar si el inventario está lleno O si hay menos slots libres que ítems del boss
+        if (slotsLibres < loot.length) {
+          const slotsNeeded = loot.length - slotsLibres;
+          const fullMsg = slotsLibres <= 0
+            ? `Tu inventario está LLENO (${slotsUsed}/${maxSlots})`
+            : `Tu inventario tiene solo ${slotsLibres} slot${slotsLibres !== 1 ? 's' : ''} libre${slotsLibres !== 1 ? 's' : ''} (${slotsUsed}/${maxSlots})`;
+          lines.push(`\n⚠️  [LOOT ÉPICO EN RIESGO] ${fullMsg}.`);
+          lines.push(`   El boss soltó ${loot.length} ítem${loot.length !== 1 ? 's' : ''} — ${slotsNeeded} no entr${slotsNeeded !== 1 ? 'aron' : 'ó'} y quedaron en el suelo.`);
+          lines.push(`   Liberá espacio con \`drop <ítem>\` y luego recogé con \`loot\`.`);
+          lines.push(`   La sala se preserva mientras sigas aquí — si salís, los ítems del suelo pueden perderse.`);
         }
       }
     }
