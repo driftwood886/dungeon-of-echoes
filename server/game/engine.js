@@ -3296,21 +3296,14 @@ function cmdInventory(player) {
     }
   }
 
-  const lines = [];
-  let idx = 1;
-  // Primero los equipados (con marcador visual)
-  for (const eq of equippedItems) {
-    const emoji = items.getRarityEmoji(eq.name);
-    const rarity = items.getItemRarity(eq.name);
-    const rarityLabel = rarity !== 'común' ? ` (${rarity})` : '';
-    lines.push(`  ${idx}. ${emoji} ${eq.name}${rarityLabel} [equipado — ${eq.slot}]`);
-    idx++;
-  }
-  // Luego el resto del inventario
-  // BUG-1429: agrupar ítems duplicados y mostrar (x2), (x3), etc.
-  // Preservar el orden de primera aparición para no reordenar el inventario.
-  const itemGroups = []; // [{ name, count }] en orden de primera aparición
-  const seenItems = new Map(); // name.toLowerCase() → índice en itemGroups
+  // DIS-1687: Agrupar ítems por categoría para inventarios grandes.
+  // Categorías: Equipado | Armamento | Consumibles | Materiales/Otros
+  const CONSUMABLE_TYPES = new Set(['potion', 'atk_potion', 'mana_potion', 'antidote', 'food']);
+  const EQUIPMENT_TYPES  = new Set(['weapon', 'armor']);
+
+  // BUG-1429: agrupar ítems duplicados (preservar orden de primera aparición)
+  const itemGroups = []; // [{ name, count }]
+  const seenItems = new Map();
   for (const item of allItems) {
     const key = item.toLowerCase();
     if (seenItems.has(key)) {
@@ -3320,23 +3313,67 @@ function cmdInventory(player) {
       itemGroups.push({ name: item, count: 1 });
     }
   }
-  for (const { name: item, count } of itemGroups) {
-    const emoji = items.getRarityEmoji(item);
-    const rarity = items.getItemRarity(item);
+
+  // Función para renderizar una entrada de ítem
+  function renderItemLine(itemName, count, extraSuffix) {
+    const emoji = items.getRarityEmoji(itemName);
+    const rarity = items.getItemRarity(itemName);
     const rarityLabel = rarity !== 'común' ? ` (${rarity})` : '';
-    // DIS-D428: marcar ítems de crafteo con ⚗️ para que el jugador sepa su propósito
-    const def = items.getItemDef(item);
+    const def = items.getItemDef(itemName);
     const craftTag = (def && def.description && (def.description.includes('crafteo') || def.description.includes('🔧'))) ? ' ⚗️' : '';
-    // DIS-677: marcar ítems con receta viable usando ✨ (tenés los dos ingredientes)
-    const viableTag = viableRecipeItems.has(item.toLowerCase()) ? ' ✨' : '';
-    // BUG-1429: mostrar cantidad si hay más de 1
+    const viableTag = viableRecipeItems.has(itemName.toLowerCase()) ? ' ✨' : '';
     const countTag = count > 1 ? ` (x${count})` : '';
-    lines.push(`  ${idx}. ${emoji} ${item}${rarityLabel}${craftTag}${viableTag}${countTag}`);
-    idx++;
+    return `${emoji} ${itemName}${rarityLabel}${craftTag}${viableTag}${countTag}${extraSuffix || ''}`;
+  }
+
+  // Separar grupos por categoría
+  const catEquipado    = equippedItems; // ya separados
+  const catArmamento   = itemGroups.filter(g => { const d = items.getItemDef(g.name); return d && EQUIPMENT_TYPES.has(d.type); });
+  const catConsumibles = itemGroups.filter(g => { const d = items.getItemDef(g.name); return d && CONSUMABLE_TYPES.has(d.type); });
+  const catMateriales  = itemGroups.filter(g => { const d = items.getItemDef(g.name); return !d || (!EQUIPMENT_TYPES.has(d.type) && !CONSUMABLE_TYPES.has(d.type)); });
+
+  const lines = [];
+  let idx = 1;
+
+  // Solo mostrar headers de categoría si hay ítems en al menos 2 categorías (inventario no trivial)
+  const nonEmptyCats = [catEquipado.length > 0, catArmamento.length > 0, catConsumibles.length > 0, catMateriales.length > 0].filter(Boolean).length;
+  const showHeaders = nonEmptyCats >= 2;
+
+  if (catEquipado.length > 0) {
+    if (showHeaders) lines.push('⚔️ Equipado:');
+    for (const eq of catEquipado) {
+      const emoji = items.getRarityEmoji(eq.name);
+      const rarity = items.getItemRarity(eq.name);
+      const rarityLabel = rarity !== 'común' ? ` (${rarity})` : '';
+      lines.push(`  ${idx}. ${emoji} ${eq.name}${rarityLabel} [equipado — ${eq.slot}]`);
+      idx++;
+    }
+  }
+  if (catArmamento.length > 0) {
+    if (showHeaders) lines.push('🗡️ Armamento:');
+    for (const g of catArmamento) {
+      lines.push(`  ${idx}. ${renderItemLine(g.name, g.count, '')}`);
+      idx++;
+    }
+  }
+  if (catConsumibles.length > 0) {
+    if (showHeaders) lines.push('🧪 Consumibles:');
+    for (const g of catConsumibles) {
+      lines.push(`  ${idx}. ${renderItemLine(g.name, g.count, '')}`);
+      idx++;
+    }
+  }
+  if (catMateriales.length > 0) {
+    if (showHeaders) lines.push('📦 Materiales:');
+    for (const g of catMateriales) {
+      lines.push(`  ${idx}. ${renderItemLine(g.name, g.count, '')}`);
+      idx++;
+    }
   }
 
   // Resumen al final
-  const totalVisible = lines.length;
+  // DIS-1687: totalVisible = entradas de ítem únicamente (sin contar líneas de header de categoría)
+  const totalVisible = catEquipado.length + catArmamento.length + catConsumibles.length + catMateriales.length;
   // DIS-994: Mostrar slots usados/totales del inventario
   const invBonus = player.inventory_bonus || 0;
   const maxSlots = INV_BASE_SLOTS + invBonus; // DIS-1480: límite base reducido a 20
