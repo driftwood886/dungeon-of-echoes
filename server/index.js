@@ -105,6 +105,8 @@ async function main() {
   migrateQuestRitualOscuridadBUG1654(); // BUG-1654: Quest "Ritual en la Oscuridad" era type=explore — cambiado a type=ritual, trigger=pray
   migrateOrphanedGuildsBUG1646(); // BUG-1646/1647: limpiar guilds con leader_id inválido — disolver vacías, promover miembro en las que tienen integrantes
   migrateCapillaInscripcionBUG1682(); // BUG-1682: restaurar hint "examine inscripcion" en Capilla Olvidada (DIS-1430 lo sobreescribía)
+  // IMPL-WM-1711: asegurar que las Misiones de Guerra de la semana actual existan al arrancar
+  try { db.ensureWarMissionsForWeek(); console.log('[index] IMPL-WM-1711: Misiones de Guerra de la semana aseguradas. ✓'); } catch (e) { console.error('[index] Error en ensureWarMissionsForWeek:', e.message); }
 
   // 2. Crear app Express
   const app = express();

@@ -2498,6 +2498,16 @@ function cmdMove(player, direction) {
     explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${exploXp} XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${newLevel === 5 && !freshExp.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.\n   💡 No hay límite de tiempo — podés hacerlo ahora o cuando estés listo.' : ''}${expAldricReminder}` : ''}`;
     // EPIC-1373: Influencia de facción por exploración (nueva sala)
     db.addFactionInfluence(player.id, 2);
+    // IMPL-WM-1711: hook exploración nueva sala → Misión de Guerra conclave_arcano
+    try {
+      const freshForWMExplore = db.getPlayer(player.id);
+      if (freshForWMExplore && freshForWMExplore.faction === 'conclave_arcano') {
+        const wmExploreResult = db.incrementWarMissionProgress('conclave_arcano', 1);
+        if (wmExploreResult.completed && wmExploreResult.rewarded && wmExploreResult.rewarded.includes(player.id)) {
+          explorationMsg += '\n\n🔮 **¡Misión de Guerra completada!** El Cónclave Arcano cumplió su objetivo semanal. +100 XP para todos los miembros activos.';
+        }
+      }
+    } catch (_) { /* no romper movimiento */ }
   }
 
   // Construir respuesta
@@ -4940,7 +4950,16 @@ function cmdAttack(player, targetName) {
       });
       if (tkMsg) challengeMsg += tkMsg;
     } catch (_) { /* no romper combate */ }
-    if (challengeResult && challengeResult.reward) {
+    // IMPL-WM-1711: hook kill → Misión de Guerra orden_filo
+    try {
+      const freshForWM = db.getPlayer(player.id);
+      if (freshForWM && freshForWM.faction === 'orden_filo') {
+        const wmResult = db.incrementWarMissionProgress('orden_filo', 1);
+        if (wmResult.completed && wmResult.rewarded && wmResult.rewarded.includes(player.id)) {
+          challengeMsg += '\n\n⚔️ **¡Misión de Guerra completada!** La Orden del Filo cumplió su objetivo semanal. +' + (wmResult.rewardXp || 100) + ' XP para todos los miembros activos.';
+        }
+      }
+    } catch (_) { /* no romper combate */ }
       // DIS-1538: recompensa de runa garantizada al completar desafío diario.
       // Dar una runa del tipo más acumulado (o aleatorio si no hay ninguna).
       // Esto garantiza al menos 1 progreso útil hacia un set por día.
@@ -11588,6 +11607,15 @@ function cmdBuy(player, itemQuery) {
   try {
     buyChallengeMsg = challengeTracker.trackBuy(player.id, freshBuyer, item.name, 1);
   } catch (_) { /* no interrumpir compra si falla tracker */ }
+  // IMPL-WM-1711: hook compra → Misión de Guerra hermandad_mercado
+  try {
+    if (freshBuyer && freshBuyer.faction === 'hermandad_mercado') {
+      const wmBuyResult = db.incrementWarMissionProgress('hermandad_mercado', 1);
+      if (wmBuyResult.completed && wmBuyResult.rewarded && wmBuyResult.rewarded.includes(player.id)) {
+        buyChallengeMsg += '\n\n🪙 **¡Misión de Guerra completada!** La Hermandad del Mercado cumplió su objetivo semanal. +100 XP para todos los miembros activos.';
+      }
+    }
+  } catch (_) { /* no interrumpir compra */ }
 
   const discountMsg = discount > 0 ? ` (descuento ${Math.round(discount * 100)}% por reputación)` : '';
 

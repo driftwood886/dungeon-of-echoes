@@ -3788,6 +3788,9 @@ function resetWeeklyFactionInfluence() {
   // Resetear influencia semanal de jugadores
   run('UPDATE players SET faction_week_influence = 0', []);
 
+  // IMPL-WM-1711: crear las Misiones de Guerra de la semana nueva (idempotente)
+  try { ensureWarMissionsForWeek(); } catch (_) {}
+
   return { winner, newStreak };
 }
 
@@ -3927,15 +3930,26 @@ function incrementWarMissionProgress(faction, amount = 1) {
       [amount, faction, weekKey]
     );
     const mission = getWarMission(faction);
-    if (!mission) return { completed: false, newProgress: 0, target: 0 };
+    if (!mission) return { completed: false, newProgress: 0, target: 0, rewarded: [] };
+    // Auto-completar si alcanzó el target y aún no está completada
+    if (mission.completed === 0 && mission.progress_global >= mission.target_global) {
+      const rewarded = completeWarMissionWithRewards(faction, mission.reward_xp_per_member || 100);
+      return {
+        completed: true,
+        newProgress: mission.progress_global,
+        target: mission.target_global,
+        rewarded,
+      };
+    }
     return {
       completed: mission.completed === 1,
       newProgress: mission.progress_global,
       target: mission.target_global,
+      rewarded: [],
     };
   } catch (e) {
     console.error('[db] incrementWarMissionProgress error:', e.message);
-    return { completed: false, newProgress: 0, target: 0 };
+    return { completed: false, newProgress: 0, target: 0, rewarded: [] };
   }
 }
 
@@ -3955,6 +3969,38 @@ function completeWarMission(faction) {
   } catch (e) {
     console.error('[db] completeWarMission error:', e.message);
   }
+}
+
+/**
+ * Completar la Misión de Guerra y dar XP a todos los miembros activos de la semana.
+ * "Activo" = jugado en los últimos 7 días y no archivado.
+ * @param {string} faction
+ * @param {number} rewardXp - XP por miembro
+ * @returns {string[]} - IDs de jugadores que recibieron XP
+ */
+function completeWarMissionWithRewards(faction, rewardXp) {
+  completeWarMission(faction);
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  let rewarded = [];
+  try {
+    const members = all(
+      `SELECT id, xp, level FROM players WHERE faction = ? AND last_seen >= ? AND is_archived = 0`,
+      [faction, cutoff]
+    );
+    for (const m of members) {
+      try {
+        const newXp = (m.xp || 0) + rewardXp;
+        const newLevel = xpSystem.levelFromXp(newXp);
+        run('UPDATE players SET xp = ?, level = ? WHERE id = ?', [newXp, newLevel, m.id]);
+        rewarded.push(m.id);
+      } catch (e) {
+        console.error('[db] completeWarMissionWithRewards xp error:', e.message);
+      }
+    }
+  } catch (e) {
+    console.error('[db] completeWarMissionWithRewards error:', e.message);
+  }
+  return rewarded;
 }
 
 /**
@@ -4059,5 +4105,5 @@ module.exports = {
   setFactionNotified, getCurrentISOWeekKey,
   // IMPL-WM-1710/1711: Misiones de Guerra Semanal
   ensureWarMissionsForWeek, getWarMission, getAllWarMissions,
-  incrementWarMissionProgress, completeWarMission, getWarWeekKey,
+  incrementWarMissionProgress, completeWarMission, completeWarMissionWithRewards, getWarWeekKey,
   };
