@@ -2307,7 +2307,8 @@ function tryAddRune(playerId, isBoss = false, monsterId = null) {
     const newVal = (pFresh[bonus.stat] || 0) + bonus.amount;
     updatePlayer(playerId, { [bonus.stat]: newVal });
 
-    return `✨ ¡Obtuviste la Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]}!\n¡Completaste un set de 3! Las runas se FUSIONAN → ${bonus.label}`;
+    const statDisplayName = bonus.stat === 'max_hp' ? 'HP máximo' : bonus.stat === 'attack' ? 'Ataque' : bonus.stat === 'defense' ? 'Defensa' : bonus.stat === 'max_mana' ? 'Maná máximo' : bonus.stat;
+    return `✨ ¡Obtuviste la Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]}!\n🌟 ¡FUSIÓN DE RUNAS! Las 3 runas de ${type} se combinan → ${bonus.label}\n   ${statDisplayName} ahora: ${newVal} ✨`;
   } else {
     // Agregar runa normal
     runes[type] = current + 1;
@@ -2349,7 +2350,7 @@ function addRuneOfType(playerId, type) {
     const pFresh = getPlayer(playerId);
     const newVal = (pFresh[bonus.stat] || 0) + bonus.amount;
     updatePlayer(playerId, { [bonus.stat]: newVal });
-    return `Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]} — ¡SET COMPLETO! → ${bonus.label}`;
+    return `Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]} — ¡SET COMPLETO! 🌟 FUSIÓN → ${bonus.label} (ahora: ${newVal})`;
   } else {
     runes[type] = current + 1;
     updatePlayer(playerId, { runes: JSON.stringify(runes) });
