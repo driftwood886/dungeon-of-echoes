@@ -71,6 +71,19 @@ function giveReward(playerId, challenge) {
     if (rep > 0) {
       try { db.addReputation(playerId, rep); } catch (_) {}
     }
+
+    // IMPL-GD-1709: Si es un Gran Desafío colectivo y el jugador tiene facción, dar influencia
+    if (challenge.category === 'gran_desafio') {
+      try {
+        const freshForFaction = db.getPlayer(playerId);
+        if (freshForFaction && freshForFaction.faction) {
+          const bonusByType = { kill_collective: 3, craft_collective: 2, kill_any: 10 };
+          const influenceBonus = bonusByType[challenge.condition.type] || 1;
+          db.addFactionInfluence(playerId, influenceBonus);
+        }
+      } catch (_) { /* no interrumpir si falla */ }
+    }
+
     const parts = [];
     if (xp > 0)   parts.push(`+${xp} XP`);
     if (gold > 0) parts.push(`+${gold} 🪙`);
@@ -367,6 +380,57 @@ function trackEvent(playerId, player, eventType, params = {}) {
           // Se dispara desde cmdEquip cuando detecta que el ítem está en crafted_weapons del jugador.
           if (eventType !== 'equip_crafted') break;
           matches = true;
+          break;
+        }
+
+        // ── IMPL-GD-1709: Tipos colectivos del Gran Desafío del Día ─────────
+        // El tracking es individual (cada jugador acumula su contribución).
+        // Al completar, giveReward() dará influencia de facción si corresponde.
+        case 'kill_collective': {
+          if (eventType !== 'kill') break;
+          if (cond.target) {
+            matches = norm(params.monsterName) === norm(cond.target);
+          } else {
+            // Sin target específico: cualquier kill cuenta (min_contribution en extra)
+            matches = true;
+          }
+          break;
+        }
+
+        case 'craft_collective': {
+          if (eventType !== 'craft') break;
+          matches = true; // cualquier crafteo cuenta para el colectivo
+          break;
+        }
+
+        case 'kill_any': {
+          // Gran Desafío tipo "matar al Lich (el que lo mata gana bonus mayor)"
+          if (eventType !== 'kill') break;
+          if (cond.target) {
+            matches = norm(params.monsterName).includes(norm(cond.target));
+          } else {
+            matches = true;
+          }
+          break;
+        }
+
+        case 'auction_collective': {
+          // Contar subastas del día (evento 'auction_win' o 'bid')
+          if (eventType !== 'auction_win' && eventType !== 'bid') break;
+          matches = true;
+          break;
+        }
+
+        case 'use_potion_collective': {
+          if (eventType !== 'use_potion') break;
+          matches = true;
+          break;
+        }
+
+        case 'kill_collective_week':
+        case 'craft_collective_week':
+        case 'auction_collective_week': {
+          // Tipos semanales — tratados por el sistema de weekly challenge, no por trackEvent
           break;
         }
 
