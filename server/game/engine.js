@@ -17810,7 +17810,16 @@ function cmdSpecialize(player, args) {
   // Sin argumento: mostrar opciones
   if (!args || args.length === 0) {
     const clsObj = classes.getPlayerClass(fresh) || {};
+    // DIS-1688: escena narrativa antes de las opciones mecánicas
+    const DIS1688_INTROS = {
+      guerrero: `🏚️ _Llegás a la tienda de Aldric. Él te mira de una forma diferente esta vez._\n\n"Sobreviviste hasta el nivel 5", dice despacio, apoyando las manos sobre el mostrador. "Eso no es suerte, eso es decisión."\n\nSaca un pergamino viejo y lo extiende frente a vos.\n\n"Los guerreros que llegan tan lejos tienen que elegir qué tipo de guerrero van a ser. Algunos van por la fuerza bruta. Otros aprenden a aguantar lo que nadie más puede."\n\n_Esperá tu momento._\n\n`,
+      picaro: `🏚️ _Una sombra familiar — quizás la tuya — se mueve en las paredes de la tienda._\n\nAldric no levanta la vista del libro cuando hablás. "Llegaste al momento que esperaba", dice.\n\n"Un pícaro que sobrevive cinco niveles ya tomó mil decisiones pequeñas. Ahora toca la decisión grande."\n\nCierra el libro y te mira. "¿Velocidad o muerte? Hay pícaro que esquiva. Hay pícaro que no le da tiempo al enemigo de esquivar."\n\n_Tu camino, tu elección._\n\n`,
+      mago: `🏚️ _El altar de la Capilla Olvidada vibra levemente cuando pasás cerca. La piedra negra te reconoce._\n\nAldric lo nota desde la tienda.\n\n"El dungeon empieza a responderte", dice en voz baja. "Eso significa que ya tenés suficiente magia dentro como para decidir qué querés hacer con ella."\n\n"Un mago de nivel cinco puede especializarse en destruir, o en controlar. No hay una mejor. Hay una que te llama."\n\n_¿Cuál escuchás?_\n\n`,
+      clerigo: `🏚️ _La llama de una antorcha en el corredor tintila sin que haya viento._\n\n"Nivel cinco", dice Aldric cuando entrás. No lo dice con sorpresa. Lo dice con algo parecido al respeto.\n\n"Los clérigos que llegan aquí ya curaron lo suficiente como para entender que la cura no es todo. Ahora tenés que elegir: ¿vas a dedicarte a sostener a otros, o a castigar lo que hace daño?"\n\nPausa. "Ambas son formas de servir. El dungeon no juzga cuál."\n\n_La elección es tuya._\n\n`,
+    };
+    const introText = DIS1688_INTROS[playerClass] || `_Has llegado al nivel 5. El dungeon espera tu decisión._\n\n`;
     const lines = [
+      introText,
       `🌟 ESPECIALIZACIÓN — ${clsObj.emoji || ''} ${clsObj.name || playerClass}`,
       '─'.repeat(50),
       'Has alcanzado el nivel 5. Es hora de elegir tu camino.',
