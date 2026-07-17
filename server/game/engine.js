@@ -471,6 +471,9 @@ function execute(playerId, input, context) {
     case 'inspect':      result = cmdInspect(player, action.args.join(' ')); break;
     case 'quest_legacy': result = cmdQuest(player); break;  // EPIC-QD: renombrado — reemplazado por questEngine
     case 'expedicion':        result = cmdExpedicion(player, action.args); break;
+    // BUG-FIX: 'decidir liberar' → command='decidir', args=['liberar']
+    // Prepend 'decidir' so cmdExpedicion's isDecision check works correctly
+    case 'decidir':           result = cmdExpedicion(player, ['decidir', ...action.args]); break;
     case 'expediciones_list': result = cmdExpedicionesList(player); break;
     case 'guild':        result = cmdGuild(player, action.args); break;
     case 'faccion':      result = cmdFaccion(player, action.args); break;        // EPIC-1375: elegir/cambiar facción

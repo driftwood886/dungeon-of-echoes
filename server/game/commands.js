@@ -123,7 +123,9 @@ const COMMAND_ALIASES = {
   // EPIC-1166: listar todas las expediciones disponibles/activas/completadas
   expediciones: 'expediciones_list', 'todas-las-expediciones': 'expediciones_list', 'mis-expediciones': 'expediciones_list',
   // decidir — resolución de decisión en expedición activa
-  decidir: 'expedicion', decide: 'expedicion',
+  // BUG-FIX: mapear a 'decidir' (no 'expedicion') para que el switch pueda
+  // prefijar los args con 'decidir' antes de pasarlos a cmdExpedicion
+  decidir: 'decidir', decide: 'decidir',
   // guild / hermandad
   guild: 'guild', hermandad: 'guild', gremio: 'guild', clan: 'guild',
   // EPIC-1375: 'faccion' es su propio comando (no guild) — maneja elegir/cambiar/info
