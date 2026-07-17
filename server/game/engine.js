@@ -11723,8 +11723,18 @@ function cmdBuy(player, itemQuery) {
     if (qbResult && qbResult.text) questBuyMsg = '\n\n' + qbResult.text;
   } catch (_) { /* no romper buy si falla questEngine */ }
 
+  // ── EPIC-1702-DEF: hook de misión de facción — compra (Hermandad del Mercado) ─
+  let fmBuyMsg = '';
+  try {
+    const freshForFMBuy = db.getPlayer(player.id);
+    if (freshForFMBuy && freshForFMBuy.faction) {
+      const fmBuyResult = factionMissions.onEvent(freshForFMBuy, 'buy', {});
+      if (fmBuyResult && fmBuyResult.text) fmBuyMsg = '\n\n' + fmBuyResult.text;
+    }
+  } catch (_) { /* no romper compra si falla factionMissions */ }
+
   return {
-    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}${craftAlternativeHint}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${equipTip}${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}${questBuyMsg}`,
+    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}${craftAlternativeHint}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${equipTip}${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}${questBuyMsg}${fmBuyMsg}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
@@ -15249,8 +15259,18 @@ function cmdBid(player, args) {
 
   const timeLeft = formatTimeLeft(auction.ends_at);
 
+  // ── EPIC-1702-DEF: hook de misión de facción — puja (Hermandad del Mercado) ─
+  let fmBidMsg = '';
+  try {
+    const freshForFMBid = db.getPlayer(player.id);
+    if (freshForFMBid && freshForFMBid.faction) {
+      const fmBidResult = factionMissions.onEvent(freshForFMBid, 'bid', {});
+      if (fmBidResult && fmBidResult.text) fmBidMsg = '\n\n' + fmBidResult.text;
+    }
+  } catch (_) { /* no romper puja si falla factionMissions */ }
+
   return {
-    text: `✅ ¡Puja registrada!\n  Subasta #${auctionId}: ${auction.item_name}\n  Tu puja: ${amount}g\n  Tiempo restante: ${timeLeft}${refundMsg}`,
+    text: `✅ ¡Puja registrada!\n  Subasta #${auctionId}: ${auction.item_name}\n  Tu puja: ${amount}g\n  Tiempo restante: ${timeLeft}${refundMsg}${fmBidMsg}`,
     event: `💰 ${player.username} puja ${amount}g por "${auction.item_name}" (subasta #${auctionId})`,
     eventRoomId: AUCTION_ROOM_ID,
   };
@@ -15286,6 +15306,18 @@ function resolveExpiredAuctions(broadcastFn) {
         wmem.escriba.auctions_won = (wmem.escriba.auctions_won || 0) + 1;
         wmem.escriba.gold_volume_auctions = (wmem.escriba.gold_volume_auctions || 0) + auction.current_bid;
         db.updatePlayer(winner.id, { npc_memory: JSON.stringify(wmem) });
+
+        // ── EPIC-1702-DEF: hook de misión de facción — ganar subasta (Hermandad del Mercado) ─
+        try {
+          const freshWinner = db.getPlayer(winner.id);
+          if (freshWinner && freshWinner.faction && !freshWinner.is_bot) {
+            const fmWinResult = factionMissions.onEvent(freshWinner, 'auction_win', {});
+            if (fmWinResult && fmWinResult.text && broadcastFn) {
+              // Intentar notificar por journal al ganador (si no tiene socket activo, queda en journal)
+              try { db.addJournalEntry(winner.id, 'system', fmWinResult.text); } catch (_) {}
+            }
+          }
+        } catch (_) { /* no romper resolución si falla factionMissions */ }
       }
       // DIS-1482: si el ganador es un bot NPC (ID negativo), el ítem "desaparece" (el NPC se lo lleva)
       // No necesita ningún tratamiento adicional — simplemente no se agrega a ningún inventario.
