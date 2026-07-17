@@ -288,9 +288,9 @@ function onEvent(player, eventType, data = {}) {
     );
 
     // Solo mostrar progreso en kills: cada kill, no cada acción menor
-    if (eventType === 'kill' || eventType === 'explore_new' || eventType === 'explore_room') {
+    if (eventType === 'kill' || eventType === 'explore_new' || eventType === 'explore_room' || eventType === 'examine') {
       return {
-        text: `🏴 Misión "${mission.name}": ${newProgress}/${mission.target} (${eventType === 'kill' ? 'kills' : 'salas'})`
+        text: `🏴 Misión "${mission.name}": ${newProgress}/${mission.target} (${eventType === 'kill' ? 'kills' : eventType === 'examine' ? 'examines' : 'salas'})`
       };
     }
     return null;

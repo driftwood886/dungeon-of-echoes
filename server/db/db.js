@@ -1210,7 +1210,7 @@ async function init() {
         id: 'fm_conclave_examine_salas',
         faction: 'conclave_arcano',
         name: 'El Ojo del Cónclave',
-        description_template: 'Cada detalle del dungeon tiene valor. Examiná {target} salas diferentes esta semana.',
+        description_template: 'Cada detalle del dungeon tiene valor. Examiná {target} cosas distintas del dungeon esta semana.',
         event_hook: 'examine',
         target_filter: null,
         base_target: 5,

@@ -407,6 +407,16 @@ function execute(playerId, input, context) {
           if (examineChMsg) result = { ...result, text: result.text + examineChMsg };
         } catch (_) {}
       }
+      // BUG-1715: hook de misiones de facción para 'examine'
+      if (result && result.text && !result.text.includes('No ves ningún')) {
+        try {
+          const freshForFM = db.getPlayer(player.id);
+          if (freshForFM && freshForFM.faction) {
+            const fmExamineResult = factionMissions.onEvent(freshForFM, 'examine', { target: action.args.join(' ').toLowerCase().trim() });
+            if (fmExamineResult && fmExamineResult.text) result = { ...result, text: result.text + '\n\n' + fmExamineResult.text };
+          }
+        } catch (_) {}
+      }
       // DIS-1532: hook de expedición filacteria_del_lich (paso 2: examinar cristales en sala 19)
       try {
         const freshForExpExamine = db.getPlayer(player.id);
