@@ -37,6 +37,7 @@ const expeditionEngine = require('./expedition_engine'); // EPIC-1158: sistema d
 const challengeTracker = require('./challengeTracker');  // T-1231: tracking de desafíos diarios
 const challengeAssigner = require('./challengeAssigner'); // T-1232: asignación y lectura de los 3 desafíos diarios
 const questEngine = require('./questEngine'); // EPIC-QD: sistema de quests dinámicas (IMPL-QD-1573)
+const factionMissions = require('./factionMissions'); // EPIC Facciones Vivas (IMPL-FM-1706)
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // DIS-1514: helper para mensaje de progreso de XP dentro del nivel actual
@@ -478,6 +479,7 @@ function execute(playerId, input, context) {
     case 'guild':        result = cmdGuild(player, action.args); break;
     case 'faccion':      result = cmdFaccion(player, action.args); break;        // EPIC-1375: elegir/cambiar facción
     case 'facciones':    result = cmdFacciones(player); break;            // EPIC-1374: pantalla de influencia semanal
+    case 'mision_faccion': result = cmdMisionFaccion(player); break;      // EPIC Facciones Vivas: misión semanal
     case 'gc':           result = cmdGuildChat(player, action.args); break;
     case 'duel':         result = cmdDuel(player, action.args.join(' ')); break;
     case 'accept':       result = cmdAcceptDuel(player); break;
@@ -3144,7 +3146,22 @@ function cmdMove(player, direction) {
     }
   } catch (_) { /* no romper movimiento si falla questEngine */ }
 
-  // DIS-1653: recordatorio de quest kill activa al moverse entre salas
+  // EPIC Facciones Vivas: hook explore para misiones de facción
+  try {
+    if (!player.is_bot) {
+      const freshForFME = db.getPlayer(player.id);
+      if (freshForFME && freshForFME.faction) {
+        // explore_new: solo si es primera visita
+        if (firstVisitEver) {
+          const fmrNew = factionMissions.onEvent(freshForFME, 'explore_new', { room_id: targetId });
+          if (fmrNew && fmrNew.text) questExploreMsg += '\n\n' + fmrNew.text;
+        }
+        // explore_room: siempre (para misión de sala específica)
+        const fmrRoom = factionMissions.onEvent(freshForFME, 'explore_room', { room_id: targetId });
+        if (fmrRoom && fmrRoom.text) questExploreMsg += '\n\n' + fmrRoom.text;
+      }
+    }
+  } catch (_) { /* no romper movimiento si falla factionMissions */ }
   // Si hay una quest activa de tipo kill y el jugador tiene progreso parcial,
   // mostrar recordatorio sutil al entrar a cualquier sala (con o sin monstruo objetivo).
   let questMoveHint = '';
@@ -5579,6 +5596,19 @@ function cmdAttack(player, targetName) {
         }
       }
     } catch (_) { /* no romper combate si falla questEngine */ }
+  }
+
+  // EPIC Facciones Vivas: hook kill para misiones de facción
+  if (monsterDead && !player.is_bot && monster.id !== 20) {
+    try {
+      const freshForFM = db.getPlayer(player.id);
+      if (freshForFM && freshForFM.faction) {
+        const fmResult = factionMissions.onEvent(freshForFM, 'kill', { monster });
+        if (fmResult && fmResult.text) {
+          questKillMsg += '\n\n' + fmResult.text;
+        }
+      }
+    } catch (_) { /* no romper combate si falla factionMissions */ }
   }
 
   const bossVictoryBlock = lichKill
@@ -12236,6 +12266,96 @@ function cmdInspect(player, targetName) {
  *   list             — Listar todas las hermandades activas
  */
 // ─── EPIC-1374: Pantalla de influencia de facciones ──────────────────────────
+
+/**
+ * cmdMisionFaccion — muestra la misión de facción semanal del jugador.
+ * EPIC Facciones Vivas (IMPL-FM-1707)
+ */
+function cmdMisionFaccion(player) {
+  player = db.getPlayer(player.id) || player;
+
+  if (!player.faction) {
+    return {
+      text: [
+        `🏴 **Misión de Facción**`,
+        ``,
+        `No pertenecés a ninguna facción todavía.`,
+        `Las facciones ofrecen misiones semanales con recompensas de XP, gold e influencia.`,
+        ``,
+        `Ingresá \`facciones\` para ver las 3 facciones y unirte a una.`
+      ].join('\n')
+    };
+  }
+
+  // Obtener o generar la misión de la semana
+  let mission = factionMissions.getMissionForPlayer(player);
+  if (!mission) {
+    mission = factionMissions.generateMission(player);
+  }
+
+  if (!mission) {
+    return { text: `❌ No se pudo obtener la misión de facción. Intentá de nuevo en unos segundos.` };
+  }
+
+  // Barra de progreso ASCII
+  function progressBar(current, target, width = 10) {
+    const filled = Math.round((Math.min(current, target) / target) * width);
+    return '█'.repeat(filled) + '░'.repeat(Math.max(0, width - filled));
+  }
+
+  // Nombre de facción formateado
+  const FACTION_NAMES = {
+    orden_filo: '🗡️  La Orden del Filo',
+    conclave_arcano: '🔮 El Cónclave Arcano',
+    hermandad_mercado: '🪙 La Hermandad del Mercado',
+  };
+  const factionDisplay = FACTION_NAMES[player.faction] || player.faction;
+
+  // Calcular días restantes en la semana
+  const weekNum = Math.floor(Date.now() / 604800000);
+  const nextWeekMs = (weekNum + 1) * 604800000;
+  const daysLeft = Math.ceil((nextWeekMs - Date.now()) / 86400000);
+
+  // Rellenar {target} en la descripción
+  const desc = (mission.description_template || mission.name).replace('{target}', mission.target);
+
+  const rewardParts = [];
+  if (mission.reward_xp)       rewardParts.push(`+${mission.reward_xp} ⭐ XP`);
+  if (mission.reward_gold)     rewardParts.push(`+${mission.reward_gold} 💰 gold`);
+  if (mission.reward_influence) rewardParts.push(`+${mission.reward_influence} 🏴 influencia`);
+
+  if (mission.status === 'completed') {
+    return {
+      text: [
+        `${factionDisplay}`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `✅ **MISIÓN COMPLETADA**`,
+        `📋 ${mission.name}`,
+        ``,
+        `Completada el ${mission.completed_at ? mission.completed_at.slice(0, 16) + ' UTC' : '—'}.`,
+        `Recompensa recibida: ${rewardParts.join(', ')}`,
+        ``,
+        `La próxima misión estará disponible el lunes (en ${daysLeft} día${daysLeft !== 1 ? 's' : ''}).`
+      ].join('\n')
+    };
+  }
+
+  const bar = progressBar(mission.progress, mission.target);
+  const pct = Math.round((mission.progress / mission.target) * 100);
+
+  return {
+    text: [
+      `${factionDisplay}`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `📋 **${mission.name}**`,
+      `   ${desc}`,
+      ``,
+      `   Progreso: ${bar}  ${mission.progress}/${mission.target} (${pct}%)`,
+      `   Recompensa: ${rewardParts.join(', ')}`,
+      `   Tiempo restante: ${daysLeft} día${daysLeft !== 1 ? 's' : ''}`,
+    ].join('\n')
+  };
+}
 
 /**
  * cmdFacciones — muestra el estado de influencia semanal de las 3 facciones.

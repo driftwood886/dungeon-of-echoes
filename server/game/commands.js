@@ -118,6 +118,10 @@ const COMMAND_ALIASES = {
   inspect: 'inspect', inspeccionar: 'inspect', observar: 'inspect', ver_jugador: 'inspect',
   // quest / misión
   quest: 'quest', misión: 'quest', mision: 'quest', tarea: 'quest', objetivo: 'quest', quests: 'quest', misiones: 'quest',
+  // EPIC Facciones Vivas: misión de facción semanal (alias exclusivos para distinguirlo de quests)
+  'mision-faccion': 'mision_faccion', 'misión-facción': 'mision_faccion', 'misionfaccion': 'mision_faccion',
+  'faction-quest': 'mision_faccion', 'factionquest': 'mision_faccion', 'mision faction': 'mision_faccion',
+  'mission faction': 'mision_faccion',
   // expedicion — EPIC-1158: sistema de expediciones narrativas
   expedicion: 'expedicion', expedición: 'expedicion', misión_épica: 'expedicion', mision_epica: 'expedicion',
   // EPIC-1166: listar todas las expediciones disponibles/activas/completadas

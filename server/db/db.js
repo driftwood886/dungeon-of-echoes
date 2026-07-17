@@ -1075,6 +1075,219 @@ async function init() {
   `);
 
   // Guardar al apagar
+
+  // EPIC Facciones Vivas: tabla de definiciones de misiones de facción (pool estático)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS faction_mission_definitions (
+      id                   TEXT PRIMARY KEY,
+      faction              TEXT NOT NULL,
+      name                 TEXT NOT NULL,
+      description_template TEXT NOT NULL,
+      event_hook           TEXT NOT NULL,
+      target_filter        TEXT,
+      base_target          INTEGER NOT NULL,
+      scale_per_level      REAL NOT NULL DEFAULT 0.0,
+      reward_xp            INTEGER NOT NULL DEFAULT 0,
+      reward_gold          INTEGER NOT NULL DEFAULT 0,
+      reward_influence     INTEGER NOT NULL DEFAULT 5,
+      require_level        INTEGER NOT NULL DEFAULT 1,
+      priority             INTEGER NOT NULL DEFAULT 10,
+      is_active            INTEGER NOT NULL DEFAULT 1
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_fmdef_faction_active ON faction_mission_definitions(faction, is_active, require_level)`);
+
+  // EPIC Facciones Vivas: tabla de misiones activas por jugador/semana
+  db.run(`
+    CREATE TABLE IF NOT EXISTS faction_missions (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      player_id         TEXT NOT NULL,
+      faction           TEXT NOT NULL,
+      definition_id     TEXT NOT NULL,
+      week              INTEGER NOT NULL,
+      week_start_iso    TEXT NOT NULL,
+      target            INTEGER NOT NULL,
+      progress          INTEGER NOT NULL DEFAULT 0,
+      status            TEXT NOT NULL DEFAULT 'active',
+      reward_claimed    INTEGER NOT NULL DEFAULT 0,
+      completed_at      TEXT,
+      created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_faction_missions_player_week ON faction_missions(player_id, week)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_faction_missions_faction_week_status ON faction_missions(faction, week, status)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_faction_missions_status ON faction_missions(status, week)`);
+
+  // EPIC Facciones Vivas: seed del pool de misiones (9 misiones, 3 por facción) — IMPL-FM-1705
+  try {
+    const fmSeed = [
+      // ─── La Orden del Filo ──────────────────────────────────────────────────
+      {
+        id: 'fm_orden_caza_general',
+        faction: 'orden_filo',
+        name: 'Purgar la Sala de los Ecos',
+        description_template: 'La Orden necesita el dungeon limpio de amenazas. Matá {target} criaturas esta semana para demostrar tu valía.',
+        event_hook: 'kill',
+        target_filter: null,
+        base_target: 10,
+        scale_per_level: 2.0,
+        reward_xp: 150,
+        reward_gold: 80,
+        reward_influence: 8,
+        require_level: 1,
+        priority: 10,
+        is_active: 1,
+      },
+      {
+        id: 'fm_orden_caza_agresiva',
+        faction: 'orden_filo',
+        name: 'El Contrato Sangriento',
+        description_template: 'Los mejores guerreros de la Orden no se esconden detrás de escudos. Matá {target} criaturas en postura agresiva.',
+        event_hook: 'kill',
+        target_filter: JSON.stringify({ stance: 'agresivo' }),
+        base_target: 5,
+        scale_per_level: 1.0,
+        reward_xp: 200,
+        reward_gold: 100,
+        reward_influence: 10,
+        require_level: 2,
+        priority: 8,
+        is_active: 1,
+      },
+      {
+        id: 'fm_orden_caza_boss',
+        faction: 'orden_filo',
+        name: 'El Cazador de Jefes',
+        description_template: 'La Orden paga bien por cabezas difíciles. Matá {target} enemigo de élite esta semana.',
+        event_hook: 'kill',
+        target_filter: JSON.stringify({ min_max_hp: 50 }),
+        base_target: 1,
+        scale_per_level: 0.0,
+        reward_xp: 250,
+        reward_gold: 120,
+        reward_influence: 15,
+        require_level: 3,
+        priority: 6,
+        is_active: 1,
+      },
+      // ─── El Cónclave Arcano ─────────────────────────────────────────────────
+      {
+        id: 'fm_conclave_explorar_salas',
+        faction: 'conclave_arcano',
+        name: 'Cartografía de las Sombras',
+        description_template: 'El Cónclave necesita registros de primera mano. Explorá {target} salas nuevas que no hayas visitado antes.',
+        event_hook: 'explore_new',
+        target_filter: null,
+        base_target: 3,
+        scale_per_level: 1.0,
+        reward_xp: 180,
+        reward_gold: 60,
+        reward_influence: 8,
+        require_level: 1,
+        priority: 10,
+        is_active: 1,
+      },
+      {
+        id: 'fm_conclave_examine_salas',
+        faction: 'conclave_arcano',
+        name: 'El Ojo del Cónclave',
+        description_template: 'Cada detalle del dungeon tiene valor. Examiná {target} salas diferentes esta semana.',
+        event_hook: 'examine',
+        target_filter: null,
+        base_target: 5,
+        scale_per_level: 1.0,
+        reward_xp: 160,
+        reward_gold: 50,
+        reward_influence: 6,
+        require_level: 1,
+        priority: 8,
+        is_active: 1,
+      },
+      {
+        id: 'fm_conclave_sala_secreta',
+        faction: 'conclave_arcano',
+        name: 'El Registro Prohibido',
+        description_template: 'El Cónclave sospecha de algo en el Santuario. Visitá esa sala y volvé con tus observaciones.',
+        event_hook: 'explore_room',
+        target_filter: JSON.stringify({ room_id: 10 }),
+        base_target: 1,
+        scale_per_level: 0.0,
+        reward_xp: 220,
+        reward_gold: 90,
+        reward_influence: 12,
+        require_level: 2,
+        priority: 6,
+        is_active: 1,
+      },
+      // ─── La Hermandad del Mercado ────────────────────────────────────────────
+      {
+        id: 'fm_hermandad_compras',
+        faction: 'hermandad_mercado',
+        name: 'Provisiones del Gremio',
+        description_template: 'La Hermandad necesita que sus miembros mantengan el comercio activo. Comprá {target} ítems en la tienda de Aldric esta semana.',
+        event_hook: 'buy',
+        target_filter: null,
+        base_target: 3,
+        scale_per_level: 1.0,
+        reward_xp: 140,
+        reward_gold: 50,
+        reward_influence: 6,
+        require_level: 1,
+        priority: 10,
+        is_active: 1,
+      },
+      {
+        id: 'fm_hermandad_bids',
+        faction: 'hermandad_mercado',
+        name: 'El Arte de la Puja',
+        description_template: 'El mercado vive de sus actores. Participá en {target} subastas esta semana (no necesitás ganar).',
+        event_hook: 'bid',
+        target_filter: null,
+        base_target: 2,
+        scale_per_level: 0.0,
+        reward_xp: 160,
+        reward_gold: 60,
+        reward_influence: 8,
+        require_level: 1,
+        priority: 8,
+        is_active: 1,
+      },
+      {
+        id: 'fm_hermandad_ganar_subasta',
+        faction: 'hermandad_mercado',
+        name: 'El Negociador',
+        description_template: 'No basta con pujar — hay que ganar. Cerrá {target} subasta esta semana.',
+        event_hook: 'auction_win',
+        target_filter: null,
+        base_target: 1,
+        scale_per_level: 0.0,
+        reward_xp: 250,
+        reward_gold: 100,
+        reward_influence: 15,
+        require_level: 1,
+        priority: 6,
+        is_active: 1,
+      },
+    ];
+
+    for (const m of fmSeed) {
+      db.run(
+        `INSERT OR IGNORE INTO faction_mission_definitions
+           (id, faction, name, description_template, event_hook, target_filter,
+            base_target, scale_per_level, reward_xp, reward_gold, reward_influence,
+            require_level, priority, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [m.id, m.faction, m.name, m.description_template, m.event_hook,
+         m.target_filter || null, m.base_target, m.scale_per_level,
+         m.reward_xp, m.reward_gold, m.reward_influence,
+         m.require_level, m.priority, m.is_active]
+      );
+    }
+    console.log('[db] EPIC-FM: 9 misiones de facción en pool (INSERT OR IGNORE — idempotente)');
+  } catch (e) {
+    console.error('[db] EPIC-FM: Error al seed pool misiones:', e.message);
+  }
+
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });
   process.on('SIGTERM', () => { persist(); process.exit(0); });
