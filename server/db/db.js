@@ -637,6 +637,32 @@ async function init() {
   }
   console.log(`[db] EPIC-QD: ${_questsSeeded} quests en pool (INSERT OR IGNORE — idempotente)`);
 
+  // BUG-1684: Tabla de control de migrations para evitar re-ejecutar ALTER TABLE en cada boot.
+  // Sin esto, los ~84 ALTER TABLE lanzan excepciones (columna ya existe) en cada arranque
+  // → ~13 segundos de inicio que crecen con cada migration nueva.
+  // Con schema_migrations: cada migration se verifica con un SELECT O(1) y se skipea si ya está aplicada.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      id         TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  // Función auxiliar: aplica una migration solo si no fue registrada aún
+  function applyMigration(sql) {
+    const key = sql.trim();
+    const rows = db.exec(`SELECT 1 FROM schema_migrations WHERE id = ?`, [key]);
+    if (rows.length > 0 && rows[0].values.length > 0) return; // ya aplicada
+    try {
+      db.run(sql);
+    } catch (_) {
+      // columna ya existía (BD pre-sistema de migrations): igualmente registrar
+    }
+    try {
+      db.run(`INSERT OR IGNORE INTO schema_migrations (id) VALUES (?)`, [key]);
+    } catch (_) {}
+  }
+
   const migrations = [
     `ALTER TABLE players ADD COLUMN xp     INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE players ADD COLUMN level  INTEGER NOT NULL DEFAULT 1`,
@@ -723,7 +749,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN party_follow INTEGER NOT NULL DEFAULT 0`,               // EPIC-PARTY-1626: 1 si está siguiendo al líder automáticamente (Fase 3: movimiento sincronizado)
     ];
   for (const sql of migrations) {
-    try { db.run(sql); } catch (_) { /* columna ya existe */ }
+    applyMigration(sql);
   }
 
   // BUG-1247: migración para marcar bots de playtest existentes (nombres con patrones conocidos)
@@ -976,8 +1002,8 @@ async function init() {
     )
   `);
 
-  // T157: Columna playtime_minutes en players
-  try { db.run(`ALTER TABLE players ADD COLUMN playtime_minutes INTEGER NOT NULL DEFAULT 0`); } catch (_) {}
+  // T157: Columna playtime_minutes en players (ya incluida en el array migrations arriba con applyMigration)
+  // applyMigration(`ALTER TABLE players ADD COLUMN playtime_minutes INTEGER NOT NULL DEFAULT 0`);
 
   // Fix DIS-P02: Migración automática — corregir monstruos con room_id = "null" (string, bug histórico)
   // Estos monstruos quedaron con room_id = '"null"' en lugar de NULL real por un bug en updateMonster.
