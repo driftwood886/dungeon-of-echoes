@@ -479,6 +479,7 @@ function execute(playerId, input, context) {
     case 'guild':        result = cmdGuild(player, action.args); break;
     case 'faccion':      result = cmdFaccion(player, action.args); break;        // EPIC-1375: elegir/cambiar facción
     case 'facciones':    result = cmdFacciones(player); break;            // EPIC-1374: pantalla de influencia semanal
+    case 'guerra':       result = cmdFacciones(player); break;            // BUG-1713: alias para ver misiones de guerra
     case 'mision_faccion': result = cmdMisionFaccion(player); break;      // EPIC Facciones Vivas: misión semanal
     case 'gc':           result = cmdGuildChat(player, action.args); break;
     case 'duel':         result = cmdDuel(player, action.args.join(' ')); break;
@@ -12508,6 +12509,47 @@ function cmdFacciones(player) {
     lines.push(`║  🪙  Hermandad Mercado   → economía                   ║`);
     lines.push(`║     Tuyo: misiones de comercio · sello Aldric         ║`);
   }
+  // BUG-1713: Sección Misiones de Guerra (IMPL-WM-1711) — progreso colectivo por facción
+  try {
+    db.ensureWarMissionsForWeek();
+    const warMissions = db.getAllWarMissions();
+    if (warMissions && warMissions.length > 0) {
+      const WAR_MISSION_LABELS = {
+        kill_collective:    'Eliminar enemigos colectivamente',
+        explore_collective: 'Explorar salas colectivamente',
+        buy_collective:     'Comprar en tienda colectivamente',
+      };
+      const WAR_FACTION_ICONS = {
+        orden_filo:        '🗡️ ',
+        conclave_arcano:   '🔮',
+        hermandad_mercado: '🪙',
+      };
+      const WAR_FACTION_NAMES = {
+        orden_filo:        'Orden del Filo',
+        conclave_arcano:   'Cónclave Arcano',
+        hermandad_mercado: 'Hermandad Mercado',
+      };
+      lines.push(`╟──────────────────────────────────────────────────────╢`);
+      lines.push(`║  ⚔️  MISIONES DE GUERRA — Esta semana                 ║`);
+      lines.push(`╟──────────────────────────────────────────────────────╢`);
+      for (const wm of warMissions) {
+        const icon = WAR_FACTION_ICONS[wm.faction] || '?';
+        const fname = (WAR_FACTION_NAMES[wm.faction] || wm.faction).padEnd(16);
+        const label = (WAR_MISSION_LABELS[wm.objective_type] || wm.objective_type);
+        const pct = wm.target_global > 0 ? Math.min(100, Math.round((wm.progress_global / wm.target_global) * 100)) : 0;
+        const barLen = 12;
+        const filled = Math.round((pct / 100) * barLen);
+        const bar = '█'.repeat(filled) + '░'.repeat(barLen - filled);
+        const status = wm.completed ? '✅' : `${wm.progress_global}/${wm.target_global}`;
+        const isMyFaction = player.faction && wm.faction === player.faction;
+        const marker = isMyFaction ? '►' : ' ';
+        lines.push(`║ ${marker}${icon} ${fname} [${bar}] ${String(pct).padStart(3)}% ║`);
+        lines.push(`║   ${label.substring(0, 36).padEnd(36)} ${status.padEnd(13)}║`);
+        lines.push(`║   Recompensa: ${String(wm.reward_xp_per_member + ' XP/miembro').padEnd(39)}║`);
+      }
+    }
+  } catch (_) { /* no mostrar errores de war missions */ }
+
   lines.push(`╚══════════════════════════════════════════════════════╝`);
 
   return { text: lines.join('\n') };
