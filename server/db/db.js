@@ -2011,7 +2011,7 @@ const BOSS_RUNE_TYPES = {
 };
 
 /**
- * Intenta dar una runa al jugador (28% de chance base, 100% si isBoss=true).
+ * Intenta dar una runa al jugador (40% de chance base, 100% si isBoss=true).
  * DIS-1354: sistema de pesos — los tipos que el jugador ya acumula tienen mayor
  *   probabilidad de aparecer, facilitando completar sets sin depender solo del RNG.
  *   Los bosses sueltan su tipo temático fijo (ver BOSS_RUNE_TYPES).
@@ -2021,8 +2021,9 @@ const BOSS_RUNE_TYPES = {
 function tryAddRune(playerId, isBoss = false, monsterId = null) {
   // DIS-1127: subido de 0.15 a 0.20 para que el sistema sea más visible durante el early game
   // DIS-1341: subido de 0.20 a 0.28 — en 10 kills se obtienen ~2.8 runas (antes ~2)
+  // DIS-1690: subido de 0.28 a 0.40 — en 10 kills se obtienen ~4 runas (más visible, fusión accesible en sesión normal)
   //           Los bosses garantizan una runa (isBoss=true → saltea el check de probabilidad)
-  if (!isBoss && Math.random() > 0.28) return null; // 28% de chance base
+  if (!isBoss && Math.random() > 0.40) return null; // 40% de chance base
 
   const player = getPlayer(playerId);
   if (!player) return null;
@@ -2038,9 +2039,10 @@ function tryAddRune(playerId, isBoss = false, monsterId = null) {
   } else {
     // DIS-1354: sistema de pesos — runas que el jugador ya acumula tienen más probabilidad
     // Peso: 0 acumuladas → 1, 1 acumulada → 3, 2 acumuladas → 6
-    // Esto hace que completar un set sea ~3-6x más probable para tipos ya iniciados
+    // DIS-1690: subido a 1→4→8 — completar un set ya iniciado es mucho más probable
+    // Esto hace que una vez que tenés 1 runa de un tipo, completar sea ~4-8x más probable
     // DIS-1364: bonus de afinidad temática para monstruos no-boss con tipo definido
-    const WEIGHT_BY_COUNT = [1, 3, 6];
+    const WEIGHT_BY_COUNT = [1, 4, 8];
     const weightedPool = [];
     for (const t of RUNE_TYPES) {
       const count = runes[t] || 0;

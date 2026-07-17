@@ -6487,7 +6487,7 @@ function cmdUse(player, itemQuery) {
       try { runesCheck = JSON.parse(player.runes || '{}'); } catch (_) {}
       const totalRunes = Object.values(runesCheck).reduce((a, b) => a + b, 0);
       if (totalRunes === 0) {
-        return { text: '🔮 No tenés runas para ofrecer a la Fuente. Conseguí runas matando monstruos (28% de chance por kill, 100% en bosses; acumular runas del mismo tipo aumenta la probabilidad de conseguir más de ese tipo). Necesitás 3 del mismo tipo.' };
+        return { text: '🔮 No tenés runas para ofrecer a la Fuente. Conseguí runas matando monstruos (40% de chance por kill, 100% en bosses; acumular runas del mismo tipo aumenta la probabilidad de conseguir más de ese tipo). Necesitás 3 del mismo tipo.' };
       }
       // Disparar el hook de expedición con trigger 'use' + itemName 'runas' en sala 18
       const freshForExpRunaUse = db.getPlayer(player.id);
@@ -24678,7 +24678,7 @@ function cmdEnchant(player, args) {
       // Verificar que tiene la runa antes de mostrar el aviso
       const runeCountCheck = runes[runeType] || 0;
       if (runeCountCheck <= 0) {
-        return { text: `❌ No tenés runas de 🌀 caos. Obtenés runas al matar monstruos (28% de chance, 100% en bosses; los tipos ya acumulados tienen más probabilidad de reaparecer).` };
+        return { text: `❌ No tenés runas de 🌀 caos. Obtenés runas al matar monstruos (40% de chance, 100% en bosses; los tipos ya acumulados tienen más probabilidad de reaparecer).` };
       }
       return { text: `🌀 RUNA DE CAOS — Confirmación requerida\n\nEl efecto será ALEATORIO (fuego, hielo, sombra o luz) — se revela al consumir la runa.\nTambién podés guardar 3 runas de caos para una fusión permanente (+3 maná).\n\n¿Querés consumir la runa de caos de todos modos?\n→ Escribí: enchant caos confirmar` };
     }
@@ -24690,7 +24690,7 @@ function cmdEnchant(player, args) {
   // Verificar runa disponible
   const runeCount = runes[runeType] || 0;
   if (runeCount <= 0) {
-    return { text: `❌ No tenés runas de ${RUNE_EMOJIS[runeType]} ${runeType}. Obtenés runas al matar monstruos (28% de chance, 100% en bosses; los tipos que ya acumulás tienen más probabilidad de reaparecer).` };
+    return { text: `❌ No tenés runas de ${RUNE_EMOJIS[runeType]} ${runeType}. Obtenés runas al matar monstruos (40% de chance, 100% en bosses; los tipos que ya acumulás tienen más probabilidad de reaparecer).` };
   }
 
   // Consumir la runa
