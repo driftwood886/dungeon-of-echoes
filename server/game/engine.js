@@ -8122,8 +8122,18 @@ function cmdEquip(player, itemQuery) {
     }
   } catch (_) { /* no interrumpir si falla */ }
 
+  // DIS-1693: advertir si el arma nueva hace menos daño que el arma anterior
+  let weakerWeaponWarnMsg = '';
+  if (player.equipped_weapon && prevWeaponDef && def) {
+    const prevAtk = (prevWeaponDef.amount || 0) + (isMagoPrev && prevWeaponDef.mage_only_bonus ? prevWeaponDef.mage_only_bonus : 0) + (isClericoPrev && prevWeaponDef.cleric_only_bonus ? prevWeaponDef.cleric_only_bonus : 0);
+    const newAtk  = (def.amount || 0) + mageOnlyBonus + clericOnlyBonus;
+    if (newAtk < prevAtk) {
+      weakerWeaponWarnMsg = `\n⚠️ Este arma hace menos daño que tu ${player.equipped_weapon} (${newAtk} vs ${prevAtk} ATK).`;
+    }
+  }
+
   return {
-    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.\n${def.description}${magoHeavyFlavor}${critWarnMsg}${manaRegenWarnMsg}${swapMsg}${equipCraftedMsg}`,
+    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.\n${def.description}${magoHeavyFlavor}${critWarnMsg}${manaRegenWarnMsg}${weakerWeaponWarnMsg}${swapMsg}${equipCraftedMsg}`,
     event: `${player.username} empuña ${found}.`,
     eventRoomId: player.current_room_id,
   };

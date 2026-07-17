@@ -886,14 +886,10 @@ function _progressText(qd, progressJson) {
  * @returns {{ text: string }}
  */
 function getQuestsDisplay(player) {
-  // BUG-1616/BUG-1618: si el jugador es bot pero tiene quests activas en DB, mostrarlas igual.
-  // Las quests pueden estar en player_quests (slots normal/narrativa/secundaria) O
-  // en players.aldric_quest ('active') — hay que verificar ambos paths.
+  // DIS-1692: no early return para bots sin quests — usar el mismo mensaje neutral que humanos.
+  // BUG-1616/BUG-1618: si el bot tiene quests activas en DB, mostrarlas igual (fluye al path normal).
   if (player.is_bot) {
-    const activeQuestsCheck = _getActiveQuests(player.id);
-    const hasAldricQuest = (player.aldric_quest || 'none') === 'active';
-    if (!activeQuestsCheck.length && !hasAldricQuest) return { text: 'Los bots no reciben quests.' };
-    // Tiene quests activas — continuar con el display normal
+    // no-op: dejar fluir al display normal
   }
 
   const rawDb = db.raw();

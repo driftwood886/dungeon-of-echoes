@@ -1105,7 +1105,7 @@ function attackRound(player, monster) {
           monster.hp = newGolemHp;
           golemFx.regen_total = (golemFx.regen_total || 0) + actualRegen;
           const regenMsg = golemPhase2
-            ? `⚠️🪨 ¡Los fragmentos del Gólem de Piedra se energizan con furia! Regenera ${actualRegen} HP. (${monster.hp}/${monster.max_hp} HP) — el daño sostenido es tu única opción.`
+            ? `⚠️🪨 ¡Los fragmentos del Gólem de Piedra se energizan con furia! Regenera ${actualRegen} HP. (${monster.hp}/${monster.max_hp} HP) La piedra viva no conoce el cansancio.`
             : `🪨 Los fragmentos del Gólem de Piedra se reensamblan — regenera ${actualRegen} HP. (${monster.hp}/${monster.max_hp} HP)`;
           lines.push(regenMsg);
         }
