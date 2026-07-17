@@ -1690,6 +1690,21 @@ function cmdMove(player, direction) {
           if (room9WarnNB && room9WarnNB.trap && room9WarnNB.trap.active) {
             const invNB1249 = (player.inventory || []).map(i => i.toLowerCase().trim());
             const hasCoronaNB = invNB1249.includes('corona rota');
+            // DIS-1689: aviso cuando el jugador TIENE la corona — se va a consumir automáticamente
+            if (hasCoronaNB) {
+              const seNBCorona = parseSE(player.status_effects);
+              if (!seNBCorona.trono_corona_warning_done) {
+                const newSeNBCorona = { ...seNBCorona, trono_corona_warning_done: true };
+                db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeNBCorona) });
+                return {
+                  text: `👑 Vas a entrar a la Sala del Trono. Tenés una «corona rota» en el inventario.\n\nSi entrás ahora, la corona será ofrendada al trono automáticamente, desactivando la trampa de frío — pero **se consumirá** y no la recuperarás.\n\n¿Querés usarla?\n   ✅ Sí, entrar y usar la corona: repetí el comando de movimiento\n   ❌ No, guardarla: usá «desactivar trampa» desde afuera para desactivarla sin entrar (mismo efecto pero más control)\n\n💡 Si entrás sin querer usar la corona, podés escapar con «flee» antes de que se aplique el daño de trampa.`,
+                };
+              }
+              // Segunda vez: limpiar flag y seguir — auto-consume en la trampa
+              const clearedSeNBCorona = { ...seNBCorona };
+              delete clearedSeNBCorona.trono_corona_warning_done;
+              db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSeNBCorona) });
+            }
             if (!hasCoronaNB) {
               const seNB1249 = parseSE(player.status_effects);
               if (!seNB1249.trono_warning_done) {
@@ -2298,6 +2313,21 @@ function cmdMove(player, direction) {
     if (room9ForWarn && room9ForWarn.trap && room9ForWarn.trap.active) {
       const inv1249 = (player.inventory || []).map(i => i.toLowerCase().trim());
       const hasCoronaRota1249 = inv1249.includes('corona rota');
+      // DIS-1689: aviso cuando el jugador TIENE la corona — se va a consumir automáticamente
+      if (hasCoronaRota1249) {
+        const se1249Corona = parseSE(player.status_effects);
+        if (!se1249Corona.trono_corona_warning_done) {
+          const newSe1249Corona = { ...se1249Corona, trono_corona_warning_done: true };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1249Corona) });
+          return {
+            text: `👑 Vas a entrar a la Sala del Trono. Tenés una «corona rota» en el inventario.\n\nSi entrás ahora, la corona será ofrendada al trono automáticamente, desactivando la trampa de frío — pero **se consumirá** y no la recuperarás.\n\n¿Querés usarla?\n   ✅ Sí, entrar y usar la corona: repetí el comando de movimiento\n   ❌ No, guardarla: usá «desactivar trampa» desde afuera para desactivarla sin entrar (misma efecto pero más control)\n\n💡 Si entrás sin querer usar la corona, podés escapar con «flee» antes de que se aplique el daño de trampa.`,
+          };
+        }
+        // Segunda vez: limpiar el flag y seguir — el auto-consume en la trampa se encarga del resto
+        const clearedSe1249Corona = { ...se1249Corona };
+        delete clearedSe1249Corona.trono_corona_warning_done;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe1249Corona) });
+      }
       if (!hasCoronaRota1249) {
         const se1249 = parseSE(player.status_effects);
         if (!se1249.trono_warning_done) {
