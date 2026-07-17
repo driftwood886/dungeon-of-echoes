@@ -4960,6 +4960,7 @@ function cmdAttack(player, targetName) {
         }
       }
     } catch (_) { /* no romper combate */ }
+    if (challengeResult && challengeResult.reward) {
       // DIS-1538: recompensa de runa garantizada al completar desafío diario.
       // Dar una runa del tipo más acumulado (o aleatorio si no hay ninguna).
       // Esto garantiza al menos 1 progreso útil hacia un set por día.
