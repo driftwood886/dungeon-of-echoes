@@ -12920,6 +12920,15 @@ function _cmdFaccionElegir(player, args) {
     }
   } catch (_) { /* no romper unión a facción si falla questEngine */ }
 
+  // BUG-1717: generateMission no se llamaba al confirmar facción mid-sesión.
+  // Sin esto, el jugador no recibe su misión de facción hasta hacer una acción que dispare onEvent.
+  try {
+    const freshForFM1717 = db.getPlayer(player.id);
+    if (freshForFM1717) {
+      factionMissions.generateMission(freshForFM1717);
+    }
+  } catch (_) { /* no romper unión a facción si falla factionMissions */ }
+
   // Mensaje narrativo de bienvenida según facción
   const WELCOME_MSGS = {
     orden_filo:
@@ -12961,7 +12970,7 @@ function _cmdFaccionElegir(player, args) {
   }
 
   return {
-    text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
+    text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.\n\n🏴 **Misión de facción:** Ya tenés una misión asignada para esta semana. Escribí «misión facción» para verla.\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
   };
 }
 
@@ -13030,6 +13039,14 @@ function _cmdFaccionCambiar(player, args) {
   db.updatePlayer(player.id, { gold: gold - 100 });
   db.setPlayerFaction(player.id, newFactionId);
   db.recordFactionChange(player.id);
+
+  // BUG-1717: generar misión de facción inmediatamente al cambiar de facción mid-sesión
+  try {
+    const freshForFMCambiar = db.getPlayer(player.id);
+    if (freshForFMCambiar) {
+      factionMissions.generateMission(freshForFMCambiar);
+    }
+  } catch (_) { /* no romper cambio si falla factionMissions */ }
 
   const currentDisplay = currentLore ? `${currentLore.icon} ${currentLore.name}` : player.faction;
   const newDisplay = newLore ? `${newLore.icon} ${newLore.name}` : newFactionId;
@@ -13815,6 +13832,15 @@ function getOrCreatePlayer(username) {
     }
   } catch (e) {
     console.error('[getOrCreatePlayer] Error en assignQuests:', e);
+  }
+
+  // BUG-1717: generar misión de facción en login si el jugador tiene facción y no tiene misión activa
+  try {
+    if (!player.is_bot && player.faction) {
+      factionMissions.generateMission(player);
+    }
+  } catch (e) {
+    console.error('[getOrCreatePlayer] Error en factionMissions.generateMission:', e);
   }
 
   return player;
