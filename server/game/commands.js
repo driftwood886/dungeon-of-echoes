@@ -135,6 +135,8 @@ const COMMAND_ALIASES = {
   // EPIC-1375: 'faccion' es su propio comando (no guild) — maneja elegir/cambiar/info
   faccion: 'faccion', facción: 'faccion',
   facciones: 'facciones', facctions: 'facciones', guerra: 'facciones', influencia: 'facciones',  // EPIC-1374
+  // DIS-1727: alias intuitivos para unirse a facción
+  unirse: 'faccion', join: 'faccion', afiliarse: 'faccion', ingresar: 'faccion',
   // guild quest — atajo directo
   'guild quest': 'guild', 'misión guild': 'guild', 'mision guild': 'guild',
   // gc / guild chat

@@ -4419,7 +4419,28 @@ function cmdAttack(player, targetName) {
       targetName = monstersInRoom[0].name;
     } else if (monstersInRoom && monstersInRoom.length > 1) {
       // DIS-D325: Mostrar lista numerada de enemigos cuando hay múltiples targets
-      const alive = monstersInRoom.filter(m => m.hp > 0);
+      let alive = monstersInRoom.filter(m => m.hp > 0);
+      // DIS-1728: Durante Marea Espectral (salas > 5), filtrar monstruos inactivos del pool
+      // de auto-targeting para que el hint de "objetivos disponibles" no incluya enemigos bloqueados.
+      try {
+        const attackEvCheck = eventScheduler.getActiveEventInfo ? eventScheduler.getActiveEventInfo() : null;
+        if (attackEvCheck && attackEvCheck.event && attackEvCheck.event.id === 'SPECTRAL_TIDE'
+            && player.current_room_id > 5) {
+          const SPECTRAL_ACTIVE_IDS = new Set([4, 8, 12, 13, 21, 22]);
+          const spectralAlive = alive.filter(m => {
+            const mName = (m.name || '').toLowerCase();
+            const isSpectral = SPECTRAL_ACTIVE_IDS.has(m.id) ||
+              mName.includes('espectro') || mName.includes('fantasma') ||
+              mName.includes('espectral') || mName.includes('lich') || mName.includes('sombra');
+            const isUndead = mName.includes('esqueleto') || mName.includes('zombie') ||
+              mName.includes('zombi') || mName.includes('vampiro') || mName.includes('momia') ||
+              mName.includes('óseo') || mName.includes('muerto');
+            return isSpectral || isUndead;
+          });
+          // Solo restringir si la marea realmente deja algún monstruo atacable en la sala
+          if (spectralAlive.length > 0) alive = spectralAlive;
+        }
+      } catch (_) { /* no romper el flujo si falla la comprobación del evento */ }
       if (alive.length === 1) {
         targetName = alive[0].name;
       } else if (alive.length === 0) {
@@ -12763,6 +12784,16 @@ function cmdFaccion(player, args) {
       return { text: `Facción desconocida: "${fid}"\nFacciones disponibles: orden_filo, conclave_arcano, hermandad_mercado` };
     }
     return { text: _buildFactionCard(lore, false) };
+  }
+
+  // DIS-1727: si el sub no es un subcomando reconocido, intentar interpretarlo como nombre
+  // de facción directamente. Esto permite "unirse orden_filo", "join conclave_arcano", etc.
+  // (cuando el alias 'unirse'/'join' → 'faccion' y el nombre queda como primer arg)
+  if (FACTION_LORE[sub] || FACTION_LORE[nameArg] || FACTION_LORE[sub.replace(/\s+/g, '_')]) {
+    const candidateId = FACTION_LORE[sub] ? sub :
+                        FACTION_LORE[nameArg] ? nameArg :
+                        sub.replace(/\s+/g, '_');
+    return _cmdFaccionElegir(player, [candidateId, ...args.slice(1)]);
   }
 
   return { text: 'Usá: faccion elegir <nombre> | faccion cambiar <nombre> | faccion info <nombre>\n\nNombres de facción: orden_filo, conclave_arcano, hermandad_mercado' };
