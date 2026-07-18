@@ -12,6 +12,7 @@
 'use strict';
 
 const db = require('../db/db.js');
+const factionMissions = require('./factionMissions.js');  // BUG-1723: mostrar misión de facción en getQuestsDisplay
 
 // ─── Helpers internos ─────────────────────────────────────────────────────────
 
@@ -885,6 +886,36 @@ function _progressText(qd, progressJson) {
  * @param {Object} player
  * @returns {{ text: string }}
  */
+/**
+ * _factionMissionBlock — helper interno para BUG-1723.
+ * Si el jugador tiene facción activa y misión semanal, retorna un bloque
+ * de texto listo para insertar en getQuestsDisplay. Si no, retorna null.
+ */
+function _factionMissionBlock(player) {
+  if (!player || !player.faction) return null;
+
+  const mission = factionMissions.getMissionForPlayer(player);
+  if (!mission) return null;
+
+  const FACTION_NAMES = {
+    orden_filo:           '🗡️  La Orden del Filo',
+    conclave_arcano:      '🔮 El Cónclave Arcano',
+    hermandad_mercado:    '🪙 La Hermandad del Mercado',
+  };
+  const factionDisplay = FACTION_NAMES[player.faction] || player.faction;
+  const desc = (mission.description_template || mission.name).replace('{target}', mission.target);
+  const progress = mission.status === 'completed'
+    ? '✅ COMPLETADA'
+    : `${mission.progress || 0}/${mission.target}`;
+
+  const lines = [
+    `🏴 **MISIÓN DE FACCIÓN — ${factionDisplay}**`,
+    `  [FACCIÓN]    🏴 "${mission.name}" — ${desc} (${progress})`,
+    `  Usá \`mision-faccion\` para ver detalles completos.`,
+  ];
+  return lines.join('\n');
+}
+
 function getQuestsDisplay(player) {
   // DIS-1722: refrescar player desde la BD para evitar inconsistencias de caché en la sesión
   // (ej: jugador se une a una facción y luego ejecuta 'quests' en el mismo request — sin esto,
@@ -908,6 +939,9 @@ function getQuestsDisplay(player) {
       lines.push('  [NARRATIVA]  📜 "El Sello de las Dos Llaves" — Encontrá la carta sellada en Sala 8 y traésela a Aldric (Sala 4).');
       lines.push('');
       lines.push('Comandos: `quest info <nombre>` · `quest historial` · `quest abandonar <nombre>`');
+      // BUG-1723: también mostrar misión de facción si aplica
+      const fmBlock = _factionMissionBlock(player);
+      if (fmBlock) { lines.push(''); lines.push(fmBlock); }
       return { text: lines.join('\n') };
     }
     // Sin quests activas — mensaje orientativo
@@ -917,6 +951,9 @@ function getQuestsDisplay(player) {
       lines.push('💡 Sin facción activa — uniéndote a una, recibirías misiones especiales de tu gremio.');
       lines.push('   Comando: `facciones`');
     }
+    // BUG-1723: mostrar misión de facción aunque no haya quests genéricas
+    const fmBlock = _factionMissionBlock(player);
+    if (fmBlock) { lines.push(''); lines.push(fmBlock); }
     return { text: lines.join('\n') };
   }
 
@@ -948,6 +985,10 @@ function getQuestsDisplay(player) {
   if (!player.faction) {
     lines.push('\n💡 Sin facción activa — uniéndote a una, recibirías quests especiales de tu gremio.');
   }
+
+  // BUG-1723: si tiene facción, mostrar también la misión semanal de facción
+  const fmBlockEnd = _factionMissionBlock(player);
+  if (fmBlockEnd) { lines.push(''); lines.push(fmBlockEnd); }
 
   return { text: lines.join('\n') };
 }
