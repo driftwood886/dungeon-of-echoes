@@ -1093,8 +1093,11 @@ function attackRound(player, monster) {
       // DIS-1550: dos protecciones contra loop infinito:
       //   (a) Sin regen en el mismo turno que activa el escudo (no acumular dos ventajas simultáneas)
       //   (b) Cap de regen total — el Gólem no puede recuperar más que su propio max_hp durante toda la pelea
+      // DIS-1729: Sin regen el mismo turno que el jugador usa una habilidad especial acumulada
+      //   (golpe_sombra, ambush de Asesino) — se siente injusto que el combo quede anulado.
+      const specialSkillUsedThisTurn = sombraStrike || (ambushReady && player.specialization === 'asesino');
       const regenCapHit = (golemFx.regen_total || 0) >= monster.max_hp;
-      if (!shieldActivatedThisTurn && !regenCapHit) {
+      if (!shieldActivatedThisTurn && !regenCapHit && !specialSkillUsedThisTurn) {
         const golemPhase2 = monster.hp <= (monster.max_hp / 2);
         const regenAmount = (player.level >= 7)
           ? (golemPhase2 ? 20 : 12)
@@ -1111,6 +1114,8 @@ function attackRound(player, monster) {
         }
       } else if (regenCapHit) {
         lines.push(`🪨 El Gólem de Piedra intenta regenerarse, pero sus reservas de energía se han agotado.`);
+      } else if (specialSkillUsedThisTurn) {
+        lines.push(`🌑 El impacto de tu ataque especial interrumpe la regeneración del Gólem — los fragmentos no logran reensamblarse este turno.`);
       }
     }
     monster.status_effects = golemFx;

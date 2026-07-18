@@ -402,4 +402,55 @@ function listRecipes() {
   return '📖 **Recetas conocidas:**\n' + lines.join('\n');
 }
 
-module.exports = { craft, findRecipe, listRecipes, CRAFTED_ITEMS, RECIPES };
+/**
+ * DIS-1735: Versión filtrada de listRecipes — muestra solo lo crafteable con el inventario actual.
+ * Si el jugador no tiene nada crafteable, muestra la lista completa como referencia.
+ * @param {string[]} inventory - lista de ítems del jugador (strings)
+ */
+function listRecipesForPlayer(inventory) {
+  const invNorm = (inventory || []).map(i => (typeof i === 'string' ? i.toLowerCase().trim() : ''));
+  const available = [];
+  const missing1 = []; // recetas donde tiene 1 de 2 ingredientes
+  const rest = [];
+
+  for (const r of RECIPES) {
+    const has0 = invNorm.includes(r.ingredients[0].toLowerCase());
+    const has1 = invNorm.includes(r.ingredients[1].toLowerCase());
+    const label = r.result === 'lanza espectral del eco'
+      ? `${r.ingredients[0]} (Campeón Espectral) + ${r.ingredients[1]} (Eco Viviente) → **${r.result}**`
+      : `${r.ingredients[0]} + ${r.ingredients[1]} → **${r.result}**`;
+    if (has0 && has1) {
+      available.push(`  ✅ ${label}`);
+    } else if (has0 || has1) {
+      const missing = has0 ? r.ingredients[1] : r.ingredients[0];
+      missing1.push(`  🟡 ${label}  (falta: «${missing}»)`);
+    } else {
+      rest.push(`  ⬜ ${r.ingredients[0]} + ${r.ingredients[1]} → ${r.result}`);
+    }
+  }
+
+  const lines = ['📖 **Recetas de crafteo**\n'];
+  if (available.length > 0) {
+    lines.push(`🟢 Podés craftear ahora (${available.length}):`);
+    lines.push(...available);
+    lines.push('');
+    lines.push('  Usá:  craftear <nombre del resultado>');
+    lines.push('');
+  }
+  if (missing1.length > 0) {
+    lines.push(`🟡 Casi listo — te falta un ingrediente (${missing1.length}):`);
+    lines.push(...missing1);
+    lines.push('');
+  }
+  if (rest.length > 0) {
+    lines.push(`⬜ Otras recetas (${rest.length}) — no tenés los ingredientes:`);
+    lines.push(...rest);
+  }
+  if (available.length === 0 && missing1.length === 0) {
+    lines.push('No tenés ingredientes para ninguna receta en este momento.');
+    lines.push('Los materiales de crafteo se consiguen matando monstruos y explorando.');
+  }
+  return lines.join('\n');
+}
+
+module.exports = { craft, findRecipe, listRecipes, listRecipesForPlayer, CRAFTED_ITEMS, RECIPES };

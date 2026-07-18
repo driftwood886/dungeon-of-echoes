@@ -529,7 +529,7 @@ function execute(playerId, input, context) {
     case 'weather':      result = cmdWeather(); break;
     case 'recent':       result = cmdRecent(action.args); break;
     case 'craft':        result = cmdCraft(player, action.args); break;
-    case 'recipes':      result = cmdRecipes(); break;
+    case 'recipes':      result = cmdRecipes(player); break;
     case 'news':         result = cmdNews(); break;
     case 'forage':       result = cmdForage(player); break;
     case 'survey':       result = cmdSurvey(player); break;
@@ -1970,7 +1970,12 @@ function cmdMove(player, direction) {
             };
             const nbDisarmHint = TRAP_DISARM_HINT_NB[destId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
             const nbAtmoPrefix = nbAtmo ? `\n\n${nbAtmo}` : '';
-            noBossTrapText = `${nbAtmoPrefix}\n\n⚠️  ¡TRAMPA! ${nbTrap.description}\n💥 Perdés ${nbVarDmg} HP. (${nbNewHp}/${nbFresh.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).\n${nbDisarmHint}`;
+            // DIS-1734: para sala 6 (esporas), el jugador ya eligió entrar a sabiendas del riesgo
+            // (el warning previo lo informó). Cambiar el texto sorpresivo por uno que reconoce la decisión.
+            const nbTrapDesc = (destId === 6)
+              ? 'Entrás a sabiendas del riesgo. Las esporas te golpean al cruzar el umbral.'
+              : nbTrap.description;
+            noBossTrapText = `${nbAtmoPrefix}\n\n⚠️  ¡TRAMPA! ${nbTrapDesc}\n💥 Perdés ${nbVarDmg} HP. (${nbNewHp}/${nbFresh.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).\n${nbDisarmHint}`;
             if (nbNewHp === 0) {
               const trapDeathNBLines = [];
               const trapDeathNBResult = combat.handlePlayerDeath(nbFresh.id, trapDeathNBLines, `trampa en sala ${destId}`);
@@ -2143,7 +2148,11 @@ function cmdMove(player, direction) {
             };
             const bfhDisarmHint = TRAP_DISARM_HINT_BFH[destId] || '💡 Tip: escribí "desactivar trampa" con el ítem correcto en tu inventario para desactivarla permanentemente.';
             const bfhAtmoPrefix = bfhAtmo ? `\n\n${bfhAtmo}` : '';
-            bossFullHpTrapText = `${bfhAtmoPrefix}\n\n⚠️  ¡TRAMPA! ${bfhTrap.description}\n💥 Perdés ${bfhVarDmg} HP. (${bfhNewHp}/${bfhFresh.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).\n${bfhDisarmHint}`;
+            // DIS-1734: para sala 6 (esporas), cambiar el texto sorpresivo cuando el jugador eligió entrar.
+            const bfhTrapDesc = (destId === 6)
+              ? 'Entrás a sabiendas del riesgo. Las esporas te golpean al cruzar el umbral.'
+              : bfhTrap.description;
+            bossFullHpTrapText = `${bfhAtmoPrefix}\n\n⚠️  ¡TRAMPA! ${bfhTrapDesc}\n💥 Perdés ${bfhVarDmg} HP. (${bfhNewHp}/${bfhFresh.max_hp} HP)\n🧠 Ahora recordás el mecanismo — no volverá a sorprenderte (incluso entre sesiones).\n${bfhDisarmHint}`;
             } // cierra if (!caverna_gracia_bfh)
             } // cierra else de bfhHasDisarmItem (DIS-1171)
           }
@@ -9772,10 +9781,23 @@ function cmdDisarm(player, args) {
       let ownTrapHint = '';
       if (currentRoomForHint && currentRoomForHint.trap && currentRoomForHint.trap.active && currentRoomForHint.trap.item_needed) {
         const ownItem = currentRoomForHint.trap.item_needed;
-        const playerHasOwnItem = (player.inventory || []).some(i => i.toLowerCase() === ownItem.toLowerCase());
+        const ownItemIdx = (player.inventory || []).findIndex(i => i.toLowerCase() === ownItem.toLowerCase());
+        const playerHasOwnItem = ownItemIdx !== -1;
         if (playerHasOwnItem) {
-          // BUG-563: jugador tiene el ítem para SU sala actual — probablemente se confundió con la dirección
-          ownTrapHint = `\n\n⚠️  ¿Querías desactivar la trampa de TU sala actual (${currentRoomForHint.name})?\n   Tenés "${ownItem}" en tu inventario — escribí "desactivar trampa" sin dirección para eso.`;
+          // DIS-1731: jugador tiene el ítem para SU trampa local pero apuntó a la adyacente.
+          // Si hay trampa activa en la sala actual Y tiene el ítem, auto-desactivar la local.
+          const ownInv = [...(player.inventory || [])];
+          ownInv.splice(ownItemIdx, 1);
+          const updatedKnownDisarm1731 = { ...(player.known_traps || {}), [currentRoomForHint.id]: true };
+          db.updatePlayer(player.id, { inventory: JSON.stringify(ownInv), known_traps: JSON.stringify(updatedKnownDisarm1731) });
+          const respawnAt1731 = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+          const newOwnTrap = { ...currentRoomForHint.trap, active: false, respawn_at: respawnAt1731 };
+          db.updateRoomTrap(currentRoomForHint.id, newOwnTrap);
+          return {
+            text: `🎯 Trampa objetivo: «${adjRoom.name}» (al ${dirLabel2}) — ítem requerido: "${trapAdj.item_needed}", que no tenés.\n\n💡 Sin embargo, notás que TU sala (${currentRoomForHint.name}) tiene una trampa activa y que tenés «${ownItem}» — el ítem exacto para desactivarla.\n\n🔧 Desactivás la trampa de ${currentRoomForHint.name} con tu ${ownItem}.\n✅ Trampa local desactivada. (${ownItem} consumido.)\n\n🧠 Para la trampa de ${adjRoom.name} (al ${dirLabel2}), necesitás: "${trapAdj.item_needed}".`,
+            event: `${player.username} desactiva una trampa en la sala.`,
+            eventRoomId: player.current_room_id,
+          };
         } else {
           ownTrapHint = `\n💡 Nota: esta sala (${currentRoomForHint.name}) también tiene trampa — necesitás "${ownItem}" y escribí "desactivar trampa" (sin dirección) para desactivarla aquí.`;
         }
@@ -11547,13 +11569,17 @@ function cmdShop(player, args) {
     const num = String(i + 1).padStart(2, ' ');
     const namePad = item.name.padEnd(26, ' ');
     const finalPrice = getDiscountedPrice(item.price, reputation, aldricRep);
+    // DIS-1732: en modo básico (por clase), truncar descripciones largas para que siempre se vea nombre+precio
+    const maxDescLen = basicMode ? 40 : 999;
+    const descRaw = item.description || '';
+    const descTrunc = descRaw.length > maxDescLen ? descRaw.slice(0, maxDescLen - 1) + '…' : descRaw;
     if (discount > 0) {
       const pricePad = `${finalPrice}g`.padEnd(9, ' ');
       const origPad  = `(${item.price}g)`.padEnd(11, ' ');
-      lines.push(`${num}. ${namePad}${pricePad}${origPad}${item.description}`);
+      lines.push(`${num}. ${namePad}${pricePad}${origPad}${descTrunc}`);
     } else {
       const pricePad = `${finalPrice}g`.padEnd(9, ' ');
-      lines.push(`${num}. ${namePad}${pricePad}${item.description}`);
+      lines.push(`${num}. ${namePad}${pricePad}${descTrunc}`);
     }
   });
 
@@ -13016,10 +13042,12 @@ function _cmdFaccionElegir(player, args) {
 
   // BUG-1717: generateMission no se llamaba al confirmar facción mid-sesión.
   // Sin esto, el jugador no recibe su misión de facción hasta hacer una acción que dispare onEvent.
+  // DIS-1730: guardar la misión generada para mostrarla inline en el mensaje de bienvenida.
+  let _welcomeMission = null;
   try {
     const freshForFM1717 = db.getPlayer(player.id);
     if (freshForFM1717) {
-      factionMissions.generateMission(freshForFM1717);
+      _welcomeMission = factionMissions.generateMission(freshForFM1717);
     }
   } catch (_) { /* no romper unión a facción si falla factionMissions */ }
 
@@ -13063,8 +13091,25 @@ function _cmdFaccionElegir(player, args) {
     } catch (_) { /* no romper unión si falla el ítem */ }
   }
 
+  // DIS-1730: mostrar detalles de la misión inline al unirse, sin requerir un comando extra.
+  let _missionBlock = '';
+  if (_welcomeMission) {
+    try {
+      const _mDesc = (_welcomeMission.description_template || _welcomeMission.name || '').replace('{target}', _welcomeMission.target);
+      const _mRewards = [];
+      if (_welcomeMission.reward_xp)       _mRewards.push(`+${_welcomeMission.reward_xp} XP`);
+      if (_welcomeMission.reward_gold)     _mRewards.push(`+${_welcomeMission.reward_gold} 💰`);
+      if (_welcomeMission.reward_influence) _mRewards.push(`+${_welcomeMission.reward_influence} 🏴`);
+      _missionBlock = `\n\n🏴 **Tu misión de esta semana:**\n   📋 ${_mDesc}\n   🎁 Recompensa: ${_mRewards.join(' | ') || '—'}\n   (Progreso: 0/${_welcomeMission.target} — escribí «misión facción» para más detalles.)`;
+    } catch (_) {
+      _missionBlock = `\n\n🏴 **Misión de facción:** Ya tenés una misión asignada para esta semana. Escribí «misión facción» para verla.`;
+    }
+  } else {
+    _missionBlock = `\n\n🏴 **Misión de facción:** Ya tenés una misión asignada para esta semana. Escribí «misión facción» para verla.`;
+  }
+
   return {
-    text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.\n\n🏴 **Misión de facción:** Ya tenés una misión asignada para esta semana. Escribí «misión facción» para verla.\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
+    text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.${_missionBlock}\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
   };
 }
 
@@ -14273,7 +14318,14 @@ function cmdCraft(player, args) {
   return { text: craftResult.text + craftChallengeMsg + guildCraftMsg + craftGoalMsg };
 }
 
-function cmdRecipes() {
+// DIS-1735: cmdRecipes ahora recibe el jugador para filtrar por inventario
+function cmdRecipes(player) {
+  if (player) {
+    const freshForRecipes = db.getPlayer(player.id) || player;
+    let inv = [];
+    try { inv = Array.isArray(freshForRecipes.inventory) ? freshForRecipes.inventory : JSON.parse(freshForRecipes.inventory || '[]'); } catch (_) {}
+    return { text: crafting.listRecipesForPlayer(inv) };
+  }
   return { text: crafting.listRecipes() };
 }
 
