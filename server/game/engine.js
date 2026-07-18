@@ -17730,6 +17730,9 @@ function cmdClase(player, args) {
     mana:     newMana,
     max_mana: newMaxMana,
     gold:     startingGold,
+    // DIS-1743: el Pícaro empieza con una bolsa de lona ya equipada (+4 slots)
+    // Evita el dilema presupuestario: 65g de inicio → gastar 20g en bolsa vs 45g en daga
+    ...(isFirstClass && className === 'picaro' ? { inventory_bonus: 4 } : {}),
   });
 
   // DIS-1360: limpiar flag de advertencia de clase (ya no es necesario)
@@ -17754,6 +17757,10 @@ function cmdClase(player, args) {
 
   if (className === 'picaro') {
     lines.push(``, `💡 Como Pícaro tus golpes críticos son del 25% y esquivas el 20% de ataques.`);
+    if (isFirstClass) {
+      lines.push(`🎒 Bolsa de lona de pícaro: ya viene conectada a tu mochila (+4 slots, cap. 24).`);
+      lines.push(`   Tus 65g de inicio son para equiparte — Aldric recomienda la daga envenenada (45g).`);
+    }
   } else if (className === 'mago') {
     lines.push(``, `💡 Como Mago tus hechizos hacen 1.5× de daño y la recarga de maná es 6× más rápida.`);
   } else if (className === 'guerrero') {
