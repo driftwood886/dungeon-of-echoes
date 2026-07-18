@@ -6224,6 +6224,21 @@ function cmdPick(player, itemQuery) {
       const finalMax = INV_BASE_SLOTS + (freshFinal.inventory_bonus || 0); // DIS-1480
       resultMsg += `\n\n⚠️ Inventario lleno (${finalMax}/${finalMax}) — siguen en el suelo (puede incluir ítems de sesiones previas):\n  ${notPicked.map(i => `❌ ${i}`).join('\n  ')}\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g, +4 slots) en la tienda de Aldric.`;
     }
+    // BUG-1724: registrar progreso del desafío loot_pickup para los ítems no-moneda recogidos con pick todo
+    const pickedNonGoldItems = pickedLines
+      .filter(l => l.trim().startsWith('✅') || l.trim().startsWith('\n  ✨'))
+      .map(l => {
+        // Extraer nombre del ítem del formato "  ✅ <nombre>" o "  ✨ ... <nombre>..."
+        const m = l.match(/✅\s+(.+)$/) || l.match(/\[.+?\]\s+(.+?)\s+—/);
+        return m ? m[1].trim() : null;
+      })
+      .filter(Boolean);
+    if (pickedNonGoldItems.length > 0) {
+      try {
+        const freshForPickTodo = db.getPlayer(player.id);
+        challengeTracker.trackLoot(player.id, freshForPickTodo, pickedNonGoldItems);
+      } catch (_) { /* no romper pick todo si falla el tracking */ }
+    }
     return { text: resultMsg };
   }
 
@@ -6444,6 +6459,12 @@ function cmdPick(player, itemQuery) {
       db.updatePlayer(freshP2.id, { status_effects: JSON.stringify({ ...shownH2, [hKeyDiente]: true }) });
     }
   }
+
+  // BUG-1724: registrar progreso del desafío loot_pickup al recoger ítems individualmente con pick
+  try {
+    const freshForChallenge = db.getPlayer(player.id);
+    challengeTracker.trackLoot(player.id, freshForChallenge, [found]);
+  } catch (_) { /* no romper pick si falla el tracking de desafío */ }
 
   // DIS-1511: hint discreto para ítems comunes (o raros sin hint previo) que son ingredientes de receta
   // Solo cuando falta el otro ingrediente y aún no se mostró un hint mejor para este ítem.
