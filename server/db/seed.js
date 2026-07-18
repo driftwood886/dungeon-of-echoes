@@ -644,7 +644,7 @@ function migrateCorredorHintDIS1107() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745 };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -2720,6 +2720,44 @@ function migrateOrphanedGuildsBUG1646() {
     console.log(`[seed] migrateOrphanedGuildsBUG1646: ${dissolved} guilds disueltas, ${promoted} líderes actualizados. BUG-1646/1647 ✓`);
   } catch (e) {
     console.warn('[seed] migrateOrphanedGuildsBUG1646:', e.message);
+  }
+}
+
+/**
+ * DIS-1745: Resolver catch-22 de la trampa de esporas del Túnel de Hongos.
+ * El hongo azul necesario para desactivar la trampa de sala 6 solo crecía dentro
+ * del Túnel (protegido por la trampa) — un catch-22 para el jugador.
+ * Solución: garantizar un hongo azul en el suelo de la Capilla Olvidada (sala 5)
+ * la primera vez. La sala 5 es adyacente al Túnel (norte→6) y es accesible sin trampa.
+ * Si el jugador ya recogió el hongo (floor_items vacío de hongo azul), no repetir.
+ */
+function migrateHongoAzulCapillaDIS1745() {
+  try {
+    const room = db.getRoom(5);
+    if (!room) return console.warn('[seed] migrateHongoAzulCapillaDIS1745: sala 5 no encontrada.');
+    // Verificar si la trampa de sala 6 ya está desactivada (si es así, no hace falta el hongo)
+    const room6 = db.getRoom(6);
+    const trap6Active = room6 && room6.trap ? room6.trap.active : false;
+    if (!trap6Active) {
+      return console.log('[seed] migrateHongoAzulCapillaDIS1745: trampa de sala 6 inactiva — no se necesita hongo. ✓');
+    }
+    // Verificar si ya tiene hongo azul en room.items (static) — no agregar dos veces
+    const currentItems = Array.isArray(room.items) ? room.items : [];
+    if (currentItems.some(i => (typeof i === 'string' ? i : '').toLowerCase().includes('hongo azul'))) {
+      return console.log('[seed] migrateHongoAzulCapillaDIS1745: hongo azul ya presente en sala 5. ✓');
+    }
+    // Agregar hongo azul a los items de la Capilla Olvidada
+    const newItems = [...currentItems, 'hongo azul'];
+    const updatedRoom = Object.assign({}, room, {
+      items: newItems,
+      exits: typeof room.exits === 'string' ? JSON.parse(room.exits) : room.exits,
+      trap: room.trap ? (typeof room.trap === 'string' ? JSON.parse(room.trap) : room.trap) : null,
+    });
+    db.upsertRoom(updatedRoom);
+    db.persist();
+    console.log('[seed] migrateHongoAzulCapillaDIS1745: hongo azul colocado en Capilla Olvidada. DIS-1745 ✓');
+  } catch (e) {
+    console.warn('[seed] migrateHongoAzulCapillaDIS1745:', e.message);
   }
 }
 

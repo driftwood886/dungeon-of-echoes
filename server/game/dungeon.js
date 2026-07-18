@@ -351,7 +351,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
       // DIS-1182: mostrar el ítem requerido para desactivar la trampa antes de entrar
       // DIS-1198: agregar hint de dónde conseguir el ítem para ítems con fuente no obvia
       const TRAP_ITEM_WHERE = {
-        'hongo azul': ' (crece en el Túnel de los Hongos — entrá y usá "buscar" para recoger uno, o volvé desde el Corredor con uno en el inventario para desactivarla sin entrar)',
+        'hongo azul': ' (crece en la Capilla Olvidada al sur — buscá allí primero con "buscar" antes de entrar al Túnel. También crece dentro del Túnel, sala 6)',
         'corona rota': ' (loot del Espectro del Corredor, o buscá en la Prisión Subterránea)',
         'cuerda': ' (disponible en la tienda del Mercader Aldric)',
         'red de pesca': ' (buscá en la Caverna Sumergida con \"buscar\" tras entrar, o comprá en la tienda de Aldric por 15g)',

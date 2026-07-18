@@ -9727,7 +9727,7 @@ function cmdUnlock(player, direction) {
 
 // DIS-740: Mapa de origen de ítems de desactivación — se muestra cuando el jugador no tiene el ítem
 const TRAP_ITEM_SOURCE = {
-  'hongo azul':  'Los hongos azules crecen principalmente en el Túnel de los Hongos (sala 6) — probá "buscar" allí. También: algunos asoman en la Capilla Olvidada (sala 5, al sur del Túnel) — podés buscarlos ANTES de entrar al Túnel.',
+  'hongo azul':  'Hay un hongo azul garantizado en la Capilla Olvidada (sala 5, al sur del Túnel de los Hongos) — buscá allí primero con "buscar". También crecen dentro del Túnel (sala 6) si ya lograste entrar.',
   'corona rota': 'La podés conseguir de tres formas: (1) derrota al Espectro del Corredor en sala 9 — la droppea como loot, (2) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, o (3) buscá con "buscar" en la Sala del Trono (sala 9).',
   'cuerda':      'Disponible en la tienda del Mercader Aldric (sala 4). También puede aparecer con "buscar".',
   'red de pesca':'Podés encontrarla con "buscar" en la Caverna Sumergida (sala 13).',
@@ -14592,6 +14592,7 @@ function cmdForage(player) {
     const intro2 = [`Buscás con cuidado entre las grietas de ${room.name}...`, `Revisás los rincones de ${room.name}...`];
     // DIS-452: mensaje específico por sala para conectar el ítem con la trampa
     const FORAGE_TRAP_MSG = {
+      5:  `Inspeccionás el altar y las piedras de la capilla. En la base de un pilar, donde la humedad del pasillo norte penetra, encontrás un hongo azul que creció solo — pequeño, sin luminiscencia, con un olor acre y neutralizante.`,
       6:  `Buscás entre los hongos del suelo y encontrás uno que no brilla como los demás: azul oscuro, sin luz, con olor neutralizante.`,
       9:  `Entre los escombros del trono encontrás un fragmento de corona decorativa. Parece que tiene algún significado para este lugar.`,
     };
