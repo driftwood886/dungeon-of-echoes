@@ -216,6 +216,8 @@ const COMMAND_ALIASES = {
   clase: 'clase', class: 'clase', profesion: 'clase', profesión: 'clase', vocacion: 'clase', vocación: 'clase', oficio: 'clase',
   // especializar (DIS-914)
   especializar: 'especializar', especializarse: 'especializar', subclase: 'especializar', especializacion: 'especializar', especialización: 'especializar', especializaciones: 'especializar', spec: 'especializar',
+  // bonus legado (BUG-1718)
+  bonus: 'bonus',
   // bestiary (T108)
   bestiary: 'bestiary', bestiario: 'bestiary', monstruos: 'bestiary', cazados: 'bestiary', bitacora: 'bestiary', bitácora: 'bestiary',
   // profile (T109)

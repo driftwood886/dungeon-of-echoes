@@ -289,10 +289,32 @@ function calcLevelUp(freshPlayer, xpGain) {
       // Aquí se pueden agregar más unlocks futuros de niveles específicos
     }
   }
+  // BUG-1718: Legado "Veterano Silencioso" — bonus de +1 stat elegible al primer level up (nivel 1→2)
+  let veteranoMsg = '';
+  if (levelUp && oldLevel === 1 && newLevel >= 2) {
+    try {
+      const rawLegacy = freshPlayer.legacy_bonus;
+      if (rawLegacy && rawLegacy !== '{}') {
+        const legacyBonus = typeof rawLegacy === 'string' ? JSON.parse(rawLegacy) : rawLegacy;
+        if (legacyBonus && legacyBonus.effects && legacyBonus.effects.levelup1_bonus === true) {
+          // Marcar bonus pendiente en status_effects
+          const seVet = fields.status_effects
+            ? (typeof fields.status_effects === 'string' ? JSON.parse(fields.status_effects) : fields.status_effects)
+            : (freshPlayer.status_effects
+              ? (typeof freshPlayer.status_effects === 'string' ? JSON.parse(freshPlayer.status_effects) : freshPlayer.status_effects)
+              : {});
+          seVet.pending_levelup1_bonus = true;
+          fields.status_effects = JSON.stringify(seVet);
+          veteranoMsg = '\n\n🌙 **Legado Veterano Silencioso** — Tu mentor dejó algo en vos. Elegí tu bonus extra:\n   `bonus atk` — +1 Ataque\n   `bonus def` — +1 Defensa\n   `bonus hp`  — +5 HP máximo';
+        }
+      }
+    } catch (_) { /* no interrumpir level-up */ }
+  }
+
   const multiLevelNote = levelsGained > 1 ? ` (¡+${levelsGained} niveles de un golpe!)` : '';
   const statsNote = levelsGained > 1 ? ` +${5 * levelsGained} HP, +${levelsGained} ATK` : ` +5 HP, +1 ATK`;
   const levelUpText = levelUp
-    ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}!${multiLevelNote}${statsNote}.${fields.hp ? ` (${fields.hp}/${fields.max_hp} HP)` : ''}${unlockLines}${aldricCartaReminder}\n   → Escribí \`status\` para ver tus stats actualizados.`
+    ? `\n✨ ¡SUBÍS AL NIVEL ${newLevel}!${multiLevelNote}${statsNote}.${fields.hp ? ` (${fields.hp}/${fields.max_hp} HP)` : ''}${unlockLines}${aldricCartaReminder}${veteranoMsg}\n   → Escribí \`status\` para ver tus stats actualizados.`
     : '';
   return { fields, levelUpMsg: levelUpText };
 }
@@ -572,6 +594,7 @@ function execute(playerId, input, context) {
     case 'condenar':     result = cmdCondenar(player, action.args); break;   // EPIC-1303-F4: condenar (solo Clérigo)
     case 'clase':        result = cmdClase(player, action.args); break;
     case 'especializar': result = cmdSpecialize(player, action.args); break;
+    case 'bonus':        result = cmdVeteranoBonusElegir(player, action.args); break;  // BUG-1718
     case 'bestiary':     result = cmdBestiary(player); break;
     case 'profile':      result = cmdProfile(player, context); break;
     case 'journal':      result = cmdJournal(player, action.args); break;
@@ -27119,5 +27142,57 @@ function cmdDig(player, args, context) {
   };
 }
 
-module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, cmdContract, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals, checkAndSetRecords };
 
+
+/**
+ * BUG-1718: Comando `bonus <atk|def|hp>` — Legado Veterano Silencioso.
+ * Aplica el bonus de stat elegido si el jugador tiene un pending_levelup1_bonus activo.
+ */
+function cmdVeteranoBonusElegir(player, args) {
+  const fresh = db.getPlayer(player.id);
+  if (!fresh) return { text: '❌ Error al cargar tu perfil.' };
+
+  // Leer status_effects
+  let se = {};
+  try {
+    se = fresh.status_effects
+      ? (typeof fresh.status_effects === 'string' ? JSON.parse(fresh.status_effects) : fresh.status_effects)
+      : {};
+  } catch (_) { se = {}; }
+
+  if (!se.pending_levelup1_bonus) {
+    return { text: '🌙 No tenés ningún bonus de legado pendiente por elegir.\n   (El Veterano Silencioso otorga un bonus extra al subir de nivel 1→2.)' };
+  }
+
+  const choice = (args && args[0] || '').toLowerCase().trim();
+  if (!['atk', 'def', 'hp'].includes(choice)) {
+    return { text: '🌙 **Legado Veterano Silencioso** — Elegí tu bonus extra:\n   `bonus atk` — +1 Ataque\n   `bonus def` — +1 Defensa\n   `bonus hp`  — +5 HP máximo' };
+  }
+
+  const updates = {};
+  let bonusDesc = '';
+
+  if (choice === 'atk') {
+    updates.attack = (fresh.attack || 3) + 1;
+    bonusDesc = '+1 Ataque (ATK)';
+  } else if (choice === 'def') {
+    updates.defense = (fresh.defense || 0) + 1;
+    bonusDesc = '+1 Defensa (DEF)';
+  } else if (choice === 'hp') {
+    updates.max_hp = (fresh.max_hp || 30) + 5;
+    updates.hp = Math.min(updates.max_hp, (fresh.hp || 1) + 5);
+    bonusDesc = '+5 HP máximo';
+  }
+
+  // Limpiar el pending bonus
+  delete se.pending_levelup1_bonus;
+  updates.status_effects = JSON.stringify(se);
+
+  db.updatePlayer(fresh.id, updates);
+
+  return {
+    text: `🌙 **Legado Veterano Silencioso** — Bonus aplicado: **${bonusDesc}**.\n   El silencio de tu mentor pesa menos ahora. Escribí \`status\` para ver tus stats.`,
+  };
+}
+
+module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, cmdContract, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals, checkAndSetRecords };
