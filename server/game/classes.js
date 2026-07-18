@@ -31,12 +31,12 @@ const CLASSES = {
     max_hp: 22,
     attack: 4,
     defense: 3,  // DIS-1338: subido de 2→3 — DEF 2 era insostenible sin armadura en nivel 1-2
-    mana: 35,
-    max_mana: 35,
+    mana: 42,          // DIS-1736: subido de 35→42 — permite 3 rayos (42/14=3) en vez de 2. El mago early game se quedaba seco a los 2 hechizos.
+    max_mana: 42,
     crit_bonus: 0,
     dodge_bonus: 0,
     spell_power: 1.5,  // hechizos hacen 50% más daño (×1.2 niveles 1-2, ×1.5 nivel 3+)
-    perks: ['Maná máximo aumentado (+15)', 'Hechizos más potentes (×1.2 inicio, ×1.5 a nivel 3)', 'Recarga de maná 10x más rápida (DIS-1607)'],
+    perks: ['Maná máximo aumentado (+22)', 'Hechizos más potentes (×1.2 inicio, ×1.5 a nivel 3)', 'Recarga de maná 10x más rápida (DIS-1607)'],
   },
   picaro: {
     name: 'Pícaro',

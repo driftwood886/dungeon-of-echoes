@@ -313,9 +313,9 @@ const SKILLS = {
     required_class: 'mago',
     cooldown_seconds: 25, // DIS-1607: reducido de 45→25s — válvula de escape del mago sin maná
     type: 'mago_drain',
-    mana_recover_min: 2,
-    mana_recover_max: 4,
-    description: 'Golpeás al monstruo con tu báculo y absorbés su esencia mágica (recuperás 2-4 maná). Útil cuando el maná llega a 0 para volver al combate arcano. Cooldown: 45s. Solo Mago.',
+    mana_recover_min: 6,  // DIS-1736: subido de 2→6 — recuperación de 2-4 era insuficiente para regresar al ciclo arcano
+    mana_recover_max: 8,  // DIS-1736: subido de 4→8 — con 6-8 se recupera lo suficiente para cast escarcha (7) o rayo menor (6)
+    description: 'Golpeás al monstruo con tu báculo y absorbés su esencia mágica (recuperás 6-8 maná). Útil cuando el maná llega a 0 para volver al combate arcano. Cooldown: 25s. Solo Mago.',
     combat_only: true,
   },
   // DIS-1675: Condenar — habilidad de debuff del Clérigo (todos los Clérigos, nivel 1)
