@@ -4963,9 +4963,9 @@ function cmdAttack(player, targetName) {
       const justCrowned = !prevChamp || prevChamp.id !== player.id;
       if (justCrowned) {
         hourlyChampionMap.set('champion', { id: player.id, username: player.username });
-        championMsg = `\n👑 ¡${player.username} es proclamado CAMPEÓN DE LA HORA con ${newHourlyKills} kills!`;
+        championMsg = `\n💀 Las sombras del dungeon susurran tu nombre. El abismo te reconoce como su Cazador de Almas.`;
         Object.assign(combatResult, {
-          globalEvent: `👑 ${player.username} es el nuevo CAMPEÓN DE LA HORA (${newHourlyKills} kills).`,
+          globalEvent: `💀 El dungeon reconoce a un nuevo Cazador de Almas: ${player.username} (${newHourlyKills} almas esta hora).`,
         });
       }
     }
@@ -13507,26 +13507,26 @@ function cmdWorld() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// T212: cmdChampion — Ver el campeón de la hora actual
+// T212: cmdChampion — Ver el cazador de almas de la hora actual (DIS-1740: reescrito en clave temática)
 // ══════════════════════════════════════════════════════════════════════════════
 function cmdChampion() {
   const W = 48;
   const champ = db.getHourlyChampion();
   const lines = [];
   lines.push(`╔${'═'.repeat(W)}╗`);
-  lines.push(`║${'  👑  CAMPEÓN DE LA HORA'.padEnd(W)}║`);
+  lines.push(`║${'  💀  CAZADOR DE ALMAS DE LA HORA'.padEnd(W)}║`);
   lines.push(`╠${'═'.repeat(W)}╣`);
   if (!champ || champ.hourly_kills < 3) {
-    lines.push(`║  (Nadie ha reclamado el título aún)`.padEnd(W + 2) + `║`);
-    lines.push(`║  Necesitás al menos 3 kills esta hora.`.padEnd(W + 2) + `║`);
+    lines.push(`║  (El dungeon aún no ha reconocido a nadie)`.padEnd(W + 2) + `║`);
+    lines.push(`║  Se necesitan al menos 3 almas cosechadas.`.padEnd(W + 2) + `║`);
   } else {
     const now = new Date();
     const minLeft = 59 - now.getUTCMinutes();
     lines.push(`║  ⚔️  ${champ.username}`.padEnd(W + 2) + `║`);
-    lines.push(`║  Kills esta hora: ${champ.hourly_kills}`.padEnd(W + 2) + `║`);
+    lines.push(`║  Almas cosechadas: ${champ.hourly_kills}`.padEnd(W + 2) + `║`);
     lines.push(`║  Nivel: ${champ.level || 1}`.padEnd(W + 2) + `║`);
     lines.push(`╠${'═'.repeat(W)}╣`);
-    lines.push(`║  El título se renueva en ${minLeft} min.`.padEnd(W + 2) + `║`);
+    lines.push(`║  Las sombras se renuevan en ${minLeft} min.`.padEnd(W + 2) + `║`);
   }
   lines.push(`╚${'═'.repeat(W)}╝`);
   return { text: lines.join('\n') };
