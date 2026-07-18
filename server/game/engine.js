@@ -9489,9 +9489,37 @@ function cmdMap(player, args = []) {
   const _isPuertaNorteAbierta = _northExit7 !== undefined && _northExit7 !== null && typeof _northExit7 !== 'object';
   const lockMarkMap = _isPuertaNorteAbierta ? '🔓' : '🔑';
 
+  const ALL_ROOM_NAMES = {
+    1:  'Entrada al Dungeon',
+    2:  'Corredor de Kaelthas',
+    3:  'Sala de los Ecos',
+    4:  'Cámara del Tesoro',
+    5:  'Capilla Olvidada',
+    6:  'Túnel de Hongos',
+    7:  'El Pozo Sin Fondo',
+    8:  'La Prisión',
+    9:  'Sala del Trono',
+    10: 'Santuario del Bosque',
+    11: 'Galería de los Caídos',
+    12: 'Taller de la Forja',
+    13: 'Caverna del Eco',
+    14: 'Coliseo Subterráneo',
+    15: 'Catedral Maldita',
+    16: 'Antesala de Práctica',
+    17: 'Casa de Subastas',
+    18: 'Fuente Eterna',
+    19: 'Cámara del Eco Profundo',
+    20: 'El Abismo Eterno',
+    21: 'Sala de Práctica',
+    22: 'La Cripta Final',
+  };
+  const hereFullName = ALL_ROOM_NAMES[here] || NAMES[here] || `Sala ${here}`;
+
   const lines = [
     'MAPA DEL DUNGEON',
     timeDecor,
+    // DIS-1738: línea prominente de posición actual al inicio del mapa
+    `📍 Estás en: Sala ${here} — ${hereFullName}`,
     '',
     // DIS-1417: Encabezado de zona principal para mayor claridad estructural
     `── ZONA PRINCIPAL ──────────────────────────────────────────`,
@@ -9537,7 +9565,7 @@ function cmdMap(player, args = []) {
     `                          |`,
     `                     ${c(20)}`,
     ``,
-    `★ = tu posición (sala ${here}: ${NAMES[here] || '?'})`,
+    `★ = tu posición (sala ${here}: ${hereFullName})`,
     `[18] = Fuente Eterna (sala de mid-dungeon — escribí "beber" para restaurar HP completo)`,
     // DIS-1417: leyenda mejorada con estructura de dos zonas explícita
     // DIS-1432: aclarar ambos usos de ↓/abajo para evitar confusión
