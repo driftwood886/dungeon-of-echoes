@@ -8103,8 +8103,20 @@ function cmdEquip(player, itemQuery) {
   }
 
   const def = items.getItemDef(found);
+
+  // DIS-1737: Verificar restricciones de clase antes de equipar
+  if (def && def.type === 'weapon') {
+    const clsCheckEquip = classes.getPlayerClass(player);
+    const clsNameEquip = clsCheckEquip ? clsCheckEquip.name : null;
+    if (def.not_for_mage && clsNameEquip === 'Mago') {
+      return { text: `⚔️ La ${found} es un arma de combate físico pesado — diseñada para Guerreros y Pícaros.\n🔮 Como Mago, tus manos no están entrenadas para empuñarla correctamente.\n💡 Buscá armas arcanas: «vara de energía» (Aldric, 40g) o «catalizador mágico» son opciones ideales. También podés craftear ítems con esencia etérea.` };
+    }
+    if (def.not_for_clerigo && clsNameEquip === 'Clérigo') {
+      return { text: `⚔️ La ${found} es un arma de combate físico secular — no resuena con tu fe divina.\n✝️ Como Clérigo, tus armas deben estar bendecidas o llevar el símbolo sagrado.\n💡 Buscá: «símbolo sagrado» o «bastón de roble» en Aldric.` };
+    }
+  }
+
   if (!def || def.type !== 'weapon') {
-    // BUG-266: si el ítem es una armadura, redirigir automáticamente a cmdWear
     if (def && def.type === 'armor') {
       return cmdWear(player, itemQuery);
     }
