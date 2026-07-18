@@ -1438,13 +1438,20 @@ function cmdLook(player, options = {}) {
   // DIS-1463: mostrar solo al entrar a sala nueva (options.showEvent === true), no en look/combate
   let activeEventLine = '';
   if (options.showEvent) {
+  // DIS-1741: clases sin hechizos no ven el aviso de Carga Arcana (irrelevante para ellas)
+  const _playerClassForEvent = (player.player_class || 'sin_clase').toLowerCase();
+  const _isSpellCaster = _playerClassForEvent === 'mago' || _playerClassForEvent === 'clerigo';
   try {
     const currentEv = worldEvents.getCurrentEvent();
     if (currentEv) {
-      const evMinLeft = Math.floor(currentEv.remainingMs / 60000);
-      const evSecLeft = Math.floor((currentEv.remainingMs % 60000) / 1000);
-      const evTimeStr = evMinLeft > 0 ? `${evMinLeft}m ${evSecLeft}s` : `${evSecLeft}s`;
-      activeEventLine = `\n${currentEv.name} — ${currentEv.description} (⏱ ${evTimeStr} restantes)`;
+      // Si es evento de Carga Arcana y el jugador no tiene hechizos, omitir la línea
+      const isArcaneSurgeEv = currentEv.id === 'arcane_surge';
+      if (!isArcaneSurgeEv || _isSpellCaster) {
+        const evMinLeft = Math.floor(currentEv.remainingMs / 60000);
+        const evSecLeft = Math.floor((currentEv.remainingMs % 60000) / 1000);
+        const evTimeStr = evMinLeft > 0 ? `${evMinLeft}m ${evSecLeft}s` : `${evSecLeft}s`;
+        activeEventLine = `\n${currentEv.name} — ${currentEv.description} (⏱ ${evTimeStr} restantes)`;
+      }
     }
   } catch (_) { /* no romper look si worldEvents falla */ }
 
@@ -1453,10 +1460,14 @@ function cmdLook(player, options = {}) {
     try {
       const newEvInfo = eventScheduler.getActiveEventInfo();
       if (newEvInfo && newEvInfo.event) {
-        const newEvMinLeft = newEvInfo.minutesRemaining;
-        const newEvSecLeft = newEvInfo.secondsRemaining;
-        const newEvTimeStr = newEvMinLeft > 0 ? `${newEvMinLeft}m ${newEvSecLeft}s` : `${newEvSecLeft}s`;
-        activeEventLine = `\n${newEvInfo.event.name} — ${newEvInfo.event.description} (⏱ ${newEvTimeStr} restantes)`;
+        // DIS-1741: filtrar Carga Arcana para clases sin hechizos
+        const isArcaneSurgeNew = newEvInfo.event.id === 'ARCANE_SURGE';
+        if (!isArcaneSurgeNew || _isSpellCaster) {
+          const newEvMinLeft = newEvInfo.minutesRemaining;
+          const newEvSecLeft = newEvInfo.secondsRemaining;
+          const newEvTimeStr = newEvMinLeft > 0 ? `${newEvMinLeft}m ${newEvSecLeft}s` : `${newEvSecLeft}s`;
+          activeEventLine = `\n${newEvInfo.event.name} — ${newEvInfo.event.description} (⏱ ${newEvTimeStr} restantes)`;
+        }
       }
     } catch (_) { /* no romper look si eventScheduler falla */ }
   }
