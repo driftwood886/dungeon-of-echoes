@@ -6222,7 +6222,13 @@ function cmdPick(player, itemQuery) {
     if (notPicked.length > 0) {
       const freshFinal = db.getPlayer(player.id);
       const finalMax = INV_BASE_SLOTS + (freshFinal.inventory_bonus || 0); // DIS-1480
-      resultMsg += `\n\n⚠️ Inventario lleno (${finalMax}/${finalMax}) — siguen en el suelo (puede incluir ítems de sesiones previas):\n  ${notPicked.map(i => `❌ ${i}`).join('\n  ')}\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g, +4 slots) en la tienda de Aldric.`;
+      // BUG-1726: mensaje más claro sobre qué entró vs qué quedó (los no recogidos pueden ser de la sesión actual o de sesiones previas)
+      const pickedCount = floorItems.length - notPicked.length;
+      resultMsg += `\n\n⚠️ Inventario lleno (${finalMax}/${finalMax})`;
+      if (pickedCount > 0) {
+        resultMsg += ` — entraron ${pickedCount} ítem(s)`;
+      }
+      resultMsg += `. Quedaron en el suelo:\n  ${notPicked.map(i => `❌ ${i}`).join('\n  ')}\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g, +4 slots) en la tienda de Aldric.`;
     }
     // BUG-1724: registrar progreso del desafío loot_pickup para los ítems no-moneda recogidos con pick todo
     const pickedNonGoldItems = pickedLines
