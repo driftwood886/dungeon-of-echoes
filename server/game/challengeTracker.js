@@ -58,13 +58,41 @@ function giveReward(playerId, challenge) {
     if (!fresh) return '';
     const { xp = 0, gold = 0, rep = 0 } = challenge.reward || {};
     const updates = {};
+    let levelupMessages = ''; // BUG-1725: mensajes de subida de nivel por XP de desafío
     if (xp > 0)   updates.xp   = (fresh.xp   || 0) + xp;
     if (gold > 0) updates.gold = (fresh.gold  || 0) + gold;
     if (xp > 0 && updates.xp) {
-      // Recalcular nivel con curva cuadrática
+      // Recalcular nivel con curva cuadrática — y aplicar bonos si hubo levelup
       try {
         const xpSystem = require('./xp');
-        updates.level = xpSystem.levelFromXp(updates.xp);
+        const oldLevel = fresh.level || 1;
+        const newLevel = xpSystem.levelFromXp(updates.xp);
+        updates.level = newLevel;
+
+        if (newLevel > oldLevel) {
+          // BUG-1725 fix: aplicar bonos de stats por cada nivel subido
+          let maxHp = fresh.max_hp || 30;
+          let hp    = fresh.hp    || 1;
+          let atk   = fresh.attack || 5;
+
+          for (let lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
+            maxHp += 5;
+            atk   += 1;
+            const healOnLevelUp = Math.ceil(maxHp * 0.20);
+            hp = Math.min(maxHp, hp + healOnLevelUp);
+          }
+
+          updates.max_hp = maxHp;
+          updates.hp     = hp;
+          updates.attack = atk;
+
+          // Acumular mensajes de subida de nivel (uno por nivel ganado)
+          for (let lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
+            const maxHpForMsg = (fresh.max_hp || 30) + 5 * (lvl - oldLevel);
+            const healMsg = Math.ceil(maxHpForMsg * 0.20);
+            levelupMessages += `\n✨ ¡Subiste al nivel ${lvl}! +5 HP máx, +1 ataque, +${healMsg} HP restaurado.`;
+          }
+        }
       } catch (_) {}
     }
     if (Object.keys(updates).length > 0) db.updatePlayer(playerId, updates);
@@ -124,7 +152,7 @@ function giveReward(playerId, challenge) {
       }
     } catch (_) { /* no interrumpir si falla */ }
 
-    return msg;
+    return msg + levelupMessages;
   } catch (_) {
     return '';
   }
