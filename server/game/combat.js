@@ -289,6 +289,14 @@ const MONSTER_BASE_STATS = {
 // Movido a gender.js (BUG-1427). Ver require arriba.
 
 const MONSTER_SPECIALS = {
+  // DIS-1739: Espectro del Corredor — drenaje de vida espectral (30% de probabilidad)
+  // Drena 5 HP al jugador Y se cura esa misma cantidad. Obliga a usar pociones.
+  'Espectro del Corredor': {
+    chance: 0.30,
+    type: 'life_drain',
+    amount: 5,
+    msg: '💜 ¡El Espectro te toca con manos frías! Sientes tu vitalidad abandonarte… (-{amount} HP, el Espectro absorbe tu energía vital)',
+  },
   'Lich Anciano': {
     chance: 0.20,
     type: 'mana_drain',
@@ -2116,6 +2124,21 @@ function attackRound(player, monster) {
         } else {
           lines.push(`🖐 El ⭐ Goblin Merodeador hurga en tu bolsa… pero no encuentra nada de valor.`);
         }
+      } else if (specialDef.type === 'life_drain') {
+        // DIS-1739: Espectro del Corredor — drenaje de vida espectral
+        // Drena HP al jugador Y cura al monstruo (inversión de vitalidad)
+        const drainAmt = specialDef.amount || 5;
+        player.hp = Math.max(0, player.hp - drainAmt);
+        db.updatePlayer(player.id, { hp: player.hp });
+        // Curar al monstruo por la misma cantidad (no puede superar max_hp)
+        const freshMonster = db.getMonster(monster.id);
+        if (freshMonster) {
+          const newMonsterHp = Math.min(freshMonster.max_hp, (freshMonster.hp || 0) + drainAmt);
+          db.updateMonster(monster.id, { hp: newMonsterHp });
+          monster.hp = newMonsterHp; // actualizar en memoria también
+        }
+        lines.push(`${rawMsg} (vos: ${player.hp}/${player.max_hp} HP | Espectro: ${monster.hp}/${monster.max_hp} HP)`);
+
       } else if (specialDef.type === 'armor_pierce') {
         // DIS-988: Esqueleto ÉLITE ignora N DEF del jugador — daño extra por encima del ya aplicado
         const pierceAmount = specialDef.amount || 2;
