@@ -22475,14 +22475,14 @@ function cmdStance(player, args) {
 
   const s = STANCES[target];
   const cls = player.player_class || player.class || 'sin_clase';
-  // DIS-715: Para Pícaro en postura agresiva, mostrar el tradeoff de crit de forma explícita
+  // DIS-1742: Para Pícaro en postura agresiva, mostrar el bonus de crit de forma explícita
   let stanceDesc = s.desc;
   if (target === 'agresivo' && cls === 'picaro') {
     const equippedWpn = player.equipped_weapon ? items.getItemDef(player.equipped_weapon) : null;
     const glovesCrit = (equippedWpn && equippedWpn.rogue_only_crit_bonus) ? equippedWpn.rogue_only_crit_bonus : 0;
     const baseCrit = 25 + glovesCrit; // crit en equilibrado
-    const agresivoCrit = baseCrit - 2; // DIS-715: penalidad de -2%
-    stanceDesc += `\n\n💡 En esta postura: crit ${agresivoCrit}% (−2% vs equilibrado) pero ganás +2 ATK fijo. El bonus de ataque generalmente supera la pérdida de crítico.`;
+    const agresivoCrit = baseCrit + 2; // DIS-1742: bonus de +2% crit para Pícaro en agresivo
+    stanceDesc += `\n\n💡 Como Pícaro: en esta postura tus ataques buscan puntos vitales más activamente — crit ${agresivoCrit}% (+2% vs equilibrado). Combinado con +2 ATK fijo, es tu postura de mayor daño bruto.`;
   }
   return {
     text: `${s.icon} Adoptás la postura **${s.label || target}**.\n${stanceDesc}`,

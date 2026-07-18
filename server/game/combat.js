@@ -752,10 +752,10 @@ function attackRound(player, monster) {
   const equippedWeaponDef = player.equipped_weapon ? items.getItemDef(player.equipped_weapon) : null;
   const rogueCritBonusGloves = (equippedWeaponDef && equippedWeaponDef.rogue_only_crit_bonus && clsData && clsData.name === 'Pícaro')
     ? equippedWeaponDef.rogue_only_crit_bonus / 100 : 0;
-  // DIS-619: en postura agresiva, el Pícaro pierde 2% de crit (golpes más salvajes, menos precisos para puntos vitales)
-  // DIS-715: reducido de -5% a -2% para que el tradeoff sea menos drástico y más fácil de entender
-  // Equilibrado: 25% crit | Agresivo: 23% crit (+2 ATK compensa) | Defensivo: 25% crit
-  const stanceCritPenalty = (stanceName === 'agresivo' && clsData && clsData.name === 'Pícaro') ? -0.02 : 0;
+  // DIS-1742: en postura agresiva, el Pícaro gana +2% de crit (busca puntos vitales con más intensidad)
+  // Historial: DIS-619 ponía -5%, DIS-715 lo redujo a -2%, DIS-1742 lo convierte en bonus (+2%)
+  // Equilibrado: 25% crit | Agresivo: 27% crit (+ 2 ATK, +5% miss) | Defensivo: 25% crit
+  const stanceCritPenalty = (stanceName === 'agresivo' && clsData && clsData.name === 'Pícaro') ? +0.02 : 0;
 
   // DIS-620: Sigilo — crítico garantizado en el golpe de sorpresa
   const freshForStealth = db.getPlayer(player.id);
