@@ -886,6 +886,11 @@ function _progressText(qd, progressJson) {
  * @returns {{ text: string }}
  */
 function getQuestsDisplay(player) {
+  // DIS-1722: refrescar player desde la BD para evitar inconsistencias de caché en la sesión
+  // (ej: jugador se une a una facción y luego ejecuta 'quests' en el mismo request — sin esto,
+  //  el campo player.faction puede estar desactualizado en memoria)
+  player = db.getPlayer(player.id) || player;
+
   // DIS-1692: no early return para bots sin quests — usar el mismo mensaje neutral que humanos.
   // BUG-1616/BUG-1618: si el bot tiene quests activas en DB, mostrarlas igual (fluye al path normal).
   if (player.is_bot) {

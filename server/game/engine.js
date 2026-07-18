@@ -11343,6 +11343,13 @@ function cmdShop(player, args) {
     lines.push(`  «Eso explica las cicatrices. Mirá un "${armorRec}" — te va a cambiar la vida en los niveles siguientes.» (escribí 'tienda todo' para verlo en el catálogo)`);
     lines.push('');
   }
+  // DIS-1721: en la primera visita (aldricRep=0) y sin bolsa de lona comprada, Aldric menciona la bolsa proactivamente
+  if (aldricRep === 0 && !(player.inventory_bonus > 0)) {
+    lines.push(`🎒 Aldric señala un montón de bolsas de cuero en el rincón. «Primera vez por aquí, ¿verdad? Un consejo gratuito.»`);
+    lines.push(`  «El dungeon devuelve mucho loot. Vas a llenar la mochila antes de llegar a la mitad. Una bolsa de lona (20g, +4 slots) te va a salvar la vida — o al menos los ítems.»`);
+    lines.push(`  «Escribí: comprar bolsa de lona — cuando estés listo.»`);
+    lines.push('');
+  }
   if (clsShop) {
     // DIS-1383: detectar si el jugador tiene equipo épico/legendario para filtrar recomendaciones de armas básicas
     const equippedWeaponName = (player.equipped_weapon && player.equipped_weapon !== 'null') ? player.equipped_weapon.toLowerCase() : null;
@@ -12791,9 +12798,11 @@ function _buildFactionCard(lore, showConfirmHint = true) {
     lines.push(`╟──────────────────────────────────────────────────────╢`);
     lines.push(`║  ¿Querés unirte? Escribí:                            ║`);
     // DIS-1467: usar nombre completo (más natural) en el hint de confirmación
-    const confirmCmd = `faccion elegir ${lore.name.toLowerCase()} confirmar`;
-    const confirmCmdShort = confirmCmd.length <= 36 ? confirmCmd : `faccion elegir ${lore.id} confirmar`;
-    lines.push(`║    ${confirmCmdShort.padEnd(50)}║`);
+    // DIS-1720: añadir atajo "faccion si" para reducir fricción
+    const confirmCmdFull = `faccion elegir ${lore.name.toLowerCase()} confirmar`;
+    const confirmCmdDisplay = confirmCmdFull.length <= 50 ? confirmCmdFull : `faccion elegir ${lore.id} confirmar`;
+    lines.push(`║    ${confirmCmdDisplay.padEnd(50)}║`);
+    lines.push(`║    faccion si   (atajo rápido)                       ║`);
     lines.push(`║  O cancelá y explorá otras opciones.                 ║`);
   }
 
@@ -12829,9 +12838,9 @@ function _normalizeFactionId(input) {
   if (!input) return null;
   const s = input.toLowerCase().replace(/\s+/g, '_').replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u');
   // Mapeo flexible
-  if (s === 'orden_filo' || s === 'orden' || s === 'filo' || s === 'la_orden_del_filo' || s === 'orden_del_filo') return 'orden_filo';
-  if (s === 'conclave_arcano' || s === 'conclave' || s === 'arcano' || s === 'cónclave' || s === 'conclave_arcano' || s === 'el_conclave_arcano') return 'conclave_arcano';
-  if (s === 'hermandad_mercado' || s === 'hermandad' || s === 'mercado' || s === 'la_hermandad_del_mercado' || s === 'hermandad_del_mercado') return 'hermandad_mercado';
+  if (s === 'orden_filo' || s === 'orden' || s === 'filo' || s === 'la_orden_del_filo' || s === 'orden_del_filo' || s === 'la_orden') return 'orden_filo';
+  if (s === 'conclave_arcano' || s === 'conclave' || s === 'arcano' || s === 'cónclave' || s === 'conclave_arcano' || s === 'el_conclave_arcano' || s === 'el_conclave') return 'conclave_arcano';
+  if (s === 'hermandad_mercado' || s === 'hermandad' || s === 'mercado' || s === 'la_hermandad_del_mercado' || s === 'hermandad_del_mercado' || s === 'la_hermandad' || s === 'la_hermandad_del_mercado') return 'hermandad_mercado';
   return null;
 }
 
@@ -12897,7 +12906,9 @@ function _cmdFaccionElegir(player, args) {
     // DIS-1591: bloque de confirmación más explícito — dejar claro que NO se unió aún
     // DIS-1619: si el jugador ya vio la tarjeta (faction_pending ya era esta facción),
     //           mostrar SOLO el CTA de confirmación, sin repetir la tarjeta larga
-    const confirmCmd = `faccion elegir ${factionId} confirmar`;
+    // DIS-1720: mostrar comando de confirmación con nombre natural (espacios) + atajo corto "faccion si"
+    const confirmCmdFull = `faccion elegir ${lore.name.toLowerCase()} confirmar`;
+    const confirmCmdShort = `faccion si`;
     if (alreadySawCard) {
       return {
         text: [
@@ -12906,7 +12917,8 @@ function _cmdFaccionElegir(player, args) {
           ``,
           `  ⚠️  Todavía NO te uniste. Para confirmar tu ingreso:`,
           ``,
-          `     ✅  ${confirmCmd}`,
+          `     ✅  ${confirmCmdFull}`,
+          `     ✅  ${confirmCmdShort}   (atajo rápido)`,
           ``,
           `  (Si querés ver otra facción: faccion elegir <nombre>)`,
           sep,
@@ -12919,9 +12931,10 @@ function _cmdFaccionElegir(player, args) {
       sep,
       `  ⚠️  Todavía NO te uniste a ${lore.name}.`,
       ``,
-      `  Para CONFIRMAR tu ingreso, escribí exactamente:`,
+      `  Para CONFIRMAR tu ingreso, escribí:`,
       ``,
-      `     ✅  ${confirmCmd}`,
+      `     ✅  ${confirmCmdFull}`,
+      `     ✅  ${confirmCmdShort}   (atajo rápido)`,
       ``,
       `  (Si querés explorar otras facciones: faccion elegir <nombre>)`,
       sep,
