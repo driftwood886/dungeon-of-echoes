@@ -38,6 +38,7 @@ const challengeTracker = require('./challengeTracker');  // T-1231: tracking de 
 const challengeAssigner = require('./challengeAssigner'); // T-1232: asignación y lectura de los 3 desafíos diarios
 const questEngine = require('./questEngine'); // EPIC-QD: sistema de quests dinámicas (IMPL-QD-1573)
 const factionMissions = require('./factionMissions'); // EPIC Facciones Vivas (IMPL-FM-1706)
+const { EVENTS: VV_EVENTS } = require('./run-state');  // IMPL-VV-1760: desafíos y diálogos de evento
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // DIS-1514: helper para mensaje de progreso de XP dentro del nivel actual
@@ -1158,8 +1159,16 @@ function completeTutorial(player) {
   try { db.updateRoomItems(16, []); } catch (e) { /* silencioso */ }
   // DIS-D278: Leer estado fresco del jugador para saber si ya tiene clase asignada
   const freshPlayer = db.getPlayer(player.id);
+  // IMPL-VV-1760: si hay run_event activo, el anciano le da una pista al jugador al salir del tutorial
+  let guardianEventLine = '';
+  if (freshPlayer.run_event) {
+    const vvEvent = VV_EVENTS.find(e => e.id === freshPlayer.run_event);
+    if (vvEvent) {
+      guardianEventLine = `\n\n🧓 El guardián anciano te susurra antes de que cruces el umbral:\n«${vvEvent.guardian_line}»\n\n🎯 Desafío del evento — ${vvEvent.challenge_desc}`;
+    }
+  }
   return {
-    text: tutorial.getCompleteMsg(freshPlayer),
+    text: tutorial.getCompleteMsg(freshPlayer) + guardianEventLine,
     event: `${player.username} emerge de la Antesala. ¡Un aventurero nuevo llega al dungeon!`,
     eventRoomId: 1,
   };
@@ -4256,6 +4265,20 @@ function cmdStatus(player) {
       return `Sombra:   🌑 ${dotsSt} (${spPoints}/3)${readyNote}`;
     })(),
     ...(statusLines.length ? ['', ...statusLines] : []),
+    // IMPL-VV-1760: mostrar run_event en status
+    (() => {
+      if (!player.run_event) return null;
+      const RUN_EVENT_LABELS = {
+        marea_no_muertos:  '💀 Marea de No-Muertos — los no-muertos tienen más aguante. Bosses y runas caídas en alza.',
+        caceria_del_filo:  '⚔️ Cacería de la Orden — los bosses caídos sueltan el doble de loot.',
+        plaga_arcana:      '⚡ Plaga Arcana — tus hechizos tienen 20% de chance de lanzarse dos veces.',
+        festival_de_loot:  '💰 Mercado Activo — el primer ítem que recogés de cada sala te revela su naturaleza.',
+        silencio_del_abismo: '🌑 El Dungeon Callado — los monstruos menores caen en silencio. Los grandes tienen más que decir.',
+        temporada_de_sangre: '🩸 Temporada de Sangre — con HP ≤ 33%, ganás +3 ATK de furia desesperada.',
+      };
+      const label = RUN_EVENT_LABELS[player.run_event] || `🌐 ${player.run_event}`;
+      return `Run:      ${label}`;
+    })(),
   ].filter(l => l !== null).join('\n');
 
   // Agregar íconos de logros al final
@@ -5168,6 +5191,10 @@ function cmdAttack(player, targetName) {
         if (freshAfterCycle) {
           const seFresh = freshAfterCycle.status_effects ? (typeof freshAfterCycle.status_effects === 'string' ? JSON.parse(freshAfterCycle.status_effects) : freshAfterCycle.status_effects) : {};
           seFresh.ascension_pending = true;
+          // IMPL-VV-1760: limpiar campos de tracking de desafíos VV del ciclo anterior
+          Object.keys(seFresh).forEach(k => {
+            if (k.startsWith('vv_')) delete seFresh[k];
+          });
           db.updatePlayer(player.id, { status_effects: JSON.stringify(seFresh) });
         }
       }
@@ -5590,6 +5617,109 @@ function cmdAttack(player, targetName) {
 
   }
 
+  // ── IMPL-VV-1760: Tracking de desafíos opcionales de evento (vv_challenge) ──
+  // Los desafíos son: marea_no_muertos (matar 3 undead), caceria_del_filo (matar Espectro+Lich),
+  // plaga_arcana (lanzar 5 hechizos — trackeado en cmdCast), temporada_de_sangre (ganar con ≤30% HP),
+  // silencio_del_abismo (leer 3 inscripciones — trackeado en cmdLook/inscripciones),
+  // festival_de_loot (recoger 10 ítems — trackeado en cmdPickup/loot).
+  // Este bloque cubre: marea_no_muertos, caceria_del_filo, temporada_de_sangre.
+  let vvChallengeMsg = '';
+  if (monsterDead && player.run_event) {
+    try {
+      const freshVV = db.getPlayer(player.id);
+      if (freshVV) {
+        const vvSe = freshVV.status_effects
+          ? (typeof freshVV.status_effects === 'string' ? JSON.parse(freshVV.status_effects) : freshVV.status_effects)
+          : {};
+        const vvUpd = { ...vvSe };
+        let saveVV = false;
+        const monNameVV = (monster.name || '').toLowerCase();
+        const isBossVV = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]);
+
+        if (player.run_event === 'marea_no_muertos') {
+          // Desafío: matar 3 no-muertos → +25 XP
+          const isUndeadVV = monNameVV.includes('esqueleto') || monNameVV.includes('zombie') ||
+            monNameVV.includes('vampiro') || monNameVV.includes('momia') ||
+            monNameVV.includes('espectro') || monNameVV.includes('lich') ||
+            monNameVV.includes('carroñero') || monNameVV.includes('sombra');
+          if (isUndeadVV && !vvSe.vv_challenge_done) {
+            const prev = vvSe.vv_undead_kills || 0;
+            const next = prev + 1;
+            vvUpd.vv_undead_kills = next;
+            saveVV = true;
+            if (next >= 3) {
+              vvUpd.vv_challenge_done = true;
+              const fr2 = db.getPlayer(player.id);
+              if (fr2) {
+                const bonusXp2 = 25;
+                const newXp2 = (fr2.xp || 0) + bonusXp2;
+                const newLv2 = xpSystem.levelFromXp(newXp2);
+                const upd2 = { xp: newXp2, level: newLv2 };
+                if (newLv2 > (fr2.level || 1)) { upd2.max_hp = (fr2.max_hp || 30) + 5; upd2.attack = (fr2.attack || 5) + 1; }
+                db.updatePlayer(player.id, upd2);
+                vvChallengeMsg = `\n\n💀 Navegaste la Marea — 3 no-muertos caídos en el pico de su poder. La oscuridad te reconoce. (+${bonusXp2} XP)`;
+              }
+            } else {
+              vvChallengeMsg = `\n💀 Marea de No-Muertos: ${next}/3 no-muertos caídos.`;
+            }
+          }
+        } else if (player.run_event === 'caceria_del_filo') {
+          // Desafío: matar al Espectro del Corredor Y al Lich en el mismo run → +40 XP
+          if (!vvSe.vv_challenge_done) {
+            const isEspectro = monNameVV.includes('espectro');
+            const isLich = monNameVV.includes('lich') || monster.id === 13;
+            if (isEspectro || isLich) {
+              const newKilled = { ...(vvSe.vv_bosses_killed || {}) };
+              if (isEspectro) newKilled.espectro = true;
+              if (isLich) newKilled.lich = true;
+              vvUpd.vv_bosses_killed = newKilled;
+              saveVV = true;
+              if (newKilled.espectro && newKilled.lich) {
+                vvUpd.vv_challenge_done = true;
+                const fr3 = db.getPlayer(player.id);
+                if (fr3) {
+                  const bonusXp3 = 40;
+                  const newXp3 = (fr3.xp || 0) + bonusXp3;
+                  const newLv3 = xpSystem.levelFromXp(newXp3);
+                  const upd3 = { xp: newXp3, level: newLv3 };
+                  if (newLv3 > (fr3.level || 1)) { upd3.max_hp = (fr3.max_hp || 30) + 5; upd3.attack = (fr3.attack || 5) + 1; }
+                  db.updatePlayer(player.id, upd3);
+                  vvChallengeMsg = `\n\n⚔️ La Orden registra tu hazaña — dos bosses en un solo run. Tu nombre circula entre los cazadores. (+${bonusXp3} XP)`;
+                }
+              } else {
+                const pending = !newKilled.espectro ? 'Espectro del Corredor' : 'Lich Anciano';
+                vvChallengeMsg = `\n⚔️ Cacería del Filo: falta el ${pending} para completar el desafío.`;
+              }
+            }
+          }
+        } else if (player.run_event === 'temporada_de_sangre') {
+          // Desafío: ganar un combate con HP ≤ 30% → +20 XP
+          if (!vvSe.vv_challenge_done) {
+            const hpPct = freshVV.max_hp ? (freshVV.hp / freshVV.max_hp) : 1;
+            if (hpPct <= 0.30) {
+              vvUpd.vv_challenge_done = true;
+              saveVV = true;
+              const fr4 = db.getPlayer(player.id);
+              if (fr4) {
+                const bonusXp4 = 20;
+                const newXp4 = (fr4.xp || 0) + bonusXp4;
+                const newLv4 = xpSystem.levelFromXp(newXp4);
+                const upd4 = { xp: newXp4, level: newLv4 };
+                if (newLv4 > (fr4.level || 1)) { upd4.max_hp = (fr4.max_hp || 30) + 5; upd4.attack = (fr4.attack || 5) + 1; }
+                db.updatePlayer(player.id, upd4);
+                vvChallengeMsg = `\n\n🩸 Pelear al límite y ganar. Eso es lo que la Temporada de Sangre premia. (+${bonusXp4} XP)`;
+              }
+            }
+          }
+        }
+
+        if (saveVV) {
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(vvUpd) });
+        }
+      }
+    } catch (_) { /* no romper combate si falla el tracking de VV */ }
+  }
+
   // ── DIS-1486: HUD de cooldowns de habilidades en cada turno de combate ──────
   // Muestra en cada turno el estado de las habilidades desbloqueadas:
   // ✅ disponible | ⏱ en cooldown (Xs restantes)
@@ -5881,7 +6011,7 @@ function cmdAttack(player, targetName) {
     }
   }
 
-  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg;
+  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg;
 
   if (tutorialCompletionResult) {
     return {
@@ -6300,6 +6430,42 @@ function cmdPick(player, itemQuery) {
         const freshForPickTodo = db.getPlayer(player.id);
         challengeTracker.trackLoot(player.id, freshForPickTodo, pickedNonGoldItems);
       } catch (_) { /* no romper pick todo si falla el tracking */ }
+    }
+    // IMPL-VV-1760: tracking del desafío festival_de_loot (recoger 10 ítems → +15 XP) en pick todo
+    if (current.run_event === 'festival_de_loot' && pickedNonGoldItems.length > 0) {
+      try {
+        const freshVVPick = db.getPlayer(player.id);
+        if (freshVVPick) {
+          const vvSePick = freshVVPick.status_effects
+            ? (typeof freshVVPick.status_effects === 'string' ? JSON.parse(freshVVPick.status_effects) : freshVVPick.status_effects)
+            : {};
+          if (!vvSePick.vv_challenge_done) {
+            const prevPickedAll = vvSePick.vv_items_picked || 0;
+            const nextPickedAll = prevPickedAll + pickedNonGoldItems.length;
+            const vvUpdPick = { ...vvSePick, vv_items_picked: nextPickedAll };
+            let vvPickMsg = '';
+            if (nextPickedAll >= 10) {
+              vvUpdPick.vv_challenge_done = true;
+              const frFest = db.getPlayer(player.id);
+              if (frFest) {
+                const bonusXpFest = 15;
+                const newXpFest = (frFest.xp || 0) + bonusXpFest;
+                const newLvFest = xpSystem.levelFromXp(newXpFest);
+                const updFest = { xp: newXpFest, level: newLvFest };
+                if (newLvFest > (frFest.level || 1)) { updFest.max_hp = (frFest.max_hp || 30) + 5; updFest.attack = (frFest.attack || 5) + 1; }
+                db.updatePlayer(player.id, updFest);
+                vvPickMsg = `\n\n💰 Diez objetos recogidos en un run del Mercado Activo. Los mercaderes te reconocerían si te vieran. (+${bonusXpFest} XP)`;
+              }
+            } else {
+              vvPickMsg = `\n💰 Mercado Activo: ${nextPickedAll}/10 ítems recogidos.`;
+            }
+            db.updatePlayer(player.id, { status_effects: JSON.stringify(vvUpdPick) });
+            if (vvPickMsg) {
+              resultMsg += vvPickMsg;
+            }
+          }
+        }
+      } catch (_) { /* no romper pick todo si falla tracking VV */ }
     }
     return { text: resultMsg };
   }
@@ -7901,6 +8067,48 @@ function cmdExamine(player, query) {
             // No retornar "ya la abriste" — continuar al texto loreObject normal
           }
         }
+        // IMPL-VV-1760: tracking silencio_del_abismo — contar inscripciones leídas
+        // Solo cuentan lore objects que son inscripciones, paredes, grabados, runas
+        const INSCRIPTION_KEYS = new Set(['inscripciones', 'inscripcion', 'inscripción', 'pared', 'grabado', 'runas', 'runa']);
+        if (player.run_event === 'silencio_del_abismo' && INSCRIPTION_KEYS.has(key)) {
+          try {
+            const freshVVEx = db.getPlayer(player.id);
+            if (freshVVEx) {
+              const vvSeEx = freshVVEx.status_effects
+                ? (typeof freshVVEx.status_effects === 'string' ? JSON.parse(freshVVEx.status_effects) : freshVVEx.status_effects)
+                : {};
+              if (!vvSeEx.vv_challenge_done) {
+                // Usar key+roomId como identifier para no contar la misma inscripción dos veces
+                const inscrKey = `vv_insc_${key}_${player.current_room_id}`;
+                if (!vvSeEx[inscrKey]) {
+                  const prevRead = vvSeEx.vv_inscriptions_read || 0;
+                  const nextRead = prevRead + 1;
+                  const vvUpdEx = { ...vvSeEx, [inscrKey]: true, vv_inscriptions_read: nextRead };
+                  let vvExtraMsg = '';
+                  if (nextRead >= 3) {
+                    vvUpdEx.vv_challenge_done = true;
+                    const fr7 = db.getPlayer(player.id);
+                    if (fr7) {
+                      const bonusXp7 = 20;
+                      const newXp7 = (fr7.xp || 0) + bonusXp7;
+                      const newLv7 = xpSystem.levelFromXp(newXp7);
+                      const upd7 = { xp: newXp7, level: newLv7 };
+                      if (newLv7 > (fr7.level || 1)) { upd7.max_hp = (fr7.max_hp || 30) + 5; upd7.attack = (fr7.attack || 5) + 1; }
+                      db.updatePlayer(player.id, upd7);
+                      vvExtraMsg = `\n\n🌑 El Dungeon Callado reveló sus secretos a quien supo escuchar. Tres inscripciones leídas en la noche más silenciosa. (+${bonusXp7} XP)`;
+                    }
+                  } else {
+                    vvExtraMsg = `\n🌑 El Dungeon Callado: ${nextRead}/3 inscripciones leídas.`;
+                  }
+                  db.updatePlayer(player.id, { status_effects: JSON.stringify(vvUpdEx) });
+                  if (vvExtraMsg) {
+                    return { text: val.text + vvExtraMsg };
+                  }
+                }
+              }
+            }
+          } catch (_) { /* no romper examine */ }
+        }
         return { text: val.text };
       }
       // Si el key matchea pero la sala no aplica, seguir buscando
@@ -8652,6 +8860,40 @@ function cmdLoot(player) {
     }
   } catch (_) { /* no interrumpir loot si falla tracker */ }
 
+  // IMPL-VV-1760: tracking del desafío festival_de_loot (recoger 10 ítems → +15 XP)
+  let vvLootChallengeMsg = '';
+  if (player.run_event === 'festival_de_loot' && itemsToPickup.length > 0) {
+    try {
+      const freshVVLoot = db.getPlayer(player.id);
+      if (freshVVLoot) {
+        const vvSeLoot = freshVVLoot.status_effects
+          ? (typeof freshVVLoot.status_effects === 'string' ? JSON.parse(freshVVLoot.status_effects) : freshVVLoot.status_effects)
+          : {};
+        if (!vvSeLoot.vv_challenge_done) {
+          const prevPicked = vvSeLoot.vv_items_picked || 0;
+          const nextPicked = prevPicked + itemsToPickup.length;
+          const vvUpdLoot = { ...vvSeLoot, vv_items_picked: nextPicked };
+          if (nextPicked >= 10) {
+            vvUpdLoot.vv_challenge_done = true;
+            const fr6 = db.getPlayer(player.id);
+            if (fr6) {
+              const bonusXp6 = 15;
+              const newXp6 = (fr6.xp || 0) + bonusXp6;
+              const newLv6 = xpSystem.levelFromXp(newXp6);
+              const upd6 = { xp: newXp6, level: newLv6 };
+              if (newLv6 > (fr6.level || 1)) { upd6.max_hp = (fr6.max_hp || 30) + 5; upd6.attack = (fr6.attack || 5) + 1; }
+              db.updatePlayer(player.id, upd6);
+              vvLootChallengeMsg = `\n\n💰 Diez objetos recogidos en un run del Mercado Activo. Los mercaderes te reconocerían si te vieran. (+${bonusXp6} XP)`;
+            }
+          } else {
+            vvLootChallengeMsg = `\n💰 Mercado Activo: ${nextPicked}/10 ítems recogidos.`;
+          }
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(vvUpdLoot) });
+        }
+      }
+    } catch (_) { /* no romper loot si falla tracking */ }
+  }
+
   const lista = itemsToPickup.map((i, idx) => {
     const emoji = items.getRarityEmoji(i);
     const rarity = items.getItemRarity(i);
@@ -8738,7 +8980,7 @@ function cmdLoot(player) {
     : '';
 
   return {
-    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${fullBagLine}${inventoryWarnLine}${lootChallengeMsg ? '\n' + lootChallengeMsg.trim() : ''}`,
+    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${fullBagLine}${inventoryWarnLine}${lootChallengeMsg ? '\n' + lootChallengeMsg.trim() : ''}${vvLootChallengeMsg}`,
     event: `${player.username} saquea el suelo de la sala.`,
     eventRoomId: room.id,
   };
@@ -16842,8 +17084,42 @@ function cmdCast(player, args) {
     } catch (_) { /* no romper si falla el doble cast */ }
   }
 
+  // IMPL-VV-1760: tracking del desafío plaga_arcana (lanzar 5 hechizos → +20 XP)
+  let vvCastChallengeMsg = '';
+  if (player.run_event === 'plaga_arcana') {
+    try {
+      const freshVVCast = db.getPlayer(player.id);
+      if (freshVVCast) {
+        const vvSeCast = freshVVCast.status_effects
+          ? (typeof freshVVCast.status_effects === 'string' ? JSON.parse(freshVVCast.status_effects) : freshVVCast.status_effects)
+          : {};
+        if (!vvSeCast.vv_challenge_done) {
+          const prevCasts = vvSeCast.vv_spell_casts || 0;
+          const nextCasts = prevCasts + 1;
+          const vvUpdCast = { ...vvSeCast, vv_spell_casts: nextCasts };
+          if (nextCasts >= 5) {
+            vvUpdCast.vv_challenge_done = true;
+            const fr5 = db.getPlayer(player.id);
+            if (fr5) {
+              const bonusXp5 = 20;
+              const newXp5 = (fr5.xp || 0) + bonusXp5;
+              const newLv5 = xpSystem.levelFromXp(newXp5);
+              const upd5 = { xp: newXp5, level: newLv5 };
+              if (newLv5 > (fr5.level || 1)) { upd5.max_hp = (fr5.max_hp || 30) + 5; upd5.attack = (fr5.attack || 5) + 1; }
+              db.updatePlayer(player.id, upd5);
+              vvCastChallengeMsg = `\n\n⚡ La plaga arcana reconoce a alguien que sabe usarla. Cada hechizo resonó con la energía del dungeon. (+${bonusXp5} XP)`;
+            }
+          } else {
+            vvCastChallengeMsg = `\n⚡ Plaga Arcana: ${nextCasts}/5 hechizos lanzados.`;
+          }
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(vvUpdCast) });
+        }
+      }
+    } catch (_) { /* no romper si falla tracking */ }
+  }
+
   return {
-    text: lines.join('\n'),
+    text: lines.join('\n') + vvCastChallengeMsg,
     event: broadcastEvent,
   };
 }

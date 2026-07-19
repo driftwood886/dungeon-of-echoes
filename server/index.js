@@ -266,6 +266,8 @@ async function main() {
         specialization: player.specialization || null,
         playtime_minutes: player.playtime_minutes || 0,
         reputation: player.reputation || 0,  // DIS-1319: exponer reputación en /api/state
+        run_event: player.run_event || null,  // IMPL-VV-1760: exponer evento del run en /api/state
+        run_seed: player.run_seed || null,    // IMPL-VV-1760: exponer semilla del run
       },
       other_players: others,
       recent_events: events,
