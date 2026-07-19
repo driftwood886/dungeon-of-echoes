@@ -38,7 +38,7 @@ const challengeTracker = require('./challengeTracker');  // T-1231: tracking de 
 const challengeAssigner = require('./challengeAssigner'); // T-1232: asignación y lectura de los 3 desafíos diarios
 const questEngine = require('./questEngine'); // EPIC-QD: sistema de quests dinámicas (IMPL-QD-1573)
 const factionMissions = require('./factionMissions'); // EPIC Facciones Vivas (IMPL-FM-1706)
-const { EVENTS: VV_EVENTS } = require('./run-state');  // IMPL-VV-1760: desafíos y diálogos de evento
+const { EVENTS: VV_EVENTS, generateNewSeed: vvGenerateNewSeed, generateRunState: vvGenerateRunState } = require('./run-state');  // IMPL-VV-1760: desafíos y diálogos de evento; BUG-1762: inicializar VV para jugadores pre-VV
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // DIS-1514: helper para mensaje de progreso de XP dentro del nivel actual
@@ -14333,6 +14333,25 @@ function getOrCreatePlayer(username) {
     }
   } catch (e) {
     console.error('[getOrCreatePlayer] Error en factionMissions.generateMission:', e);
+  }
+
+  // BUG-1762: Jugadores pre-Variación Viva tienen run_seed = NULL y nunca reciben eventos ni variantes.
+  // Si el jugador no tiene run_seed, asignarle una semilla nueva para activar VV en su próximo run.
+  try {
+    if (!player.run_seed) {
+      const newSeed = vvGenerateNewSeed();
+      const newRunState = vvGenerateRunState(newSeed);
+      db.updatePlayer(player.id, {
+        run_seed: newSeed,
+        run_event: newRunState.event.id,
+        run_monster_variants: JSON.stringify(newRunState.monster_variants),
+        run_loot_positions: JSON.stringify(newRunState.rare_loot_positions),
+      });
+      player = db.getPlayer(player.id);
+      console.log(`[getOrCreatePlayer] BUG-1762: ${player.username} tenía run_seed NULL — asignado seed ${newSeed}, evento ${newRunState.event.id}`);
+    }
+  } catch (e) {
+    console.error('[getOrCreatePlayer] Error en BUG-1762 run_seed init:', e);
   }
 
   return player;
