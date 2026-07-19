@@ -11801,6 +11801,10 @@ function cmdShop(player, args) {
     const hasEpicWeapon = weaponRarity === 'épico' || weaponRarity === 'legendario';
     const hasEpicArmor  = armorRarity  === 'épico' || armorRarity  === 'legendario';
 
+    // DIS-1768: calcular ATK actual del arma equipada para filtrar recomendaciones inferiores
+    const equippedWeaponDef = equippedWeaponName ? items.getItemDef(equippedWeaponName) : null;
+    const equippedWeaponATK = (equippedWeaponDef && equippedWeaponDef.type === 'weapon') ? (equippedWeaponDef.amount || 0) : 0;
+
     // Armas básicas de tienda (ATK <= 10) — no recomendarlas si el jugador ya tiene arma épica/legendaria
     const BASIC_SHOP_WEAPONS = new Set(['espada de hierro', 'espada de acero', 'daga envenenada', 'espada oxidada', 'guantes de cuero fino', 'vara de energía', 'símbolo sagrado']);
     // Armaduras básicas de tienda — no recomendarlas si el jugador ya tiene armadura épica
@@ -11844,6 +11848,20 @@ function cmdShop(player, args) {
         if (playerEquippedSet.has(name.toLowerCase())) {
           const nextTier = NEXT_TIER[name.toLowerCase()];
           return nextTier ? [nextTier] : []; // reemplazar con el siguiente tier, o silenciar
+        }
+        // DIS-1768: si el arma recomendada tiene ATK ≤ al arma equipada actual, no recomendarla
+        if (BASIC_SHOP_WEAPONS.has(name) && equippedWeaponATK > 0) {
+          const recItemDef = items.getItemDef(name);
+          const recItemATK = (recItemDef && recItemDef.type === 'weapon') ? (recItemDef.amount || 0) : 0;
+          if (recItemATK > 0 && equippedWeaponATK >= recItemATK) {
+            // El jugador ya tiene algo igual o mejor — sugerir el siguiente tier si existe
+            const nextTier = NEXT_TIER[name.toLowerCase()];
+            if (nextTier) {
+              // Solo sugerir el tier siguiente si el jugador no lo tiene ya
+              return (!playerEquippedSet.has(nextTier.toLowerCase())) ? [nextTier] : [];
+            }
+            return [];
+          }
         }
         return [name];
       });
