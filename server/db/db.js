@@ -3466,10 +3466,10 @@ function getActiveExpedition(playerId) {
  * @param {string} playerId
  * @param {string} expeditionId - slug de la expedición (ej: 'sello_carcelero')
  */
-function assignExpeditionToDB(playerId, expeditionId) {
+function assignExpeditionToDB(playerId, expeditionId, initialData = {}) {
   run(
-    `INSERT INTO expeditions (player_id, expedition_id, state, step, data) VALUES (?, ?, 'active', 1, '{}')`,
-    [playerId, expeditionId]
+    `INSERT INTO expeditions (player_id, expedition_id, state, step, data) VALUES (?, ?, 'active', 1, ?)`,
+    [playerId, expeditionId, JSON.stringify(initialData)]
   );
 }
 

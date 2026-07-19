@@ -1203,6 +1203,20 @@ function cmdLook(player, options = {}) {
     combat.checkRespawns(() => {}, () => {});
   } catch (_) { /* no romper look si checkRespawns falla */ }
 
+  // IMPL-VV-1757: Aplicar variante de monstruo al hacer look (cubre casos de login sin move)
+  try {
+    if (player && player.run_monster_variants) {
+      dungeon.applyVariantToRoom(player.current_room_id, player);
+    }
+  } catch (_vvLook) { /* no romper look si falla la variante */ }
+
+  // IMPL-VV-1758: Aplicar posiciones variables de ítems raros (primer turno del run)
+  try {
+    if (player && player.run_seed) {
+      dungeon.applyRareLootPositions(player);
+    }
+  } catch (_vvLoot) { /* no romper look si falla el loot */ }
+
   const text = dungeon.describeRoom(player.current_room_id, player.id, player);
   // Mostrar efecto de sala si existe
   const roomEffect = ROOM_EFFECTS[player.current_room_id];
@@ -2515,6 +2529,24 @@ function cmdMove(player, direction) {
   }
   // Actualizar posición del jugador
   db.updatePlayer(player.id, { current_room_id: targetId });
+
+  // IMPL-VV-1757: Aplicar variante de monstruo si la sala destino es variable y el player tiene variante activa
+  try {
+    const freshForVariant = db.getPlayer(player.id);
+    if (freshForVariant && freshForVariant.run_monster_variants) {
+      dungeon.applyVariantToRoom(targetId, freshForVariant);
+    }
+  } catch (_vvErr) {
+    // No romper cmdMove si falla la variante
+  }
+
+  // IMPL-VV-1758: Aplicar posiciones variables de ítems raros (primer turno del run)
+  try {
+    const freshForLoot = db.getPlayer(player.id);
+    if (freshForLoot && freshForLoot.run_seed) {
+      dungeon.applyRareLootPositions(freshForLoot);
+    }
+  } catch (_vvLoot2) { /* no romper cmdMove si falla el loot */ }
 
   // T115: Registrar sala visitada para logro secreto Cartógrafo
   const visitResult = db.trackRoomVisit(player.id, targetId);
@@ -7175,7 +7207,7 @@ function cmdUse(player, itemQuery) {
         const seAha = seC;
         const pistas1366 = [];
         if (seAha.kaelthas_menc_trono_9)              pistas1366.push('inscripciones en la Sala del Trono');
-        if (seAha['kaelthas_menc_paginas_11'])         pistas1366.push('páginas congeladas de la Galería de Hielo');
+        if (seAha['kaelthas_menc_paginas_11'])         pistas1366.push('páginas congeladas del dungeon');
         if (seAha.kaelthas_nota_paginas)               pistas1366.push('el diario de un explorador anterior');
         if (seAha.kaelthas_hablo_aldric)               pistas1366.push('la conversación con Aldric el Mercader');
         // Los lore objects usan formato kaelthas_menc_<key>_<roomId>
@@ -7863,8 +7895,10 @@ function cmdExamine(player, query) {
   const PAGINAS_KEYS = ['paginas', 'páginas', 'diario', 'diario helado', 'paginas congeladas', 'páginas congeladas'];
   const isPageQuery = PAGINAS_KEYS.some(k => normalize(k).includes(qNorm) || qNorm.includes(normalize(k)));
   // BUG-461: el trigger funciona en sala 11 (páginas en el suelo) O si el jugador tiene las páginas en el inventario
+  // IMPL-VV-1758: también funciona en cualquier sala donde run_loot_positions ubique las páginas
   const hasPaginasInv = (player.inventory || []).some(i => i.toLowerCase().includes('páginas congeladas') || i.toLowerCase().includes('paginas congeladas'));
-  if (isPageQuery && (player.current_room_id === 11 || hasPaginasInv)) {
+  const paginasLoc = dungeon.getPaginasCongeladasLocation(player);
+  if (isPageQuery && (player.current_room_id === 11 || player.current_room_id === paginasLoc.roomId || hasPaginasInv)) {
     const questState = player.aldric_quest || 'none';
     // Marcar que leyó el diario de la Galería (para desbloquear diálogo del Guardián Anciano)
     const seFresh = parseSE(player.status_effects);

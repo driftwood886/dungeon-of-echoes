@@ -13,6 +13,7 @@
 'use strict';
 
 const db = require('../db/db.js');
+const dungeon = require('./dungeon.js'); // IMPL-VV-1758: para getPaginasCongeladasLocation
 
 // ─── Pool de expediciones ─────────────────────────────────────────────────────
 
@@ -361,15 +362,28 @@ const EXPEDITION_POOL = [
   {
     id: 'paginas_congeladas',
     title: 'El Libro del Elemental',
-    intro: [
-      'En la Galería de Hielo encontraste páginas cubiertas de escarcha con texto arcano ilegible.',
-      'El escriba de la Casa de Subastas dijo que solo alguien con entrenamiento mágico podría descifrarlas.',
-      '"El Elemental de Hielo guardaba ese libro. Terminaste su trabajo al encontrarlo."'
-    ].join(' '),
+    // IMPL-VV-1758: intro genérico — la sala exacta se informa en el objective dinámico
+    intro: 'Una ráfaga de frío salió del dungeon. En algún rincón, páginas cubiertas de escarcha con texto arcano ilegible esperan ser encontradas.',
     steps: [
       {
         n: 1,
-        objective: 'Encontrar las páginas congeladas (buscar en la Galería de Hielo — sala 11)',
+        // IMPL-VV-1758: objective como función que recibe expData con target_sala_paginas inyectado por assignExpedition()
+        objective: (expData) => {
+          const roomNames = {
+            11: 'la Galería de Hielo (sala 11)',
+            14: 'el Coliseo de Huesos (sala 14)',
+            19: 'la Cámara del Eco (sala 19)',
+            6:  'el Pasillo de las Ratas (sala 6)',
+            7:  'la Caverna de las Arañas (sala 7)',
+            8:  'la Prisión Subterránea (sala 8)',
+            2:  'el Corredor Inicial (sala 2)',
+            5:  'la Capilla Olvidada (sala 5)',
+            13: 'el Pozo de los Susurros (sala 13)',
+            20: 'la Sala del Vacío (sala 20)',
+          };
+          const targetSala = (expData && expData.target_sala_paginas) || 11;
+          return `Encontrar las páginas congeladas (buscar en ${roomNames[targetSala] || 'sala ' + targetSala})`;
+        },
         trigger: 'pickup',
         condition: (player, ctx) => {
           const name = (ctx.itemName || '').toLowerCase();
@@ -382,7 +396,7 @@ const EXPEDITION_POOL = [
         objective: 'Llevar las páginas al escriba de la Casa de Subastas (sala 17)',
         trigger: 'enter',
         condition: (player, ctx) => ctx.roomId === 17,
-        message: '📚 El escriba examina las páginas con ojos brillantes. "Extraordinario. Sabía que aparecerían en algún momento."'
+        message: '📚 El escriba examina las páginas con ojos brillantes.'
       }
     ],
     decision: {
@@ -596,7 +610,15 @@ function assignExpedition(player) {
 
   // Elegir la primera disponible (determinístico)
   const chosen = candidates[0];
-  db.assignExpeditionToDB(player.id, chosen.id);
+
+  // IMPL-VV-1758: caso especial para paginas_congeladas — inyectar sala dinámica en data
+  if (chosen.id === 'paginas_congeladas') {
+    const paginasLoc = dungeon.getPaginasCongeladasLocation(player);
+    const initialData = { target_sala_paginas: paginasLoc.roomId };
+    db.assignExpeditionToDB(player.id, chosen.id, initialData);
+  } else {
+    db.assignExpeditionToDB(player.id, chosen.id);
+  }
 
   return {
     expeditionId: chosen.id,
@@ -772,7 +794,11 @@ function getActiveExpeditionStatus(player) {
 
   const needsDecision = !!(data.awaiting_decision);
 
-  let currentObjective = currentStepDef ? currentStepDef.objective : '(completado — esperando decisión)';
+  let currentObjective = currentStepDef
+    ? (typeof currentStepDef.objective === 'function'
+        ? currentStepDef.objective(data)  // IMPL-VV-1758: objective dinámico
+        : currentStepDef.objective)
+    : '(completado — esperando decisión)';
   if (needsDecision) {
     currentObjective = expDef.decision ? expDef.decision.prompt : currentObjective;
   }

@@ -714,6 +714,122 @@ const VARIANT_MONSTER_PLANS = {
   },
 };
 
+// ─── Posiciones base de ítems raros (sala por defecto en seed.js) ──────────────
+// Mapa: item_slug → sala base donde seed.js los coloca
+const RARE_LOOT_BASE_ROOMS = {
+  paginas_congeladas: 11,
+  // Los demás ítems del pool de run_loot_positions no tienen sala base fija en seed.js
+  // (aparecen como loot de monstruos o se generan por otros medios — no necesitan reubicación)
+};
+
+// Nombre de sala para cada sala del pool de paginas_congeladas
+const RARE_LOOT_ROOM_NAMES = {
+  11: 'la Galería de Hielo (sala 11)',
+  14: 'el Coliseo de Huesos (sala 14)',
+  19: 'la Cámara del Eco (sala 19)',
+  6:  'el Pasillo de las Ratas (sala 6)',
+  7:  'la Caverna de las Arañas (sala 7)',
+  8:  'la Prisión Subterránea (sala 8)',
+  2:  'el Corredor Inicial (sala 2)',
+  5:  'la Capilla Olvidada (sala 5)',
+  13: 'el Pozo de los Susurros (sala 13)',
+  20: 'la Sala del Vacío (sala 20)',
+};
+
+/**
+ * IMPL-VV-1758: Aplica las posiciones variables de ítems raros para un player.
+ *
+ * Lee player.run_loot_positions y, para cada ítem cuya sala dinámica difiere de la base,
+ * remueve el ítem de la sala base y lo agrega a la sala dinámica.
+ *
+ * Solo tiene efecto si player.run_seed no es NULL y el flag 'loot_positions_applied'
+ * no está ya en status_effects del player (para no repetirse en el mismo run).
+ *
+ * @param {object} player — objeto player completo de la BD
+ * @returns {boolean} true si se aplicó algún cambio
+ */
+function applyRareLootPositions(player) {
+  // Solo aplica si el player tiene run_seed (Variación Viva activada)
+  if (!player || !player.run_seed) return false;
+
+  // Parsear status_effects para verificar flag
+  let se = {};
+  try {
+    se = typeof player.status_effects === 'object' && player.status_effects !== null
+      ? player.status_effects
+      : JSON.parse(player.status_effects || '{}');
+  } catch (_) { se = {}; }
+
+  // Si ya se aplicó en este run, no repetir
+  if (se.loot_positions_applied) return false;
+
+  // Parsear run_loot_positions
+  let lootPositions = {};
+  try {
+    lootPositions = typeof player.run_loot_positions === 'object' && player.run_loot_positions !== null
+      ? player.run_loot_positions
+      : JSON.parse(player.run_loot_positions || '{}');
+  } catch (_) { return false; }
+
+  let changed = false;
+
+  for (const [slug, baseRoom] of Object.entries(RARE_LOOT_BASE_ROOMS)) {
+    const targetRoom = lootPositions[slug];
+    if (!targetRoom || targetRoom === baseRoom) continue; // sin cambio necesario
+
+    const itemName = slug === 'paginas_congeladas' ? 'páginas congeladas' : slug;
+
+    // Quitar de la sala base (si está ahí)
+    const roomBase = db.getRoom(baseRoom);
+    if (roomBase && (roomBase.items || []).some(i => i.toLowerCase() === itemName)) {
+      const updatedItems = (roomBase.items || []).filter(i => i.toLowerCase() !== itemName);
+      db.upsertRoom({ ...roomBase, items: updatedItems });
+      changed = true;
+    }
+
+    // Agregar a la sala dinámica (si no está ya ahí)
+    const roomTarget = db.getRoom(targetRoom);
+    if (roomTarget && !(roomTarget.items || []).some(i => i.toLowerCase() === itemName)) {
+      const updatedItems = [...(roomTarget.items || []), itemName];
+      db.upsertRoom({ ...roomTarget, items: updatedItems });
+      changed = true;
+    }
+  }
+
+  // Marcar flag para no repetir en este run
+  const newSe = { ...se, loot_positions_applied: true };
+  db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe) });
+
+  if (changed) {
+    console.log(`[dungeon] applyRareLootPositions: posiciones aplicadas para player ${player.id} (seed ${player.run_seed})`);
+  }
+
+  return changed;
+}
+
+/**
+ * Devuelve el nombre legible de la sala donde están las páginas congeladas
+ * según run_loot_positions del player.
+ *
+ * @param {object} player
+ * @returns {{ roomId: number, roomName: string }}
+ */
+function getPaginasCongeladasLocation(player) {
+  const defaultRoom = 11;
+  if (!player || !player.run_loot_positions) return { roomId: defaultRoom, roomName: RARE_LOOT_ROOM_NAMES[defaultRoom] };
+
+  let lootPositions = {};
+  try {
+    lootPositions = typeof player.run_loot_positions === 'object' && player.run_loot_positions !== null
+      ? player.run_loot_positions
+      : JSON.parse(player.run_loot_positions || '{}');
+  } catch (_) { return { roomId: defaultRoom, roomName: RARE_LOOT_ROOM_NAMES[defaultRoom] }; }
+
+  const roomId = lootPositions.paginas_congeladas || defaultRoom;
+  const roomName = RARE_LOOT_ROOM_NAMES[roomId] || `sala ${roomId}`;
+  return { roomId, roomName };
+}
+
 /**
  * IMPL-VV-1757: Obtiene el plan de variante de monstruos para una sala y un player.
  *
@@ -810,6 +926,8 @@ module.exports = {
   VARIABLE_ROOMS,
   getVariantPlanForPlayer,
   applyVariantToRoom,
+  applyRareLootPositions,
+  getPaginasCongeladasLocation,
   DIR_NAMES,
   DIR_OPPOSITE,
   DIR_ALIASES,
