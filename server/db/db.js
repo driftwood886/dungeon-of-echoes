@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
 const xpSystem = require('../game/xp.js');
+const { generateRunState, generateNewSeed } = require('../game/run-state.js'); // EPIC-VV-1755
 
 // Soportar DB_PATH via variable de entorno (Fly.io usa /data/dungeon.sqlite en volumen)
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../db/dungeon.sqlite');
@@ -747,6 +748,10 @@ async function init() {
     `ALTER TABLE players ADD COLUMN faction_changed_at TEXT`,                               // EPIC-1373: timestamp del último cambio de facción (cooldown 7 días)
     `ALTER TABLE players ADD COLUMN faction_notified INTEGER NOT NULL DEFAULT 0`,           // EPIC-1373: 1 si ya recibió el mensaje narrativo de invitación a facciones (nivel 3)
     `ALTER TABLE players ADD COLUMN party_follow INTEGER NOT NULL DEFAULT 0`,               // EPIC-PARTY-1626: 1 si está siguiendo al líder automáticamente (Fase 3: movimiento sincronizado)
+    `ALTER TABLE players ADD COLUMN run_seed INTEGER`,                                       // EPIC-VV-1755: semilla del run actual (NULL = jugador pre-Epic)
+    `ALTER TABLE players ADD COLUMN run_event TEXT`,                                         // EPIC-VV-1755: slug del evento activo (NULL = sin evento)
+    `ALTER TABLE players ADD COLUMN run_monster_variants TEXT NOT NULL DEFAULT '{}'`,        // EPIC-VV-1755: JSON de variantes de monstruo por sala
+    `ALTER TABLE players ADD COLUMN run_loot_positions TEXT NOT NULL DEFAULT '{}'`,          // EPIC-VV-1755: JSON de posición de ítems raros
     ];
   for (const sql of migrations) {
     applyMigration(sql);
@@ -1432,6 +1437,19 @@ function createPlayer(username) {
   run(
     `INSERT INTO players (id, username, is_bot) VALUES (?, ?, ?)`,
     [id, username, isBot]
+  );
+  // EPIC-VV-1755: asignar semilla de run al crear personaje (Variación Viva)
+  const runSeed = generateNewSeed();
+  const runState = generateRunState(runSeed);
+  run(
+    `UPDATE players SET run_seed = ?, run_event = ?, run_monster_variants = ?, run_loot_positions = ? WHERE id = ?`,
+    [
+      runSeed,
+      runState.event.id,
+      JSON.stringify(runState.monster_variants),
+      JSON.stringify(runState.rare_loot_positions),
+      id,
+    ]
   );
   return getPlayer(id);
 }
