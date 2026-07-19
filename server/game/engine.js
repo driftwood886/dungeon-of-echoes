@@ -1812,7 +1812,7 @@ function cmdMove(player, direction) {
         }
         db.updatePlayer(player.id, { current_room_id: destId });
         // BUG-790: registrar sala visitada en el path de monstruos sin boss (early return)
-        db.trackRoomVisit(player.id, destId);
+        const nbVisitResult = db.trackRoomVisit(player.id, destId);
         // T-1231: Tracking de desafíos — visita de sala
         try { challengeTracker.trackVisitRoom(player.id, player, destId); } catch (_) {}
         const destRoom = db.getRoom(destId);
@@ -2003,8 +2003,23 @@ function cmdMove(player, direction) {
             } // cierra else de nbHasDisarmItem (DIS-1171)
           }
         }
+        // BUG-1749: llamar cmdLook en el destino (igual que bossAtFullHp) para mostrar descripción completa
+        const nbFreshPlayer = db.getPlayer(player.id);
+        const nbLookResult = cmdLook(nbFreshPlayer, { showEvent: true });
+        let nbQuestExploreMsg = '';
+        try {
+          if (!player.is_bot) {
+            const freshForNbQE = db.getPlayer(player.id);
+            if (freshForNbQE) {
+              const nbQeResult = questEngine.onExplore(freshForNbQE, destId, nbVisitResult.isNew);
+              if (nbQeResult && nbQeResult.text) {
+                nbQuestExploreMsg = '\n\n' + nbQeResult.text;
+              }
+            }
+          }
+        } catch (_) { /* no romper movimiento si falla questEngine */ }
         return {
-          text: `🚶 Te movés a «${destName}».${moveHintText}${noBossEffectText}${noBossTrapText}${player._usedKeyName ? `\n\n🔑 Usás la "${player._usedKeyName}" para abrir la puerta. La llave se rompe al girar — ya no te sirve, pero la puerta cedió. Una sola vez.` : ''}${(() => { try { const ev = worldEvents.getCurrentEvent(); if (ev && ev.id === 'curse') { const fr = db.getPlayer(player.id); if (fr && fr.hp > 1) { db.updatePlayer(fr.id, { hp: fr.hp - 1 }); return `\n💀 La Maldición del Lich drena tu vitalidad. (-1 HP · ${fr.hp - 1}/${fr.max_hp} HP)`; } else if (fr) { return `\n💀 La Maldición del Lich intenta drenar tu vitalidad, pero tu llama se resiste. (1/${fr.max_hp} HP)`; } } } catch (_) {} return ''; })()}`,
+          text: `🚶 Te movés a «${destName}».${moveHintText}${noBossEffectText}${noBossTrapText}${player._usedKeyName ? `\n\n🔑 Usás la "${player._usedKeyName}" para abrir la puerta. La llave se rompe al girar — ya no te sirve, pero la puerta cedió. Una sola vez.` : ''}${(() => { try { const ev = worldEvents.getCurrentEvent(); if (ev && ev.id === 'curse') { const fr = db.getPlayer(player.id); if (fr && fr.hp > 1) { db.updatePlayer(fr.id, { hp: fr.hp - 1 }); return `\n💀 La Maldición del Lich drena tu vitalidad. (-1 HP · ${fr.hp - 1}/${fr.max_hp} HP)`; } else if (fr) { return `\n💀 La Maldición del Lich intenta drenar tu vitalidad, pero tu llama se resiste. (1/${fr.max_hp} HP)`; } } } catch (_) {} return ''; })()}\n\n${nbLookResult.text}${nbQuestExploreMsg}`,
           event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
