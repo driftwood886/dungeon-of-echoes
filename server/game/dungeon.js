@@ -203,6 +203,12 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     lines.push(`\n${KAELTHAS_ROOM_HINTS[room.id]}`);
   }
 
+  // DIS-1747: En sala 1 (Entrada de la Cripta), mostrar hint ambiental de facciones para jugadores
+  // de nivel bajo (< 3). Suprimido al llegar a nivel 3 (cuando las facciones se desbloquean).
+  if (room.id === 1 && player && (player.level || 1) < 3) {
+    lines.push('\n🏴 Las paredes de la entrada muestran marcas de tres grupos distintos — estandartes rivales grabados a cuchillo sobre la piedra. Grupos de aventureros compiten por el control del dungeon. Cuando llegues al nivel 3, podrás unirte a uno (escribí «facciones» entonces).');
+  }
+
   // DIS-1444: En sala 18 (Fuente Eterna), mostrar cuánto HP restauraría para que el jugador
   // sepa si vale la pena usarla antes de intentarlo.
   if (room.id === 18 && player) {
@@ -439,12 +445,15 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     const playerMaxHp = player ? player.max_hp : null;
     const hpPct = (playerHp !== null && playerMaxHp) ? (playerHp / playerMaxHp) : 1;
     // Check cooldown del cuenco (el mapa de cooldowns está en engine.js — aquí usamos lore estático)
+    // DIS-1748: usar HP calculado ("hasta X HP — 40% de tu máximo") para consistencia con mensaje de uso real
+    const cuencoHeal = playerMaxHp ? Math.floor(playerMaxHp * 0.4) : null;
+    const cuencoHealStr = cuencoHeal !== null ? `hasta ${cuencoHeal} HP — 40% de tu máximo` : '40% de tu HP máximo';
     if (hpPct < 0.6) {
       // HP bajo: siempre mostrar (urgente, incluso para veteranos)
-      lines.push(`\n💧 ¡ATENCIÓN — HP bajo! El cuenco de piedra negra del altar puede curarte.\n   ("cuenco" o "beber" — recupera 40% HP, cooldown personal 5 min)`);
+      lines.push(`\n💧 ¡ATENCIÓN — HP bajo! El cuenco de piedra negra del altar puede curarte.\n   ("cuenco" o "beber" — recupera ${cuencoHealStr}, cooldown personal 5 min)`);
     } else if (!isVeteranPlayer) {
       // HP normal + no veterano: hint informativo
-      lines.push(`\n🙏 En el centro de la sala hay un cuenco de piedra negra lleno de agua fría.\n   ("cuenco" para beber — recupera 40% HP, cooldown personal 5 min)`);
+      lines.push(`\n🙏 En el centro de la sala hay un cuenco de piedra negra lleno de agua fría.\n   ("cuenco" para beber — recupera ${cuencoHealStr}, cooldown personal 5 min)`);
     }
     // DIS-1649: hint de inscripción en pared norte (sutil — solo para no-veteranos)
     if (!isVeteranPlayer) {
