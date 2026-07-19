@@ -7159,23 +7159,22 @@ function cmdUse(player, itemQuery) {
   } else if (def.type === 'armor') {
     // DIS-1489: `use` no equipa armaduras — redirigir al comando correcto
     // `use` = consumir/activar efectos. `equip` = equipar arma/armadura.
-    const wearResult = { text: `🛡️ "${found}" es una armadura, no un ítem consumible.\n💡 Para equiparla: \`equip ${found}\`` };
-    if (wearResult && wearResult.text) {
-      // noop — solo redirección, no hay éxito/fracaso de cmdWear
-    }
-    // EPIC-1155-DEF: hook de expedición para ítems tipo armor (early return bypasaba el hook)
-    // Verificar step antes de retornar, igual que el hook general al final de cmdUse
+    // BUG-1771: verificar primero si hay hook de expedición para este ítem de armadura.
+    // Si la expedición consume el uso (sello del carcelero como ítem narrativo), retornar
+    // solo el mensaje de expedición — no mostrar el "es una armadura" antes.
     try {
       const freshForExpArmor = db.getPlayer(player.id);
       const expArmorResult = expeditionEngine.checkStep(freshForExpArmor, 'use', {
         itemName: found,
         roomId: player.current_room_id,
       });
-      if (expArmorResult && expArmorResult.message && wearResult) {
-        wearResult.text = (wearResult.text || '') + '\n\n' + expArmorResult.message;
+      if (expArmorResult && expArmorResult.message) {
+        // La expedición manejó este uso — retornar solo el mensaje narrativo
+        return { text: expArmorResult.message };
       }
     } catch (_) { /* no romper use si falla expedición */ }
-    return wearResult;
+    // Sin hook de expedición → redirigir a equip (comportamiento normal para armaduras)
+    return { text: `🛡️ "${found}" es una armadura, no un ítem consumible.\n💡 Para equiparla: \`equip ${found}\`` };
 
   } else if (def.type === 'bag') {
     // DIS-595: bolsa de lona — expande inventario en +slots (máx 2 bolsas = +8 slots)
