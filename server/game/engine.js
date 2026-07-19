@@ -2957,6 +2957,14 @@ function cmdMove(player, direction) {
       golemWarningMsg = '\n\n⚠️ Al este — el Gólem de Piedra aguarda en el Santuario Profano (jefe, nivel 5+). El combate no admite escape fácil.';
     }
   }
+  // DIS-1769: Si el jugador visita sala 10 (Santuario Profano) por primera vez, mostrar hint de mecánicas del Gólem.
+  // La info de regen/escudo solo era visible via `modo_berserk` — confuso para el jugador promedio.
+  if (firstVisitEver && targetId === 10) {
+    const golemAlive = db.getMonstersInRoom(10).find(m => m.hp > 0);
+    if (golemAlive) {
+      golemWarningMsg += '\n\n🪨 **Mecánicas del Gólem de Piedra:**\n   • Turno 2: se regenera parcialmente\n   • Turno 3: activa un escudo pétreo (reduce daño)\n   💡 Si podés matarlo en 1-2 turnos, evitás ambas mecánicas defensivas.';
+    }
+  }
 
   // T165: Badge de primera visita permanente — fusionado en explorationMsg para evitar duplicar texto
   const firstVisitMsg = '';
