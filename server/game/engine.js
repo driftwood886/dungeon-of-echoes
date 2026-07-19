@@ -4040,6 +4040,11 @@ function cmdStatus(player) {
     statusLines.unshift(`💡 Aún no elegiste clase (nivel ${player.level}). Escribí 'clase' para ver las opciones.`);
   }
 
+  // DIS-1764: recordatorio de especialización en status si nivel ≥5 y tiene clase pero sin especialización
+  if ((player.level || 1) >= 5 && player.player_class && player.player_class !== 'sin_clase' && !player.specialization) {
+    statusLines.push(`💡 Podés especializarte — escribí \`especializar\` para desbloquear habilidades de tu clase.`);
+  }
+
   const text = [
     `\n=== ${player.username.toUpperCase()} ===`,
     player.fallen === 1 ? `☠ CAÍDO en HARDCORE — modo fantasma ✝` : (player.is_hardcore === 1 ? `🔴 MODO HARDCORE ACTIVO` : null),
