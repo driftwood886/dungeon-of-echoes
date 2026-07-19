@@ -1484,6 +1484,22 @@ function attackRound(player, monster) {
 
       if (loot.length > 0) {
         lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
+        // DIS-1766: Avisar si la mochila está llena al momento del kill (para monstruos no-boss).
+        // Los bosses ya tienen su propio bloque de aviso más detallado (línea ~1495).
+        if (!isBossMonster) {
+          try {
+            const freshPForBag = db.getPlayer(player.id);
+            if (freshPForBag) {
+              const invBag = Array.isArray(freshPForBag.inventory) ? freshPForBag.inventory : JSON.parse(freshPForBag.inventory || '[]');
+              const eqBag = (freshPForBag.equipped_weapon ? 1 : 0) + (freshPForBag.equipped_armor ? 1 : 0);
+              const usedBag = invBag.length + eqBag;
+              const maxBag = 20 + (freshPForBag.inventory_bonus || 0);
+              if (usedBag >= maxBag) {
+                lines.push(`⚠️ Mochila llena (${usedBag}/${maxBag}) — antes de usar \`loot\` liberá espacio con \`drop <ítem>\`.`);
+              }
+            }
+          } catch (_) { /* no romper combat si falla el check de mochila */ }
+        }
       } else if (!directLootItems || directLootItems.length === 0) {
         lines.push(`${articuloMonstruo(monster.name)} ${monster.name} no deja nada.`);
       }
