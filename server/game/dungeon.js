@@ -600,6 +600,206 @@ function getWorldStateRoomText(roomId) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── IMPL-VV-1757: Resolver variantes de monstruo por sala ───────────────────
+//
+// Mapa de salas variables y sus monstruos BASE en BD.
+// Salas que tienen un monstruo "base" que puede ser reemplazado según run_monster_variants.
+const VARIABLE_ROOMS = new Set([2, 3, 6, 7, 8, 20]);
+
+// Mapa: slug de variante → lista de IDs de monstruos en BD que deben estar en la sala.
+// Si un slug NO está en este mapa, se usa la sala con sus monstruos de BD actuales (comportamiento normal).
+// Cada entrada define { add: [...ids], remove: [...ids_base] }:
+//   - add: monstruos que deben tener room_id = roomId
+//   - remove: monstruos base (IDs actuales de la sala) que deben ser movidos fuera (room_id = null) temporalmente
+//
+// IDs de monstruos base por sala:
+//   Sala 2: Goblin Merodeador (1), Goblin Explorador (28)
+//   Sala 3: Esqueleto Guerrero (2), Murciélago Vampiro (26)
+//   Sala 6: Rata Gigante (3), Murciélago Vampiro (27)
+//   Sala 7: Araña Tejedora (7)
+//   Sala 8: Guardia Espectral (8) — el boss no varía, solo puede añadirse Elemental de Maná
+//   Sala 20: Sombra del Vacío (22) — nota: sala 20 es endgame, variante afecta a monstruo adicional
+//
+// IDs de monstruos de variante nuevos:
+//   30: Gnoll Merodeador
+//   31: Zombie Caminante
+//   32: Elemental de Fuego
+//
+const VARIANT_MONSTER_PLANS = {
+  // ─── Sala 2 ───────────────────────────────────────────────────────────────
+  // base: Goblin Merodeador (1) + Goblin Explorador (28)
+  'gnoll_explorador_murcielago': {
+    roomId: 2,
+    add: [30],           // Gnoll Merodeador reemplaza a los goblins. El "murciélago" del slug es aspiracional — requeriría un ID dedicado. MVP: solo Gnoll.
+    remove: [1, 28],
+    note: 'Sala 2 variante dura: Gnoll Merodeador (30) en lugar de los goblins base. El Murciélago del slug requiere ID dedicado (futura mejora).',
+  },
+  'rata_gigante_x3': {
+    roomId: 2,
+    add: [],             // MVP: sin override. 3 Ratas requieren IDs dedicados (33+). Por ahora sala 2 conserva sus goblins base.
+    remove: [],
+    note: 'MVP: sin override para rata_gigante_x3 en sala 2 — necesita 2 IDs adicionales de Rata Gigante. Sala queda con monstruos base.',
+  },
+
+  // ─── Sala 3 ───────────────────────────────────────────────────────────────
+  // base: Esqueleto Guerrero (2) + Murciélago Vampiro (26)
+  'zombie_caminante_x2': {
+    roomId: 3,
+    add: [31, 31],      // Zombie Caminante × 2 — nota: hay solo 1 id 31 en BD; ver nota abajo
+    remove: [2, 26],    // quitar base
+    note: 'Solo hay 1 instancia del id 31; en la práctica se coloca 1 Zombie Caminante en sala 3 y el sistema de respawn crea sensación de masa.'
+  },
+  'gnoll_merodeador_arana': {
+    roomId: 3,
+    add: [30],           // Gnoll Merodeador (araña ya existe en sala 7, no se mueve)
+    remove: [2, 26],
+    note: 'Gnoll Merodeador (30) + Araña Tejedora (7) sería lo ideal, pero mover id 7 de sala 7 puede causar conflictos. MVP: solo Gnoll Merodeador en sala 3.'
+  },
+
+  // ─── Sala 6 ───────────────────────────────────────────────────────────────
+  // base: Rata Gigante (3) + Murciélago Vampiro (27)
+  'gnoll_merodeador_rata': {
+    roomId: 6,
+    add: [30],           // Gnoll Merodeador se une a la Rata Gigante (base). El Murciélago (27) se hiberna.
+    remove: [27],        // Solo quita el Murciélago; la Rata queda. Sala 6 = Rata Gigante + Gnoll Merodeador.
+    note: 'Sala 6 variante: Gnoll Merodeador (30) reemplaza al Murciélago Vampiro. La Rata Gigante permanece como base. Combinación más peligrosa que el estándar.',
+  },
+  'arana_tejedora_x2': {
+    roomId: 6,
+    add: [],             // MVP: sin override. 2 Arañas requieren 2 IDs (solo existe id 7 en sala 7). Sala queda con monstruos base.
+    remove: [],
+    note: 'MVP: sin override para arana_tejedora_x2 en sala 6 — necesita un ID adicional de Araña Tejedora. Sala queda con Rata Gigante + Murciélago base.',
+  },
+
+  // ─── Sala 7 ───────────────────────────────────────────────────────────────
+  // base: Araña Tejedora (7)
+  'gnoll_merodeador': {
+    roomId: 7,
+    add: [30],           // Gnoll Merodeador solo
+    remove: [7],
+  },
+  'rata_gigante_x2': {
+    roomId: 7,
+    add: [],             // Rata gigante (id 3) está en sala 6 — no se puede mover fácil. MVP: sala 7 queda con base (araña).
+    remove: [],
+    note: 'MVP: sin override para rata_gigante_x2 en sala 7 — usa comportamiento base. Futura mejora: crear segunda Rata Gigante con id propio.'
+  },
+
+  // ─── Sala 20 ──────────────────────────────────────────────────────────────
+  // base: Sombra del Vacío (22) — boss narrativo de sala 20
+  'golem_elemental_fuego': {
+    roomId: 20,
+    add: [32],           // Añadir Elemental de Fuego (no quitar la Sombra del Vacío)
+    remove: [],
+    note: 'Elemental de Fuego se AÑADE a sala 20 (no reemplaza la Sombra del Vacío). Es un acompañante extra.'
+  },
+  'troll_x2_guardia': {
+    roomId: 20,
+    add: [],             // MVP: sin trolls adicionales (solo hay Troll de Cavernas id 29 en sala 12). Futura mejora: crear IDs propios.
+    remove: [],
+    note: 'MVP: sin override para troll_x2_guardia. Futura mejora: crear monstruos troll de guardia con IDs propios.'
+  },
+
+  // ─── Sala 8 — Prisión Subterránea ─────────────────────────────────────────
+  // Solo afectada por plaga_arcana: Elemental de Maná adicional
+  // El Elemental de Maná es conceptualmente similar al id 32 (Elemental de Fuego) pero con stats distintos.
+  // MVP: en sala 8 + plaga_arcana se usa run_state para saber; esto se maneja en el hook plaga_arcana
+  // (ya implementado en IMPL-VV-1759 para stats, aquí solo manejamos la presencia física en sala).
+  // La variante 'elemental_mana_adicional' en sala 8 agrega Elemental de Fuego (32) como proxy.
+  'elemental_mana_adicional': {
+    roomId: 8,
+    add: [32],           // Elemental de Fuego como proxy del Elemental de Maná
+    remove: [],
+    note: 'Elemental de Fuego (id 32) actúa como Elemental de Maná en sala 8 durante plaga_arcana. Stats reducidos son responsabilidad del hook ya implementado.'
+  },
+};
+
+/**
+ * IMPL-VV-1757: Obtiene el plan de variante de monstruos para una sala y un player.
+ *
+ * @param {number} roomId
+ * @param {object} player — objeto player con run_monster_variants (JSON string o objeto)
+ * @returns {{ slug: string, add: number[], remove: number[] } | null}
+ *   null si la sala no es variable o la variante es 'base'/'normal'.
+ */
+function getVariantPlanForPlayer(roomId, player) {
+  if (!VARIABLE_ROOMS.has(roomId)) return null;
+  if (!player) return null;
+
+  let variants;
+  try {
+    variants = typeof player.run_monster_variants === 'object' && player.run_monster_variants !== null
+      ? player.run_monster_variants
+      : JSON.parse(player.run_monster_variants || '{}');
+  } catch (_) {
+    return null;
+  }
+
+  const slug = variants[roomId] || variants[String(roomId)];
+  if (!slug || slug === 'base' || slug === 'normal') return null;
+
+  const plan = VARIANT_MONSTER_PLANS[slug];
+  if (!plan) return null;
+
+  return { slug, ...plan };
+}
+
+/**
+ * IMPL-VV-1757: Aplica la variante de monstruo a una sala para un player específico.
+ *
+ * Efecto: mueve monstruos de variante a la sala (room_id = roomId)
+ * y mueve los monstruos base fuera (room_id = null) si están muertos (hp <= 0) o los pone
+ * en "hibernación" (room_id = null) cuando aplica la variante.
+ *
+ * IMPORTANTE: Solo aplica si los monstruos de variante no están ya en la sala
+ * y si los monstruos de variante tienen hp > 0 (no están derrotados).
+ *
+ * @param {number} roomId
+ * @param {object} player
+ * @returns {boolean} true si se aplicó algún cambio
+ */
+function applyVariantToRoom(roomId, player) {
+  const plan = getVariantPlanForPlayer(roomId, player);
+  if (!plan) return false;
+  if (!plan.add || plan.add.length === 0) return false;
+
+  let changed = false;
+
+  // Verificar si los monstruos de variante ya están en la sala
+  const currentMonsters = db.getMonstersInRoom(roomId);
+  const addIds = [...new Set(plan.add)]; // deduplicate
+
+  for (const monsterId of addIds) {
+    const monster = db.getMonster(monsterId);
+    if (!monster) continue;
+
+    // Si ya está en la sala y con vida, no hacer nada
+    if (monster.room_id === roomId && monster.hp > 0) continue;
+
+    // Si está muerto (hp <= 0), no lo coloquemos — el respawn lo manejará
+    if (monster.hp <= 0) continue;
+
+    // Mover el monstruo de variante a esta sala y configurar respawn
+    db.updateMonster(monsterId, { room_id: roomId, respawn_room_id: roomId });
+    changed = true;
+  }
+
+  if (changed && plan.remove && plan.remove.length > 0) {
+    // "Hibernar" los monstruos base: moverlos a room_id = null
+    // Solo si el monstruo base está vivo (si está muerto ya tiene room_id = null por el sistema de combate)
+    for (const baseId of plan.remove) {
+      const baseMonster = db.getMonster(baseId);
+      if (!baseMonster) continue;
+      if (baseMonster.room_id !== roomId) continue; // ya no está en esta sala
+
+      // Guardar la sala original como respawn_room_id si no tiene uno asignado
+      // Nota: los monstruos base YA tienen respawn_room_id configurado — no lo tocamos
+      db.updateMonster(baseId, { room_id: null });
+    }
+  }
+
+  return changed;
+}
 
 module.exports = {
   getRoomFull,
@@ -607,6 +807,9 @@ module.exports = {
   normalizeDirection,
   exitsText,
   describeRoom,
+  VARIABLE_ROOMS,
+  getVariantPlanForPlayer,
+  applyVariantToRoom,
   DIR_NAMES,
   DIR_OPPOSITE,
   DIR_ALIASES,
