@@ -443,6 +443,37 @@ function attackRound(player, monster) {
     }
   } catch (_) { /* no romper combate si falla el escalado de party */ }
 
+  // IMPL-VV-1759: marea_no_muertos — HP bonus para monstruos undead/boss undead
+  // +2 HP a no-muertos normales, +5 HP a bosses. Se aplica solo en el primer turno (flag vv_undead_bonus).
+  try {
+    if (player.run_event === 'marea_no_muertos') {
+      const monSeUndead = monster.status_effects
+        ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : { ...monster.status_effects })
+        : {};
+      if (!monSeUndead.vv_undead_bonus) {
+        const monNameU = (monster.name || '').toLowerCase();
+        const isUndeadMon = monNameU.includes('esqueleto') || monNameU.includes('zombie') ||
+          monNameU.includes('zombi') || monNameU.includes('vampiro') ||
+          monNameU.includes('momia') || monNameU.includes('óseo') || monNameU.includes('muerto') ||
+          monNameU.includes('espectro') || monNameU.includes('espectral') ||
+          monNameU.includes('lich') || monNameU.includes('sombra') || monNameU.includes('fantasma');
+        if (isUndeadMon) {
+          const isBossUndead = !!(BOSS_MONSTERS && BOSS_MONSTERS[monster.id]);
+          const hpBonus = isBossUndead ? 5 : 2;
+          const newMaxHpU = monster.max_hp + hpBonus;
+          const newHpU = monster.hp + hpBonus;
+          db.updateMonster(monster.id, { max_hp: newMaxHpU, hp: newHpU });
+          monSeUndead.vv_undead_bonus = true;
+          db.updateMonster(monster.id, { status_effects: JSON.stringify(monSeUndead) });
+          monster.max_hp = newMaxHpU;
+          monster.hp = newHpU;
+          monster.status_effects = monSeUndead;
+          lines.push(`💀 [Marea de No-Muertos] ${monster.name} se fortalece con la energía oscura (+${hpBonus} HP).`);
+        }
+      }
+    }
+  } catch (_) { /* no romper combate si falla el hook de marea */ }
+
   // T-1227: SPECTRAL_TIDE — bloquear combate con no-espectros/no-muertos durante el evento
   // DIS-1335: También permitir monstruos undead (esqueletos, zombis, vampiros, momias) ya que el
   // anuncio dice "solo los no-muertos están activos" — no solo los espectrales puros.
@@ -627,7 +658,12 @@ function attackRound(player, monster) {
   const altarAtkBonus = (altarBlessingFx && altarBlessingFx.expires && new Date(altarBlessingFx.expires).getTime() > Date.now())
     ? (altarBlessingFx.atk_bonus || 0)
     : 0;
-  const effectiveAtk = Math.max(1, player.attack + petBonus + scrollAtkBonus + stanceMods.atkMod - atkDebuffAmt + altarAtkBonus);
+  // IMPL-VV-1759: temporada_de_sangre — +3 ATK cuando el jugador tiene HP ≤ 33%
+  let runEventAtkBonus = 0;
+  if (player.run_event === 'temporada_de_sangre' && player.max_hp > 0 && player.hp / player.max_hp <= 0.33) {
+    runEventAtkBonus = 3;
+  }
+  const effectiveAtk = Math.max(1, player.attack + petBonus + scrollAtkBonus + stanceMods.atkMod - atkDebuffAmt + altarAtkBonus + runEventAtkBonus);
   let effectiveDef = (player.defense || 0) + scrollDefBonus + stanceMods.defMod;
   // EPIC-1309-F5: bonus de consagración de sala del Paladín
   const consagracionFx = atkDebuffFx['consagracion_sala'];
@@ -1020,7 +1056,9 @@ function attackRound(player, monster) {
     const magoFlavor = isMagoSinMana
       ? `[sin maná — ${magoMsgs[Math.floor(Math.random() * magoMsgs.length)]}] `
       : '';
-    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño.${physResist < 1.0 ? ` ${physResistLabel}` : ''}${spectralBonusDmg > 0 ? ` 👻 (+${spectralBonusDmg} espectral)` : ''}${clericWeaponPenaltyNote.length > 0 ? ' ' + clericWeaponPenaltyNote[0] : ''}${rageLabel} (${monster.hp}/${monster.max_hp} HP)${isMagoSinMana ? '\n   💡 [Mago sin maná] Usá "drenar arcano" para absorber esencia mágica y recuperar 2-4 maná.' : ''}`);
+    // IMPL-VV-1759: label para bonus de temporada_de_sangre
+    const sangreLabel = runEventAtkBonus > 0 ? ` 🩸 [Temporada de Sangre +${runEventAtkBonus} ATK]` : '';
+    lines.push(`⚔  ${stanceTag}${magoFlavor}${attackVerb} y le causás ${dmgToMonster} de daño.${physResist < 1.0 ? ` ${physResistLabel}` : ''}${spectralBonusDmg > 0 ? ` 👻 (+${spectralBonusDmg} espectral)` : ''}${clericWeaponPenaltyNote.length > 0 ? ' ' + clericWeaponPenaltyNote[0] : ''}${rageLabel}${sangreLabel} (${monster.hp}/${monster.max_hp} HP)${isMagoSinMana ? '\n   💡 [Mago sin maná] Usá "drenar arcano" para absorber esencia mágica y recuperar 2-4 maná.' : ''}`);
   }
 
   // Actualizar monstruo en BD
@@ -1174,7 +1212,12 @@ function attackRound(player, monster) {
         // Verificar si el monstruo muere por el ataque de la mascota
         if (monster.hp <= 0 && !monsterDead) {
           monsterDead = true;
-          lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} por tu mascota!`);
+          // IMPL-VV-1759: silencio_del_abismo — monstruos no-boss no muestran kill text
+          const isBossForSilencioPet = !!(BOSS_MONSTERS && BOSS_MONSTERS[monster.id]);
+          if (!(player.run_event === 'silencio_del_abismo' && !isBossForSilencioPet)) {
+            lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} por tu mascota!`);
+          }
+
           const { droppedLoot: petLoot, globalEvent: petGlobalEvent, lootNote: petLootNote } = dropLoot(monster, player.current_room_id, player);
           loot = petLoot;
           if (loot.length > 0) lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
@@ -1246,7 +1289,12 @@ function attackRound(player, monster) {
             lines.push(`🌑 ¡El grimorio libera un RAYO DE SOMBRA! ${shadowDmg} daño extra al ${monster.name}. (${monster.hp}/${monster.max_hp} HP)`);
             if (monster.hp <= 0) {
               monsterDead = true;
-              lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} por las sombras!`);
+              // IMPL-VV-1759: silencio_del_abismo — monstruos no-boss no muestran kill text
+              const isBossForSilencioShadow = !!(BOSS_MONSTERS && BOSS_MONSTERS[monster.id]);
+              if (!(player.run_event === 'silencio_del_abismo' && !isBossForSilencioShadow)) {
+                lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} por las sombras!`);
+              }
+
               const { droppedLoot, globalEvent, lootNote: ln821 } = dropLoot(monster, player.current_room_id, player);
               loot = droppedLoot;
               if (loot.length > 0) lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
@@ -1325,7 +1373,12 @@ function attackRound(player, monster) {
       db.updateMonster(monster.id, { hp: monster.hp, status_effects: JSON.stringify(mFx) });
       if (monster.hp <= 0) {
         monsterDead = true;
-        lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} por el veneno!`);
+        // IMPL-VV-1759: silencio_del_abismo — monstruos no-boss no muestran kill text
+        const isBossForSilencioPoison = !!(BOSS_MONSTERS && BOSS_MONSTERS[monster.id]);
+        if (!(player.run_event === 'silencio_del_abismo' && !isBossForSilencioPoison)) {
+          lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} por el veneno!`);
+        }
+
         const { droppedLoot, globalEvent, lootNote: ln898 } = dropLoot(monster, player.current_room_id, player);
         loot = droppedLoot;
         if (loot.length > 0) lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
@@ -1378,7 +1431,13 @@ function attackRound(player, monster) {
 
   if (monster.hp <= 0) {
     monsterDead = true;
-    lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)}!`);
+    // IMPL-VV-1759: silencio_del_abismo — monstruos no-boss no muestran kill text
+    const isBossForSilencio = !!(BOSS_MONSTERS && BOSS_MONSTERS[monster.id]);
+    if (player.run_event === 'silencio_del_abismo' && !isBossForSilencio) {
+      // Silencio — los monstruos menores caen sin texto
+    } else {
+      lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)}!`);
+    }
 
     // DIS-1212: El Goblin de Práctica (id=20) no deja loot durante el tutorial.
     // completeTutorial() ya limpia el suelo de sala 16 — no generar drop ni mostrar mensaje.
@@ -2472,6 +2531,15 @@ function dropLoot(monster, roomId, player) {
   // Loot especial del boss
   const baseAllLoot = bossDef ? [...loot, ...(bossDef.lootBonus || [])] : loot;
 
+  // IMPL-VV-1759: caceria_del_filo — doblar el loot si el monstruo es un boss
+  // Si el player tiene run_event === 'caceria_del_filo' y el monstruo es boss, duplicar items.
+  let allLootBase = baseAllLoot;
+  if (player && player.run_event === 'caceria_del_filo' && bossDef) {
+    // Duplicar: cada ítem del loot aparece dos veces (excepto ítems únicos de narrativa que quedan únicos)
+    const UNIQUE_ITEMS_NO_DUP = ['sello del carcelero', 'carta sellada', 'corona rota'];
+    allLootBase = [...baseAllLoot, ...baseAllLoot.filter(i => !UNIQUE_ITEMS_NO_DUP.includes(i))];
+  }
+
   // DIS-D421: Aplicar probabilidades por ítem (si existen para este monstruo)
   const chances = LOOT_CHANCES[monster.id];
   // T-1227: BLOOD_MOON — +50% drop rate para monstruos nivel 3+
@@ -2484,11 +2552,11 @@ function dropLoot(monster, roomId, player) {
     }
   } catch (_) {}
   let allLoot = chances
-    ? baseAllLoot.filter(item => {
+    ? allLootBase.filter(item => {
         const chance = chances[item];
         return chance === undefined ? Math.random() < dropMultiplier : Math.random() < Math.min(1.0, chance * dropMultiplier);
       })
-    : baseAllLoot;
+    : allLootBase;
 
   // BUG-908: El Espectro del Corredor (id=4) no debería dropear 'corona rota' si la trampa
   // de sala 9 ya fue desactivada (trap.active === false). El ítem pierde utilidad y acumula basura.

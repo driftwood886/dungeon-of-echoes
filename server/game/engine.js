@@ -8652,11 +8652,21 @@ function cmdLoot(player) {
     }
   } catch (_) { /* no interrumpir loot si falla tracker */ }
 
-  const lista = itemsToPickup.map(i => {
+  const lista = itemsToPickup.map((i, idx) => {
     const emoji = items.getRarityEmoji(i);
     const rarity = items.getItemRarity(i);
     const rarityTag = rarity !== 'común' ? ` [${rarity}]` : '';
-    return `  ${emoji} ${i}${rarityTag}`;
+    // IMPL-VV-1759: festival_de_loot — el primer ítem se muestra con descripción completa
+    let festivalDesc = '';
+    if (idx === 0 && player.run_event === 'festival_de_loot') {
+      try {
+        const itemDef = items.getItemDef(i);
+        if (itemDef && itemDef.description) {
+          festivalDesc = `\n     💰 [Mercado Activo] ${itemDef.description}`;
+        }
+      } catch (_) {}
+    }
+    return `  ${emoji} ${i}${rarityTag}${festivalDesc}`;
   }).join('\n');
 
   const totalItems = itemsToPickup.length + (goldCollected > 0 ? 1 : 0);
@@ -16808,6 +16818,29 @@ function cmdCast(player, args) {
   }
 
   db.logEvent(player.id, player.current_room_id, `cast ${spellName}`, lines.join('\n'));
+
+  // IMPL-VV-1759: plaga_arcana — 20% de chance de doble cast (lanzar el hechizo gratis una segunda vez)
+  // Solo para hechizos de daño cuando el monstruo objetivo sigue vivo.
+  if (player.run_event === 'plaga_arcana' && spell.type === 'damage' && Math.random() < 0.20) {
+    try {
+      const freshForDouble = db.getPlayer(player.id);
+      const monstersForDouble = db.getMonstersInRoom(player.current_room_id).filter(m => m.hp > 0);
+      if (monstersForDouble.length > 0) {
+        const doubleTarget = monstersForDouble[0];
+        const doubleDmgBase = spell.amount || 0;
+        const doublePower = (classes.getPlayerClass(freshForDouble) || {}).spell_power || 1.0;
+        const rawDouble = Math.round(doubleDmgBase * doublePower);
+        const finalDouble = Math.max(1, rawDouble);
+        const newHpDouble = Math.max(0, doubleTarget.hp - finalDouble);
+        db.updateMonster(doubleTarget.id, { hp: newHpDouble });
+        lines.push(`⚡ [PLAGA ARCANA] ¡El dungeon amplifica tu hechizo — lanzás ${spell.icon} **${spellName}** de nuevo! ${finalDouble} daño adicional. (HP: ${doubleTarget.hp} → ${newHpDouble})`);
+        if (newHpDouble <= 0) {
+          lines.push(`💀 ¡${doubleTarget.name} cae por la segunda descarga arcana!`);
+          // Simplificado: no repetir toda la lógica de muerte — el próximo ataque lo manejará
+        }
+      }
+    } catch (_) { /* no romper si falla el doble cast */ }
+  }
 
   return {
     text: lines.join('\n'),
