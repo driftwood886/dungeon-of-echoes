@@ -2689,7 +2689,12 @@ function cmdMove(player, direction) {
         // aunque el mensaje diga que fue desactivada. La trampa se reactiva a los 10 min (igual que cmdDisarm).
         const newTrapAfterAutoDisarm = { ...trap, active: false, respawn_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() };
         db.updateRoomTrap(targetRoomFull.id, newTrapAfterAutoDisarm);
-        trapText = `\n\n🌿 ¡Detectás la trampa antes de que explote! Usás tu «${disarmItem}» para neutralizarla.\n✅ La trampa queda desactivada. (El ${disarmItem} fue consumido.)\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.`;
+        // DIS-1767: si es la Sala del Trono (sala 9), aclarar que el frío ambiental persiste incluso tras desactivar la trampa
+        const isThroneAutoDisarm = targetId === 9;
+        const throneAutoNote = isThroneAutoDisarm
+          ? '\n❄️  La trampa de entrada está neutralizada, pero la Sala del Trono conserva su frío sobrenatural ambiental — sentirás el efecto (-1 ATK) mientras estés en esta sala. Son dos cosas distintas.'
+          : '';
+        trapText = `\n\n🌿 ¡Detectás la trampa antes de que explote! Usás tu «${disarmItem}» para neutralizarla.\n✅ La trampa queda desactivada. (El ${disarmItem} fue consumido.)${throneAutoNote}\n🧠 Ahora conocés este mecanismo — la próxima vez entrarás sin problema.`;
         trapWasAvoided = true; // no aplicar debuff de sala
       } else {
       // DIS-1357: sala 13 (Caverna Sumergida) — gracia de supervivencia en primera visita (path normal)
@@ -10177,8 +10182,14 @@ function cmdDisarm(player, args) {
     const newTrap = { ...trapAdj, active: false, respawn_at: respawnAt };
     db.updateRoomTrap(adjRoom.id, newTrap);
 
+    // DIS-1767: si es la Sala del Trono (sala 9), aclarar que el frío ambiental persiste
+    const isThroneTrap = adjRoom.id === 9;
+    const throneAmbientNote = isThroneTrap
+      ? '\n❄️  Nota: el frío sobrenatural de la sala es un efecto ambiental permanente — persiste aunque la trampa esté desactivada. Al entrar seguirás sintiendo el frío (-1 ATK mientras estés en la sala).'
+      : '';
+
     return {
-      text: `${targetHeader}🔧 Desde el umbral, usás la ${trapAdj.item_needed} para neutralizar el mecanismo antes de entrar.\n✅ La trampa en ${adjRoom.name} está desactivada. Podés pasar sin peligro.\n🧠 Ahora conocés este mecanismo — si la trampa se reactiva, la esquivarás sin problema.`,
+      text: `${targetHeader}🔧 Desde el umbral, usás la ${trapAdj.item_needed} para neutralizar el mecanismo antes de entrar.\n✅ La trampa de entrada en ${adjRoom.name} está desactivada. Ya no recibirás daño al cruzar.${throneAmbientNote}\n🧠 Ahora conocés este mecanismo — si la trampa se reactiva, la esquivarás sin problema.`,
       event: `${player.username} desactiva una trampa desde el umbral.`,
       eventRoomId: player.current_room_id,
     };
