@@ -4068,7 +4068,7 @@ function cmdStatus(player) {
       : `Clase:    (sin clase — usá "clase" para elegir)`,
     `Nivel:    ${level}  (${xp} XP total | kills: ${kills} | muertes: ${deaths})`,
     `XP sig.:  ${xpBar} ${isMaxLevel ? '— NIVEL MÁXIMO —' : `${xpSystem.xpIntoLevel(xp, level)}/${xpNextNeeded}`}`,
-    `HP:       ${hpBar} ${player.hp}/${player.max_hp}`,
+    `HP:       ${hpBar} ${player.hp}/${player.max_hp}${player.rune_hp_bonus > 0 ? ` (+${player.rune_hp_bonus} de runas fusionadas ✨)` : ''}`,
     (() => {
       // BUG-049: mostrar maná en status para Mago u otros jugadores con max_mana > 20
       // DIS-693: mostrar regen de maná para clases que lo usan

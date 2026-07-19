@@ -752,6 +752,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN run_event TEXT`,                                         // EPIC-VV-1755: slug del evento activo (NULL = sin evento)
     `ALTER TABLE players ADD COLUMN run_monster_variants TEXT NOT NULL DEFAULT '{}'`,        // EPIC-VV-1755: JSON de variantes de monstruo por sala
     `ALTER TABLE players ADD COLUMN run_loot_positions TEXT NOT NULL DEFAULT '{}'`,          // EPIC-VV-1755: JSON de posición de ítems raros
+    `ALTER TABLE players ADD COLUMN rune_hp_bonus INTEGER NOT NULL DEFAULT 0`,               // DIS-1770: tracking del HP máximo obtenido via fusión de runas (hielo +5, luz +3)
     ];
   for (const sql of migrations) {
     applyMigration(sql);
@@ -2324,6 +2325,11 @@ function tryAddRune(playerId, isBoss = false, monsterId = null) {
     const pFresh = getPlayer(playerId);
     const newVal = (pFresh[bonus.stat] || 0) + bonus.amount;
     updatePlayer(playerId, { [bonus.stat]: newVal });
+    // DIS-1770: trackear el HP bonus acumulado de runas para mostrarlo en status
+    if (bonus.stat === 'max_hp') {
+      const newRuneHpBonus = (pFresh.rune_hp_bonus || 0) + bonus.amount;
+      updatePlayer(playerId, { rune_hp_bonus: newRuneHpBonus });
+    }
 
     const statDisplayName = bonus.stat === 'max_hp' ? 'HP máximo' : bonus.stat === 'attack' ? 'Ataque' : bonus.stat === 'defense' ? 'Defensa' : bonus.stat === 'max_mana' ? 'Maná máximo' : bonus.stat;
     return `✨ ¡Obtuviste la Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]}!\n🌟 ¡FUSIÓN DE RUNAS! Las 3 runas de ${type} se combinan → ${bonus.label}\n   ${statDisplayName} ahora: ${newVal} ✨`;
@@ -2368,6 +2374,11 @@ function addRuneOfType(playerId, type) {
     const pFresh = getPlayer(playerId);
     const newVal = (pFresh[bonus.stat] || 0) + bonus.amount;
     updatePlayer(playerId, { [bonus.stat]: newVal });
+    // DIS-1770: trackear el HP bonus acumulado de runas
+    if (bonus.stat === 'max_hp') {
+      const newRuneHpBonus = (pFresh.rune_hp_bonus || 0) + bonus.amount;
+      updatePlayer(playerId, { rune_hp_bonus: newRuneHpBonus });
+    }
     return `Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]} — ¡SET COMPLETO! 🌟 FUSIÓN → ${bonus.label} (ahora: ${newVal})`;
   } else {
     runes[type] = current + 1;
