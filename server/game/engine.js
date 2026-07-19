@@ -10934,6 +10934,7 @@ function cmdTalk(player, target) {
   const inRoom1 = player.current_room_id === 1 || player.current_room_id === 16;
   const isGuardian = tLow.includes('anciano') || tLow.includes('guardián') || tLow.includes('guardian') ||
                      tLow.includes('guardia') || tLow === 'viejo' || tLow === 'npc' ||
+                     tLow === 'vartan' || tLow.includes('vartan') || // DIS-1746: nombre propio del guardián
                      (tLow === '' && inRoom1);
 
   if (isGuardian) {
@@ -11053,7 +11054,7 @@ function cmdTalk(player, target) {
     }
 
     // VARIANTE 8: Principiante
-    return { text: 'El guardián anciano levanta la vista hacia vos.\n\n\"Nuevo en el dungeon. Bien.\" Pausa. \"Escuchá: el dungeon tiene dos zonas principales. Al norte y al este desde aquí. Al norte hay más combate directo; al este hay cosas más... sutiles.\"\n\nSe rasca la barba. \"Cuando llegués al Pozo Sin Fondo —lo vas a saber cuando lo veas— hay una puerta bloqueada al norte. Si no tenés la llave, no la fuerces. Hay otro camino por el este, pasando por la Capilla. Acordate de eso.\"\n\nSeñala hacia abajo con el pulgar. \"Ah, y si querés practicar sin riesgo —sin que nadie te lastime y sin perder nada— hay una Sala de Práctica debajo de acá. Escribí \'abajo\' para bajar. Los maniquíes no muerden.\"\n\nVuelve a mirar la pared, como si la conversación hubiera terminado.' + getAncianoMemorySuffix() };
+    return { text: 'El guardián anciano —Vartan, si todavía no sabés su nombre— levanta la vista hacia vos.\n\n\"Nuevo en el dungeon. Bien.\" Pausa. \"Escuchá: el dungeon tiene dos zonas principales. Al norte y al este desde aquí. Al norte hay más combate directo; al este hay cosas más... sutiles.\"\n\nSe rasca la barba. \"Cuando llegués al Pozo Sin Fondo —lo vas a saber cuando lo veas— hay una puerta bloqueada al norte. Si no tenés la llave, no la fuerces. Hay otro camino por el este, pasando por la Capilla. Acordate de eso.\"\n\nSeñala hacia abajo con el pulgar. \"Ah, y si querés practicar sin riesgo —sin que nadie te lastime y sin perder nada— hay una Sala de Práctica debajo de acá. Escribí \'abajo\' para bajar. Los maniquíes no muerden.\"\n\nVuelve a mirar la pared, como si la conversación hubiera terminado.' + getAncianoMemorySuffix() };
   }
 
   // Solo Aldric por ahora. Acepta: 'aldric', 'mercader', 'tendero', o vacío si está en sala 4

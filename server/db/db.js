@@ -548,7 +548,7 @@ async function init() {
     {
       id: 'chain_velas_1',
       name: 'Las Velas del Altar — I. La Cera Fresca',
-      description: 'En la Capilla Olvidada, entre las velas del altar, notaste algo extraño: la cera está fresca — encendida hoy. El anciano dice que él no viene aquí. ¿Quién visita este altar?\n\nHablá con el anciano y luego regresá a la Capilla.',
+      description: 'En la Capilla Olvidada, entre las velas del altar, notaste algo extraño: la cera está fresca — encendida hoy. El anciano dice que él no viene aquí. ¿Quién visita este altar?\n\nHablá con Vartan (el guardián anciano en la Entrada de la Cripta, sala 1) y luego regresá a la Capilla.',
       type: 'chain',
       slot: 'narrativa',
       condition: JSON.stringify({ event: 'chain_trigger', trigger: 'talk_npc', npc_id: 'anciano', and_then_visit_room: 5 }),
