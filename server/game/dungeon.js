@@ -270,10 +270,11 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
       return `  • ${m.name} ${bar} ${m.hp}/${m.max_hp} HP ${cond}${eliteNote}`;
     }).join('\n');
     lines.push(`\nCriaturas:\n${monsterList}`);
-    // DIS-1534: si hay Marea Espectral pero estamos en zona early, agregar contexto narrativo
+    // DIS-1534: si hay Marea Espectral pero estamos en zona early, agregar contexto narrativo (una línea compacta)
+    // DIS-1744: mensaje acortado para reducir acumulación de bloques informativos en sala 2
     if (isSpectralTide && room.id <= 5) {
       const minLeftEarly = spectralEvCheck && spectralEvCheck.minutesRemaining ? spectralEvCheck.minutesRemaining : '?';
-      lines.push(`\n👻 Las profundidades del dungeon están envueltas en la Marea Espectral — aquí en las cuevas exteriores las criaturas siguen activas. (~${minLeftEarly} min)`);
+      lines.push(`\n👻 Marea Espectral activa en las profundidades (~${minLeftEarly} min). Las criaturas exteriores siguen activas.`);
     }
   } else {
     // DIS-508: mostrar criaturas en respawn para dar contexto al jugador
@@ -387,23 +388,35 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
   // DIS-1178: Sala 2 (Corredor de las Sombras) — hint olfativo hacia la tienda
   // DIS-1329: suprimir si es primera visita (el evento cinemático ya menciona el olor a cuero curtido)
   // DIS-1346: suprimir para jugadores veteranos
+  // DIS-1744: suprimir si el jugador ya visitó sala 4 (ya conoce a Aldric — hint redundante)
   if (roomId === 2 && !isVeteranPlayer) {
     let sala2PrimeraVisita = false;
+    let yaConoceAldric = false;
     if (player && player.rooms_visited) {
       try {
         const visitados = JSON.parse(player.rooms_visited || '[]');
         sala2PrimeraVisita = !visitados.includes(2);
+        yaConoceAldric = visitados.includes(4) || visitados.includes('4');
       } catch (_) {}
     }
-    if (!sala2PrimeraVisita) {
+    if (!sala2PrimeraVisita && !yaConoceAldric) {
       lines.push(`\n👃 Un tenue olor a cuero curtido y especias de ultramar llega desde el norte. Quizás hay algo interesante en esa dirección.`);
     }
   }
 
   // DIS-1178: Sala 3 (Sala de los Ecos) — hint explícito hacia Aldric + nota sobre el Esqueleto
   // DIS-1346: suprimir para jugadores veteranos
+  // DIS-1744: suprimir si el jugador ya visitó sala 4 (ya conoce a Aldric)
   if (roomId === 3 && !isVeteranPlayer) {
-    lines.push(`\n🏪 Al este, el olor a cuero se vuelve inconfundible — la tienda del mercader Aldric está ahí.\n   ⚔️  El Esqueleto Guerrero custodia la entrada, pero Aldric lo instruyó para no atacar a compradores que lleguen sin arma desenvainada. Podés entrar sin pelear.`);
+    const yaEnSala4 = (() => {
+      try {
+        const vis = JSON.parse(player && player.rooms_visited ? player.rooms_visited : '[]');
+        return vis.includes(4) || vis.includes('4');
+      } catch (_) { return false; }
+    })();
+    if (!yaEnSala4) {
+      lines.push(`\n🏪 Al este, el olor a cuero se vuelve inconfundible — la tienda del mercader Aldric está ahí.\n   ⚔️  El Esqueleto Guerrero custodia la entrada, pero Aldric lo instruyó para no atacar a compradores que lleguen sin arma desenvainada. Podés entrar sin pelear.`);
+    }
   }
 
   // NPC Mercader en sala 4
