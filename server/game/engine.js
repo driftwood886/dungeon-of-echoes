@@ -1469,7 +1469,11 @@ function cmdLook(player, options = {}) {
     if (currentEv) {
       // Si es evento de Carga Arcana y el jugador no tiene hechizos, omitir la línea
       const isArcaneSurgeEv = currentEv.id === 'arcane_surge';
-      if (!isArcaneSurgeEv || _isSpellCaster) {
+      // DIS-1763: Luna de Sangre solo se avisa si hay monstruos vivos en la sala
+      const isBloodmoonEv = currentEv.id === 'bloodmoon' || currentEv.id === 'blood_moon';
+      const _roomMonstersForBM = isBloodmoonEv ? (db.getMonstersInRoom(player.current_room_id) || []) : [];
+      const _hasLiveMonstersForBM = !isBloodmoonEv || _roomMonstersForBM.some(m => m.hp > 0);
+      if ((!isArcaneSurgeEv || _isSpellCaster) && _hasLiveMonstersForBM) {
         const evMinLeft = Math.floor(currentEv.remainingMs / 60000);
         const evSecLeft = Math.floor((currentEv.remainingMs % 60000) / 1000);
         const evTimeStr = evMinLeft > 0 ? `${evMinLeft}m ${evSecLeft}s` : `${evSecLeft}s`;
@@ -1485,7 +1489,11 @@ function cmdLook(player, options = {}) {
       if (newEvInfo && newEvInfo.event) {
         // DIS-1741: filtrar Carga Arcana para clases sin hechizos
         const isArcaneSurgeNew = newEvInfo.event.id === 'ARCANE_SURGE';
-        if (!isArcaneSurgeNew || _isSpellCaster) {
+        // DIS-1763: Luna de Sangre solo se avisa si hay monstruos vivos en la sala
+        const isBloodmoonNew = newEvInfo.event.id === 'BLOOD_MOON' || newEvInfo.event.id === 'bloodmoon';
+        const _roomMonstersNew = isBloodmoonNew ? (db.getMonstersInRoom(player.current_room_id) || []) : [];
+        const _hasLiveMonstersNew = !isBloodmoonNew || _roomMonstersNew.some(m => m.hp > 0);
+        if ((!isArcaneSurgeNew || _isSpellCaster) && _hasLiveMonstersNew) {
           const newEvMinLeft = newEvInfo.minutesRemaining;
           const newEvSecLeft = newEvInfo.secondsRemaining;
           const newEvTimeStr = newEvMinLeft > 0 ? `${newEvMinLeft}m ${newEvSecLeft}s` : `${newEvSecLeft}s`;
