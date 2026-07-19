@@ -4698,6 +4698,9 @@ function cmdAttack(player, targetName) {
           // Palabras femeninas explícitas en el dungeon
           const FEMENINAS = ['araña', 'serpiente', 'sombra', 'bruja', 'dama', 'reina', 'espectro femenino'];
           if (FEMENINAS.some(f => n.includes(f))) return true;
+          // BUG-1772: Palabras masculinas explícitas — evitan falsos positivos de las reglas de terminación
+          const MASCULINOS = ['zombie', 'elemental', 'gnoll'];
+          if (MASCULINOS.some(m => n.startsWith(m))) return false;
           // Terminaciones femeninas comunes en español
           const ultima = n.split(' ').pop(); // última palabra del nombre
           return /[aá]$/.test(ultima) ||       // termina en a/á
