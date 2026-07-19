@@ -644,7 +644,7 @@ function migrateCorredorHintDIS1107() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745, migrateGnollMerodeadorIMPL1761, migrateZombieCaminanteIMPL1761, migrateElementalFuegoIMPL1761 };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -2788,6 +2788,103 @@ function migrateCapillaInscripcionBUG1682() {
     console.log('[seed] migrateCapillaInscripcionBUG1682: hint de inscripción restaurado en Capilla Olvidada. BUG-1682 ✓');
   } catch (e) {
     console.warn('[seed] migrateCapillaInscripcionBUG1682:', e.message);
+  }
+}
+
+// ─── IMPL-VV-1761: Monstruos nuevos para Variación Viva ──────────────────────
+
+/**
+ * IMPL-VV-1761a: Gnoll Merodeador (id 30)
+ * Monstruo variable para salas 3, 6, 7 según run_monster_variants.
+ * HP 18, ATK 5. No undead, no elemental.
+ * Loot: hacha rústica, monedas de cobre.
+ */
+function migrateGnollMerodeadorIMPL1761() {
+  try {
+    const existing = db.getMonster(30);
+    if (existing) {
+      console.log('[seed] migrateGnollMerodeadorIMPL1761: Gnoll Merodeador (id 30) ya existe. ✓');
+      return;
+    }
+    db.upsertMonster({
+      id: 30,
+      name: 'Gnoll Merodeador',
+      description: 'Una hiena erguida de casi dos metros. Porta un hacha astillada y una bolsa de trofeos robados. Sus ojos amarillos calculan siempre cuánto vale lo que ves.',
+      hp: 18,
+      max_hp: 18,
+      attack: 5,
+      room_id: null,
+      loot: ['hacha rústica', 'monedas de cobre'],
+      respawn_room_id: null,
+    });
+    db.persist();
+    console.log('[seed] migrateGnollMerodeadorIMPL1761: Gnoll Merodeador (id 30) creado. IMPL-VV-1761a ✓');
+  } catch (e) {
+    console.warn('[seed] migrateGnollMerodeadorIMPL1761:', e.message);
+  }
+}
+
+/**
+ * IMPL-VV-1761b: Zombie Caminante (id 31)
+ * Monstruo variable para sala 3 según run_monster_variants.
+ * HP 22, ATK 4. Tipo undead (detectado por nombre — contiene 'zombie').
+ * En evento marea_no_muertos: +2 HP (24 HP).
+ * Loot: tela podrida, monedas de cobre.
+ */
+function migrateZombieCaminanteIMPL1761() {
+  try {
+    const existing = db.getMonster(31);
+    if (existing) {
+      console.log('[seed] migrateZombieCaminanteIMPL1761: Zombie Caminante (id 31) ya existe. ✓');
+      return;
+    }
+    db.upsertMonster({
+      id: 31,
+      name: 'Zombie Caminante',
+      description: 'Un cadáver parcialmente animado que arrastra los pies. Sus movimientos son lentos pero inevitables — no huye, no razona, no para.',
+      hp: 22,
+      max_hp: 22,
+      attack: 4,
+      room_id: null,
+      loot: ['tela podrida', 'monedas de cobre'],
+      respawn_room_id: null,
+    });
+    db.persist();
+    console.log('[seed] migrateZombieCaminanteIMPL1761: Zombie Caminante (id 31) creado. IMPL-VV-1761b ✓');
+  } catch (e) {
+    console.warn('[seed] migrateZombieCaminanteIMPL1761:', e.message);
+  }
+}
+
+/**
+ * IMPL-VV-1761c: Elemental de Fuego (id 32)
+ * Monstruo variable para sala 20 según run_monster_variants (variante golem_elemental_fuego).
+ * HP 30, ATK 8. Tipo elemental (detectado por nombre — no undead).
+ * En evento plaga_arcana: +10 HP (40 HP).
+ * Loot: esencia de fuego, núcleo ígneo.
+ */
+function migrateElementalFuegoIMPL1761() {
+  try {
+    const existing = db.getMonster(32);
+    if (existing) {
+      console.log('[seed] migrateElementalFuegoIMPL1761: Elemental de Fuego (id 32) ya existe. ✓');
+      return;
+    }
+    db.upsertMonster({
+      id: 32,
+      name: 'Elemental de Fuego',
+      description: 'Una columna de fuego que adquirió voluntad. No tiene cuerpo fijo — su forma cambia con cada latigazo de llama. Los metales cercanos se derriten si te acercás demasiado.',
+      hp: 30,
+      max_hp: 30,
+      attack: 8,
+      room_id: null,
+      loot: ['esencia de fuego', 'núcleo ígneo'],
+      respawn_room_id: null,
+    });
+    db.persist();
+    console.log('[seed] migrateElementalFuegoIMPL1761: Elemental de Fuego (id 32) creado. IMPL-VV-1761c ✓');
+  } catch (e) {
+    console.warn('[seed] migrateElementalFuegoIMPL1761:', e.message);
   }
 }
 
