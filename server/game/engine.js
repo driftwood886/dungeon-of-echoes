@@ -9017,6 +9017,14 @@ function cmdLoot(player) {
     ? `\n\n🎒 Mochila llena — ${itemsLeft.length} ítem${itemsLeft.length !== 1 ? 's' : ''} quedaron en el suelo:${itemsLeftList}`
     : '';
 
+  // DIS-1765: confirmación cuando el inventario venía justo y se recogió todo
+  // spaceAvailable <= nonGoldItems.length indica que el espacio era ajustado (venía casi lleno)
+  const allFitConfirmLine = (
+    itemsLeft.length === 0 &&
+    nonGoldItems.length > 0 &&
+    spaceAvailable <= nonGoldItems.length
+  ) ? `\n✅ Todo entró en la mochila — nada quedó en el suelo.` : '';
+
   // BUG-532: si no se recogió nada (mochila llena, sin oro), mostrar mensaje directo sin "0 ítems"
   if (totalItems === 0 && itemsLeft.length > 0) {
     const usedSlots = player.inventory.length + equippedCountLoot;
@@ -9040,7 +9048,7 @@ function cmdLoot(player) {
     : '';
 
   return {
-    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${fullBagLine}${inventoryWarnLine}${lootChallengeMsg ? '\n' + lootChallengeMsg.trim() : ''}${vvLootChallengeMsg}`,
+    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${fullBagLine}${allFitConfirmLine}${inventoryWarnLine}${lootChallengeMsg ? '\n' + lootChallengeMsg.trim() : ''}${vvLootChallengeMsg}`,
     event: `${player.username} saquea el suelo de la sala.`,
     eventRoomId: room.id,
   };
