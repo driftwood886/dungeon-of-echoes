@@ -644,7 +644,7 @@ function migrateCorredorHintDIS1107() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745, migrateGnollMerodeadorIMPL1761, migrateZombieCaminanteIMPL1761, migrateElementalFuegoIMPL1761, migrateBatVampireDescDIS1775, migrateFuenteEternaDescDIS1778 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745, migrateGnollMerodeadorIMPL1761, migrateZombieCaminanteIMPL1761, migrateElementalFuegoIMPL1761, migrateBatVampireDescDIS1775, migrateFuenteEternaDescDIS1778, migrateSubastaNorthHintDIS1789 };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -2936,6 +2936,31 @@ function migrateFuenteEternaDescDIS1778() {
     console.log('[seed] migrateFuenteEternaDescDIS1778: Sala 18 — descripción actualizada. DIS-1778 ✓');
   } catch (e) {
     console.warn('[seed] migrateFuenteEternaDescDIS1778:', e.message);
+  }
+}
+
+function migrateSubastaNorthHintDIS1789() {
+  // DIS-1789: La Casa de Subastas (sala 17) ya tiene salida al norte (→ sala 8, Prisión Subterránea)
+  // gracias a migratePrisonConnection, pero la descripción no lo menciona.
+  // Los jugadores que llegan desde la Cámara del Tesoro (sala 4) no saben que pueden
+  // ir al norte para acceder a las salas del ala norte sin pasar por la Prisión.
+  // Se agrega una línea de pista de navegación al final de la descripción.
+  try {
+    const room = db.getRoom(17);
+    if (!room) {
+      console.warn('[seed] migrateSubastaNorthHintDIS1789: sala 17 no existe — omitiendo.');
+      return;
+    }
+    if (room.description && room.description.includes('pasillo al norte')) {
+      // console.log('[seed] migrateSubastaNorthHintDIS1789: ya migrado, sin cambios.');
+      return;
+    }
+    const newDesc = room.description + ' Un pasillo al norte conduce a la Prisión Subterránea — una ruta alternativa para quienes quieran evitar la entrada principal del ala este.';
+    db.upsertRoom({ ...room, description: newDesc });
+    db.persist();
+    console.log('[seed] migrateSubastaNorthHintDIS1789: Sala 17 — pista de ruta norte agregada. DIS-1789 ✓');
+  } catch (e) {
+    console.warn('[seed] migrateSubastaNorthHintDIS1789:', e.message);
   }
 }
 
