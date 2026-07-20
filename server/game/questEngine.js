@@ -990,8 +990,16 @@ function getQuestsDisplay(player) {
     lines.push('  No tenés quests activas en este momento.');
     lines.push('  (Escribí `quests` de nuevo en un momento para recargar, o hacé login para refrescar tu asignación.)\n');
     if (!player.faction) {
-      lines.push('💡 Sin facción activa — uniéndote a una, recibirías misiones especiales de tu gremio.');
-      lines.push('   Comando: `facciones`');
+      const playerLv1786 = player.level || 1;
+      if (playerLv1786 >= 5) {
+        // DIS-1786: jugador nivel 5+ sin facción — hint más detallado sobre qué se pierde
+        lines.push('💡 **Sin facción activa** — a tu nivel, las facciones te darían acceso a misiones semanales con recompensas de XP, oro y reputación.');
+        lines.push('   Las 3 facciones: ⚔ Orden del Filo (guerreros), 🔮 Cónclave Arcano (magos/clérigos), 🛒 Hermandad del Mercado (todos).');
+        lines.push('   Comando: `facciones` para ver el ranking y unirte, o `unirse orden_filo` / `unirse conclave_arcano` / `unirse hermandad_mercado`');
+      } else {
+        lines.push('💡 Sin facción activa — uniéndote a una, recibirías misiones especiales de tu gremio.');
+        lines.push('   Comando: `facciones`');
+      }
     }
     // BUG-1723: mostrar misión de facción aunque no haya quests genéricas
     const fmBlock = _factionMissionBlock(player);
@@ -1025,7 +1033,14 @@ function getQuestsDisplay(player) {
   lines.push('Comandos: `quest info <nombre>` · `quest historial` · `quest abandonar <nombre>`');
 
   if (!player.faction) {
-    lines.push('\n💡 Sin facción activa — uniéndote a una, recibirías quests especiales de tu gremio.');
+    const playerLv1786b = player.level || 1;
+    if (playerLv1786b >= 5) {
+      // DIS-1786: hint expandido para nivel 5+ sin facción
+      lines.push('\n💡 **Sin facción activa** — a tu nivel ya podés unirte para recibir misiones semanales extra.');
+      lines.push('   `facciones` para ver opciones · `unirse orden_filo` / `unirse conclave_arcano` / `unirse hermandad_mercado`');
+    } else {
+      lines.push('\n💡 Sin facción activa — uniéndote a una, recibirías quests especiales de tu gremio.');
+    }
   }
 
   // BUG-1723: si tiene facción, mostrar también la misión semanal de facción
