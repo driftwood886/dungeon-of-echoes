@@ -4740,6 +4740,42 @@ function cmdAttack(player, targetName) {
     return _cmdTrainingFight(player, monster);
   }
 
+  // ── BUG-1781: Advertencia proactiva de mochila llena al atacar un boss ─────
+  // Si el jugador tiene ≤2 slots libres y el objetivo es un boss con loot potencial,
+  // mostrar la advertencia UNA SOLA VEZ por par (jugador, boss) para no spamear.
+  // El ataque procede igual — el aviso es informativo, no bloqueante.
+  let _bug1781BossInvWarning = '';
+  try {
+    const isBossForInvWarning = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]);
+    // Excluir entrenamiento (sala 21) y mobs tutoriales (id 20)
+    const isTutorialMob = (monster.id === 20);
+    if (isBossForInvWarning && !isTutorialMob) {
+      const freshForInvWarning = db.getPlayer(player.id);
+      const invForWarning = Array.isArray(freshForInvWarning.inventory)
+        ? freshForInvWarning.inventory
+        : JSON.parse(freshForInvWarning.inventory || '[]');
+      const invBonusWarning = freshForInvWarning.inventory_bonus || 0;
+      const maxInvWarning = INV_BASE_SLOTS + invBonusWarning;
+      const usedSlotsWarning = invForWarning.length;
+      // Contar ítems equipados que ocupan slot (los equip items siguen en inv)
+      const freeSlots = maxInvWarning - usedSlotsWarning;
+      if (freeSlots <= 2) {
+        // Verificar si ya mostramos esta advertencia recientemente para este boss
+        const seInvW = parseSE(freshForInvWarning.status_effects);
+        const warnKey = `boss_inv_warn_${monster.id}`;
+        const lastWarnTime = seInvW[warnKey] ? new Date(seInvW[warnKey]).getTime() : 0;
+        const warnCooldownMs = 5 * 60 * 1000; // 5 minutos de cooldown entre warnings
+        if (Date.now() - lastWarnTime > warnCooldownMs) {
+          const slotsWord = freeSlots === 0 ? 'llena' : freeSlots === 1 ? 'con solo 1 slot libre' : 'con solo 2 slots libres';
+          _bug1781BossInvWarning = `⚠️ Tu mochila está ${slotsWord} (${usedSlotsWarning}/${maxInvWarning}) — si ${monster.name} suelta loot raro podrías perderlo. Hacé espacio con \`drop <ítem>\` o vendé en Aldric (sala 4).\n\n`;
+          // Guardar timestamp para no repetir la advertencia en los turnos siguientes
+          const newSeInvW = { ...seInvW, [warnKey]: new Date().toISOString() };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeInvW) });
+        }
+      }
+    }
+  } catch (_bug1781Err) { /* no romper el combate si falla la verificación */ }
+
   // ── T211: Grito de batalla ─────────────────────────────────────────────────
   const freshForCry = db.getPlayer(player.id);
   const battlecryText = freshForCry && freshForCry.battlecry ? freshForCry.battlecry : null;
@@ -6074,7 +6110,7 @@ function cmdAttack(player, targetName) {
     }
   }
 
-  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg;
+  const baseText = _bug1781BossInvWarning + battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg;
 
   if (tutorialCompletionResult) {
     return {
