@@ -14431,6 +14431,17 @@ function getOrCreatePlayer(username) {
     player = db.getPlayer(player.id);
   }
 
+  // BUG-1790: Si el jugador existe pero tiene is_bot = 1, limpiar el flag.
+  // Esto ocurre cuando un username usado en playtests (bots) fue marcado is_bot=1
+  // y luego el mismo username hace login real. Un jugador que hace login vía HTTP es humano.
+  try {
+    if (player.is_bot) {
+      db.updatePlayer(player.id, { is_bot: 0 });
+      player = db.getPlayer(player.id);
+      console.log(`[getOrCreatePlayer] BUG-1790: ${player.username} tenía is_bot=1 — limpiado. Ahora puede recibir quests.`);
+    }
+  } catch (e) { /* silencioso */ }
+
   // DIS-1448 / BUG-1475: Sincronizar nivel con XP al hacer login.
   // Si la fórmula de XP cambió (DIS-1433) o el nivel se desincronizó, recalcular.
   // Subimos si el nivel calculado > guardado (normal progresión).
