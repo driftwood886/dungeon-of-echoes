@@ -358,7 +358,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
       // DIS-1182: mostrar el ítem requerido para desactivar la trampa antes de entrar
       // DIS-1198: agregar hint de dónde conseguir el ítem para ítems con fuente no obvia
       const TRAP_ITEM_WHERE = {
-        'hongo azul': ' (crece en la Capilla Olvidada al sur — buscá allí primero con "buscar" antes de entrar al Túnel. También crece dentro del Túnel, sala 6)',
+        'hongo azul': ' (crece en la Capilla Olvidada — para llegar sin riesgo: retrocedé a la Entrada y andá al este. También crece dentro del Túnel, sala 6)',
         'corona rota': ' (loot del Espectro del Corredor, o buscá en la Prisión Subterránea)',
         'cuerda': ' (disponible en la tienda del Mercader Aldric)',
         'red de pesca': ' (buscá en la Caverna Sumergida con \"buscar\" tras entrar, o comprá en la tienda de Aldric por 15g)',
@@ -433,7 +433,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
       // DIS-1178: nota que el Esqueleto es guardia de Aldric y no ataca primero
       lines.push(`\n⚔️  El Esqueleto Guerrero en la sala es el guardia personal de Aldric. No te atacará si no lo provocás — llegaste como comprador, no como invasor. (Si lo atacás, Aldric lo notará.)`);
       // DIS-1097: hint sobre acceso a la Casa de Subastas sin pelear
-      lines.push(`\n🏛️ Pista: Al norte de esta sala (Prisión) podés acceder a la Casa de Subastas (sala 17).\n   Los espectros de la Prisión dejan pasar si no los provocás — movete sin atacar.`);
+      lines.push(`\n🏛️ Pista: Al este de esta sala podés acceder a la Casa de Subastas (sala 17).\n   Escribí \"mover este\" para llegar directamente.`);
     }
   }
 
