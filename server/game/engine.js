@@ -13594,6 +13594,9 @@ function _cmdFaccionElegir(player, args) {
   }
 
   // DIS-1730: mostrar detalles de la misión inline al unirse, sin requerir un comando extra.
+  // BUG-1787: cuando _welcomeMission es null (generateMission falló), NO mostrar mensaje
+  // falso de "Ya tenés una misión asignada" — eso confunde al jugador que luego hace `quests`
+  // y no ve nada. Solo mostrar el bloque si la misión efectivamente existe.
   let _missionBlock = '';
   if (_welcomeMission) {
     try {
@@ -13604,11 +13607,11 @@ function _cmdFaccionElegir(player, args) {
       if (_welcomeMission.reward_influence) _mRewards.push(`+${_welcomeMission.reward_influence} 🏴`);
       _missionBlock = `\n\n🏴 **Tu misión de esta semana:**\n   📋 ${_mDesc}\n   🎁 Recompensa: ${_mRewards.join(' | ') || '—'}\n   (Progreso: 0/${_welcomeMission.target} — escribí «misión facción» para más detalles.)`;
     } catch (_) {
-      _missionBlock = `\n\n🏴 **Misión de facción:** Ya tenés una misión asignada para esta semana. Escribí «misión facción» para verla.`;
+      // La misión existe pero falló el formateo — al menos indicar que existe
+      _missionBlock = `\n\n🏴 **Misión de facción:** Misión semanal asignada. Escribí «misión facción» para ver detalles.`;
     }
-  } else {
-    _missionBlock = `\n\n🏴 **Misión de facción:** Ya tenés una misión asignada para esta semana. Escribí «misión facción» para verla.`;
   }
+  // Si _welcomeMission es null: no agregar bloque de misión para evitar mensaje engañoso (BUG-1787)
 
   return {
     text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.${_missionBlock}\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,

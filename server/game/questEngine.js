@@ -926,7 +926,14 @@ function _progressText(qd, progressJson) {
 function _factionMissionBlock(player) {
   if (!player || !player.faction) return null;
 
-  const mission = factionMissions.getMissionForPlayer(player);
+  let mission = factionMissions.getMissionForPlayer(player);
+  // BUG-1787: lazy-generate si la misión no existe todavía
+  // (puede faltar si generateMission falló silenciosamente al unirse a la facción)
+  if (!mission && !player.is_bot) {
+    try {
+      mission = factionMissions.generateMission(player);
+    } catch (_) {}
+  }
   if (!mission) return null;
 
   const FACTION_NAMES = {
