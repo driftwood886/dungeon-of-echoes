@@ -936,6 +936,8 @@ function attackRound(player, monster) {
   // Usar el símbolo sagrado (+cleric_only_bonus) evita la penalidad y refleja la fantasía de clase
   // DIS-899: el hint completo solo se muestra una vez por sesión (flag shown_nonsacred_hint)
   // DIS-914: Sanador (especialización) anula la penalidad de arma no-sagrada permanentemente
+  // DIS-1794: después de mostrar el hint 2 veces (1 completo + 1 corto), suprimir el indicador
+  //   completamente. El daño sigue siendo ×0.9 pero sin spam visual en cada golpe.
   let clericWeaponPenalty = 1.0;
   const clericWeaponPenaltyNote = [];
   if (clsData && clsData.name === 'Clérigo') {
@@ -951,13 +953,18 @@ function attackRound(player, monster) {
       if (!seForNonsacred.shown_nonsacred_hint) {
         // Primera vez en esta sesión: hint completo con sugerencia de compra
         clericWeaponPenaltyNote.push(`⚕️ (×0.9 — arma no-sagrada: el Clérigo prefiere el símbolo sagrado. Aldric lo vende a 20g)`);
-        const newSeNonsacred = { ...seForNonsacred, shown_nonsacred_hint: true };
+        const newSeNonsacred = { ...seForNonsacred, shown_nonsacred_hint: true, nonsacred_hint_count: 1 };
         db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeNonsacred) });
         player.status_effects = newSeNonsacred;
-      } else {
-        // Ya se mostró antes: solo el multiplicador, sin ruido
+      } else if ((seForNonsacred.nonsacred_hint_count || 0) < 2) {
+        // Segunda vez: solo el multiplicador corto
         clericWeaponPenaltyNote.push(`⚕️ (×0.9)`);
+        const newSeNonsacred = { ...seForNonsacred, nonsacred_hint_count: (seForNonsacred.nonsacred_hint_count || 1) + 1 };
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeNonsacred) });
+        player.status_effects = newSeNonsacred;
       }
+      // DIS-1794: después de 2 vistas, suprimido completamente — el daño sigue siendo ×0.9
+      // pero sin ruido visual. El jugador ya fue informado suficientemente.
     }
   }
   // DIS-835: Bosses resistentes a críticos — reducen daño de crits para que el build crit del Pícaro
