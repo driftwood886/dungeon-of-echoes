@@ -3521,7 +3521,9 @@ function cmdInventory(player) {
     const craftTag = (def && def.description && (def.description.includes('crafteo') || def.description.includes('🔧'))) ? ' ⚗️' : '';
     const viableTag = viableRecipeItems.has(itemName.toLowerCase()) ? ' ✨' : '';
     const countTag = count > 1 ? ` (x${count})` : '';
-    return `${emoji} ${itemName}${rarityLabel}${craftTag}${viableTag}${countTag}${extraSuffix || ''}`;
+    // DIS-1776: mostrar use_hint si el ítem lo tiene definido (ej: brebaje del hongo)
+    const useHintTag = (def && def.use_hint) ? ` · *${def.use_hint}*` : '';
+    return `${emoji} ${itemName}${rarityLabel}${craftTag}${viableTag}${countTag}${useHintTag}${extraSuffix || ''}`;
   }
 
   // Separar grupos por categoría

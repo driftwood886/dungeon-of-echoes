@@ -134,7 +134,7 @@ const ITEM_CATALOG = {
   'sello del carcelero': { type: 'armor', effect: 'defense_bonus', amount: 3, description: 'Un medallón de hierro negro con una calavera grabada. Los carceleros de la Prisión Subterránea lo usaban como símbolo de autoridad. Aún irradia una energía disuasoria. ⚔️ Equípalo para +3 de defensa, o vendelo al Mercader como pieza histórica (20g).' },
 
   // ── EPIC-1159: Expedición hongo_maestro ──────────────────────────────────
-  'brebaje del hongo':   { type: 'misc', craft_only: true, description: 'Una mezcla burbujeante de hongos del Túnel y veneno concentrado. El vapor violeta irrita los ojos. Tiene propósitos rituales: llevalo a la Capilla Olvidada (sala 5) y usá "usar brebaje del hongo" ante el altar para ofrendarlo. 🔧 Crafteable: hongo azul + veneno concentrado.' },
+  'brebaje del hongo':   { type: 'misc', craft_only: true, use_hint: '🙏 ritual — llevalo a sala 5 y escribí «usar brebaje del hongo» ante el altar', description: 'Una mezcla burbujeante de hongos del Túnel y veneno concentrado. El vapor violeta irrita los ojos. Tiene propósitos rituales: llevalo a la Capilla Olvidada (sala 5) y usá "usar brebaje del hongo" ante el altar para ofrendarlo. Efecto: Comunión Fúngica (+2 ATK, +1 DEF, +15 maná por 3 minutos). 🔧 Crafteable: hongo azul + veneno concentrado.' },
   'esencia del hongo':   { type: 'misc', buff: { stat: 'attack', amount: 2, charges: 5 }, description: 'Una esencia violácea que queda tras el ritual del altar. Al beberla, la sensación es de calor seco y claridad absoluta. Efecto: +2 ATK por los próximos 5 combates. (Consumible — se activa al usarla.)' },
 
   // ── Armaduras (T152) ─────────────────────────────────────────────────────
