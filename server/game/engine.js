@@ -8869,6 +8869,7 @@ function cmdLoot(player) {
 
   let goldCollected = 0;
   const nonGoldItems = [];
+  const junkOnFloor = []; // BUG-1773: basura en el suelo — loot no la recoge (se deja donde está)
   const openedContainers = []; // DIS-D361: rastrear cofres abiertos para mensaje narrativo
   for (const item of floorItems) {
     const gKey = Object.keys(GOLD_ITEMS_LOOT).find(k => item.toLowerCase() === k);
@@ -8879,9 +8880,19 @@ function cmdLoot(player) {
       if (item.toLowerCase().includes('cofre')) {
         openedContainers.push({ name: item, gold: amount });
       }
+    } else if (items.isJunkItem(item)) {
+      // BUG-1773: la basura en el suelo no se recoge con loot — evita que drop junk + loot
+      // en la misma sala reabsorba los ítems al inventario sin liberar espacio real.
+      junkOnFloor.push(item);
     } else {
       nonGoldItems.push(item);
     }
+  }
+
+  // BUG-1773: si el suelo solo tiene basura (nada útil ni monedas), informar al jugador
+  if (nonGoldItems.length === 0 && goldCollected === 0) {
+    // (el suelo puede tener solo junk que el jugador desechó antes — no se recoge)
+    return { text: 'No hay ítems útiles en el suelo para recoger. (Los ítems basura no se recogen con loot — usá `pick <ítem>` si los querés de vuelta.)' };
   }
 
   // Agregar solo ítems no-oro al inventario (BUG-469: respetar límite de 20)
@@ -8911,7 +8922,8 @@ function cmdLoot(player) {
     }
   }
   // Dejar en el suelo los ítems que no entraron (las monedas ya se procesaron aparte)
-  db.updateRoomItems(room.id, itemsLeft);
+  // BUG-1773: también mantener la basura que el jugador dejó intencionalmente (junkOnFloor)
+  db.updateRoomItems(room.id, [...itemsLeft, ...junkOnFloor]);
 
   // T-1231: Tracking de desafíos diarios — loot recogido
   let lootChallengeMsg = '';
