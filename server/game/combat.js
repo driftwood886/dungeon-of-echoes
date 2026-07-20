@@ -297,6 +297,14 @@ const MONSTER_SPECIALS = {
     amount: 5,
     msg: '💜 ¡El Espectro te toca con manos frías! Sientes tu vitalidad abandonarte… (-{amount} HP, el Espectro absorbe tu energía vital)',
   },
+  // DIS-1775: Murciélago Vampiro — drenaje de vida vampírico (35% de probabilidad)
+  // Roba 3 HP al jugador Y se cura esa misma cantidad. Da coherencia al nombre "vampiro".
+  'Murciélago Vampiro': {
+    chance: 0.35,
+    type: 'life_drain',
+    amount: 3,
+    msg: '🦇 ¡El Murciélago Vampiro te clava los colmillos y bebe tu sangre! (-{amount} HP, el murciélago se recupera)',
+  },
   'Lich Anciano': {
     chance: 0.20,
     type: 'mana_drain',
@@ -2212,7 +2220,7 @@ function attackRound(player, monster) {
           db.updateMonster(monster.id, { hp: newMonsterHp });
           monster.hp = newMonsterHp; // actualizar en memoria también
         }
-        lines.push(`${rawMsg} (vos: ${player.hp}/${player.max_hp} HP | Espectro: ${monster.hp}/${monster.max_hp} HP)`);
+        lines.push(`${rawMsg} (vos: ${player.hp}/${player.max_hp} HP | ${monster.name}: ${monster.hp}/${monster.max_hp} HP)`);
 
       } else if (specialDef.type === 'armor_pierce') {
         // DIS-988: Esqueleto ÉLITE ignora N DEF del jugador — daño extra por encima del ya aplicado

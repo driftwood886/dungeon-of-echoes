@@ -4100,7 +4100,7 @@ function cmdStatus(player) {
         const isMagoStatus = cls693 && cls693.name === 'Mago';
         const lowManaThresh = Math.floor((maxMana || 1) * 0.20);
         const escarchaEmergencyActive = isMagoStatus && mana <= lowManaThresh;
-        const escarchaNote = escarchaEmergencyActive ? ' ❄️ (escarcha emergencia: sin coste)' : '';
+        const escarchaNote = escarchaEmergencyActive ? ' ❄️ (escarcha emergencia: `cast escarcha` gratis)' : '';
         // DIS-879: Canalización — Mago nivel 3+ activa descuento de -1 maná cuando ≤20%
         const hasCanalizacionStatus = isMagoStatus && (player.level || 1) >= 3 && mana <= lowManaThresh;
         const canalizacionNote = (hasCanalizacionStatus && !escarchaEmergencyActive) ? ' 🔮 (Canalización: -1 coste)' : '';
@@ -18752,6 +18752,29 @@ function cmdSkills(player) {
     if (level < 3) {
       lines.push(`  🛡️ Escudo Sagrado [escudo_sagrado]`);
       lines.push(`     Absorbe hasta 10 HP del próximo golpe (Sanador: 25 HP). Disponible: Nivel 3+.`);
+      lines.push(`     Estado: 🔒 Requiere nivel 3`);
+    }
+  } else if (playerClassMec === 'mago') {
+    // DIS-1777: sección de mecánicas del Mago para explicar escarcha emergencia y canalización
+    const freshMago = db.getPlayer(player.id);
+    const manaM = freshMago ? (freshMago.mana || 0) : 0;
+    const maxManaM = freshMago ? (freshMago.max_mana || 30) : 30;
+    const lowManaThreshM = Math.floor(maxManaM * 0.20);
+    const escarchaEmergenciaActive = manaM <= lowManaThreshM;
+    const canalizacionActive = level >= 3 && manaM <= lowManaThreshM && !escarchaEmergenciaActive;
+    lines.push('─'.repeat(40));
+    lines.push('🧙 MECÁNICAS DE CLASE — Mago');
+    lines.push(`  ❄️ Escarcha de Emergencia [cast escarcha]`);
+    lines.push(`     Cuando tu maná cae a ≤20% del máximo, el hechizo Escarcha se vuelve GRATIS (0 maná).`);
+    lines.push(`     Es tu recurso de último recurso — te permite seguir atacando sin gastar maná crítico.`);
+    lines.push(`     Estado: ${escarchaEmergenciaActive ? '✅ ACTIVA ahora (maná ≤' + lowManaThreshM + ')' : '🔒 Inactiva (necesitás maná ≤' + lowManaThreshM + ' de ' + maxManaM + ')'}`);
+    if (level >= 3) {
+      lines.push(`  🔮 Canalización (Nivel 3+) [pasivo]`);
+      lines.push(`     Con maná ≤20%, todos tus hechizos cuestan -1 maná menos (excepto Escarcha que ya es gratis).`);
+      lines.push(`     Estado: ${canalizacionActive ? '✅ ACTIVA' : '🔒 Inactiva (maná alto o Escarcha activa)'}`);
+    } else {
+      lines.push(`  🔮 Canalización [pasivo — Nivel 3+]`);
+      lines.push(`     Con maná ≤20%, todos tus hechizos cuestan -1 maná menos.`);
       lines.push(`     Estado: 🔒 Requiere nivel 3`);
     }
   }
