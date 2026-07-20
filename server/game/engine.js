@@ -2975,7 +2975,7 @@ function cmdMove(player, direction) {
   if (firstVisitEver && targetId === 10) {
     const golemAlive = db.getMonstersInRoom(10).find(m => m.hp > 0);
     if (golemAlive) {
-      golemWarningMsg += '\n\n🪨 **Mecánicas del Gólem de Piedra:**\n   • Turno 2: se regenera parcialmente\n   • Turno 3: activa un escudo pétreo (reduce daño)\n   💡 Si podés matarlo en 1-2 turnos, evitás ambas mecánicas defensivas.';
+      golemWarningMsg += '\n\n🪨 **Mecánicas del Gólem de Piedra:**\n   • Cada 2 turnos: se regenera HP (más si está herido)\n   • Cada 3 turnos: activa un escudo pétreo (próximo golpe tuyo reducido al 35%)\n   💡 Matarlo rápido evita las mecánicas defensivas — ideal en 1-2 turnos.';
     }
   }
 
@@ -17543,7 +17543,7 @@ function cmdModoBerserk(player, context) {
       if (golemFxNow.stone_shield) {
         golemBerserkHint = '\n   🪨 ⚠️ Gólem: ¡Escudo de Piedra activo ahora! (próximo ataque reducido al 35%)';
       } else if (turnsUntilShield === 3) {
-        golemBerserkHint = '\n   🪨 Gólem: regen en turno 2, escudo en turno 3 — el Berserk encaja perfecto si lo terminás en 2 turnos.';
+        golemBerserkHint = '\n   🪨 Gólem: regen en 2 turnos, escudo en 3 — el Berserk encaja perfecto si lo terminás antes.';
       } else if (turnsUntilShield === 2) {
         golemBerserkHint = '\n   🪨 Gólem: regen en próximo turno, escudo en 2 — intentá terminar antes de que se active.';
       } else if (turnsUntilShield === 1) {
