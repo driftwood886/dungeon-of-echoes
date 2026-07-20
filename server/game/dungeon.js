@@ -522,19 +522,20 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
  * @returns {string|null}
  */
 function getWorldStateRoomText(roomId) {
-  // Solo salas afectadas: 2, 3, 4, 6, 7, 14, 15
-  const AFFECTED_ROOMS = new Set([2, 3, 4, 6, 7, 14, 15]);
+  // Solo salas afectadas: 2, 4, 6, 7, 14, 15, 17
+  // BUG-1801: sala 3 (Sala de los Ecos) removida — el escriba vive en sala 17 (Casa de Subastas)
+  const AFFECTED_ROOMS = new Set([2, 4, 6, 7, 14, 15, 17]);
   if (!AFFECTED_ROOMS.has(roomId)) return null;
 
   // Leer las claves relevantes según sala
   const KEY_MAP = {
     2:  ['goblins_semana'],
-    3:  ['subastas_semana'],
     4:  ['esqueletos_semana'],
     6:  ['items_crafteados_semana'],
     7:  ['aranas_semana'],
     14: ['lich_derrotado_semana'],
     15: ['lich_last_kill_ts'],
+    17: ['subastas_semana'],
   };
   const keysToRead = KEY_MAP[roomId] || [];
   const ws = db.getWorldStateValues(keysToRead);
@@ -545,7 +546,7 @@ function getWorldStateRoomText(roomId) {
       if (v >= 10) return '🌫️ El corredor huele menos a goblin que de costumbre. La semana ha sido activa.';
       return null;
     }
-    case 3: { // Sala de los Ecos — subastas (escriba)
+    case 17: { // Casa de Subastas — escriba (BUG-1801: movido de sala 3 a sala 17)
       // DIS-1185: el mensaje debe reflejar subastas activas, no solo el historial semanal
       let activeCount = 0;
       try { activeCount = (db.getActiveAuctions() || []).length; } catch (_) { /* continuar */ }
