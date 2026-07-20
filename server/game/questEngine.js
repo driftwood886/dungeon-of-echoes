@@ -185,7 +185,7 @@ function assignQuests(player) {
 
   // ─── Slot secundaria ─────────────────────────────────────────────────────
   if (!activeBySlot['secundaria']) {
-    const poolResult = rawDb.exec(
+    let poolResult = rawDb.exec(
       `SELECT id FROM quest_definitions
        WHERE require_faction IS NULL AND slot = 'secundaria' AND is_active = 1
          AND require_level <= ?
@@ -200,6 +200,38 @@ function assignQuests(player) {
        ORDER BY id`,
       [playerLevel, player.id, player.id, weekStart]
     );
+
+    // BUG-1783: Si el pool está vacío porque el jugador completó todas las quests
+    // secundarias disponibles esta semana, resetear el cooldown semanal y reasignar.
+    // Esto evita que jugadores avanzados queden sin quests disponibles.
+    if (!poolResult.length || !poolResult[0].values.length) {
+      try {
+        // Limpiar el completed_at para quests secundarias completadas esta semana
+        // (las marcamos como completed sin fecha para que vuelvan al pool)
+        rawDb.run(
+          `UPDATE player_quests SET completed_at = NULL
+           WHERE player_id = ? AND slot = 'secundaria' AND status = 'completed'
+             AND completed_at >= ?`,
+          [player.id, weekStart]
+        );
+        console.log(`[questEngine] BUG-1783: pool secundaria vacío para ${player.id} — reseteando cooldown semanal`);
+        // Re-intentar con el cooldown reseteado
+        poolResult = rawDb.exec(
+          `SELECT id FROM quest_definitions
+           WHERE require_faction IS NULL AND slot = 'secundaria' AND is_active = 1
+             AND require_level <= ?
+             AND id NOT IN (
+               SELECT quest_id FROM player_quests
+               WHERE player_id = ? AND status = 'active'
+             )
+           ORDER BY id`,
+          [playerLevel, player.id]
+        );
+      } catch (e) {
+        console.error('[questEngine] BUG-1783: error reseteando cooldown secundaria:', e.message);
+      }
+    }
+
     if (poolResult.length && poolResult[0].values.length > 0) {
       const pool = poolResult[0].values.map(r => r[0]);
       // Seed: número de semana + suma de chars del ID del jugador para variación por jugador
@@ -929,6 +961,16 @@ function getQuestsDisplay(player) {
   }
 
   const rawDb = db.raw();
+
+  // BUG-1783: intentar asignar quests en tiempo real si el jugador no tiene activas.
+  // Esto cubre el caso en que el pool estaba vacío al login pero ahora puede asignarse.
+  if (!player.is_bot) {
+    try {
+      assignQuests(player);
+      player = db.getPlayer(player.id) || player; // refrescar tras posible asignación
+    } catch (_) {}
+  }
+
   const activeQuests = _getActiveQuests(player.id);
 
   const lines = ['📋 **QUESTS ACTIVAS**\n'];
@@ -946,7 +988,7 @@ function getQuestsDisplay(player) {
     }
     // Sin quests activas — mensaje orientativo
     lines.push('  No tenés quests activas en este momento.');
-    lines.push('  (Al hacer login se te asignan quests según tu clase y facción.)\n');
+    lines.push('  (Escribí `quests` de nuevo en un momento para recargar, o hacé login para refrescar tu asignación.)\n');
     if (!player.faction) {
       lines.push('💡 Sin facción activa — uniéndote a una, recibirías misiones especiales de tu gremio.');
       lines.push('   Comando: `facciones`');
