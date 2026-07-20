@@ -1528,7 +1528,36 @@ function cmdLook(player, options = {}) {
     }
   } catch (_) { /* no romper look si falla */ }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + activeEventLine + partyMembersLine };
+  // DIS-1784: Advertencia proactiva de mochila al entrar a sala con boss vivo.
+  // Muestra aviso si el jugador tiene ≤2 slots libres y hay un boss vivo en la sala actual.
+  let bossRoomInvWarning = '';
+  try {
+    const monstersInRoom = db.getMonstersInRoom(player.current_room_id);
+    const bossHere = monstersInRoom && monstersInRoom.find(m => m.hp > 0 && combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[m.id]);
+    if (bossHere) {
+      const freshForWarn = db.getPlayer(player.id);
+      const invForWarn = Array.isArray(freshForWarn.inventory)
+        ? freshForWarn.inventory
+        : JSON.parse(freshForWarn.inventory || '[]');
+      const invBonusWarn = freshForWarn.inventory_bonus || 0;
+      const maxInvWarn = INV_BASE_SLOTS + invBonusWarn;
+      const freeSlots1784 = maxInvWarn - invForWarn.length;
+      if (freeSlots1784 <= 2) {
+        // Cooldown para no spamear en cada look de la misma sala
+        const se1784 = parseSE(freshForWarn.status_effects);
+        const warnKey1784 = `boss_room_inv_warn_${player.current_room_id}`;
+        const lastWarn1784 = se1784[warnKey1784] ? new Date(se1784[warnKey1784]).getTime() : 0;
+        if (Date.now() - lastWarn1784 > 5 * 60 * 1000) {
+          const slotsLabel1784 = freeSlots1784 === 0 ? 'llena' : freeSlots1784 === 1 ? 'con solo 1 slot libre' : 'con solo 2 slots libres';
+          bossRoomInvWarning = `\n\n💡 Tu mochila está ${slotsLabel1784} (${invForWarn.length}/${maxInvWarn}) — ${bossHere.name} puede soltar loot valioso. Hacé espacio con \`drop <ítem>\` antes de atacarlo.`;
+          const newSe1784 = { ...se1784, [warnKey1784]: new Date().toISOString() };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1784) });
+        }
+      }
+    }
+  } catch (_dis1784) { /* no romper look si falla el check de inventario */ }
+
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + activeEventLine + partyMembersLine + bossRoomInvWarning };
 }
 
 /**
