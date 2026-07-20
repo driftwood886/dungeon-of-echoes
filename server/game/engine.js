@@ -6736,6 +6736,16 @@ function cmdPick(player, itemQuery) {
       eventRoomId: room.id,
     };
   }
+  // DIS-1785: advertencia de duplicado para ítems raros/especiales
+  // Si el jugador ya tiene una copia en inventario y el ítem no es "común", avisarlo.
+  const DIS1785_alreadyHas = player.inventory.some(i => i.toLowerCase().trim() === found.toLowerCase().trim());
+  const DIS1785_rarity = items.getItemRarity(found);
+  const DIS1785_isSpecial = DIS1785_rarity !== 'común';
+  let DIS1785_dupWarn = '';
+  if (DIS1785_alreadyHas && DIS1785_isSpecial) {
+    DIS1785_dupWarn = `\n\n⚠️ Ya tenés **${found}** en tu mochila — este es un duplicado (${DIS1785_rarity}). Normalmente no necesitás dos copias; podés venderlo o usarlo si querés.`;
+  }
+
   const newInventory = [...player.inventory, found];
   db.updatePlayer(player.id, { inventory: newInventory });
 
@@ -6879,9 +6889,9 @@ function cmdPick(player, itemQuery) {
   // DIS-1103: para ítems raros/épicos/legendarios en pick individual → bloque destacado propio
   let pickSingleMsg;
   if (rarity !== 'común') {
-    pickSingleMsg = `✨ ${rarityEmoji} [${rarity.toUpperCase()}] Recogés **${found}** y lo guardás en tu mochila.${pickCraftHint}${cartaHint}`;
+    pickSingleMsg = `✨ ${rarityEmoji} [${rarity.toUpperCase()}] Recogés **${found}** y lo guardás en tu mochila.${pickCraftHint}${cartaHint}${DIS1785_dupWarn}`;
   } else {
-    pickSingleMsg = `${rarityEmoji} Recogés ${found} y lo guardás en tu mochila.${rarityLabel}${pickCraftHint}${cartaHint}`;
+    pickSingleMsg = `${rarityEmoji} Recogés ${found} y lo guardás en tu mochila.${rarityLabel}${pickCraftHint}${cartaHint}${DIS1785_dupWarn}`;
   }
 
   // DIS-1173: aviso proactivo de inventario casi lleno al recoger un ítem individual
