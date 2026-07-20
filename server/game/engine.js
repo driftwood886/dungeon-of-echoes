@@ -11846,7 +11846,7 @@ function cmdShop(player, args) {
     const BASIC_SHOP_ARMORS = new Set(['escudo de madera', 'cuero endurecido', 'cota de cuero', 'cota de malla', 'túnica encantada']);
 
     const CLASS_RECS = {
-      'Mago':    ['vara de energía', 'pergamino de hechizo', 'poción de maná'],
+      'Mago':    ['vara de energía', 'túnica encantada', 'pergamino de hechizo', 'poción de maná'],
       'Clérigo': ['símbolo sagrado', 'poción de bendición', 'poción de salud'],
       'Pícaro':  ['guantes de cuero fino', 'veneno de contacto', 'daga envenenada'],
       'Guerrero':['espada de hierro', 'escudo de madera', 'poción de salud'],
