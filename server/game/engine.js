@@ -4111,7 +4111,9 @@ function cmdStatus(player) {
         })()
       : `Clase:    (sin clase — usá "clase" para elegir)`,
     `Nivel:    ${level}  (${xp} XP total | kills: ${kills} | muertes: ${deaths})`,
-    `XP sig.:  ${xpBar} ${isMaxLevel ? '— NIVEL MÁXIMO —' : `${xpSystem.xpIntoLevel(xp, level)}/${xpNextNeeded}`}`,
+    // DIS-1788: si xpIntoLevel es 0 y no es nivel máximo ni nivel 1 (inicio), agregar sufijo
+    // para aclarar que el "0/120" es correcto — el jugador está al inicio del nuevo nivel.
+    `XP sig.:  ${xpBar} ${isMaxLevel ? '— NIVEL MÁXIMO —' : `${xpSystem.xpIntoLevel(xp, level)}/${xpNextNeeded}${(xpSystem.xpIntoLevel(xp, level) === 0 && level > 1) ? ' ✨ ¡nivel recién alcanzado!' : ''}`}`,
     `HP:       ${hpBar} ${player.hp}/${player.max_hp}${player.rune_hp_bonus > 0 ? ` (+${player.rune_hp_bonus} de runas fusionadas ✨)` : ''}`,
     (() => {
       // BUG-049: mostrar maná en status para Mago u otros jugadores con max_mana > 20
