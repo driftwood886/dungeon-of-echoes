@@ -127,9 +127,12 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
     // DIS-1393: consecuencias suaves de la muerte — pérdida de oro recuperable
     // Si el jugador tiene más de 20g, pierde 15% (mínimo 5g, máximo 50g)
     // El oro cae en la sala donde murió como ítem recuperable
+    // DIS-1798: en zona profunda (sala id >= 10) no se aplica penalización de oro
+    // — volver a recuperarlo desde ahí es prácticamente imposible con HP mínimo.
     const deathRoomId = freshP.current_room_id; // antes del respawn
     const currentGold = freshP.gold || 0;
-    if (currentGold > 20) {
+    const isDeepZone = (deathRoomId || 0) >= 10;
+    if (currentGold > 20 && !isDeepZone) {
       const lostGold = Math.min(50, Math.max(5, Math.floor(currentGold * 0.15)));
       const freshAfterGoldLoss = db.getPlayer(playerId);
       const newGold = Math.max(0, (freshAfterGoldLoss.gold || 0) - lostGold);
