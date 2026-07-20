@@ -900,13 +900,16 @@ function attackRound(player, monster) {
   // Es un constructo pétrico: los golpes físicos se amortiguan en su cuerpo de piedra
   // DIS-688: El Golem de Forja tiene resistencia de fuego ×0.80 — constructo de metal candente
   // DIS-1015: El Elemental de Hielo tiene resistencia física ×0.80 — criatura inmaterial
-  // DIS-1481: El Troll de las Cavernas tiene resistencia física ×0.70 — piel gruesa, regeneración compensatoria
+  // DIS-1481: El Troll de las Cavernas tiene resistencia física — piel gruesa, regeneración compensatoria
+  // DIS-1791: resistencia ajustada de ×0.70 → ×0.75 (era demasiado combinada con regen +2/turno)
+  // El Troll ya tiene regen como mecánica de dificultad; la resist ×0.70 + regen hacía la pelea
+  // una carrera de desgaste que el jugador nivel 7 perdía inevitablemente. Ajuste: ×0.75 como el Gólem.
   const PHYS_RESISTANT_MONSTERS = ['gólem de piedra', 'elemental de hielo'];
   const FIRE_RESISTANT_MONSTERS  = ['golem de forja'];
   const monNameLow = monster.name.toLowerCase().replace('⭐ ', '');
   const physResist = monNameLow.includes('gólem de piedra') ? 0.75
     : monNameLow.includes('elemental de hielo') ? 0.80
-    : monNameLow.includes('troll de las cavernas') ? 0.70
+    : monNameLow.includes('troll de las cavernas') ? 0.75
     : FIRE_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? 0.80
     : 1.0;
   const physResistLabel = monNameLow.includes('gólem de piedra') ? '🪨 (el golpe rebota en la piedra)'
@@ -1859,6 +1862,7 @@ function attackRound(player, monster) {
   // La regeneración se detiene si el Troll muere en este turno.
   // DIS-1592: reducida de 5 a 3 HP/turno — con arma nivel 1 (7-13 dmg), el net era demasiado bajo
   // BUG-1613: reducida de 3→2 HP/turno — la combinación con earlyScale en niveles altos lo hacía inmortal
+  // DIS-1791: en la primera vez que el jugador ve la regen, mostrar hint de clase sobre cómo combatirla
   if (!monsterDead && monster.name === 'Troll de las Cavernas') {
     const trollRegen = 2;
     const newTrollHp = Math.min(monster.max_hp, monster.hp + trollRegen);
@@ -1866,6 +1870,23 @@ function attackRound(player, monster) {
       monster = { ...monster, hp: newTrollHp };
       db.updateMonster(monster.id, { hp: newTrollHp });
       lines.push(`🟤 Las heridas del Troll de las Cavernas se cierran levemente. (+${trollRegen} HP → ${newTrollHp}/${monster.max_hp} HP)`);
+      // DIS-1791: primera vez que el jugador ve la regeneración, dar hint de burst según clase
+      try {
+        const freshTroll1791 = db.getPlayer(player.id);
+        const se1791 = freshTroll1791.status_effects
+          ? (typeof freshTroll1791.status_effects === 'string' ? JSON.parse(freshTroll1791.status_effects) : freshTroll1791.status_effects)
+          : {};
+        if (!se1791.troll_regen_hint_shown) {
+          const updSe1791 = { ...se1791, troll_regen_hint_shown: true };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(updSe1791) });
+          const classHint1791 = {
+            'clerico': '💡 El Troll se regenera cada turno — para vencerlo, usá habilidades de burst: `cast juicio` o `usar pocion_poder` para picos de daño altos.',
+            'mago': '💡 El Troll se regenera cada turno — para vencerlo, usá `cast bola_de_fuego` o acumulá canalizaciones antes de soltar un hechizo de burst alto.',
+            'guerrero': '💡 El Troll se regenera cada turno — para vencerlo, usá `usar pocion_poder` y atacá con todo mientras tu HP aguante.',
+          }[player.player_class] || '💡 El Troll se regenera cada turno — usá tus habilidades de burst para causarle daño alto antes de que te desgaste.';
+          lines.push(classHint1791);
+        }
+      } catch (_) { /* no romper combate si falla el hint */ }
     }
   }
   if (stealthSurprise && !monsterDead && !bossBreaksStealth) {
