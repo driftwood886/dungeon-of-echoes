@@ -2360,6 +2360,28 @@ function attackRound(player, monster) {
     }
   }
 
+  // DIS-1792: Regeneración pasiva de maná en combate para el Clérigo con maná bajo.
+  // El Clérigo regenera solo 6 maná/minuto (tiempo real), prácticamente nada entre turnos.
+  // Con 0 maná pierde su identidad de clase. Fix: si el Clérigo tiene ≤20% maná y no está
+  // muerto, recupera +2 maná por turno (fervor divino pasivo en combate).
+  // Límite: no activa si el maná ya está al 60%+ para evitar hacer al Clérigo infinito.
+  if (!playerDead && player.player_class === 'clerigo') {
+    try {
+      const freshCleric1792 = db.getPlayer(player.id);
+      const clericMana = freshCleric1792.mana != null ? freshCleric1792.mana : 0;
+      const clericMaxMana = freshCleric1792.max_mana || 20;
+      const clericManaRatio = clericMana / clericMaxMana;
+      if (clericManaRatio <= 0.20) {
+        const manaRegenAmt = 2;
+        const newClericMana = Math.min(clericMaxMana, clericMana + manaRegenAmt);
+        if (newClericMana > clericMana) {
+          db.updatePlayer(player.id, { mana: newClericMana });
+          lines.push(`✨ Fervor divino — recuperás ${manaRegenAmt} maná. (${newClericMana}/${clericMaxMana} maná)`);
+        }
+      }
+    } catch (_) { /* no romper combate si falla la regen */ }
+  }
+
   return { lines, monsterDead, playerDead, loot, poisonSurvived, isCrit, ...(globalEventHardcore ? { globalEvent: globalEventHardcore } : {}) };
 }
 

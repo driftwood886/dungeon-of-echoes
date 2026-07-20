@@ -18198,7 +18198,7 @@ function cmdSpells(player) {
   if (player.player_class === 'clerigo') {
     lines.push(``);
     lines.push(`✨ Como Clérigo, también tenés:`);
-    lines.push(`  • \`heal\` (23 HP, 8 maná) — más potente que cast curación gracias a tu heal_power ×1.5`);
+    lines.push(`  • \`heal\` (23 HP, 5 maná) — más potente que cast curación gracias a tu heal_power ×1.5`);
     // DIS-725: mostrar cooldown del heal de emergencia
     const seHealEmerg = parseSE(player.status_effects);
     const emergCdSpells = seHealEmerg.emergency_heal_cd;
@@ -18420,7 +18420,7 @@ function cmdClase(player, args) {
 
 /**
  * DIS-496 / BUG-1333: cmdHeal — Comportamiento unificado:
- * - Clérigo: usa su habilidad sagrada (heal a sí mismo o a aliados, cuesta 8 maná)
+ * - Clérigo: usa su habilidad sagrada (heal a sí mismo o a aliados, cuesta 5 maná)
  * - Otras clases: atajo para usar la primera poción de salud del inventario
  * heal             → Clérigo: se auto-cura (15 HP × heal_power). Otros: usa primera poción.
  * heal <jugador>   → Clérigo: cura a ese jugador si está en la misma sala.
@@ -18439,7 +18439,10 @@ function cmdHeal(player, args) {
   }
 
   const mana = fresh.mana != null ? fresh.mana : 0;
-  const manaCost = 8;
+  // DIS-1792: reducido de 8 a 5 maná — con 0 maná el Clérigo perdía su rol de clase.
+  // El heal ya tiene el heal de emergencia (DIS-664) como fallback, pero 8 de costo
+  // era demasiado alto para un Clérigo que regenera lentamente en combate.
+  const manaCost = 5;
   if (mana < manaCost) {
     // DIS-664: heal de emergencia — sin maná, el Clérigo puede invocar a expensas de su propia vitalidad
     const seEmerg = parseSE(fresh.status_effects);
