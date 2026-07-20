@@ -14950,6 +14950,18 @@ function cmdForage(player) {
   const _forageMax = INV_BASE_SLOTS + (player.inventory_bonus || 0); // DIS-1480
   const _forageUsed = _forageInv.length + _forageEq;
   if (_forageUsed >= _forageMax) {
+    // BUG-1782: Sala 13 (Caverna Sumergida) — si el jugador ya tiene la red de pesca,
+    // dar mensaje diferenciado en lugar del genérico "inventario lleno".
+    // La trampa la puede desactivar con lo que tiene — no necesita encontrar otra red.
+    if (player.current_room_id === 13) {
+      const hasRedPesca = _forageInv.some(i => {
+        const iName = (typeof i === 'string' ? i : (i.name || '')).toLowerCase();
+        return iName.includes('red de pesca');
+      });
+      if (hasRedPesca) {
+        return { text: `🔍 Rebuscás en la Caverna Sumergida...\n\n💧 Encontrás los mismos conductos de agua que ya conocés. Pero ya tenés una **red de pesca** en tu mochila — con eso podés desactivar la trampa de inundación.\n\n💡 Para usarla: escribí \`desactivar trampa\` (o movete hacia la sala con trampa activa y el juego te guiará).` };
+      }
+    }
     return { text: `🎒 Inventario lleno (${_forageUsed}/${_forageMax}) — no hay espacio para lo que podrías encontrar.\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g) en la tienda de Aldric para +4 slots.` };
   }
 
