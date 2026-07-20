@@ -1420,6 +1420,10 @@ function cmdLook(player, options = {}) {
       // directamente desde la Casa de Subastas (este→norte) sin ver el aviso previo
       // de la Cámara del Tesoro. Mostrar aviso in-sala para ambas rutas de acceso.
       8:  { monsterId: 8,  name: 'el Guardia Espectral', level: 4, icon: '👻' },
+      // DIS-1793: Troll de las Cavernas en Taller de la Forja — mob muy difícil sin aviso previo.
+      // El Troll tiene regeneración (+2 HP/turno) y resistencia física (×0.70). Nivel 6-7 letal.
+      // Nota especial: el Troll es un mob regular (no boss), pero el aviso menciona su mecánica única.
+      12: { monsterId: 29, name: 'el Troll de las Cavernas', level: 7, icon: '🟤', trollNote: true },
     };
     const inRoomDanger = IN_ROOM_BOSS_WARN[player.current_room_id];
     if (inRoomDanger) {
@@ -1435,7 +1439,14 @@ function cmdLook(player, options = {}) {
         const playerLevel = player.level || 1;
         // DIS-1216: aclarar comportamiento real — el boss no ataca al pasar, solo si lo agredís
         const bossAttackNote = 'Podés pasar o ignorarlo — solo iniciará combate si lo agredís primero.';
-        if (playerLevel < inRoomDanger.level) {
+        // DIS-1793: para el Troll de las Cavernas, texto especial con su mecánica de regeneración
+        if (inRoomDanger.trollNote) {
+          if (playerLevel < inRoomDanger.level) {
+            inRoomBossLine = `\n⚠️ ${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. (Tu nivel: ${playerLevel})\n   🔄 Mecánica especial: se regenera +2 HP por turno. Usá habilidades de burst para superar la regen antes de que te desgaste.\n   💡 Si las cosas se ponen mal, ${bossAttackNote.replace('Podés pasar o ignorarlo — solo iniciará', 'también podés usar \`flee\` o moverte para')}`;
+          } else {
+            inRoomBossLine = `\n${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. Se regenera +2 HP/turno — usá burst para vencerlo. ${bossAttackNote}`;
+          }
+        } else if (playerLevel < inRoomDanger.level) {
           inRoomBossLine = `\n⚠️ ${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. (Tu nivel: ${playerLevel}) ${bossAttackNote}`;
         } else {
           inRoomBossLine = `\n${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. ${bossAttackNote}`;
@@ -6143,9 +6154,29 @@ function cmdAttack(player, targetName) {
 
   const baseText = _bug1781BossInvWarning + battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg;
 
+  // DIS-1800: Hint de flee para zona profunda — primera vez que el jugador ataca
+  // al Troll de las Cavernas o al Golem de Forja (sala 12), mobs muy difíciles.
+  // Solo se muestra en el PRIMER turno del combate (!prevCombo) y si el jugador
+  // no está muerto (no queremos añadir hints después de morir).
+  let fleeDeepZoneHint = '';
+  if (!playerDead && (!prevCombo || prevCombo.monsterId !== monster.id)) {
+    const DEEP_ZONE_HARD_MONSTERS = new Set([29, 10]); // Troll (29), Golem de Forja (10)
+    if (DEEP_ZONE_HARD_MONSTERS.has(monster.id)) {
+      try {
+        const fleeSeCheck = parseSE(db.getPlayer(player.id).status_effects);
+        const fleeHintKey = `flee_hint_shown_${monster.id}`;
+        if (!fleeSeCheck[fleeHintKey]) {
+          const updSe1800 = { ...fleeSeCheck, [fleeHintKey]: true };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(updSe1800) });
+          fleeDeepZoneHint = `\n\n💡 Zona profunda: si tu HP baja mucho, podés intentar escapar con \`flee\` o moviéndote a una sala adyacente.`;
+        }
+      } catch (_) { /* no romper combate si falla el hint */ }
+    }
+  }
+
   if (tutorialCompletionResult) {
     return {
-      text: baseText + '\n\n' + tutorialCompletionResult.text,
+      text: baseText + fleeDeepZoneHint + '\n\n' + tutorialCompletionResult.text,
       event: tutorialCompletionResult.event,
       eventRoomId: tutorialCompletionResult.eventRoomId,
       globalEvent: null,
@@ -6183,7 +6214,7 @@ function cmdAttack(player, targetName) {
   } catch (_) { /* no romper combate si falla party broadcast */ }
 
   return {
-    text: baseText,
+    text: baseText + fleeDeepZoneHint,
     event: battlecryEvent || eventText,
     eventRoomId: player.current_room_id,
     globalEvent: globalEvent || (worldGoalMsg ? worldGoalMsg.replace(/\n/, '') : null) || (recordMsgs.length ? recordMsgs[0] : null) || null,
