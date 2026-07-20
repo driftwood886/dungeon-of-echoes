@@ -644,7 +644,7 @@ function migrateCorredorHintDIS1107() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745, migrateGnollMerodeadorIMPL1761, migrateZombieCaminanteIMPL1761, migrateElementalFuegoIMPL1761, migrateBatVampireDescDIS1775, migrateFuenteEternaDescDIS1778, migrateSubastaNorthHintDIS1789 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745, migrateGnollMerodeadorIMPL1761, migrateZombieCaminanteIMPL1761, migrateElementalFuegoIMPL1761, migrateBatVampireDescDIS1775, migrateFuenteEternaDescDIS1778, migrateSubastaNorthHintDIS1789, migrateConclaveExamineDIS1796 };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -2964,3 +2964,30 @@ function migrateSubastaNorthHintDIS1789() {
   }
 }
 
+
+/**
+ * DIS-1796: El Ojo del Cónclave difícil de completar — reducir scale_per_level de 1.0 a 0.5.
+ * A nivel 2: antes 7 examines → ahora 6. Más accesible sin trivializar.
+ */
+function migrateConclaveExamineDIS1796() {
+  try {
+    const rawDb = db.raw();
+    if (!rawDb) {
+      console.warn('[seed] migrateConclaveExamineDIS1796: db no inicializada — omitiendo.');
+      return;
+    }
+    const row = rawDb.prepare("SELECT scale_per_level FROM faction_mission_definitions WHERE id = 'fm_conclave_examine_salas'").get();
+    if (!row) {
+      console.log('[seed] migrateConclaveExamineDIS1796: definición no encontrada — sin cambios. ✓');
+      return;
+    }
+    if (row.scale_per_level <= 0.5) {
+      console.log('[seed] migrateConclaveExamineDIS1796: ya migrado (scale_per_level=' + row.scale_per_level + '). ✓');
+      return;
+    }
+    rawDb.prepare("UPDATE faction_mission_definitions SET scale_per_level = 0.5 WHERE id = 'fm_conclave_examine_salas'").run();
+    console.log('[seed] migrateConclaveExamineDIS1796: fm_conclave_examine_salas scale_per_level 1.0→0.5. DIS-1796 ✓');
+  } catch (e) {
+    console.warn('[seed] migrateConclaveExamineDIS1796:', e.message);
+  }
+}

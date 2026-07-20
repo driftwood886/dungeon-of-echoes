@@ -1220,7 +1220,7 @@ async function init() {
         event_hook: 'examine',
         target_filter: null,
         base_target: 5,
-        scale_per_level: 1.0,
+        scale_per_level: 0.5,
         reward_xp: 160,
         reward_gold: 50,
         reward_influence: 6,
