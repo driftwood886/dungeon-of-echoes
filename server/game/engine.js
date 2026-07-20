@@ -18198,7 +18198,7 @@ function cmdSpells(player) {
   if (player.player_class === 'clerigo') {
     lines.push(``);
     lines.push(`✨ Como Clérigo, también tenés:`);
-    lines.push(`  • \`heal\` (23 HP, 5 maná) — más potente que cast curación gracias a tu heal_power ×1.5`);
+    lines.push(`  • \`heal\` (23 HP, 5 maná) — más potente que cast curación gracias a tu heal_power ×1.5 · funciona en combate Y fuera de él`);
     // DIS-725: mostrar cooldown del heal de emergencia
     const seHealEmerg = parseSE(player.status_effects);
     const emergCdSpells = seHealEmerg.emergency_heal_cd;
