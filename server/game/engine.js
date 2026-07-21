@@ -3407,6 +3407,19 @@ function cmdMove(player, direction) {
       }
     }
   } catch (_) { /* no romper movimiento si falla factionMissions */ }
+
+  // DIS-1833: Banner de efecto de sala al entrar — siempre visible, antes de la descripción de sala.
+  // Resuelve que el jugador se pierda los efectos de sala al moverse rápido sin leer el look completo.
+  // En primera visita: el effectText ya tiene el mensaje narrativo completo; no duplicar.
+  // En revisitas: el effectText es vacío para debuffs — mostrar un banner breve del efecto activo.
+  let roomEffectBanner = '';
+  try {
+    const roomEffectForBanner = ROOM_EFFECTS[targetId];
+    if (roomEffectForBanner && !effectText) {
+      // Solo si effectText está vacío (revisita silenciosa) para no duplicar mensajes de primera visita
+      roomEffectBanner = `\n🌐 Efecto de sala activo: ${roomEffectForBanner.label}`;
+    }
+  } catch (_dis1833) { /* no romper move si falla */ }
   // Si hay una quest activa de tipo kill y el jugador tiene progreso parcial,
   // mostrar recordatorio sutil al entrar a cualquier sala (con o sin monstruo objetivo).
   let questMoveHint = '';
@@ -3464,7 +3477,7 @@ function cmdMove(player, direction) {
   } catch (_) {}
 
   return {
-    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${moveEventLine}${questExploreMsg}${questMoveHint}`,
+    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomEffectBanner}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${moveEventLine}${questExploreMsg}${questMoveHint}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
