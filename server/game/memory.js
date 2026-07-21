@@ -264,8 +264,39 @@ function buildChronicleText() {
     }
   } catch (_) {}
 
-  // Ascensiones recientes
+  // Kills al Lich esta semana (desde global_events tipo 'boss')
+  let lichKillersLine = '';
   let ascLine = '';
+  try {
+    // Buscar eventos de kill al Lich desde el inicio de la semana usando query SQL directa
+    // (más eficiente que cargar miles de eventos y filtrar en JS)
+    const lichEvents = db.getBossEventsSince(weekStart, 'antorchas de la Catedral');
+
+    if (lichEvents.length > 0) {
+      // Extraer usernames únicos (el formato es "...cuando USERNAME emergió...")
+      const killerNames = [];
+      const seen = new Set();
+      for (const ev of lichEvents) {
+        const match = ev.message.match(/cuando (.+?) emergió/);
+        if (match && match[1] && !seen.has(match[1])) {
+          seen.add(match[1]);
+          killerNames.push(match[1]);
+        }
+      }
+      if (killerNames.length === 1) {
+        lichKillersLine = `${killerNames[0]} derrotó al Lich Anciano esta semana — las antorchas de la Catedral se apagaron.`;
+      } else if (killerNames.length > 1) {
+        const last = killerNames.pop();
+        lichKillersLine = `${killerNames.join(', ')} y ${last} derrotaron al Lich esta semana — el dungeon tembló ${lichEvents.length} ${lichEvents.length === 1 ? 'vez' : 'veces'}.`;
+      }
+    } else {
+      lichKillersLine = 'El Lich Anciano permanece invicto esta semana — ningún aventurero logró alcanzarlo.';
+    }
+  } catch (_) {
+    lichKillersLine = 'El Lich Anciano permanece invicto esta semana — ningún aventurero logró alcanzarlo.';
+  }
+
+  // Ascensiones recientes
   try {
     const ascendidos = db.getCryptCandidates().ascendidos;
     const recent = ascendidos.filter(a => {
@@ -275,8 +306,6 @@ function buildChronicleText() {
     });
     if (recent.length > 0) {
       ascLine = `${recent.length} ${recent.length === 1 ? 'aventurero ascendió' : 'aventureros ascendieron'} desde las profundidades esta semana.`;
-    } else {
-      ascLine = 'El Lich permanece invicto esta semana — ningún aventurero logró la ascensión.';
     }
   } catch (_) {}
 
@@ -285,6 +314,7 @@ function buildChronicleText() {
     'Los anales del dungeon registran que esta semana:',
     factionLine ? `  • ${factionLine}` : null,
     letalLine ? `  • ${letalLine}` : null,
+    lichKillersLine ? `  • ${lichKillersLine}` : null,
     ascLine ? `  • ${ascLine}` : null,
     '\n*El dungeon ha guardado memoria de estos hechos. Las sombras los testifican.*'
   ].filter(Boolean);
@@ -308,21 +338,16 @@ function generateChronicle() {
 }
 
 /**
- * Devuelve la Crónica Semanal actual (cacheada si existe, generada si no).
+ * Devuelve la Crónica Semanal actual — siempre regenerada en tiempo real.
+ * La crónica ahora es reactiva (incluye kill al Lich, facción dominante, etc.),
+ * por lo que el caché sería incorrecto. Se regenera en cada consulta y se guarda
+ * en BD para historial.
  *
  * @returns {string}
  *
- * Llamado desde: engine.js como primer intento rápido (sin regenerar)
+ * Llamado desde: engine.js cuando el jugador usa `cronica`
  */
 function getChronicleText() {
-  const cached = db.getLatestChronicle();
-  if (cached) {
-    const weekStart = db.getWeekStart();
-    if (cached.week_start === weekStart) {
-      return cached.chronicle_text;
-    }
-  }
-  // Regenerar para esta semana
   return generateChronicle();
 }
 

@@ -2049,6 +2049,20 @@ function getGlobalEventsSince(afterIso, limit = 20) {
 }
 
 /**
+ * Devuelve eventos de tipo boss que contengan la cadena `pattern` en el mensaje,
+ * desde una fecha dada. Útil para buscar kills al Lich sin cargar todos los eventos.
+ * @param {string} afterIso — fecha ISO (YYYY-MM-DD)
+ * @param {string} pattern — fragmento a buscar en el mensaje (SQL LIKE)
+ * @returns {object[]}
+ */
+function getBossEventsSince(afterIso, pattern) {
+  return all(
+    "SELECT * FROM global_events WHERE type = 'boss' AND message LIKE ? AND created_at > ? ORDER BY id ASC",
+    [`%${pattern}%`, afterIso]
+  );
+}
+
+/**
  * Cuenta kills totales en el dungeon (desde global_events tipo 'level' o de events tabla).
  * Aproximación: contar eventos de tipo 'boss' o 'achievement' desde una fecha.
  */
@@ -4454,7 +4468,7 @@ module.exports = {
   // guild quests (T189)
   getGuildFull, setGuildQuest,
   // global events (T093)
-  logGlobalEvent, getGlobalEvents, getGlobalEventsSince, countKillsSince,
+  logGlobalEvent, getGlobalEvents, getGlobalEventsSince, getBossEventsSince, countKillsSince,
   // subastas (T098)
   createAuction, getActiveAuctions, getAuction, placeBid, closeExpiredAuctions, getRecentClosedAuctions,
   createPassiveAuction, getActivePassiveAuctions, // DIS-535
