@@ -7693,6 +7693,9 @@ function cmdExamine(player, query) {
     ];
     if (monsterLines.length) parts.push('\nCriaturas:', ...monsterLines);
     if (itemLines.length)    parts.push('\nObjetos:', ...itemLines);
+    // EPIC-1822-F3: estadísticas narrativas de la sala desde memory.js
+    const roomStatsText = memory.getRoomStatsText(room.id, room.name);
+    if (roomStatsText) parts.push('\n' + roomStatsText);
     return { text: parts.join('\n') };
   }
 
