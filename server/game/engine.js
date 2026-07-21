@@ -16,7 +16,8 @@ const dungeon = require('./dungeon');
 
 // DIS-1480: Inventario base reducido a 20 slots (desde 30) — obliga a gestionar el inventario
 // Las bolsas de lona (20g en tienda) siguen dando +4 slots c/u (máx 2)
-const INV_BASE_SLOTS = 20;
+// DIS-1825: base aumentado a 24 — zonas profundas generan demasiado loot para 20 slots
+const INV_BASE_SLOTS = 24;
 const { parse, HELP_TEXT, COMMAND_HELP } = require('./commands');
 const combat  = require('./combat');
 const items   = require('./items');
@@ -3693,10 +3694,11 @@ function cmdInventory(player) {
   const usedSlots = allItems.length + equippedItems.length;
   // DIS-1037: solo mostrar hint de bolsa de lona cuando el inventario está casi lleno (>14/20 slots usados)
   // DIS-1480: umbrales ajustados al bajar límite 30→20
+  // DIS-1825: umbrales ajustados a 17/24 (≈70%) al subir base 20→24
   let slotHint = '';
-  if (invBonus === 0 && usedSlots > 14) {
+  if (invBonus === 0 && usedSlots > 17) {
     slotHint = ` · Ampliá con bolsa de lona (+4 slots, 20g en tienda de Aldric sala 4 — hacé "use bolsa de lona" al comprarla). En salas avanzadas: usá vault en sala 19.`;
-  } else if (invBonus < 8 && usedSlots > (14 + invBonus)) {
+  } else if (invBonus < 8 && usedSlots > (17 + invBonus)) {
     slotHint = ` · Podés comprar una 2da bolsa de lona (+4 slots más, 20g en tienda de Aldric sala 4). En salas avanzadas: usá vault en sala 19.`;
   }
   const rareCount = allItems.filter(i => items.getItemRarity(i) !== 'común').length
@@ -3752,10 +3754,11 @@ function cmdInventory(player) {
     : '';
 
   // DIS-1416: si el inventario supera los 18 slots usados, sugerir qué vender
+  // DIS-1825: umbral ajustado a maxSlots-6 (antes hardcoded 18/20 = 90%) → ~75% de nuevo límite
   // Seleccionamos ítems de menor valor de venta que NO sean equipados, ingrediente viable,
   // weapon/armor equipable, ni ítem de misión/único.
   let sellSuggestionNote = '';
-  if (usedSlots > 18) {
+  if (usedSlots > maxSlots - 6) {
     // Construir lista de todos los ítems ingredientes de recetas
     const allRecipeIngredients = new Set();
     for (const r of RECIPES) {
@@ -9265,9 +9268,10 @@ function cmdLoot(player) {
   }
 
   // DIS-1173: aviso proactivo cuando inventario supera 25/MAX_INVENTORY (DIS-1434: umbral 20→25 al subir límite 25→30)
-  // (umbral ≥25 para alertar antes de llegar al Lich con inventario lleno)
+  // DIS-1825: umbral ajustado a MAX_INVENTORY-4 (era 25 hardcoded, ahora relativo al límite real)
+  // (umbral ≥ MAX_INVENTORY-4 para alertar antes de llegar al Lich con inventario lleno)
   const usedAfterLoot = newInventory.length + equippedCountLoot;
-  const inventoryWarnLine = (usedAfterLoot >= 25 && itemsLeft.length === 0)
+  const inventoryWarnLine = (usedAfterLoot >= MAX_INVENTORY - 4 && itemsLeft.length === 0)
     ? `\n\n⚠️  Inventario casi lleno (${usedAfterLoot}/${MAX_INVENTORY}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`  // DIS-1657
     : '';
 
@@ -18513,7 +18517,7 @@ function cmdClase(player, args) {
   if (className === 'picaro') {
     lines.push(``, `💡 Como Pícaro tus golpes críticos son del 25% y esquivas el 20% de ataques.`);
     if (isFirstClass) {
-      lines.push(`🎒 Bolsa de lona de pícaro: ya viene conectada a tu mochila (+4 slots, cap. 24).`);
+      lines.push(`🎒 Bolsa de lona de pícaro: ya viene conectada a tu mochila (+4 slots, cap. 28).`);
       lines.push(`   Tus 65g de inicio son para equiparte — Aldric recomienda la daga básica (12g) para empezar, o la daga envenenada (45g) si querés ir directo al veneno.`);
     }
   } else if (className === 'mago') {

@@ -1537,7 +1537,7 @@ function attackRound(player, monster) {
         const freshPlayer2 = db.getPlayer(player.id);
         const inv2 = Array.isArray(freshPlayer2.inventory) ? freshPlayer2.inventory : JSON.parse(freshPlayer2.inventory || '[]');
         const eqCount2 = (freshPlayer2.equipped_weapon ? 1 : 0) + (freshPlayer2.equipped_armor ? 1 : 0);
-        const maxSlots2 = 20 + (freshPlayer2.inventory_bonus || 0);
+        const maxSlots2 = 24 + (freshPlayer2.inventory_bonus || 0); // DIS-1825: base 20→24
         const freeSlots2 = Math.max(0, maxSlots2 - inv2.length - eqCount2);
 
         const fitsInInv = directLootItems.slice(0, freeSlots2);
@@ -1570,7 +1570,7 @@ function attackRound(player, monster) {
               const invBag = Array.isArray(freshPForBag.inventory) ? freshPForBag.inventory : JSON.parse(freshPForBag.inventory || '[]');
               const eqBag = (freshPForBag.equipped_weapon ? 1 : 0) + (freshPForBag.equipped_armor ? 1 : 0);
               const usedBag = invBag.length + eqBag;
-              const maxBag = 20 + (freshPForBag.inventory_bonus || 0);
+              const maxBag = 24 + (freshPForBag.inventory_bonus || 0); // DIS-1825: base 20→24
               if (usedBag >= maxBag) {
                 lines.push(`⚠️ Mochila llena (${usedBag}/${maxBag}) — antes de usar \`loot\` liberá espacio con \`drop <ítem>\`.`);
               }
@@ -1592,7 +1592,7 @@ function attackRound(player, monster) {
           : JSON.parse(freshPForInv.inventory || '[]');
         const eqCount = (freshPForInv.equipped_weapon ? 1 : 0) + (freshPForInv.equipped_armor ? 1 : 0);
         const slotsUsed = invNow.length + eqCount;
-        const maxSlots = 20 + (freshPForInv.inventory_bonus || 0);
+        const maxSlots = 24 + (freshPForInv.inventory_bonus || 0); // DIS-1825: base 20→24
         const slotsLibres = maxSlots - slotsUsed;
         // DIS-1697: avisar si el inventario está lleno O si hay menos slots libres que ítems del boss
         if (slotsLibres < loot.length) {
