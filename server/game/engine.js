@@ -4490,7 +4490,13 @@ function cmdStatus(player) {
     questStatusLine = `\n${qStatusIcon} Quest:    "${qTitleStatus}" [${qBar}] ${qProgressStatus}/${qGoalStatus}${qDone ? ' — COMPLETADA (escribí \"quest\" para ver recompensa)' : ''}`;
   }
 
-  return { text: text + runesStatusLine + '\n' + achLine + questChangeLine + questStatusLine };
+  // DIS-1831: recordatorio de facciones para jugadores nivel 5+ sin facción
+  let factionReminderLine = '';
+  if ((player.level || 1) >= 5 && !player.faction) {
+    factionReminderLine = `\n\n⚔️ Nota: Aún no te uniste a ninguna facción — escribí \`facciones\` para ver las opciones y sus beneficios.`;
+  }
+
+  return { text: text + runesStatusLine + '\n' + achLine + questChangeLine + questStatusLine + factionReminderLine };
 }
 
 // T143: IDs de maniquíes de entrenamiento (sala 21)
