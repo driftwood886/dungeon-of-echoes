@@ -7755,7 +7755,7 @@ function cmdExamine(player, query) {
   // BUG-052: En sala 22 (Cripta de los Valientes), dar prioridad a objetos narrativos de sala
   // sobre ítems del inventario que puedan matchear (ej: "placas" → "armadura de placas")
   const CRIPTA_LORE = {
-    'placas':        'Las placas de piedra cubren casi toda la pared norte de la Cripta. Cada una lleva un nombre grabado con precisión diferente — algunas tienen fechas, otras solo el nombre y un título. La más reciente todavía tiene polvo fresco en los bordes del cincel. Las más antiguas son ilegibles, borradas por la humedad de siglos.\n\nLos nombres no te dicen nada. Pero el hecho de que estén aquí —de que alguien se tomó el tiempo de grabarlos— es más perturbador que el silencio.',
+    'placas':        '🪦 Las placas de piedra cubren casi toda la pared norte de la Cripta. Cada una lleva un nombre grabado con precisión diferente — algunas tienen fechas, otras solo el nombre y un título. La más reciente todavía tiene polvo fresco en los bordes del cincel. Las más antiguas son ilegibles, borradas por la humedad de siglos.\n\nLos nombres no te dicen nada. Pero el hecho de que estén aquí —de que alguien se tomó el tiempo de grabarlos— es más perturbador que el silencio.',
     'pared':         'Las paredes de la Cripta están cubiertas de placas conmemorativas. Nombres, fechas, epitafios cortos. La pared te devuelve el eco de tu propia respiración. Más de uno de estos aventureros debe haber pensado que era inmortal.',
     'inscripciones': 'Las inscripciones de las placas son en su mayoría epitafios breves — \"murió como vivió\", \"no supo cuando parar\", \"fue al fondo aunque le dijeron que no\". Hay una que simplemente dice: \"Volvería a hacerlo.\"',
     'arco':          'El arco de entrada de la Cripta está decorado con calaveras de piedra que sujetan antorchas apagadas. La inscripción tallada en el dintel dice: \"Los que caen aquí no mueren dos veces.\"',
@@ -7769,6 +7769,11 @@ function cmdExamine(player, query) {
       } else {
         return { text: `Buscás tu nombre entre las placas. No está. Todavía.\n\nLas placas más recientes pertenecen a aventureros que cayeron ante el Lich Anciano, la Sombra del Vacío, el Eco Viviente. Los epitafios son cortos: "llegó lejos", "casi lo logra", "el Lich lo recuerda".\n\n💡 Tu nombre estará aquí cuando derrotes al Lich Anciano. Aún no. Pero podría.\n\nEl sistema de legado registra tus victorias. Escribí 'legado' para ver tu estado actual.` };
       }
+    }
+    // EPIC-1823-F4: examine placas → mostrar placas dinámicas generadas desde la BD
+    if (qLow.includes('placa') || qLow === 'placas') {
+      const cryptText = memory.getCryptPlaquesText();
+      return { text: cryptText };
     }
     for (const [key, txt] of Object.entries(CRIPTA_LORE)) {
       if (qLow.includes(key) || key.includes(qLow)) {
