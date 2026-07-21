@@ -382,7 +382,8 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     lines.push(`\n⚠️  Esta sala tiene una trampa activa. ${trapItemHint}`);
   } else if (room.trap && room.trap.active && (knownTraps[String(roomId)] || knownTraps[roomId])) {
     // DIS-1394: si el jugador ya conoce la trampa pero sigue activa, indicar que no le afecta
-    lines.push(`\n🧠 Trampa activa — pero ya conocés el mecanismo. Ya no tomás daño al entrar.`);
+    // DIS-1834: mensaje compacto para no duplicar el "Recordás la trampa" que ya muestra cmdMove al entrar
+    lines.push(`\n🧠 Trampa activa (conocida — ya no tomás daño al entrar).`);
   }
 
   // DIS-1178: Sala 1 (Entrada) — hint temprano sobre el mercader
