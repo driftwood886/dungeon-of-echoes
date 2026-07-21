@@ -10445,7 +10445,13 @@ function cmdRest(player, context) {
 
   // DIS-D48: Recuperar HP basado en % del max_hp (10-15%), mínimo 5
   // Antes era un fijo 3-5 HP que se volvía irrelevante a niveles altos.
-  const baseHealPct = 0.10 + Math.random() * 0.05; // 10% a 15%
+  // DIS-1810: en zonas profundas (sala 11+), el descanso es más efectivo (15-20% base)
+  //           — el jugador está lejos de la entrada, el riesgo es mayor, el descanso más necesario.
+  const DEEP_ZONE_ROOMS = new Set([11, 12, 13, 14, 15, 20, 21, 22]);
+  const isDeepZone = DEEP_ZONE_ROOMS.has(player.current_room_id);
+  const baseHealPct = isDeepZone
+    ? (0.15 + Math.random() * 0.05) // 15% a 20% en zona profunda
+    : (0.10 + Math.random() * 0.05); // 10% a 15% normal
   const baseHeal = Math.max(5, Math.floor(player.max_hp * baseHealPct));
   // T166: Viento helado penaliza el descanso (-2 HP, mín 3)
   const weatherPenalty = weather.getRestPenalty();
@@ -10501,6 +10507,7 @@ function cmdRest(player, context) {
 
   const hpBar = buildBar(newHp, player.max_hp, 20);
   const coldSuffix = weatherPenalty > 0 ? ` ❄️ (El viento helado reduce la recuperación)` : '';
+  const deepZoneSuffix = isDeepZone ? ' 🌑 (Zona profunda: recuperación aumentada)' : '';
 
   // T186: Recolección pasiva al descansar en ciertas salas
   let forageRestText = '';
@@ -10549,7 +10556,7 @@ function cmdRest(player, context) {
   }
 
   return {
-    text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP.${restored < baseHeal ? ` (tenías HP casi lleno — se recuperó menos de lo posible)` : ''}${coldSuffix}${partyBonusText} ${hpBar} ${newHp}/${player.max_hp} HP${forageRestText}${restManaText}${manaNoteNonMage}`,
+    text: `💤 Te recostás contra la pared y descansás un momento.\nRecuperás ${restored} HP.${restored < baseHeal ? ` (tenías HP casi lleno — se recuperó menos de lo posible)` : ''}${coldSuffix}${deepZoneSuffix}${partyBonusText} ${hpBar} ${newHp}/${player.max_hp} HP${forageRestText}${restManaText}${manaNoteNonMage}`,
   };
 }
 
