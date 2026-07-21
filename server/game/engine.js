@@ -15044,6 +15044,13 @@ function cmdNews() {
   lines.push(`╚═══════════════════════════════════════════════════╝`);
   lines.push(`(Registra: boss, quests, logros, duelos, niveles)`);
 
+  // EPIC-1824-F5: agregar Crónica Semanal del dungeon desde memory.js
+  const chronicleText = memory.getChronicleText();
+  if (chronicleText) {
+    lines.push('');
+    lines.push(chronicleText);
+  }
+
   return { text: lines.join('\n') };
 }
 
