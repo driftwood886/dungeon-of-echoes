@@ -2120,6 +2120,37 @@ function cmdMove(player, direction) {
       // BUG-1209 fix: usar exitCheck (ya normalizado) en vez de recalcular con direction.toLowerCase().trim()
       const destId = exitCheck.targetId;
       if (destId) {
+        // DIS-1813: Pre-move warning para Taller de la Forja (sala 12) en path bossAtFullHp
+        // El path noBoss y el path normal ya lo tenían — faltaba en este path.
+        if (destId === 12) {
+          const freshBFH1813 = db.getPlayer(player.id);
+          const heatKeyBFH1813 = 'heat_room_12';
+          const knownBFH1813 = (() => {
+            try {
+              const raw = freshBFH1813.known_traps;
+              if (!raw) return {};
+              if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+              if (Array.isArray(raw)) { const o = {}; raw.forEach(k => { o[k] = true; }); return o; }
+              const p = JSON.parse(raw);
+              return (typeof p === 'object' && p !== null && !Array.isArray(p)) ? p : {};
+            } catch (_) { return {}; }
+          })();
+          const alreadyKnowsForjaBFH = !!knownBFH1813[heatKeyBFH1813];
+          if (!alreadyKnowsForjaBFH) {
+            const seBFH1813 = parseSE(freshBFH1813.status_effects);
+            if (!seBFH1813.forja_warning_done) {
+              const newSeBFH1813 = { ...seBFH1813, forja_warning_done: true };
+              db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeBFH1813) });
+              return {
+                text: `⚠️  Al acercarte a la entrada del Taller de la Forja, una ola de calor abrasador te golpea en la cara — como abrir un horno gigante.\n\nEl calor extremo de la forja daña a quienes entran por primera vez (-2 HP). No hay forma de desactivarlo desde aquí.\n\n🔥 Una vez que entrés y soportes el calor inicial, tu cuerpo se adaptará — las visitas siguientes no te dañarán.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+              };
+            }
+            // Segunda vez: limpiar flag y continuar (recibirá el daño)
+            const clearedSeBFH1813 = { ...seBFH1813 };
+            delete clearedSeBFH1813.forja_warning_done;
+            db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSeBFH1813) });
+          }
+        }
         db.updatePlayer(player.id, { current_room_id: destId });
         // BUG-790: registrar sala visitada incluso en el path bossAtFullHp (early return)
         const bfhVisitResult = db.trackRoomVisit(player.id, destId);
