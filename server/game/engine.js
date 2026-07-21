@@ -1415,7 +1415,8 @@ function cmdLook(player, options = {}) {
   try {
     const IN_ROOM_BOSS_WARN = {
       19: { monsterId: 21, name: 'el Eco Viviente', level: 6, icon: '🔊' },
-      14: { monsterId: 12, name: 'el Campeón Espectral', level: 6, icon: '🦴' },
+      // DIS-1812: Campeón Espectral con intro narrativa al entrar al Coliseo
+      14: { monsterId: 12, name: 'el Campeón Espectral', level: 6, icon: '🦴', coliseoNote: true },
       // DIS-1059: Guardia Espectral en Prisión Subterránea — el jugador puede entrar
       // directamente desde la Casa de Subastas (este→norte) sin ver el aviso previo
       // de la Cámara del Tesoro. Mostrar aviso in-sala para ambas rutas de acceso.
@@ -1445,6 +1446,14 @@ function cmdLook(player, options = {}) {
             inRoomBossLine = `\n⚠️ ${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. (Tu nivel: ${playerLevel})\n   🔄 Mecánica especial: se regenera +2 HP por turno. Usá habilidades de burst para superar la regen antes de que te desgaste.\n   💡 Si las cosas se ponen mal, ${bossAttackNote.replace('Podés pasar o ignorarlo — solo iniciará', 'también podés usar \`flee\` o moverte para')}`;
           } else {
             inRoomBossLine = `\n${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. Se regenera +2 HP/turno — usá burst para vencerlo. ${bossAttackNote}`;
+          }
+        // DIS-1812: para el Campeón Espectral del Coliseo, intro narrativa + nivel
+        } else if (inRoomDanger.coliseoNote) {
+          const coliseoIntro = `Las gradas están llenas de esqueletos quietos, mirando. El último campeón del coliseo todavía defiende su corona — ahora como espectro, portando armadura de sombras y una lanza forjada de luz negra. Según la inscripción en la piedra del norte, su esencia no desapareció al morir: quedó atrapada en el emblema que lleva al pecho.`;
+          if (playerLevel < inRoomDanger.level) {
+            inRoomBossLine = `\n⚠️ ${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. (Tu nivel: ${playerLevel})\n   📖 ${coliseoIntro}\n   ${bossAttackNote}`;
+          } else {
+            inRoomBossLine = `\n${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+.\n   📖 ${coliseoIntro}\n   ${bossAttackNote}`;
           }
         } else if (playerLevel < inRoomDanger.level) {
           inRoomBossLine = `\n⚠️ ${inRoomDanger.icon} ${inRoomDanger.name} — Nivel recomendado: ${inRoomDanger.level}+. (Tu nivel: ${playerLevel}) ${bossAttackNote}`;
@@ -7805,6 +7814,9 @@ function cmdExamine(player, query) {
         'sello del carcelero': `🔒 El sello es un cilindro de bronce negro con un motivo de llaves entrecruzadas —el mismo símbolo que aparece en las paredes de la Prisión Subterránea y, curiosamente, en el delantal de Aldric.\n\nNo es una pieza decorativa: tiene el peso de algo que se usó. El mecanismo de las llaves todavía gira con suavidad, como si alguien lo mantuvo aceitado mucho después de que la prisión fue abandonada.\n\n🔍 Aldric lo compra como "pieza histórica" (20g). Pero dado el símbolo compartido, es posible que sepa exactamente qué es —y que pagar 20g sea una forma conveniente de hacer que desaparezca.\n💡 Coleccionable histórico. Podés venderlo, equiparlo (+3 DEF), o guardarlo.`,
 
         'carta sellada': `📜 El sobre está sellado con cera negra marcada con el símbolo de las dos llaves cruzadas. El papel es viejo —décadas al menos— pero el sellado está perfectamente intacto: alguien tomó cuidado de que esto durara.\n\nEn el reverso, en letra pequeña: "Para quien llegue después. Perdoname." Sin firma.\n\n🔍 La carta viene de la Prisión Subterránea (sala 8). El símbolo de las llaves... lo viste antes. En el delantal de Aldric. El mercader que eligió este dungeon por razones que nunca explicó.\n💡 Usá "use carta sellada" o "abrir carta" para leer su contenido. Una vez abierta, no hay vuelta atrás.`,
+
+        // DIS-1812: lore narrativo del Campeón Espectral
+        'emblema del coliseo': `🏟️ Un medallón de bronce ennegrecido con la silueta de dos gladiadores enfrentados en relieve. En el reverso, grabado con una herramienta fina, un nombre: «VARETH». Y debajo, en letras más pequeñas: «campeón invicto — nunca perdió en vida».\n\nEl emblema está frío al tacto, incluso después de cargarlo varios minutos. No es el frío de la piedra ni del metal: es el frío de algo que no debería seguir existiendo.\n\n📖 Según la inscripción en la pared norte del Coliseo, el campeón no murió solo: «Un liche no muere en su cuerpo. Su esencia duerme en la piedra negra que lleva al pecho. Destruí la piedra. O volverá.» El emblema es esa piedra. El Campeón sigue aquí porque alguien no lo destruyó.\n\n💡 Aldric lo compra por 35g — dice que «tiene historia». También podés guardarlo como trofeo de una pelea difícil. Escribí «examine emblema del coliseo» de nuevo si alguna vez necesitás refrescar la memoria.`,
       };
       const rareLoreKey = invItemName.toLowerCase();
       if (RARE_ITEM_LORE[rareLoreKey]) {
@@ -11280,6 +11292,8 @@ const SHOP_CATALOG = [
   { name: 'cristal helado',          price: 30, description: 'Un cristal del norte glacial. Ingrediente para craftear la lanza espectral. \'Fragmento de hielo + cristal helado = lanza espectral.\'' },
   // DIS-536: sello del carcelero como pieza de colección — Aldric lo compra a 20g (40% de 50g)
   { name: 'sello del carcelero',     price: 50, description: 'El sello oficial de los carceleros de la Prisión Subterránea. Aldric lo compra como pieza histórica. (+3 DEF si lo equipás, o vendelo por 20g)' },
+  // DIS-1812: emblema del coliseo — ítem de lore del Campeón Espectral
+  { name: 'emblema del coliseo',     price: 90, sellOnly: true, description: 'Medallón del Campeón Espectral. Aldric lo compra por 35g como "pieza de colección rara". Usá «examine emblema del coliseo» para leer su lore.' },
   // DIS-558: ítems específicos de clase Mago
   { name: 'vara de energía',         price: 40, description: '🔮 (Mago) Una vara canalizada con energía arcana. Amplifica los hechizos del portador. +5 ataque mágico. Bonus especial para Magos.' },
   { name: 'pergamino de hechizo',    price: 25, description: '🔮 (Mago) Un pergamino consumible que otorga un lanzamiento de hechizo gratuito — no consume maná. Útil cuando estás al límite.' },
