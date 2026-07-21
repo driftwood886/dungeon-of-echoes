@@ -214,10 +214,13 @@ const BOSS_MONSTERS = {
     deathAnnouncement: '💀 ¡El LICH ANCIANO ha caído! Un aventurero ha triunfado en la Catedral de la Oscuridad. El dungeon tiembla...',
     lootBonus: ['cofre de oro'], // 1x = 50g (antes: 5x monedas de oro — BUG-283)
     // DIS-D423: Fase 2 al 50% HP — el Lich se potencia con magia oscura
+    // DIS-1827: atkBonus aumentado de 5 a 9 (+4 más agresivo); activa DoT de drenaje de vida (5 HP/turno)
     phase2: {
-      atkBonus: 5,
+      atkBonus: 9,
       defBonus: 3,
-      message: '💜 ¡El LICH ANCIANO invoca su filacteria! Un aura oscura lo envuelve — su poder aumenta drásticamente. (FASE 2)',
+      drainDot: true,   // DIS-1827: aplicar lich_drain al jugador al activar fase 2
+      drainDamage: 5,   // HP drenados por turno
+      message: '💜 ¡El LICH ANCIANO invoca su filacteria! Un aura oscura lo envuelve — su poder aumenta drásticamente. (FASE 2)\n☠️ Su magia ancestral comienza a drenar tu fuerza vital — perderás 5 HP al inicio de cada turno hasta que caiga.',
     },
   },
   22: { // Sombra del Vacío — BUG-404: faltaba aquí, por eso podía huir (DIS-D364 no lo cubría)
@@ -579,6 +582,28 @@ function attackRound(player, monster) {
       return { lines, monsterDead, playerDead, loot, poisonSurvived, ...(hcResult.globalEvent ? { globalEvent: hcResult.globalEvent } : {}) };
     }
   }
+
+  // DIS-1827: Efecto de drenaje de vida del Lich Anciano (lich_drain) — persiste hasta que el Lich muere
+  // Leemos directo de BD para no depender de player.status_effects (puede ser stale)
+  try {
+    const freshForLichDrain = db.getPlayer(player.id);
+    const lichDrainFx = freshForLichDrain && freshForLichDrain.status_effects
+      ? (typeof freshForLichDrain.status_effects === 'string' ? JSON.parse(freshForLichDrain.status_effects) : freshForLichDrain.status_effects)
+      : {};
+    if (lichDrainFx.lich_drain) {
+      const drainDmg = lichDrainFx.lich_drain.damage || 5;
+      player.hp = Math.max(0, player.hp - drainDmg);
+      lines.push(`💜 El aura oscura del Lich drena tu fuerza vital (-${drainDmg} HP). (${player.hp}/${player.max_hp} HP)`);
+      db.updatePlayer(player.id, { hp: player.hp });
+      if (player.hp <= 0) {
+        playerDead = true;
+        lines.push(`💀 ¡El drenaje del Lich acabó contigo! Respawneás en la entrada del dungeon con 25% HP...`);
+        db.addJournalEntry(player.id, 'death', `💀 Muerto por el drenaje de vida del Lich Anciano.`);
+        const hcResultDrain = handlePlayerDeath(player.id, lines, 'drenaje del Lich');
+        return { lines, monsterDead, playerDead, loot, poisonSurvived, ...(hcResultDrain.globalEvent ? { globalEvent: hcResultDrain.globalEvent } : {}) };
+      }
+    }
+  } catch (_) { /* no romper combate si falla */ }
 
   // ── Player ataca ─────────────────────────────────────────────────────────
   // T145: Verificar si el jugador está enredado en telarañas (webbed)
@@ -1132,6 +1157,18 @@ function attackRound(player, monster) {
           status_effects: JSON.stringify(monsterFxP2),
         });
         lines.push(p2.message);
+        // DIS-1827: Si la fase 2 tiene drainDot, aplicar lich_drain al jugador
+        if (p2.drainDot) {
+          try {
+            const freshForDrain = db.getPlayer(player.id);
+            const drainFx = freshForDrain.status_effects
+              ? (typeof freshForDrain.status_effects === 'string' ? JSON.parse(freshForDrain.status_effects) : freshForDrain.status_effects)
+              : {};
+            drainFx.lich_drain = { damage: p2.drainDamage || 5 };
+            player.status_effects = drainFx;
+            db.updatePlayer(player.id, { status_effects: JSON.stringify(drainFx) });
+          } catch (_) { /* no romper combate si falla */ }
+        }
       }
     }
   }
@@ -1462,6 +1499,21 @@ function attackRound(player, monster) {
       // Silencio — los monstruos menores caen sin texto
     } else {
       lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)}!`);
+    }
+
+    // DIS-1827: Si el Lich muere, limpiar lich_drain del jugador
+    if (monster.id === 13) {
+      try {
+        const freshForClean = db.getPlayer(player.id);
+        const cleanFx = freshForClean.status_effects
+          ? (typeof freshForClean.status_effects === 'string' ? JSON.parse(freshForClean.status_effects) : freshForClean.status_effects)
+          : {};
+        if (cleanFx.lich_drain) {
+          delete cleanFx.lich_drain;
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(cleanFx) });
+          lines.push('💜 Con la caída del Lich, el aura oscura se disipa. El drenaje de vida desaparece.');
+        }
+      } catch (_) { /* no romper combat si falla */ }
     }
 
     // DIS-1212: El Goblin de Práctica (id=20) no deja loot durante el tutorial.
