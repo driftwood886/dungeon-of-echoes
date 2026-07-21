@@ -27243,12 +27243,20 @@ function cmdLegado(player, context) {
       lines.push(`║  ${conquStatus} Conquistador: registrar los 15 tipos de monstruo`.padEnd(W + 1) + '║');
     }
 
-    // Logros secretos sin desbloquear (sin revelar cuáles)
-    const allAchIds = require('./achievements').ACHIEVEMENTS.map(a => a.id);
-    const missing = allAchIds.filter(id => !achievements.includes(id)).length;
-    if (missing > 0) {
+    // DIS-1829: Mostrar logros públicos pendientes con nombre+objetivo; secretos como contador
+    const { ACHIEVEMENTS: ALL_ACHS } = require('./achievements');
+    const publicPending = ALL_ACHS.filter(a => !a.secret && !achievements.includes(a.id));
+    const secretPending = ALL_ACHS.filter(a =>  a.secret && !achievements.includes(a.id));
+    if (publicPending.length > 0 || secretPending.length > 0) {
       lines.push(`╠${'═'.repeat(W)}╣`);
-      lines.push(`║  🔒 ${missing} logro(s) sin desbloquear — seguí explorando`.padEnd(W + 1) + '║');
+      lines.push(`║${'  📋 LOGROS PENDIENTES:'.padEnd(W)}║`);
+      for (const a of publicPending) {
+        const line = `  ${a.icon} ${a.name} — ${a.desc}`;
+        lines.push(`║${line.substring(0, W).padEnd(W)}║`);
+      }
+      if (secretPending.length > 0) {
+        lines.push(`║  🔒 ${secretPending.length} logro(s) secreto(s) — seguí explorando`.padEnd(W + 1) + '║');
+      }
     }
   }
 
