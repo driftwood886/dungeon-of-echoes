@@ -1873,8 +1873,23 @@ function attackRound(player, monster) {
   // DIS-1592: reducida de 5 a 3 HP/turno — con arma nivel 1 (7-13 dmg), el net era demasiado bajo
   // BUG-1613: reducida de 3→2 HP/turno — la combinación con earlyScale en niveles altos lo hacía inmortal
   // DIS-1791: en la primera vez que el jugador ve la regen, mostrar hint de clase sobre cómo combatirla
+  // DIS-1808: la regeneración del Troll se suprime si tiene debuffs activos (burning o slowed)
+  //           — un Troll en llamas o ralentizado no puede concentrarse en regenerar heridas
   if (!monsterDead && monster.name === 'Troll de las Cavernas') {
-    const trollRegen = 2;
+    const trollFxCheck = monsterFxForStun; // ya parseado arriba (monsterFxForStun)
+    const trollHasDebuff = !!(
+      (trollFxCheck.burning && (typeof trollFxCheck.burning === 'number' ? trollFxCheck.burning > 0 : (trollFxCheck.burning.turns ?? 0) > 0)) ||
+      (trollFxCheck.slowed  && (typeof trollFxCheck.slowed  === 'number' ? trollFxCheck.slowed  > 0 : (trollFxCheck.slowed.turns  ?? 0) > 0))
+    );
+    if (trollHasDebuff) {
+      // Regen suprimida — mostrar feedback al jugador
+      const debuffName = trollFxCheck.burning && (typeof trollFxCheck.burning === 'number' ? trollFxCheck.burning > 0 : (trollFxCheck.burning.turns ?? 0) > 0)
+        ? 'en llamas' : 'ralentizado';
+      lines.push(`🔥 ¡El fuego interrumpe la regeneración del Troll! (debuff activo — regen suprimida este turno)`
+        .replace('🔥', debuffName === 'ralentizado' ? '🧊' : '🔥')
+        .replace('El fuego interrumpe', debuffName === 'ralentizado' ? 'El frío interrumpe' : 'El fuego interrumpe'));
+    }
+    const trollRegen = trollHasDebuff ? 0 : 2;
     const newTrollHp = Math.min(monster.max_hp, monster.hp + trollRegen);
     if (newTrollHp > monster.hp) {
       monster = { ...monster, hp: newTrollHp };
@@ -1891,7 +1906,7 @@ function attackRound(player, monster) {
           db.updatePlayer(player.id, { status_effects: JSON.stringify(updSe1791) });
           const classHint1791 = {
             'clerico': '💡 El Troll se regenera cada turno — para vencerlo, usá habilidades de burst: `cast juicio` o `usar pocion_poder` para picos de daño altos.',
-            'mago': '💡 El Troll se regenera cada turno — para vencerlo, usá `cast bola_de_fuego` o acumulá canalizaciones antes de soltar un hechizo de burst alto.',
+            'mago': '💡 El Troll se regenera cada turno. ¡Pero el fuego interrumpe su regen! Aplicá `cast bola_de_fuego` o `cast escarcha` para suprimir su regeneración y luego rematar con burst.',
             'guerrero': '💡 El Troll se regenera cada turno — para vencerlo, usá `usar pocion_poder` y atacá con todo mientras tu HP aguante.',
           }[player.player_class] || '💡 El Troll se regenera cada turno — usá tus habilidades de burst para causarle daño alto antes de que te desgaste.';
           lines.push(classHint1791);
