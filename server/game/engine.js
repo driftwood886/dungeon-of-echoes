@@ -15904,11 +15904,20 @@ function cmdPet(player, args) {
   // Sin argumentos o "pet ver": mostrar mascota actual
   if (!sub || sub === 'ver' || sub === 'show') {
     if (!player.pet) {
+      // DIS-1828: mostrar precio real con descuento de legado si aplica
+      let petDiscount = 0;
+      try {
+        const lb = player.legacy_bonus ? (typeof player.legacy_bonus === 'string' ? JSON.parse(player.legacy_bonus) : player.legacy_bonus) : null;
+        if (lb && lb.effects && lb.effects.pet_discount) petDiscount = lb.effects.pet_discount;
+      } catch (_) {}
       const available = Object.keys(PET_CATALOG).map(k => {
         const p = PET_CATALOG[k];
-        return `  • ${k.padEnd(12)} ${p.name} (${p.cost}g)`;
+        const cost = Math.max(0, Math.floor(p.cost * (1 - petDiscount)));
+        const costStr = petDiscount > 0 ? `${cost}g ~~${p.cost}g~~` : `${p.cost}g`;
+        return `  • ${k.padEnd(12)} ${p.name} (${costStr})`;
       }).join('\n');
-      return { text: `No tenés ninguna mascota.\n\n🐾 Mascotas disponibles:\n${available}\n\nUsá: pet adopt <tipo>  (p.ej.: pet adopt rata)` };
+      const discountHint = petDiscount > 0 ? '\n🐾 Tu legado Vínculo Animal activo: ¡mascotas gratis!' : '';
+      return { text: `No tenés ninguna mascota.${discountHint}\n\n🐾 Mascotas disponibles:\n${available}\n\nUsá: pet adopt <tipo>  (p.ej.: pet adopt rata)` };
     }
     // T199: mostrar nivel de mascota
     const petLv = getPetLevel(player.kills);
@@ -15953,17 +15962,36 @@ function cmdPet(player, args) {
     }
 
     const gold = player.gold || 0;
-    if (gold < petData.cost) {
-      return { text: `No tenés suficiente oro. ${petData.name} cuesta ${petData.cost}g y tenés ${gold}g.` };
+    // DIS-1828: Legado 'vinculo_animal' — mascotas gratis y nivel inicial +1
+    let petCost = petData.cost;
+    let petStartBonus = 0;
+    try {
+      const lb = player.legacy_bonus ? (typeof player.legacy_bonus === 'string' ? JSON.parse(player.legacy_bonus) : player.legacy_bonus) : null;
+      if (lb && lb.effects && lb.effects.pet_discount) {
+        const discount = lb.effects.pet_discount; // 1.0 = gratis
+        petCost = Math.max(0, Math.floor(petData.cost * (1 - discount)));
+      }
+      if (lb && lb.effects && lb.effects.pet_start_level) {
+        petStartBonus = lb.effects.pet_start_level - 1; // kills extra para llegar al nivel inicial
+      }
+    } catch (_) {}
+    if (gold < petCost) {
+      return { text: `No tenés suficiente oro. ${petData.name} cuesta ${petCost}g y tenés ${gold}g.` };
     }
 
-    db.updatePlayer(player.id, {
-      gold: gold - petData.cost,
+    // Calcular kills bonus para pet_start_level: nivel = floor(kills/20)+1, para Lv2 necesita kills >= 20
+    const killsForStartLevel = petStartBonus > 0 ? Math.max(player.kills || 0, petStartBonus * 20) : undefined;
+    const updateData = {
+      gold: gold - petCost,
       pet: petData.name,
-    });
+    };
+    if (killsForStartLevel !== undefined) updateData.kills = killsForStartLevel;
+    db.updatePlayer(player.id, updateData);
+    const discountNote = petCost < petData.cost ? ` (¡gratis gracias a tu legado!)` : '';
+    const levelNote = petStartBonus > 0 ? `\n🌟 Tu mascota empieza en Lv2 gracias al legado Vínculo Animal.` : '';
 
     return {
-      text: `🐾 ¡Adoptaste a ${petData.name}! (-${petData.cost}g)\n${petData.desc}\nTu mascota aparece en tu "status" y junto a tu nombre en la sala.`,
+      text: `🐾 ¡Adoptaste a ${petData.name}! (-${petCost}g${discountNote})\n${petData.desc}${levelNote}\nTu mascota aparece en tu "status" y junto a tu nombre en la sala.`,
       event: `${player.username} adoptó una mascota: ${petData.name}!`,
       eventRoomId: player.current_room_id,
     };
@@ -27647,16 +27675,16 @@ const LEGACY_POOL = [
     effects: { attack: 1 } },
   { id: 'herencia', emoji: '💰', nombre: 'Herencia',
     desc: 'El oro que [nombre] nunca pudo gastar espera en el banco.',
-    efecto: 'El próximo personaje empieza con +20 monedas de oro.',
-    effects: { gold: 20 } },
+    efecto: 'El próximo personaje empieza con +50 monedas de oro.',
+    effects: { gold: 50 } },
   { id: 'memoria_combate', emoji: '🗡️', nombre: 'Memoria de Combate',
     desc: 'Los reflejos de [nombre] se transmiten a quien le sigue.',
     efecto: 'La primera habilidad de clase se desbloquea al nivel 2 en vez de 3.',
     effects: { skill_discount: 1 } },
   { id: 'vinculo_animal', emoji: '🐾', nombre: 'Vínculo Animal',
     desc: 'Las criaturas del dungeon recuerdan el olor de [nombre].',
-    efecto: 'Las mascotas se adoptan con 20% de descuento.',
-    effects: { pet_discount: 0.20 } },
+    efecto: 'Las mascotas se adoptan gratis. Tu primera mascota empieza en Lv2.',
+    effects: { pet_discount: 1.0, pet_start_level: 2 } },
   { id: 'sabio', emoji: '📜', nombre: 'Sabio',
     desc: '[nombre] dejó sus notas de alquimia para quien viniera después.',
     efecto: 'El próximo personaje conoce 3 recetas de crafteo desde el inicio.',
@@ -27682,9 +27710,9 @@ const LEGACY_POOL = [
     efecto: 'Podés usar `rest` sin cooldown durante los primeros 5 minutos de juego.',
     effects: { rest_free_until_tutorial: true } },
   { id: 'alquimista', emoji: '🧪', nombre: 'Alquimista',
-    desc: '[nombre] dejó guardada una poción en algún lugar del dungeon.',
-    efecto: 'El próximo personaje hereda 1 poción de vida.',
-    effects: { grant_items: ['pocion de salud'] } },
+    desc: '[nombre] dejó guardadas provisiones en algún lugar del dungeon.',
+    efecto: 'El próximo personaje hereda 2 pociones de vida y 1 antídoto.',
+    effects: { grant_items: ['pocion de salud', 'pocion de salud', 'antidoto'] } },
   { id: 'veterano_silencioso', emoji: '🌙', nombre: 'Veterano Silencioso',
     desc: '[nombre] deja atrás algo invisible pero real.',
     efecto: '+1 stat extra al primer level up (elegís vos: ATK, DEF o HP).',
