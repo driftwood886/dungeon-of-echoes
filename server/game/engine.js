@@ -1900,10 +1900,15 @@ function cmdMove(player, direction) {
         // Cambiamos el mensaje cuando no hay boss: texto neutro de movimiento.
         // DIS-739: El mensaje sobre "los monstruos no te detienen" solo se muestra una vez por sesión
         // para evitar spam visual en cada movimiento cuando hay monstruos vivos en la sala.
+        // DIS-1816: si el monstruo fue atacado (HP < max_hp), mostrar mensaje de "escapaste del combate"
         const seForMoveHint = parseSE(player.status_effects);
         const alreadyShownMoveHint = !!seForMoveHint.shown_monster_move_hint;
+        const inActiveCombat = aliveHere.some(m => m.hp < m.max_hp);
         let moveHintText = '';
-        if (!alreadyShownMoveHint) {
+        if (inActiveCombat) {
+          // Combate activo: el jugador huye sin penalización (monstruos normales no retienen)
+          moveHintText = `\n⚡ Escapás del combate con ${nameList} y te alejás rápido.`;
+        } else if (!alreadyShownMoveHint) {
           moveHintText = '\n(Los monstruos de esta sala no te detienen — pero si los atacás, necesitarás `flee` para escapar.)';
           const newSe = { ...seForMoveHint, shown_monster_move_hint: true };
           db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe) });
@@ -9046,7 +9051,15 @@ function cmdLoot(player) {
   // BUG-1773: si el suelo solo tiene basura (nada útil ni monedas), informar al jugador
   if (nonGoldItems.length === 0 && goldCollected === 0) {
     // (el suelo puede tener solo junk que el jugador desechó antes — no se recoge)
-    return { text: 'No hay ítems útiles en el suelo para recoger. (Los ítems basura no se recogen con loot — usá `pick <ítem>` si los querés de vuelta.)' };
+    // DIS-1815: si alguno de los junk es ingrediente de crafteo, mencionarlo
+    const craftableOnFloor = junkOnFloor.filter(item => {
+      const key = item.toLowerCase().trim();
+      return crafting.RECIPES.some(r => r.ingredients.some(ing => ing.toLowerCase().trim() === key));
+    });
+    const craftableHint = craftableOnFloor.length > 0
+      ? ` (${craftableOnFloor.map(i => `"${i}"`).join(', ')} ${craftableOnFloor.length !== 1 ? 'son ingredientes' : 'es ingrediente'} de crafteo — podés recoger${craftableOnFloor.length !== 1 ? 'los' : 'lo'} con \`pick <ítem>\`)`
+      : '';
+    return { text: `No hay ítems útiles en el suelo para recoger.${craftableHint} (Los ítems basura no se recogen con loot — usá \`pick <ítem>\` si los querés de vuelta.)` };
   }
 
   // Agregar solo ítems no-oro al inventario (BUG-469: respetar límite de 20)
@@ -9215,8 +9228,21 @@ function cmdLoot(player) {
     ? `\n\n⚠️  Inventario casi lleno (${usedAfterLoot}/${MAX_INVENTORY}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`  // DIS-1657
     : '';
 
+  // DIS-1815: si hay junk en el suelo que es ingrediente de alguna receta, avisar al jugador
+  let craftableJunkLine = '';
+  if (junkOnFloor.length > 0) {
+    const craftableJunk = junkOnFloor.filter(item => {
+      const key = item.toLowerCase().trim();
+      return RECIPES.some(r => r.ingredients.some(ing => ing.toLowerCase().trim() === key));
+    });
+    if (craftableJunk.length > 0) {
+      const craftList = craftableJunk.map(i => `"${i}"`).join(', ');
+      craftableJunkLine = `\n\n🔧 Ítem${craftableJunk.length !== 1 ? 's' : ''} de crafteo en el suelo (no se recoge${craftableJunk.length !== 1 ? 'n' : ''} con loot): ${craftList} — usá \`pick <ítem>\` para recoger${craftableJunk.length !== 1 ? 'los' : 'lo'}.`;
+    }
+  }
+
   return {
-    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${fullBagLine}${allFitConfirmLine}${inventoryWarnLine}${lootChallengeMsg ? '\n' + lootChallengeMsg.trim() : ''}${vvLootChallengeMsg}`,
+    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${craftableJunkLine}${fullBagLine}${allFitConfirmLine}${inventoryWarnLine}${lootChallengeMsg ? '\n' + lootChallengeMsg.trim() : ''}${vvLootChallengeMsg}`,
     event: `${player.username} saquea el suelo de la sala.`,
     eventRoomId: room.id,
   };
