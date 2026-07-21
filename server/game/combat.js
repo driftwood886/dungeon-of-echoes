@@ -24,6 +24,7 @@ const challengeTracker = require('./challengeTracker'); // T-1231: tracking de d
 const combatStates = require('./combatStates'); // EPIC-1291-F1: sistema de estados de combate
 const quests      = require('./quests');       // DIS-1405: hint de quest bloqueada por Marea Espectral
 const { articuloMonstruo, derrotadoMonstruo, MONSTER_GENERO_FEMENINO } = require('./gender'); // BUG-1427: centralizar género
+const memory = require('./memory.js'); // EPIC-1820-DEF: hooks de memoria del dungeon
 
 // DIS-1514: helper para mensaje de XP con progreso de nivel
 function xpProgressSuffix(newXp, newLevel) {
@@ -94,6 +95,9 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
       return { autoResurrected: true };
     }
   }
+
+  // EPIC-1820-DEF: hook de memoria — registrar muerte de jugador (solo si no fue autoresurrección)
+  memory.onPlayerDeath(freshP.current_room_id, freshP.username);
 
   if (freshP.is_hardcore === 1 && freshP.fallen !== 1) {
     // MUERTE HARDCORE — marcar como fallen

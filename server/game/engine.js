@@ -39,6 +39,7 @@ const challengeAssigner = require('./challengeAssigner'); // T-1232: asignación
 const questEngine = require('./questEngine'); // EPIC-QD: sistema de quests dinámicas (IMPL-QD-1573)
 const factionMissions = require('./factionMissions'); // EPIC Facciones Vivas (IMPL-FM-1706)
 const { EVENTS: VV_EVENTS, generateNewSeed: vvGenerateNewSeed, generateRunState: vvGenerateRunState } = require('./run-state');  // IMPL-VV-1760: desafíos y diálogos de evento; BUG-1762: inicializar VV para jugadores pre-VV
+const memory = require('./memory.js'); // EPIC-1820-DEF: hooks de memoria del dungeon
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // DIS-1514: helper para mensaje de progreso de XP dentro del nivel actual
@@ -5113,6 +5114,7 @@ function cmdAttack(player, targetName) {
   // ── Actualizar bestiario personal (T108) ─────────────────────────────────
   if (monsterDead) {
     db.addBestiaryKill(player.id, monster.name);
+    memory.onMonsterKill(player.current_room_id, monster.name, player.username); // EPIC-1820-DEF
   }
 
   // ── DIS-529: swap poción de maná → poción de salud para Guerreros ─────────
@@ -14536,6 +14538,7 @@ function getOrCreatePlayer(username) {
     });
     player = db.getPlayer(player.id);
     console.log(`[engine] Nuevo jugador creado: ${username} (${player.id}) — iniciando tutorial en sala 16`);
+    try { memory.onNewRun(username); } catch (_) {} // EPIC-1820-DEF: registro de run en historial
   } else if (tutorial.shouldStartTutorial(player) && player.current_room_id !== tutorial.TUTORIAL_ROOM_ID) {
     // Jugador que aún no completó el tutorial y no está en la sala de tutorial:
     // lo ponemos en tutorial_step 1 y lo llevamos a la antesala.
@@ -17095,6 +17098,7 @@ function cmdCast(player, args) {
       broadcastEvent = `🔥 ¡${player.username} incineró a ${target.name} con ${spellName}!`;
       // Bestiario
       db.addBestiaryKill(player.id, target.name);
+      memory.onMonsterKill(player.current_room_id, target.name, player.username); // EPIC-1820-DEF
       if (newLevel > (player.level || 1)) {
         // DIS-1281: mensaje contextualizado con sala, kills y hechizo usado
         const castLevelMsg = makeLevelUpJournalMsg(newLevel, {
@@ -17254,6 +17258,7 @@ function cmdCast(player, args) {
             const splashNewLevel = xpSystem.levelFromXp(splashNewXp);
             db.updatePlayer(player.id, { kills: splashNewKills, xp: splashNewXp, level: splashNewLevel });
             db.addBestiaryKill(player.id, splashM.name);
+            memory.onMonsterKill(player.current_room_id, splashM.name, player.username); // EPIC-1820-DEF
             quests.recordProgress(db.getPlayer(player.id), 'kill', { monsterName: splashM.name });
             lines.push(`   ⭐ +${splashXp} XP (splash)`);
           } else {
@@ -17407,6 +17412,7 @@ function cmdCast(player, args) {
           player = { ...player, ...aoeUpd }; // actualizar referencias locales de kills/xp/level
           lines.push(`   ⭐ +${aoeXp} XP (kills: ${aoeNewKills})${xpProgressSuffix(aoeNewXp, aoeNewLevel)}`);
           db.addBestiaryKill(player.id, aoeTarget.name);
+          memory.onMonsterKill(player.current_room_id, aoeTarget.name, player.username); // EPIC-1820-DEF
         } catch (_) {}
       }
     }
@@ -19376,6 +19382,7 @@ function cmdUseSkill(player, args, context) {
       db.updatePlayer(freshPlayer.id, smashUpd);
       text += `\n⭐ +${xpGain} XP (kills: ${smashUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}${xpProgressSuffix(newXp, newLevel)}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
+      memory.onMonsterKill(freshPlayer.current_room_id, target.name, freshPlayer.username); // EPIC-1820-DEF
       if (levelUp) {
         // DIS-1281: mensaje contextualizado con sala, kills y habilidad
         const smashLevelMsg = makeLevelUpJournalMsg(newLevel, {
@@ -19748,6 +19755,7 @@ function cmdUseSkill(player, args, context) {
       db.updatePlayer(freshPlayer.id, skillUpd);
       text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}${xpProgressSuffix(newXp, newLevel)}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
+      memory.onMonsterKill(freshPlayer.current_room_id, target.name, freshPlayer.username); // EPIC-1820-DEF
       // DIS-1281: Registrar subida de nivel en el diario (Golpe de Escudo)
       if (levelUp) {
         const bashLevelMsg = makeLevelUpJournalMsg(newLevel, {
@@ -20009,6 +20017,7 @@ function cmdUseSkill(player, args, context) {
       db.updatePlayer(freshPlayer.id, skillUpd);
       text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}${xpProgressSuffix(newXp, newLevel)}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
+      memory.onMonsterKill(freshPlayer.current_room_id, target.name, freshPlayer.username); // EPIC-1820-DEF
       const gsBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
       const gsLichKill = target.id === 13; // solo el Lich Anciano real
       const freshForGsAch = db.getPlayer(freshPlayer.id);
@@ -20443,6 +20452,7 @@ function cmdUseSkill(player, args, context) {
       db.updatePlayer(freshPicSh.id, skillUpdSh);
       textSh += `\n⭐ +${xpGainSh} XP (kills: ${skillUpdSh.kills} | nivel: ${newLevelSh})${levelUpSh ? ` ✨ ¡SUBE AL NIVEL ${newLevelSh}!` : ''}${xpProgressSuffix(newXpSh, newLevelSh)}`;
       db.addBestiaryKill(freshPicSh.id, target.name);
+      memory.onMonsterKill(freshPicSh.current_room_id, target.name, freshPicSh.username); // EPIC-1820-DEF
       const shBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
       const shLichKill = target.id === 13;
       const freshForShAch = db.getPlayer(freshPicSh.id);
@@ -20589,6 +20599,7 @@ function cmdUseSkill(player, args, context) {
       db.updatePlayer(freshPal.id, updPal);
       textPal += `\n⭐ +${xpGainPal} XP (kills: ${updPal.kills} | nivel: ${newLevelPal})${levelUpPal ? ` ✨ ¡SUBE AL NIVEL ${newLevelPal}!` : ''}${xpProgressSuffix(newXpPal, newLevelPal)}`;
       db.addBestiaryKill(freshPal.id, target.name);
+      memory.onMonsterKill(freshPal.current_room_id, target.name, freshPal.username); // EPIC-1820-DEF
       const freshForPalAch = db.getPlayer(freshPal.id);
       if (freshForPalAch) {
         const palBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
@@ -20734,6 +20745,7 @@ function cmdUseSkill(player, args, context) {
       db.updatePlayer(freshAse.id, updAse);
       textAse += `\n⭐ +${xpGainAse} XP (kills: ${updAse.kills} | nivel: ${newLevelAse})${levelUpAse ? ` ✨ ¡SUBE AL NIVEL ${newLevelAse}!` : ''}${xpProgressSuffix(newXpAse, newLevelAse)}`;
       db.addBestiaryKill(freshAse.id, target.name);
+      memory.onMonsterKill(freshAse.current_room_id, target.name, freshAse.username); // EPIC-1820-DEF
       const freshForAseAch = db.getPlayer(freshAse.id);
       if (freshForAseAch) {
         const aseBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
@@ -20944,6 +20956,7 @@ function cmdUseSkill(player, args, context) {
       db.updatePlayer(freshJu.id, updJu);
       textJu += `\n⭐ +${xpGainJu} XP (kills: ${updJu.kills} | nivel: ${newLevelJu})${levelUpJu ? ` ✨ ¡SUBE AL NIVEL ${newLevelJu}!` : ''}${xpProgressSuffix(newXpJu, newLevelJu)}`;
       db.addBestiaryKill(freshJu.id, target.name);
+      memory.onMonsterKill(freshJu.current_room_id, target.name, freshJu.username); // EPIC-1820-DEF
       const freshForJuAch = db.getPlayer(freshJu.id);
       if (freshForJuAch) {
         const juBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
@@ -27855,6 +27868,12 @@ function cmdAscend(player, args, context) {
     lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 
     console.log(`[ASCENSIÓN] ${username} ascendió → ${archiveName} (legado: ${legadoElegido.id}, ascensión #${ascensionCount})`);
+
+    // EPIC-1820-DEF: registrar ascensión en memoria del dungeon
+    try {
+      memory.onAscension(username, fresh.level || 1);
+      memory.onNewRun(username);
+    } catch (_) {}
 
     return { text: lines.join('\n'), ascension: true, newUsername: username };
 
