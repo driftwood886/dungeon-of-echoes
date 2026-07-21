@@ -3689,11 +3689,14 @@ function cmdInventory(player) {
 
   // DIS-994: línea de slots de mochila
   // DIS-1558: si el jugador está sobre el límite (estado legacy pre-cap), mostrar warning claro
+  // DIS-1832: aclarar la diferencia entre slots (ítems físicos) y entradas únicas (colapsadas x2/x3)
   let slotLine;
+  const hasStacks = totalItems !== totalVisible; // hay ítems del mismo tipo (pociones x3, etc.)
+  const entriesNote = hasStacks ? ` (${totalVisible} entrada${totalVisible !== 1 ? 's' : ''} únicas — los duplicados cuentan por separado)` : '';
   if (usedSlots > maxSlots) {
-    slotLine = `📦 Mochila: ${usedSlots}/${maxSlots} slots ⚠️ SOBRE EL LÍMITE — no podés recoger ítems nuevos. Tirá algo con \`drop <ítem>\` o guardalo con \`vault store <ítem>\`.`;
+    slotLine = `📦 Mochila: ${usedSlots}/${maxSlots} slots ⚠️ SOBRE EL LÍMITE — cada ítem ocupa 1 slot aunque aparezcan agrupados. Tirá algo con \`drop <ítem>\` o guardalo con \`vault store <ítem>\`.`;
   } else {
-    slotLine = `📦 Mochila: ${usedSlots}/${maxSlots} slots${slotHint}`;
+    slotLine = `📦 Mochila: ${usedSlots}/${maxSlots} slots${entriesNote}${slotHint}`;
   }
 
   // DIS-1266: Separar hints en dos secciones claras:
