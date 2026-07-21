@@ -1578,7 +1578,18 @@ function cmdLook(player, options = {}) {
     }
   } catch (_dis1784) { /* no romper look si falla el check de inventario */ }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + activeEventLine + partyMembersLine + bossRoomInvWarning };
+  // DIS-1826: hint de `examine` en salas con estadísticas registradas
+  // Si la sala tiene datos en los Anales, sugerir el comando para que el jugador sepa que existe esa info.
+  let examineStatsHint = '';
+  try {
+    const roomForHint = db.getRoom(player.current_room_id);
+    const hasStats = memory.getRoomStatsText(player.current_room_id, roomForHint ? roomForHint.name : null);
+    if (hasStats) {
+      examineStatsHint = `\n📖 Esta sala tiene historia registrada — usá \`examine\` para ver los Anales.`;
+    }
+  } catch (_dis1826) { /* no romper look si falla el check de stats */ }
+
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint };
 }
 
 /**
