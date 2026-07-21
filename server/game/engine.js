@@ -16656,6 +16656,8 @@ function cmdCast(player, args) {
         if (hasSlowed && hasBurning) {
           elementalistaBonus = 0.20;
           elementalistaSinergiaNote = ' 🌪️[Elementalista +20% sinergia]';
+          // DIS-1805: agregar línea explícita de feedback para que el jugador vea que la sinergia se activó
+          lines.push('⚡ Sinergia elemental activa (🔥 burning + 🧊 slowed): +20% de daño en este hechizo.');
         }
       } catch (_) {}
     }
