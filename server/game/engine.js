@@ -11510,6 +11510,9 @@ function cmdTalk(player, target) {
     const ancCurrentAscCount  = player.ascension_count || 0;
     const ancKillsDelta       = ancCurrentKills - ancKillsAtChat;
 
+    // EPIC-1821-F2: Historial cross-run desde memory.js (persiste entre ascensiones)
+    const ancianoHistoryDialogo = memory.getAncianoDialogo(player.username);
+
     function getAncianoMemorySuffix() {
       let suffix = '';
       const memToSave = {};
@@ -11600,7 +11603,13 @@ function cmdTalk(player, target) {
       return { text: 'El anciano asiente al verte.\n\n\"Buscás llegar al Santuario Profano, ¿no?\" No espera respuesta. \"Hay dos rutas. La directa pasa por el Pozo Sin Fondo —al oeste desde la Sala de los Ecos— pero la puerta al norte tiene cerradura. Necesitás una llave oxidada.\"\n\nSeñala hacia el este. \"La otra ruta es más larga pero abierta: Capilla → Hongos → Trono → Santuario. Sin llave. Muchos lo ignoran y se quedan dando vueltas buscando oro para la tienda.\"\n\nVuelve a apoyarse en la pared, como si esa conversación lo hubiera cansado.' + getAncianoMemorySuffix() };
     }
 
-    // VARIANTE 8: Principiante
+    // VARIANTE 8: Principiante (o veterano cross-run sin otras variantes específicas)
+    // EPIC-1821-F2: Si el jugador tiene historial cross-run (total_runs > 1), usar diálogo de memory.js
+    // Si es la primera vez (total_runs <= 1), mostrar el texto de bienvenida detallado del engine
+    const isFirstTimePlayer = ancianoHistoryDialogo.includes('Bienvenido al Dungeon');
+    if (!isFirstTimePlayer) {
+      return { text: ancianoHistoryDialogo + getAncianoMemorySuffix() };
+    }
     return { text: 'El guardián anciano —Vartan, si todavía no sabés su nombre— levanta la vista hacia vos.\n\n\"Nuevo en el dungeon. Bien.\" Pausa. \"Escuchá: el dungeon tiene dos zonas principales. Al norte y al este desde aquí. Al norte hay más combate directo; al este hay cosas más... sutiles.\"\n\nSe rasca la barba. \"Cuando llegués al Pozo Sin Fondo —lo vas a saber cuando lo veas— hay una puerta bloqueada al norte. Si no tenés la llave, no la fuerces. Hay otro camino por el este, pasando por la Capilla. Acordate de eso.\"\n\nSeñala hacia abajo con el pulgar. \"Ah, y si querés practicar sin riesgo —sin que nadie te lastime y sin perder nada— hay una Sala de Práctica debajo de acá. Escribí \'abajo\' para bajar. Los maniquíes no muerden.\"\n\nVuelve a mirar la pared, como si la conversación hubiera terminado.' + getAncianoMemorySuffix() };
   }
 
