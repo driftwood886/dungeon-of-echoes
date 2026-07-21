@@ -1143,6 +1143,64 @@ async function init() {
   db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_fwm_faction_week ON faction_war_missions(faction, week)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_fwm_week ON faction_war_missions(week)`);
 
+  // EPIC-1817: Epic Memoria del Dungeon — tablas de persistencia histórica
+  db.run(`
+    CREATE TABLE IF NOT EXISTS room_stats (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_id       INTEGER NOT NULL,
+      monster_name  TEXT NOT NULL DEFAULT '_player_death',
+      event_type    TEXT NOT NULL,
+      count_total   INTEGER NOT NULL DEFAULT 0,
+      count_week    INTEGER NOT NULL DEFAULT 0,
+      week_start    TEXT NOT NULL,
+      updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(room_id, monster_name, event_type, week_start)
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_room_stats_room_id ON room_stats(room_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_room_stats_week ON room_stats(week_start, event_type)`);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS player_history_meta (
+      username            TEXT PRIMARY KEY,
+      total_runs          INTEGER NOT NULL DEFAULT 0,
+      total_kills         INTEGER NOT NULL DEFAULT 0,
+      total_deaths        INTEGER NOT NULL DEFAULT 0,
+      total_ascensions    INTEGER NOT NULL DEFAULT 0,
+      max_level_reached   INTEGER NOT NULL DEFAULT 1,
+      max_kill_streak     INTEGER NOT NULL DEFAULT 0,
+      first_lich_kill_at  TEXT,
+      last_active_at      TEXT NOT NULL DEFAULT (datetime('now')),
+      kills_this_week     INTEGER NOT NULL DEFAULT 0,
+      week_start          TEXT NOT NULL DEFAULT (strftime('%Y-%W','now'))
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_phm_kills_total ON player_history_meta(total_kills DESC)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_phm_ascensions ON player_history_meta(total_ascensions DESC)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_phm_last_active ON player_history_meta(last_active_at DESC)`);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS dungeon_chronicle (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      week_start    TEXT NOT NULL UNIQUE,
+      chronicle_text TEXT NOT NULL,
+      generated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      stats_snapshot TEXT NOT NULL DEFAULT '{}'
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_chronicle_week ON dungeon_chronicle(week_start DESC)`);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS crypt_plaques (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      slot        TEXT NOT NULL UNIQUE,
+      username    TEXT NOT NULL,
+      plaque_text TEXT NOT NULL,
+      category    TEXT NOT NULL,
+      generated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // EPIC Facciones Vivas: seed del pool de misiones (9 misiones, 3 por facción) — IMPL-FM-1705
   try {
     const fmSeed = [
@@ -4056,6 +4114,321 @@ function getAllWarMissions() {
   }
 }
 
+// ─── EPIC-1817: Memoria del Dungeon ──────────────────────────────────────────
+
+/** Devuelve el lunes de la semana actual en formato YYYY-MM-DD (UTC) */
+function getWeekStart() {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0=dom, 1=lun, ..., 6=sab
+  const diff = (day === 0) ? -6 : 1 - day; // días hasta el lunes anterior
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() + diff);
+  return monday.toISOString().slice(0, 10);
+}
+
+/** Garantiza que existe una fila de player_history_meta para el username dado */
+function ensurePlayerHistoryExists(username) {
+  if (!db || !username) return;
+  try {
+    const weekStart = getWeekStart();
+    db.run(
+      `INSERT OR IGNORE INTO player_history_meta (username, week_start, last_active_at)
+       VALUES (?, ?, datetime('now'))`,
+      [username, weekStart]
+    );
+    // Si la semana cambió, resetear kills_this_week
+    db.run(
+      `UPDATE player_history_meta
+       SET kills_this_week = 0, week_start = ?
+       WHERE username = ? AND week_start != ?`,
+      [weekStart, username, weekStart]
+    );
+  } catch (e) {
+    console.error('[db] ensurePlayerHistoryExists:', e.message);
+  }
+}
+
+/** Acumula un kill en room_stats para la sala y monstruo dado */
+function incrementRoomStat(roomId, monsterName, eventType) {
+  if (!db) return;
+  try {
+    const weekStart = getWeekStart();
+    const mName = monsterName || '_player_death';
+    db.run(
+      `INSERT INTO room_stats (room_id, monster_name, event_type, count_total, count_week, week_start)
+       VALUES (?, ?, ?, 1, 1, ?)
+       ON CONFLICT(room_id, monster_name, event_type, week_start)
+       DO UPDATE SET
+         count_total = count_total + 1,
+         count_week  = count_week + 1,
+         updated_at  = datetime('now')`,
+      [roomId, mName, eventType, weekStart]
+    );
+  } catch (e) {
+    console.error('[db] incrementRoomStat:', e.message);
+  }
+}
+
+/** Acumula un kill en player_history_meta */
+function incrementPlayerHistoryKill(username) {
+  if (!db || !username) return;
+  try {
+    ensurePlayerHistoryExists(username);
+    db.run(
+      `UPDATE player_history_meta
+       SET total_kills = total_kills + 1,
+           kills_this_week = kills_this_week + 1,
+           last_active_at = datetime('now')
+       WHERE username = ?`,
+      [username]
+    );
+  } catch (e) {
+    console.error('[db] incrementPlayerHistoryKill:', e.message);
+  }
+}
+
+/** Acumula una muerte en player_history_meta */
+function incrementPlayerHistoryDeath(username) {
+  if (!db || !username) return;
+  try {
+    ensurePlayerHistoryExists(username);
+    db.run(
+      `UPDATE player_history_meta
+       SET total_deaths = total_deaths + 1,
+           last_active_at = datetime('now')
+       WHERE username = ?`,
+      [username]
+    );
+  } catch (e) {
+    console.error('[db] incrementPlayerHistoryDeath:', e.message);
+  }
+}
+
+/** Acumula una ascensión en player_history_meta */
+function incrementPlayerHistoryAscension(username, levelReached) {
+  if (!db || !username) return;
+  try {
+    ensurePlayerHistoryExists(username);
+    const lvl = levelReached || 1;
+    db.run(
+      `UPDATE player_history_meta
+       SET total_ascensions = total_ascensions + 1,
+           max_level_reached = MAX(max_level_reached, ?),
+           last_active_at = datetime('now')
+       WHERE username = ?`,
+      [lvl, username]
+    );
+  } catch (e) {
+    console.error('[db] incrementPlayerHistoryAscension:', e.message);
+  }
+}
+
+/** Registra un nuevo run (creación o recreación de personaje) */
+function incrementPlayerHistoryRun(username) {
+  if (!db || !username) return;
+  try {
+    ensurePlayerHistoryExists(username);
+    db.run(
+      `UPDATE player_history_meta
+       SET total_runs = total_runs + 1,
+           last_active_at = datetime('now')
+       WHERE username = ?`,
+      [username]
+    );
+  } catch (e) {
+    console.error('[db] incrementPlayerHistoryRun:', e.message);
+  }
+}
+
+/**
+ * Devuelve las stats de una sala para un período dado.
+ * period: 'week' | 'total' | 'both'
+ * Retorna array de { monster_name, event_type, count_week, count_total }
+ */
+function getRoomStats(roomId, period) {
+  if (!db) return [];
+  try {
+    const weekStart = getWeekStart();
+    if (period === 'week') {
+      return all(
+        `SELECT monster_name, event_type, count_week, count_total
+         FROM room_stats
+         WHERE room_id = ? AND week_start = ?
+         ORDER BY count_week DESC`,
+        [roomId, weekStart]
+      );
+    } else if (period === 'total') {
+      return all(
+        `SELECT monster_name, event_type, SUM(count_total) as count_total
+         FROM room_stats
+         WHERE room_id = ?
+         GROUP BY monster_name, event_type
+         ORDER BY count_total DESC`,
+        [roomId]
+      );
+    } else {
+      // both: semana actual + total histórico
+      return all(
+        `SELECT rs_week.monster_name, rs_week.event_type,
+                COALESCE(rs_week.count_week, 0) as count_week,
+                COALESCE(rs_all.count_total, 0) as count_total
+         FROM room_stats rs_week
+         LEFT JOIN (
+           SELECT monster_name, event_type, SUM(count_total) as count_total
+           FROM room_stats
+           WHERE room_id = ?
+           GROUP BY monster_name, event_type
+         ) rs_all ON rs_week.monster_name = rs_all.monster_name AND rs_week.event_type = rs_all.event_type
+         WHERE rs_week.room_id = ? AND rs_week.week_start = ?
+         ORDER BY rs_week.count_week DESC`,
+        [roomId, roomId, weekStart]
+      );
+    }
+  } catch (e) {
+    console.error('[db] getRoomStats:', e.message);
+    return [];
+  }
+}
+
+/** Devuelve el player_history_meta de un username */
+function getPlayerHistory(username) {
+  if (!db || !username) return null;
+  try {
+    return one(
+      `SELECT * FROM player_history_meta WHERE username = ?`,
+      [username]
+    );
+  } catch (e) {
+    console.error('[db] getPlayerHistory:', e.message);
+    return null;
+  }
+}
+
+/** Devuelve las placas de la Cripta (cacheadas en crypt_plaques) */
+function getCryptPlaques() {
+  if (!db) return [];
+  try {
+    return all(
+      `SELECT slot, username, plaque_text, category, generated_at
+       FROM crypt_plaques
+       ORDER BY slot`,
+      []
+    );
+  } catch (e) {
+    console.error('[db] getCryptPlaques:', e.message);
+    return [];
+  }
+}
+
+/** Devuelve la crónica más reciente de dungeon_chronicle */
+function getLatestChronicle() {
+  if (!db) return null;
+  try {
+    return one(
+      `SELECT * FROM dungeon_chronicle ORDER BY week_start DESC LIMIT 1`,
+      []
+    );
+  } catch (e) {
+    console.error('[db] getLatestChronicle:', e.message);
+    return null;
+  }
+}
+
+/** Guarda o reemplaza una placa de la Cripta */
+function upsertCryptPlaque(slot, username, plaqueText, category) {
+  if (!db) return;
+  try {
+    db.run(
+      `INSERT INTO crypt_plaques (slot, username, plaque_text, category, generated_at)
+       VALUES (?, ?, ?, ?, datetime('now'))
+       ON CONFLICT(slot) DO UPDATE SET
+         username = excluded.username,
+         plaque_text = excluded.plaque_text,
+         category = excluded.category,
+         generated_at = excluded.generated_at`,
+      [slot, username, plaqueText, category]
+    );
+  } catch (e) {
+    console.error('[db] upsertCryptPlaque:', e.message);
+  }
+}
+
+/** Guarda o reemplaza la crónica de una semana */
+function upsertChronicle(weekStart, chronicleText, statsSnapshot) {
+  if (!db) return;
+  try {
+    db.run(
+      `INSERT INTO dungeon_chronicle (week_start, chronicle_text, stats_snapshot, generated_at)
+       VALUES (?, ?, ?, datetime('now'))
+       ON CONFLICT(week_start) DO UPDATE SET
+         chronicle_text = excluded.chronicle_text,
+         stats_snapshot = excluded.stats_snapshot,
+         generated_at = excluded.generated_at`,
+      [weekStart, chronicleText, JSON.stringify(statsSnapshot || {})]
+    );
+  } catch (e) {
+    console.error('[db] upsertChronicle:', e.message);
+  }
+}
+
+/**
+ * Devuelve candidatos a placas de Cripta desde player_history_meta + legacies.
+ * Excluye bots/testers.
+ */
+function getCryptCandidates() {
+  if (!db) return { ascendidos: [], caidos: [], records: [], activos: [] };
+  const botFilter = `
+    AND username NOT LIKE '%Test%'
+    AND username NOT LIKE '%Bot%'
+    AND username NOT LIKE '%EPIC_%'
+    AND username NOT LIKE 'TESTER%'
+  `;
+  try {
+    const ascendidos = all(
+      `SELECT phm.username, phm.total_ascensions, phm.total_kills, phm.max_level_reached,
+              l.character_name, l.character_class, l.epitaph, l.ascended_at
+       FROM player_history_meta phm
+       JOIN legacies l ON l.account_username = phm.username
+       WHERE phm.total_ascensions > 0 ${botFilter}
+       ORDER BY phm.total_ascensions DESC, l.ascended_at DESC
+       LIMIT 4`,
+      []
+    );
+    const caidos = all(
+      `SELECT phm.username, phm.total_kills, phm.total_deaths, phm.max_level_reached
+       FROM player_history_meta phm
+       WHERE phm.total_ascensions = 0
+         AND phm.total_kills >= 5
+         AND phm.total_deaths > 0
+         ${botFilter}
+       ORDER BY phm.total_kills DESC
+       LIMIT 4`,
+      []
+    );
+    const records = all(
+      `SELECT username, max_level_reached, total_kills, max_kill_streak
+       FROM player_history_meta
+       WHERE 1=1 ${botFilter}
+       ORDER BY max_level_reached DESC, total_kills DESC
+       LIMIT 2`,
+      []
+    );
+    const weekStart = getWeekStart();
+    const activos = all(
+      `SELECT username, kills_this_week, last_active_at
+       FROM player_history_meta
+       WHERE week_start = ? AND kills_this_week > 0 ${botFilter}
+       ORDER BY kills_this_week DESC
+       LIMIT 2`,
+      [weekStart]
+    );
+    return { ascendidos, caidos, records, activos };
+  } catch (e) {
+    console.error('[db] getCryptCandidates:', e.message);
+    return { ascendidos: [], caidos: [], records: [], activos: [] };
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -4136,4 +4509,11 @@ module.exports = {
   // IMPL-WM-1710/1711: Misiones de Guerra Semanal
   ensureWarMissionsForWeek, getWarMission, getAllWarMissions,
   incrementWarMissionProgress, completeWarMission, completeWarMissionWithRewards, getWarWeekKey,
+  // EPIC-1817: Memoria del Dungeon
+  getWeekStart,
+  ensurePlayerHistoryExists,
+  incrementRoomStat, getRoomStats,
+  incrementPlayerHistoryKill, incrementPlayerHistoryDeath, incrementPlayerHistoryAscension, incrementPlayerHistoryRun,
+  getPlayerHistory, getCryptPlaques, getLatestChronicle,
+  upsertCryptPlaque, upsertChronicle, getCryptCandidates,
   };
