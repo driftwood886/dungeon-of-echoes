@@ -105,6 +105,7 @@ const SPECIALIZATIONS = {
     passives: [
       'Escarcha aplica `slowed` durante 2 turnos (era 1)',
       'Bola de fuego aplica `burning` durante 4 turnos (era 2) — más daño de DoT acumulado',
+      'Bola de fuego cuesta solo 6 maná (era 8) — facilita encadenar escarcha→bola de fuego en un turno',
       'Sinergia elemental: si el objetivo tiene `slowed` Y `burning` simultáneamente, todos tus hechizos hacen +20% daño',
       '`cast tormenta_de_hielo`: AoE de hielo que ralentiza a TODOS los monstruos de la sala (costo: 20 maná)',
       'Escarcha de emergencia (≤30% maná) cuesta 0 maná — umbral ampliado del 20% al 30%',
@@ -115,6 +116,7 @@ const SPECIALIZATIONS = {
       burning_turns: 4,               // bola de fuego quema 4 turnos (era 2)
       elemental_sinergia_bonus: 0.20, // +20% daño cuando slowed+burning simultáneos
       channeling_threshold: 0.30,     // escarcha de emergencia a ≤30% maná (igual que Evoker)
+      bola_fuego_cost_reduction: 2,   // DIS-1807: bola de fuego cuesta 6 en vez de 8 — facilita la cadena escarcha→bola de fuego
     },
   },
 

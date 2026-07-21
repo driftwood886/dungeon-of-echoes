@@ -13653,6 +13653,10 @@ function _cmdFaccionElegir(player, args) {
     }
   }
   // Si _welcomeMission es null: no agregar bloque de misión para evitar mensaje engañoso (BUG-1787)
+  // DIS-1809: si es Cónclave Arcano y no hay misión aún, agregar nota sobre qué misiones pueden esperarse
+  if (!_welcomeMission && factionId === 'conclave_arcano') {
+    _missionBlock = `\n\n📜 **Misiones del Cónclave disponibles a partir de ahora:**\n   🗺️ Explorar salas nuevas (avanzar a zonas inexploradas)\n   📖 Descubrir inscripciones y lore del dungeon\n   🔮 Completar objetivos de exploración semanales\n   Las misiones se asignan automáticamente cada semana. Usá «misión facción» para ver tu progreso.`;
+  }
 
   return {
     text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.${_missionBlock}\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
@@ -16566,7 +16570,12 @@ function cmdCast(player, args) {
   // BUG-1011: Evoker usa lowManaThreshold=30%, todos los demás Magos usan 20%.
   const hasCanalizacion = isMago && (player.level || 1) >= 3 && currentMana <= lowManaThreshold && !escarchaEmergency;
   const canalizacionDiscount = hasCanalizacion ? 1 : 0;
-  const effectiveCost = escarchaEmergency ? 0 : Math.max(1, spell.cost - canalizacionDiscount);
+  // DIS-1807: Elementalista — bola de fuego cuesta 2 menos (8→6) para facilitar la cadena escarcha→bola de fuego
+  const isBolaFuego = ['bola de fuego', 'fuego', 'fireball', 'fire', 'flamazo', 'llama'].includes(spellName);
+  const elementalistaDiscount = (player.specialization === 'elementalista' && isBolaFuego && !escarchaEmergency)
+    ? (playerSpec && playerSpec.combat_modifiers && playerSpec.combat_modifiers.bola_fuego_cost_reduction || 2)
+    : 0;
+  const effectiveCost = escarchaEmergency ? 0 : Math.max(1, spell.cost - canalizacionDiscount - elementalistaDiscount);
   // DIS-558: Si tiene free_spell activo, no verificar ni cobrar maná
   const freshForFreeSp = db.getPlayer(player.id);
   const seForFreeSp = parseSE(freshForFreeSp.status_effects);
@@ -16584,6 +16593,9 @@ function cmdCast(player, args) {
   let newMana = hasFreeSpell ? currentMana : currentMana - effectiveCost;
   if (escarchaEmergency && !hasFreeSpell) {
     lines.push('❄️ (Escarcha de emergencia — sin coste de maná con maná bajo)');
+  }
+  if (elementalistaDiscount > 0 && !hasFreeSpell && !escarchaEmergency) {
+    lines.push(`🌪️ (Elementalista — bola de fuego reducida: ${spell.cost} → ${effectiveCost} maná)`);
   }
   if (hasCanalizacion && !hasFreeSpell && !escarchaEmergency) {
     lines.push(`🔮 (Canalización — maná crítico: -1 coste de maná [${spell.cost} → ${effectiveCost}])`);
