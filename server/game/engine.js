@@ -11255,6 +11255,7 @@ const SHOP_CATALOG = [
   { name: 'antídoto',                price: 20, description: 'Cura el veneno al instante.' },
   { name: 'espada de hierro',        price: 10, description: 'Arma de iniciación. +8 ATK — ideal para los primeros combates. Las mazmorras profundas tienen mejores armas como drops de boss.' },  // DIS-1554: 20g→10g — repositionada como arma de transición barata; el jugador no siente que "tiró" el oro cuando el primer boss dropea algo mejor
   { name: 'daga envenenada',         price: 45, description: 'Daño +4, aplica veneno al enemigo.' },
+  { name: 'daga básica',             price: 12, description: 'Daga corta equilibrada. +3 ATK. Arma preferida de Pícaros en fase temprana. (Nivel recomendado: 1-3)' },  // DIS-1811
   // DIS-855: espada de acero para level 6-8 (gap entre espada de hierro +8 y armas épicas crafteable)
   { name: 'espada de acero',         price: 70, description: 'Acero templado. +10 de ataque. La mejor opción de compra para aventureros de élite (nivel 6+).' },
   { name: 'escudo de madera',        price: 25, description: 'Defensa +2. No es glamoroso, pero funciona.' },
@@ -11959,14 +11960,14 @@ function cmdShop(player, args) {
     const equippedWeaponATK = (equippedWeaponDef && equippedWeaponDef.type === 'weapon') ? (equippedWeaponDef.amount || 0) : 0;
 
     // Armas básicas de tienda (ATK <= 10) — no recomendarlas si el jugador ya tiene arma épica/legendaria
-    const BASIC_SHOP_WEAPONS = new Set(['espada de hierro', 'espada de acero', 'daga envenenada', 'espada oxidada', 'guantes de cuero fino', 'vara de energía', 'símbolo sagrado']);
+    const BASIC_SHOP_WEAPONS = new Set(['espada de hierro', 'espada de acero', 'daga envenenada', 'daga básica', 'espada oxidada', 'guantes de cuero fino', 'vara de energía', 'símbolo sagrado']);
     // Armaduras básicas de tienda — no recomendarlas si el jugador ya tiene armadura épica
     const BASIC_SHOP_ARMORS = new Set(['escudo de madera', 'cuero endurecido', 'cota de cuero', 'cota de malla', 'túnica encantada']);
 
     const CLASS_RECS = {
       'Mago':    ['vara de energía', 'túnica encantada', 'pergamino de hechizo', 'poción de maná'],
       'Clérigo': ['símbolo sagrado', 'poción de bendición', 'poción de salud'],
-      'Pícaro':  ['guantes de cuero fino', 'veneno de contacto', 'daga envenenada'],
+      'Pícaro':  ['daga básica', 'guantes de cuero fino', 'veneno de contacto', 'daga envenenada'],
       'Guerrero':['espada de hierro', 'escudo de madera', 'poción de salud'],
     };
     const recs = CLASS_RECS[clsShop.name];
@@ -12075,7 +12076,7 @@ function cmdShop(player, args) {
     'Guerrero': ['poción de salud', 'poción mayor de salud', 'antídoto', 'espada de hierro', 'espada de acero', 'escudo de madera', 'cuero endurecido', 'cota de cuero', 'cota de malla', 'peto de huesos', 'cuerda', 'bolsa de lona', 'antorcha'],
     'Mago':     ['poción de salud', 'poción mayor de salud', 'antídoto', 'poción de maná', 'poción de maná mayor', 'vara de energía', 'pergamino de hechizo', 'túnica encantada', 'cuerda', 'bolsa de lona', 'cristal helado'],
     'Clérigo':  ['poción de salud', 'poción mayor de salud', 'antídoto', 'poción de maná', 'símbolo sagrado', 'poción de bendición', 'cuero endurecido', 'cota de cuero', 'cota de malla', 'cuerda', 'bolsa de lona'],
-    'Pícaro':   ['poción de salud', 'poción mayor de salud', 'antídoto', 'daga envenenada', 'veneno de contacto', 'guantes de cuero fino', 'cuero endurecido', 'cota de cuero', 'cuerda', 'bolsa de lona', 'antorcha'],
+    'Pícaro':   ['poción de salud', 'poción mayor de salud', 'antídoto', 'daga básica', 'daga envenenada', 'veneno de contacto', 'guantes de cuero fino', 'cuero endurecido', 'cota de cuero', 'cuerda', 'bolsa de lona', 'antorcha'],
   };
   const basicItemNames = clsForFilter && CLASS_BASIC_ITEMS[clsForFilter.name]
     ? new Set(CLASS_BASIC_ITEMS[clsForFilter.name])
@@ -18379,7 +18380,7 @@ function cmdClase(player, args) {
     lines.push(``, `💡 Como Pícaro tus golpes críticos son del 25% y esquivas el 20% de ataques.`);
     if (isFirstClass) {
       lines.push(`🎒 Bolsa de lona de pícaro: ya viene conectada a tu mochila (+4 slots, cap. 24).`);
-      lines.push(`   Tus 65g de inicio son para equiparte — Aldric recomienda la daga envenenada (45g).`);
+      lines.push(`   Tus 65g de inicio son para equiparte — Aldric recomienda la daga básica (12g) para empezar, o la daga envenenada (45g) si querés ir directo al veneno.`);
     }
   } else if (className === 'mago') {
     lines.push(``, `💡 Como Mago tus hechizos hacen 1.5× de daño y la recarga de maná es 6× más rápida.`);

@@ -36,6 +36,7 @@ const ITEM_CATALOG = {
   // ── Armas (dungeon base) ──────────────────────────────────────────────────
   'espada oxidada':      { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'Una espada vieja con filo irregular. +3 de ataque.' },
   'cuchillo oxidado':    { type: 'weapon', effect: 'attack_bonus', amount: 1,  description: 'Un cuchillo pequeño y oxidado. +1 de ataque.' },
+  'daga básica':         { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'Una daga corta de hoja doble, bien equilibrada y discreta. Herramienta preferida de los Pícaros en sus primeros golpes. +3 de ataque. La llevan a veces los Gnolls Merodeadores.' },  // DIS-1811: arma temática de Pícaro en fase temprana
   'espada de hierro':    { type: 'weapon', effect: 'attack_bonus', amount: 8,  description: 'Una espada de hierro forjado, sólida y confiable. +8 de ataque.' },
   'espada de acero':     { type: 'weapon', effect: 'attack_bonus', amount: 10, description: 'Una espada de acero templado, más pesada y letal que la de hierro. La mejor que Aldric consigue para aventureros de élite. +10 de ataque.' },  // DIS-855: gap de equipamiento nivel 6-8
   'daga envenenada':     { type: 'weapon', effect: 'attack_bonus', amount: 4,  on_hit: { type: 'poison', chance: 0.35, damage: 1, turns: 3 }, description: 'Una daga con el filo impregnado de veneno. +4 de ataque. 35% de envenenar al golpear (1 dmg/turno por 3 turnos).' },
