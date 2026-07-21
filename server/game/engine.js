@@ -299,16 +299,18 @@ function calcLevelUp(freshPlayer, xpGain) {
       const rawLegacy = freshPlayer.legacy_bonus;
       if (rawLegacy && rawLegacy !== '{}') {
         const legacyBonus = typeof rawLegacy === 'string' ? JSON.parse(rawLegacy) : rawLegacy;
-        if (legacyBonus && legacyBonus.effects && legacyBonus.effects.levelup1_bonus === true) {
+        const vet1Bonus = legacyBonus && legacyBonus.effects && legacyBonus.effects.levelup1_bonus;
+        if (vet1Bonus === true || (typeof vet1Bonus === 'number' && vet1Bonus > 0)) {
+          const bonusCount = typeof vet1Bonus === 'number' ? vet1Bonus : 1;
           // Marcar bonus pendiente en status_effects
           const seVet = fields.status_effects
             ? (typeof fields.status_effects === 'string' ? JSON.parse(fields.status_effects) : fields.status_effects)
             : (freshPlayer.status_effects
               ? (typeof freshPlayer.status_effects === 'string' ? JSON.parse(freshPlayer.status_effects) : freshPlayer.status_effects)
               : {});
-          seVet.pending_levelup1_bonus = true;
+          seVet.pending_levelup1_bonus = bonusCount;
           fields.status_effects = JSON.stringify(seVet);
-          veteranoMsg = '\n\n🌙 **Legado Veterano Silencioso** — Tu mentor dejó algo en vos. Elegí tu bonus extra:\n   `bonus atk` — +1 Ataque\n   `bonus def` — +1 Defensa\n   `bonus hp`  — +5 HP máximo';
+          veteranoMsg = `\n\n🌙 **Legado Veterano Silencioso** — Tu mentor dejó algo en vos. Elegí tu bonus extra (${bonusCount} punto${bonusCount !== 1 ? 's' : ''}):\n   \`bonus atk\` — +${bonusCount} Ataque\n   \`bonus def\` — +${bonusCount} Defensa\n   \`bonus hp\`  — +${bonusCount * 5} HP máximo`;
         }
       }
     } catch (_) { /* no interrumpir level-up */ }
@@ -14713,6 +14715,10 @@ function applyLegacyBonus(player, legacyBonus) {
     if (effects.attack) updates.attack = (player.attack || 3) + effects.attack;
     if (effects.gold) updates.gold = (player.gold || 0) + effects.gold;
     if (effects.reputation) updates.reputation = effects.reputation;
+    if (effects.max_hp) {
+      updates.max_hp = (player.max_hp || 30) + effects.max_hp;
+      updates.hp = Math.min(updates.max_hp, (player.hp || 30) + effects.max_hp);
+    }
 
     // Legado 'arcano': bonus por clase
     if (effects.class_stat_bonus) {
@@ -27683,8 +27689,8 @@ const LEGACY_POOL = [
     effects: { skill_discount: 1 } },
   { id: 'vinculo_animal', emoji: '🐾', nombre: 'Vínculo Animal',
     desc: 'Las criaturas del dungeon recuerdan el olor de [nombre].',
-    efecto: 'Las mascotas se adoptan gratis. Tu primera mascota empieza en Lv2.',
-    effects: { pet_discount: 1.0, pet_start_level: 2 } },
+    efecto: 'Las mascotas se adoptan gratis y empiezan en Lv2. +5 HP máximo de inicio.',
+    effects: { pet_discount: 1.0, pet_start_level: 2, max_hp: 5 } },
   { id: 'sabio', emoji: '📜', nombre: 'Sabio',
     desc: '[nombre] dejó sus notas de alquimia para quien viniera después.',
     efecto: 'El próximo personaje conoce 3 recetas de crafteo desde el inicio.',
@@ -27703,20 +27709,20 @@ const LEGACY_POOL = [
     effects: { boss_damage_bonus: 0.05 } },
   { id: 'reputado', emoji: '🏆', nombre: 'Reputado',
     desc: 'El nombre de [nombre] abrió puertas que siguen abiertas.',
-    efecto: 'El próximo personaje empieza con 15 puntos de reputación.',
-    effects: { reputation: 15 } },
+    efecto: 'El próximo personaje empieza con 25 puntos de reputación.',
+    effects: { reputation: 25 } },
   { id: 'guardian', emoji: '🕯️', nombre: 'Guardián',
     desc: 'El descanso de [nombre] prepara el camino para el siguiente.',
-    efecto: 'Podés usar `rest` sin cooldown durante los primeros 5 minutos de juego.',
-    effects: { rest_free_until_tutorial: true } },
+    efecto: 'El dungeon te deja entrar con más fortaleza. +8 HP máximo de inicio.',
+    effects: { max_hp: 8 } },
   { id: 'alquimista', emoji: '🧪', nombre: 'Alquimista',
     desc: '[nombre] dejó guardadas provisiones en algún lugar del dungeon.',
     efecto: 'El próximo personaje hereda 2 pociones de vida y 1 antídoto.',
     effects: { grant_items: ['pocion de salud', 'pocion de salud', 'antidoto'] } },
   { id: 'veterano_silencioso', emoji: '🌙', nombre: 'Veterano Silencioso',
     desc: '[nombre] deja atrás algo invisible pero real.',
-    efecto: '+1 stat extra al primer level up (elegís vos: ATK, DEF o HP).',
-    effects: { levelup1_bonus: true } },
+    efecto: '+2 stats extra al primer level up (elegís vos: ATK, DEF o HP).',
+    effects: { levelup1_bonus: 2 } },
 ];
 
 /**
@@ -28170,22 +28176,27 @@ function cmdVeteranoBonusElegir(player, args) {
 
   const choice = (args && args[0] || '').toLowerCase().trim();
   if (!['atk', 'def', 'hp'].includes(choice)) {
-    return { text: '🌙 **Legado Veterano Silencioso** — Elegí tu bonus extra:\n   `bonus atk` — +1 Ataque\n   `bonus def` — +1 Defensa\n   `bonus hp`  — +5 HP máximo' };
+    const bonusCount = typeof se.pending_levelup1_bonus === 'number' ? se.pending_levelup1_bonus : 1;
+    return { text: `🌙 **Legado Veterano Silencioso** — Elegí tu bonus extra (${bonusCount} punto${bonusCount !== 1 ? 's' : ''}):\n   \`bonus atk\` — +${bonusCount} Ataque\n   \`bonus def\` — +${bonusCount} Defensa\n   \`bonus hp\`  — +${bonusCount * 5} HP máximo` };
   }
 
   const updates = {};
   let bonusDesc = '';
 
   if (choice === 'atk') {
-    updates.attack = (fresh.attack || 3) + 1;
-    bonusDesc = '+1 Ataque (ATK)';
+    const bonusN = typeof se.pending_levelup1_bonus === 'number' ? se.pending_levelup1_bonus : 1;
+    updates.attack = (fresh.attack || 3) + bonusN;
+    bonusDesc = `+${bonusN} Ataque (ATK)`;
   } else if (choice === 'def') {
-    updates.defense = (fresh.defense || 0) + 1;
-    bonusDesc = '+1 Defensa (DEF)';
+    const bonusN = typeof se.pending_levelup1_bonus === 'number' ? se.pending_levelup1_bonus : 1;
+    updates.defense = (fresh.defense || 0) + bonusN;
+    bonusDesc = `+${bonusN} Defensa (DEF)`;
   } else if (choice === 'hp') {
-    updates.max_hp = (fresh.max_hp || 30) + 5;
-    updates.hp = Math.min(updates.max_hp, (fresh.hp || 1) + 5);
-    bonusDesc = '+5 HP máximo';
+    const bonusN = typeof se.pending_levelup1_bonus === 'number' ? se.pending_levelup1_bonus : 1;
+    const hpGain = bonusN * 5;
+    updates.max_hp = (fresh.max_hp || 30) + hpGain;
+    updates.hp = Math.min(updates.max_hp, (fresh.hp || 1) + hpGain);
+    bonusDesc = `+${hpGain} HP máximo`;
   }
 
   // Limpiar el pending bonus
