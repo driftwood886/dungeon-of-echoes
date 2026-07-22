@@ -15721,7 +15721,7 @@ function cmdChapelBowl(player) {
   // el jugador tiene datos de status desactualizados (ej: post-levelup).
   if (restored < Math.ceil(healAmount * 0.25)) {
     return {
-      text: `🙏 Te inclinás sobre el cuenco, pero el agua apenas pulsa.\\nTenés solo ${player.max_hp - player.hp} HP de daño — el cuenco curaría +${restored} HP (necesita al menos ${Math.ceil(healAmount * 0.25)} HP de daño para activarse).\\nTu HP actual: ${player.hp}/${player.max_hp}.\\nNo lo desperdicies con tan poca herida.\\n💡 Volvé cuando estés más herido. El cooldown no se consumió.`,
+      text: `🙏 Te inclinás sobre el cuenco, pero el agua apenas pulsa.\nTenés solo ${player.max_hp - player.hp} HP de daño — el cuenco curaría +${restored} HP (necesita al menos ${Math.ceil(healAmount * 0.25)} HP de daño para activarse).\nTu HP actual: ${player.hp}/${player.max_hp}.\nNo lo desperdicies con tan poca herida.\n💡 Volvé cuando estés más herido. El cooldown no se consumió.`,
     };
   }
 
