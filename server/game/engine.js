@@ -19417,6 +19417,26 @@ function cmdUseSkill(player, args, context) {
       skills.applyCooldown(freshPlayer, 'smash'); // consumir cooldown igual
       return _cmdTrainingFight(freshPlayer, target);
     }
+    // BUG-1836: Aplicar lich_drain antes del ataque con smash (igual que en combat.js línea 586-606)
+    let smashLichDrainPrefix = '';
+    try {
+      const freshForLichDrainSmash = db.getPlayer(freshPlayer.id);
+      const lichDrainFxSmash = freshForLichDrainSmash && freshForLichDrainSmash.status_effects
+        ? (typeof freshForLichDrainSmash.status_effects === 'string' ? JSON.parse(freshForLichDrainSmash.status_effects) : freshForLichDrainSmash.status_effects)
+        : {};
+      if (lichDrainFxSmash.lich_drain) {
+        const drainDmgSmash = lichDrainFxSmash.lich_drain.damage || 5;
+        const newHpAfterDrainSmash = Math.max(0, (freshForLichDrainSmash.hp || 0) - drainDmgSmash);
+        db.updatePlayer(freshPlayer.id, { hp: newHpAfterDrainSmash });
+        freshPlayer.hp = newHpAfterDrainSmash;
+        smashLichDrainPrefix = `💜 El aura oscura del Lich drena tu fuerza vital (-${drainDmgSmash} HP). (${newHpAfterDrainSmash}/${freshPlayer.max_hp} HP)\n`;
+        if (newHpAfterDrainSmash <= 0) {
+          db.addJournalEntry(freshPlayer.id, 'death', `💀 Muerto por el drenaje de vida del Lich Anciano.`);
+          handlePlayerDeath(freshPlayer.id, [], 'drenaje del Lich');
+          return { text: `${smashLichDrainPrefix}💀 ¡El drenaje del Lich acabó contigo! Respawneás en la entrada del dungeon con 25% HP...` };
+        }
+      }
+    } catch (_) { /* no romper skill si falla */ }
     const smashAtkFx = freshPlayer.status_effects
       ? (typeof freshPlayer.status_effects === 'string' ? JSON.parse(freshPlayer.status_effects) : freshPlayer.status_effects)
       : {};
@@ -19452,7 +19472,7 @@ function cmdUseSkill(player, args, context) {
     const dead = newHp <= 0;
     const smashResistNote = smashPhysResist < 1.0 ? ` ${smashResistLabel}` : '';
     const smashOverkillNote = smashIsOverkill ? ` *(excesivo, pero eficaz)*` : '';
-    let text = `⚡ ¡GOLPETAZO! Golpeás al ${target.name} con toda tu fuerza causando ${finalDmg} de daño (×1.8)!${smashResistNote}${smashOverkillNote}`;
+    let text = `${smashLichDrainPrefix}⚡ ¡GOLPETAZO! Golpeás al ${target.name} con toda tu fuerza causando ${finalDmg} de daño (×1.8)!${smashResistNote}${smashOverkillNote}`;
     if (dead) {
       text += `\n💀 El ${target.name} sucumbe ante tu brutal ataque.`;
       // Loot via dropLoot (igual que cmdAttack) — incluye loot bonus de boss
@@ -19800,6 +19820,26 @@ function cmdUseSkill(player, args, context) {
       skills.applyCooldown(freshPlayer, 'shield_bash');
       return _cmdTrainingFight(freshPlayer, target);
     }
+    // BUG-1836: Aplicar lich_drain antes del ataque con shield_bash (igual que en combat.js línea 586-606)
+    let bashLichDrainPrefix = '';
+    try {
+      const freshForLichDrainBash = db.getPlayer(freshPlayer.id);
+      const lichDrainFxBash = freshForLichDrainBash && freshForLichDrainBash.status_effects
+        ? (typeof freshForLichDrainBash.status_effects === 'string' ? JSON.parse(freshForLichDrainBash.status_effects) : freshForLichDrainBash.status_effects)
+        : {};
+      if (lichDrainFxBash.lich_drain) {
+        const drainDmgBash = lichDrainFxBash.lich_drain.damage || 5;
+        const newHpAfterDrainBash = Math.max(0, (freshForLichDrainBash.hp || 0) - drainDmgBash);
+        db.updatePlayer(freshPlayer.id, { hp: newHpAfterDrainBash });
+        freshPlayer.hp = newHpAfterDrainBash;
+        bashLichDrainPrefix = `💜 El aura oscura del Lich drena tu fuerza vital (-${drainDmgBash} HP). (${newHpAfterDrainBash}/${freshPlayer.max_hp} HP)\n`;
+        if (newHpAfterDrainBash <= 0) {
+          db.addJournalEntry(freshPlayer.id, 'death', `💀 Muerto por el drenaje de vida del Lich Anciano.`);
+          handlePlayerDeath(freshPlayer.id, [], 'drenaje del Lich');
+          return { text: `${bashLichDrainPrefix}💀 ¡El drenaje del Lich acabó contigo! Respawneás en la entrada del dungeon con 25% HP...` };
+        }
+      }
+    } catch (_) { /* no romper skill si falla */ }
     const BASH_PHYS_RESISTANT = ['gólem de piedra', 'elemental de hielo'];
     const BASH_FIRE_RESISTANT = ['golem de forja'];
     const bashMonNameLow = target.name.toLowerCase().replace('⭐ ', '');
@@ -19826,7 +19866,7 @@ function cmdUseSkill(player, args, context) {
 
     const dead = newHp <= 0;
     const bashResistNote = bashPhysResist < 1.0 ? ` ${bashResistLabel}` : '';
-    let text = `🛡️ ¡GOLPE DE ESCUDO! Golpeás al ${target.name} con tu escudo (${finalDmg} dmg) aturdiéndolo!${bashResistNote}`;
+    let text = `${bashLichDrainPrefix}🛡️ ¡GOLPE DE ESCUDO! Golpeás al ${target.name} con tu escudo (${finalDmg} dmg) aturdiéndolo!${bashResistNote}`;
     if (dead) {
       text += `\n💀 El impacto fue tan brutal que el ${target.name} cae fulminado.`;
       // Loot via dropLoot (igual que cmdAttack) — incluye loot bonus de boss
