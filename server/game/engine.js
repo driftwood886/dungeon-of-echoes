@@ -9542,9 +9542,15 @@ function cmdWear(player, itemQuery) {
   const swapMsg = oldArmor ? ` (reemplaza ${oldArmor} → vuelve a tu mochila)` : '';
 
   // BUG-680: mostrar el cambio neto con contexto claro cuando hay swap de armadura
+  // DIS-1857: cuando el neto es +0 (misma DEF que la armadura anterior), mostrar mensaje
+  //           simplificado — evitar "Defensa: 6 → 6 (...= neto +0)" que parece un bug
   let defMsg;
   if (oldArmor && oldArmorAmount > 0) {
-    defMsg = `Defensa: ${oldDefense} → ${newDefense} (+${def.amount} del ${found}, −${oldArmorAmount} al desequipar ${oldArmor} = neto ${changeStr})`;
+    if (change === 0) {
+      defMsg = `Defensa: ${newDefense} (sin cambio neto — el ${found} tiene la misma DEF que ${oldArmor}, pero es superior en otras propiedades)`;
+    } else {
+      defMsg = `Defensa: ${oldDefense} → ${newDefense} (+${def.amount} del ${found}, −${oldArmorAmount} al desequipar ${oldArmor} = neto ${changeStr})`;
+    }
   } else {
     defMsg = `Defensa: ${oldDefense} → ${newDefense} (+${def.amount} del ${found})`;
   }
