@@ -6853,6 +6853,17 @@ function cmdPick(player, itemQuery) {
   const currentInvCount = (player.inventory || []).length + equippedCount;
   const maxInvSingle = INV_BASE_SLOTS + (player.inventory_bonus || 0); // DIS-1480 // DIS-595: bolsas de lona
   if (!goldKey && currentInvCount >= maxInvSingle) {
+    // DIS-1853: si el ítem que intentás recoger es una bolsa de lona y ya tenés el máximo, mensaje específico
+    const foundItemDef = items.getItemDef(found);
+    if (foundItemDef && foundItemDef.type === 'bag') {
+      const currentBonus = player.inventory_bonus || 0;
+      const MAX_BAG_BONUS = 8;
+      if (currentBonus >= MAX_BAG_BONUS) {
+        return {
+          text: `🎒 Ya ampliaste tu mochila al máximo (2 bolsas de lona, +8 slots en total). Esta segunda bolsa de lona no te sirve de nada.\n💡 Podés venderla a Aldric (sala 4) por unos pocos oros o subastársela a otro aventurero.`,
+        };
+      }
+    }
     // DIS-1535: contextualizar el mensaje según nivel del jugador
     const playerLevelForInv = player.level || 1;
     const invHintVault = playerLevelForInv <= 4
@@ -7907,9 +7918,31 @@ function cmdExamine(player, query) {
       }
     }
     // EPIC-1823-F4: examine placas → mostrar placas dinámicas generadas desde la BD
+    // BUG-1852: combinar inscripciones estáticas + dinámicas para evitar "placas vacías"
+    //           cuando no hay muertes Hardcore registradas (las inscripciones ficticias siempre existen)
     if (qLow.includes('placa') || qLow === 'placas') {
-      const cryptText = memory.getCryptPlaquesText();
-      return { text: cryptText };
+      const STATIC_INSCRIPTIONS_22 = [
+        { author: 'Gretha la Tenaz — placa norte, tercera hilera', date: 'grabado con cincel de maestro', msg: 'Llegó donde otros no se atrevieron. Murió como vivió: de frente.' },
+        { author: 'Torvin — placa norte, primera hilera', date: 'letra grande, segura', msg: 'No supo cuándo parar. Eso es lo mejor y lo peor que puedo decir de mí.' },
+        { author: 'Sin nombre — placa deteriorada, esquina inferior', date: 'casi ilegible por la humedad', msg: 'Llegué hasta la sala del trono. Vi el nombre grabado. Entendí demasiado tarde.' },
+        { author: 'Placa en blanco — borde inferior, polvo fresco de cincel', date: 'reciente', msg: '(El nombre todavía no fue grabado. El espacio está reservado.)' },
+      ];
+      const staticLines = [
+        '📜 *Las paredes de la Cripta de los Valientes están cubiertas de inscripciones:*\n',
+        ...STATIC_INSCRIPTIONS_22.map(p => `  📖 ${p.author} [${p.date}]: ${p.msg}`),
+      ];
+      // Agregar placas dinámicas de muertes Hardcore si existen
+      const dynamicPlaques = (() => {
+        try {
+          const db2 = require('./db/db');
+          const plaques = db2.getCryptPlaques ? db2.getCryptPlaques().slice(0, 4) : [];
+          if (!plaques.length) return '';
+          return '\n\n⚔️ *Placas recientes — aventureros caídos:*\n' +
+            plaques.map(p => `  ⚔️  ${p.plaque_text}`).join('\n');
+        } catch (_) { return ''; }
+      })();
+      staticLines.push('\n*El dungeon recuerda a quienes pasaron por aquí.*' + dynamicPlaques);
+      return { text: staticLines.join('\n') };
     }
     for (const [key, txt] of Object.entries(CRIPTA_LORE)) {
       if (qLow.includes(key) || key.includes(qLow)) {
