@@ -10587,14 +10587,24 @@ function cmdDisarm(player, args) {
     const newTrap = { ...trapAdj, active: false, respawn_at: respawnAt };
     db.updateRoomTrap(adjRoom.id, newTrap);
 
-    // DIS-1767: si es la Sala del Trono (sala 9), aclarar que el frío ambiental persiste
+    // DIS-1858: nota ambiental específica por sala desactivada
     const isThroneTrap = adjRoom.id === 9;
     const throneAmbientNote = isThroneTrap
       ? '\n❄️  Nota: el frío sobrenatural de la sala es un efecto ambiental permanente — persiste aunque la trampa esté desactivada. Al entrar seguirás sintiendo el frío (-1 ATK mientras estés en la sala).'
       : '';
 
+    // DIS-1859: mensajes narrativos de éxito al desactivar trampa, por sala/ítem
+    const TRAP_DISARM_NARRATIVE = {
+      6:  '🍄 El hongo reacciona al mecanismo de esporas al instante. Una vibración suave recorre el umbral — como cuando una tensión que no sabías que existía desaparece. Un clic orgánico. El olor acre de las esporas se disipa.\n✅ La trampa del Túnel de los Hongos está desactivada. Ya no recibirás daño al cruzar.',
+      9:  '👑 Depositás la corona rota en el mecanismo del umbral. El metal encaja con una precisión que no esperabas — como si siempre hubiera pertenecido ahí. El frío agudo que emanaba del umbral se suaviza.\n✅ La trampa de la Sala del Trono está desactivada. (El frío ambiental persiste — es la sala, no la trampa.)',
+      3:  '🪢 Enroscás la cuerda en los pernos del mecanismo. El sistema de péndulo queda trabado. Un crujido metálico, y silencio.\n✅ La trampa del Pozo Sin Fondo está desactivada.',
+      13: '🎣 La red de pesca embebe los conductos de drenaje. El ruido amenazante del agua se corta de golpe — nada puede fluir ahora.\n✅ La trampa de inundación de la Caverna Sumergida está desactivada.',
+    };
+    const disarmNarrative = TRAP_DISARM_NARRATIVE[adjRoom.id]
+      || `🔧 Desde el umbral, usás la ${trapAdj.item_needed} para neutralizar el mecanismo antes de entrar.\n✅ La trampa de entrada en ${adjRoom.name} está desactivada. Ya no recibirás daño al cruzar.`;
+
     return {
-      text: `${targetHeader}🔧 Desde el umbral, usás la ${trapAdj.item_needed} para neutralizar el mecanismo antes de entrar.\n✅ La trampa de entrada en ${adjRoom.name} está desactivada. Ya no recibirás daño al cruzar.${throneAmbientNote}\n🧠 Ahora conocés este mecanismo — si la trampa se reactiva, la esquivarás sin problema.`,
+      text: `${targetHeader}${disarmNarrative}${throneAmbientNote}\n🧠 Ahora conocés este mecanismo — si la trampa se reactiva, la esquivarás sin problema.`,
       event: `${player.username} desactiva una trampa desde el umbral.`,
       eventRoomId: player.current_room_id,
     };
