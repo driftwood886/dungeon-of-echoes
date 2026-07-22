@@ -121,7 +121,7 @@ const ITEM_CATALOG = {
 
   // ── Armas artesanales avanzadas — Dungeon Extendido (T132) ──────────────────
   'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 12, spectral_bonus: 3, description: 'Versión potenciada de la lanza espectral, forjada con los ecos de los caídos en las profundidades. El arma más poderosa del mid-game. Requiere: cristal resonante (drop del Campeón Espectral) + esencia de eco (drop del Eco Viviente). +12 de ataque; +3 ATK adicional contra espectrales y criaturas mágicas.' },
-  'daga del vacío':      { type: 'weapon', effect: 'attack_bonus', amount: 12, description: 'Una daga que parece absorber la realidad. +12 de ataque. El arma más poderosa de las profundidades.' },
+  'daga del vacío':      { type: 'weapon', effect: 'attack_bonus', amount: 15, on_hit: { type: 'void_drain', chance: 0.30, drain: 3 }, description: 'Una daga que absorbe la realidad. +15 de ataque. 30% de chance de drenar 3 HP al golpear (vida robada). El arma más poderosa de las profundidades.' },  // BUG-1849: subida de +12 a +15 ATK + efecto on_hit void_drain (antes igual a espada de obsidiana)
   'amuleto del eco':     { type: 'misc', description: 'Un amuleto que pulsa con ecos de memorias antiguas. Protección de la Cámara del Eco. 🔊✨ Efecto pasivo: mientras lo llevés en el inventario en la Cámara del Eco (sala 19), cancela los Ecos Enloquecedores (-1 ATK). No necesitás equiparlo — solo tenerlo.' },
 
   // ── Ítems artesanales (resultado de crafteo — T092) ───────────────────────

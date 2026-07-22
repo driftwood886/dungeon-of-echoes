@@ -363,6 +363,9 @@ function execute(playerId, input, context) {
   // DIS-D326: Regeneración pasiva de HP (1 HP/minuto fuera de combate)
   // Se aplica silenciosamente en cada comando — sin mensaje al jugador.
   regenHp(db.getPlayer(playerId));
+  // BUG-1850: Regeneración pasiva de maná en cada comando (igual que regenHp).
+  // Antes solo se llamaba en cast/hechizos — el Paladín nunca recuperaba maná.
+  regenMana(db.getPlayer(playerId));
 
   const action = parse(input);
 
@@ -4280,14 +4283,16 @@ function cmdStatus(player) {
       const maxMana = player.max_mana || 0;
       const cls693 = classes.getPlayerClass(player);
       const isMagicClass = cls693 && (cls693.name === 'Mago' || cls693.name === 'Clérigo');
+      // BUG-1850: el Paladín también usa maná (consagrar_sala) — tratarlo como clase con maná
+      const isPaladin = cls693 && cls693.name === 'Guerrero' && player.specialization === 'paladin';
       // DIS-871: para clases no-mágicas con maná base (20), mostrar con nota explicativa
-      const isNonMagicWithMana = !isMagicClass && maxMana >= 20;
-      if (maxMana > 20 || isMagicClass) {
+      const isNonMagicWithMana = !isMagicClass && !isPaladin && maxMana >= 20;
+      if (maxMana > 20 || isMagicClass || isPaladin) {
         const mana = player.mana || 0;
         const manaBar = buildBar(mana, maxMana || 1, 20);
         // BUG-717: usar getManaRegenRate() centralizado (cubre Mago Y Clérigo a 6/min)
         const regenRate693 = getManaRegenRate(player, cls693);
-        const regenNote = isMagicClass ? ` (+${regenRate693}/min)` : '';
+        const regenNote = (isMagicClass || isPaladin) ? ` (+${regenRate693}/min)` : '';
         // DIS-829: indicador de escarcha de emergencia para Magos con ≤20% maná
         const isMagoStatus = cls693 && cls693.name === 'Mago';
         const lowManaThresh = Math.floor((maxMana || 1) * 0.20);
@@ -16624,6 +16629,10 @@ function getManaRegenRate(player, clsData) {
   // A 10/min recarga completo en ~3.5 min, sostenible en sesión de 10-15 min.
   if (c && c.name === 'Mago') rate = 10;
   else if (c && c.name === 'Clérigo') rate = 6;
+  // BUG-1850: Paladín tiene habilidades de maná (consagrar_sala = 12 maná).
+  // Con 1/min tardaba 12 minutos en recargar — imposible en práctica.
+  // A 4/min recarga los 20 maná en 5 min, viable en sesión de 10-15 min.
+  else if (c && c.name === 'Guerrero' && player.specialization === 'paladin') rate = 4;
   // DIS-576: la vara de energía equipada da +2 maná/min de regen extra al Mago
   if (c && c.name === 'Mago' && player.equipped_weapon === 'vara de energía') {
     rate += 2; // 10 → 12 maná/min con vara equipada

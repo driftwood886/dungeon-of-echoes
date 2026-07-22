@@ -1343,6 +1343,49 @@ function attackRound(player, monster) {
               db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterFxW) });
               lines.push(`👻 ¡La Alabarda Espectral aplica DEBILIDAD ESPECTRAL al ${monster.name}! (-${onHit.amount} DEF por ${onHit.turns} rondas)`);
             }
+          } else if (onHit.type === 'void_drain') {
+            // BUG-1849: Daga del vacío — drena vida del monstruo al jugador
+            const drainAmt = onHit.drain || 3;
+            monster.hp = Math.max(0, monster.hp - drainAmt);
+            db.updateMonster(monster.id, { hp: monster.hp });
+            const freshPlayerVd = db.getPlayer(player.id);
+            const newHpVd = Math.min(freshPlayerVd.max_hp || 30, (freshPlayerVd.hp || 1) + drainAmt);
+            db.updatePlayer(player.id, { hp: newHpVd });
+            player.hp = newHpVd;
+            lines.push(`🌀 ¡La daga del vacío absorbe ${drainAmt} HP de ${monster.name}! (+${drainAmt} HP para vos. ${newHpVd}/${freshPlayerVd.max_hp || 30} HP)`);
+            if (monster.hp <= 0) {
+              monsterDead = true;
+              const isBossForVoid = !!(BOSS_MONSTERS && BOSS_MONSTERS[monster.id]);
+              if (!(player.run_event === 'silencio_del_abismo' && !isBossForVoid)) {
+                lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} absorbido por el vacío!`);
+              }
+              const { droppedLoot, globalEvent, lootNote: lnVd } = dropLoot(monster, player.current_room_id, player);
+              loot = droppedLoot;
+              if (loot.length > 0) lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
+              if (lnVd) lines.push(lnVd);
+              else lines.push(`${articuloMonstruo(monster.name)} ${monster.name} no deja nada.`);
+              const xpBaseVd = Math.max(5, Math.floor(monster.max_hp * 2));
+              const activeEvVd = worldEvents.getCurrentEvent();
+              const xpGainVd = activeEvVd && activeEvVd.id === 'invasion' ? Math.floor(xpBaseVd * 1.5) : xpBaseVd;
+              const freshPlVd = db.getPlayer(player.id);
+              const newKillsVd = (freshPlVd.kills || 0) + 1;
+              const newXpVd    = (freshPlVd.xp    || 0) + xpGainVd;
+              const oldLevelVd = freshPlVd.level || 1;
+              const newLevelVd = xpSystem.levelFromXp(newXpVd);
+              const updatesVd  = { kills: newKillsVd, xp: newXpVd, level: newLevelVd };
+              if (newLevelVd > oldLevelVd) {
+                updatesVd.max_hp = (freshPlVd.max_hp || 30) + 5;
+                const healVd = Math.ceil(updatesVd.max_hp * 0.20);
+                updatesVd.hp = Math.min(updatesVd.max_hp, (freshPlVd.hp || 1) + healVd);
+                updatesVd.attack = (freshPlVd.attack || 5) + 1;
+                lines.push(`✨ ¡SUBISTE AL NIVEL ${newLevelVd}! +5 HP máx, +1 ATK, +${healVd} HP recuperado.`);
+                const skillMsgsVd = _getSkillUnlockMessages(newLevelVd, freshPlVd.player_class || 'sin_clase', freshPlVd.specialization || null);
+                for (const msg of skillMsgsVd) lines.push(msg);
+              }
+              lines.push(`⭐ +${xpGainVd} XP (kills: ${newKillsVd} | nivel: ${newLevelVd})${xpProgressSuffix(newXpVd, newLevelVd)}`);
+              db.updatePlayer(player.id, updatesVd);
+              return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
+            }
           } else if (onHit.type === 'shadow_bolt') {
             // Rayo de sombra: daño extra inmediato
             const shadowDmg = onHit.bonus_damage || 8;
