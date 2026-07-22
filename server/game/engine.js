@@ -4476,6 +4476,20 @@ function cmdStatus(player) {
       const label = RUN_EVENT_LABELS[player.run_event] || `🌐 ${player.run_event}`;
       return `Run:      ${label}`;
     })(),
+    // DIS-1840: mostrar evento global activo con timer en status
+    // Antes, la Fiebre del Oro solo se veía al moverse a una sala nueva.
+    // Ahora aparece en `status` con el tiempo restante para que el jugador pueda planificar.
+    (() => {
+      try {
+        const evInfo1840 = eventScheduler.getActiveEventInfo();
+        if (!evInfo1840 || !evInfo1840.event) return null;
+        const ev1840 = evInfo1840.event;
+        const minLeft1840 = evInfo1840.minutesRemaining;
+        const secLeft1840 = evInfo1840.secondsRemaining;
+        const timerStr1840 = minLeft1840 > 0 ? `${minLeft1840}m ${secLeft1840}s` : `${secLeft1840}s`;
+        return `Evento:   ${ev1840.name} — activo (~${timerStr1840} restantes)`;
+      } catch (_) { return null; }
+    })(),
   ].filter(l => l !== null).join('\n');
 
   // Agregar íconos de logros al final
