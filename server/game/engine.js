@@ -1305,6 +1305,7 @@ function cmdLook(player, options = {}) {
     20: { name: 'la Sombra del Vacío', level: 8, icon: '🌑', roomName: 'Abismo Eterno',             monsterId: 22 }, // DIS-606 / DIS-1390: nivel recomendado 7→8
     12: { name: 'el Golem de Forja',   level: 5, icon: '🔥', roomName: 'Taller de la Forja',        monsterId: 10 }, // DIS-631
     19: { name: 'el Eco Viviente',     level: 6, icon: '🔊', roomName: 'Cámara del Eco',            monsterId: 21 }, // DIS-637: boss que bloquea flee — agregar advertencia previa
+    11: { name: 'el Elemental de Hielo', level: 7, icon: '❄️', roomName: 'Galería de Hielo',       monsterId: 9,  armorTip: 'Resistente al físico — fuego hace daño extra.' }, // DIS-1858: aviso previo antes de entrar
   };
   let adjacentDangerLine = '';
   try {
@@ -2600,6 +2601,7 @@ function cmdMove(player, direction) {
   const BOSS_ROOM_DANGER_PREMOVE = {
     8:  { name: 'el Guardia Espectral', level: 4, icon: '👻', roomName: 'Prisión Subterránea' },
     10: { name: 'el Gólem de Piedra',   level: 5, icon: '🪨', roomName: 'Santuario Profano'   },
+    11: { name: 'el Elemental de Hielo', level: 7, icon: '❄️', roomName: 'Galería de Hielo'  }, // DIS-1858
     12: { name: 'el Golem de Forja',    level: 5, icon: '🔥', roomName: 'Taller de la Forja'  },
     19: { name: 'el Eco Viviente',      level: 6, icon: '🔊', roomName: 'Cámara del Eco'      },
     20: { name: 'la Sombra del Vacío',  level: 8, icon: '🌑', roomName: 'Abismo Eterno'       },
@@ -3104,7 +3106,7 @@ function cmdMove(player, direction) {
     2:  '💰 En el Corredor de las Sombras, notás un olor tenue que venía de algún lugar al norte: cuero curtido, cera y monedas. Alguien hace negocios por estas catacumbas. Seguí al norte hasta la Sala de los Ecos y luego al este — hay un Mercader. Aldric, dicen que se llama.',
     9:  '👑 Al cruzar el umbral de la Sala del Trono, la temperatura cae varios grados. El trono de huesos al fondo te mira sin ojos. Tenés la certeza, irracional pero absoluta, de que ese trono no siempre estuvo vacío. Y de que quien lo usaba sabe que estás aquí.\n\n💡 Notás una puerta al este, más pesada que las anteriores. Parece llevar a zonas más profundas del dungeon. Aquí empieza lo desconocido.',
     10: '🩸 El Santuario Profano te recibe en un silencio que no es ausencia de sonido sino presencia de algo más. La estatua con diez brazos no te mira — te cataloga. Las runas en el suelo forman un nombre que creés poder leer aunque nunca hayas visto ese idioma. El aire sabe a cera quemada y tiempo.',
-    11: '❄️ La Galería de Hielo detiene tu respiración. Las paredes de cristal azul reflejan tu imagen distorsionada en docenas de ángulos. En uno de los reflejos, tu imagen te devuelve la mirada... medio segundo antes que vos.',
+    11: '❄️ La Galería de Hielo detiene tu respiración. Las paredes de cristal azul reflejan tu imagen distorsionada en docenas de ángulos. En uno de los reflejos, tu imagen te devuelve la mirada... medio segundo antes que vos.\n\n⚠️ Nivel recomendado: 7+. El Elemental de Hielo que habita aquí tiene resistencia física — el fuego es tu mejor aliado contra él. DIS-1858',
     12: '🔥 Antes de ver la forja, la sentís. No es solo calor — es algo más persistente, más profundo. Como la respiración de algo que no debería seguir vivo. El fuego en el centro no proyecta sombras normales. Las sombras se mueven solas.\n\n⚠️ Nivel recomendado: 5+. El Golem de Forja que custodia este lugar es un constructo imparable — una vez activado, no cesa.',
     // DIS-1841: reescrita descripción de primera visita con más fuerza narrativa
     14: '🦴 Entrás al Coliseo de Huesos y el sonido se transforma.\n\nCada paso tuyo regresa amplificado desde las gradas — no como un eco limpio, sino como si el recinto lo tomara y lo redistribuyera deliberadamente hacia todos los asientos. Porque los asientos están ocupados. Centenares de esqueletos en posición de espectadores: algunos inclinados hacia adelante, mandíbulas abiertas. Vinieron a ver. Se quedaron para siempre.\n\nEn el centro de la arena yace el equipamiento de un aventurero anterior. Sus ítems siguen ahí, esparcidos. Nadie los recogió.\n\nEntendés de golpe para qué fue diseñado este lugar: no para que el gladiador ganara. Para que el público pudiera verlo intentarlo.\n\n⚠️ Nivel recomendado: 5+ con buen equipo (6+ recomendado). El Campeón Espectral tiene escudo espectral que reduce crits — no lo matarás solo con golpes afortunados. Necesitás daño sostenido.',
