@@ -1782,9 +1782,9 @@ function attackRound(player, monster) {
           updates.status_effects = JSON.stringify({ ...seSpec, spec_reminder_shown: true });
         } catch (_) { /* no interrumpir si falla */ }
       }
-      // DIS-1831: recordatorio de facciones al subir de nivel 5 o más sin haber elegido una
+      // DIS-1831/DIS-1855: recordatorio de facciones al subir de nivel 5 o más sin haber elegido una
       if (newLevel >= 5 && !freshPlayer.faction) {
-        lines.push(`\n⚔️ Tip: Con nivel ${newLevel} ya podés unirte a una facción — escribí \`facciones\` para ver las opciones y sus beneficios.`);
+        lines.push(`\n⚔️ Tip: Aún no te uniste a ninguna facción (disponibles desde nivel 3) — escribí \`facciones\` para ver las opciones y sus beneficios.`);
       }
     }
     lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})${impulsoXpMult > 1.0 ? ' ✨[+20% Impulso]' : ''}${xpProgressSuffix(newXp, newLevel)}`);

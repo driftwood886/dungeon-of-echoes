@@ -1041,12 +1041,12 @@ function getQuestsDisplay(player) {
 
   if (!player.faction) {
     const playerLv1786b = player.level || 1;
-    if (playerLv1786b >= 5) {
-      // DIS-1786: hint expandido para nivel 5+ sin facción
-      lines.push('\n💡 **Sin facción activa** — a tu nivel ya podés unirte para recibir misiones semanales extra.');
+    if (playerLv1786b >= 3) {
+      // DIS-1786/DIS-1855: hint para nivel 3+ sin facción (corregido: disponible desde nivel 3)
+      lines.push('\n💡 **Sin facción activa** — podés unirte desde nivel 3 para recibir misiones semanales extra.');
       lines.push('   `facciones` para ver opciones · `unirse orden_filo` / `unirse conclave_arcano` / `unirse hermandad_mercado`');
     } else {
-      lines.push('\n💡 Sin facción activa — uniéndote a una, recibirías quests especiales de tu gremio.');
+      lines.push('\n💡 Sin facción activa — uniéndote a una (disponible en nivel 3+), recibirías quests especiales de tu gremio.');
     }
   }
 
