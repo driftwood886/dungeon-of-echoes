@@ -278,6 +278,7 @@ async function main() {
         reputation: player.reputation || 0,  // DIS-1319: exponer reputación en /api/state
         run_event: player.run_event || null,  // IMPL-VV-1760: exponer evento del run en /api/state
         run_seed: player.run_seed || null,    // IMPL-VV-1760: exponer semilla del run
+        room_id: player.current_room_id || null,  // DIS-1865: exponer room_id en objeto player
       },
       other_players: others,
       recent_events: events,
@@ -647,6 +648,9 @@ async function main() {
           specialization: player.specialization || null,
           playtime_minutes: player.playtime_minutes || 0,
           reputation: player.reputation || 0,  // DIS-1319: exponer reputación en /api/action state
+          run_event: player.run_event || null,
+          run_seed: player.run_seed || null,
+          room_id: player.current_room_id || null,  // DIS-1865: exponer room_id en objeto player
         },
         other_players: others,
         recent_events: events,
