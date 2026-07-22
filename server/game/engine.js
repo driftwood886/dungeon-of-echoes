@@ -1386,6 +1386,29 @@ function cmdLook(player, options = {}) {
     }
   } catch (_) { /* no romper look si falla */ }
 
+  // DIS-1873: Evento narrativo mid-game — primera visita al Santuario Profano (sala 10)
+  // Al llegar por primera vez, la estatua del Santuario "reacciona" mencionando al jugador por nombre.
+  // Solo para jugadores nivel 3+, sin tutorial activo, y que no hayan visto este evento antes.
+  let santuarioFirstVisitLine = '';
+  try {
+    if (player.current_room_id === 10) {
+      const seFV = player.status_effects
+        ? (typeof player.status_effects === 'string' ? JSON.parse(player.status_effects) : player.status_effects)
+        : {};
+      const tutorialDone = !player.tutorial_step || player.tutorial_step === 0;
+      const levelOK = (player.level || 1) >= 3;
+      if (!seFV.santuario_first_visit && tutorialDone && levelOK) {
+        const nombre = player.username || 'Aventurero';
+        santuarioFirstVisitLine = `\n\n✨ Al cruzar el umbral del Santuario, algo cambia en el aire.\n   La gran estatua de piedra en el centro de la sala — cubierta de liquen, inexpresiva, milenaria —\n   parece mirarte directamente.\n   Por un instante, una voz sin origen, baja y sin reverberación, llena el silencio:\n\n   «${nombre}. Llegaste más lejos de lo que esperaban. El dungeon también lo sabe.»\n\n   El eco se disipa. La estatua no se mueve. Probablemente nunca lo hizo.`;
+        // Marcar como visto
+        const newSeFV = { ...seFV, santuario_first_visit: true };
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeFV) });
+        // Entrada en el diario
+        db.addJournalEntry(player.id, 'lore', `✨ En el Santuario Profano, una voz sin origen pronunció tu nombre. No era un eco.`);
+      }
+    }
+  } catch (_) { /* no romper look si falla el evento */ }
+
   // DIS-D384: estado del Lich Anciano en la Catedral de la Oscuridad (sala 15)
   let lichStatusLine = '';
   if (player.current_room_id === 15) {
@@ -1596,7 +1619,7 @@ function cmdLook(player, options = {}) {
     }
   } catch (_dis1826) { /* no romper look si falla el check de stats */ }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint };
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine };
 }
 
 /**
