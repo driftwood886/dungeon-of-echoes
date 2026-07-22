@@ -199,6 +199,33 @@ const ACHIEVEMENTS = [
       } catch (_) { return false; }
     },
   },
+  // DIS-1861: Logros escalonados de exploración — mantener sensación de progreso
+  {
+    id: 'explorador_quince',
+    icon: '🧭',
+    name: 'Cartógrafo Amateur',
+    desc: 'Visitar 15 salas distintas del dungeon',
+    flavor: 'Quince salas. El mapa en tu cabeza empieza a tener forma. Todavía hay rincones que no conocés.',
+    check: (p, _ctx) => {
+      try {
+        const visited = JSON.parse(p.rooms_visited || '[]');
+        return visited.length >= 15;
+      } catch (_) { return false; }
+    },
+  },
+  {
+    id: 'explorador_veinte',
+    icon: '🗺️🔍',
+    name: 'Maestro del Laberinto',
+    desc: 'Visitar 20 salas distintas del dungeon',
+    flavor: 'Veinte salas. Conocés cada pasillo, cada trampa, cada sombra. El dungeon ya no te sorprende — pero vos sí le sorprendés a él.',
+    check: (p, _ctx) => {
+      try {
+        const visited = JSON.parse(p.rooms_visited || '[]');
+        return visited.length >= 20;
+      } catch (_) { return false; }
+    },
+  },
   {
     id: 'supervivencia_tactica',
     icon: '🏃',
