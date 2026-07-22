@@ -4888,6 +4888,15 @@ function cmdAttack(player, targetName) {
         return { text: `💀 ${art} ${deadMatch.name} ya está ${adj}.\n${lootHint}\n(Si querés buscar otro enemigo, moveté a otra sala.)` }; // DIS-1466
       }
     } catch (_) { /* no romper attack si falla */ }
+    // DIS-1842: mensaje más útil cuando el monstruo no se encuentra — mostrar qué hay en sala
+    try {
+      const aliveInRoom = db.getMonstersInRoom(player.current_room_id).filter(m => m.hp > 0);
+      if (aliveInRoom.length > 0) {
+        const nameList = aliveInRoom.map(m => m.name).join(', ');
+        const firstTarget = aliveInRoom[0].name.toLowerCase().split(' ')[0];
+        return { text: `No hay ningún "${targetName}" aquí.\n⚔️  Criaturas presentes: ${nameList}\n💡 Usá «atacar ${firstTarget}» o solo «atacar» para auto-apuntar.` };
+      }
+    } catch (_) { /* ignorar y caer al mensaje genérico */ }
     return { text: `No hay ningún "${targetName}" aquí.` };
   }
 
