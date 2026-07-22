@@ -19350,6 +19350,20 @@ function cmdSpecialize(player, args) {
 
   lines.push('💡 Usá "skills" para ver tu especialización en detalle.');
 
+  // DIS-1843: líneas de Aldric post-elección — reacción específica a la especialización elegida
+  const ALDRIC_FAREWELL = {
+    berserker:        `\n🏚️ Aldric te mira en silencio un momento largo. "Que el dungeon tenga piedad de lo que encuentres", dice al final. "Vos ya no la tendrás."`,
+    paladin:          `\n🏚️ Aldric asiente despacio. "Bien", dice solo. "El dungeon necesita más de los que eligen proteger que de los que eligen destruir. Aunque a veces son lo mismo."`,
+    asesino:          `\n🏚️ Aldric no dice nada. Te hace un gesto imperceptible con la mano —desmayado, casi. Como si ya no te viera. Buen signo.`,
+    sanador:          `\n🏚️ "Los sanadores duran más", dice Aldric, sin que suene exactamente a un elogio. "Pero también cargan más. El dungeon siempre pasa la factura de quienes ayudan."`,
+    evoker:           `\n🏚️ Aldric retrocede un paso. No mucho. Solo un paso. "Cuando el dungeon empiece a responderte más rápido", dice despacio, "intentá que los muros sean los que escuchen. No yo."`,
+    ladron_sombras:   `\n🏚️ Aldric mira el espacio donde estabas antes de que te movieras. "Interesante", murmura. Eso es todo.`,
+    elementalista:    `\n🏚️ "El fuego y el hielo se cancelan si los usás sin cuidado", dice Aldric. "Y si los usás con cuidado, cancelan lo que está entre ellos." Pausa. "Pensalo."`,
+    juicio:           `\n🏚️ Aldric baja la voz. "Elegiste el camino del costo." Sus ojos bajan hacia tu pecho, donde el HP perdido ya es visible. "El dungeon te va a poner a prueba. Avisado estás."`,
+  };
+  const aldricFarewell = ALDRIC_FAREWELL[specId];
+  if (aldricFarewell) lines.push(aldricFarewell);
+
   return { text: lines.join('\n') };
 }
 
