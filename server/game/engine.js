@@ -9090,7 +9090,15 @@ function cmdLoot(player) {
     } else if (items.isJunkItem(item)) {
       // BUG-1773: la basura en el suelo no se recoge con loot — evita que drop junk + loot
       // en la misma sala reabsorba los ítems al inventario sin liberar espacio real.
-      junkOnFloor.push(item);
+      // BUG-1837: EXCEPCIÓN — si el junk es también ingrediente de una receta, sí lo recoge loot.
+      // Ej: garra de esqueleto, escudo roto, pelaje áspero dropean de bosses y deben ser recolectables.
+      const junkKey = item.toLowerCase().trim();
+      const isIngredient = crafting.RECIPES.some(r => r.ingredients.some(ing => ing.toLowerCase().trim() === junkKey));
+      if (isIngredient) {
+        nonGoldItems.push(item); // ingrediente — tratar como ítem normal
+      } else {
+        junkOnFloor.push(item); // basura sin uso de crafteo — dejar en el suelo
+      }
     } else {
       nonGoldItems.push(item);
     }
