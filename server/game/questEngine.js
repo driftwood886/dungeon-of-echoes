@@ -1029,6 +1029,13 @@ function getQuestsDisplay(player) {
     const label     = SLOT_LABELS[q.slot] || '[QUEST]     ';
     const progress  = _progressText(q, q.progress);
     lines.push(`  ${label} ${icon} "${q.name}" — ${progress}`);
+    // DIS-1860: si la quest está en 0 de progreso (nunca avanzó), mostrar hint de cómo avanzar
+    // Esto aplica a quests tipo trade y craft que pueden ser confusas sin contexto extra
+    const isAtZero = progress === 'pendiente' || progress.startsWith('0/');
+    if (isAtZero && q.description) {
+      const shortDesc = q.description.length > 120 ? q.description.substring(0, 117) + '...' : q.description;
+      lines.push(`              💡 ${shortDesc}`);
+    }
   }
 
   // BUG-1618: quest de Aldric usa sistema legacy (players.aldric_quest), no player_quests
