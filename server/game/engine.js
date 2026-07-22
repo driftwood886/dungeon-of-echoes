@@ -13700,11 +13700,15 @@ function cmdFaccion(player, args) {
   // DIS-1727: si el sub no es un subcomando reconocido, intentar interpretarlo como nombre
   // de facción directamente. Esto permite "unirse orden_filo", "join conclave_arcano", etc.
   // (cuando el alias 'unirse'/'join' → 'faccion' y el nombre queda como primer arg)
+  // DIS-1856: cuando se usa el alias directo "unirse <nombre>", confirmar automáticamente
+  //           (sin mostrar la tarjeta — el usuario ya eligió al escribir "unirse")
   if (FACTION_LORE[sub] || FACTION_LORE[nameArg] || FACTION_LORE[sub.replace(/\s+/g, '_')]) {
     const candidateId = FACTION_LORE[sub] ? sub :
                         FACTION_LORE[nameArg] ? nameArg :
                         sub.replace(/\s+/g, '_');
-    return _cmdFaccionElegir(player, [candidateId, ...args.slice(1)]);
+    const restArgs = args.slice(1);
+    if (!restArgs.some(a => a.toLowerCase() === 'confirmar')) restArgs.push('confirmar');
+    return _cmdFaccionElegir(player, [candidateId, ...restArgs]);
   }
 
   return { text: 'Usá: faccion elegir <nombre> | faccion cambiar <nombre> | faccion info <nombre>\n\nNombres de facción: orden_filo, conclave_arcano, hermandad_mercado' };
@@ -13895,15 +13899,18 @@ function _cmdFaccionElegir(player, args) {
       };
     }
     const card = _buildFactionCard(lore, false);
+    // DIS-1856: incluir alias `unirse <nombre>` en el bloque de confirmación para claridad
+    const confirmCmdUnirse = `unirse ${lore.id}`;
     const confirmBlock = [
       '',
       sep,
       `  ⚠️  Todavía NO te uniste a ${lore.name}.`,
       ``,
-      `  Para CONFIRMAR tu ingreso, escribí:`,
+      `  Para CONFIRMAR tu ingreso, escribí UNO de estos:`,
       ``,
+      `     ✅  ${confirmCmdShort}              (atajo más rápido)`,
+      `     ✅  ${confirmCmdUnirse}`,
       `     ✅  ${confirmCmdFull}`,
-      `     ✅  ${confirmCmdShort}   (atajo rápido)`,
       ``,
       `  (Si querés explorar otras facciones: faccion elegir <nombre>)`,
       sep,
