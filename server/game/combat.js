@@ -1799,6 +1799,12 @@ function attackRound(player, monster) {
     }
     db.updatePlayer(player.id, updates);
 
+    // DIS-1866: Hint de `pick todo` en el primer kill real del jugador
+    // Solo se muestra una vez (kills === 1) y solo si hay loot en el suelo
+    if (newKills === 1 && loot.length > 0) {
+      lines.push(`💡 Tip: Hay ítems en el suelo — escribí \`pick todo\` para recogerlos todos.`);
+    }
+
     // T-1231: Tracking de desafíos diarios — al matar un monstruo
     try {
       const freshForChallenge = db.getPlayer(player.id);

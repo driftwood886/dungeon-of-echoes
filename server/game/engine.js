@@ -10367,6 +10367,24 @@ function cmdMap(player, args = []) {
     ...((visitedRooms.has(8) || visitedRooms.has(17))
       ? [`🔗 Prisión (sala 8) ↔ Casa de Subastas (sala 17): conectadas por un pasillo corto (este desde Prisión / norte desde Subastas). Forman un loop con el Tesoro (sala 4).`]
       : []),
+    // DIS-1867: salidas de la sala actual con nombres completos para orientación inmediata
+    ...(() => {
+      try {
+        const hereRoom = db.getRoom(here);
+        if (!hereRoom || !hereRoom.exits) return [];
+        const exits = typeof hereRoom.exits === 'string' ? JSON.parse(hereRoom.exits) : hereRoom.exits;
+        const DIR_ES = { north: 'Norte', south: 'Sur', east: 'Este', west: 'Oeste', up: 'Arriba', down: 'Abajo' };
+        const exitLines = Object.entries(exits)
+          .filter(([, dest]) => dest !== null && dest !== undefined)
+          .map(([dir, dest]) => {
+            const destId = typeof dest === 'object' ? dest.room_id : dest;
+            const destName = ALL_ROOM_NAMES[destId] || NAMES[destId] || `Sala ${destId}`;
+            return `   ${(DIR_ES[dir] || dir).padEnd(8)} → ${destName} (sala ${destId})`;
+          });
+        if (exitLines.length === 0) return [];
+        return [`\n🧭 Salidas desde ${hereFullName}:`, ...exitLines];
+      } catch (_) { return []; }
+    })(),
   ];
 
   return { text: lines.join('\n') };
