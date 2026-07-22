@@ -3358,24 +3358,36 @@ function cmdMove(player, direction) {
   } catch (_) { /* no romper move si falla */ }
 
   // DIS-1463: banner de evento global solo al entrar a sala nueva (no en look/combate)
+  // DIS-1838: aplicar mismo filtro de Carga Arcana que en look (DIS-1741)
+  // clases sin hechizos no ven el aviso de Carga Arcana (irrelevante para ellas)
+  const _movePlayerClass = (player.player_class || 'sin_clase').toLowerCase();
+  const _moveIsSpellCaster = _movePlayerClass === 'mago' || _movePlayerClass === 'clerigo';
   let moveEventLine = '';
   try {
     const currentEvMove = worldEvents.getCurrentEvent();
     if (currentEvMove) {
-      const evMoveMin = Math.floor(currentEvMove.remainingMs / 60000);
-      const evMoveSec = Math.floor((currentEvMove.remainingMs % 60000) / 1000);
-      const evMoveStr = evMoveMin > 0 ? `${evMoveMin}m ${evMoveSec}s` : `${evMoveSec}s`;
-      moveEventLine = `\n${currentEvMove.name} — ${currentEvMove.description} (⏱ ${evMoveStr} restantes)`;
+      // DIS-1741: filtrar Carga Arcana para no-hechiceros (consistencia con look)
+      const isArcaneSurgeMove = currentEvMove.id === 'arcane_surge';
+      if (!isArcaneSurgeMove || _moveIsSpellCaster) {
+        const evMoveMin = Math.floor(currentEvMove.remainingMs / 60000);
+        const evMoveSec = Math.floor((currentEvMove.remainingMs % 60000) / 1000);
+        const evMoveStr = evMoveMin > 0 ? `${evMoveMin}m ${evMoveSec}s` : `${evMoveSec}s`;
+        moveEventLine = `\n${currentEvMove.name} — ${currentEvMove.description} (⏱ ${evMoveStr} restantes)`;
+      }
     }
   } catch (_) {}
   if (!moveEventLine) {
     try {
       const newEvMove = eventScheduler.getActiveEventInfo();
       if (newEvMove && newEvMove.event) {
-        const evMoveMin2 = newEvMove.minutesRemaining;
-        const evMoveSec2 = newEvMove.secondsRemaining;
-        const evMoveStr2 = evMoveMin2 > 0 ? `${evMoveMin2}m ${evMoveSec2}s` : `${evMoveSec2}s`;
-        moveEventLine = `\n${newEvMove.event.name} — ${newEvMove.event.description} (⏱ ${evMoveStr2} restantes)`;
+        // DIS-1741: filtrar Carga Arcana para no-hechiceros
+        const isArcaneSurgeNew2 = newEvMove.event.id === 'ARCANE_SURGE';
+        if (!isArcaneSurgeNew2 || _moveIsSpellCaster) {
+          const evMoveMin2 = newEvMove.minutesRemaining;
+          const evMoveSec2 = newEvMove.secondsRemaining;
+          const evMoveStr2 = evMoveMin2 > 0 ? `${evMoveMin2}m ${evMoveSec2}s` : `${evMoveSec2}s`;
+          moveEventLine = `\n${newEvMove.event.name} — ${newEvMove.event.description} (⏱ ${evMoveStr2} restantes)`;
+        }
       }
     } catch (_) {}
   }
@@ -3418,9 +3430,14 @@ function cmdMove(player, direction) {
   let roomEffectBanner = '';
   try {
     const roomEffectForBanner = ROOM_EFFECTS[targetId];
-    if (roomEffectForBanner && !effectText) {
-      // Solo si effectText está vacío (revisita silenciosa) para no duplicar mensajes de primera visita
-      roomEffectBanner = `\n🌐 Efecto de sala activo: ${roomEffectForBanner.label}`;
+    if (roomEffectForBanner) {
+      // DIS-1838: mostrar banner siempre al entrar a sala con efecto, incluso en primera visita.
+      // Si effectText ya contiene el mensaje narrativo completo, solo agregar nota breve al inicio.
+      // Si effectText está vacío (revisita), mostrar el banner completo.
+      if (!effectText) {
+        roomEffectBanner = `\n🌐 Efecto de sala activo: ${roomEffectForBanner.label}`;
+      }
+      // En primera visita (effectText presente), el banner está en effectText — no duplicar.
     }
   } catch (_dis1833) { /* no romper move si falla */ }
   // Si hay una quest activa de tipo kill y el jugador tiene progreso parcial,
