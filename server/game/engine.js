@@ -8468,6 +8468,18 @@ function cmdExamine(player, query) {
             // No retornar "ya la abriste" — continuar al texto loreObject normal
           }
         }
+        // DIS-1864: examine columnas en sala 11 → registrar fragmento de lore en el diario (primera vez)
+        if (key === 'columnas' && player.current_room_id === 11) {
+          try {
+            const seCol = parseSE(player.status_effects);
+            if (!seCol.lore_columnas_11) {
+              seCol.lore_columnas_11 = true;
+              db.updatePlayer(player.id, { status_effects: JSON.stringify(seCol) });
+              db.addJournalEntry(player.id, 'lore', '🏛️ Galería de Hielo — Las columnas no son de carga: son decorativas. En la base de cada una, una placa de metal ennegrecida con título, fecha, epitafio. El formato es idéntico en todas. La Galería de Hielo no es un corredor. Es un mausoleo.');
+              return { text: val.text + '\n\n📕 *Fragmento narrativo guardado en tu diario de lore. Escribí `lore` para ver lo que descubriste.*' };
+            }
+          } catch (_) { /* no romper examine */ }
+        }
         // IMPL-VV-1760: tracking silencio_del_abismo — contar inscripciones leídas
         // Solo cuentan lore objects que son inscripciones, paredes, grabados, runas
         const INSCRIPTION_KEYS = new Set(['inscripciones', 'inscripcion', 'inscripción', 'pared', 'grabado', 'runas', 'runa']);
