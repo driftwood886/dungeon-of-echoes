@@ -6705,7 +6705,17 @@ function cmdPick(player, itemQuery) {
       const itemEmoji1103  = items.getRarityEmoji(item);
       if (itemRarity1103 !== 'común') {
         const rarityLabel1103 = itemRarity1103.toUpperCase();
-        pickedLines.push(`\n  ✨ ${itemEmoji1103} [${rarityLabel1103}] ${item} — ¡ítem especial recogido!`);
+        // DIS-1871: mostrar preview de descripción al recoger ítem raro
+        let rarityPreview1871 = '';
+        try {
+          const defRare = items.getItemDef(item);
+          if (defRare && defRare.description) {
+            const firstLine = defRare.description.split('\n')[0].replace(/\.\s+.*/s, '.').trim();
+            const preview = firstLine.length > 80 ? firstLine.substring(0, 80) + '…' : firstLine;
+            rarityPreview1871 = `\n     📖 "${preview}" — usá \`examine ${item}\` para leer más.`;
+          }
+        } catch (_) { /* no romper pick si falla preview */ }
+        pickedLines.push(`\n  ✨ ${itemEmoji1103} [${rarityLabel1103}] ${item} — ¡ítem especial recogido!${rarityPreview1871}`);
       } else {
         pickedLines.push(`  ✅ ${item}`);
       }
