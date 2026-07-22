@@ -10581,7 +10581,38 @@ function cmdDisarm(player, args) {
     const newInventory = [...inventory.slice(0, keyIdx), ...inventory.slice(keyIdx + 1)];
     // BUG-1494: actualizar known_traps para que la memoria persista cuando la trampa se reactive
     const updatedKnownDisarmAdj = { ...(player.known_traps || {}), [exit.targetId]: true };
-    db.updatePlayer(player.id, { inventory: JSON.stringify(newInventory), known_traps: JSON.stringify(updatedKnownDisarmAdj) });
+    // DIS-1854: si el ítem consumido es hongo azul, resetear flags de crafteo relacionados
+    // para que el tip vuelva a dispararse si el jugador consigue otro hongo azul
+    const disarmSE1854adj = parseSE(db.getPlayer(player.id).status_effects);
+    let disarmSEUpdate1854adj = {};
+    if (trapAdj.item_needed && trapAdj.item_needed.toLowerCase() === 'hongo azul') {
+      disarmSEUpdate1854adj = {
+        craft_hint_brebaje_del_hongo: false,
+        craft_hint_veneno_de_colmillo: false,
+      };
+    }
+    db.updatePlayer(player.id, {
+      inventory: JSON.stringify(newInventory),
+      known_traps: JSON.stringify(updatedKnownDisarmAdj),
+      ...(Object.keys(disarmSEUpdate1854adj).length > 0
+        ? { status_effects: JSON.stringify({ ...disarmSE1854adj, ...disarmSEUpdate1854adj }) }
+        : {}),
+    });
+
+    // DIS-1854: nota de consumo del hongo azul con aviso de crafteo si corresponde
+    let disarmConsumedNote1854adj = '';
+    if (trapAdj.item_needed && trapAdj.item_needed.toLowerCase() === 'hongo azul') {
+      const hadVeneno = newInventory.some(i => i.toLowerCase() === 'veneno concentrado');
+      const hadDiente = newInventory.some(i => i.toLowerCase() === 'diente afilado');
+      if (hadVeneno || hadDiente) {
+        const craftCombos = [];
+        if (hadVeneno) craftCombos.push('hongo azul + veneno concentrado → brebaje del hongo');
+        if (hadDiente) craftCombos.push('diente afilado + hongo azul → veneno de colmillo');
+        disarmConsumedNote1854adj = `\n🍄 (El hongo azul fue consumido. Tenías ingredientes de crafteo: ${craftCombos.join(' / ')}. Si conseguís otro hongo, el tip de crafteo volverá a avisarte.)`; 
+      } else {
+        disarmConsumedNote1854adj = `\n🍄 (El hongo azul fue consumido de tu inventario.)`;
+      }
+    }
 
     const respawnAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
     const newTrap = { ...trapAdj, active: false, respawn_at: respawnAt };
@@ -10604,7 +10635,7 @@ function cmdDisarm(player, args) {
       || `🔧 Desde el umbral, usás la ${trapAdj.item_needed} para neutralizar el mecanismo antes de entrar.\n✅ La trampa de entrada en ${adjRoom.name} está desactivada. Ya no recibirás daño al cruzar.`;
 
     return {
-      text: `${targetHeader}${disarmNarrative}${throneAmbientNote}\n🧠 Ahora conocés este mecanismo — si la trampa se reactiva, la esquivarás sin problema.`,
+      text: `${targetHeader}${disarmNarrative}${throneAmbientNote}${disarmConsumedNote1854adj}\n🧠 Ahora conocés este mecanismo — si la trampa se reactiva, la esquivarás sin problema.`,
       event: `${player.username} desactiva una trampa desde el umbral.`,
       eventRoomId: player.current_room_id,
     };
@@ -10651,7 +10682,37 @@ function cmdDisarm(player, args) {
   const newInventory = [...inventory.slice(0, keyIdx), ...inventory.slice(keyIdx + 1)];
   // BUG-1494: actualizar known_traps para que la memoria persista cuando la trampa se reactive
   const updatedKnownDisarm = { ...(player.known_traps || {}), [room.id]: true };
-  db.updatePlayer(player.id, { inventory: JSON.stringify(newInventory), known_traps: JSON.stringify(updatedKnownDisarm) });
+  // DIS-1854: si el ítem consumido es hongo azul, resetear flags de crafteo relacionados
+  const disarmSE1854local = parseSE(db.getPlayer(player.id).status_effects);
+  let disarmSEUpdate1854local = {};
+  if (trap.item_needed && trap.item_needed.toLowerCase() === 'hongo azul') {
+    disarmSEUpdate1854local = {
+      craft_hint_brebaje_del_hongo: false,
+      craft_hint_veneno_de_colmillo: false,
+    };
+  }
+  db.updatePlayer(player.id, {
+    inventory: JSON.stringify(newInventory),
+    known_traps: JSON.stringify(updatedKnownDisarm),
+    ...(Object.keys(disarmSEUpdate1854local).length > 0
+      ? { status_effects: JSON.stringify({ ...disarmSE1854local, ...disarmSEUpdate1854local }) }
+      : {}),
+  });
+
+  // DIS-1854: nota de consumo del hongo azul con aviso de crafteo si corresponde
+  let disarmConsumedNote1854local = '';
+  if (trap.item_needed && trap.item_needed.toLowerCase() === 'hongo azul') {
+    const hadVenenoLocal = newInventory.some(i => i.toLowerCase() === 'veneno concentrado');
+    const hadDienteLocal = newInventory.some(i => i.toLowerCase() === 'diente afilado');
+    if (hadVenenoLocal || hadDienteLocal) {
+      const craftCombosLocal = [];
+      if (hadVenenoLocal) craftCombosLocal.push('hongo azul + veneno concentrado → brebaje del hongo');
+      if (hadDienteLocal) craftCombosLocal.push('diente afilado + hongo azul → veneno de colmillo');
+      disarmConsumedNote1854local = `\n🍄 (El hongo azul fue consumido. Tenías ingredientes de crafteo: ${craftCombosLocal.join(' / ')}. Si conseguís otro hongo, el tip de crafteo volverá a avisarte.)`;
+    } else {
+      disarmConsumedNote1854local = `\n🍄 (El hongo azul fue consumido de tu inventario.)`;
+    }
+  }
 
   // Desactivar trampa y programar reactivación en 10 minutos
   const respawnAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -10666,7 +10727,7 @@ function cmdDisarm(player, args) {
   }
 
   return {
-    text: `${trap.disarm_msg}\n✅ La trampa está desactivada. Usaste: "${trap.item_needed}".${roomEffectNote744}`,
+    text: `${trap.disarm_msg}\n✅ La trampa está desactivada. Usaste: "${trap.item_needed}".${roomEffectNote744}${disarmConsumedNote1854local}`,
     event: `${player.username} desactiva una trampa en la sala.`,
     eventRoomId: room.id,
   };
