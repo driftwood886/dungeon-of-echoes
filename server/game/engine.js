@@ -2171,6 +2171,31 @@ function cmdMove(player, direction) {
             db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSeBFH1813) });
           }
         }
+        // DIS-1848: Aviso proactivo de mochila casi llena al entrar a sala con boss (path bossAtFullHp)
+        const BOSS_ROOMS_DIS1848_BFH = new Set([8, 9, 10, 12, 14, 15, 19, 20]);
+        if (BOSS_ROOMS_DIS1848_BFH.has(destId)) {
+          const fresh1848BFH = db.getPlayer(player.id);
+          const inv1848BFH = (() => { try { return JSON.parse(fresh1848BFH.inventory || '[]'); } catch (_) { return []; } })();
+          const maxInv1848BFH = INV_BASE_SLOTS + (fresh1848BFH.inventory_bonus || 0);
+          const freeSlots1848BFH = maxInv1848BFH - inv1848BFH.length;
+          if (freeSlots1848BFH < 2) {
+            const se1848BFH = parseSE(fresh1848BFH.status_effects);
+            const warnKey1848BFH = `inv_warn_boss_room_${destId}`;
+            if (!se1848BFH[warnKey1848BFH]) {
+              const newSe1848BFH = { ...se1848BFH, [warnKey1848BFH]: true };
+              db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1848BFH) });
+              const dirNorm1848BFH = dungeon.normalizeDirection(direction);
+              const dirEs1848BFH = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNorm1848BFH]) || dirNorm1848BFH || 'la dirección indicada';
+              return {
+                text: `⚠️  Mochila casi llena (${inv1848BFH.length}/${maxInv1848BFH}) — hay un boss en esa sala cuyo loot podría perderse si no tenés espacio.\n\nLiberá al menos 2 slots antes del combate para no quedarte sin lugar para el botín.\n💡 Usá \`drop <ítem>\` para tirar lo que no necesitás, o vendé en la tienda de Aldric (sala 4).\n\nSi aun así querés entrar, repetí el comando «${dirEs1848BFH}».`,
+              };
+            }
+            // Segunda vez: limpiar flag y continuar
+            const clearedSe1848BFH = { ...se1848BFH };
+            delete clearedSe1848BFH[warnKey1848BFH];
+            db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe1848BFH) });
+          }
+        }
         db.updatePlayer(player.id, { current_room_id: destId });
         // BUG-790: registrar sala visitada incluso en el path bossAtFullHp (early return)
         const bfhVisitResult = db.trackRoomVisit(player.id, destId);
@@ -2635,6 +2660,33 @@ function cmdMove(player, direction) {
       db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe1361) });
     }
   }
+  // DIS-1848: Aviso proactivo de mochila casi llena al entrar a sala con boss
+  // Si el jugador entra a una sala con boss y tiene menos de 2 slots libres, avisar antes de entrar.
+  const BOSS_ROOMS_DIS1848 = new Set([8, 9, 10, 12, 14, 15, 19, 20]);
+  if (BOSS_ROOMS_DIS1848.has(targetId)) {
+    const fresh1848 = db.getPlayer(player.id);
+    const inv1848 = (() => { try { return JSON.parse(fresh1848.inventory || '[]'); } catch (_) { return []; } })();
+    const maxInv1848 = INV_BASE_SLOTS + (fresh1848.inventory_bonus || 0);
+    const freeSlots1848 = maxInv1848 - inv1848.length;
+    if (freeSlots1848 < 2) {
+      const se1848 = parseSE(fresh1848.status_effects);
+      const warnKey1848 = `inv_warn_boss_room_${targetId}`;
+      if (!se1848[warnKey1848]) {
+        const newSe1848 = { ...se1848, [warnKey1848]: true };
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1848) });
+        const dirNorm1848 = dungeon.normalizeDirection(direction);
+        const dirEs1848 = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNorm1848]) || dirNorm1848 || 'la dirección indicada';
+        return {
+          text: `⚠️  Mochila casi llena (${inv1848.length}/${maxInv1848}) — hay un boss en esa sala cuyo loot podría perderse si no tenés espacio.\n\nLiberá al menos 2 slots antes del combate para no quedarte sin lugar para el botín.\n💡 Usá \`drop <ítem>\` para tirar lo que no necesitás, o vendé en la tienda de Aldric (sala 4).\n\nSi aun así querés entrar, repetí el comando «${dirEs1848}».`,
+        };
+      }
+      // Segunda vez: limpiar flag y continuar
+      const clearedSe1848 = { ...se1848 };
+      delete clearedSe1848[warnKey1848];
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe1848) });
+    }
+  }
+
   // Actualizar posición del jugador
   db.updatePlayer(player.id, { current_room_id: targetId });
 
