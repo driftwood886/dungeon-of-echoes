@@ -8947,8 +8947,15 @@ function cmdEquip(player, itemQuery) {
     }
   }
 
+  // DIS-1863: advertir al equipar la lanza espectral que es un ingrediente intermedio
+  // para la lanza espectral reforzada — evita que el jugador la venda por error pensando que llegó al tope.
+  let intermediateIngredientWarnMsg = '';
+  if (foundLower === 'lanza espectral') {
+    intermediateIngredientWarnMsg = `\n⚠️ ¡Esta arma es también un ingrediente de crafteo! Si conseguís «esencia etérea» (drop del Espectro del Corredor, sala 2), podés reforzarla: craft lanza espectral con esencia etérea → lanza espectral reforzada (+11 ATK). No la vendas si querés la versión mejorada.`;
+  }
+
   return {
-    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.${manaRegenWarnMsg}\n${def.description}${magoHeavyFlavor}${critWarnMsg}${weakerWeaponWarnMsg}${swapMsg}${equipCraftedMsg}`,
+    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.${manaRegenWarnMsg}\n${def.description}${magoHeavyFlavor}${critWarnMsg}${weakerWeaponWarnMsg}${intermediateIngredientWarnMsg}${swapMsg}${equipCraftedMsg}`,
     event: `${player.username} empuña ${found}.`,
     eventRoomId: player.current_room_id,
   };
