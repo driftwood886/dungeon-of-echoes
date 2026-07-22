@@ -8022,7 +8022,7 @@ function cmdExamine(player, query) {
         sellLine = `💰 Precio de venta (Aldric): ~${sellAmt}g`;
       } else {
         // Ítem no vendible en tienda
-        const NO_SELL_ITEMS = new Set(['páginas congeladas', 'paginas congeladas', 'carta sellada', 'carta abierta', 'diario helado', 'corona de hueso', 'piedra negra del lich', 'esencia de kaelthas']);
+        const NO_SELL_ITEMS = new Set(['páginas congeladas', 'paginas congeladas', 'carta sellada', 'carta abierta', 'diario helado', 'corona de hueso', 'piedra negra del lich', 'esencia de kaelthas', 'diagrama quemado']);
         if (NO_SELL_ITEMS.has(invItemName.toLowerCase())) {
           sellLine = `🚫 No vendible (objeto único o de misión)`;
         } else if (def && def.amount !== undefined && (def.effect === 'attack_bonus' || def.effect === 'defense_bonus')) {
@@ -8067,6 +8067,12 @@ function cmdExamine(player, query) {
 
         // DIS-1812: lore narrativo del Campeón Espectral
         'emblema del coliseo': `🏟️ Un medallón de bronce ennegrecido con la silueta de dos gladiadores enfrentados en relieve. En el reverso, grabado con una herramienta fina, un nombre: «VARETH». Y debajo, en letras más pequeñas: «campeón invicto — nunca perdió en vida».\n\nEl emblema está frío al tacto, incluso después de cargarlo varios minutos. No es el frío de la piedra ni del metal: es el frío de algo que no debería seguir existiendo.\n\n📖 Según la inscripción en la pared norte del Coliseo, el campeón no murió solo: «Un liche no muere en su cuerpo. Su esencia duerme en la piedra negra que lleva al pecho. Destruí la piedra. O volverá.» El emblema es esa piedra. El Campeón sigue aquí porque alguien no lo destruyó.\n\n💡 Aldric lo compra por 35g — dice que «tiene historia». También podés guardarlo como trofeo de una pelea difícil. Escribí «examine emblema del coliseo» de nuevo si alguna vez necesitás refrescar la memoria.`,
+
+        // DIS-1869: páginas congeladas — lore rico que activa el gancho de la mini-quest Archivo de Valdrath
+        'páginas congeladas': `📖 Las páginas están medio fusionadas por el hielo, pero alcanzás a leer cuatro fragmentos:\n\n  «...llegamos cuatro. Somos dos. El frío no mata — algo lo usa.»\n\n  «...vi su sombra en la Catedral. Desde aquí. Eso no es posible.»\n\n  «...Kaelthas no murió. Eligió esto. Lo entendí cuando me miró. Me conocía.\n\n  «...la Catedral Roja es el centro. Todo converge ahí. El Lich guarda el nombre real.»\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n🏛️ **El Archivo de Valdrath**\nEstas páginas son un fragmento del Archivo perdido del Reino de Valdrath — la última prueba escrita de alguien que llegó donde vos estás... y no volvió.\n\n💡 ¿Qué podés hacer con esto?\n   • Llevá las páginas al **Altar de la Capilla Olvidada** (sala 5) y escribí \`pray páginas congeladas\` — el altar puede resonar con la escritura de Valdrath.\n   • Hablá con **Aldric** en su tienda (sala 4): si ya sos nivel 3 o más, escribí \`hablar aldric\` — él reconoce el sello de Valdrath en la cera de su carta. Quizás también reconozca esto.\n   • Guardálas. Revelan algo sobre quién es Kaelthas y por qué el dungeon existe.`,
+
+        // DIS-1870: diagrama quemado — lore de la Forja con gancho hacia Aldric
+        'diagrama quemado': `🔥 El pergamino está quemado en tres cuartos. Lo que queda muestra esquemas técnicos —planos de algo que nunca se terminó.\n\nLas líneas sobrevivientes muestran un molde de espada con dimensiones exactas, una lista de materiales tachada a medias, y una anotación que nadie borró:\n\n  «El metal no es el problema. El problema es quién lo forja. Esta espada necesita la mano del que sobrevivió a Valdrath.»\n\nEn el margen inferior, en letra diferente —más pequeña, más urgente:\n\n  «Si alguien llega hasta aquí, Aldric sabe el resto. Que lo recuerde.»\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n⚒️ **El Taller Inconcluso**\nAlguien intentó forjar algo en este taller. No fue el Troll de las Cavernas —sus marcas de garras están por encima, tapando el trabajo. Esto es anterior.\n\n💡 Qué podés hacer:\n   • Llevá el diagrama a **Aldric** (sala 4) y escribí \`hablar aldric\` — la frase «que lo recuerde» parece dirigida específicamente a él.\n   • Guardalo como evidencia narrativa. Junto a las páginas congeladas y la carta sellada, compone el rompecabezas de qué era Valdrath.`,
       };
       const rareLoreKey = invItemName.toLowerCase();
       if (RARE_ITEM_LORE[rareLoreKey]) {
@@ -8102,7 +8108,7 @@ function cmdExamine(player, query) {
     if (def) {
       const typeLabel = def.type === 'weapon' ? 'Arma' : def.type === 'potion' ? 'Poción' : def.type === 'armor' ? 'Armadura' : 'Objeto';
       // DIS-782: precio de venta estimado también para ítems en el suelo (mismo cálculo que inventario)
-      const NO_SELL_ITEMS_FLOOR = new Set(['páginas congeladas', 'paginas congeladas', 'carta sellada', 'carta abierta', 'diario helado', 'corona de hueso', 'piedra negra del lich', 'esencia de kaelthas']);
+      const NO_SELL_ITEMS_FLOOR = new Set(['páginas congeladas', 'paginas congeladas', 'carta sellada', 'carta abierta', 'diario helado', 'corona de hueso', 'piedra negra del lich', 'esencia de kaelthas', 'diagrama quemado']);
       let floorSellLine = '';
       const floorCatalogEntry = SHOP_CATALOG.find(i => i.name.toLowerCase() === itemName.toLowerCase());
       if (floorCatalogEntry) {
@@ -12167,6 +12173,42 @@ function cmdTalk(player, target) {
     return '';
   }
 
+  // DIS-1869: páginas congeladas mostradas a Aldric
+  // DIS-1870: diagrama quemado mostrado a Aldric
+  const invForNarrativeItems = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+  const hasDiagrama = invForNarrativeItems.some(i => (typeof i === 'string' ? i : (i.name || '')).toLowerCase().includes('diagrama quemado'));
+  const hasPaginasCongeladas = invForNarrativeItems.some(i => (typeof i === 'string' ? i : (i.name || '')).toLowerCase().includes('páginas congeladas') || (typeof i === 'string' ? i : (i.name || '')).toLowerCase().includes('paginas congeladas'));
+
+  if ((tLow.includes('diagrama') || tLow.includes('diagrama quemado')) && hasDiagrama) {
+    // Respuesta especial de Aldric al diagrama quemado — DIS-1870
+    const seAldD = parseSE(player.status_effects);
+    let aldricDiagramaExtra = '';
+    if (!seAldD.aldric_vio_diagrama) {
+      const newSeD = { ...seAldD, aldric_vio_diagrama: true };
+      db.addJournalEntry(player.id, 'lore', '⚒️ Aldric reconoció el diagrama quemado. No como un plano cualquiera. Como algo que ya había visto antes. «Eso no salió de la Forja», dijo. «Salió de lo que estaba antes de la Forja.»');
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeD) });
+      aldricDiagramaExtra = '\n\n📖 *Nuevo apunte en tu diario.*';
+    }
+    return {
+      text: `🏪 Sacás el diagrama quemado y lo ponés sobre el mostrador de Aldric.\n\nAldric deja de hacer lo que estaba haciendo.\n\n"Esto..." Lo toma con dos manos. Lo gira. Sus ojos recorren las líneas sobrevivientes más despacio de lo que cualquier mercader necesitaría para evaluar un pergamino chamuscado.\n\n"¿Dónde lo encontraste?"\n\nNo espera tu respuesta.\n\n"El Taller de la Forja." No es una pregunta. "Claro que fue ahí."\n\nDeja el pergamino sobre el mostrador con cuidado, como si pesara más de lo que parece.\n\n"Esto no es un plano de espada. Es el registro de un intento —alguien que quería forjar algo que requería el conocimiento de los herreros de Valdrath y los materiales de las profundidades. La combinación nunca fue posible después del colapso del reino." Pausa. "O eso creía."\n\nTe mira directamente. "Si alguna vez encontrás los materiales que lista este diagrama —roca volcánica de las profundidades y acero de los guardianes— volvé a hablar conmigo. Con ambas cosas en mano."\n\n"El diagrama queda en mi poder por ahora. Es más seguro así."` + aldricDiagramaExtra + expeditionTalkCmdMsg,
+    };
+  }
+
+  if ((tLow.includes('páginas') || tLow.includes('paginas') || tLow.includes('valdrath') || tLow.includes('archivo')) && hasPaginasCongeladas) {
+    // Respuesta especial de Aldric a las páginas congeladas — DIS-1869
+    const seAldP = parseSE(player.status_effects);
+    let aldricPaginasExtra = '';
+    if (!seAldP.aldric_vio_paginas_congeladas) {
+      const newSeP = { ...seAldP, aldric_vio_paginas_congeladas: true };
+      db.addJournalEntry(player.id, 'lore', '🏛️ Aldric vio las páginas congeladas. Las reconoció. Dijo que eran del Archivo de Valdrath —un sistema de conocimiento que existía antes del dungeon. «El último archivo que funcionó», dijo. «Después vino Kaelthas.»');
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeP) });
+      aldricPaginasExtra = '\n\n📖 *Nuevo apunte en tu diario.*';
+    }
+    return {
+      text: `🏪 Sacás las páginas congeladas y las extendés sobre el mostrador.\n\nAldric las mira durante más tiempo del que cualquier objeto del dungeon le haya tomado evaluar.\n\n"El Archivo de Valdrath."\n\nNo hay emoción en su voz. Solo el peso de un nombre que reconoció demasiado rápido.\n\n"No sabía que quedaba algo así." Pausa. "Creía que todo se perdió con el colapso del reino. Cuando Kaelthas decidió quedarse, el Archivo dejó de funcionar como archivo —se convirtió en otra cosa."\n\nTe devuelve las páginas con cuidado.\n\n"Guardálas. No porque tengan valor comercial —no lo tienen. Sino porque son la única evidencia escrita de que Valdrath *entendió* lo que iba a pasar. Y aun así no pudo detenerlo."\n\nUna pausa larga.\n\n"¿Sabés por qué el Lich no destruye estas páginas cuando alguien las lleva por el dungeon?" No espera respuesta. "Porque Kaelthas las escribió. Y parte de él todavía las considera suyas."\n\n💡 **El Archivo de Valdrath:** Las páginas son suyas para conservar. Representan el punto donde el lore del dungeon se cierra —para saber el resto, necesitás llegar hasta la Catedral de la Oscuridad (sala 15).` + aldricPaginasExtra + expeditionTalkCmdMsg,
+    };
+  }
+
   if (questState === 'done') {
     // DIS-1217: si el jugador pregunta por Kaelthas con quest completada, respuesta lore especial
     if (tLow.includes('kaelthas')) {
@@ -15655,6 +15697,34 @@ function cmdForage(player) {
         db.updatePlayer(player.id, { forage_data: JSON.stringify(forageData) });
         return {
           text: `Buscás entre las celdas de la Prisión, revisando la paja vieja y los rincones oscuros.\n🌿 ¡Encontrás: corona rota! Estaba casi oculta bajo paja vieja en una celda pequeña — una reliquia de un reino norteño que nadie se molestó en llevarse.\n\n👑 Con esta corona podés desactivar la trampa de frío de la Sala del Trono ANTES de entrar:\n   → Movete a la sala adyacente a la Sala del Trono (ej: Túnel de los Hongos) → al intentar entrar, el juego te indicará el comando exacto con la dirección correcta según desde dónde venís.${chalMsg1365}`,
+          event: null,
+        };
+      }
+    }
+  }
+
+  // DIS-1870: Taller de la Forja (sala 12) — diagrama quemado con baja probabilidad
+  // Ítem narrativo que conecta la historia del taller con Aldric y activa lore de quest
+  if (player.current_room_id === 12) {
+    const inv_1870 = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+    const alreadyHasDiagrama = inv_1870.some(i => {
+      const iName = (typeof i === 'string' ? i : (i.name || '')).toLowerCase();
+      return iName.includes('diagrama quemado');
+    });
+    if (!alreadyHasDiagrama) {
+      const diagramaRoll = Math.random();
+      if (diagramaRoll < 0.08) { // 8% de chance — ítem narrativo raro
+        const newInv1870 = [...inv_1870, 'diagrama quemado'];
+        forageData[roomKey] = now;
+        db.updatePlayer(player.id, { inventory: JSON.stringify(newInv1870), forage_data: JSON.stringify(forageData) });
+        const cr1870 = db.updateDailyChallengeProgress(player.id, 'forage', null);
+        let chalMsg1870 = '';
+        if (cr1870 && cr1870.reward) chalMsg1870 = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+        const fresh1870 = db.getPlayer(player.id);
+        const q1870 = quests.recordProgress(fresh1870, 'pick', { itemName: 'diagrama quemado' });
+        if (q1870) db.updatePlayer(player.id, { quest_progress: q1870.questProgress });
+        return {
+          text: `Hurgás entre las herramientas carbonizadas y los cajones volcados de la Forja. Detrás de un yunque, envuelto en cuero chamuscado, encontrás algo que no debería haberse salvado del calor.\n\n🔥 ¡Encontrás: diagrama quemado! ✨ 🔵 [RARO]\n📜 \"Planos de algo que nunca se terminó. En el margen, en letra apurada: 'Si alguien llega hasta aquí, Aldric sabe el resto. Que lo recuerde.'\"\n\n💡 Usá \`examine diagrama quemado\` para estudiarlo mejor — o llevalo a Aldric en la tienda (sala 4).${chalMsg1870}`,
           event: null,
         };
       }
@@ -25851,6 +25921,48 @@ function cmdPray(player, args) {
         text: `🙏 El altar reconoce la corona rota y está dispuesto a recibirla.\n\n⚠️  **Advertencia:** La corona rota también desactiva la **trampa de frío de la Sala del Trono** (sala 9). Si la ofrecés aquí, ya no podrás usarla para evitar ese daño.\n\n• Para ofrecer igualmente: \`pray corona rota confirmar\`\n• Para conservarla para la trampa: guardala y usá \`desactivar trampa norte\` desde la sala adyacente (sala 6, Túnel de Hongos).`,
       };
     }
+  }
+
+  // DIS-1869: páginas congeladas en el altar de la Capilla (sala 5)
+  // El altar reconoce el Archivo de Valdrath sin consumir el ítem — es demasiado importante
+  if (foundLower0.includes('páginas congeladas') || foundLower0.includes('paginas congeladas')) {
+    if (roomId === 5) {
+      // Agregar entrada al diario si es la primera vez
+      const sePag = parseSE(player.status_effects);
+      let diarioPagAlt = '';
+      if (!sePag['altar_valdrath_paginas']) {
+        const newSePag = { ...sePag, 'altar_valdrath_paginas': true };
+        db.addJournalEntry(player.id, 'lore', '🏛️ El altar de la Capilla vibró cuando acerqué las páginas congeladas. Como si las reconociera. Como si llevaran mucho tiempo esperando llegar aquí.');
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(newSePag) });
+        diarioPagAlt = '\n\n📖 *Nuevo apunte en tu diario.*';
+      }
+      altarCooldowns.set(altarKey, Date.now());
+      // Aplicar buff +2 ATK, +10 maná por 3 minutos
+      const scrollsPag = JSON.parse(player.active_scrolls || '{}');
+      scrollsPag['altar_blessing'] = {
+        atk_bonus: 2,
+        def_bonus: 0,
+        expires_at: Date.now() + 180000,
+        label: 'Memoria de Valdrath',
+      };
+      const freshPagAlt = db.getPlayer(player.id);
+      const newManaPag = Math.min(freshPagAlt.max_mana || 20, (freshPagAlt.mana || 0) + 10);
+      db.updatePlayer(player.id, { active_scrolls: JSON.stringify(scrollsPag), mana: newManaPag });
+      return {
+        text: `🙏 Acercás las páginas congeladas al altar de la Capilla...\n\nLa llama de las antorchas tiembla. El hielo que cubre las páginas no se derrite —se *agrieta*, como si algo dentro intentara abrirse paso.\n\nEl altar pulsa con una luz tenue y antigua. No acepta las páginas como ofrenda — las *reconoce*. Son del Archivo de Valdrath. Del tiempo anterior al Lich.\n\n🏛️ **El altar no consume las páginas.** Las sentís más cálidas en tu mano que antes.\n\n✨ Buff recibido: *Memoria de Valdrath* — +2 ATK, +10 maná por 3 minutos.\n\n💡 Las páginas todavía tienen más historia que contar. Lleváselas a Aldric (sala 4) con \`hablar aldric\`.${diarioPagAlt}`,
+        event: `${player.username} ofrece algo antiguo al altar.`,
+        eventRoomId: roomId,
+      };
+    } else {
+      return { text: `🙏 Sostenés las páginas congeladas, buscando un altar donde ofrecerlas...\n\n💡 El altar de la **Capilla Olvidada** (sala 5) es el lugar correcto. Allí, las páginas pueden resonar con el espíritu del dungeon.\n(El ítem no se consume aquí.)` };
+    }
+  }
+
+  // DIS-1870: diagrama quemado — el altar no lo acepta como ofrenda, pero da orientación narrativa
+  if (foundLower0.includes('diagrama quemado')) {
+    return {
+      text: `🙏 Ponés el diagrama quemado frente al altar...\n\nLa llama no reacciona. El altar no parece reconocer este pergamino como una ofrenda espiritual.\n\n📜 El diagrama es algo diferente — no es un objeto sagrado, es un plano técnico. Un mapa hacia algo inconcluso.\n\n💡 **Llevalo a Aldric** (sala 4) y escribí \`hablar aldric\` — la inscripción «que lo recuerde» parece dirigida específicamente a él.\n(El ítem no se consume.)`,
+    };
   }
 
   // Verificar si el ítem tiene efecto en el altar
