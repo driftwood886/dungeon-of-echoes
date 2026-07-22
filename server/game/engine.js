@@ -15013,7 +15013,7 @@ function cmdCraft(player, args) {
 
   // Consumir los ítems del inventario
   // BUG-463: normalizar con NFD para que tildes no impidan encontrar el ítem
-  const nfn = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const nfn = s => s.toLowerCase().trim().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const inv = [...player.inventory];
   const normalA = nfn(itemA);
   const normalB = nfn(itemB);
@@ -15025,6 +15025,19 @@ function cmdCraft(player, args) {
   // Remover primer ocurrencia de B (excluyendo el hueco de A)
   const idxB = inv.findIndex(i => nfn(i) === normalB);
   if (idxB !== -1) inv.splice(idxB, 1);
+
+  // DIS-1851: Verificar espacio antes de agregar el resultado del crafteo.
+  // Normalmente el crafteo quita 2 y agrega 1 (neto -1), pero en edge cases
+  // (ej: mismos ingredientes y solo se removió 1, o bug de normalización) podría fallar.
+  const MAX_INV_CRAFT = INV_BASE_SLOTS + (player.inventory_bonus || 0);
+  if (inv.length >= MAX_INV_CRAFT) {
+    // No hay espacio: revertir (no consumir los ingredientes)
+    return {
+      text: `🎒 **Inventario lleno** — no podés recibir el resultado del crafteo.\n` +
+            `Necesitás al menos 1 slot libre para recibir **${craftResult.result}**.\n` +
+            `💡 Hacé espacio con \`drop <ítem>\` o vendé en la tienda de Aldric (sala 4).`,
+    };
+  }
 
   // Agregar el resultado
   inv.push(craftResult.result);
