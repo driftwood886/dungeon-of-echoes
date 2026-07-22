@@ -15424,6 +15424,7 @@ const ROOM_FORAGE_BONUS = {
   8:  { item: 'sello del carcelero', prob: 0.40 }, // Prisión Subterránea — sello perdido en las celdas (EPIC-1155-DEF)
   9:  { item: 'corona rota',      prob: 0.45 },  // Sala del Trono — desactiva trampa fría
   11: { item: 'fragmento de hielo', prob: 0.15 }, // DIS-D34 → DIS-D421: bajado de 0.35 a 0.15 para que el crafteo de lanza espectral no sea trivial
+  12: { item: 'núcleo de forja',  prob: 0.20 },  // DIS-1872: Taller de la Forja — núcleo del Golem, ingrediente para espada de obsidiana; prob baja (vale mucho)
   13: { item: 'red de pesca',     prob: 0.45 },  // Caverna Sumergida — desactiva trampa inundación
 };
 
@@ -15564,10 +15565,16 @@ function cmdForage(player) {
       5:  `Inspeccionás el altar y las piedras de la capilla. En la base de un pilar, donde la humedad del pasillo norte penetra, encontrás un hongo azul que creció solo — pequeño, sin luminiscencia, con un olor acre y neutralizante.`,
       6:  `Buscás entre los hongos del suelo y encontrás uno que no brilla como los demás: azul oscuro, sin luz, con olor neutralizante.`,
       9:  `Entre los escombros del trono encontrás un fragmento de corona decorativa. Parece que tiene algún significado para este lugar.`,
+      // DIS-1872: mensaje narrativo para sala 12 (Forja) — conecta con el lore del Golem
+      12: `Explorás los cajones y estantes detrás de la forja. Entre las herramientas carbonizadas, envuelto en cuero chamuscado, encontrás un núcleo energético intacto — irradiaba calor antes, pero ahora pulsa con magia residual contenida. Seguramente cayó del Golem de Forja en una batalla antigua.`,
     };
     const forageIntroMsg = FORAGE_TRAP_MSG[player.current_room_id] || intro2[Math.floor(Math.random() * intro2.length)];
+    // DIS-1872: la sala 12 (Forja) no tiene trampa — no usar el texto "(Ítem para desactivar la trampa)"
+    const forageItemSuffix = player.current_room_id === 12
+      ? `(Ingrediente de crafteo — usalo con una espada oxidada para forjar una espada de obsidiana.)`
+      : `(Ítem para desactivar la trampa de esta sala.)`;
     return {
-      text: `${forageIntroMsg}\n🌿 ¡Encontrás: ${bonusItem}! (Ítem para desactivar la trampa de esta sala.) Se agrega a tu inventario.${bonusChalMsg}`,
+      text: `${forageIntroMsg}\n🌿 ¡Encontrás: ${bonusItem}! ${forageItemSuffix} Se agrega a tu inventario.${bonusChalMsg}`,
       event: null,
     };
     } // end else (DIS-1018)
