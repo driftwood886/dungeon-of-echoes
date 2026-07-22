@@ -480,6 +480,21 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     }
   }
 
+  // DIS-1839: Taller de la Forja (sala 12) — advertencia sobre regeneración del Troll de las Cavernas
+  // El hint de regen aparecía solo durante el combate (DIS-1791), cuando el jugador ya estaba
+  // comprometido. Ahora se avisa al ENTRAR a la sala, para que pueda prepararse antes de atacar.
+  if (roomId === 12 && !isVeteranPlayer) {
+    const trollAlive = (() => {
+      try {
+        const monsters = db.getMonstersInRoom(12);
+        return monsters.some(m => m.hp > 0 && (m.name || '').toLowerCase().includes('troll'));
+      } catch (_) { return true; } // si falla, asumir que está vivo
+    })();
+    if (trollAlive) {
+      lines.push(`\n🟤 El suelo de la forja está cubierto de cicatrices. Las marcas no las dejó el calor — las dejó el Troll de las Cavernas que lo habita. Su piel grisácea es famosa por cerrarse sola: si no terminás la pelea rápido, se recuperará ante tus ojos.\n   💡 Consejo: usá tus habilidades de mayor daño o una poción de poder antes de atacar.`);
+    }
+  }
+
   // DIS-1177: Sala 18 (Fuente Eterna) — gancho narrativo para salidas hacia zonas profundas
   // La sala tiene salida 'down' → sala 20 (Abismo Eterno, nivel 8+)
   // Jugadores de nivel bajo deben entender que hay algo ahí abajo y por qué volver.
