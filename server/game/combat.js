@@ -1308,7 +1308,7 @@ function attackRound(player, monster) {
             const skillMsgsPet = _getSkillUnlockMessages(newLevelPet, freshPPet.player_class || 'sin_clase', freshPPet.specialization || null);
             for (const msg of skillMsgsPet) lines.push(msg);
           }
-          lines.push(`⭐ +${xpGainPet} XP (kills: ${newKillsPet} | nivel: ${newLevelPet})${xpProgressSuffix(newXpPet, newLevelPet)}`);
+          lines.push(`⭐ +${xpGainPet} XP (kills: ${newKillsPet} | nivel: ${newLevelPet})${bloodmoonXpPet > 1.0 ? ` 🌑[+${Math.round((bloodmoonXpPet-1)*100)}% Luna]` : ''}${xpProgressSuffix(newXpPet, newLevelPet)}`);
           db.updatePlayer(player.id, updatesPet);
           return { lines, monsterDead, playerDead, loot, globalEvent: petGlobalEvent || null };
         }
@@ -1512,7 +1512,7 @@ function attackRound(player, monster) {
           const skillMsgs3 = _getSkillUnlockMessages(newLevel3, freshPl3.player_class || 'sin_clase', freshPl3.specialization || null);
           for (const msg of skillMsgs3) lines.push(msg);
         }
-        lines.push(`⭐ +${xpGain3} XP (kills: ${newKills3} | nivel: ${newLevel3})${xpProgressSuffix(newXp3, newLevel3)}`);
+        lines.push(`⭐ +${xpGain3} XP (kills: ${newKills3} | nivel: ${newLevel3})${bloodmoonXp3 > 1.0 ? ` 🌑[+${Math.round((bloodmoonXp3-1)*100)}% Luna]` : ''}${xpProgressSuffix(newXp3, newLevel3)}`);
         db.updatePlayer(player.id, updates3);
         return { lines, monsterDead, playerDead, loot, globalEvent: globalEvent || null };
       }
@@ -1787,7 +1787,7 @@ function attackRound(player, monster) {
         lines.push(`\n⚔️ Tip: Aún no te uniste a ninguna facción (disponibles desde nivel 3) — escribí \`facciones\` para ver las opciones y sus beneficios.`);
       }
     }
-    lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})${impulsoXpMult > 1.0 ? ' ✨[+20% Impulso]' : ''}${xpProgressSuffix(newXp, newLevel)}`);
+    lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})${impulsoXpMult > 1.0 ? ' ✨[+20% Impulso]' : ''}${finalBloodmoonXpMult > 1.0 ? ` 🌑[+${Math.round((finalBloodmoonXpMult-1)*100)}% Luna]` : ''}${xpProgressSuffix(newXp, newLevel)}`);
     // T190: Encantamiento de luz — +3 HP al matar
     if (enchantActive && enchantData.type === 'luz') {
       const hpOnKill = enchantData.hp_on_kill || 3;
