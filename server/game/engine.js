@@ -10341,7 +10341,8 @@ function cmdMap(player, args = []) {
     // DIS-702: hint de navegación con ruta
     `💡 ¿Perdido? Usá: ruta <sala>  —  Ej: ruta mercader  /  ruta tienda  /  ruta catedral  /  ruta fuente  /  ruta jefe  /  ruta 4`,
     // DIS-1093: mostrar alias de sala en el mapa para que el jugador descubra rutas textuales
-    `🗺  Alias de ruta: mercader/tienda=sala 4  |  jefe=sala 10  |  catedral=sala 15  |  santuario=sala 10  |  forja=sala 12  |  fuente=sala 18`,
+    // DIS-1868: ampliado para incluir trono, entrada, pozo, coliseo y otros destinos comunes
+    `🗺  Alias de ruta: mercader/tienda=4 · fuente=18 · trono=9 · entrada=1 · pozo=7 · coliseo=14 · catedral=15 · forja=12 · jefe=boss más cercano`,
     // DIS-1442: hint de modo detallado con nombres completos
     `📋 ¿Querés ver los nombres completos? Escribí "mapa full"`,
     // BUG-894: nota explicativa de la puerta 🔑 del Pozo (sala 7) — va al pie, no inline en la grilla
