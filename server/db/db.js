@@ -798,7 +798,14 @@ async function init() {
         username LIKE 'audit\_%' ESCAPE '\\' OR username LIKE 'audit%dis%' OR
         username LIKE 'craft_test%' OR username LIKE 'debug\_%' ESCAPE '\\' OR
         username LIKE 'fix%test%' OR username LIKE 'verif%test%' OR
-        username LIKE 'verif_test%' OR username LIKE 'veriftest%'
+        username LIKE 'verif_test%' OR username LIKE 'veriftest%' OR
+        -- DIS-1844: patrones históricos no cubiertos antes (detectados en leaderboard)
+        username LIKE 'test%' OR
+        username LIKE 'tpared%' OR
+        username LIKE 'NuevoJugador%' OR username LIKE 'nuevojugador%' OR
+        username LIKE 'NuevoJug%' OR username LIKE 'nuevojug%' OR
+        username LIKE 'AgentTest%' OR username LIKE 'agenttest%' OR
+        username LIKE 'admin' OR username LIKE 'Admin' OR username LIKE 'ADMIN'
       )
     `);
   } catch (e) {
@@ -1485,7 +1492,14 @@ function isBotUsername(username) {
     u.includes('audit') && u.includes('dis') ||
     u.startsWith('craft_test') || u.startsWith('debug_') ||
     u.includes('fix') && u.includes('test') ||
-    u.includes('verif') && u.includes('test')
+    u.includes('verif') && u.includes('test') ||
+    // DIS-1844: nuevos patrones de nombres de prueba detectados en leaderboard
+    u.startsWith('test') ||           // testdis*, testpared*, testuser, testbug*, etc.
+    u.startsWith('tpared') ||         // tpared001, tpared002, tpared99
+    u.startsWith('nuevojugador') ||   // NuevoJugador2026, NuevoJugador_Test, etc.
+    u.startsWith('nuevojug') ||       // NuevoJug2026
+    u.startsWith('agenttest') ||      // AgentTest
+    u.startsWith('admin')             // admin (cuenta de prueba administrativa)
   );
 }
 
