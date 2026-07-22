@@ -1896,7 +1896,7 @@ function cmdMove(player, direction) {
               const newSeNB1361 = { ...seNB1361, forja_warning_done: true };
               db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeNB1361) });
               return {
-                text: `⚠️  Al acercarte a la entrada del Taller de la Forja, una ola de calor abrasador te golpea en la cara — como abrir un horno gigante.\n\nEl calor extremo de la forja daña a quienes entran por primera vez (-2 HP). No hay forma de desactivarlo desde aquí.\n\n🔥 Una vez que entrés y soportes el calor inicial, tu cuerpo se adaptará — las visitas siguientes no te dañarán.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+                text: `⚠️  Al acercarte a la entrada del Taller de la Forja, una ola de calor abrasador te golpea en la cara — como abrir un horno gigante.\n\nEl calor extremo de la forja daña a quienes entran por primera vez (-2 HP). No hay forma de desactivarlo desde aquí.\n\n🔥 Una vez que entrés y soportes el calor inicial, tu cuerpo se adaptará — las visitas siguientes no te dañarán.\n\n💡 Si tu HP está bajo, curá antes de entrar (usá una poción de cura o el comando «descansar»). Si aun así querés entrar asumiendo el riesgo, repetí el comando de movimiento.`,
               };
             }
             // Segunda vez: limpiar flag y continuar (recibirá el daño)
@@ -2162,7 +2162,7 @@ function cmdMove(player, direction) {
               const newSeBFH1813 = { ...seBFH1813, forja_warning_done: true };
               db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeBFH1813) });
               return {
-                text: `⚠️  Al acercarte a la entrada del Taller de la Forja, una ola de calor abrasador te golpea en la cara — como abrir un horno gigante.\n\nEl calor extremo de la forja daña a quienes entran por primera vez (-2 HP). No hay forma de desactivarlo desde aquí.\n\n🔥 Una vez que entrés y soportes el calor inicial, tu cuerpo se adaptará — las visitas siguientes no te dañarán.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+                text: `⚠️  Al acercarte a la entrada del Taller de la Forja, una ola de calor abrasador te golpea en la cara — como abrir un horno gigante.\n\nEl calor extremo de la forja daña a quienes entran por primera vez (-2 HP). No hay forma de desactivarlo desde aquí.\n\n🔥 Una vez que entrés y soportes el calor inicial, tu cuerpo se adaptará — las visitas siguientes no te dañarán.\n\n💡 Si tu HP está bajo, curá antes de entrar (usá una poción de cura o el comando «descansar»). Si aun así querés entrar asumiendo el riesgo, repetí el comando de movimiento.`,
               };
             }
             // Segunda vez: limpiar flag y continuar (recibirá el daño)
@@ -2626,7 +2626,7 @@ function cmdMove(player, direction) {
         const newSe1361 = { ...se1361, forja_warning_done: true };
         db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1361) });
         return {
-          text: `⚠️  Al acercarte a la entrada del Taller de la Forja, una ola de calor abrasador te golpea en la cara — como abrir un horno gigante.\n\nEl calor extremo de la forja daña a quienes entran por primera vez (-2 HP). No hay forma de desactivarlo desde aquí.\n\n🔥 Una vez que entrés y soportes el calor inicial, tu cuerpo se adaptará — las visitas siguientes no te dañarán.\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+          text: `⚠️  Al acercarte a la entrada del Taller de la Forja, una ola de calor abrasador te golpea en la cara — como abrir un horno gigante.\n\nEl calor extremo de la forja daña a quienes entran por primera vez (-2 HP). No hay forma de desactivarlo desde aquí.\n\n🔥 Una vez que entrés y soportes el calor inicial, tu cuerpo se adaptará — las visitas siguientes no te dañarán.\n\n💡 Si tu HP está bajo, curá antes de entrar (usá una poción de cura o el comando «descansar»). Si aun así querés entrar asumiendo el riesgo, repetí el comando de movimiento.`,
         };
       }
       // Segunda vez: limpiar el flag y continuar (recibirá el daño)
