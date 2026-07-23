@@ -8394,6 +8394,8 @@ function cmdExamine(player, query) {
 
   // DIS-856: examine trono en sala 9 — mostrar nombre en la base si el jugador conoce a Kaelthas Vorn
   // DIS-1345: feedback visual dinámico según estado de quest (none/active/done)
+  // DIS-1882: diferenciar examine trono (cuerpo) vs examine base del trono (secreto)
+  //           La carta dice "mirá abajo, no arriba" — debe ser mecánica real, no cosmética.
   if (player.current_room_id === 9 && (qNorm === 'trono' || qNorm.includes('trono') || qNorm === 'base' || qNorm === 'base del trono')) {
     const tronoCuerpo = 'El trono está hecho de huesos ensamblados con precisión quirúrgica —no como un acto de brutalidad, sino como una declaración. Entre los brazos del trono, grabado en el hueso, hay un nombre en cursiva perfecta: KAELTHAS. Notás que el trono no tiene polvo. Lo demás en la sala lleva siglos sin ser tocado. Alguien se sienta aquí regularmente.';
     const freshP = db.getPlayer(player.id);
@@ -8422,6 +8424,9 @@ function cmdExamine(player, query) {
       // No sabe nada todavía — DIS-1513: dar fragmento parcial en lugar de dead-end puro
       baseText = '\n\n🔍 En la base del trono, casi invisible por el tiempo y la suciedad, hay letras grabadas con algo oscuro —no tinta. El nombre está en gran parte borrado, pero podés distinguir las últimas letras: **...THAS**.\n\nAlguien se tomó el trabajo de grabar esto con algo que no es tinta. Y alguien más se tomó el trabajo de borrarlo casi por completo.\n\n💡 Aldric, el mercader de la sala 4, lleva décadas en este dungeon. Preguntale sobre lo que viste.';
     }
+    // DIS-1882: examine base del trono → solo el secreto de la base (no repetir descripción del trono)
+    //           examine trono → descripción visual del trono + hint de que hay algo abajo
+    const isBaseQuery = (qNorm === 'base' || qNorm === 'base del trono' || qNorm.includes('base del trono'));
     // Rastrear mención Kaelthas
     const seKae = parseSE(player.status_effects);
     const kaeKey = `kaelthas_menc_trono_9`;
@@ -8431,7 +8436,18 @@ function cmdExamine(player, query) {
       seKae.kaelthas_menciones = kaeCount;
       db.updatePlayer(player.id, { status_effects: JSON.stringify(seKae) });
     }
-    return { text: tronoCuerpo + baseText };
+    // DIS-1882: respuesta diferenciada
+    if (isBaseQuery) {
+      // examine base del trono — solo el contenido de la base (el secreto)
+      // Si no hay nada en la base (sin quest), dar la descripción de la base sin el cuerpo del trono
+      const baseOnlyText = baseText.trimStart(); // quitar el \n\n inicial
+      return { text: baseOnlyText || 'La base del trono está cubierta de polvo centenario. No hay nada visible aquí por ahora.' };
+    }
+    // examine trono — descripción visual + hint sutil si jugador ya tiene pista de la carta
+    const tronoBonusHint = (tieneCarta || cartaFueLeida || questState === 'active' || questState === 'done')
+      ? '\n\n💡 La carta mencionaba algo sobre mirar abajo...'
+      : '';
+    return { text: tronoCuerpo + tronoBonusHint };
   }
 
   for (const [key, val] of Object.entries(loreObjects)) {
