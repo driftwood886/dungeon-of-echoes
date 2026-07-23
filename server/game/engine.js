@@ -14690,15 +14690,31 @@ function cmdRecent(args) {
  */
 function cmdWorld() {
   const ev = worldEvents.getCurrentEvent();
-  if (!ev) {
+  const scheduledEvInfo = eventScheduler.getActiveEventInfo ? eventScheduler.getActiveEventInfo() : null;
+
+  const lines = [];
+
+  if (ev) {
+    const minLeft = Math.floor(ev.remainingMs / 60000);
+    const secLeft = Math.floor((ev.remainingMs % 60000) / 1000);
+    lines.push(`🌍 EVENTO ACTIVO: ${ev.name}\n${ev.description}\n⏱ Tiempo restante: ${minLeft}m ${secLeft}s`);
+  }
+
+  if (scheduledEvInfo) {
+    const { event: sev, minutesRemaining, secondsRemaining } = scheduledEvInfo;
+    const remainingStr = minutesRemaining > 0
+      ? `${minutesRemaining}m ${secondsRemaining}s`
+      : `${secondsRemaining}s`;
+    const sep = lines.length > 0 ? '\n\n' : '';
+    lines.push(`${sep}🌟 EVENTO GLOBAL: ${sev.name}\n${sev.description || ''}\n⏱ Tiempo restante: ${remainingStr}`);
+  }
+
+  if (lines.length === 0) {
     const nextText = worldEvents.getNextEventText();
     return { text: `🌍 El dungeon está en calma.\n${nextText}\n\nEventos posibles: Invasión de los Abismos, Niebla Espesa, 🌑 Luna de Sangre (nivel 3+ +30% ATK/+75% XP), ⚡ Carga Arcana (hechizos +50% daño), Bendición del Santuario, Maldición del Lich.` };
   }
-  const minLeft = Math.floor(ev.remainingMs / 60000);
-  const secLeft = Math.floor((ev.remainingMs % 60000) / 1000);
-  return {
-    text: `🌍 EVENTO ACTIVO: ${ev.name}\n${ev.description}\n⏱ Tiempo restante: ${minLeft}m ${secLeft}s`,
-  };
+
+  return { text: lines.join('') };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
