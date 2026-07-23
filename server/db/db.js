@@ -1384,6 +1384,52 @@ async function init() {
   // (No hay tabla de definiciones separada — los 3 tipos están hardcodeados en ensureWarMissionsForWeek)
   console.log('[db] IMPL-WM-1710: faction_war_missions tabla lista (seed dinámico vía ensureWarMissionsForWeek)');
 
+  // EPIC-CAMP: Sistema de Campaña Narrativa — tablas
+  // campaigns: pool de campañas diseñadas (estáticas, escritas por el diseñador)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS campaigns (
+      id                TEXT PRIMARY KEY,        -- 'arquinecromante_veth', 'plaga_esporas', etc.
+      name              TEXT NOT NULL,           -- "La Invasión de Veth"
+      lore_intro        TEXT NOT NULL,           -- texto que dice el Anciano al inicio de campaña
+      lore_midpoint     TEXT NOT NULL,           -- texto en la segunda semana
+      lore_victory      TEXT NOT NULL,           -- texto si se gana (Anciano post-victoria)
+      lore_defeat       TEXT NOT NULL,           -- texto si se pierde (Anciano post-derrota)
+      goal_type         TEXT NOT NULL,           -- 'deposit_items' | 'kill_count' | 'explore_rooms'
+      goal_target       INTEGER NOT NULL,        -- umbral absoluto (ej: 120 rituales)
+      goal_key          TEXT NOT NULL,           -- clave en world_state para el contador colectivo
+      duration_days     INTEGER NOT NULL DEFAULT 14,
+      reward_victory    TEXT NOT NULL DEFAULT '{}', -- JSON: { xp_global_bonus_pct, duration_hours }
+      consequence_defeat TEXT NOT NULL DEFAULT '{}', -- JSON: { enemy_hp_bonus_pct, duration_days }
+      active_effects    TEXT NOT NULL DEFAULT '{}'   -- JSON: drops, sala_modificada, npc_items
+    )
+  `);
+
+  // active_campaign: tabla de una sola fila — la campaña en curso (NULL si no hay ninguna)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS active_campaign (
+      id              INTEGER PRIMARY KEY DEFAULT 1,
+      campaign_id     TEXT NOT NULL,
+      started_at      TEXT NOT NULL DEFAULT (datetime('now')),
+      ends_at         TEXT NOT NULL,
+      state           TEXT NOT NULL DEFAULT 'active',   -- 'active' | 'victory' | 'defeat' | 'concluded'
+      conclusion_seen INTEGER NOT NULL DEFAULT 0         -- 1 si ya se mostró el texto de resolución global
+    )
+  `);
+
+  // campaign_contributions: contribuciones individuales (para títulos y recompensas al final)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS campaign_contributions (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id      TEXT NOT NULL,
+      player_username  TEXT NOT NULL,
+      contribution     INTEGER NOT NULL DEFAULT 1,   -- cuánto aportó en esta acción puntual
+      contributed_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_camp_contrib_player ON campaign_contributions(player_username, campaign_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_camp_contrib_campaign ON campaign_contributions(campaign_id, contributed_at)`);
+  console.log('[db] EPIC-CAMP: tablas campaigns, active_campaign, campaign_contributions listas');
+
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });
   process.on('SIGTERM', () => { persist(); process.exit(0); });
@@ -4457,6 +4503,150 @@ function getCryptCandidates() {
   }
 }
 
+// ─── EPIC-CAMP: Sistema de Campaña Narrativa ─────────────────────────────────
+
+/**
+ * getActiveCampaign() → { campaign, active, progress, goal_target, days_remaining } | null
+ *
+ * Retorna la campaña activa con su estado actual. Si no hay campaña activa, retorna null.
+ * El campo `progress` es el valor del contador en world_state (clave goal_key de la campaña).
+ */
+function getActiveCampaign() {
+  try {
+    const active = one(`SELECT * FROM active_campaign WHERE id = 1`);
+    if (!active) return null;
+
+    const campaign = one(`SELECT * FROM campaigns WHERE id = ?`, [active.campaign_id]);
+    if (!campaign) return null;
+
+    // Leer progreso del world_state
+    const wsRow = one(`SELECT value FROM world_state WHERE key = ?`, [campaign.goal_key]);
+    const progress = wsRow ? wsRow.value : 0;
+
+    // Calcular días restantes
+    const now = new Date();
+    const ends = new Date(active.ends_at);
+    const days_remaining = Math.max(0, Math.ceil((ends - now) / (1000 * 60 * 60 * 24)));
+
+    return {
+      campaign: {
+        ...campaign,
+        reward_victory: campaign.reward_victory ? JSON.parse(campaign.reward_victory) : {},
+        consequence_defeat: campaign.consequence_defeat ? JSON.parse(campaign.consequence_defeat) : {},
+        active_effects: campaign.active_effects ? JSON.parse(campaign.active_effects) : {},
+      },
+      active,
+      progress,
+      goal_target: campaign.goal_target,
+      days_remaining,
+    };
+  } catch (e) {
+    console.error('[db] getActiveCampaign:', e.message);
+    return null;
+  }
+}
+
+/**
+ * contributeToCurrentCampaign(playerUsername, amount) → boolean
+ *
+ * Registra una contribución del jugador a la campaña activa e incrementa el contador
+ * colectivo en world_state. Retorna true si hubo campaña activa y se registró, false si no.
+ */
+function contributeToCurrentCampaign(playerUsername, amount = 1) {
+  try {
+    const active = one(`SELECT * FROM active_campaign WHERE id = 1`);
+    if (!active || active.state !== 'active') return false;
+
+    const campaign = one(`SELECT goal_key, goal_target FROM campaigns WHERE id = ?`, [active.campaign_id]);
+    if (!campaign) return false;
+
+    // Registrar contribución individual
+    db.run(
+      `INSERT INTO campaign_contributions (campaign_id, player_username, contribution)
+       VALUES (?, ?, ?)`,
+      [active.campaign_id, playerUsername, amount]
+    );
+
+    // Incrementar contador colectivo en world_state (upsert)
+    db.run(
+      `INSERT INTO world_state (key, value, updated_at) VALUES (?, ?, datetime('now'))
+       ON CONFLICT(key) DO UPDATE SET value = value + ?, updated_at = datetime('now')`,
+      [campaign.goal_key, amount, amount]
+    );
+
+    // Verificar si se alcanzó el objetivo → marcar victoria
+    const wsRow = one(`SELECT value FROM world_state WHERE key = ?`, [campaign.goal_key]);
+    const progress = wsRow ? wsRow.value : 0;
+    if (progress >= campaign.goal_target) {
+      db.run(
+        `UPDATE active_campaign SET state = 'victory' WHERE id = 1 AND state = 'active'`
+      );
+    }
+
+    return true;
+  } catch (e) {
+    console.error('[db] contributeToCurrentCampaign:', e.message);
+    return false;
+  }
+}
+
+/**
+ * getCampaignHistory() → Array de { campaign_id, name, state, started_at, ends_at, progress, goal_target }
+ *
+ * Retorna el historial de campañas concluidas (victory / defeat / concluded).
+ * Incluye también la activa si la hay.
+ */
+function getCampaignHistory() {
+  try {
+    // Traer todas las entradas de active_campaign (usamos un table de historial simplificado
+    // — en esta fase guardamos solo la que estuvo activa; la rotación crea nuevas filas en tabla campaign_history)
+    // Para MVP, devolvemos active_campaign actual + usamos world_state para el progreso histórico.
+    const active = one(`SELECT * FROM active_campaign WHERE id = 1`);
+    if (!active) return [];
+
+    const campaign = one(`SELECT id, name, goal_key, goal_target FROM campaigns WHERE id = ?`, [active.campaign_id]);
+    if (!campaign) return [];
+
+    const wsRow = one(`SELECT value FROM world_state WHERE key = ?`, [campaign.goal_key]);
+    const progress = wsRow ? wsRow.value : 0;
+
+    return [{
+      campaign_id: campaign.id,
+      name: campaign.name,
+      state: active.state,
+      started_at: active.started_at,
+      ends_at: active.ends_at,
+      progress,
+      goal_target: campaign.goal_target,
+    }];
+  } catch (e) {
+    console.error('[db] getCampaignHistory:', e.message);
+    return [];
+  }
+}
+
+/**
+ * getPlayerCampaignContributions(playerUsername, campaignId) → { total, actions }
+ *
+ * Retorna cuánto contribuyó un jugador en una campaña dada.
+ * total: suma de todos sus aportes. actions: número de contribuciones individuales.
+ */
+function getPlayerCampaignContributions(playerUsername, campaignId) {
+  try {
+    const rows = all(
+      `SELECT contribution, contributed_at FROM campaign_contributions
+       WHERE player_username = ? AND campaign_id = ?
+       ORDER BY contributed_at ASC`,
+      [playerUsername, campaignId]
+    );
+    const total = rows.reduce((sum, r) => sum + r.contribution, 0);
+    return { total, actions: rows.length, rows };
+  } catch (e) {
+    console.error('[db] getPlayerCampaignContributions:', e.message);
+    return { total: 0, actions: 0, rows: [] };
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -4544,4 +4734,6 @@ module.exports = {
   incrementPlayerHistoryKill, incrementPlayerHistoryDeath, incrementPlayerHistoryAscension, incrementPlayerHistoryRun,
   getPlayerHistory, getCryptPlaques, getLatestChronicle,
   upsertCryptPlaque, upsertChronicle, getCryptCandidates,
+  // EPIC-CAMP: Sistema de Campaña Narrativa
+  getActiveCampaign, contributeToCurrentCampaign, getCampaignHistory, getPlayerCampaignContributions,
   };
