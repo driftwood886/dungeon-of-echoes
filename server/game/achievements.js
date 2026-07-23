@@ -193,6 +193,7 @@ const ACHIEVEMENTS = [
     name: 'Explorador',
     desc: 'Visitar 5 salas distintas del dungeon',
     flavor: 'Cinco salas. Empezás a entender que el dungeon es más grande de lo que parecía al entrar.',
+    onlyOnMove: true,
     check: (p, _ctx) => {
       try {
         const visited = JSON.parse(p.rooms_visited || '[]');
