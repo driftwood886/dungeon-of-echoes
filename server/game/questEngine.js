@@ -1114,6 +1114,19 @@ function getQuestsDisplay(player) {
 function getQuestDetail(player, questName) {
   if (!questName) return { text: 'Uso: `quest info <nombre>`' };
 
+  // DIS-1909: "El Sello de las Dos Llaves" es una quest narrativa legacy (player.aldric_quest).
+  // No está en la tabla player_quests, así que _getActiveQuests() no la devuelve.
+  // Detectar si el jugador la busca y tiene aldric_quest = 'active'.
+  const freshPlayer1909 = db.getPlayer(player.id) || player;
+  if ((freshPlayer1909.aldric_quest || 'none') === 'active') {
+    const q1909 = _normalizeSearch(questName);
+    if (q1909.includes('sello') || q1909.includes('aldric') || q1909.includes('carta') || q1909.includes('llave')) {
+      return {
+        text: `📜 **El Sello de las Dos Llaves** [NARRATIVA]\n\nAldric el Mercader te encargó encontrar una carta sellada perdida en las profundidades del dungeon.\n\n**Progreso:** Buscá la carta sellada en la Sala 8 (Prisión Subterránea). Si ya la tenés, llevásela a Aldric en la Sala 4.\n\n**Cómo entregarla:** Cuando tengas la carta sellada en tu inventario, andá a la Sala 4 y escribí:\n  \`dar carta sellada a aldric\`  (o \`hablar aldric\` cuando la tenés — él la reconocerá)\n\n**Recompensa:** XP + reconocimiento del mercader.\n\n💡 *Esta es una quest narrativa del arco de Kaelthas Vorn. No aparece en el sistema de quests estándar.*`
+      };
+    }
+  }
+
   const activeQuests = _getActiveQuests(player.id);
   if (!activeQuests.length) return { text: 'No tenés quests activas.' };
 
