@@ -678,6 +678,7 @@ function execute(playerId, input, context) {
     case 'goals':        result = cmdGoals(player, context); break;           // T210
     case 'legado':       result = cmdLegado(player, context); break;          // DIS-D291: legado post-boss
     case 'ascender':     result = cmdAscend(player, action.args, context); break; // EPIC-963: Sistema de Ascensión
+    case 'campana':      result = cmdCampana(player, action.args); break;         // EPIC-1894/1895: Sistema de Campaña
     case 'enterrar':     result = cmdBury(player, action.args, context); break;   // T967: Ítem Heredado
     case 'desenterrar':  result = cmdUnbury(player, action.args, context); break; // T967: Ítem Heredado
     case 'excavar':      result = cmdDig(player, action.args, context); break;    // T968: Ítem Heredado
@@ -11899,6 +11900,49 @@ function cmdTalk(player, target) {
     // EPIC-1821-F2: Historial cross-run desde memory.js (persiste entre ascensiones)
     const ancianoHistoryDialogo = memory.getAncianoDialogo(player.username);
 
+    // EPIC-1896: Texto de campaña para agregar al inicio del diálogo del Anciano
+    function getAncianoCampanaBlock() {
+      let campData;
+      try { campData = db.getActiveCampaign(); } catch (_) { return ''; }
+      if (!campData) return '';
+
+      const { campaign, active, progress, goal_target, days_remaining } = campData;
+      let playerC = { total: 0 };
+      try { playerC = db.getPlayerCampaignContributions(player.username || player.id, active.id); } catch (_) {}
+
+      const playerName = player.username || 'Aventurero';
+
+      if (active.state === 'active') {
+        const daysLeft = days_remaining !== null ? days_remaining : '?';
+        const daysUnit = daysLeft === 1 ? 'día' : 'días';
+        if (playerC.total === 0) {
+          return `⚔️  El Anciano Guardián interrumpe su lectura y te mira directamente:\n\n"Llegaste en un momento difícil. El Arquinecromante Veth está en el dungeon y sus rituales avanzan. Quedan ${daysLeft} ${daysUnit} — si no los detenemos, el Lich resurgirá de forma permanente.\n\nLos no-muertos que ronden por ahí cargan Fragmentos de Ritual. Derrotálos, tomá los fragmentos, y lleválos al altar de la Capilla Olvidada (sala 5). Usá 'usar fragmento de ritual' estando ahí.\n\nEl progreso colectivo va en ${progress}/${goal_target} fragmentos neutralizados. Cada uno cuenta."\n\n💡 Usá 'campaña' para ver el estado actual.\n\n`;
+        } else if (playerC.total <= 2) {
+          return `⚔️  "Ah, vos sos de los que trajeron fragmentos. ${playerName}, ¿verdad?\nEl altar los registró — ${playerC.total} fragmento${playerC.total !== 1 ? 's' : ''} neutralizado${playerC.total !== 1 ? 's' : ''} de tu parte.\nEl contador total va en ${progress}/${goal_target}. Seguimos necesitando más.\nQuedan ${daysLeft} ${daysUnit}."\n\n`;
+        } else if (playerC.total < 10) {
+          return `⚔️  "De vuelta. Bien. ${playerName}, tu nombre ya aparece ${playerC.total} veces en el altar — cada fragmento que neutralizaste dejó una marca. El total colectivo va en ${progress}/${goal_target}.\nQuedan ${daysLeft} ${daysUnit}. Veth no afloja."\n\n`;
+        } else {
+          const pct = goal_target > 0 ? Math.floor((progress / goal_target) * 100) : 0;
+          return `⚔️  "Escuchá — con ${playerC.total} contribuciones, sos uno de los aventureros que más trabajo pusiste en esto. El total va en ${progress}/${goal_target}. Quedan ${daysLeft} ${daysUnit}.\nSi alcanzamos 96, ganamos antes del plazo. Estamos en ${pct}%."\n\n`;
+        }
+      } else if (active.state === 'victory') {
+        let txt = `🏆  El Anciano Guardián levanta la vista con algo que podría ser orgullo:\n\n"Quedó registrado. Los rituales de Veth fueron contenidos. ${progress} fragmentos en total — el altar de la Capilla guarda cada marca.\n\nEl Lich sigue en su ciclo normal. Veth escapó — eso no es limpio — pero el dungeon aguantó. Por ahora."`;
+        if (playerC.total > 0) {
+          txt += `\n"Tu nombre está en el registro: ${playerC.total} contribuciones."`;
+        } else {
+          txt += '\n"Llegaste tarde a esta campaña. La próxima, si querés que tu nombre quede en el registro, empezá desde el inicio."';
+        }
+        return txt + '\n\n';
+      } else if (active.state === 'defeat') {
+        let txt = `💀  El Anciano Guardián cierra el libro despacio:\n\n"No llegamos. Los rituales de Veth alcanzaron la Catedral — el Lich se fortaleció. ${progress} fragmentos en total. Necesitábamos 96. No quedamos tan lejos."`;
+        if (playerC.total > 0) {
+          txt += `\n"Tu nombre está en el registro de todos modos: ${playerC.total} contribuciones. Resististe. Eso importa."`;
+        }
+        return txt + '\n\n';
+      }
+      return '';
+    }
+
     function getAncianoMemorySuffix() {
       let suffix = '';
       const memToSave = {};
@@ -11942,10 +11986,13 @@ function cmdTalk(player, target) {
       return suffix;
     }
 
+    // EPIC-1896: calcular el bloque de campaña para prepend
+    const ancianoCampanaPrefix = getAncianoCampanaBlock();
+
     // DIS-454: Pregunta específica sobre santuario o llave → ruta alternativa directa
     const askingSanctuaryOrKey = tLow.includes('santuario') || tLow.includes('llave') || tLow.includes('pozo') || tLow.includes('cómo llegar') || tLow.includes('ruta');
     if (askingSanctuaryOrKey) {
-      return { text: 'El anciano te mira cuando nombrás el Santuario —algo en su postura cambia, como si hubiera estado esperando esa pregunta.\n\n\"Hay dos rutas,\" dice. \"La directa: desde la Sala de los Ecos al oeste, llegás al Pozo Sin Fondo. La puerta al norte tiene cerradura —necesitás una llave oxidada. La vendemos en la tienda de sala 4 por 20 monedas de oro, o podés buscarla en la Prisión al norte del Tesoro. También, la Araña Tejedora del Pozo a veces la lleva consigo.\"\n\nHace una pausa, como calibrando si vale la pena continuar.\n\n\"La otra ruta no necesita llave. Desde aquí: al este, la Capilla Olvidada. Al norte desde ahí, el Túnel de los Hongos. Norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario Profano.\"\n\nSeñala con la mano el camino este mientras habla. \"Es más largo, pero está siempre abierto. No sé por qué ese camino quedó sin cerradura. Tengo mis sospechas.\"' };
+      return { text: ancianoCampanaPrefix + 'El anciano te mira cuando nombrás el Santuario —algo en su postura cambia, como si hubiera estado esperando esa pregunta.\n\n\"Hay dos rutas,\" dice. \"La directa: desde la Sala de los Ecos al oeste, llegás al Pozo Sin Fondo. La puerta al norte tiene cerradura —necesitás una llave oxidada. La vendemos en la tienda de sala 4 por 20 monedas de oro, o podés buscarla en la Prisión al norte del Tesoro. También, la Araña Tejedora del Pozo a veces la lleva consigo.\"\n\nHace una pausa, como calibrando si vale la pena continuar.\n\n\"La otra ruta no necesita llave. Desde aquí: al este, la Capilla Olvidada. Al norte desde ahí, el Túnel de los Hongos. Norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario Profano.\"\n\nSeñala con la mano el camino este mientras habla. \"Es más largo, pero está siempre abierto. No sé por qué ese camino quedó sin cerradura. Tengo mis sospechas.\"' };
     }
 
     // VARIANTE 1: Logro Cartógrafo — exploró todo el dungeon
@@ -11956,37 +12003,37 @@ function cmdTalk(player, target) {
       } else if (leyoDiario) {
         cartText += '\n\n\"Leíste el diario de la Galería de Hielo, ¿verdad?\" Asiente lentamente. \"Kaelthas. Ese nombre aparece en demasiados lugares para ser casualidad. Si todavía no hablaste con Aldric —el mercader en sala 4— creo que deberías. Él sabe cosas que yo solo intuyo.\"';
       }
-      return { text: cartText + getAncianoMemorySuffix() };
+      return { text: ancianoCampanaPrefix + cartText + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 2: Quest de Aldric completada — conoce la historia de Kaelthas
     if (qStateG === 'done') {
-      return { text: 'El anciano levanta la vista. Algo en tu cara le dice que ya no sos el mismo que entró al dungeon por primera vez.\n\n\"Hablaste con Aldric,\" dice. No es una pregunta.\n\nAsiente despacio. \"Kaelthas Vorn. El guardián del sello. Sabía que tarde o temprano alguien lo iba a descubrir.\" Pausa. \"Yo lo sospechaba hace años, cuando noté que los monstruos nunca desaparecen del todo. No es magia al azar —hay una voluntad detrás.\"\n\n\"Cuidate en la Catedral,\" agrega en voz baja. \"Su presencia ahí es más... directa. El Lich Anciano no es el peligro final. Es solo la puerta.\"' + getAncianoMemorySuffix() };
+      return { text: ancianoCampanaPrefix + 'El anciano levanta la vista. Algo en tu cara le dice que ya no sos el mismo que entró al dungeon por primera vez.\n\n\"Hablaste con Aldric,\" dice. No es una pregunta.\n\nAsiente despacio. \"Kaelthas Vorn. El guardián del sello. Sabía que tarde o temprano alguien lo iba a descubrir.\" Pausa. \"Yo lo sospechaba hace años, cuando noté que los monstruos nunca desaparecen del todo. No es magia al azar —hay una voluntad detrás.\"\n\n\"Cuidate en la Catedral,\" agrega en voz baja. \"Su presencia ahí es más... directa. El Lich Anciano no es el peligro final. Es solo la puerta.\"' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 3: Leyó el diario — hint directo sobre Kaelthas y Aldric
     if (leyoDiario && qStateG === 'none') {
-      return { text: 'El anciano pausa al verte. Hay algo diferente en su mirada —te estudia con más atención de lo habitual.\n\n\"Leíste el diario helado,\" dice. No es una pregunta. \"En la Galería de Hielo. Las páginas medio fusionadas.\"\n\nBaja la voz. \"Kaelthas no murió como los libros dicen. Eligió quedarse aquí —y el dungeon lo aceptó.\" Se inclina levemente hacia vos. \"Hay un mercader en sala 4. Aldric. Cuando tengas nivel 5, hablá con él. Llevá cualquier objeto que hayas encontrado en el dungeon —especialmente si tiene un sello grabado. Creo que sabe más. Mucho más.\"\n\nVuelve a mirar la entrada en silencio. Como si temiera que el dungeon lo escuche.' + getAncianoMemorySuffix() };
+      return { text: ancianoCampanaPrefix + 'El anciano pausa al verte. Hay algo diferente en su mirada —te estudia con más atención de lo habitual.\n\n\"Leíste el diario helado,\" dice. No es una pregunta. \"En la Galería de Hielo. Las páginas medio fusionadas.\"\n\nBaja la voz. \"Kaelthas no murió como los libros dicen. Eligió quedarse aquí —y el dungeon lo aceptó.\" Se inclina levemente hacia vos. \"Hay un mercader en sala 4. Aldric. Cuando tengas nivel 5, hablá con él. Llevá cualquier objeto que hayas encontrado en el dungeon —especialmente si tiene un sello grabado. Creo que sabe más. Mucho más.\"\n\nVuelve a mirar la entrada en silencio. Como si temiera que el dungeon lo escuche.' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 4: Leyó el diario y tiene la quest en progreso — hint de avance
     if (leyoDiario && qStateG === 'active') {
-      return { text: 'El anciano asiente al verte acercarte.\n\n\"Buscás a Kaelthas.\" Más afirmación que pregunta. \"Aldric te mandó.\"\n\nSeñala la entrada del dungeon. \"La Prisión está en el norte del dungeon —sala 8, al norte de la Cámara del Tesoro. Ahí guardaban las llaves y también los secretos que nadie quería que salieran.\" Pausa. \"Si encontrás una carta con el sello de las dos llaves cruzadas, llevásela a Aldric. Él sabe qué hacer.\"\n\nBaja la vista. \"Kaelthas fue el guardián del sello del reino. No un mago cualquiera. El dungeon no es una mazmorra abandonada —es su archivo.\"' + getAncianoMemorySuffix() };
+      return { text: ancianoCampanaPrefix + 'El anciano asiente al verte acercarte.\n\n\"Buscás a Kaelthas.\" Más afirmación que pregunta. \"Aldric te mandó.\"\n\nSeñala la entrada del dungeon. \"La Prisión está en el norte del dungeon —sala 8, al norte de la Cámara del Tesoro. Ahí guardaban las llaves y también los secretos que nadie quería que salieran.\" Pausa. \"Si encontrás una carta con el sello de las dos llaves cruzadas, llevásela a Aldric. Él sabe qué hacer.\"\n\nBaja la vista. \"Kaelthas fue el guardián del sello del reino. No un mago cualquiera. El dungeon no es una mazmorra abandonada —es su archivo.\"' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 5: Nivel alto (≥7) — veterano del dungeon
     if (level >= 7) {
-      return { text: 'El anciano te mira con algo parecido al respeto.\n\n\"Nivel ' + level + '.\" Asiente con lentitud. \"Ya no necesitás mis advertencias sobre el Pozo o la llave.\"\n\nSe recuesta en la pared con expresión seria. \"Si llegaste hasta acá con ese nivel, ya pasaste por la Catedral de la Oscuridad o el Abismo Eterno.\" Pausa. \"¿Encontraste las páginas del diario helado en la Galería? Hay un nombre que aparece en demasiados lugares aquí adentro. Si no lo conectaste todavía, hablá con Aldric en sala 4.\"\n\nTe mira fijo. \"El dungeon tiene memoria. Y vos ya sos parte de ella.\"' + getAncianoMemorySuffix() };
+      return { text: ancianoCampanaPrefix + 'El anciano te mira con algo parecido al respeto.\n\n\"Nivel ' + level + '.\" Asiente con lentitud. \"Ya no necesitás mis advertencias sobre el Pozo o la llave.\"\n\nSe recuesta en la pared con expresión seria. \"Si llegaste hasta acá con ese nivel, ya pasaste por la Catedral de la Oscuridad o el Abismo Eterno.\" Pausa. \"¿Encontraste las páginas del diario helado en la Galería? Hay un nombre que aparece en demasiados lugares aquí adentro. Si no lo conectaste todavía, hablá con Aldric en sala 4.\"\n\nTe mira fijo. \"El dungeon tiene memoria. Y vos ya sos parte de ella.\"' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 6: Visitó el Pozo — navegación avanzada
     if (hasVisitedPozo) {
-      return { text: 'El anciano te mira con ojos que han visto demasiado.\n\n\"Ya encontraste el Pozo, ¿verdad? La puerta al norte del Pozo tiene cerradura —necesitás una llave oxidada. La guardaban en la Prisión, sala 8, al norte de la Cámara del Tesoro.\"\n\nTose y continúa: \"Pero si no querés buscarla, hay otro camino. Hacia el este está la Capilla Olvidada. Desde ahí, al norte, el Túnel de los Hongos. Luego al norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario. Sin llave.\"\n\nSonríe brevemente. \"Nadie sabe por qué ese camino quedó abierto. Yo tengo mis sospechas.\"' + getAncianoMemorySuffix() };
+      return { text: ancianoCampanaPrefix + 'El anciano te mira con ojos que han visto demasiado.\n\n\"Ya encontraste el Pozo, ¿verdad? La puerta al norte del Pozo tiene cerradura —necesitás una llave oxidada. La guardaban en la Prisión, sala 8, al norte de la Cámara del Tesoro.\"\n\nTose y continúa: \"Pero si no querés buscarla, hay otro camino. Hacia el este está la Capilla Olvidada. Desde ahí, al norte, el Túnel de los Hongos. Luego al norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario. Sin llave.\"\n\nSonríe brevemente. \"Nadie sabe por qué ese camino quedó abierto. Yo tengo mis sospechas.\"' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 7: Nivel medio (≥3)
     if (level >= 3) {
-      return { text: 'El anciano asiente al verte.\n\n\"Buscás llegar al Santuario Profano, ¿no?\" No espera respuesta. \"Hay dos rutas. La directa pasa por el Pozo Sin Fondo —al oeste desde la Sala de los Ecos— pero la puerta al norte tiene cerradura. Necesitás una llave oxidada.\"\n\nSeñala hacia el este. \"La otra ruta es más larga pero abierta: Capilla → Hongos → Trono → Santuario. Sin llave. Muchos lo ignoran y se quedan dando vueltas buscando oro para la tienda.\"\n\nVuelve a apoyarse en la pared, como si esa conversación lo hubiera cansado.' + getAncianoMemorySuffix() };
+      return { text: ancianoCampanaPrefix + 'El anciano asiente al verte.\n\n\"Buscás llegar al Santuario Profano, ¿no?\" No espera respuesta. \"Hay dos rutas. La directa pasa por el Pozo Sin Fondo —al oeste desde la Sala de los Ecos— pero la puerta al norte tiene cerradura. Necesitás una llave oxidada.\"\n\nSeñala hacia el este. \"La otra ruta es más larga pero abierta: Capilla → Hongos → Trono → Santuario. Sin llave. Muchos lo ignoran y se quedan dando vueltas buscando oro para la tienda.\"\n\nVuelve a apoyarse en la pared, como si esa conversación lo hubiera cansado.' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 8: Principiante (o veterano cross-run sin otras variantes específicas)
@@ -11994,9 +12041,9 @@ function cmdTalk(player, target) {
     // Si es la primera vez (total_runs <= 1), mostrar el texto de bienvenida detallado del engine
     const isFirstTimePlayer = ancianoHistoryDialogo.includes('Bienvenido al Dungeon');
     if (!isFirstTimePlayer) {
-      return { text: ancianoHistoryDialogo + getAncianoMemorySuffix() };
+      return { text: ancianoCampanaPrefix + ancianoHistoryDialogo + getAncianoMemorySuffix() };
     }
-    return { text: 'El guardián anciano —Vartan, si todavía no sabés su nombre— levanta la vista hacia vos.\n\n\"Nuevo en el dungeon. Bien.\" Pausa. \"Escuchá: el dungeon tiene dos zonas principales. Al norte y al este desde aquí. Al norte hay más combate directo; al este hay cosas más... sutiles.\"\n\nSe rasca la barba. \"Cuando llegués al Pozo Sin Fondo —lo vas a saber cuando lo veas— hay una puerta bloqueada al norte. Si no tenés la llave, no la fuerces. Hay otro camino por el este, pasando por la Capilla. Acordate de eso.\"\n\nSeñala hacia abajo con el pulgar. \"Ah, y si querés practicar sin riesgo —sin que nadie te lastime y sin perder nada— hay una Sala de Práctica debajo de acá. Escribí \'abajo\' para bajar. Los maniquíes no muerden.\"\n\nVuelve a mirar la pared, como si la conversación hubiera terminado.' + getAncianoMemorySuffix() };
+    return { text: ancianoCampanaPrefix + 'El guardián anciano —Vartan, si todavía no sabés su nombre— levanta la vista hacia vos.\n\n\"Nuevo en el dungeon. Bien.\" Pausa. \"Escuchá: el dungeon tiene dos zonas principales. Al norte y al este desde aquí. Al norte hay más combate directo; al este hay cosas más... sutiles.\"\n\nSe rasca la barba. \"Cuando llegués al Pozo Sin Fondo —lo vas a saber cuando lo veas— hay una puerta bloqueada al norte. Si no tenés la llave, no la fuerces. Hay otro camino por el este, pasando por la Capilla. Acordate de eso.\"\n\nSeñala hacia abajo con el pulgar. \"Ah, y si querés practicar sin riesgo —sin que nadie te lastime y sin perder nada— hay una Sala de Práctica debajo de acá. Escribí \'abajo\' para bajar. Los maniquíes no muerden.\"\n\nVuelve a mirar la pared, como si la conversación hubiera terminado.' + getAncianoMemorySuffix() };
   }
 
   // Solo Aldric por ahora. Acepta: 'aldric', 'mercader', 'tendero', o vacío si está en sala 4
@@ -28738,6 +28785,149 @@ function cmdVeteranoBonusElegir(player, args) {
   return {
     text: `🌙 **Legado Veterano Silencioso** — Bonus aplicado: **${bonusDesc}**.\n   El silencio de tu mentor pesa menos ahora. Escribí \`status\` para ver tus stats.`,
   };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EPIC-1894/1895: cmdCampana — Comando `campaña` y `campaña historia`
+// Muestra el estado de la campaña activa, o el historial de campañas.
+// ══════════════════════════════════════════════════════════════════════════════
+
+function cmdCampana(player, args) {
+  const sub = args && args.length > 0 ? args.join(' ').trim().toLowerCase() : '';
+
+  // Sub-comando: `campaña historia` (EPIC-1895)
+  if (sub === 'historia' || sub === 'historial' || sub === 'history') {
+    return cmdCampanaHistoria();
+  }
+
+  // Comando principal: `campaña` (EPIC-1894)
+  let data;
+  try {
+    data = db.getActiveCampaign();
+  } catch (e) {
+    console.error('[cmdCampana] Error al obtener campaña activa:', e.message);
+    return { text: '❌ Error al consultar el estado de la campaña. Intentá de nuevo más tarde.' };
+  }
+
+  if (!data) {
+    return { text: '🏰 **Campaña**\n\nNo hay ninguna campaña activa en este momento.\nUsá `campaña historia` para ver campañas anteriores.' };
+  }
+
+  const { campaign, active, progress, goal_target, days_remaining } = data;
+
+  // Campaña resuelta (victoria o derrota)
+  if (active.state === 'victory') {
+    const lines = [];
+    lines.push(`🏆 **${campaign.name}** — *Victoria*`);
+    lines.push('');
+    lines.push(`> ${campaign.lore_victory}`);
+    lines.push('');
+    lines.push(`📊 Progreso final: **${progress}/${goal_target}** fragmentos`);
+    lines.push(`⚔️ Usá \`campaña historia\` para ver el registro completo.`);
+    return { text: lines.join('\n') };
+  }
+
+  if (active.state === 'defeat') {
+    const lines = [];
+    lines.push(`💀 **${campaign.name}** — *Derrota*`);
+    lines.push('');
+    lines.push(`> ${campaign.lore_defeat}`);
+    lines.push('');
+    lines.push(`📊 Progreso final: **${progress}/${goal_target}** fragmentos`);
+    lines.push(`⚔️ Usá \`campaña historia\` para ver el registro completo.`);
+    return { text: lines.join('\n') };
+  }
+
+  // Campaña activa — mostrar estado con barra de progreso
+  let playerContribs = { total: 0 };
+  try {
+    playerContribs = db.getPlayerCampaignContributions(player.username || player.id, active.id);
+  } catch (e) {
+    // No crítico — seguir con 0
+  }
+
+  const percent = goal_target > 0 ? Math.min(100, Math.floor((progress / goal_target) * 100)) : 0;
+  const barLen = 20;
+  const filled = Math.floor((percent / 100) * barLen);
+  const bar = '█'.repeat(filled) + '░'.repeat(barLen - filled);
+
+  // Texto según fase (semana 1 o 2)
+  const isMidpoint = days_remaining !== null && days_remaining <= 7;
+
+  const lines = [];
+  lines.push(`⚔️ **${campaign.name}**`);
+  lines.push('');
+
+  if (isMidpoint && campaign.lore_midpoint) {
+    lines.push(`> ${campaign.lore_midpoint}`);
+  } else {
+    lines.push(`> ${campaign.lore_intro}`);
+  }
+
+  lines.push('');
+  lines.push(`**Progreso colectivo:** [${bar}] ${percent}%  (${progress}/${goal_target})`);
+
+  if (days_remaining !== null) {
+    if (days_remaining <= 0) {
+      lines.push(`⏳ **Tiempo restante:** Menos de 1 día`);
+    } else if (days_remaining === 1) {
+      lines.push(`⏳ **Tiempo restante:** 1 día`);
+    } else {
+      lines.push(`⏳ **Tiempo restante:** ${days_remaining} días`);
+    }
+  }
+
+  if (playerContribs.total > 0) {
+    lines.push(`👤 **Tu contribución:** ${playerContribs.total} fragmento${playerContribs.total !== 1 ? 's' : ''} neutralizado${playerContribs.total !== 1 ? 's' : ''}`);
+  } else {
+    lines.push(`👤 **Tu contribución:** Todavía no participaste`);
+    lines.push(`   → Derrotá no-muertos para obtener Fragmentos de Ritual, luego usá \`usar fragmento de ritual\` en la Capilla Olvidada.`);
+  }
+
+  lines.push('');
+  lines.push(`📜 \`campaña historia\` — ver campañas anteriores`);
+
+  return { text: lines.join('\n') };
+}
+
+// ─── EPIC-1895: cmdCampanaHistoria — sub-comando `campaña historia` ───────────
+
+function cmdCampanaHistoria() {
+  let history;
+  try {
+    history = db.getCampaignHistory();
+  } catch (e) {
+    console.error('[cmdCampanaHistoria] Error:', e.message);
+    return { text: '❌ Error al consultar el historial de campañas.' };
+  }
+
+  if (!history || history.length === 0) {
+    return { text: '📜 **Historial de Campañas**\n\nAún no hay campañas registradas.' };
+  }
+
+  const lines = [];
+  lines.push('📜 **Historial de Campañas**');
+  lines.push('');
+
+  for (const entry of history) {
+    const icon = entry.state === 'victory' ? '🏆' : entry.state === 'defeat' ? '💀' : '⏳';
+    const stateLabel = entry.state === 'victory' ? 'Victoria' : entry.state === 'defeat' ? 'Derrota' : 'Activa';
+    const progressPct = entry.goal_target > 0 ? Math.floor((entry.progress / entry.goal_target) * 100) : 0;
+
+    let dateStr = '';
+    if (entry.started_at) {
+      try {
+        const d = new Date(typeof entry.started_at === 'number' ? entry.started_at * 1000 : entry.started_at);
+        dateStr = d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      } catch (_) { dateStr = String(entry.started_at).slice(0, 10); }
+    }
+
+    lines.push(`${icon} **${entry.name}** — ${stateLabel}`);
+    lines.push(`   Progreso: ${entry.progress}/${entry.goal_target} (${progressPct}%) | Inicio: ${dateStr}`);
+    lines.push('');
+  }
+
+  return { text: lines.join('\n').trimEnd() };
 }
 
 module.exports = { execute, getOrCreatePlayer, ROOM_EFFECTS, resolveExpiredAuctions, getTitle, regenMana, SPELL_CATALOG, getClassReminder, cmdBestiary, cmdProfile, cmdJournal, cmdServerStats, cmdTime, cmdEnemies, cmdCompare, cmdReputation, cmdChallenge, cmdContract, clearAfk, isAfk, killStreakMap, sessionExploredRooms, STANCES, sessionCommandHistory, cmdWeather, cmdHardcore, toRoman, cmdMemorial, cmdCalendar, FORAGE_REST_ROOMS, cmdEnchant, comboMap, cmdWorldGoals, checkAndSetRecords };

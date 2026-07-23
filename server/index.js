@@ -724,6 +724,43 @@ async function main() {
   // 9. Trap respawn loop: reactivar trampas desactivadas cada 60 segundos
   setInterval(() => db.checkTrapRespawns(), 60000);
 
+  // EPIC-1898: Campaign end check — verificar si la campaña activa expiró cada 60 segundos
+  setInterval(() => {
+    try {
+      const campData = db.getActiveCampaign();
+      if (!campData) return;
+      const { active, progress, goal_target } = campData;
+      if (active.state !== 'active') return;
+
+      const now = new Date();
+      const endsAt = new Date(active.ends_at);
+      const victoryThreshold = Math.ceil(goal_target * 0.8); // 80% = victoria anticipada
+
+      let newState = null;
+      if (progress >= victoryThreshold) {
+        newState = 'victory';
+      } else if (now >= endsAt) {
+        newState = 'defeat';
+      }
+
+      if (newState) {
+        db.raw().run(`UPDATE active_campaign SET state = ? WHERE id = 1 AND state = 'active'`, [newState]);
+        const label = newState === 'victory' ? '🏆 VICTORIA' : '💀 DERROTA';
+        console.log(`[campaign] ${label} — ${campData.campaign.name} (progreso: ${progress}/${goal_target})`);
+        // Broadcast a todos los jugadores conectados
+        const msg = newState === 'victory'
+          ? `🏆 ¡La campaña "${campData.campaign.name}" terminó en VICTORIA! Los rituales de Veth fueron contenidos. Escribí 'campaña' para ver el resultado.`
+          : `💀 La campaña "${campData.campaign.name}" terminó en DERROTA. Los rituales llegaron a la Catedral. Escribí 'campaña' para ver el resultado.`;
+        try {
+          const io = require('./ioRef').get();
+          if (io) io.emit('event', { text: msg });
+        } catch (_) {}
+      }
+    } catch (e) {
+      console.error('[campaign] Error en check de fin de campaña:', e.message);
+    }
+  }, 60000);
+
   // T143: Training dummy regen loop — regenerar maniquíes en sala 21 cada 10 segundos
   const TRAINING_DUMMY_IDS_SERVER = [23, 24, 25];
   setInterval(() => {

@@ -1430,6 +1430,47 @@ async function init() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_camp_contrib_campaign ON campaign_contributions(campaign_id, contributed_at)`);
   console.log('[db] EPIC-CAMP: tablas campaigns, active_campaign, campaign_contributions listas');
 
+  // EPIC-CAMP: Seed de la campaña "La Invasión de Veth" (INSERT OR IGNORE — idempotente)
+  try {
+    db.run(`
+      INSERT OR IGNORE INTO campaigns
+        (id, name, lore_intro, lore_midpoint, lore_victory, lore_defeat,
+         goal_type, goal_target, goal_key, duration_days,
+         reward_victory, consequence_defeat, active_effects)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      'arquinecromante_veth',
+      'La Invasión de Veth',
+      'Forastero. Escuchá con atención — hay algo en el dungeon que no estaba hace tres días. El Arquinecromante Veth llegó desde las profundidades. No vino a conquistar — vino a terminar algo. Sus rituales consumen la energía de los cristales de las salas inferiores. Si llega a la Catedral, el Lich resurgirá de forma permanente. No como un ciclo más. Permanente.\n\nLos no-muertos que ya conocés — los esqueletos, los zombis, el espectro — ahora cargan algo. Fragmentos de los rituales de Veth. Si los derrotás y llevás esos fragmentos a la Capilla Olvidada, podés neutralizarlos en el altar.\n\nNo te pido que mates a Veth. Todavía. Te pido que detengas sus rituales mientras podamos.',
+      'Los rituales siguen llegando. Veth no se detiene — trabaja en turnos. Lo que neutralizaron hasta ahora cuenta, pero no alcanza todavía.\n\nEscucho las pisadas de más aventureros en el corredor. Algunos vinieron esta semana por primera vez; otros ya trajeron fragmentos antes. El altar de la Capilla los reconoce — la energía acumulada es palpable.\n\nQuedan días. Cada fragmento neutralizado es tiempo ganado. No paren ahora.',
+      'Quedó registrado. Los aventureros de esta semana contuvieron los rituales de Veth antes de que llegaran a la Catedral. El Lich sigue en su ciclo — no resurgió de forma permanente.\n\nVeth escapó. Eso no es una victoria limpia. Pero lo que hicieron importa: el dungeon tiene memoria. El altar de la Capilla guarda el rastro de cada fragmento que neutralizaron. En algún momento, Veth va a volver. Cuando pase, van a saber que ya lo detuvieron antes.\n\nGracias.',
+      'No alcanzó. Los rituales llegaron a la Catedral antes de que los detuviéramos. El Lich absorbió suficiente energía para fortalecer a los no-muertos del dungeon — no de forma permanente, pero sí lo suficiente como para que la próxima semana sea más pesada.\n\nNo es culpa de nadie en particular. A veces el dungeon gana. Pero esto quedó registrado también — la derrota tiene peso propio. Cuando Veth vuelva, y va a volver, saber que ya perdimos una vez debería ser razón suficiente para no perder dos.',
+      'deposit_items',
+      120,
+      'campana_veth_rituales_neutralizados',
+      14,
+      JSON.stringify({ type: 'global_xp_bonus', xp_bonus_pct: 25, duration_hours: 24, message: '🏆 ¡La Invasión de Veth fue contenida! Los aventureros neutralizaron los rituales. +25% XP durante las próximas 24 horas.' }),
+      JSON.stringify({ type: 'undead_hp_bonus', hp_bonus_pct: 10, duration_days: 3, message: '💀 Los rituales de Veth llegaron a la Catedral. Los no-muertos están fortalecidos. +10% HP a todos los no-muertos durante 3 días.' }),
+      JSON.stringify({
+        drop_items: [
+          { monster_type: 'esqueleto', item: 'Fragmento de Ritual de Veth', rate: 0.40 },
+          { monster_type: 'zombie',    item: 'Fragmento de Ritual de Veth', rate: 0.50 },
+          { monster_type: 'espectro',  item: 'Fragmento de Ritual de Veth', rate: 0.60 },
+          { monster_type: 'lich',      item: 'Fragmento de Ritual de Veth', rate: 1.00, count: 3 },
+        ],
+        room_effects: [
+          { room_id: 10, extra_description: '⚠️ Un círculo de runas oscuras pulsa en el suelo — trazado recientemente. Huele a la misma energía que los Fragmentos de Ritual que cargan los no-muertos. Veth estuvo aquí.' },
+        ],
+        deposit_room_id: 5,
+        deposit_item: 'Fragmento de Ritual de Veth',
+        deposit_message: '✨ Depositaste el Fragmento de Ritual en el altar de la Capilla. La energía oscura se disipa lentamente. Contribuiste a la campaña contra Veth.',
+      }),
+    ]);
+    console.log('[db] EPIC-CAMP: Campaña "La Invasión de Veth" sembrada (INSERT OR IGNORE)');
+  } catch (e) {
+    console.error('[db] EPIC-CAMP seed Veth:', e.message);
+  }
+
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });
   process.on('SIGTERM', () => { persist(); process.exit(0); });
@@ -4647,6 +4688,54 @@ function getPlayerCampaignContributions(playerUsername, campaignId) {
   }
 }
 
+/**
+ * activateCampaign(campaignId) → boolean
+ *
+ * Activa una campaña existente. Requiere que la campaña esté registrada en tabla `campaigns`.
+ * Si ya hay una campaña activa, la reemplaza (upsert en active_campaign id=1).
+ * Retorna true si tuvo éxito, false si la campaña no existe.
+ */
+function activateCampaign(campaignId) {
+  try {
+    const campaign = one(`SELECT id, duration_days, goal_key FROM campaigns WHERE id = ?`, [campaignId]);
+    if (!campaign) {
+      console.error(`[db] activateCampaign: campaña '${campaignId}' no encontrada en tabla campaigns`);
+      return false;
+    }
+
+    const startedAt = new Date().toISOString();
+    const endsAt = new Date(Date.now() + campaign.duration_days * 24 * 60 * 60 * 1000).toISOString();
+
+    // Upsert en active_campaign (solo hay una fila con id=1)
+    db.run(
+      `INSERT INTO active_campaign (id, campaign_id, started_at, ends_at, state)
+       VALUES (1, ?, ?, ?, 'active')
+       ON CONFLICT(id) DO UPDATE SET
+         campaign_id = excluded.campaign_id,
+         started_at  = excluded.started_at,
+         ends_at     = excluded.ends_at,
+         state       = 'active'`,
+      [campaignId, startedAt, endsAt]
+    );
+
+    // Resetear el contador de progreso en world_state
+    const wsKey = campaign.goal_key || null;
+    if (wsKey) {
+      db.run(
+        `INSERT INTO world_state (key, value, updated_at) VALUES (?, 0, datetime('now'))
+         ON CONFLICT(key) DO UPDATE SET value = 0, updated_at = datetime('now')`,
+        [wsKey]
+      );
+    }
+
+    console.log(`[db] activateCampaign: campaña '${campaignId}' activada. Termina: ${endsAt}`);
+    return true;
+  } catch (e) {
+    console.error('[db] activateCampaign:', e.message);
+    return false;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -4736,4 +4825,5 @@ module.exports = {
   upsertCryptPlaque, upsertChronicle, getCryptCandidates,
   // EPIC-CAMP: Sistema de Campaña Narrativa
   getActiveCampaign, contributeToCurrentCampaign, getCampaignHistory, getPlayerCampaignContributions,
+  activateCampaign,
   };
