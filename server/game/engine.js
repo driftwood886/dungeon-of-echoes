@@ -1204,6 +1204,10 @@ function bossLevelHintMsg(bossRecLevel, playerLevel, prefix = '\n', suffix = '')
  * look — Describe la habitación actual.
  */
 function cmdLook(player, options = {}) {
+  // DIS-1878: refrescar el jugador antes de describir para asegurarse de usar current_room_id actual
+  // (puede estar desactualizado si se llamó cmdLook después de un move sin re-fetch)
+  player = db.getPlayer(player.id) || player;
+
   // BUG-503: correr checkRespawns antes de describir la sala para que monstruos
   // recién respawneados sean visibles sin que el jugador tenga que salir y volver a entrar.
   try {
@@ -6360,7 +6364,8 @@ function cmdAttack(player, targetName) {
     }
   }
 
-  const baseText = _bug1781BossInvWarning + battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg;
+  // DIS-1879: la advertencia de mochila al final del output (antes estaba al inicio, era disruptiva en momentos de tensión)
+  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg + (_bug1781BossInvWarning ? '\n\n' + _bug1781BossInvWarning.trim() : '');
 
   // DIS-1800: Hint de flee para zona profunda — primera vez que el jugador ataca
   // al Troll de las Cavernas o al Golem de Forja (sala 12), mobs muy difíciles.
@@ -6793,7 +6798,9 @@ function cmdPick(player, itemQuery) {
       if (pickedCount > 0) {
         resultMsg += ` — entraron ${pickedCount} ítem(s)`;
       }
-      resultMsg += `. Quedaron en el suelo:\n  ${notPicked.map(i => `❌ ${i}`).join('\n  ')}\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g, +4 slots) en la tienda de Aldric.`;
+      // BUG-1876: listar cada ítem no recogido con su comando pick exacto para facilitar la elección
+      const notPickedList = notPicked.map(i => `  ❌ ${i}  → pick ${i}`).join('\n');
+      resultMsg += `\nQuedan en el suelo (podés elegir cuáles recoger):\n${notPickedList}\n💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g, +4 slots) en la tienda de Aldric.`;
     }
     // BUG-1724: registrar progreso del desafío loot_pickup para los ítems no-moneda recogidos con pick todo
     const pickedNonGoldItems = pickedLines
@@ -9634,8 +9641,16 @@ function cmdWear(player, itemQuery) {
     }
   }
 
+  // BUG-1877: mostrar slots de mochila reales después de equipar para aclarar que sí liberó slot
+  const finalInvLen = inv.length; // ya actualizado sin la armadura nueva
+  const invMaxWear = INV_BASE_SLOTS + (player.inventory_bonus || 0);
+  const freeSlotsWear = invMaxWear - finalInvLen;
+  const freeSlotMsg = oldArmor
+    ? `  (La armadura anterior volvió a tu mochila: ${finalInvLen}/${invMaxWear} ocupados, ${freeSlotsWear} libre${freeSlotsWear !== 1 ? 's' : ''}.)`
+    : `  (Mochila: ${finalInvLen}/${invMaxWear} ocupados, ${freeSlotsWear} slot${freeSlotsWear !== 1 ? 's' : ''} libre${freeSlotsWear !== 1 ? 's' : ''} — la armadura está en tu slot de equipo.)`;
+
   return {
-    text: `Te ponés ${found}${swapMsg}. ${defMsg}.${specDefNote}\n${def.description}`,
+    text: `Te ponés ${found}${swapMsg}. ${defMsg}.${specDefNote}\n${def.description}\n${freeSlotMsg}`,
     event: `${player.username} se pone ${found}.`,
     eventRoomId: player.current_room_id,
   };
