@@ -9,10 +9,45 @@
  * IDs negativos: -1, -2, -3 (nunca colisionan con jugadores reales).
  * Si un NPC gana como comprador, el ítem "desaparece" (el NPC se lo lleva).
  * Si un NPC vende y nadie puja, el ítem pasa al mercado pasivo normalmente.
+ *
+ * DIS-1913: Catálogos por tier de rareza (común/raro/épico) con ponderación:
+ *   70% común, 25% raro, 5% épico.
+ *   Ítems raros/épicos tienen duración extendida (10/15 min) para dar más tiempo.
  */
 
 let db = null;
 let io = null;
+
+// ─── Duración de subastas por rareza (DIS-1913) ──────────────────────────────
+
+const AUCTION_DURATION = {
+  común:      5  * 60 * 1000,   //  5 min (default)
+  raro:       10 * 60 * 1000,   // 10 min
+  épico:      15 * 60 * 1000,   // 15 min
+};
+
+/**
+ * Selecciona un ítem del catálogo ponderado por rareza (DIS-1913).
+ * Probabilidades: 70% común, 25% raro, 5% épico.
+ * Si no hay ítems en un tier, cae al tier inferior.
+ */
+function weightedCatalogueEntry(bot) {
+  const commons = bot.catalogue.filter(e => e.rarity === 'común' || !e.rarity);
+  const rares   = bot.catalogue.filter(e => e.rarity === 'raro');
+  const epics   = bot.catalogue.filter(e => e.rarity === 'épico');
+
+  const roll = Math.random() * 100;
+  let pool;
+  if (roll < 5 && epics.length > 0) {
+    pool = epics;
+  } else if (roll < 30 && rares.length > 0) {
+    pool = rares;
+  } else {
+    pool = commons.length > 0 ? commons : bot.catalogue;
+  }
+
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 // ─── Definición de bots NPC ───────────────────────────────────────────────────
 
@@ -21,16 +56,25 @@ const NPC_BOTS = [
     id: -1,
     name: 'Bertholdt el Trapero',
     emoji: '🧹',
-    // Ítems que este NPC ofrece a la subasta (precio mínimo en oro)
+    // DIS-1913: catálogo dividido en tiers de rareza
     catalogue: [
-      { item: 'hierba curativa',         minPrice: 3  },
-      { item: 'poción de salud',         minPrice: 8  },
-      { item: 'cuchillo oxidado',        minPrice: 5  },
-      { item: 'escudo de madera',        minPrice: 7  },
-      { item: 'antorcha',                minPrice: 2  },
-      { item: 'fragmento de hueso',      minPrice: 2  },
-      { item: 'moneda de cobre',         minPrice: 1  },
-      { item: 'vendas',                  minPrice: 4  },
+      // — Comunes —
+      { item: 'hierba curativa',         minPrice: 3,  rarity: 'común' },
+      { item: 'poción de salud',         minPrice: 8,  rarity: 'común' },
+      { item: 'cuchillo oxidado',        minPrice: 5,  rarity: 'común' },
+      { item: 'escudo de madera',        minPrice: 7,  rarity: 'común' },
+      { item: 'antorcha',                minPrice: 2,  rarity: 'común' },
+      { item: 'fragmento de hueso',      minPrice: 2,  rarity: 'común' },
+      { item: 'moneda de cobre',         minPrice: 1,  rarity: 'común' },
+      { item: 'vendas',                  minPrice: 4,  rarity: 'común' },
+      // — Raros —
+      { item: 'collar de garras',        minPrice: 28, rarity: 'raro'  },
+      { item: 'poción mayor de salud',   minPrice: 22, rarity: 'raro'  },
+      { item: 'corona rota',             minPrice: 35, rarity: 'raro'  },
+      { item: 'llave oxidada',           minPrice: 18, rarity: 'raro'  },
+      // — Épicos —
+      { item: 'filacteria rota',         minPrice: 75, rarity: 'épico' },
+      { item: 'espada envenenada',       minPrice: 80, rarity: 'épico' },
     ],
     // Categorías que este bot compra (keywords en el nombre del ítem)
     buysKeywords: ['poción', 'hierba', 'fragmento', 'moneda', 'vendas', 'antorcha'],
@@ -49,14 +93,24 @@ const NPC_BOTS = [
     name: 'Melisandra la Hechicera',
     emoji: '🔮',
     catalogue: [
-      { item: 'pergamino arcano',        minPrice: 12 },
-      { item: 'pergamino de fuego',      minPrice: 15 },
-      { item: 'poción de invisibilidad', minPrice: 20 },
-      { item: 'cristal de mana',         minPrice: 10 },
-      { item: 'ojo de murciélago',       minPrice: 6  },
-      { item: 'poción de fuerza',        minPrice: 14 },
-      { item: 'poción de velocidad',     minPrice: 14 },
-      { item: 'esencia arcana',          minPrice: 18 },
+      // — Comunes —
+      { item: 'pergamino arcano',        minPrice: 12, rarity: 'común' },
+      { item: 'pergamino de fuego',      minPrice: 15, rarity: 'común' },
+      { item: 'poción de invisibilidad', minPrice: 20, rarity: 'común' },
+      { item: 'cristal de mana',         minPrice: 10, rarity: 'común' },
+      { item: 'ojo de murciélago',       minPrice: 6,  rarity: 'común' },
+      { item: 'poción de fuerza',        minPrice: 14, rarity: 'común' },
+      { item: 'poción de velocidad',     minPrice: 14, rarity: 'común' },
+      { item: 'esencia arcana',          minPrice: 18, rarity: 'común' },
+      // — Raros —
+      { item: 'grimorio élfico',         minPrice: 40, rarity: 'raro'  },
+      { item: 'cristal resonante',       minPrice: 32, rarity: 'raro'  },
+      { item: 'esencia de sombra',       minPrice: 30, rarity: 'raro'  },
+      { item: 'pergamino de furia',      minPrice: 25, rarity: 'raro'  },
+      { item: 'poción de maná mayor',    minPrice: 28, rarity: 'raro'  },
+      // — Épicos —
+      { item: 'pergamino de velocidad',  minPrice: 90, rarity: 'épico' },
+      { item: 'túnica encantada',        minPrice: 120, rarity: 'épico'},
     ],
     buysKeywords: ['pergamino', 'cristal', 'esencia', 'poción', 'ojo', 'mana'],
     bidChance: 55,
@@ -70,14 +124,22 @@ const NPC_BOTS = [
     name: 'Drago el Herrero',
     emoji: '⚒️',
     catalogue: [
-      { item: 'espada de hierro',        minPrice: 8 },  // DIS-1554: ajustado junto con precio tienda 20g→10g
-      { item: 'hacha de guerra',         minPrice: 22 },
-      { item: 'escudo de hierro',        minPrice: 16 },
-      { item: 'cota de malla',           minPrice: 20 },
-      { item: 'armadura de cuero endurecido', minPrice: 15 },
-      { item: 'espada corta',            minPrice: 12 },
-      { item: 'martillo de combate',     minPrice: 19 },
-      { item: 'daga de acero',           minPrice: 14 },
+      // — Comunes —
+      { item: 'espada de hierro',              minPrice: 8,  rarity: 'común' },  // DIS-1554
+      { item: 'escudo de hierro',              minPrice: 16, rarity: 'común' },
+      { item: 'armadura de cuero endurecido',  minPrice: 15, rarity: 'común' },
+      { item: 'espada corta',                  minPrice: 12, rarity: 'común' },
+      { item: 'martillo de combate',           minPrice: 19, rarity: 'común' },
+      { item: 'daga de acero',                 minPrice: 14, rarity: 'común' },
+      // — Raros —
+      { item: 'cota de malla',                 minPrice: 35, rarity: 'raro'  },
+      { item: 'escudo de gladiador',           minPrice: 45, rarity: 'raro'  },
+      { item: 'peto de huesos',                minPrice: 30, rarity: 'raro'  },
+      { item: 'cuchillo envenenado',           minPrice: 28, rarity: 'raro'  },
+      // — Épicos —
+      { item: 'hacha de guerra',               minPrice: 85, rarity: 'épico' },
+      { item: 'armadura de placas',            minPrice: 130, rarity: 'épico'},
+      { item: 'alabarda de huesos',            minPrice: 95, rarity: 'épico' },
     ],
     buysKeywords: ['espada', 'hacha', 'escudo', 'armadura', 'cota', 'martillo', 'daga', 'lanza', 'arco'],
     bidChance: 35,
@@ -141,18 +203,26 @@ function maybeAuction(bot) {
   if (now - bot.lastAuctionAt < cooldownMs) return;
   if (botHasActiveAuction(bot.id)) return;
 
-  // Elegir ítem del catálogo al azar
-  const entry = bot.catalogue[Math.floor(Math.random() * bot.catalogue.length)];
+  // DIS-1913: Seleccionar ítem ponderado por rareza (70% común, 25% raro, 5% épico)
+  const entry = weightedCatalogueEntry(bot);
 
   // Precio con una variación aleatoria del ±20% para que no sea siempre igual
   const variation = 1 + (Math.random() * 0.4 - 0.2); // 0.8 → 1.2
   const price = Math.max(1, Math.round(entry.minPrice * variation));
 
+  // DIS-1913: duración extendida para ítems raros/épicos
+  const rarity = entry.rarity || 'común';
+  const durationMs = AUCTION_DURATION[rarity] || AUCTION_DURATION['común'];
+
+  // Etiqueta de rareza para el broadcast
+  const rarityLabel = rarity !== 'común' ? ` ✨ [${rarity.toUpperCase()}]` : '';
+
   try {
-    const auction = db.createAuction(bot.id, bot.name, entry.item, price);
+    const auction = db.createAuction(bot.id, bot.name, entry.item, price, durationMs);
     bot.lastAuctionAt = now;
 
-    const msg = `${bot.emoji} ${bot.name} pone a la venta: "${entry.item}" — precio mínimo ${price}g. (ID #${auction.id}) Usá: pujar ${auction.id} <monto>`;
+    const durationMin = Math.round(durationMs / 60000);
+    const msg = `${bot.emoji} ${bot.name} pone a la venta:${rarityLabel} "${entry.item}" — precio mínimo ${price}g. (ID #${auction.id}, ${durationMin} min) Usá: pujar ${auction.id} <monto>`;
     broadcast(msg);
   } catch (err) {
     console.error(`[auctionNPC] Error al crear subasta para ${bot.name}:`, err.message);

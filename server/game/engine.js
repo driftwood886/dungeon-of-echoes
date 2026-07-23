@@ -16788,7 +16788,10 @@ function cmdAuctions() {
     const bidInfo = a.current_bid > 0
       ? `Puja actual: ${a.current_bid}g (${a.bidder_name})`
       : `Sin pujas (mín: ${a.min_price}g)`;
-    return `  #${a.id} | ${a.item_name} | ${bidInfo} | ⏳ ${timeLeft} | Vendedor: ${a.seller_name}`;
+    // DIS-1913: mostrar rareza del ítem si no es común
+    const rarity = items.getItemRarity(a.item_name);
+    const rarityTag = rarity !== 'común' ? ` ✨[${rarity.toUpperCase()}]` : '';
+    return `  #${a.id} | ${a.item_name}${rarityTag} | ${bidInfo} | ⏳ ${timeLeft} | Vendedor: ${a.seller_name}`;
   });
 
   // DIS-535: líneas de mercado pasivo
