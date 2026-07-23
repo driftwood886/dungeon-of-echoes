@@ -492,6 +492,38 @@ function attackRound(player, monster) {
     }
   } catch (_) { /* no romper combate si falla el hook de marea */ }
 
+  // EPIC-1904: consecuencia de derrota de campaña — HP bonus a no-muertos (3 días)
+  try {
+    const campUndeadExpires = db.getWorldStateValue ? db.getWorldStateValue('campaign_undead_hp_bonus_expires') : null;
+    if (campUndeadExpires && Date.now() < Number(campUndeadExpires)) {
+      const monSeDefeat = monster.status_effects
+        ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : { ...monster.status_effects })
+        : {};
+      if (!monSeDefeat.campaign_defeat_undead_bonus) {
+        const monNameD = (monster.name || '').toLowerCase();
+        const isUndeadD = monNameD.includes('esqueleto') || monNameD.includes('zombie') ||
+          monNameD.includes('zombi') || monNameD.includes('vampiro') ||
+          monNameD.includes('momia') || monNameD.includes('óseo') || monNameD.includes('muerto') ||
+          monNameD.includes('espectro') || monNameD.includes('espectral') ||
+          monNameD.includes('lich') || monNameD.includes('sombra') || monNameD.includes('fantasma');
+        if (isUndeadD) {
+          const campUndeadPct = db.getWorldStateValue('campaign_undead_hp_bonus_pct');
+          const bonusPct = Number(campUndeadPct) || 30;
+          const hpBonusD = Math.ceil((monster.max_hp * bonusPct) / 100);
+          const newMaxHpD = monster.max_hp + hpBonusD;
+          const newHpD = monster.hp + hpBonusD;
+          db.updateMonster(monster.id, { max_hp: newMaxHpD, hp: newHpD });
+          monSeDefeat.campaign_defeat_undead_bonus = true;
+          db.updateMonster(monster.id, { status_effects: JSON.stringify(monSeDefeat) });
+          monster.max_hp = newMaxHpD;
+          monster.hp = newHpD;
+          monster.status_effects = monSeDefeat;
+          lines.push(`💀 Los no-muertos están fortalecidos por los rituales de Veth (+${hpBonusD} HP).`);
+        }
+      }
+    }
+  } catch (_) { /* no romper combate si falla el hook de derrota */ }
+
   // T-1227: SPECTRAL_TIDE — bloquear combate con no-espectros/no-muertos durante el evento
   // DIS-1335: También permitir monstruos undead (esqueletos, zombis, vampiros, momias) ya que el
   // anuncio dice "solo los no-muertos están activos" — no solo los espectrales puros.
@@ -1750,7 +1782,16 @@ function attackRound(player, monster) {
         impulsoXpMult = 1.2;
       }
     } catch (_) {}
-    const xpGain = Math.floor(xpBase * invasionMult * finalBloodmoonXpMult * weatherXpMult * eliteXpMult * impulsoXpMult);
+    // EPIC-1903: XP bonus global post-victoria de campaña
+    let campaignXpMult = 1.0;
+    try {
+      const campXpExpires = db.getWorldStateValue ? db.getWorldStateValue('campaign_xp_bonus_expires') : null;
+      if (campXpExpires && Date.now() < Number(campXpExpires)) {
+        const campXpPct = db.getWorldStateValue('campaign_xp_bonus_pct');
+        campaignXpMult = 1 + (Number(campXpPct) || 25) / 100;
+      }
+    } catch (_) {}
+    const xpGain = Math.floor(xpBase * invasionMult * finalBloodmoonXpMult * weatherXpMult * eliteXpMult * impulsoXpMult * campaignXpMult);
     const freshPlayer = db.getPlayer(player.id);
 
     // DIS-1019 / BUG-927: El Goblin de Práctica (id=20) no da XP ni kills en ningún caso.
@@ -1808,7 +1849,7 @@ function attackRound(player, monster) {
         lines.push(`\n⚔️ Tip: Aún no te uniste a ninguna facción (disponibles desde nivel 3) — escribí \`facciones\` para ver las opciones y sus beneficios.`);
       }
     }
-    lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})${impulsoXpMult > 1.0 ? ' ✨[+20% Impulso]' : ''}${finalBloodmoonXpMult > 1.0 ? ` 🌑[+${Math.round((finalBloodmoonXpMult-1)*100)}% Luna]` : ''}${xpProgressSuffix(newXp, newLevel)}`);
+    lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})${impulsoXpMult > 1.0 ? ' ✨[+20% Impulso]' : ''}${finalBloodmoonXpMult > 1.0 ? ` 🌑[+${Math.round((finalBloodmoonXpMult-1)*100)}% Luna]` : ''}${campaignXpMult > 1.0 ? ` 🏆[+${Math.round((campaignXpMult-1)*100)}% Victoria Campaña]` : ''}${xpProgressSuffix(newXp, newLevel)}`);
     // T190: Encantamiento de luz — +3 HP al matar
     if (enchantActive && enchantData.type === 'luz') {
       const hpOnKill = enchantData.hp_on_kill || 3;

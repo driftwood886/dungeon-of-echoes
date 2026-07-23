@@ -4596,6 +4596,26 @@ function cmdStatus(player) {
         return `Evento:   ${ev1840.name} — activo (~${timerStr1840} restantes)`;
       } catch (_) { return null; }
     })(),
+    // EPIC-1903: mostrar XP bonus de victoria de campaña si está activo
+    (() => {
+      try {
+        const campXpExpires = db.getWorldStateValue ? db.getWorldStateValue('campaign_xp_bonus_expires') : null;
+        if (!campXpExpires || Date.now() >= Number(campXpExpires)) return null;
+        const campXpPct = db.getWorldStateValue('campaign_xp_bonus_pct');
+        const hoursLeft = Math.ceil((Number(campXpExpires) - Date.now()) / 3600000);
+        return `🏆 +${campXpPct || 25}% XP (victoria campaña Veth, ~${hoursLeft}h restantes)`;
+      } catch (_) { return null; }
+    })(),
+    // EPIC-1904: mostrar aviso de derrota de campaña (no-muertos fortalecidos) si está activo
+    (() => {
+      try {
+        const campUndeadExpires = db.getWorldStateValue ? db.getWorldStateValue('campaign_undead_hp_bonus_expires') : null;
+        if (!campUndeadExpires || Date.now() >= Number(campUndeadExpires)) return null;
+        const campUndeadPct = db.getWorldStateValue('campaign_undead_hp_bonus_pct');
+        const hoursLeft = Math.ceil((Number(campUndeadExpires) - Date.now()) / 3600000);
+        return `💀 No-muertos fortalecidos: +${campUndeadPct || 30}% HP (derrota campaña Veth, ~${hoursLeft}h restantes)`;
+      } catch (_) { return null; }
+    })(),
   ].filter(l => l !== null).join('\n');
 
   // Agregar íconos de logros al final

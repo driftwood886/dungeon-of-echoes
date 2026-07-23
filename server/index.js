@@ -747,6 +747,32 @@ async function main() {
         db.raw().run(`UPDATE active_campaign SET state = ? WHERE id = 1 AND state = 'active'`, [newState]);
         const label = newState === 'victory' ? '🏆 VICTORIA' : '💀 DERROTA';
         console.log(`[campaign] ${label} — ${campData.campaign.name} (progreso: ${progress}/${goal_target})`);
+
+        // EPIC-1903 / EPIC-1904: Aplicar consecuencias de victoria/derrota en world_state
+        try {
+          if (newState === 'victory' && campData.campaign.reward_victory) {
+            const reward = campData.campaign.reward_victory;
+            if (reward.type === 'global_xp_bonus') {
+              const durationMs = (reward.duration_hours || 24) * 60 * 60 * 1000;
+              const expiresAt = Date.now() + durationMs;
+              db.setWorldState('campaign_xp_bonus_expires', expiresAt);
+              db.setWorldState('campaign_xp_bonus_pct', reward.xp_bonus_pct || 25);
+              console.log(`[campaign] ✨ XP bonus activo: +${reward.xp_bonus_pct || 25}% por ${reward.duration_hours || 24}h`);
+            }
+          } else if (newState === 'defeat' && campData.campaign.consequence_defeat) {
+            const conseq = campData.campaign.consequence_defeat;
+            if (conseq.type === 'undead_hp_bonus') {
+              const durationMs = (conseq.duration_days || 3) * 24 * 60 * 60 * 1000;
+              const expiresAt = Date.now() + durationMs;
+              db.setWorldState('campaign_undead_hp_bonus_expires', expiresAt);
+              db.setWorldState('campaign_undead_hp_bonus_pct', conseq.hp_bonus_pct || 30);
+              console.log(`[campaign] 💀 HP bonus no-muertos activo: +${conseq.hp_bonus_pct || 30}% por ${conseq.duration_days || 3} días`);
+            }
+          }
+        } catch (e) {
+          console.error('[campaign] Error al aplicar consecuencias:', e.message);
+        }
+
         // Broadcast a todos los jugadores conectados
         const msg = newState === 'victory'
           ? `🏆 ¡La campaña "${campData.campaign.name}" terminó en VICTORIA! Los rituales de Veth fueron contenidos. Escribí 'campaña' para ver el resultado.`
