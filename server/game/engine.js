@@ -1026,14 +1026,17 @@ Comandos más usados:
 function handleTutorialCommand(player, action, step) {
   const cmd = action.command;
 
-  // BUG-1196: Si el jugador está en paso 2 o 3 y el goblin de práctica ya está muerto
+  // BUG-1196: Si el jugador está en paso 3+ (ya atacó al goblin) y el goblin está muerto
   // (tiene respawn_at o hp=0), auto-completar el tutorial. Esto evita el bloqueo al reconectar
   // cuando el goblin murió en una sesión anterior y aún no respawneó.
-  if (step >= 2) {
+  // BUG-1907: Usar step >= 3 (no >= 2) para evitar que un jugador en paso 2 (que nunca atacó)
+  // vea el tutorial auto-completado solo porque el goblin murió en una sesión de otro jugador.
+  // step === 3 garantiza que ESTE jugador ya inició combate al menos una vez.
+  if (step >= 3) {
     const goblinCheck = db.getMonster(20);
     const goblinDeadOrGone = !goblinCheck || goblinCheck.room_id !== 16 || (goblinCheck.hp <= 0) || !!(goblinCheck.respawn_at);
-    if (goblinDeadOrGone && cmd !== 'look' && cmd !== 'help' && cmd !== 'status' && cmd !== 'inventory' && cmd !== 'clear' && cmd !== 'clase') {
-      // El goblin ya no existe — el jugador lo mató. Completar tutorial.
+    if (goblinDeadOrGone) {
+      // El goblin ya no existe y el jugador ya atacó — completar tutorial.
       return completeTutorial(player);
     }
   }
