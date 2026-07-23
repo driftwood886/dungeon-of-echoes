@@ -18003,7 +18003,7 @@ function cmdPostaraDefensiva(player) {
   // Solo en combate (hay monstruos vivos en sala)
   const pdMonsters = db.getMonstersInRoom(player.current_room_id).filter(m => m.hp > 0);
   if (pdMonsters.length === 0) {
-    return { text: `🛡️ No hay enemigos en esta sala para defenderse.\n\n💡 La postura defensiva es una acción táctica que usás en combate:\n   • Cuando hay monstruos → activa bloqueo por 1 turno (+3 DEF, absorbe el siguiente golpe)\n   • Diferente a "postura agresiva" (que es preferencia de estilo, persiste entre turnos)\n\nMoveté a una sala con enemigos y usá "postura defensiva" cuando te ataquen.` };
+    return { text: `🛡️ No hay enemigos en esta sala para defenderse.\n\n💡 Recordatorio — dos comandos diferentes con semántica diferente:\n   • \"postura agresiva\" / \"postura defensiva\" → estilo persistente de combate (persiste entre salas y sesiones)\n   • \"defender\" / \"postura_defensiva\" → acción táctica del Guerrero: bloqueo de 1 turno (+3 DEF, absorbe el próximo golpe)\n\nMoveté a una sala con enemigos para usar \"defender\" en pleno combate.` };
   }
 
   // Verificar si ya está activa
