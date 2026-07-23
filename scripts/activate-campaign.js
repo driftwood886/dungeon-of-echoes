@@ -15,29 +15,35 @@ if (!campaignId) {
 
 const db = require('../server/db/db');
 
-// Inicializar BD
-db.init();
+// Inicializar BD (async) y activar campaña
+async function main() {
+  await db.init();
 
-// Verificar que la campaña existe
-const { getActiveCampaign, activateCampaign } = db;
+  const { getActiveCampaign, activateCampaign } = db;
 
-console.log(`🗡️  Activando campaña: "${campaignId}"...`);
-const success = activateCampaign(campaignId);
+  console.log(`🗡️  Activando campaña: "${campaignId}"...`);
+  const success = activateCampaign(campaignId);
 
-if (success) {
-  const data = getActiveCampaign();
-  if (data) {
-    console.log(`✅ Campaña activada correctamente:`);
-    console.log(`   Nombre:    ${data.campaign.name}`);
-    console.log(`   ID:        ${data.campaign.id}`);
-    console.log(`   Objetivo:  ${data.goal_target} (${data.campaign.goal_key})`);
-    console.log(`   Duración:  ${data.days_remaining} días restantes`);
-    console.log(`   Estado:    ${data.active.state}`);
-    console.log(`   Termina:   ${data.active.ends_at}`);
+  if (success) {
+    const data = getActiveCampaign();
+    if (data) {
+      console.log(`✅ Campaña activada correctamente:`);
+      console.log(`   Nombre:    ${data.campaign.name}`);
+      console.log(`   ID:        ${data.campaign.id}`);
+      console.log(`   Objetivo:  ${data.goal_target} (${data.campaign.goal_key})`);
+      console.log(`   Duración:  ${data.days_remaining} días restantes`);
+      console.log(`   Estado:    ${data.active.state}`);
+      console.log(`   Termina:   ${data.active.ends_at}`);
+    }
+    process.exit(0);
+  } else {
+    console.error(`❌ No se pudo activar la campaña "${campaignId}".`);
+    console.error('   Verificar que exista en la tabla campaigns (requiere seed).');
+    process.exit(1);
   }
-  process.exit(0);
-} else {
-  console.error(`❌ No se pudo activar la campaña "${campaignId}".`);
-  console.error('   Verificar que exista en la tabla campaigns (requiere seed).');
-  process.exit(1);
 }
+
+main().catch(e => {
+  console.error('❌ Error inesperado:', e.message);
+  process.exit(1);
+});
