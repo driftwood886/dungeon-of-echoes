@@ -1280,11 +1280,22 @@ function attackRound(player, monster) {
             lines.push(`💀 ¡${articuloMonstruo(monster.name)} ${monster.name} cae ${derrotadoMonstruo(monster.name)} por tu mascota!`);
           }
 
-          const { droppedLoot: petLoot, globalEvent: petGlobalEvent, lootNote: petLootNote } = dropLoot(monster, player.current_room_id, player);
+          const { droppedLoot: petLoot, globalEvent: petGlobalEvent, lootNote: petLootNote, directLoot: petDirectLoot, campaignDirectLoot: petCampFrags } = dropLoot(monster, player.current_room_id, player);
           loot = petLoot;
           if (loot.length > 0) lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
           else lines.push(`${articuloMonstruo(monster.name)} ${monster.name} no deja nada.`);
           if (petLootNote) lines.push(petLootNote);
+          // EPIC-1899: ítems directos (incluyendo fragmentos de campaña) al inventario
+          if (petDirectLoot && petDirectLoot.length > 0) {
+            const freshPPetInv = db.getPlayer(player.id);
+            const petInv = Array.isArray(freshPPetInv.inventory) ? freshPPetInv.inventory : JSON.parse(freshPPetInv.inventory || '[]');
+            db.updatePlayer(player.id, { inventory: JSON.stringify([...petInv, ...petDirectLoot]) });
+            const petCampFragSet = new Set(petCampFrags || []);
+            const petCampDirect = petDirectLoot.filter(i => petCampFragSet.has(i));
+            if (petCampDirect.length > 0) {
+              lines.push(`🔮 ¡El no-muerto cargaba un Fragmento de Ritual de Veth! Usá \`usar fragmento de ritual\` en la Capilla Olvidada.`);
+            }
+          }
           const xpBasePet = Math.max(5, Math.floor(monster.max_hp * 2));
           const activeEvPet = worldEvents.getCurrentEvent();
           const invasionMultPet = (activeEvPet && activeEvPet.id === 'invasion') ? 1.5 : 1.0;
@@ -1570,7 +1581,7 @@ function attackRound(player, monster) {
       loot = [];
     } else {
       // Soltar loot en la habitación (flujo normal)
-      const { droppedLoot, directLoot: directLootItems, globalEvent: dropGlobalEvent, lootNote: ln936 } = dropLoot(monster, player.current_room_id, player);
+      const { droppedLoot, directLoot: directLootItems, globalEvent: dropGlobalEvent, lootNote: ln936, campaignDirectLoot: campFrags } = dropLoot(monster, player.current_room_id, player);
       loot = droppedLoot;
       globalEvent = dropGlobalEvent;
 
@@ -1589,7 +1600,17 @@ function attackRound(player, monster) {
         if (fitsInInv.length > 0) {
           const newInv2 = [...inv2, ...fitsInInv];
           db.updatePlayer(player.id, { inventory: JSON.stringify(newInv2) });
-          lines.push(`⚔️ ${articuloMonstruo(monster.name)} ${monster.name} suelta directamente: **${fitsInInv.join(', ')}** (ya en tu inventario).`);
+          // Separar mensaje para fragmentos de campaña vs otros ítems directos
+          const campFragSet = new Set(campFrags || []);
+          const normalDirect = fitsInInv.filter(i => !campFragSet.has(i));
+          const campDirect = fitsInInv.filter(i => campFragSet.has(i));
+          if (normalDirect.length > 0) {
+            lines.push(`⚔️ ${articuloMonstruo(monster.name)} ${monster.name} suelta directamente: **${normalDirect.join(', ')}** (ya en tu inventario).`);
+          }
+          if (campDirect.length > 0) {
+            const countFrags = campDirect.length;
+            lines.push(`🔮 ¡El no-muerto cargaba ${countFrags === 1 ? 'un' : countFrags} Fragmento${countFrags > 1 ? 's' : ''} de Ritual de Veth! Usá \`usar fragmento de ritual\` en la Capilla Olvidada (sala 5) para neutralizarlo${countFrags > 1 ? 's' : ''}.`);
+          }
         }
 
         if (goesToFloor.length > 0) {
@@ -2907,7 +2928,36 @@ function dropLoot(monster, roomId, player) {
   if (goldRushNote && !lootNote) lootNote = goldRushNote;
   else if (goldRushNote) lootNote = lootNote + '\n' + goldRushNote;
 
-  return { droppedLoot: finalFloorLoot, directLoot: finalDirectLoot, globalEvent, lootNote };
+  // EPIC-1899: Drop de Fragmento de Ritual de Veth durante campaña activa (va directo al inventario)
+  const campaignDirectLoot = [];
+  try {
+    const activeCamp = db.getActiveCampaign();
+    if (activeCamp && activeCamp.active && activeCamp.active.state === 'active') {
+      const dropItems = activeCamp.campaign && activeCamp.campaign.active_effects && activeCamp.campaign.active_effects.drop_items;
+      if (Array.isArray(dropItems)) {
+        const monNameLower = monster.name.toLowerCase();
+        for (const dropDef of dropItems) {
+          if (monNameLower.includes(dropDef.monster_type)) {
+            const count = dropDef.count || 1;
+            for (let di = 0; di < count; di++) {
+              if (Math.random() < (dropDef.rate || 0)) {
+                campaignDirectLoot.push(dropDef.item);
+              }
+            }
+            break; // un monstruo solo matchea con un tipo
+          }
+        }
+      }
+    }
+  } catch (_) {}
+
+  return {
+    droppedLoot: finalFloorLoot,
+    directLoot: [...finalDirectLoot, ...campaignDirectLoot],
+    globalEvent,
+    lootNote,
+    campaignDirectLoot, // para que attackRound pueda mostrar mensaje especial
+  };
 }
 
 /**

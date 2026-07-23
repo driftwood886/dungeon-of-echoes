@@ -120,6 +120,9 @@ const ITEM_CATALOG = {
   // T186: Ítems de recolección pasiva al descansar
   'fragmento de roca volcánica': { type: 'misc', description: 'Un fragmento de roca volcánica cristalizada por el calor extremo de la forja. Material artesanal de alta densidad térmica.' },
 
+  // ── EPIC-1899: Ítem de campaña — La Invasión de Veth ─────────────────────
+  'fragmento de ritual de veth': { type: 'campaign_item', campaign_id: 'arquinecromante_veth', deposit_room_id: 5, value: 5, description: 'Un cristal oscuro con inscripciones que pulsan a un ritmo no natural. Lo dejó caer un no-muerto durante la campaña de Veth. El altar de la Capilla puede neutralizarlo. Usá `usar fragmento de ritual` en la Capilla Olvidada (sala 5) para contribuir a la campaña.' },
+
   // ── Armas artesanales avanzadas — Dungeon Extendido (T132) ──────────────────
   'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 12, spectral_bonus: 3, description: 'Versión potenciada de la lanza espectral, forjada con los ecos de los caídos en las profundidades. El arma más poderosa del mid-game. Requiere: cristal resonante (drop del Campeón Espectral) + esencia de eco (drop del Eco Viviente). +12 de ataque; +3 ATK adicional contra espectrales y criaturas mágicas.' },
   'daga del vacío':      { type: 'weapon', effect: 'attack_bonus', amount: 15, on_hit: { type: 'void_drain', chance: 0.30, drain: 3 }, description: 'Una daga que absorbe la realidad. +15 de ataque. 30% de chance de drenar 3 HP al golpear (vida robada). El arma más poderosa de las profundidades.' },  // BUG-1849: subida de +12 a +15 ATK + efecto on_hit void_drain (antes igual a espada de obsidiana)

@@ -7307,6 +7307,39 @@ function cmdUse(player, itemQuery) {
   }
 
   const def = items.getItemDef(found);
+
+  // EPIC-1900: Handler para ítems de campaña (deposit_items)
+  if (def && def.type === 'campaign_item') {
+    const activeCamp = db.getActiveCampaign();
+    // Si no hay campaña activa o no es la campaña correcta
+    if (!activeCamp || activeCamp.active.state !== 'active' || activeCamp.campaign.id !== def.campaign_id) {
+      return { text: `🔮 El ${found} pulsa débilmente en tus manos, pero no hay una campaña activa que lo requiera.` };
+    }
+    // Verificar sala correcta
+    if (player.current_room_id !== def.deposit_room_id) {
+      const depositMessage = (activeCamp.campaign.active_effects && activeCamp.campaign.active_effects.deposit_message)
+        ? `El fragmento reacciona al altar de la Capilla Olvidada — necesitás estar allí para usarlo.`
+        : `Necesitás estar en la Capilla Olvidada (sala 5) para usar el fragmento.`;
+      return { text: `🔮 ${depositMessage}` };
+    }
+    // Depositar: contribuir a la campaña y remover del inventario
+    const contributed = db.contributeToCurrentCampaign(player.username, 1);
+    if (!contributed) {
+      return { text: `⚠️ No se pudo registrar la contribución. Intentá de nuevo.` };
+    }
+    const newInvCamp = removeFirst(player.inventory, found);
+    db.updatePlayer(player.id, { inventory: newInvCamp });
+    // Mensaje de depósito
+    const depositMsg = (activeCamp.campaign.active_effects && activeCamp.campaign.active_effects.deposit_message)
+      ? activeCamp.campaign.active_effects.deposit_message
+      : `✨ Depositaste el ${found} en el altar. Contribuiste a la campaña.`;
+    // Leer progreso actualizado
+    const updatedCamp = db.getActiveCampaign();
+    const progress = updatedCamp ? updatedCamp.progress : '?';
+    const goalTarget = updatedCamp ? updatedCamp.goal_target : '?';
+    return { text: `${depositMsg}\n📊 Progreso de campaña: ${progress}/${goalTarget} rituales neutralizados.` };
+  }
+
   if (!def) {
     return { text: `Usás ${found} pero no pasa nada en particular.` };
   }
