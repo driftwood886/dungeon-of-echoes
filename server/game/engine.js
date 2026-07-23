@@ -709,8 +709,21 @@ function execute(playerId, input, context) {
           const freshP = db.getPlayer(player.id);
           const questDone = freshP && freshP.aldric_quest === 'done';
           if (questDone) {
-            result = { text: 'Pronunciás el nombre en voz alta:\n\n  — *Kaelthas Vorn.*\n\nEl eco en la Sala del Trono no rebota como debería. El sonido regresa transformado —ligeramente distinto, en un tono más bajo, como si la sala misma lo repitiera.\n\nUna corriente de aire frío cruza la sala aunque no hay ventana. Las antorchas no se mueven. Por un momento, sentís que no estás solo en esta sala —que nunca lo estuviste.\n\nDespués de unos segundos, todo vuelve a la normalidad.\n\n📖 *Diario: Pronuncié el nombre. El dungeon escuchó.*' };
-            db.addJournalEntry(player.id, 'lore', '📖 Pronuncié el nombre verdadero — Kaelthas Vorn — en la Sala del Trono. El dungeon respondió. No sé si eso es bueno.');
+            // DIS-1912: recompensa de cierre narrativo (una sola vez por jugador)
+            const seKae = parseSE(freshP.status_effects);
+            if (!seKae.kaelthas_vorn_cierre) {
+              // Primera vez: dar XP + diario + marcar flag
+              const xpBonus = 25;
+              const newXpKae = (freshP.xp || 0) + xpBonus;
+              const newLevelKae = xpSystem.levelFromXp(newXpKae);
+              seKae.kaelthas_vorn_cierre = true;
+              db.updatePlayer(player.id, { xp: newXpKae, level: newLevelKae, status_effects: JSON.stringify(seKae) });
+              db.addJournalEntry(player.id, 'lore', '📖 Pronuncié el nombre verdadero — Kaelthas Vorn — en la Sala del Trono. El dungeon respondió. Y algo... se cerró. Un ciclo que no sabía que estaba abierto.');
+              result = { text: 'Pronunciás el nombre en voz alta:\n\n  — *Kaelthas Vorn.*\n\nEl eco en la Sala del Trono no rebota como debería. El sonido regresa transformado —ligeramente distinto, en un tono más bajo, como si la sala misma lo repitiera.\n\nUna corriente de aire frío cruza la sala aunque no hay ventana. Las antorchas no se mueven. Por un momento, sentís que no estás solo en esta sala —que nunca lo estuviste.\n\nEn los brazos del trono, las marcas de dedos que se aferraron durante siglos parecen... alivianarse. Como si una tensión muy antigua hubiera encontrado su resolución.\n\nDespués de unos segundos, todo vuelve a la normalidad.\n\n📖 *Diario actualizado. +25 XP — Cierre de un ciclo.*' };
+            } else {
+              // Ya pronunciado: flavor text sin recompensa
+              result = { text: 'Pronunciás el nombre en voz alta:\n\n  — *Kaelthas Vorn.*\n\nEl eco es familiar ahora. La sala responde como siempre — con ese silencio demasiado largo, con ese frío que no tiene ventana.\n\nYa lo dijiste antes. El dungeon lo recuerda.' };
+            }
             break;
           } else {
             result = { text: 'Pronunciás el nombre, pero no estás seguro de que sea el correcto. El eco de la sala vuelve vacío. Quizás necesitás saber más antes de que esto signifique algo.' };
