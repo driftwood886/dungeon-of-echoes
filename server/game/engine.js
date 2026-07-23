@@ -8967,7 +8967,7 @@ function cmdEquip(player, itemQuery) {
     const prevRegenBonus = player.equipped_weapon === 'vara de energía' ? 2 : 0;
     const newRegenBonus  = found === 'vara de energía' ? 2 : 0;
     if (prevRegenBonus > newRegenBonus) {
-      manaRegenWarnMsg = `\n⚠️ Al equipar esto, perdés el bono de regen de maná de ${player.equipped_weapon} (-${prevRegenBonus} maná/min). Regenerarás ${10} maná/min en lugar de ${10 + prevRegenBonus}.`;
+      manaRegenWarnMsg = `\n⚠️ Al equipar esto, perdés el bono de regen de maná de ${player.equipped_weapon} (-${prevRegenBonus} maná/min). Regenerarás ${15} maná/min en lugar de ${15 + prevRegenBonus}.`;
     }
   }
 
@@ -16920,9 +16920,11 @@ function getManaRegenRate(player, clsData) {
   const c = clsData || classes.getPlayerClass(player);
   let rate = 1; // base: 1/min para no-casters
   // DIS-1607: Mago subido de 6→10/min — la curva era demasiado restrictiva en early game
-  // Con 35 maná y hechizos de 7-14, el mago se quedaba sin maná en 2-3 hechizos.
-  // A 10/min recarga completo en ~3.5 min, sostenible en sesión de 10-15 min.
-  if (c && c.name === 'Mago') rate = 10;
+  // DIS-1883: Mago subido de 10→15/min — a 10/min un rayo (14 mana) tardaba ~84s en recargarse,
+  // haciéndolo dependiente de escarcha emergencia en early game de forma frustrante.
+  // A 15/min: un rayo se recarga en ~56s, el ritmo de combate fluye mejor en lv 1-2.
+  // Maná máx 42 → recarga completa en 2.8 min (vs 4.2 min antes).
+  if (c && c.name === 'Mago') rate = 15;
   else if (c && c.name === 'Clérigo') rate = 6;
   // BUG-1850: Paladín tiene habilidades de maná (consagrar_sala = 12 maná).
   // Con 1/min tardaba 12 minutos en recargar — imposible en práctica.
