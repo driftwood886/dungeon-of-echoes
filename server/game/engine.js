@@ -9605,9 +9605,9 @@ function cmdLoot(player) {
 
   // DIS-1173: aviso proactivo cuando inventario supera 25/MAX_INVENTORY (DIS-1434: umbral 20→25 al subir límite 25→30)
   // DIS-1825: umbral ajustado a MAX_INVENTORY-4 (era 25 hardcoded, ahora relativo al límite real)
-  // (umbral ≥ MAX_INVENTORY-4 para alertar antes de llegar al Lich con inventario lleno)
+  // DIS-1915: umbral aumentado a MAX_INVENTORY-6 para avisar más temprano (18/24 en lugar de 20/24)
   const usedAfterLoot = newInventory.length + equippedCountLoot;
-  const inventoryWarnLine = (usedAfterLoot >= MAX_INVENTORY - 4 && itemsLeft.length === 0)
+  const inventoryWarnLine = (usedAfterLoot >= MAX_INVENTORY - 6 && itemsLeft.length === 0)
     ? `\n\n⚠️  Inventario casi lleno (${usedAfterLoot}/${MAX_INVENTORY}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`  // DIS-1657
     : '';
 
