@@ -9077,7 +9077,18 @@ function cmdScore(player, args, context) {
   const rawLeaders = mode2 ? db.getLeaderboardAll(10) : db.getLeaderboard(10);
   const leaders = mode2 ? rawLeaders : rawLeaders.filter(p => !isBot(p.username || ''));
 
-  if (leaders.length === 0) {
+  // BUG-1875: si el leaderboard está vacío pero el jugador tiene logros (kills > 0 o level > 1),
+  // incluirlo como única entrada. En Render free-tier la DB se resetea frecuentemente y todos
+  // los jugadores activos son bots excluidos — mostrar vacío cuando hay actividad real es confuso.
+  let displayLeaders = leaders;
+  if (leaders.length === 0 && !mode2) {
+    const fresh = db.getPlayer(player.id);
+    if (fresh && ((fresh.kills || 0) > 0 || (fresh.level || 1) > 1)) {
+      displayLeaders = [fresh];
+    }
+  }
+
+  if (displayLeaders.length === 0) {
     return { text: 'Aún no hay aventureros en la tabla de líderes.' };
   }
 
@@ -9089,7 +9100,7 @@ function cmdScore(player, args, context) {
     `╠═════════════════════════════════════════════════════╣`,
   ];
 
-  leaders.forEach((p, idx) => {
+  displayLeaders.forEach((p, idx) => {
     const rank   = String(idx + 1).padStart(2, ' ');
     const rawName = (p.username || '???').substring(0, 12);
     const hcTag  = p.is_hardcore ? (p.fallen ? '✝' : '🔴') : '  ';
@@ -14002,20 +14013,9 @@ function _cmdFaccionElegir(player, args) {
     const confirmCmdFull = `faccion elegir ${lore.name.toLowerCase()} confirmar`;
     const confirmCmdShort = `faccion si`;
     if (alreadySawCard) {
-      return {
-        text: [
-          sep,
-          `  ${lore.icon}  ${lore.name}`,
-          ``,
-          `  ⚠️  Todavía NO te uniste. Para confirmar tu ingreso:`,
-          ``,
-          `     ✅  ${confirmCmdFull}`,
-          `     ✅  ${confirmCmdShort}   (atajo rápido)`,
-          ``,
-          `  (Si querés ver otra facción: faccion elegir <nombre>)`,
-          sep,
-        ].join('\n'),
-      };
+      // BUG-1874: si el jugador ya vio la tarjeta y repite "faccion elegir <nombre>",
+      // auto-confirmar — el gesto de repetir el mismo comando ES la confirmación.
+      return _cmdFaccionElegir(player, [factionId, 'confirmar']);
     }
     const card = _buildFactionCard(lore, false);
     // DIS-1856: incluir alias `unirse <nombre>` en el bloque de confirmación para claridad
@@ -14029,7 +14029,7 @@ function _cmdFaccionElegir(player, args) {
       ``,
       `     ✅  ${confirmCmdShort}              (atajo más rápido)`,
       `     ✅  ${confirmCmdUnirse}`,
-      `     ✅  ${confirmCmdFull}`,
+      `     ✅  ${confirmCmdFull}   (une directamente)`,
       ``,
       `  (Si querés explorar otras facciones: faccion elegir <nombre>)`,
       sep,
