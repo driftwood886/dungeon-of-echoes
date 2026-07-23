@@ -12,6 +12,7 @@
 'use strict';
 
 const db = require('../db/db.js');
+const xpSystem = require('./xp.js');  // BUG-1886: calcular level-up al dar XP de quest
 const factionMissions = require('./factionMissions.js');  // BUG-1723: mostrar misión de facción en getQuestsDisplay
 
 // ─── Helpers internos ─────────────────────────────────────────────────────────
@@ -28,6 +29,37 @@ function _normalizeSearch(str) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * BUG-1886: Aplica recompensa de XP a un objeto `updates`, calculando el nuevo nivel.
+ * Si hubo level-up, también actualiza max_hp, hp, attack (y max_mana para mago/clérigo).
+ * Retorna un string con el mensaje de level-up (vacío si no hubo).
+ *
+ * @param {Object} player - snapshot del jugador (antes del XP)
+ * @param {number} xpGain - XP a otorgar
+ * @param {Object} updates - objeto mutable donde se agregan los campos a persistir
+ * @returns {string} mensaje de level-up o ''
+ */
+function _applyXpReward(player, xpGain, updates) {
+  if (!xpGain || xpGain <= 0) return '';
+  const oldLevel = player.level || 1;
+  const newXp    = (player.xp || 0) + xpGain;
+  const newLevel = xpSystem.levelFromXp(newXp);
+  updates.xp     = newXp;
+  updates.level  = newLevel;
+  if (newLevel > oldLevel) {
+    const levelsGained = newLevel - oldLevel;
+    updates.max_hp = (player.max_hp || 30) + (5 * levelsGained);
+    const heal     = Math.ceil(updates.max_hp * 0.20);
+    updates.hp     = Math.min(updates.max_hp, (player.hp || 1) + heal);
+    updates.attack = (player.attack || 5) + (1 * levelsGained);
+    if (player.player_class === 'mago' || player.player_class === 'clerigo') {
+      updates.max_mana = (player.max_mana || 20) + (3 * levelsGained);
+    }
+    return ` ✨ ¡SUBÍS AL NIVEL ${newLevel}! +${5 * levelsGained} HP, +${levelsGained} ATK.`;
+  }
+  return '';
 }
 
 /**
@@ -370,7 +402,7 @@ function onKill(player, monster) {
         // Otorgar recompensas
         const updates = {};
         if (reward.gold)  updates.gold  = (player.gold  || 0) + reward.gold;
-        if (reward.xp)    updates.xp    = (player.xp    || 0) + reward.xp;
+        const levelUpMsg = _applyXpReward(player, reward.xp, updates);  // BUG-1886: calcular nivel al dar XP
         if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
 
         if (reward.aldric_rep) {
@@ -387,6 +419,7 @@ function onKill(player, monster) {
         if (reward.aldric_rep) rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
         if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
         if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
+        if (levelUpMsg) completionMsg += levelUpMsg;  // BUG-1886
 
         messages.push(completionMsg);
 
@@ -471,7 +504,7 @@ function onExplore(player, roomId, isNew = false) {
         );
         const updates = {};
         if (reward.gold) updates.gold = (player.gold || 0) + reward.gold;
-        if (reward.xp)   updates.xp   = (player.xp   || 0) + reward.xp;
+        const levelUpMsg1 = _applyXpReward(player, reward.xp, updates);  // BUG-1886
         if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
         if (reward.aldric_rep) { try { db.addAldricRep(player.id, reward.aldric_rep); } catch (_) {} }
         if (reward.faction_influence && player.faction) { try { db.addFactionInfluence(player.id, reward.faction_influence); } catch (_) {} }
@@ -483,6 +516,7 @@ function onExplore(player, roomId, isNew = false) {
         if (reward.aldric_rep) rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
         if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
         if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
+        if (levelUpMsg1) completionMsg += levelUpMsg1;  // BUG-1886
         messages.push(completionMsg);
 
         // DIS-1595: notificar al jugador si se asigna nueva quest al liberarse el slot
@@ -508,7 +542,7 @@ function onExplore(player, roomId, isNew = false) {
           );
           const updates = {};
           if (reward.gold) updates.gold = (player.gold || 0) + reward.gold;
-          if (reward.xp)   updates.xp   = (player.xp   || 0) + reward.xp;
+          const levelUpMsg2 = _applyXpReward(player, reward.xp, updates);  // BUG-1886
           if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
           if (reward.aldric_rep) { try { db.addAldricRep(player.id, reward.aldric_rep); } catch (_) {} }
           if (reward.faction_influence && player.faction) { try { db.addFactionInfluence(player.id, reward.faction_influence); } catch (_) {} }
@@ -520,6 +554,7 @@ function onExplore(player, roomId, isNew = false) {
           if (reward.aldric_rep) rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
           if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
           if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
+          if (levelUpMsg2) completionMsg += levelUpMsg2;  // BUG-1886
           messages.push(completionMsg);
 
           // DIS-1595: notificar al jugador si se asigna nueva quest al liberarse el slot
@@ -600,7 +635,7 @@ function onCraft(player, itemName) {
         );
         const updates = {};
         if (reward.gold) updates.gold = (player.gold || 0) + reward.gold;
-        if (reward.xp)   updates.xp   = (player.xp   || 0) + reward.xp;
+        const levelUpMsgCraft = _applyXpReward(player, reward.xp, updates);  // BUG-1886
         if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
         if (reward.aldric_rep) { try { db.addAldricRep(player.id, reward.aldric_rep); } catch (_) {} }
         if (reward.faction_influence && player.faction) { try { db.addFactionInfluence(player.id, reward.faction_influence); } catch (_) {} }
@@ -612,6 +647,7 @@ function onCraft(player, itemName) {
         if (reward.aldric_rep) rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
         if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
         if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
+        if (levelUpMsgCraft) completionMsg += levelUpMsgCraft;  // BUG-1886
         messages.push(completionMsg);
 
         // DIS-1595: notificar al jugador si se asigna nueva quest al liberarse el slot
@@ -686,7 +722,7 @@ function onTrade(player, action, value) {
           );
           const updates = {};
           if (reward.gold) updates.gold = (player.gold || 0) + reward.gold;
-          if (reward.xp)   updates.xp   = (player.xp   || 0) + reward.xp;
+          const levelUpMsgTrade1 = _applyXpReward(player, reward.xp, updates);  // BUG-1886
           if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
           if (reward.aldric_rep) { try { db.addAldricRep(player.id, reward.aldric_rep); } catch (_) {} }
           if (reward.faction_influence && player.faction) { try { db.addFactionInfluence(player.id, reward.faction_influence); } catch (_) {} }
@@ -698,6 +734,7 @@ function onTrade(player, action, value) {
           if (reward.aldric_rep) rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
           if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
           if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
+          if (levelUpMsgTrade1) completionMsg += levelUpMsgTrade1;  // BUG-1886
           messages.push(completionMsg);
 
           // DIS-1595: notificar al jugador si se asigna nueva quest al liberarse el slot
@@ -728,7 +765,7 @@ function onTrade(player, action, value) {
           );
           const updates = {};
           if (reward.gold) updates.gold = (player.gold || 0) + reward.gold;
-          if (reward.xp)   updates.xp   = (player.xp   || 0) + reward.xp;
+          const levelUpMsgTrade2 = _applyXpReward(player, reward.xp, updates);  // BUG-1886
           if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
           if (reward.aldric_rep) { try { db.addAldricRep(player.id, reward.aldric_rep); } catch (_) {} }
           if (reward.faction_influence && player.faction) { try { db.addFactionInfluence(player.id, reward.faction_influence); } catch (_) {} }
@@ -740,6 +777,7 @@ function onTrade(player, action, value) {
           if (reward.aldric_rep) rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
           if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
           if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
+          if (levelUpMsgTrade2) completionMsg += levelUpMsgTrade2;  // BUG-1886
           messages.push(completionMsg);
 
           // DIS-1595: notificar al jugador si se asigna nueva quest al liberarse el slot
@@ -818,7 +856,7 @@ function onRitual(player, action) {
         );
         const updates = {};
         if (reward.gold) updates.gold = (player.gold || 0) + reward.gold;
-        if (reward.xp)   updates.xp   = (player.xp   || 0) + reward.xp;
+        const levelUpMsgRitual = _applyXpReward(player, reward.xp, updates);  // BUG-1886
         if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
         if (reward.aldric_rep) { try { db.addAldricRep(player.id, reward.aldric_rep); } catch (_) {} }
         if (reward.faction_influence && player.faction) { try { db.addFactionInfluence(player.id, reward.faction_influence); } catch (_) {} }
@@ -830,6 +868,7 @@ function onRitual(player, action) {
         if (reward.aldric_rep) rewardParts.push(`+${reward.aldric_rep} 📖 Rep.Aldric`);
         if (reward.faction_influence) rewardParts.push(`+${reward.faction_influence} 🏴 influencia`);
         if (rewardParts.length) completionMsg += `Recompensa: ${rewardParts.join(', ')}`;
+        if (levelUpMsgRitual) completionMsg += levelUpMsgRitual;  // BUG-1886
         messages.push(completionMsg);
 
         // DIS-1595: notificar al jugador si se asigna nueva quest al liberarse el slot

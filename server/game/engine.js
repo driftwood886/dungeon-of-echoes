@@ -9104,10 +9104,11 @@ function cmdScore(player, args, context) {
   // BUG-1875: si el leaderboard está vacío pero el jugador tiene logros (kills > 0 o level > 1),
   // incluirlo como única entrada. En Render free-tier la DB se resetea frecuentemente y todos
   // los jugadores activos son bots excluidos — mostrar vacío cuando hay actividad real es confuso.
+  // BUG-1887: no incluir bots de playtest en este fallback (el bot vería su propia entrada aunque esté filtrado)
   let displayLeaders = leaders;
   if (leaders.length === 0 && !mode2) {
     const fresh = db.getPlayer(player.id);
-    if (fresh && ((fresh.kills || 0) > 0 || (fresh.level || 1) > 1)) {
+    if (fresh && ((fresh.kills || 0) > 0 || (fresh.level || 1) > 1) && !fresh.is_bot && !isBot(fresh.username || '')) {
       displayLeaders = [fresh];
     }
   }
