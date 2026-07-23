@@ -34,6 +34,9 @@ async function main() {
       console.log(`   Duración:  ${data.days_remaining} días restantes`);
       console.log(`   Estado:    ${data.active.state}`);
       console.log(`   Termina:   ${data.active.ends_at}`);
+      console.log('');
+      console.log('⚠️  IMPORTANTE: Si el servidor está corriendo, reiniciarlo para que tome los cambios.');
+      console.log('   sql.js es in-memory — el proceso del servidor no puede leer cambios del disco.');
     }
     process.exit(0);
   } else {
@@ -47,3 +50,11 @@ main().catch(e => {
   console.error('❌ Error inesperado:', e.message);
   process.exit(1);
 });
+
+// BUG-1906: IMPORTANTE — sql.js es in-memory. Si el servidor ya está corriendo cuando
+// se ejecuta este script, los cambios en el archivo de disco NO se reflejarán en el
+// proceso del servidor (que tiene su propia copia en RAM). El flujo correcto es:
+//   1. Parar el servidor (Ctrl+C / kill)
+//   2. Ejecutar este script
+//   3. Iniciar el servidor nuevamente (node server/index.js)
+// ⚠️  Si el servidor está corriendo, reiniciarlo para que tome los cambios.

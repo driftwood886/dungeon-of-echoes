@@ -7357,6 +7357,31 @@ function cmdUse(player, itemQuery) {
     return { text: `${depositMsg}\n📊 Progreso de campaña: ${progress}/${goalTarget} rituales neutralizados.` };
   }
 
+  // EPIC-1902: Handler para consumibles de campaña (frasco purificador — contribución doble)
+  if (def && def.type === 'campaign_consumable') {
+    const activeCampCons = db.getActiveCampaign();
+    if (!activeCampCons || activeCampCons.active.state !== 'active' || activeCampCons.campaign.id !== def.campaign_id) {
+      return { text: `🕯️ El ${found} tiene un propósito especial, pero no hay una campaña activa que lo requiera.` };
+    }
+    if (player.current_room_id !== def.deposit_room_id) {
+      return { text: `🕯️ El ${found} reacciona al altar de la Capilla Olvidada — necesitás estar allí para vaciarlo.` };
+    }
+    const contribAmount = def.contribution || 2;
+    let allContributed = true;
+    for (let i = 0; i < contribAmount; i++) {
+      if (!db.contributeToCurrentCampaign(player.username, 1)) { allContributed = false; break; }
+    }
+    if (!allContributed) {
+      return { text: `⚠️ No se pudo registrar la contribución. Intentá de nuevo.` };
+    }
+    const newInvCons = removeFirst(player.inventory, found);
+    db.updatePlayer(player.id, { inventory: newInvCons });
+    const updatedCampCons = db.getActiveCampaign();
+    const progressCons = updatedCampCons ? updatedCampCons.progress : '?';
+    const goalTargetCons = updatedCampCons ? updatedCampCons.goal_target : '?';
+    return { text: `🕯️ Vaciás el frasco purificador en el altar. El aceite sagrado consume dos inscripciones rituales a la vez.\n✨ Contribuiste x${contribAmount} a la campaña de Veth.\n📊 Progreso de campaña: ${progressCons}/${goalTargetCons} rituales neutralizados.` };
+  }
+
   if (!def) {
     return { text: `Usás ${found} pero no pasa nada en particular.` };
   }
@@ -11881,6 +11906,8 @@ const SHOP_CATALOG = [
   { name: 'cristal mágico',          price: 25,  sellOnly: true, description: 'Cristal imbuido con energía mágica concentrada. Drop del Gólem de Piedra. También ingrediente de crafteo avanzado.' },
   { name: 'capa de araña',           price: 10,  sellOnly: true, description: 'Capa tejida con seda de Araña Tejedora. Ligera y resistente (+2 DEF). Aldric la compra para artesanía.' },
   { name: 'escudo roto',             price: 8,   sellOnly: true, description: 'Escudo partido por la mitad. Inútil por sí solo, pero sirve como ingrediente de crafteo (escudo roto + garra de esqueleto → escudo de gladiador).' },
+  // EPIC-1902: Ítem especial de campaña — solo visible y comprable cuando hay campaña activa
+  { name: 'frasco purificador',      price: 30,  campaignOnly: true, campaign_id: 'arquinecromante_veth', description: '🕯️ [CAMPAÑA] Aceite sagrado preparado por Aldric contra los rituales de Veth. Al usarlo en el altar de la Capilla (sala 5), neutraliza 2 Fragmentos de Ritual a la vez. Doble contribución.' },
 ];
 
 // Precios de venta al mercader (jugador → mercader) — 40% del valor
@@ -12683,7 +12710,17 @@ function cmdShop(player, args) {
     ? new Set(CLASS_BASIC_ITEMS[clsForFilter.name])
     : null;
 
-  const buyableCatalog = SHOP_CATALOG.filter(item => !item.sellOnly);
+  const buyableCatalog = SHOP_CATALOG.filter(item => !item.sellOnly && !item.campaignOnly);
+
+  // EPIC-1902: Si hay campaña activa, incluir ítems de campaña al catálogo comprable
+  let campaignShopItem = null;
+  try {
+    const activeCampShop = db.getActiveCampaign();
+    if (activeCampShop && activeCampShop.active && activeCampShop.active.state === 'active') {
+      campaignShopItem = SHOP_CATALOG.find(i => i.campaignOnly && i.campaign_id === activeCampShop.campaign.id);
+    }
+  } catch (_) {}
+
   const filteredCatalog = basicMode && basicItemNames
     ? buyableCatalog.filter(item => basicItemNames.has(item.name))
     : buyableCatalog;
@@ -12746,6 +12783,22 @@ function cmdShop(player, args) {
     }
   } catch (_) {}
 
+  // EPIC-1902: Mostrar sección especial de campaña si hay ítem de campaña disponible
+  if (campaignShopItem) {
+    try {
+      const activeCampShop2 = db.getActiveCampaign();
+      if (activeCampShop2) {
+        lines.push('');
+        lines.push('⚔️  ─── OFERTA ESPECIAL DE CAMPAÑA ────────────────────────────');
+        lines.push(`📜 "${activeCampShop2.campaign.name}" — ${activeCampShop2.days_remaining} días restantes`);
+        const campPrice = getDiscountedPrice(campaignShopItem.price, player.reputation || 0, player.aldric_rep || 0);
+        lines.push(`• ${campaignShopItem.name.padEnd(26)} ${campPrice}g   ${campaignShopItem.description}`);
+        lines.push('   Aldric te dice: "Esto no lo vendo siempre. Solo mientras esos rituales sigan activos."');
+        lines.push('─'.repeat(60));
+      }
+    } catch (_) {}
+  }
+
   return { text: lines.join('\n') };
 }
 
@@ -12769,12 +12822,23 @@ function cmdBuy(player, itemQuery) {
 
   // BUG-248: aceptar número de índice (ej: "comprar 1" → primer ítem del catálogo)
   let item;
-  const buyableCatalog = SHOP_CATALOG.filter(i => !i.sellOnly);
+  const buyableCatalog = SHOP_CATALOG.filter(i => !i.sellOnly && !i.campaignOnly);
+
+  // EPIC-1902: incluir ítems de campaña si hay campaña activa
+  let buyCampaignItems = [];
+  try {
+    const activeCampBuy = db.getActiveCampaign();
+    if (activeCampBuy && activeCampBuy.active && activeCampBuy.active.state === 'active') {
+      buyCampaignItems = SHOP_CATALOG.filter(i => i.campaignOnly && i.campaign_id === activeCampBuy.campaign.id);
+    }
+  } catch (_) {}
+  const allBuyable = [...buyableCatalog, ...buyCampaignItems];
+
   const numQuery = parseInt(query, 10);
-  if (!isNaN(numQuery) && numQuery >= 1 && numQuery <= buyableCatalog.length) {
-    item = buyableCatalog[numQuery - 1];
+  if (!isNaN(numQuery) && numQuery >= 1 && numQuery <= allBuyable.length) {
+    item = allBuyable[numQuery - 1];
   } else {
-    item = buyableCatalog.find(i => {
+    item = allBuyable.find(i => {
       const itemNorm = i.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       return itemNorm.includes(query) || query.includes(itemNorm);
     });

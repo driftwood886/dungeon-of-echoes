@@ -122,6 +122,9 @@ const ITEM_CATALOG = {
 
   // ── EPIC-1899: Ítem de campaña — La Invasión de Veth ─────────────────────
   'fragmento de ritual de veth': { type: 'campaign_item', campaign_id: 'arquinecromante_veth', deposit_room_id: 5, value: 5, description: 'Un cristal oscuro con inscripciones que pulsan a un ritmo no natural. Lo dejó caer un no-muerto durante la campaña de Veth. El altar de la Capilla puede neutralizarlo. Usá `usar fragmento de ritual` en la Capilla Olvidada (sala 5) para contribuir a la campaña.' },
+  // EPIC-1902: Frasco Purificador — ítem especial de Aldric durante la campaña de Veth.
+  // Cuenta como 2 contribuciones al depositarlo en el altar. Solo se puede comprar mientras la campaña esté activa.
+  'frasco purificador':   { type: 'campaign_consumable', campaign_id: 'arquinecromante_veth', deposit_room_id: 5, contribution: 2, description: 'Un frasco de aceite sagrado preparado por Aldric especialmente para contrarrestar la magia de Veth. Al vaciarlo en el altar de la Capilla Olvidada (sala 5), neutraliza el poder de dos Fragmentos de Ritual a la vez. Usá `usar frasco purificador` en la Capilla para contribuir x2 a la campaña.' },
 
   // ── Armas artesanales avanzadas — Dungeon Extendido (T132) ──────────────────
   'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 12, spectral_bonus: 3, description: 'Versión potenciada de la lanza espectral, forjada con los ecos de los caídos en las profundidades. El arma más poderosa del mid-game. Requiere: cristal resonante (drop del Campeón Espectral) + esencia de eco (drop del Eco Viviente). +12 de ataque; +3 ATK adicional contra espectrales y criaturas mágicas.' },
