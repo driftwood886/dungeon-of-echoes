@@ -2747,7 +2747,7 @@ function cmdMove(player, direction) {
   const freshForCartog = db.getPlayer(player.id);
   let cartogAchLines = '';
   if (freshForCartog) {
-    const cartogAchs = ach.checkAchievements(freshForCartog, {});
+    const cartogAchs = ach.checkAchievements(freshForCartog, { isMove: true });
     // DIS-D30 fix: incluir logros nuevos (Cartógrafo, etc.) en la respuesta del move
     if (cartogAchs && cartogAchs.length > 0) {
       cartogAchLines = ach.formatNewAchievements(cartogAchs);

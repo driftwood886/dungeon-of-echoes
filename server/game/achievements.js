@@ -136,6 +136,7 @@ const ACHIEVEMENTS = [
     desc: 'Visitar todas las salas del dungeon',
     flavor: 'Conocés cada pasillo, cada trampa, cada rincón. El dungeon no tiene más secretos para vos. O eso creés.',
     secret: true,
+    onlyOnMove: true,
     // salas 1-18 = 18 salas (sala 17 = Casa de Subastas, sala 18 = Fuente Eterna)
     check: (p, _ctx) => {
       let visited = [];
@@ -206,6 +207,7 @@ const ACHIEVEMENTS = [
     name: 'Cartógrafo Amateur',
     desc: 'Visitar 15 salas distintas del dungeon',
     flavor: 'Quince salas. El mapa en tu cabeza empieza a tener forma. Todavía hay rincones que no conocés.',
+    onlyOnMove: true,
     check: (p, _ctx) => {
       try {
         const visited = JSON.parse(p.rooms_visited || '[]');
@@ -219,6 +221,7 @@ const ACHIEVEMENTS = [
     name: 'Maestro del Laberinto',
     desc: 'Visitar 20 salas distintas del dungeon',
     flavor: 'Veinte salas. Conocés cada pasillo, cada trampa, cada sombra. El dungeon ya no te sorprende — pero vos sí le sorprendés a él.',
+    onlyOnMove: true,
     check: (p, _ctx) => {
       try {
         const visited = JSON.parse(p.rooms_visited || '[]');
@@ -250,14 +253,19 @@ const ACHIEVEMENTS = [
  * Evalúa todos los logros para el jugador dado y persiste los nuevos.
  *
  * @param {object} player — objeto jugador (con `achievements` como string JSON o null)
- * @param {object} [ctx]  — contexto de evento (bossKill, poisonSurvived, boughtSomething)
+ * @param {object} [ctx]  — contexto de evento (bossKill, poisonSurvived, boughtSomething, isMove)
  * @returns {Array<{id, icon, name, desc}>} — lista de logros NUEVAMENTE desbloqueados
+ *
+ * DIS-1880: logros con `onlyOnMove: true` solo se evalúan cuando ctx.isMove === true,
+ * para evitar que un craft u otra acción dispare logros de exploración.
  */
 function checkAchievements(player, ctx = {}) {
   const current = JSON.parse(player.achievements || '[]');
   const newOnes = [];
 
   for (const ach of ACHIEVEMENTS) {
+    // DIS-1880: si el logro requiere movimiento, solo evaluarlo en contexto de move
+    if (ach.onlyOnMove && !ctx.isMove) continue;
     if (!current.includes(ach.id) && ach.check(player, ctx)) {
       current.push(ach.id);
       newOnes.push(ach);
