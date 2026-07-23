@@ -1415,6 +1415,23 @@ function cmdLook(player, options = {}) {
     }
   } catch (_) { /* no romper look si falla el evento */ }
 
+  // EPIC-1901: Efecto narrativo en sala 10 (Santuario Profano) durante campaña Veth activa
+  let campaignRoomEffectLine = '';
+  try {
+    if (player.current_room_id === 10) {
+      const campData = db.getActiveCampaign();
+      if (campData && campData.active && campData.active.state === 'active') {
+        const roomEffects = campData.campaign && campData.campaign.active_effects && campData.campaign.active_effects.room_effects;
+        if (Array.isArray(roomEffects)) {
+          const effect = roomEffects.find(re => re.room_id === 10);
+          if (effect && effect.extra_description) {
+            campaignRoomEffectLine = `\n\n${effect.extra_description}`;
+          }
+        }
+      }
+    }
+  } catch (_) { /* no romper look si falla */ }
+
   // DIS-D384: estado del Lich Anciano en la Catedral de la Oscuridad (sala 15)
   let lichStatusLine = '';
   if (player.current_room_id === 15) {
@@ -1625,7 +1642,7 @@ function cmdLook(player, options = {}) {
     }
   } catch (_dis1826) { /* no romper look si falla el check de stats */ }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine };
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine };
 }
 
 /**
