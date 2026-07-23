@@ -2905,7 +2905,7 @@ function dropLoot(monster, roomId, player) {
   if (monster.id === PRACTICE_GOBLIN_ID) {
     respawnAt = new Date(Date.now() + 30 * 1000).toISOString(); // 30 segundos
   } else if (!bossDef && EARLY_GAME_MONSTER_IDS.has(monster.id)) {
-    respawnAt = new Date(Date.now() + 3 * 60 * 1000).toISOString(); // DIS-742: 3 minutos para early game
+    respawnAt = new Date(Date.now() + 6 * 60 * 1000).toISOString(); // DIS-1910: 6 minutos para early game (antes: 3min, demasiado rápido en monojugador)
   } else {
     const respawnMinutes = bossDef ? bossDef.respawnMinutes : 5;
     respawnAt = new Date(Date.now() + respawnMinutes * 60 * 1000).toISOString();
