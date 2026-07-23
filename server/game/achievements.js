@@ -192,7 +192,15 @@ const ACHIEVEMENTS = [
     icon: '🗺️',
     name: 'Explorador',
     desc: 'Visitar 5 salas distintas del dungeon',
-    flavor: 'Cinco salas. Empezás a entender que el dungeon es más grande de lo que parecía al entrar.',
+    // DIS-1914: flavor dinámico para evitar inconsistencia si el logro se dispara en sala 6+
+    flavor: (p) => {
+      try {
+        const n = JSON.parse(p.rooms_visited || '[]').length;
+        return `${n} salas. Empezás a entender que el dungeon es más grande de lo que parecía al entrar.`;
+      } catch (_) {
+        return 'Cinco salas exploradas. Empezás a entender que el dungeon es más grande de lo que parecía al entrar.';
+      }
+    },
     onlyOnMove: true,
     check: (p, _ctx) => {
       try {
@@ -269,7 +277,8 @@ function checkAchievements(player, ctx = {}) {
     if (ach.onlyOnMove && !ctx.isMove) continue;
     if (!current.includes(ach.id) && ach.check(player, ctx)) {
       current.push(ach.id);
-      newOnes.push(ach);
+      // DIS-1914: incluir snapshot del jugador para flavors dinámicos
+      newOnes.push({ ...ach, _player: player });
     }
   }
 
@@ -358,7 +367,11 @@ function formatNewAchievements(newOnes) {
   return newOnes
     .map(a => {
       const base = `\n🏅 ¡LOGRO DESBLOQUEADO! ${a.icon} "${a.name}" — ${a.desc}`;
-      return a.flavor ? `${base}\n   ✨ ${a.flavor}` : base;
+      // DIS-1914: soportar flavor dinámico (función que recibe el jugador)
+      const flavorText = typeof a.flavor === 'function'
+        ? (a._player ? a.flavor(a._player) : null)
+        : a.flavor;
+      return flavorText ? `${base}\n   ✨ ${flavorText}` : base;
     })
     .join('');
 }
