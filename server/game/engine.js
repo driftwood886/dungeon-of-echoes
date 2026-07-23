@@ -783,6 +783,7 @@ Monstruos en cada sala:
 Para más detalle: help <comando>  (ej: help attack)
 Para ayuda de clase: guide
 Para todos los comandos: help todo
+Para el diario de lore: lore  (usá «read» en ítems con texto para guardar fragmentos)
 ═══════════════════════════════════════`,
           };
           break;
