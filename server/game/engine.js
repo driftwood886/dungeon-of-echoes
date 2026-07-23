@@ -18503,14 +18503,26 @@ function cmdModoBerserk(player, context) {
       } else if (turnsUntilShield === 2) {
         golemBerserkHint = '\n   🪨 Gólem: regen en próximo turno, escudo en 2 — intentá terminar antes de que se active.';
       } else if (turnsUntilShield === 1) {
-        golemBerserkHint = '\n   🪨 ⚠️ Gólem: ¡escudo se activa este turno! Considerá usar \"calmar_furia\" si no podés terminarlo ahora.';
+        golemBerserkHint = '\n   🪨 ⚠️ Gólem: ¡escudo se activa este turno! Considerá usar "calmar_furia" si no podés terminarlo ahora.';
       }
     }
   } catch (_) { /* silenciar errores de hint — no romper el flujo */ }
 
-  return {
-    text: `🪓 ¡MODO BERSERK ACTIVADO!${isFirstBerserk ? '\n   ℹ️ Primera vez: +5 ATK por 3 turnos. Sin postura defensiva ni huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento). Usá "calmar_furia" para cancelar.\n   (Las próximas veces se activa directamente sin advertencia.)' : '\n   +5 ATK por 3 turnos. Sin postura defensiva. Sin huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento).\n   Usá "calmar_furia" para cancelar (perdés 1 turno pero podés huir).'}${golemBerserkHint} (Cooldown: 90s)`,
-  };
+  const activationMsg = `🪓 ¡MODO BERSERK ACTIVADO!${isFirstBerserk ? '\n   ℹ️ Primera vez: +5 ATK por 3 turnos (incluyendo este). Sin postura defensiva ni huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento). Usá "calmar_furia" para cancelar.\n   (Las próximas veces se activa directamente sin advertencia.)' : '\n   +5 ATK por 3 turnos (incluyendo este). Sin postura defensiva. Sin huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento).\n   Usá "calmar_furia" para cancelar (perdés 1 turno pero podés huir).'}${golemBerserkHint} (Cooldown: 90s)`;
+
+  // DIS-1911: activar berserk + atacar en el mismo turno — el turno de activación ya no se pierde.
+  // Elegir target: monstruo con menor HP de los atacables en la sala.
+  const berserkAttackTarget = mbMonsters.reduce((prev, cur) => (cur.hp < prev.hp ? cur : prev), mbMonsters[0]);
+  try {
+    const attackResult = cmdAttack(freshMb, berserkAttackTarget.name);
+    const attackText = attackResult && attackResult.text ? attackResult.text : '';
+    return {
+      text: `${activationMsg}\n\n${attackText}`,
+    };
+  } catch (_) {
+    // Si el ataque falla por cualquier razón, retornar solo la activación
+    return { text: activationMsg };
+  }
 }
 
 /**
