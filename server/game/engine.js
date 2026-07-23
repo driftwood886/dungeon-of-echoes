@@ -25929,9 +25929,18 @@ function cmdPray(player, args) {
     db.updatePlayer(player.id, updatesGold);
     altarCooldowns.set(altarKey, Date.now());
 
+    // ── BUG-1889: hook de quest — onRitual (pray con oro) ─────────────────────
+    let questGoldMsg = '';
+    try {
+      const freshForQGold = db.getPlayer(player.id);
+      const qgResult = questEngine.onRitual(freshForQGold || player, 'pray');
+      if (qgResult && qgResult.text) questGoldMsg = '\n\n' + qgResult.text;
+    } catch (_) { /* no romper pray si falla questEngine */ }
+    // ──────────────────────────────────────────────────────────────────────────
+
     const altarNameGold = roomId === 5 ? 'la Capilla Olvidada' : 'el Santuario Profano';
     return {
-      text: `🙏 Ofrecés ${goldLabel} al altar de ${altarNameGold}.\n\n${resultLinesGold.join('\n')}`,
+      text: `🙏 Ofrecés ${goldLabel} al altar de ${altarNameGold}.\n\n${resultLinesGold.join('\n')}${questGoldMsg}`,
       event: `${player.username} reza ante el altar.`,
       eventRoomId: roomId,
     };
