@@ -16,6 +16,8 @@
 'use strict';
 
 const db = require('../db/db.js');
+// BUG-1888: importar _applyXpReward para verificar level-up al otorgar XP de misión de facción
+const { _applyXpReward } = require('./questEngine.js');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -194,8 +196,11 @@ function _claimReward(player, mission) {
 
   // Otorgar XP y gold
   const updates = {};
-  if (mission.reward_xp)   updates.xp   = (player.xp   || 0) + mission.reward_xp;
-  if (mission.reward_gold) updates.gold  = (player.gold || 0) + mission.reward_gold;
+  if (mission.reward_gold) updates.gold = (player.gold || 0) + mission.reward_gold;
+  let levelUpMsg = '';
+  if (mission.reward_xp) {
+    levelUpMsg = _applyXpReward(player, mission.reward_xp, updates);  // BUG-1888: usa helper con checkeo de nivel
+  }
   if (Object.keys(updates).length) db.updatePlayer(player.id, updates);
 
   // Otorgar influencia de facción
@@ -208,7 +213,7 @@ function _claimReward(player, mission) {
   if (mission.reward_gold)     parts.push(`+${mission.reward_gold} 💰 gold`);
   if (mission.reward_influence) parts.push(`+${mission.reward_influence} 🏴 influencia`);
 
-  return `✅ **¡Misión de facción completada!** "${mission.name}"\nRecompensa: ${parts.join(', ')}`;
+  return `✅ **¡Misión de facción completada!** "${mission.name}"\nRecompensa: ${parts.join(', ')}${levelUpMsg}`;
 }
 
 /**

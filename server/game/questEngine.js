@@ -1256,8 +1256,9 @@ module.exports = {
   getQuestDetail,
   abandonQuest,
   getHistory,
-  // Internals exportados para testing
+  // Internals exportados para testing y uso en otros módulos
   _weekNumber,
   _seededShuffle,
   _factionName,
+  _applyXpReward,  // BUG-1888: exportado para reutilizar en factionMissions.js
 };
