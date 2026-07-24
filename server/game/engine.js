@@ -9462,8 +9462,16 @@ function cmdLoot(player) {
   const MAX_INVENTORY = INV_BASE_SLOTS + (player.inventory_bonus || 0);  // DIS-1480: base reducido a 20; DIS-507/DIS-595
   const equippedCountLoot = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
   const spaceAvailable = MAX_INVENTORY - player.inventory.length - equippedCountLoot;
-  const itemsToPickup = nonGoldItems.slice(0, spaceAvailable);
-  const itemsLeft = nonGoldItems.slice(spaceAvailable);
+  // DIS-1917: ordenar por rareza descendente antes del slice — prioriza ítems raros/épicos/legendarios
+  // sobre ítems comunes cuando el inventario está lleno (especialmente loot de boss)
+  const RARITY_ORDER = { 'legendario': 3, 'épico': 2, 'raro': 1, 'común': 0 };
+  const nonGoldItemsSorted = [...nonGoldItems].sort((a, b) => {
+    const ra = RARITY_ORDER[items.getItemRarity(a)] ?? 0;
+    const rb = RARITY_ORDER[items.getItemRarity(b)] ?? 0;
+    return rb - ra; // descendente: más raro primero
+  });
+  const itemsToPickup = nonGoldItemsSorted.slice(0, spaceAvailable);
+  const itemsLeft = nonGoldItemsSorted.slice(spaceAvailable);
 
   const newInventory = [...player.inventory, ...itemsToPickup];
   db.updatePlayer(player.id, { inventory: newInventory });
