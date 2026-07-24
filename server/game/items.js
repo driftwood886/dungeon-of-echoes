@@ -33,6 +33,10 @@ const ITEM_CATALOG = {
   'antidoto':            { type: 'antidote', effect: 'cure_poison', description: 'Un frasco con líquido verde pálido. Cura el veneno al instante. Si no estás envenenado, restaura 12 HP.' },
   'hierba curativa':     { type: 'antidote', effect: 'cure_poison', description: 'Un manojo de hierba medicinal. Cura el veneno si estás envenenado, o restaura 12 HP si no lo estás. También sirve como ingrediente de crafteo.' },
 
+  // ── Consumibles ofensivos ──────────────────────────────────────────────────
+  // DIS-1943: astillas ardientes — ítem de fuego accesible para guerreros sin magia (vendido por Aldric)
+  'astillas ardientes':  { type: 'fire_attack', effect: 'fire_damage', amount: 18, description: 'Un haz de astillas de madera resinosa embebidas en aceite combustible. Al arrojarlas, producen una llamarada breve pero intensa. Inflinge 18 HP de daño de fuego a un enemigo. Especialmente efectivo contra criaturas de hielo y madera. Se consume al usarse.' },
+
   // ── Armas (dungeon base) ──────────────────────────────────────────────────
   'espada oxidada':      { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'Una espada vieja con filo irregular. +3 de ataque.' },
   'cuchillo oxidado':    { type: 'weapon', effect: 'attack_bonus', amount: 1,  description: 'Un cuchillo pequeño y oxidado. +1 de ataque.' },

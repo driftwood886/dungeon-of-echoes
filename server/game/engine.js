@@ -7513,6 +7513,41 @@ function cmdUse(player, itemQuery) {
     return { text: `Usás ${found} pero no pasa nada en particular.` };
   }
 
+  // DIS-1943: Astillas ardientes — consumible ofensivo de fuego (fire_attack)
+  // Al usar en combate (hay monstruo en la sala), hace daño de fuego.
+  // Bonus x1.5 contra criaturas de hielo (Elemental de Hielo, etc.)
+  if (def.type === 'fire_attack') {
+    const fireTargets = db.getMonstersInRoom(player.current_room_id).filter(m => m.hp > 0 && m.room_id !== null);
+    if (fireTargets.length === 0) {
+      return { text: `🔥 Sostenés las astillas ardientes, pero no hay ningún enemigo al que atacar en esta sala.\n   💡 Funcionan mejor contra criaturas de hielo (ej: Elemental de Hielo, sala 11).` };
+    }
+    // Elegir el primer monstruo de la sala (o el que tenga menos HP)
+    const fireTarget = fireTargets.reduce((prev, cur) => cur.hp < prev.hp ? cur : prev, fireTargets[0]);
+    const baseDmg = def.amount || 18;
+    const monNameFire = fireTarget.name.toLowerCase().replace('⭐ ', '');
+    const isIceMon = monNameFire.includes('hielo') || monNameFire.includes('glacial') || monNameFire.includes('frost') || monNameFire.includes('frío');
+    const fireDmg = isIceMon ? Math.round(baseDmg * 1.5) : baseDmg;
+    const newMonHp = Math.max(0, fireTarget.hp - fireDmg);
+    db.updateMonster(fireTarget.id, { hp: newMonHp });
+    // Consumir el ítem
+    const newInvFire = removeFirst(player.inventory, found);
+    db.updatePlayer(player.id, { inventory: newInvFire });
+
+    const bonusMsg = isIceMon ? ` 🧊 (bonus ×1.5 contra criatura de hielo!)` : '';
+    let fireResultText = `🔥 Arrojás las astillas ardientes sobre ${fireTarget.name}. ¡LLAMARADA! Hace ${fireDmg} HP de daño de fuego.${bonusMsg}\n   ${fireTarget.name}: ${newMonHp}/${fireTarget.max_hp} HP`;
+    if (newMonHp <= 0) {
+      fireResultText += `\n💀 ${fireTarget.name} fue derrotado por las llamas.`;
+      // Loot y XP — reutilizar lógica de muerte de monstruo via combate normal
+      // (simplificado: solo marcar como muerto; el respawn lo maneja el sistema existente)
+      try {
+        const { handleMonsterDeath } = require('./combat');
+        const deathResult = handleMonsterDeath(player, fireTarget, []);
+        if (deathResult && deathResult.length > 0) fireResultText += '\n' + deathResult.join('\n');
+      } catch (_) { /* no romper si falla */ }
+    }
+    return { text: fireResultText };
+  }
+
   let resultText;
 
   if (def.type === 'potion' && def.effect === 'heal') {
@@ -11972,6 +12007,8 @@ const SHOP_CATALOG = [
   { name: 'cuerda',                  price: 10, description: 'Desactiva trampas de pinchos. 15m de largo.' },
   // DIS-1342: red de pesca disponible en tienda — alternativa para evitar el daño de la Caverna Sumergida en primera visita
   { name: 'red de pesca',             price: 15, description: 'Red de pesca resistente. Desactiva la trampa de inundación de la Caverna Sumergida (sala 13) sin necesidad de entrar primero.' },
+  // DIS-1943: astillas ardientes — consumible ofensivo de fuego para guerreros sin magia, accesible desde el early/mid game
+  { name: 'astillas ardientes',       price: 22, description: '🔥 Haz de astillas resinosas embebidas en aceite combustible. Arrojalas a un enemigo: 18 HP de daño de fuego. Especialmente efectivas contra el Elemental de Hielo (sala 11) y criaturas de madera. Se consume al usarse. (uso: «usar astillas ardientes»)' },
   { name: 'hacha rústica',            price: 8,  description: 'Un hacha de mano tosca pero funcional. +4 de ataque. También la llevan a veces los Goblins Merodeadores (sala 2).' }, // BUG-1471: ítem necesario para desafío diario "El Hacha y la Sala"
   { name: 'espada oxidada',          price: 15, description: 'Una espada vieja pero funcional. +3 ataque. Ingrediente para craftear espada de obsidiana.' },
   { name: 'llave oxidada',           price: 20, description: 'Abre la puerta al norte del Pozo Sin Fondo. El hierro está gastado por años de uso —quizás décadas. Algunos aventureros la encontraron en el suelo del Pozo, envuelta en seda: la Araña Tejedora la tomó de alguien que no salió. No sabés si ese alguien llegó más lejos que vos.' },
