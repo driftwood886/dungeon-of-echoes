@@ -1587,7 +1587,25 @@ function cmdLook(player, options = {}) {
           const newEvMinLeft = newEvInfo.minutesRemaining;
           const newEvSecLeft = newEvInfo.secondsRemaining;
           const newEvTimeStr = newEvMinLeft > 0 ? `${newEvMinLeft}m ${newEvSecLeft}s` : `${newEvSecLeft}s`;
-          activeEventLine = `\n${newEvInfo.event.name} — ${newEvInfo.event.description} (⏱ ${newEvTimeStr} restantes)`;
+          // DIS-1930: GOLD_RUSH — mostrar solo la primera vez o cuando quedan <2 min
+          const isGoldRush = newEvInfo.event.id === 'GOLD_RUSH';
+          let showGoldRushBanner = true;
+          if (isGoldRush) {
+            const seGR = parseSE(player.status_effects);
+            const eventKey = `gold_rush_notified_${newEvInfo.event.started_at || 'unknown'}`;
+            const alreadyNotifiedGR = seGR[eventKey];
+            const nearlyOver = newEvMinLeft < 2;
+            if (alreadyNotifiedGR && !nearlyOver) {
+              showGoldRushBanner = false;
+            } else if (!alreadyNotifiedGR) {
+              // Marcar como notificado (primera vez para este evento específico)
+              seGR[eventKey] = true;
+              try { db.updatePlayer(player.id, { status_effects: JSON.stringify(seGR) }); } catch (_) {}
+            }
+          }
+          if (showGoldRushBanner) {
+            activeEventLine = `\n${newEvInfo.event.name} — ${newEvInfo.event.description} (⏱ ${newEvTimeStr} restantes)`;
+          }
         }
       }
     } catch (_) { /* no romper look si eventScheduler falla */ }
@@ -4682,9 +4700,14 @@ function cmdStatus(player) {
   }
 
   // DIS-1831: recordatorio de facciones para jugadores nivel 5+ sin facción
+  // DIS-1929: no mostrar si hay una elección de facción pendiente (faction_pending en status_effects)
   let factionReminderLine = '';
   if ((player.level || 1) >= 5 && !player.faction) {
-    factionReminderLine = `\n\n⚔️ Nota: Aún no te uniste a ninguna facción — escribí \`facciones\` para ver las opciones y sus beneficios.`;
+    let seStatus = {};
+    try { seStatus = JSON.parse(player.status_effects || '{}'); } catch (_) {}
+    if (!seStatus.faction_pending) {
+      factionReminderLine = `\n\n⚔️ Nota: Aún no te uniste a ninguna facción — escribí \`facciones\` para ver las opciones y sus beneficios.`;
+    }
   }
 
   return { text: text + runesStatusLine + '\n' + achLine + questChangeLine + questStatusLine + factionReminderLine };
@@ -5674,7 +5697,7 @@ function cmdAttack(player, targetName) {
           const freshFor1377 = db.getPlayer(player.id);
           if (!freshFor1377.faction_notified && !freshFor1377.faction) {
             db.setFactionNotified(freshFor1377.id);
-            _factionInviteMsg = `\n\n📜 Un mensajero acaba de dejarte una nota en la entrada del dungeon.\n\n"Las facciones del dungeon han notado tu progreso, aventurero.\nLa Orden del Filo, el Cónclave Arcano y la Hermandad del Mercado\nte ofrecen membresía. Escribí 'facciones' para conocerlas."`;
+            _factionInviteMsg = `\n\n📜 Un mensajero acaba de dejarte una nota en la entrada del dungeon.\n\n"Las facciones del dungeon han notado tu progreso, aventurero.\nLa Orden del Filo, el Cónclave Arcano y la Hermandad del Mercado\nte ofrecen membresía.\n\nEscribí 'facciones' para ver descripción completa de cada una.\nO unite directamente:\n  faccion elegir orden_filo confirmar\n  faccion elegir conclave_arcano confirmar\n  faccion elegir hermandad_mercado confirmar"`;
           }
         }
       }
@@ -9016,7 +9039,19 @@ function cmdEquip(player, itemQuery) {
 
   const change = newAttack - oldAttack;
   const changeStr = change >= 0 ? `+${change}` : `${change}`;
-  const swapMsg = player.equipped_weapon ? `\n🔄 (Desequipás ${player.equipped_weapon} — vuelve a tu mochila.)` : '';
+  const swapMsg = player.equipped_weapon
+    ? (() => {
+        // DIS-1928: incluir conteo de mochila después del swap para mayor claridad
+        const maxInvEquip = INV_BASE_SLOTS + (player.inventory_bonus || 0);
+        const equippedCountAfter = 1 + (player.equipped_armor ? 1 : 0); // nueva arma equipada + armor
+        const usedAfterEquip = invEquip.length + equippedCountAfter;
+        const freeAfterEquip = maxInvEquip - usedAfterEquip;
+        const slotStr = freeAfterEquip <= 0
+          ? ` Mochila llena (${usedAfterEquip}/${maxInvEquip}).`
+          : ` Mochila: ${usedAfterEquip}/${maxInvEquip} (${freeAfterEquip} libre${freeAfterEquip !== 1 ? 's' : ''}).`;
+        return `\n🔄 (Desequipás ${player.equipped_weapon} — vuelve a tu mochila.${slotStr})`;
+      })()
+    : '';
 
   // DIS-885: advertir si el arma anterior tenía bonus de crit y el nuevo no (o tiene menos)
   const prevCritBonus = prevWeaponDef ? (prevWeaponDef.rogue_only_crit_bonus || 0) : 0;
