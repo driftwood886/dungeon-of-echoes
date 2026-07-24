@@ -2518,7 +2518,15 @@ function tryAddRune(playerId, isBoss = false, monsterId = null) {
     const enchantHint = isFirstRune
       ? `\n   🪄 ¡Primera runa! Podés usarla: "enchant ${type}" encanta tu arma por 3 min (consume la runa). O guardar 3 del mismo tipo para fusión permanente (+ATK). Decidí según tu situación.`
       : '';
-    return `🔮 Encontrás una Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]}! (${current + 1}/3)\n   Al juntar 3 del mismo tipo se fusionan → ${bonus.label}.\n   ${needed === 1 ? '⚡ ¡Solo necesitás 1 más para la fusión!' : `Necesitás ${needed} más para fusionar.`}\n   Usá "runas" para ver tu colección.${enchantHint}`;
+    // DIS-1942: primer drop de este tipo → explicar sistema; drops siguientes → solo conteo
+    if (current === 0) {
+      // Primera runa de este tipo — mostrar descripción del sistema
+      return `🔮 Encontrás una Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]}! (1/3)\n   Al juntar 3 del mismo tipo se fusionan → ${bonus.label}.\n   Necesitás ${needed} más para fusionar.\n   Usá "runas" para ver tu colección.${enchantHint}`;
+    } else {
+      // Ya tenés al menos 1 de este tipo — mensaje compacto, sin repetir el sistema
+      const progressNote = needed === 1 ? '⚡ ¡Solo 1 más para la fusión!' : `${needed} más para fusionar.`;
+      return `🔮 Otra Runa de ${type.charAt(0).toUpperCase() + type.slice(1)} ${RUNE_EMOJIS[type]} (${current + 1}/3). ${progressNote}`;
+    }
   }
 }
 
