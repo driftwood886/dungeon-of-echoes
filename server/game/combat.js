@@ -1699,7 +1699,8 @@ function attackRound(player, monster) {
           lines.push(`\n⚠️  [LOOT ÉPICO EN RIESGO] ${fullMsg}.`);
           lines.push(`   El boss soltó ${loot.length} ítem${loot.length !== 1 ? 's' : ''} — ${slotsNeeded} no entr${slotsNeeded !== 1 ? 'aron' : 'ó'} y quedaron en el suelo.`);
           lines.push(`   Liberá espacio con \`drop <ítem>\` y luego recogé con \`loot\`.`);
-          lines.push(`   La sala se preserva mientras sigas aquí — si salís, los ítems del suelo pueden perderse.`);
+          // DIS-1920: el loot de boss persiste hasta el respawn del boss (~30 min) — aclarar al jugador
+          lines.push(`   Los ítems en el suelo se preservan hasta que el boss respawnee (~30 min). Podés ir a la tienda (sala 4) y volver.`);
         }
       }
     }
