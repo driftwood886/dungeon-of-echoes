@@ -963,7 +963,8 @@ function attackRound(player, monster) {
   // DIS-630: El Gólem de Piedra tiene resistencia física ×0.75 — análoga a resistencia mágica del Guardia Espectral
   // Es un constructo pétrico: los golpes físicos se amortiguan en su cuerpo de piedra
   // DIS-688: El Golem de Forja tiene resistencia de fuego ×0.80 — constructo de metal candente
-  // DIS-1015: El Elemental de Hielo tiene resistencia física ×0.80 — criatura inmaterial
+  // DIS-1015: El Elemental de Hielo tiene resistencia física — criatura inmaterial
+  // DIS-1935: ajustado de ×0.80 → ×0.85 (era demasiado punitivo sin hechizo de fuego; sensación de "mis ataques no sirven")
   // DIS-1481: El Troll de las Cavernas tiene resistencia física — piel gruesa, regeneración compensatoria
   // DIS-1791: resistencia ajustada de ×0.70 → ×0.75 (era demasiado combinada con regen +2/turno)
   // El Troll ya tiene regen como mecánica de dificultad; la resist ×0.70 + regen hacía la pelea
@@ -972,7 +973,7 @@ function attackRound(player, monster) {
   const FIRE_RESISTANT_MONSTERS  = ['golem de forja'];
   const monNameLow = monster.name.toLowerCase().replace('⭐ ', '');
   const physResist = monNameLow.includes('gólem de piedra') ? 0.75
-    : monNameLow.includes('elemental de hielo') ? 0.80
+    : monNameLow.includes('elemental de hielo') ? 0.85
     : monNameLow.includes('troll de las cavernas') ? 0.75
     : FIRE_RESISTANT_MONSTERS.some(n => monNameLow.includes(n)) ? 0.80
     : 1.0;

@@ -56,6 +56,10 @@ const ROOM_EFFECTS = {
   // Sala 9 — Sala del Trono: frío sobrenatural (ya tiene trampa, además debuffa ATK)
   // DIS-1236: msg reformulado para aclarar que es efecto permanente de sala, no parte de la trampa
   9:  { type: 'debuff', stat: 'attack', amount: -1, label: '🥶 Frío sobrenatural (permanente)', msg: 'El frío sobrenatural de la Sala del Trono te entumece los músculos. (-1 ATK mientras estés aquí)\n   ❄️ Este es un efecto ambiental permanente de la sala — no desaparece al desactivar la trampa.' },
+  // Sala 11 — Galería de Hielo: pista narrativa de vulnerabilidad al fuego del Elemental
+  // DIS-1935: la descripción ya menciona el frío, pero el jugador necesita una señal más directa
+  // del tipo de daño efectivo antes del encuentro (el tip del mapa era demasiado pasivo)
+  11: { type: 'hint', label: '🧊 Susurro del Hielo', msg: '❄️ El frío es tan intenso que el metal de tu arma se enfría al instante.\n   Las paredes brillan con una luz azul espectral. Notás que el suelo cerca del Elemental tiene marcas de chamuscado antiguo — alguien antes que vos descubrió algo.\n   💡 Pista: el fuego parece ser efectivo contra criaturas de hielo.' },
   // Sala 12 — Taller de la Forja: calor brutal al entrar
   12: { type: 'damage', amount: 2, label: '🔥 Calor Abrasador', msg: '🔥 El calor extremo de la forja te abrasa la piel al entrar. (-2 HP)' },
   // Sala 1 — Entrada del Santuario: aura sagrada regenera HP
@@ -3199,16 +3203,20 @@ function cmdMove(player, direction) {
       } else if (echoAmuletCancelsDebuff) {
         effectText = `\n\n🔊✨ El amuleto del eco pulsa suavemente y absorbe los sonidos enloquecedores. Los Ecos Enloquecedores no te afectan.`;
       }
+    } else if (roomEffect.type === 'hint') {
+      // DIS-1935: tipo 'hint' — solo muestra un mensaje narrativo, sin efecto mecánico
+      // Solo se muestra en revisitas (la primera visita tiene su propio CINEMATIC_EVENT)
+      if (!firstVisitEver) {
+        effectText = `\n\n${roomEffect.msg}`;
+      }
     }
   }
-
-  // T207/STORY-018: Eventos cinemáticos de primera visita para salas especiales
   const CINEMATIC_EVENTS = {
     3:  '🗿 Al entrar a la Sala de los Ecos, escuchás tu propio nombre. Claramente. Nadie más está aquí. La sala te devuelve exactamente lo que dijiste —excepto eso. Nunca dijiste tu nombre en voz alta.',
     2:  '💰 En el Corredor de las Sombras, notás un olor tenue que venía de algún lugar al norte: cuero curtido, cera y monedas. Alguien hace negocios por estas catacumbas. Seguí al norte hasta la Sala de los Ecos y luego al este — hay un Mercader. Aldric, dicen que se llama.',
     9:  '👑 Al cruzar el umbral de la Sala del Trono, la temperatura cae varios grados. El trono de huesos al fondo te mira sin ojos. Tenés la certeza, irracional pero absoluta, de que ese trono no siempre estuvo vacío. Y de que quien lo usaba sabe que estás aquí.\n\n💡 Notás una puerta al este, más pesada que las anteriores. Parece llevar a zonas más profundas del dungeon. Aquí empieza lo desconocido.',
     10: '🩸 El Santuario Profano te recibe en un silencio que no es ausencia de sonido sino presencia de algo más. La estatua con diez brazos no te mira — te cataloga. Las runas en el suelo forman un nombre que creés poder leer aunque nunca hayas visto ese idioma. El aire sabe a cera quemada y tiempo.',
-    11: '❄️ La Galería de Hielo detiene tu respiración. Las paredes de cristal azul reflejan tu imagen distorsionada en docenas de ángulos. En uno de los reflejos, tu imagen te devuelve la mirada... medio segundo antes que vos.\n\n⚠️ Nivel recomendado: 7+. El Elemental de Hielo que habita aquí tiene resistencia física — el fuego es tu mejor aliado contra él. DIS-1858',
+    11: '❄️ La Galería de Hielo detiene tu respiración. Las paredes de cristal azul reflejan tu imagen distorsionada en docenas de ángulos. En uno de los reflejos, tu imagen te devuelve la mirada... medio segundo antes que vos.\n\n⚠️ Nivel recomendado: 7+. El Elemental de Hielo que habita aquí tiene resistencia física — el fuego es tu mejor aliado contra él.',
     12: '🔥 Antes de ver la forja, la sentís. No es solo calor — es algo más persistente, más profundo. Como la respiración de algo que no debería seguir vivo. El fuego en el centro no proyecta sombras normales. Las sombras se mueven solas.\n\n⚠️ Nivel recomendado: 5+. El Golem de Forja que custodia este lugar es un constructo imparable — una vez activado, no cesa.',
     // DIS-1841: reescrita descripción de primera visita con más fuerza narrativa
     14: '🦴 Entrás al Coliseo de Huesos y el sonido se transforma.\n\nCada paso tuyo regresa amplificado desde las gradas — no como un eco limpio, sino como si el recinto lo tomara y lo redistribuyera deliberadamente hacia todos los asientos. Porque los asientos están ocupados. Centenares de esqueletos en posición de espectadores: algunos inclinados hacia adelante, mandíbulas abiertas. Vinieron a ver. Se quedaron para siempre.\n\nEn el centro de la arena yace el equipamiento de un aventurero anterior. Sus ítems siguen ahí, esparcidos. Nadie los recogió.\n\nEntendés de golpe para qué fue diseñado este lugar: no para que el gladiador ganara. Para que el público pudiera verlo intentarlo.\n\n⚠️ Nivel recomendado: 5+ con buen equipo (6+ recomendado). El Campeón Espectral tiene escudo espectral que reduce crits — no lo matarás solo con golpes afortunados. Necesitás daño sostenido.',
