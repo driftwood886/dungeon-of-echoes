@@ -19989,6 +19989,29 @@ function cmdSpecialize(player, args) {
     lines.push('─'.repeat(50));
     lines.push('💡 Para elegir: especializar <nombre>');
     lines.push(`   Ej: especializar ${available[0].id}`);
+    // DIS-1933: contexto comparativo para el Pícaro — la decisión es permanente y merece más info
+    if (playerClass === 'picaro') {
+      lines.push('');
+      lines.push('─'.repeat(50));
+      lines.push('⚖️  ¿Cuál te conviene? (guía práctica)');
+      lines.push('─'.repeat(50));
+      lines.push('');
+      lines.push('🗡️  ASESINO — si querés hacer daño explosivo');
+      lines.push('   El golpe de sombras (sombras) hace ×3 tu ATK base cuando tenés 3 cargas.');
+      lines.push('   Con emboscada_oscura podés cargar las 3 instantáneamente (cooldown 20s).');
+      lines.push('   Ejemplo con ATK 8: ataque normal = 6-10 dmg. Golpe de sombra = ~24 dmg.');
+      lines.push('   El primer ataque de cada sala SIEMPRE es crítico (+50% dmg adicional).');
+      lines.push('   → Ideal si te gusta terminar combates rápido y gestionar el timing de habilidades.');
+      lines.push('');
+      lines.push('🎭  LADRÓN DE SOMBRAS — si querés acumular riqueza y sostenerte largo');
+      lines.push('   Robar tiene 75% de chance (era 50%). En humanoides: 25% de ganar 3-8g extra al matarlos.');
+      lines.push('   Vendés todo a Aldric al 60% de valor (era 40%) — con equipo caro eso suma mucho.');
+      lines.push('   Sigilo dura 90s y recarga en 45s: podés esquivar casi cualquier combate que no querás.');
+      lines.push('   → Ideal si te gusta explorar con riesgo bajo, farmear oro y tener flexibilidad de ruta.');
+      lines.push('');
+      lines.push('💡 Consejo: los jefes finales (Gólem, Lich) requieren daño sostenido. El Asesino los baja');
+      lines.push('   más rápido; el Ladrón puede necesitar más pociones. Ambos los pueden terminar.');
+    }
     return { text: lines.join('\n') };
   }
 
