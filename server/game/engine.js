@@ -5604,13 +5604,21 @@ function cmdAttack(player, targetName) {
         // EPIC-966: marcar ascension_pending en status_effects
         const freshAfterCycle = db.getPlayer(player.id);
         if (freshAfterCycle) {
-          const seFresh = freshAfterCycle.status_effects ? (typeof freshAfterCycle.status_effects === 'string' ? JSON.parse(freshAfterCycle.status_effects) : freshAfterCycle.status_effects) : {};
-          seFresh.ascension_pending = true;
-          // IMPL-VV-1760: limpiar campos de tracking de desafíos VV del ciclo anterior
-          Object.keys(seFresh).forEach(k => {
-            if (k.startsWith('vv_')) delete seFresh[k];
-          });
-          db.updatePlayer(player.id, { status_effects: JSON.stringify(seFresh) });
+          // BUG-1925: verificar que lich_kills realmente se guardó antes de setear ascension_pending
+          // Si el updatePlayer anterior falló silenciosamente, freshAfterCycle.lich_kills seguirá siendo 0
+          // y setear ascension_pending causaría estado corrupto.
+          const confirmedLichKills = freshAfterCycle.lich_kills || 0;
+          if (confirmedLichKills === 0) {
+            console.error(`[BUG-1925] lich_kills no se guardó correctamente para player ${player.id} — omitiendo seteo de ascension_pending para evitar estado corrupto.`);
+          } else {
+            const seFresh = freshAfterCycle.status_effects ? (typeof freshAfterCycle.status_effects === 'string' ? JSON.parse(freshAfterCycle.status_effects) : freshAfterCycle.status_effects) : {};
+            seFresh.ascension_pending = true;
+            // IMPL-VV-1760: limpiar campos de tracking de desafíos VV del ciclo anterior
+            Object.keys(seFresh).forEach(k => {
+              if (k.startsWith('vv_')) delete seFresh[k];
+            });
+            db.updatePlayer(player.id, { status_effects: JSON.stringify(seFresh) });
+          }
         }
       }
     }
@@ -17905,6 +17913,14 @@ function cmdCast(player, args) {
                   updateDataCast.cycle_best_time = cycleTimeMinCast;
                 }
                 db.updatePlayer(player.id, updateDataCast);
+                // BUG-1925: setear ascension_pending igual que en cmdAttack
+                const freshAfterCastCycle = db.getPlayer(player.id);
+                if (freshAfterCastCycle && (freshAfterCastCycle.lich_kills || 0) > 0) {
+                  const seCast = freshAfterCastCycle.status_effects ? (typeof freshAfterCastCycle.status_effects === 'string' ? JSON.parse(freshAfterCastCycle.status_effects) : freshAfterCastCycle.status_effects) : {};
+                  seCast.ascension_pending = true;
+                  Object.keys(seCast).forEach(k => { if (k.startsWith('vv_')) delete seCast[k]; });
+                  db.updatePlayer(player.id, { status_effects: JSON.stringify(seCast) });
+                }
                 console.log(`[engine] BUG-699: lich_kills actualizado a ${newLichKillsCast} tras muerte del Lich con hechizo.`);
               }
             } catch (e) {
@@ -20246,6 +20262,14 @@ function cmdUseSkill(player, args, context) {
             const prevSmashBest = freshForSmashCycle.cycle_best_time;
             if (!prevSmashBest || smashCycleTimeMin < prevSmashBest) smashUpdateData.cycle_best_time = smashCycleTimeMin;
             db.updatePlayer(freshPlayer.id, smashUpdateData);
+            // BUG-1925: setear ascension_pending igual que en cmdAttack
+            const freshAfterSmash = db.getPlayer(freshPlayer.id);
+            if (freshAfterSmash && (freshAfterSmash.lich_kills || 0) > 0) {
+              const seSmash = freshAfterSmash.status_effects ? (typeof freshAfterSmash.status_effects === 'string' ? JSON.parse(freshAfterSmash.status_effects) : freshAfterSmash.status_effects) : {};
+              seSmash.ascension_pending = true;
+              Object.keys(seSmash).forEach(k => { if (k.startsWith('vv_')) delete seSmash[k]; });
+              db.updatePlayer(freshPlayer.id, { status_effects: JSON.stringify(seSmash) });
+            }
           }
         } catch (e) { console.warn('[engine] DIS-792: Error incrementando lich_kills con smash:', e.message); }
       }
@@ -20651,6 +20675,14 @@ function cmdUseSkill(player, args, context) {
             const prevBashBest = freshForBashCycle.cycle_best_time;
             if (!prevBashBest || bashCycleTimeMin < prevBashBest) bashUpdateData.cycle_best_time = bashCycleTimeMin;
             db.updatePlayer(freshPlayer.id, bashUpdateData);
+            // BUG-1925: setear ascension_pending igual que en cmdAttack
+            const freshAfterBash = db.getPlayer(freshPlayer.id);
+            if (freshAfterBash && (freshAfterBash.lich_kills || 0) > 0) {
+              const seBash = freshAfterBash.status_effects ? (typeof freshAfterBash.status_effects === 'string' ? JSON.parse(freshAfterBash.status_effects) : freshAfterBash.status_effects) : {};
+              seBash.ascension_pending = true;
+              Object.keys(seBash).forEach(k => { if (k.startsWith('vv_')) delete seBash[k]; });
+              db.updatePlayer(freshPlayer.id, { status_effects: JSON.stringify(seBash) });
+            }
           }
         } catch (e) { console.warn('[engine] DIS-792: Error incrementando lich_kills con shield_bash:', e.message); }
       }
@@ -20899,6 +20931,14 @@ function cmdUseSkill(player, args, context) {
             const prevGsBest = freshForGsCycle.cycle_best_time;
             if (!prevGsBest || gsCycleTimeMin < prevGsBest) gsUpdateData.cycle_best_time = gsCycleTimeMin;
             db.updatePlayer(freshPlayer.id, gsUpdateData);
+            // BUG-1925: setear ascension_pending igual que en cmdAttack
+            const freshAfterGs = db.getPlayer(freshPlayer.id);
+            if (freshAfterGs && (freshAfterGs.lich_kills || 0) > 0) {
+              const seGs = freshAfterGs.status_effects ? (typeof freshAfterGs.status_effects === 'string' ? JSON.parse(freshAfterGs.status_effects) : freshAfterGs.status_effects) : {};
+              seGs.ascension_pending = true;
+              Object.keys(seGs).forEach(k => { if (k.startsWith('vv_')) delete seGs[k]; });
+              db.updatePlayer(freshPlayer.id, { status_effects: JSON.stringify(seGs) });
+            }
           }
         } catch (e) { console.warn('[engine] DIS-792: Error incrementando lich_kills con golpe_sucio:', e.message); }
       }
@@ -21334,6 +21374,14 @@ function cmdUseSkill(player, args, context) {
             const prevShBest = freshForShCycle.cycle_best_time;
             if (!prevShBest || shCycleTimeMin < prevShBest) shUpdateData.cycle_best_time = shCycleTimeMin;
             db.updatePlayer(freshPicSh.id, shUpdateData);
+            // BUG-1925: setear ascension_pending igual que en cmdAttack
+            const freshAfterSh = db.getPlayer(freshPicSh.id);
+            if (freshAfterSh && (freshAfterSh.lich_kills || 0) > 0) {
+              const seSh = freshAfterSh.status_effects ? (typeof freshAfterSh.status_effects === 'string' ? JSON.parse(freshAfterSh.status_effects) : freshAfterSh.status_effects) : {};
+              seSh.ascension_pending = true;
+              Object.keys(seSh).forEach(k => { if (k.startsWith('vv_')) delete seSh[k]; });
+              db.updatePlayer(freshPicSh.id, { status_effects: JSON.stringify(seSh) });
+            }
           }
         } catch (e) { console.warn('[engine] DIS-792: Error incrementando lich_kills con golpe_sombra:', e.message); }
       }
@@ -21474,6 +21522,14 @@ function cmdUseSkill(player, args, context) {
               const palCycleUpd = { lich_kills: newLichKills, cycle_start_at: new Date().toISOString() };
               if (!freshPalCycle.cycle_best_time || cycleTimeMin < freshPalCycle.cycle_best_time) palCycleUpd.cycle_best_time = cycleTimeMin;
               db.updatePlayer(freshPal.id, palCycleUpd);
+              // BUG-1925: setear ascension_pending igual que en cmdAttack
+              const freshAfterPal = db.getPlayer(freshPal.id);
+              if (freshAfterPal && (freshAfterPal.lich_kills || 0) > 0) {
+                const sePal = freshAfterPal.status_effects ? (typeof freshAfterPal.status_effects === 'string' ? JSON.parse(freshAfterPal.status_effects) : freshAfterPal.status_effects) : {};
+                sePal.ascension_pending = true;
+                Object.keys(sePal).forEach(k => { if (k.startsWith('vv_')) delete sePal[k]; });
+                db.updatePlayer(freshPal.id, { status_effects: JSON.stringify(sePal) });
+              }
             }
           } catch (e) { console.warn('[engine] imposition: Error en lich_kills:', e.message); }
         }
@@ -21620,6 +21676,14 @@ function cmdUseSkill(player, args, context) {
               const aseCycleUpd = { lich_kills: newLichKillsAse, cycle_start_at: new Date().toISOString() };
               if (!freshAseCycle.cycle_best_time || cycleTimeMinAse < freshAseCycle.cycle_best_time) aseCycleUpd.cycle_best_time = cycleTimeMinAse;
               db.updatePlayer(freshAse.id, aseCycleUpd);
+              // BUG-1925: setear ascension_pending igual que en cmdAttack
+              const freshAfterAse = db.getPlayer(freshAse.id);
+              if (freshAfterAse && (freshAfterAse.lich_kills || 0) > 0) {
+                const seAse = freshAfterAse.status_effects ? (typeof freshAfterAse.status_effects === 'string' ? JSON.parse(freshAfterAse.status_effects) : freshAfterAse.status_effects) : {};
+                seAse.ascension_pending = true;
+                Object.keys(seAse).forEach(k => { if (k.startsWith('vv_')) delete seAse[k]; });
+                db.updatePlayer(freshAse.id, { status_effects: JSON.stringify(seAse) });
+              }
             }
           } catch (e) { console.warn('[engine] emboscar: Error en lich_kills:', e.message); }
         }
@@ -21831,6 +21895,14 @@ function cmdUseSkill(player, args, context) {
               const juCycleUpd = { lich_kills: newLichKillsJu, cycle_start_at: new Date().toISOString() };
               if (!freshJuCycle.cycle_best_time || cycleTimeMinJu < freshJuCycle.cycle_best_time) juCycleUpd.cycle_best_time = cycleTimeMinJu;
               db.updatePlayer(freshJu.id, juCycleUpd);
+              // BUG-1925: setear ascension_pending igual que en cmdAttack
+              const freshAfterJu = db.getPlayer(freshJu.id);
+              if (freshAfterJu && (freshAfterJu.lich_kills || 0) > 0) {
+                const seJu = freshAfterJu.status_effects ? (typeof freshAfterJu.status_effects === 'string' ? JSON.parse(freshAfterJu.status_effects) : freshAfterJu.status_effects) : {};
+                seJu.ascension_pending = true;
+                Object.keys(seJu).forEach(k => { if (k.startsWith('vv_')) delete seJu[k]; });
+                db.updatePlayer(freshJu.id, { status_effects: JSON.stringify(seJu) });
+              }
             }
           } catch (e) { console.warn('[engine] rayo_divino: Error en lich_kills:', e.message); }
         }
@@ -28556,8 +28628,21 @@ function cmdAscend(player, args, context) {
   const se = fresh.status_effects ? (typeof fresh.status_effects === 'string' ? JSON.parse(fresh.status_effects) : fresh.status_effects) : {};
   const lichKills = fresh.lich_kills || 0;
 
-  // Verificar que el jugador mató al Lich
-  if (lichKills === 0 && !se.ascension_pending) {
+  // BUG-1925: Verificar que el jugador realmente mató al Lich (lich_kills > 0 es obligatorio)
+  if (lichKills === 0) {
+    // Si ascension_pending quedó stranded con lich_kills=0, limpiar el estado corrupto
+    if (se.ascension_pending) {
+      const seFixed = { ...se };
+      delete seFixed.ascension_pending;
+      delete seFixed.ascension_choices;
+      delete seFixed.ascension_screen_shown;
+      try {
+        db.updatePlayer(fresh.id, { status_effects: JSON.stringify(seFixed) });
+        console.warn(`[BUG-1925] ascension_pending stranded limpiado para player ${fresh.id} (lich_kills=0)`);
+      } catch (e) {
+        console.error('[BUG-1925] Error limpiando estado corrupto de ascensión:', e.message);
+      }
+    }
     return { text: '💀 Solo podés ascender después de derrotar al Lich Anciano.\n\nEl Sistema de Ascensión estará disponible cuando completes tu primer ciclo.' };
   }
 
