@@ -9928,7 +9928,7 @@ function cmdWear(player, itemQuery) {
   let defMsg;
   if (oldArmor && oldArmorAmount > 0) {
     if (change === 0) {
-      defMsg = `Defensa: ${newDefense} (sin cambio neto — el ${found} tiene la misma DEF que ${oldArmor}, pero es superior en otras propiedades)`;
+      defMsg = `Defensa: ${newDefense} (sin cambio neto — ${found} tiene la misma DEF que ${oldArmor})`;
     } else {
       defMsg = `Defensa: ${oldDefense} → ${newDefense} (+${def.amount} del ${found}, −${oldArmorAmount} al desequipar ${oldArmor} = neto ${changeStr})`;
     }
