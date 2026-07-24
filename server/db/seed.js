@@ -644,7 +644,7 @@ function migrateCorredorHintDIS1107() {
   }
 }
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745, migrateGnollMerodeadorIMPL1761, migrateZombieCaminanteIMPL1761, migrateElementalFuegoIMPL1761, migrateBatVampireDescDIS1775, migrateFuenteEternaDescDIS1778, migrateSubastaNorthHintDIS1789, migrateConclaveExamineDIS1796, migrateGaleriaHieloExamineDIS1797, migrateGnollDagaBasicaDIS1811, migrateCampeonEmblemaDIS1812 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745, migrateGnollMerodeadorIMPL1761, migrateZombieCaminanteIMPL1761, migrateElementalFuegoIMPL1761, migrateBatVampireDescDIS1775, migrateFuenteEternaDescDIS1778, migrateSubastaNorthHintDIS1789, migrateConclaveExamineDIS1796, migrateGaleriaHieloExamineDIS1797, migrateGnollDagaBasicaDIS1811, migrateCampeonEmblemaDIS1812, migrateQuestEdictoDIS1916 };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -3065,6 +3065,48 @@ function migrateCampeonEmblemaDIS1812() {
     console.log('[seed] migrateCampeonEmblemaDIS1812: emblema del coliseo agregado al loot del Campeón Espectral (id 12). DIS-1812 ✓');
   } catch (e) {
     console.warn('[seed] migrateCampeonEmblemaDIS1812:', e.message);
+  }
+}
+
+/**
+ * BUG-1916: La quest "El Contrato de Élite" (faccion_orden_filo_elite) tiene "Élite" en el
+ * nombre, pero su objetivo es matar 5 monstruos en postura agresiva — no enemigos de élite.
+ * Esto confunde al jugador que acaba de unirse a la Orden del Filo y ve en el mensaje de
+ * bienvenida la misión semanal "El Cazador de Jefes" (matar 1 enemigo de élite).
+ * El jugador no distingue entre la quest de facción y la misión semanal de facción.
+ *
+ * Fix: renombrar la quest a "El Edicto del Filo" y actualizar la descripción para dejar
+ * claro que se trata de combate agresivo (sin mencionar "élite").
+ */
+function migrateQuestEdictoDIS1916() {
+  try {
+    const rawDb = db.raw();
+    if (!rawDb) {
+      console.warn('[seed] migrateQuestEdictoDIS1916: db no inicializada — omitiendo.');
+      return;
+    }
+    const stmt = rawDb.prepare("SELECT name FROM quest_definitions WHERE id = 'faccion_orden_filo_elite'");
+    const found = stmt.step();
+    const row = found ? stmt.getAsObject() : null;
+    stmt.free();
+    if (!row) {
+      console.log('[seed] migrateQuestEdictoDIS1916: quest faccion_orden_filo_elite no encontrada — sin cambios. ✓');
+      return;
+    }
+    if (row.name === 'El Edicto del Filo') {
+      console.log('[seed] migrateQuestEdictoDIS1916: ya migrado. ✓');
+      return;
+    }
+    const newName = 'El Edicto del Filo';
+    const newDescription = 'La Orden del Filo no acepta guerreros que pelean a la defensiva. El edicto es claro: eliminá 5 criaturas en postura agresiva esta semana. Sin escudos, sin rodeos — la Orden mide a sus miembros por lo que dejan atrás.';
+    rawDb.run(
+      "UPDATE quest_definitions SET name = ?, description = ? WHERE id = 'faccion_orden_filo_elite'",
+      [newName, newDescription]
+    );
+    db.persist();
+    console.log('[seed] migrateQuestEdictoDIS1916: "El Contrato de Élite" → "El Edicto del Filo". BUG-1916 ✓');
+  } catch (e) {
+    console.warn('[seed] migrateQuestEdictoDIS1916:', e.message);
   }
 }
 
