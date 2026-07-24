@@ -1615,10 +1615,12 @@ function cmdLook(player, options = {}) {
           const newEvTimeStr = newEvMinLeft > 0 ? `${newEvMinLeft}m ${newEvSecLeft}s` : `${newEvSecLeft}s`;
           // DIS-1930: GOLD_RUSH — mostrar solo la primera vez o cuando quedan <2 min
           const isGoldRush = newEvInfo.event.id === 'GOLD_RUSH';
+          // DIS-1944: DUNGEON_BREATH — mismo patrón que GOLD_RUSH: solo primera vez o <2 min
+          const isDungeonBreath = newEvInfo.event.id === 'DUNGEON_BREATH';
           let showGoldRushBanner = true;
-          if (isGoldRush) {
+          if (isGoldRush || isDungeonBreath) {
             const seGR = parseSE(player.status_effects);
-            const eventKey = `gold_rush_notified_${newEvInfo.event.started_at || 'unknown'}`;
+            const eventKey = `${newEvInfo.event.id.toLowerCase()}_notified_${newEvInfo.event.started_at || 'unknown'}`;
             const alreadyNotifiedGR = seGR[eventKey];
             const nearlyOver = newEvMinLeft < 2;
             if (alreadyNotifiedGR && !nearlyOver) {
