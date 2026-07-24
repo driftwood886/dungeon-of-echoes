@@ -1232,7 +1232,7 @@ async function init() {
         id: 'fm_orden_caza_agresiva',
         faction: 'orden_filo',
         name: 'El Contrato Sangriento',
-        description_template: 'Los mejores guerreros de la Orden no se esconden detrás de escudos. Matá {target} criaturas en postura agresiva.',
+        description_template: 'Los mejores guerreros de la Orden no se esconden detrás de escudos. Matá {target} criaturas en postura agresiva (desde que te uniste a la Orden).',
         event_hook: 'kill',
         target_filter: JSON.stringify({ stance: 'agresivo' }),
         base_target: 5,
