@@ -7310,8 +7310,18 @@ function cmdPick(player, itemQuery) {
     }
   } catch (_) { /* no romper pick si falla expedición */ }
 
+  // ── BUG-1934: hook de questEngine — trigger 'pickup' ─────────────────────
+  let questPickMsg = '';
+  try {
+    const freshForQPick = db.getPlayer(player.id);
+    const qPickResult = questEngine.onPickup(freshForQPick, found);
+    if (qPickResult && qPickResult.text) {
+      questPickMsg = '\n\n' + qPickResult.text;
+    }
+  } catch (_) { /* no romper pick si falla questEngine */ }
+
   return {
-    text: pickSingleMsg + expeditionPickMsg,
+    text: pickSingleMsg + expeditionPickMsg + questPickMsg,
     event: `${player.username} recoge algo del suelo.`,
     eventRoomId: room.id,
   };

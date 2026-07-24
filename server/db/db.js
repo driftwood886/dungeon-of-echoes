@@ -343,7 +343,7 @@ async function init() {
       chain_id: null,
       chain_step: null,
       chain_prev_id: null,
-      weekly_seed_group: 'craft_C',
+      weekly_seed_group: null,  // BUG-1934: no entra al pool aleatorio — se asigna por trigger (recoger escudo roto/garra)
       is_active: 1,
     },
     // ── TRADE QUESTS (3) ─────────────────────────────────────────────────────

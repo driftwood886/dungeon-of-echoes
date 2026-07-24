@@ -1256,6 +1256,78 @@ function getHistory(player) {
   }
 }
 
+/**
+ * BUG-1934: Trigger de quest por recoger material de crafteo.
+ * Asigna `craft_escudo_gladiador` cuando el jugador recoge escudo roto o garra de esqueleto,
+ * siempre que no la tenga ya activa, no la haya completado, y no tenga ya el escudo de gladiador.
+ *
+ * @param {Object} player
+ * @param {string} itemName — ítem recogido (normalizado)
+ * @returns {null | { text: string }}
+ */
+function onPickup(player, itemName) {
+  if (player.is_bot) return null;
+
+  const CRAFT_TRIGGER_ITEMS = ['escudo roto', 'garra de esqueleto'];
+  const QUEST_ID = 'craft_escudo_gladiador';
+  const SLOT = 'secundaria';
+
+  const norm = (itemName || '').toLowerCase().trim();
+  const isTriggerItem = CRAFT_TRIGGER_ITEMS.some(t => norm.includes(t));
+  if (!isTriggerItem) return null;
+
+  try {
+    const rawDb = db.raw();
+
+    // ¿Ya tiene la quest activa?
+    const activeCheck = rawDb.exec(
+      `SELECT id FROM player_quests WHERE player_id = ? AND quest_id = ? AND status = 'active'`,
+      [player.id, QUEST_ID]
+    );
+    if (activeCheck.length && activeCheck[0].values.length) return null;
+
+    // ¿Ya la completó alguna vez?
+    const completedCheck = rawDb.exec(
+      `SELECT id FROM player_quests WHERE player_id = ? AND quest_id = ? AND status = 'completed'`,
+      [player.id, QUEST_ID]
+    );
+    if (completedCheck.length && completedCheck[0].values.length) return null;
+
+    // ¿Ya tiene el escudo de gladiador en inventario o equipado?
+    const freshPlayer = db.getPlayer(player.id);
+    const inv = Array.isArray(freshPlayer.inventory) ? freshPlayer.inventory : (JSON.parse(freshPlayer.inventory || '[]'));
+    const hasShield = inv.includes('escudo de gladiador') || freshPlayer.equipped_armor === 'escudo de gladiador';
+    if (hasShield) return null;
+
+    // ¿Tiene slot secundaria libre?
+    const slotCheck = rawDb.exec(
+      `SELECT id FROM player_quests WHERE player_id = ? AND slot = ? AND status = 'active'`,
+      [player.id, SLOT]
+    );
+    if (slotCheck.length && slotCheck[0].values.length) return null;
+
+    // Asignar la quest
+    rawDb.run(
+      `INSERT OR IGNORE INTO player_quests (player_id, quest_id, status, progress, slot)
+       VALUES (?, ?, 'active', '{}', ?)`,
+      [player.id, QUEST_ID, SLOT]
+    );
+
+    const qInfo = rawDb.exec(
+      `SELECT name, description FROM quest_definitions WHERE id = ?`,
+      [QUEST_ID]
+    );
+    if (qInfo.length && qInfo[0].values.length) {
+      const [name, desc] = qInfo[0].values[0];
+      return { text: `📋 **Nueva misión:** "${name}"\n${desc}` };
+    }
+    return { text: `📋 **Nueva misión desbloqueada:** La Defensa del Gladiador` };
+  } catch (e) {
+    console.error('[questEngine] Error en onPickup (BUG-1934):', e.message);
+    return null;
+  }
+}
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -1265,6 +1337,7 @@ module.exports = {
   onCraft,
   onTrade,
   onRitual,
+  onPickup,
   getQuestsDisplay,
   getQuestDetail,
   abandonQuest,
