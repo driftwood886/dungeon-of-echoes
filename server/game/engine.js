@@ -5048,6 +5048,13 @@ function cmdAttack(player, targetName) {
     return _cmdTrainingFight(player, monster);
   }
 
+  // BUG-1921: guardar el ID del monstruo atacado como "target activo" del jugador.
+  // Esto permite que skills sin target explícito (bash, smash) apunten al último enemigo atacado.
+  // Solo guardar si el monstruo está vivo y no es el Goblin de Práctica.
+  if (monster.hp > 0 && monster.id !== 20) {
+    try { db.updatePlayer(player.id, { last_target_monster_id: monster.id }); } catch (_) {}
+  }
+
   // ── BUG-1781: Advertencia proactiva de mochila llena al atacar un boss ─────
   // Si el jugador tiene ≤2 slots libres y el objetivo es un boss con loot potencial,
   // mostrar la advertencia UNA SOLA VEZ por par (jugador, boss) para no spamear.
@@ -7460,7 +7467,12 @@ function cmdUse(player, itemQuery) {
       const penalty = def.amount - healAmount;
       bsPenalty = ` (−${penalty} HP — instinto berserk 🪓)`; // DIS-1468: feedback claro del penalty
     }
-    resultText = `Bebés ${articuloItem(found)} ${found}. Recuperás ${newHp - oldHp} HP${palBonus}${bsPenalty}. (${newHp}/${maxHp} HP)`;
+    const actualHeal = newHp - oldHp;
+    resultText = `Bebés ${articuloItem(found)} ${found}. Recuperás ${actualHeal} HP${palBonus}${bsPenalty}. (${newHp}/${maxHp} HP)`;
+    // DIS-1922: si la poción curó menos HP de lo que podía (jugador estaba cerca del tope), aclararlo
+    if (actualHeal < healAmount) {
+      resultText += `\n   💧 (La poción podía curar ${healAmount} HP, pero solo necesitabas ${actualHeal} — el resto se perdió.)`;
+    }
     // DIS-1698: si hay penalización berserk, añadir hint pedagógico para nuevos jugadores
     if (bsPenalty) {
       resultText += `\n   💡 (El Berserker descuida la autosanación — sus pociones curan ${healAmount} HP en vez de ${def.amount}. Es parte del tradeoff de la clase.)`;
@@ -20076,11 +20088,19 @@ function cmdUseSkill(player, args, context) {
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
 
-    // DIS-1593: si no se especificó target y hay múltiples vivos, elegir el de mayor HP
-    // (evita que smash ataque al monstruo equivocado — usa el enemigo principal del jugador)
+    // BUG-1921: si no se especificó target, priorizar el último monstruo atacado (target activo)
+    // antes que la heurística de mayor HP (DIS-1593), para que bash/smash sigan el target del jugador.
     if (!targetName && alive.length > 1) {
-      target = alive.reduce((prev, cur) => (cur.hp > prev.hp ? cur : prev), alive[0]);
+      const lastTargetId = freshPlayer.last_target_monster_id;
+      const lastTargetAlive = lastTargetId ? alive.find(m => m.id === lastTargetId) : null;
+      if (lastTargetAlive) {
+        target = lastTargetAlive;
+      } else {
+        // DIS-1593: fallback — elegir el de mayor HP si no hay target activo registrado
+        target = alive.reduce((prev, cur) => (cur.hp > prev.hp ? cur : prev), alive[0]);
+      }
     }
+
 
     // DIS-1062: smash no está disponible contra enemigos que ya están agonizando (HP ≤ 25% de su propio máximo)
     // Evita desperdiciar smash en monstruos a punto de morir, pero sin bloquear vs monstruos débiles con vida plena
@@ -20090,6 +20110,11 @@ function cmdUseSkill(player, args, context) {
     //           como flavor text pero ya no impide el ataque.
     const smashThreshold = Math.ceil((target.max_hp || target.hp || 1) * 0.25);
     const smashIsOverkill = target.hp <= smashThreshold; // solo para flavor text
+
+    // BUG-1921: si se especificó target explícito, actualizar el target activo del jugador
+    if (targetName && target && target.hp > 0) {
+      try { db.updatePlayer(freshPlayer.id, { last_target_monster_id: target.id }); } catch (_) {}
+    }
 
     const baseDmg = freshPlayer.attack || 5;
     // DIS-679: aplicar entumecimiento espectral (atk_debuffed) igual que en combat.js
@@ -20486,9 +20511,21 @@ function cmdUseSkill(player, args, context) {
     // Buscar monstruo por nombre si se especificó, si no usar el primero
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
     if (!target) target = alive[0];
-    // DIS-1593: si no se especificó target y hay múltiples vivos, elegir el de mayor HP
+    // BUG-1921: si no se especificó target, priorizar el último monstruo atacado (target activo)
+    // antes que la heurística de mayor HP (DIS-1593), para que bash/smash sigan el target del jugador.
     if (!targetName && alive.length > 1) {
-      target = alive.reduce((prev, cur) => (cur.hp > prev.hp ? cur : prev), alive[0]);
+      const lastTargetIdBash = freshPlayer.last_target_monster_id;
+      const lastTargetAliveBash = lastTargetIdBash ? alive.find(m => m.id === lastTargetIdBash) : null;
+      if (lastTargetAliveBash) {
+        target = lastTargetAliveBash;
+      } else {
+        // DIS-1593: fallback — elegir el de mayor HP si no hay target activo registrado
+        target = alive.reduce((prev, cur) => (cur.hp > prev.hp ? cur : prev), alive[0]);
+      }
+    }
+    // BUG-1921: si se especificó target explícito, actualizar el target activo del jugador
+    if (targetName && target && target.hp > 0) {
+      try { db.updatePlayer(freshPlayer.id, { last_target_monster_id: target.id }); } catch (_) {}
     }
     const baseDmg = freshPlayer.attack || 5;
     const variation = Math.floor(baseDmg * 0.2);

@@ -753,6 +753,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN run_monster_variants TEXT NOT NULL DEFAULT '{}'`,        // EPIC-VV-1755: JSON de variantes de monstruo por sala
     `ALTER TABLE players ADD COLUMN run_loot_positions TEXT NOT NULL DEFAULT '{}'`,          // EPIC-VV-1755: JSON de posición de ítems raros
     `ALTER TABLE players ADD COLUMN rune_hp_bonus INTEGER NOT NULL DEFAULT 0`,               // DIS-1770: tracking del HP máximo obtenido via fusión de runas (hielo +5, luz +3)
+    `ALTER TABLE players ADD COLUMN last_target_monster_id INTEGER`,                          // BUG-1921: ID del último monstruo atacado con 'attack' (para que skills sin target apunten al target activo)
     ];
   for (const sql of migrations) {
     applyMigration(sql);
