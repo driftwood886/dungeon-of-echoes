@@ -426,7 +426,16 @@ function execute(playerId, input, context) {
     case 'pick':      result = cmdPick(player, action.args.join(' ')); break;
     case 'use':       result = cmdUse(player, action.args.join(' ')); break;
     case 'heal':      result = cmdHeal(player, action.args); break; // BUG-1333: cmdHeal unificado (poción para todos, skill para Clérigo)
-    case 'drop':      result = cmdDrop(player, action.args.join(' ')); break;
+    case 'drop': {
+      // DIS-1931: en sala 7, "tirar piedra"/"tirar roca" → flavor text del Pozo (el alias tirar→drop lo intercepta antes del case 'unknown')
+      const dropTarget1931 = action.args.join(' ').toLowerCase().trim();
+      if (player.current_room_id === 7 && ['piedra', 'roca', 'una piedra', 'una roca', 'fragmento', 'un fragmento'].includes(dropTarget1931)) {
+        result = { text: `Agarrás un fragmento del brocal roto y lo soltás sobre el vacío.\n\nLo seguís con los ojos hasta que la oscuridad lo traga. Esperás. Uno, dos, cinco segundos.\n\nNo hay sonido de impacto.\n\nNo hay nada.` };
+      } else {
+        result = cmdDrop(player, action.args.join(' '));
+      }
+      break;
+    }
     case 'examine': {
       result = cmdExamine(player, action.args.join(' '));
       // BUG-1260: trackear challenge 'examine' (CHAL-E15 "Curioso y Precavido")
@@ -936,6 +945,19 @@ Comandos más usados:
           const newHp2 = Math.max(1, freshP2.hp - dmg);
           db.updatePlayer(player.id, { hp: newHp2 });
           result = { text: `Intentás bajar por el borde del pozo. Tus dedos encuentran las mismas marcas de uñas del brocal —viejas, profundas.\n\nEn cuanto tus piernas cuelgan sobre el vacío, el frío te golpea desde abajo: no temperatura, sino un rechazo físico, una presión hacia arriba que empuja con la fuerza de algo que no quiere compañía.\n\nPerdés el agarre. Caés hacia atrás sobre el suelo de piedra.\n\n💥 -${dmg} HP por el impacto. (${newHp2}/${freshP2.max_hp || 30} HP)\n\nEl pozo sigue quieto. El frío permanece.` };
+          break;
+        }
+        // DIS-1931: comandos temáticos adicionales — escuchar, tirar piedra, mirar
+        if (['escuchar', 'escuchar el pozo', 'escuchar pozo', 'oir', 'oír'].some(k => inp.includes(k))) {
+          result = { text: `Acercás el oído al brocal.\n\nEl viento frío sube desde abajo —constante, monótono, como respiración. Pero debajo del viento hay otra cosa: no un sonido exactamente, sino una *ausencia* de sonido que tiene forma. Como si el silencio fuera demasiado organizado para ser natural.\n\nNada te responde. Pero la sensación de que algo escuchó queda.` };
+          break;
+        }
+        if (['tirar piedra', 'lanzar piedra', 'tirar una piedra', 'arrojar piedra', 'tirar roca', 'piedra'].some(k => inp.includes(k))) {
+          result = { text: `Agarrás un fragmento del brocal roto y lo soltás sobre el vacío.\n\nLo seguís con los ojos hasta que la oscuridad lo traga. Esperás. Uno, dos, cinco segundos.\n\nNo hay sonido de impacto.\n\nNo hay nada.` };
+          break;
+        }
+        if (['mirar pozo', 'mirar al pozo', 'asomarse', 'asomarte', 'mirar abajo', 'ver abajo'].some(k => inp.includes(k))) {
+          result = { text: `Te asomás sobre el brocal. La oscuridad del fondo no es simplemente falta de luz —tiene textura, densidad. Parece *moverse*, muy despacio, como si fuera un líquido que respira.\n\nLa cuerda cuelga tensa, como si algo la jalara desde abajo. O como si nada la jalara en absoluto y solo el frío la tensara así.\n\nNo podés distinguir cuál de las dos opciones te inquieta más.` };
           break;
         }
       }
@@ -8160,6 +8182,21 @@ function cmdExamine(player, query) {
     }
   }
 
+  // DIS-1931: Pozo Sin Fondo (sala 7) — lore de examine para "pozo" y "cuerda"
+  if (player.current_room_id === 7) {
+    const POZO_LORE = {
+      'pozo':    '🕳 El brocal tiene unos setenta centímetros de diámetro. Las piedras del borde están gastadas de forma circular, como si hubiera sido usado miles de veces —no para sacar agua, sino para asomarse.\n\nLas marcas de uñas son visibles en la piedra: no arañazos del pánico, sino marcas decididas, de alguien que bajó voluntariamente y necesitó, en algún momento, sujetarse. Hay más de un conjunto. Hay muchos conjuntos.\n\nEl frío que sube no es el frío del agua ni el de la roca. Es el frío de un espacio muy grande, habitado.\n\n💡 Si encontraste una nota rasgada cerca del brocal, examinala (\\`examine nota rasgada\\`). Puede haber más contexto.',
+      'cuerda':  '🪢 La cuerda cuelga desde un gancho oxidado en el brocal. Es gruesa, bien conservada —mucho más nueva que el resto del Pozo. Alguien la colgó recientemente, con cuidado.\n\nTirás de ella. Está tensa. Como si hubiera peso al otro lado. Como si el otro extremo estuviera atado a algo que no podés ver.\n\nO como si simplemente el frío la contrajera. No podés saber cuál.\n\n💡 Llevá la cuerda al Corredor de las Sombras (norte) para desactivar una trampa.',
+      'marcas':  'Las marcas en el brocal son profundas, decisivas. No son de miedo: son de alguien que bajó por voluntad propia y necesitó sujetarse en algún tramo. Varios conjuntos de marcas, todos con el mismo patrón: mano izquierda, cuatro dedos, pausa larga.',
+      'brocal':  'El brocal es viejo —siglos, quizás milenios— pero el Pozo mismo parece más antiguo que eso. Las piedras del borde tienen una patina diferente a las del piso, como si pertenecieran a una construcción anterior que fue enterrada y luego excavada de nuevo.',
+    };
+    for (const [key, txt] of Object.entries(POZO_LORE)) {
+      if (qLow.includes(key) || key.includes(qLow)) {
+        return { text: txt };
+      }
+    }
+  }
+
   // DIS-511: Primero chequear si el ítem está específicamente en el inventario del jugador.
   // Esto evita que lore objects de sala roben la búsqueda cuando el jugador quiere examinar
   // algo que ya tiene en la mochila (ej: "examine carta sellada" con la carta en inventario).
@@ -8247,6 +8284,9 @@ function cmdExamine(player, query) {
 
         // DIS-1870: diagrama quemado — lore de la Forja con gancho hacia Aldric
         'diagrama quemado': `🔥 El pergamino está quemado en tres cuartos. Lo que queda muestra esquemas técnicos —planos de algo que nunca se terminó.\n\nLas líneas sobrevivientes muestran un molde de espada con dimensiones exactas, una lista de materiales tachada a medias, y una anotación que nadie borró:\n\n  «El metal no es el problema. El problema es quién lo forja. Esta espada necesita la mano del que sobrevivió a Valdrath.»\n\nEn el margen inferior, en letra diferente —más pequeña, más urgente:\n\n  «Si alguien llega hasta aquí, Aldric sabe el resto. Que lo recuerde.»\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n⚒️ **El Taller Inconcluso**\nAlguien intentó forjar algo en este taller. No fue el Troll de las Cavernas —sus marcas de garras están por encima, tapando el trabajo. Esto es anterior.\n\n💡 Qué podés hacer:\n   • Llevá el diagrama a **Aldric** (sala 4) y escribí \`hablar aldric\` — la frase «que lo recuerde» parece dirigida específicamente a él.\n   • Guardalo como evidencia narrativa. Junto a las páginas congeladas y la carta sellada, compone el rompecabezas de qué era Valdrath.`,
+
+        // DIS-1931: nota rasgada — gancho de misterio del Pozo Sin Fondo
+        'nota rasgada': `📜 El pergamino está húmedo, la tinta corrida en la mitad izquierda. Lo que alcanzás a leer:\n\n  «—no es un fondo. Es una puerta.\n   Y ya saben que estamos aquí.»\n\nEl margen derecho tiene lo que parece ser un mapa parcial: líneas que no corresponden a ninguna sala que hayas visto. Hay un símbolo en el centro —un círculo con cuatro radios— que se repite tres veces, cada vez más pequeño, como una perspectiva.\n\nLa letra es apurada pero controlada. La nota no fue descartada por accidente: alguien la dejó ahí con intención, en un lugar donde era difícil pero no imposible de encontrar.\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n🕳️ **El Pozo Sin Fondo**\nLa nota sugiere que quien la escribió sabía lo que hay en el fondo del Pozo —y decidió dejarte esta pista antes de... lo que sea que les pasó.\n\n💡 Esta nota conecta con el misterio del Pozo. Por ahora es solo un gancho: «el fondo no es un fondo sino una puerta» y «ya saben que estamos aquí». Guardala — puede volverse relevante.`,
       };
       const rareLoreKey = invItemName.toLowerCase();
       if (RARE_ITEM_LORE[rareLoreKey]) {
@@ -16029,8 +16069,34 @@ function cmdForage(player) {
     }
   }
 
-  // DIS-1870: Taller de la Forja (sala 12) — diagrama quemado con baja probabilidad
+  // DIS-1931: Pozo Sin Fondo (sala 7) — nota rasgada como gancho de misterio (10% de chance)
+  // La nota es un primer hilo narrativo: sugiere que el fondo del pozo no es un fondo sino una puerta.
+  if (player.current_room_id === 7) {
+    const inv_1931 = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+    const alreadyHasNota = inv_1931.some(i => {
+      const iName = (typeof i === 'string' ? i : (i.name || '')).toLowerCase();
+      return iName.includes('nota rasgada');
+    });
+    if (!alreadyHasNota) {
+      const notaRoll = Math.random();
+      if (notaRoll < 0.10) { // 10% de chance — ítem narrativo único
+        const newInv1931 = [...inv_1931, 'nota rasgada'];
+        forageData[roomKey] = now;
+        db.updatePlayer(player.id, { inventory: JSON.stringify(newInv1931), forage_data: JSON.stringify(forageData) });
+        const cr1931 = db.updateDailyChallengeProgress(player.id, 'forage', null);
+        let chalMsg1931 = '';
+        if (cr1931 && cr1931.reward) chalMsg1931 = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+        return {
+          text: `Buscás cerca del borde del Pozo, entre los fragmentos de piedra del brocal y los restos de quienes pasaron antes.\n\nEn una grieta profunda —lo suficientemente lejos del borde para que nadie la haya revisado con calma— tus dedos encuentran un trozo de pergamino doblado. Húmedo, pero entero.\n\n📜 ¡Encontrás: nota rasgada! ✨ 🔵 [RARO]\nLa tinta está corrida pero algo es legible. «no es un fondo. Es una puerta.»\n\n💡 Usá \`examine nota rasgada\` para leerla completa.${chalMsg1931}`,
+          event: null,
+        };
+      }
+    }
+  }
+
+
   // Ítem narrativo que conecta la historia del taller con Aldric y activa lore de quest
+  // DIS-1870: Taller de la Forja (sala 12) — diagrama quemado con baja probabilidad
   if (player.current_room_id === 12) {
     const inv_1870 = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
     const alreadyHasDiagrama = inv_1870.some(i => {

@@ -98,6 +98,7 @@ const ITEM_CATALOG = {
   'tinta de kraken':     { type: 'misc', description: 'Un frasco de tinta negra del Krakeling Abismal. Muy densa y de olor nauseabundo.' },
   'escama abismal':      { type: 'misc', description: 'Una escama del Krakeling. Dura como el acero, ligera como el cartón. 🔧 Combinala con pelaje áspero o cuerda para craftear armamento.' },
   'filacteria rota':     { type: 'misc', description: 'La filacteria del Lich Anciano, destruida. Sin ella, el Lich no puede regresar... ¿verdad?' },
+  'nota rasgada':        { type: 'misc', description: 'Un trozo de pergamino húmedo con escritura a carbón. La tinta corrió en algunos tramos pero parte es legible: "—no es un fondo. Es una puerta. Y ya saben que estamos aquí." Hay marcas en el margen que parecen un mapa, pero la mitad está destruida. 📖 Usá `examine nota rasgada` para estudiarlo mejor.' },
   'esencia de sombra':   { type: 'misc', description: 'La esencia condensada de las sombras del dungeon. Vibra en la oscuridad.' },
 
   // ── Ítems exclusivos de monstruos ÉLITE (BUG-907) ───────────────────────
@@ -290,6 +291,7 @@ const ITEM_RARITY = {
   'carta sellada':            'raro',
   'páginas congeladas':       'raro',
   'diagrama quemado':         'raro',
+  'nota rasgada':             'raro',
   'collar de garras':         'raro',
   'amuleto del eco':          'raro',
   'llave maestra':            'raro',
