@@ -1230,6 +1230,20 @@ function attackRound(player, monster) {
       golemFx.stone_shield = true;
       lines.push(`🪨 El Gólem de Piedra endurece su exterior — ¡escudo de piedra activo! (próximo ataque reducido al 35%)`);
     }
+    // DIS-1941: Aviso anticipado de regeneración — si el próximo turno es de regen (golemTurns % 2 === 1),
+    // mostrar un hint táctico para que el jugador pueda decidir si usar smash u otro daño alto ahora.
+    // No mostrar si el regenCap ya se alcanzó (el Gólem ya no regenera).
+    const regenCapHitEarly = (golemFx.regen_total || 0) >= monster.max_hp;
+    if (golemTurns % 2 === 1 && !regenCapHitEarly) {
+      const specialSkillUsedNow = sombraStrike || (ambushReady && player.specialization === 'asesino');
+      if (!specialSkillUsedNow) {
+        const golemPhaseNext = monster.hp <= (monster.max_hp / 2);
+        const nextRegenAmt = (player.level >= 7)
+          ? (golemPhaseNext ? 20 : 12)
+          : (golemPhaseNext ? 14 : 8);
+        lines.push(`⚡ Los fragmentos del Gólem pulsan con energía — se regenerará ~${nextRegenAmt} HP en el próximo turno. Usá tu mayor daño ahora para evitarlo.`);
+      }
+    }
     if (golemTurns % 2 === 0) {
       // DIS-1459: Cada 2 turnos: regeneración escalonada por fase del Gólem
       // Fase 1 (>50% HP): regen baja — el Gólem aguanta pero es vencible
