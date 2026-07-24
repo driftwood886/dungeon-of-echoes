@@ -24630,7 +24630,7 @@ function cmdPath(player, args) {
     // Casa de Subastas (sala 17)
     'subastas': 17, 'subasta': 17, 'auction': 17, 'escriba': 17,
     // Entrada (sala 1)
-    'entrada': 1, 'inicio': 1, 'start': 1,
+    'entrada': 1, 'inicio': 1, 'start': 1, 'salida': 1, 'exit': 1,
     // Sala del Trono (sala 9) — boss Espectro del Corredor
     'trono': 9,
     // Santuario Profano (sala 10) — boss Gólem de Piedra

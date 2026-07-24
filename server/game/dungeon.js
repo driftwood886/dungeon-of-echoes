@@ -480,6 +480,28 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     }
   }
 
+  // DIS-1941: Santuario Profano (sala 10) — hint de salida persistente para jugadores que entraron
+  // por la llave del Pozo. El mensaje de ruta alternativa solo aparecía al entrar (primer look),
+  // y si el jugador lo perdió quedaba sin orientación. Ahora aparece siempre que:
+  //   (a) el jugador tiene el flag used_key_llave_oxidada (vino por la llave del Pozo), O
+  //   (b) es la primera visita a esta sala (aún no la conoce)
+  // El hint es compacto y recuerda el comando `ruta entrada` para navegación asistida.
+  if (roomId === 10 && player) {
+    const playerSE_10 = (() => {
+      try {
+        const s = player.status_effects;
+        if (!s) return {};
+        if (typeof s === 'object' && !Array.isArray(s)) return s;
+        return JSON.parse(s);
+      } catch (_) { return {}; }
+    })();
+    const entroConLlave = playerSE_10['used_key_llave_oxidada'] === true;
+    // Mostrar hint si vino por la llave (orientación crítica) o si es primera visita
+    if (entroConLlave || !alreadyVisited) {
+      lines.push(`\n🗺️ **Salidas del Santuario:** oeste → Sala del Trono · sur → Pozo Sin Fondo (la puerta del Pozo queda abierta una vez usada la llave — podés cruzar de vuelta libremente). Para ver el camino completo a la salida escribí \`ruta entrada\` o \`ruta 1\`.`);
+    }
+  }
+
   // DIS-1839: Taller de la Forja (sala 12) — advertencia sobre regeneración del Troll de las Cavernas
   // El hint de regen aparecía solo durante el combate (DIS-1791), cuando el jugador ya estaba
   // comprometido. Ahora se avisa al ENTRAR a la sala, para que pueda prepararse antes de atacar.
