@@ -4906,7 +4906,7 @@ function cmdAttack(player, targetName) {
       try {
         const attackEvCheck = eventScheduler.getActiveEventInfo ? eventScheduler.getActiveEventInfo() : null;
         if (attackEvCheck && attackEvCheck.event && attackEvCheck.event.id === 'SPECTRAL_TIDE'
-            && player.current_room_id > 5) {
+            && player.current_room_id > 5 && player.current_room_id !== 16) { // BUG-1936: sala 16 (tutorial) exenta
           const SPECTRAL_ACTIVE_IDS = new Set([4, 8, 12, 13, 21, 22]);
           const spectralAlive = alive.filter(m => {
             const mName = (m.name || '').toLowerCase();
@@ -5315,9 +5315,11 @@ function cmdAttack(player, targetName) {
   // Golpe crítico acumula 2 en vez de 1. Máximo 3.
   // golpe_desde_las_sombras se activa cuando el jugador usa el comando 'sombras' (implementado en cmdSombras — EPIC-1297-F3 ✓).
   // Este bloque solo gestiona la acumulación pasiva en combate.
+  // BUG-1937: NO acumular sombra si el combate fue bloqueado (Marea Espectral) o el jugador estuvo paralizado.
   const shadowClass = classes.getPlayerClass(player);
   const shadowClassName = shadowClass ? shadowClass.name : 'sin_clase';
-  if (shadowClassName === 'Pícaro' && !playerDead && !monsterDead) {
+  const shadowAttackLanded = !combatResult.spectralBlocked && !combatResult.paralyzed;
+  if (shadowClassName === 'Pícaro' && !playerDead && !monsterDead && shadowAttackLanded) {
     try {
       const freshForShadow = db.getPlayer(player.id);
       const shadowSE = parseSE(freshForShadow.status_effects);
@@ -6597,7 +6599,7 @@ function cmdFlee(player, targetQuery) {
   try {
     const fleeActiveEv = eventScheduler.getActiveEventInfo();
     if (fleeActiveEv && fleeActiveEv.event && fleeActiveEv.event.id === 'SPECTRAL_TIDE') {
-      const isEarlyZone = player.current_room_id <= 5;
+      const isEarlyZone = player.current_room_id <= 5 || player.current_room_id === 16; // BUG-1936: sala 16 (tutorial) exenta
       if (!isEarlyZone) {
         const FLEE_SPECTRAL_IDS = new Set([4, 8, 12, 13, 21, 22]);
         const activeMonsters = monsters.filter(m => {
@@ -15903,7 +15905,8 @@ function cmdForage(player) {
     if (ignoredMonsters.some(name => m.name.toLowerCase().includes(name.toLowerCase()))) return false;
     // BUG-1531: si hay Marea Espectral, solo los espectrales/no-muertos son activos
     // DIS-1534: excepción para zona early (salas 1-5)
-    if (forageIsSpectralTide && !(player && player.current_room_id <= 5)) {
+    // BUG-1936: excepción para sala 16 (tutorial) — los eventos globales no bloquean el onboarding
+    if (forageIsSpectralTide && !(player && (player.current_room_id <= 5 || player.current_room_id === 16))) {
       const mNameLower = (m.name || '').toLowerCase();
       const isSpectral = FORAGE_SPECTRAL_IDS.has(m.id) ||
         mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
@@ -18604,7 +18607,8 @@ function cmdModoBerserk(player, context) {
   const mbMonsters = mbMonstersRaw.filter(m => {
     if (!mbIsSpectralTide) return true;
     // DIS-1534: zona early (salas 1-5) — no aplica filtro espectral
-    if (player && player.current_room_id <= 5) return true;
+    // BUG-1936: sala 16 (tutorial) también exenta
+    if (player && (player.current_room_id <= 5 || player.current_room_id === 16)) return true;
     const mNameLower = (m.name || '').toLowerCase();
     const isSpectral = BERSERK_SPECTRAL_IDS.has(m.id) ||
       mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
@@ -18778,7 +18782,7 @@ function cmdSombras(player, args) {
   const SOMBRAS_SPECTRAL_IDS = new Set([4, 8, 12, 13, 21, 22]);
   const sombraEvCheck = (() => { try { return eventScheduler.getActiveEventInfo(); } catch(_) { return null; } })();
   const sombraIsSpectralTide = sombraEvCheck && sombraEvCheck.event && sombraEvCheck.event.id === 'SPECTRAL_TIDE';
-  const alive = (sombraIsSpectralTide && !(player && player.current_room_id <= 5)) ? aliveRaw.filter(m => {
+  const alive = (sombraIsSpectralTide && !(player && (player.current_room_id <= 5 || player.current_room_id === 16))) ? aliveRaw.filter(m => { // BUG-1936: sala 16 (tutorial) exenta
     const mNameLower = (m.name || '').toLowerCase();
     const isSpectral = SOMBRAS_SPECTRAL_IDS.has(m.id) ||
       mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
@@ -20207,7 +20211,8 @@ function cmdUseSkill(player, args, context) {
       if (smashEvCheck && smashEvCheck.event && smashEvCheck.event.id === 'SPECTRAL_TIDE') {
         const SMASH_SPECTRAL_MONSTER_IDS = new Set([4, 8, 12, 13, 21, 22]);
         // DIS-1534: zona early (salas 1-5) queda fuera del efecto espectral
-        const smashInEarlyZone = player && player.current_room_id <= 5;
+        // BUG-1936: sala 16 (tutorial) también exenta
+        const smashInEarlyZone = player && (player.current_room_id <= 5 || player.current_room_id === 16);
         const isAttackableInSpectralTide = (m) => {
           if (smashInEarlyZone) return true;
           const n = (m.name || '').toLowerCase();
@@ -20563,7 +20568,8 @@ function cmdUseSkill(player, args, context) {
     const aliveForRage = aliveForRageRaw.filter(m => {
       if (!furiaIsSpectralTide) return true;
       // DIS-1534: zona early (salas 1-5) queda fuera del efecto espectral
-      if (player && player.current_room_id <= 5) return true;
+      // BUG-1936: sala 16 (tutorial) también exenta
+      if (player && (player.current_room_id <= 5 || player.current_room_id === 16)) return true;
       const mNameLower = (m.name || '').toLowerCase();
       const isSpectral = FURIA_SPECTRAL_IDS.has(m.id) ||
         mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
