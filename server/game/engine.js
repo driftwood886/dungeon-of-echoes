@@ -3634,8 +3634,19 @@ function cmdMove(player, direction) {
     }
   } catch (_) {}
 
+  // DIS-1932: Sala del Trono (sala 9) — consolidar effectText + golemWarningMsg en un bloque
+  // Para evitar el spam de 6 mensajes separados en primera visita, unir efecto ambiental y
+  // aviso del Gólem en una sola sección "Efectos de entrada".
+  let _tronoConsolidated = '';
+  if (targetId === 9 && firstVisitEver && effectText && golemWarningMsg) {
+    _tronoConsolidated = `\n\n⚠️ Efectos al entrar en la Sala del Trono:\n  ${effectText.trim()}\n  ${golemWarningMsg.trim()}`;
+    // Los efectos individuales ya están consolidados
+    effectText = '';
+    golemWarningMsg = '';
+  }
+
   return {
-    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomEffectBanner}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${moveEventLine}${questExploreMsg}${questMoveHint}`,
+    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomEffectBanner}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${_tronoConsolidated}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${moveEventLine}${questExploreMsg}${questMoveHint}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
