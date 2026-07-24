@@ -9628,6 +9628,12 @@ function cmdLoot(player) {
   // DIS-1825: umbral ajustado a MAX_INVENTORY-4 (era 25 hardcoded, ahora relativo al límite real)
   // DIS-1915: umbral aumentado a MAX_INVENTORY-6 para avisar más temprano (18/24 en lugar de 20/24)
   const usedAfterLoot = newInventory.length + equippedCountLoot;
+  // DIS-1919: al llegar a 20/24 (MAX_INVENTORY-4), agregar tip de bolsa de lona si no la tiene aún
+  const bagHintLine = (
+    usedAfterLoot >= MAX_INVENTORY - 4 &&
+    (player.inventory_bonus || 0) === 0 &&
+    itemsLeft.length === 0
+  ) ? `\n💡 Con 4 slots o menos libres, considerá comprar una **bolsa de lona** (20g) en la tienda de Aldric (sala 4) para +4 slots extra — antes de que el boss aparezca y el inventario esté lleno.` : '';
   const inventoryWarnLine = (usedAfterLoot >= MAX_INVENTORY - 6 && itemsLeft.length === 0)
     ? `\n\n⚠️  Inventario casi lleno (${usedAfterLoot}/${MAX_INVENTORY}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`  // DIS-1657
     : '';
@@ -9646,7 +9652,7 @@ function cmdLoot(player) {
   }
 
   return {
-    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${craftableJunkLine}${fullBagLine}${allFitConfirmLine}${inventoryWarnLine}${lootChallengeMsg ? '\n' + lootChallengeMsg.trim() : ''}${vvLootChallengeMsg}`,
+    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${craftableJunkLine}${fullBagLine}${allFitConfirmLine}${inventoryWarnLine}${bagHintLine}${lootChallengeMsg ? '\n' + lootChallengeMsg.trim() : ''}${vvLootChallengeMsg}`,
     event: `${player.username} saquea el suelo de la sala.`,
     eventRoomId: room.id,
   };
