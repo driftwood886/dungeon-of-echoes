@@ -82,6 +82,14 @@ const STATE_CATALOG = {
     stackeable: false,
     description: '+30% daño recibido por 2 turnos.',
   },
+  // BUG-1924: debuff de ATK aplicado al monstruo por Imposición de Fe del Paladín
+  atk_debuffed: {
+    name: 'Debilitación de Ataque',
+    emoji: '💪',
+    effect: 'debuff',
+    stackeable: false,
+    description: 'ATK reducido por la Imposición de Fe.',
+  },
 };
 
 // ─── Tabla de sinergias ───────────────────────────────────────────────────────
@@ -344,7 +352,17 @@ function tickDebuffs(target, lines) {
     }
 
     // ─── Decrementar turnos ──────────────────────────────────────────────
-    state.turns = (state.turns || 1) - 1;
+    // BUG-1924: si el estado usa expires_at (sin turns), manejar por tiempo
+    if (state.expires_at) {
+      if (Date.now() >= new Date(state.expires_at).getTime()) {
+        toDelete.push(stateId);
+        lines.push(`${emoji} ${name} expiró.`);
+      }
+      continue; // saltar la lógica de turns para este estado
+    }
+    // Si no tiene turns ni expires_at, saltar (estado sin duración definida)
+    if (typeof state.turns !== 'number') continue;
+    state.turns -= 1;
     if (state.turns <= 0) {
       toDelete.push(stateId);
       lines.push(`${emoji} ${name} expiró.`);
