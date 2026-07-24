@@ -2135,7 +2135,20 @@ function attackRound(player, monster) {
 
   // DIS-834: Si la Fase 2 se activó este turno, usar el ATK anterior para el contraataque.
   // De lo contrario, el jugador recibe el boost de Fase 2 sin poder prepararse.
-  const monsterAtkForCounterattack = _phase2ActivatedThisTurn ? _atkBeforePhase2 : monster.attack;
+  let monsterAtkForCounterattack = _phase2ActivatedThisTurn ? _atkBeforePhase2 : monster.attack;
+  // BUG-1926: aplicar atk_debuffed del monstruo (puesto por Imposición de Fe del Paladín u otros debuffs)
+  // El flag existe en monster.status_effects pero hasta ahora no se leía para reducir el ATK del monstruo.
+  const monsterSeForAtkDebuff = monster.status_effects
+    ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects)
+    : {};
+  if (monsterSeForAtkDebuff.atk_debuffed) {
+    const mAtkDebuff = monsterSeForAtkDebuff.atk_debuffed;
+    const mAtkDebuffExpired = mAtkDebuff.expires_at && new Date(mAtkDebuff.expires_at).getTime() <= Date.now();
+    if (!mAtkDebuffExpired) {
+      const mAtkDebuffAmt = mAtkDebuff.amount || 0;
+      monsterAtkForCounterattack = Math.max(1, monsterAtkForCounterattack - mAtkDebuffAmt);
+    }
+  }
   const monsterDmg = calcDamage(monsterAtkForCounterattack);
   // DIS-852: bloodmoon rediseñado — +30% ATK proporcional para monstruos nivel 3+ (no flat +2)
   const activeEvMon = worldEvents.getCurrentEvent();
