@@ -8367,6 +8367,32 @@ function cmdExamine(player, query) {
       };
       const rareLoreKey = invItemName.toLowerCase();
       if (RARE_ITEM_LORE[rareLoreKey]) {
+        // DIS-1946: registrar en el diario al examinar/leer ítems con lore (si no se hizo antes)
+        try {
+          const seRead = player.status_effects
+            ? (typeof player.status_effects === 'string' ? JSON.parse(player.status_effects) : player.status_effects)
+            : {};
+          const loreFlag = `lore_read_${rareLoreKey.replace(/\s+/g, '_')}`;
+          if (!seRead[loreFlag]) {
+            seRead[loreFlag] = true;
+            db.updatePlayer(player.id, { status_effects: JSON.stringify(seRead) });
+            // Texto de diario compacto por ítem
+            const LORE_JOURNAL_TEXTS = {
+              'páginas congeladas':  '📖 Leí las páginas congeladas. Hablan de Kaelthas, de Valdrath, y de algo que "el Lich guarda". No sé qué significa aún, pero este dungeon tiene historia.',
+              'diagrama quemado':    '📖 El diagrama quemado menciona a alguien que "sobrevivió a Valdrath" y dice que Aldric sabe el resto. Buscar a Aldric.',
+              'carta sellada':       '📖 La carta sellada tiene el símbolo de las llaves cruzadas — el mismo que usa Aldric. Alguien escribió "Perdoname" en el reverso.',
+              'sello del carcelero': '📖 El sello del carcelero tiene el símbolo de las llaves — el mismo de Aldric. Una pieza de la Prisión Subterránea que alguien mantuvo aceitada mucho después del abandono.',
+              'corona rota':         '📖 La corona rota fue cortada con precisión, no rota en combate. El metal no pertenece a ningún reino actual del norte.',
+              'emblema del coliseo': '📖 El emblema del coliseo tiene grabado el nombre «VARETH». Según la inscripción del Coliseo, el campeón no murió porque su esencia duerme en la piedra. El emblema es esa piedra.',
+              'nota rasgada':        '📖 La nota rasgada dice que el fondo del Pozo no es un fondo sino una puerta, y que "ya saben que estamos aquí".',
+            };
+            const journalText = LORE_JOURNAL_TEXTS[rareLoreKey] || `📖 Examiné ${invItemName} y encontré fragmentos de lore del dungeon.`;
+            db.addJournalEntry(player.id, 'lore', journalText);
+            return {
+              text: `=== ${invItemName.toUpperCase()}${locationTag} ===\n${RARE_ITEM_LORE[rareLoreKey]}\n\n📖 *Apunte en tu diario: el contenido de este ítem quedó registrado.*`,
+            };
+          }
+        } catch (_) { /* no interrumpir si falla el registro */ }
         return {
           text: `=== ${invItemName.toUpperCase()}${locationTag} ===\n${RARE_ITEM_LORE[rareLoreKey]}`,
         };
