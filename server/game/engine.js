@@ -4382,9 +4382,9 @@ function cmdStats(player) {
   const equippedWeapon = (player.equipped_weapon && player.equipped_weapon !== 'null')
     ? player.equipped_weapon.toLowerCase() : null;
 
-  // DEF base
-  const BASE_DEF_BY_CLASS = { guerrero: 2, picaro: 1, mago: 0, clerigo: 1 };
-  const def = (BASE_DEF_BY_CLASS[player.player_class] || 0) + (player.defense_bonus || 0);
+  // BUG-1982: usar player.defense directamente (ya incluye bonus de armadura, nivel, clase)
+  // en lugar de recalcular con tabla hardcodeada incompleta (mismo patrón que BUG-1964 para ATK)
+  const def = player.defense || 2;
 
   // XP info
   const xpNextNeeded = xpSystem.xpForNextLevel(level);
@@ -8450,7 +8450,9 @@ function cmdExamine(player, query) {
     // DIS-D446: Casa de Subastas (sala 17)
     'estrado', 'candelabros', 'escriba',
     // BUG-661: 'espada de obsidiana' como frase completa debe priorizar el lore object de sala 15
-    'espada de obsidiana']);
+    'espada de obsidiana',
+    // BUG-1983: sala 14 (Coliseo de Huesos) — lore de "restos" y "aventurero" no deben matchear monstruos
+    'restos', 'aventurero']);
   const monster = monsters.find(m => {
     const mName = normalize(m.name);
     // Si el query es exactamente el nombre del monstruo o el nombre empieza por el query, matchear
@@ -8541,6 +8543,22 @@ function cmdExamine(player, query) {
       'brocal':  'El brocal es viejo —siglos, quizás milenios— pero el Pozo mismo parece más antiguo que eso. Las piedras del borde tienen una patina diferente a las del piso, como si pertenecieran a una construcción anterior que fue enterrada y luego excavada de nuevo.',
     };
     for (const [key, txt] of Object.entries(POZO_LORE)) {
+      if (qLow.includes(key) || key.includes(qLow)) {
+        return { text: txt };
+      }
+    }
+  }
+
+  // BUG-1983: Coliseo de Huesos (sala 14) — examine para "restos" y "aventurero"
+  // El look mencionaba restos de un aventurero anterior pero era texto muerto sin interacción.
+  if (player.current_room_id === 14) {
+    const COLISEO_LORE = {
+      'restos':     '🦴 Te acercás a los huesos esparcidos en la arena. Son humanos —o lo fueron. La armadura que llevaba ya no sirve: aplastada, quemada, con marcas de garras en el metal. El casco está a tres metros del cuerpo, como si lo hubiera arrancado algo de muy mala manera.\n\nEntre los huesos hay polvo de huesecillos pequeños, de manos. Las falanges están juntas, apretadas —murió aferrando algo que ya no está. Sea lo que sea, alguien llegó antes que vos.\n\nEl Coliseo no recuerda nombres. Solo añade a la colección.',
+      'aventurero': '🦴 Examinás lo que queda del aventurero anterior. La ropa de viaje, o lo que quedó de ella, tiene remiendos de varios estilos distintos —venía de lejos, había sobrevivido bastante. La bota izquierda tiene una pequeña muesca en la suela: la marca de alguien que afila cuchillos apoyándolos contra el pie.\n\nSabía lo que hacía. No alcanzó.\n\nNo hay ningún objeto recuperable —alguien ya pasó por aquí antes.',
+      'arena':      '🏟 La arena del suelo del Coliseo es más oscura de lo que debería. No es tierra: es ceniza mezclada con algo que preferís no identificar, apisonada por décadas de combates. La capa superior cruje levemente cuando caminás; debajo hay algo más blando.\n\nHay marcas de combate por todos lados: arañazos en la piedra, manchas de distintos colores, un par de dientes incrustados en la base de la pared norte.',
+      'gradas':     '🏟 Las gradas del Coliseo están vacías, pero no silenciosas. El eco multiplica cada sonido que hacés —un paso se convierte en una procesión. Es el tipo de lugar diseñado para que haya espectadores. El hecho de que no los haya no significa que nadie esté mirando.\n\nEn la fila más alta, algo brilla. Demasiado lejos para llegar. Demasiado regular para ser accidental.',
+    };
+    for (const [key, txt] of Object.entries(COLISEO_LORE)) {
       if (qLow.includes(key) || key.includes(qLow)) {
         return { text: txt };
       }
