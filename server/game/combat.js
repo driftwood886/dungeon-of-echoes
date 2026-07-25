@@ -1864,8 +1864,10 @@ function attackRound(player, monster) {
         } catch (_) { /* no interrumpir si falla */ }
       }
       // DIS-1831/DIS-1855: recordatorio de facciones al subir de nivel 5 o más sin haber elegido una
-      if (newLevel >= 5 && !freshPlayer.faction) {
-        lines.push(`\n⚔️ Tip: Aún no te uniste a ninguna facción (disponibles desde nivel 3) — escribí \`facciones\` para ver las opciones y sus beneficios.`);
+      // DIS-1945: solo mostrar en la transición EXACTA a nivel 5 (no en cada nivel posterior)
+      // y con texto diferente al de nivel 3 para no repetir lo mismo
+      if (newLevel === 5 && !freshPlayer.faction) {
+        lines.push(`\n⚔️ Último recordatorio: llegaste al nivel 5 sin unirte a ninguna facción. Podés hacerlo cuando quieras — escribí \`facciones\` para ver opciones. (El sistema no te va a volver a recordar esto.)`);
       }
     }
     lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})${impulsoXpMult > 1.0 ? ' ✨[+20% Impulso]' : ''}${finalBloodmoonXpMult > 1.0 ? ` 🌑[+${Math.round((finalBloodmoonXpMult-1)*100)}% Luna]` : ''}${campaignXpMult > 1.0 ? ` 🏆[+${Math.round((campaignXpMult-1)*100)}% Victoria Campaña]` : ''}${xpProgressSuffix(newXp, newLevel)}`);
