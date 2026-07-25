@@ -468,6 +468,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
   // DIS-1650: Santuario Profano (sala 10) — advertencia sobre regeneración del Gólem de Piedra
   // La mecánica de regen era invisible antes del combate: el jugador descubría que el Gólem sanaba
   // a mitad de pelea con el HP subiendo de sorpresa. Mostrar pista narrativa al entrar.
+  // DIS-1957: También mostrar recomendación de nivel si el jugador está por debajo del umbral.
   if (roomId === 10 && !isVeteranPlayer) {
     const golemAlive = (() => {
       try {
@@ -477,6 +478,10 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     })();
     if (golemAlive) {
       lines.push(`\n🪨 Las marcas en el suelo del Santuario muestran el patrón de un constructo antiguo que se repara a sí mismo. Los fragmentos dispersos de piedra no están en el suelo por accidente — se reensamblan. Atacarlo sin daño sostenido es inútil.`);
+      // DIS-1957: advertencia de nivel si el jugador está por debajo del mínimo recomendado
+      if (player && player.level < 6) {
+        lines.push(`⚠️ **El Gólem de Piedra requiere nivel 6+ para ser vencido de forma confiable.** Con tu nivel actual (${player.level}) podés intentarlo, pero necesitás pociones y tus mejores habilidades. Considera subir otro nivel antes.`);
+      }
     }
   }
 

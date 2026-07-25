@@ -1220,6 +1220,9 @@ function attackRound(player, monster) {
   // DIS-1459: regen ajustada — fase 1 (>50% HP): 8 HP bajo niv7 / 12 HP niv7+; fase 2 (<=50% HP): 14 HP bajo niv7 / 20 HP niv7+
   //   El Gólem se vuelve más duro a medida que cae — tiene sentido narrativo (fragmentos energizados)
   // DIS-1550: anti-loop infinito — (a) no regen en el mismo turno que activa escudo; (b) cap total = max_hp de la criatura
+  // DIS-1957: regen ajustada para hacer la pelea más justa para jugadores niv5 con equipo estándar.
+  //   Sub-niv7: fase 1 (>50% HP): 6 HP (antes 8); fase 2 (<=50% HP): 10 HP (antes 14).
+  //   Niv7+: sin cambio (fase 1: 12 HP, fase 2: 20 HP — el Gólem sigue siendo un reto épico a nivel alto).
   if (monster.hp > 0 && monNameLow.includes('gólem de piedra')) {
     const golemFx = monster.status_effects
       ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects)
@@ -1242,7 +1245,7 @@ function attackRound(player, monster) {
         const golemPhaseNext = monster.hp <= (monster.max_hp / 2);
         const nextRegenAmt = (player.level >= 7)
           ? (golemPhaseNext ? 20 : 12)
-          : (golemPhaseNext ? 14 : 8);
+          : (golemPhaseNext ? 10 : 6); // DIS-1957: 14→10 / 8→6 para sub-niv7
         lines.push(`⚡ Los fragmentos del Gólem pulsan con energía — se regenerará ~${nextRegenAmt} HP en el próximo turno. Usá tu mayor daño ahora para evitarlo.`);
       }
     }
@@ -1261,7 +1264,7 @@ function attackRound(player, monster) {
         const golemPhase2 = monster.hp <= (monster.max_hp / 2);
         const regenAmount = (player.level >= 7)
           ? (golemPhase2 ? 20 : 12)
-          : (golemPhase2 ? 14 : 8);
+          : (golemPhase2 ? 10 : 6); // DIS-1957: 14→10 / 8→6 para sub-niv7
         const newGolemHp = Math.min(monster.max_hp, monster.hp + regenAmount);
         const actualRegen = newGolemHp - monster.hp;
         if (actualRegen > 0) {
