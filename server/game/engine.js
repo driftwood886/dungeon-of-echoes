@@ -3745,8 +3745,21 @@ function cmdMove(player, direction) {
     golemWarningMsg = '';
   }
 
+  // DIS-1952: Agrupar mensajes pasivos (logros, hints, evento activo) en bloque "— Sistema —"
+  // al final de la respuesta de movimiento, para que el contenido narrativo principal sea lo primero.
+  // Mensajes pasivos: cartogAchLines (logros), moveEventLine (countdown Marea Espectral / evento),
+  //                   specReminderMsg (recordatorio especialización), questMoveHint (hint quest).
+  // El resto de mensajes (trapText, effectText, levelWarnMsg, etc.) mantienen su posición.
+  const _passiveBlocks = [cartogAchLines, moveEventLine, specReminderMsg, questMoveHint]
+    .map(s => (s || '').trim())
+    .filter(s => s.length > 0);
+  let _sistemaBlock = '';
+  if (_passiveBlocks.length > 0) {
+    _sistemaBlock = `\n\n— Sistema —\n${_passiveBlocks.join('\n')}`;
+  }
+
   return {
-    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomEffectBanner}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${_tronoConsolidated}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${cartogAchLines}${leftEpicMsg}${specReminderMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${moveEventLine}${questExploreMsg}${questMoveHint}`,
+    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomEffectBanner}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${_tronoConsolidated}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${leftEpicMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${questExploreMsg}${_sistemaBlock}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
