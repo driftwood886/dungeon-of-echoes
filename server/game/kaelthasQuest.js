@@ -297,6 +297,16 @@ function getGuardianHint(player) {
     const level = player.level || 1;
 
     if (level >= 3 && state === 'inactive') {
+      // Solo mostrar una vez por jugador (flag guardian_hint_shown en status_effects)
+      const freshForFlag = db.getPlayer(player.id);
+      const se = freshForFlag && freshForFlag.status_effects
+        ? (typeof freshForFlag.status_effects === 'string' ? JSON.parse(freshForFlag.status_effects) : freshForFlag.status_effects)
+        : {};
+      if (se.guardian_hint_shown) return null; // Ya mostrado
+
+      // Marcar como mostrado
+      se.guardian_hint_shown = true;
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(se) });
       return GUARDIAN_HINT;
     }
 

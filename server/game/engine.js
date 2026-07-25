@@ -2298,8 +2298,20 @@ function cmdMove(player, direction) {
             }
           }
         } catch (_) { /* no romper movimiento si falla questEngine */ }
+        // ── T-1979 EPIC-KAELTHAS-F2: Hint del Guardián Anciano al llegar a sala 16 ──
+        // Solo una vez por jugador (flag guardian_hint_shown en status_effects), level >= 3, quest inactiva.
+        let kaelthasGuardianHintMsg = '';
+        if (destId === 16 && !player.is_bot) {
+          try {
+            const freshForGuardian = db.getPlayer(player.id);
+            const guardianHintText = kaelthasQuest.getGuardianHint(freshForGuardian || player);
+            if (guardianHintText) {
+              kaelthasGuardianHintMsg = '\n\n' + guardianHintText;
+            }
+          } catch (_guardianErr) { /* no romper movimiento */ }
+        }
         return {
-          text: `🚶 Te movés a «${destName}».${moveHintText}${noBossEffectText}${noBossTrapText}${player._usedKeyName ? `\n\n🔑 Usás la "${player._usedKeyName}" para abrir la puerta. La llave se rompe al girar — ya no te sirve, pero la puerta cedió. Una sola vez.` : ''}${(() => { try { const ev = worldEvents.getCurrentEvent(); if (ev && ev.id === 'curse') { const fr = db.getPlayer(player.id); if (fr && fr.hp > 1) { db.updatePlayer(fr.id, { hp: fr.hp - 1 }); return `\n💀 La Maldición del Lich drena tu vitalidad. (-1 HP · ${fr.hp - 1}/${fr.max_hp} HP)`; } else if (fr) { return `\n💀 La Maldición del Lich intenta drenar tu vitalidad, pero tu llama se resiste. (1/${fr.max_hp} HP)`; } } } catch (_) {} return ''; })()}\n\n${nbLookResult.text}${nbQuestExploreMsg}`,
+          text: `🚶 Te movés a «${destName}».${moveHintText}${noBossEffectText}${noBossTrapText}${player._usedKeyName ? `\n\n🔑 Usás la "${player._usedKeyName}" para abrir la puerta. La llave se rompe al girar — ya no te sirve, pero la puerta cedió. Una sola vez.` : ''}${(() => { try { const ev = worldEvents.getCurrentEvent(); if (ev && ev.id === 'curse') { const fr = db.getPlayer(player.id); if (fr && fr.hp > 1) { db.updatePlayer(fr.id, { hp: fr.hp - 1 }); return `\n💀 La Maldición del Lich drena tu vitalidad. (-1 HP · ${fr.hp - 1}/${fr.max_hp} HP)`; } else if (fr) { return `\n💀 La Maldición del Lich intenta drenar tu vitalidad, pero tu llama se resiste. (1/${fr.max_hp} HP)`; } } } catch (_) {} return ''; })()}\n\n${nbLookResult.text}${nbQuestExploreMsg}${kaelthasGuardianHintMsg}`,
           event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
