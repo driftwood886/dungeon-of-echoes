@@ -2283,6 +2283,74 @@ function cmdMove(player, direction) {
             db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSeBFH1813) });
           }
         }
+        // DIS-1948: Pre-move warning para Túnel de Hongos (sala 6) en path bossAtFullHp
+        // Faltaba en este path — el path noBoss y el path normal ya lo tenían.
+        if (destId === 6) {
+          const room6BFH1948 = db.getRoom(6);
+          if (room6BFH1948 && room6BFH1948.trap && room6BFH1948.trap.active) {
+            const invBFH1948 = (player.inventory || []).map(i => i.toLowerCase().trim());
+            const hasHongoBFH = invBFH1948.includes('hongo azul');
+            if (!hasHongoBFH) {
+              const seBFH1948h = parseSE(player.status_effects);
+              if (!seBFH1948h.hongo_warning_done) {
+                const newSeBFH1948h = { ...seBFH1948h, hongo_warning_done: true };
+                db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeBFH1948h) });
+                const dirNormBFH1948h = dungeon.normalizeDirection(direction);
+                const dirEsBFH1948h = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNormBFH1948h]) || dirNormBFH1948h || 'la dirección indicada';
+                return {
+                  text: `⚠️  Olor a esporas al entrar al Túnel de Hongos — una concentración antinatural que arde en los ojos.\n\n🍄 Si tenés un «hongo azul», desactivala sin daño: escribí «desactivar trampa ${dirEsBFH1948h}».\n💡 Si querés entrar igual (asumiendo el riesgo), volvé a enviar el comando de dirección.`,
+                };
+              }
+              // Segunda vez: limpiar flag y continuar
+              const clearedSeBFH1948h = { ...seBFH1948h };
+              delete clearedSeBFH1948h.hongo_warning_done;
+              db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSeBFH1948h) });
+            }
+          }
+        }
+        // DIS-1948: Pre-move warning para Sala del Trono (sala 9) en path bossAtFullHp
+        // Cubre el caso: jugador en sala con boss a full HP intenta ir a sala 9 desde cualquier dirección.
+        if (destId === 9) {
+          const room9BFH1948 = db.getRoom(9);
+          const knownTrapsBFH1948 = player.known_traps || {};
+          const trapAlreadyKnownBFH1948 = knownTrapsBFH1948[9] === true || knownTrapsBFH1948['9'] === true;
+          if (room9BFH1948 && room9BFH1948.trap && room9BFH1948.trap.active && !trapAlreadyKnownBFH1948) {
+            const invBFH1948t = (player.inventory || []).map(i => i.toLowerCase().trim());
+            const hasCoronaBFH = invBFH1948t.includes('corona rota');
+            if (hasCoronaBFH) {
+              const seBFH1948Corona = parseSE(player.status_effects);
+              if (!seBFH1948Corona.trono_corona_warning_done) {
+                const newSeBFH1948Corona = { ...seBFH1948Corona, trono_corona_warning_done: true };
+                db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeBFH1948Corona) });
+                return {
+                  text: `👑 Vas a entrar a la Sala del Trono. Tenés una «corona rota» en el inventario.\n\nSi entrás ahora, la corona será ofrendada al trono automáticamente, desactivando la trampa de frío — pero **se consumirá** y no la recuperarás.\n\n¿Querés usarla?\n   ✅ Sí, entrar y usar la corona: repetí el comando de movimiento\n   ❌ No, guardarla: usá «desactivar trampa» desde afuera para desactivarla sin entrar (mismo efecto pero más control)\n\n💡 Si entrás sin querer usar la corona, podés escapar con «flee» antes de que se aplique el daño de trampa.`,
+                };
+              }
+              // Segunda vez: limpiar flag y seguir
+              const clearedSeBFH1948Corona = { ...seBFH1948Corona };
+              delete clearedSeBFH1948Corona.trono_corona_warning_done;
+              db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSeBFH1948Corona) });
+            }
+            if (!hasCoronaBFH) {
+              const seBFH1948t = parseSE(player.status_effects);
+              if (!seBFH1948t.trono_warning_done) {
+                const newSeBFH1948t = { ...seBFH1948t, trono_warning_done: true };
+                db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeBFH1948t) });
+                const dirNormBFH1948t = dungeon.normalizeDirection(direction);
+                const dirEsBFH1948t = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNormBFH1948t]) || dirNormBFH1948t || 'la dirección indicada';
+                const currentRoomBFH1948 = db.getRoom(player.current_room_id);
+                const currentRoomNameBFH1948 = currentRoomBFH1948 ? currentRoomBFH1948.name : 'tu sala actual';
+                return {
+                  text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance\n   • Derrotá al Espectro del Corredor en la Sala del Trono (sala 9) — drop garantizado\n     ⚠️  El Espectro VIVE en esta sala trampeada. Si entrás sin la corona, tomás el daño de la trampa una vez, pero el sistema aprende que ya la conocés — las visitas siguientes son sin daño.\n   → Con la corona en mano, **desde ${currentRoomNameBFH1948}**: escribí «desactivar trampa ${dirEsBFH1948t}»\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+                };
+              }
+              // Segunda vez: limpiar flag y continuar
+              const clearedSeBFH1948t = { ...seBFH1948t };
+              delete clearedSeBFH1948t.trono_warning_done;
+              db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSeBFH1948t) });
+            }
+          }
+        }
         // DIS-1848: Aviso proactivo de mochila casi llena al entrar a sala con boss (path bossAtFullHp)
         const BOSS_ROOMS_DIS1848_BFH = new Set([8, 9, 10, 12, 14, 15, 19, 20]);
         if (BOSS_ROOMS_DIS1848_BFH.has(destId)) {
