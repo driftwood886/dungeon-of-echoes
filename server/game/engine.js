@@ -4346,22 +4346,11 @@ function cmdStats(player) {
   const kills = player.kills || 0;
   const deaths = player.deaths || 0;
 
-  // Calcular ATK efectivo (base + arma)
-  const BASE_ATK_BY_CLASS = { guerrero: 8, picaro: 6, mago: 5, clerigo: 5 };
-  const baseAtk = BASE_ATK_BY_CLASS[player.player_class] || 5;
-  // Buscar bonus de arma equipada
-  const WEAPON_BONUSES = {
-    'espada de hierro': 3, 'hacha de guerra': 4, 'maza de guardia': 3,
-    'bastón de roble': 2, 'daga élfica': 3, 'arco corto': 3,
-    'escudo de gladiador': 2, 'espada larga': 5, 'hacha rúnica': 6,
-    'libro de hechizos': 4, 'varita arcana': 3,
-  };
+  // BUG-1964: usar player.attack directamente (ya incluye bonus de arma, nivel, clase)
+  // en lugar de recalcular con tabla hardcodeada incompleta
+  const atk = player.attack || 5;
   const equippedWeapon = (player.equipped_weapon && player.equipped_weapon !== 'null')
     ? player.equipped_weapon.toLowerCase() : null;
-  const weaponBonus = equippedWeapon ? (WEAPON_BONUSES[equippedWeapon] || 0) : 0;
-  // Bonus de nivel
-  const levelBonus = Math.floor((level - 1) * 0.7);
-  const atk = baseAtk + weaponBonus + levelBonus;
 
   // DEF base
   const BASE_DEF_BY_CLASS = { guerrero: 2, picaro: 1, mago: 0, clerigo: 1 };
@@ -4384,7 +4373,7 @@ function cmdStats(player) {
 
   const lines = [
     `${hpEmoji} **${player.username}** — Nivel ${level} ${claseStr}${specStr}`,
-    `   HP: ${hp}/${maxHp}  ·  ATK: ~${atk}  ·  DEF: ${def}  ·  XP: ${xpText}  ·  Gold: ${gold}g`,
+    `   HP: ${hp}/${maxHp}  ·  ATK: ${atk}  ·  DEF: ${def}  ·  XP: ${xpText}  ·  Gold: ${gold}g`,
     `   Kills: ${kills}  ·  Muertes: ${deaths}`,
   ];
   if (equippedWeapon) {
