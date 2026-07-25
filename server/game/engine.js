@@ -695,6 +695,18 @@ function execute(playerId, input, context) {
       } else {
         result = cmdReadWall(player);
       }
+      // DIS-1962: tip contextual de lore al primer `read` (sin args, es decir leer pared)
+      if (result && result.text && !(action.args && action.args.length > 0)) {
+        try {
+          const freshRead = db.getPlayer(player.id);
+          const seRead = parseSE(freshRead ? freshRead.status_effects : player.status_effects);
+          if (!seRead.first_read_seen) {
+            seRead.first_read_seen = true;
+            db.updatePlayer(player.id, { status_effects: JSON.stringify(seRead) });
+            result = { ...result, text: result.text + '\n\n📖 Los fragmentos de lore se guardan en tu diario — escribí «lore» para releerlos cuando quieras.' };
+          }
+        } catch (_) {}
+      }
       break;
     }
     case 'greet':        result = cmdGreet(player, action.args, context); break;
@@ -1591,6 +1603,19 @@ function cmdLook(player, options = {}) {
     }
   }
 
+  // DIS-1963: mensaje de bienvenida al entrar por primera vez a la Sala de Práctica (sala 21)
+  let practicaFirstVisitLine = '';
+  if (player.current_room_id === 21 && options.showEvent) {
+    try {
+      const sePV = parseSE(player.status_effects);
+      if (!sePV.practica_first_visit) {
+        practicaFirstVisitLine = `\n\n🏋️ **Sala de Práctica** — Zona sin riesgo. Aquí no podés morir ni perder ítems.\n   Los maniquíes se regeneran solos. Usá «atacar maniquí», «hechizo», «postura» — lo que quieras probar.\n   Los monstruos de aquí no dan XP real, pero tampoco te lastiman de verdad.\n   Cuando estés listo, subí («arriba») para volver al dungeon.`;
+        const newSePV = { ...sePV, practica_first_visit: true };
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(newSePV) });
+      }
+    } catch (_) {}
+  }
+
   // DIS-852: mostrar evento global activo en la descripción de sala
   // DIS-1463: mostrar solo al entrar a sala nueva (options.showEvent === true), no en look/combate
   let activeEventLine = '';
@@ -1722,7 +1747,7 @@ function cmdLook(player, options = {}) {
     }
   } catch (_dis1826) { /* no romper look si falla el check de stats */ }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine };
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine };
 }
 
 /**
@@ -20261,6 +20286,33 @@ function cmdSpecialize(player, args) {
     // DIS-1947: usar intro alternativa si el jugador NO está en la tienda de Aldric (sala 4)
     const ALDRIC_SHOP_ROOM = 4;
     const isInAldricShop = fresh.current_room_id === ALDRIC_SHOP_ROOM;
+
+    // DIS-1960: línea personalizada con el historial del jugador (kills totales, racha, muertes)
+    let dis1960PersonalLine = '';
+    try {
+      const hist = db.getPlayerHistory(fresh.username);
+      const totalKills = hist ? (hist.total_kills || 0) : 0;
+      const maxStreak = hist ? (hist.max_kill_streak || 0) : 0;
+      const totalDeaths = hist ? (hist.total_deaths || 0) : 0;
+      const currentStreak = killStreakMap.get(player.id) || 0;
+      const streakToShow = Math.max(currentStreak, maxStreak);
+      if (totalKills >= 5 || streakToShow >= 3) {
+        let personalized = '';
+        if (streakToShow >= 10) {
+          personalized = `_${totalKills} enemigos caídos. Una racha de ${streakToShow} sin morir. El dungeon ya sabe tu nombre._`;
+        } else if (streakToShow >= 5) {
+          personalized = `_${totalKills} kills. Tu mejor racha fue de ${streakToShow} consecutivos — eso no es casualidad._`;
+        } else if (totalDeaths === 0 && totalKills >= 5) {
+          personalized = `_${totalKills} kills. Cero muertes. El dungeon te ha visto actuar — y lo que vio, le basta para reconocerte._`;
+        } else if (totalKills >= 15) {
+          personalized = `_${totalKills} enemigos. ${totalDeaths > 0 ? `${totalDeaths} muerte${totalDeaths > 1 ? 's' : ''}.` : ''} Suficiente para saber quién sos._`;
+        } else {
+          personalized = `_${totalKills} kills. El dungeon registra cada combate — y llegaste hasta aquí._`;
+        }
+        dis1960PersonalLine = personalized ? `\n${personalized}\n` : '';
+      }
+    } catch (_) {}
+
     const DIS1688_INTROS = {
       guerrero: isInAldricShop
         ? `🏚️ _Llegás a la tienda de Aldric. Él te mira de una forma diferente esta vez._\n\n"Sobreviviste hasta el nivel 5", dice despacio, apoyando las manos sobre el mostrador. "Eso no es suerte, eso es decisión."\n\nSaca un pergamino viejo y lo extiende frente a vos.\n\n"Los guerreros que llegan tan lejos tienen que elegir qué tipo de guerrero van a ser. Algunos van por la fuerza bruta. Otros aprenden a aguantar lo que nadie más puede."\n\n_Esperá tu momento._\n\n`
@@ -20277,7 +20329,7 @@ function cmdSpecialize(player, args) {
     };
     const introText = DIS1688_INTROS[playerClass] || `_Has llegado al nivel 5. El dungeon espera tu decisión._\n\n`;
     const lines = [
-      introText,
+      introText + dis1960PersonalLine,
       `🌟 ESPECIALIZACIÓN — ${clsObj.emoji || ''} ${clsObj.name || playerClass}`,
       '─'.repeat(50),
       'Has alcanzado el nivel 5. Es hora de elegir tu camino.',
