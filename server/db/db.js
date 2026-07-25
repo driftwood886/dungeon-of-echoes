@@ -754,6 +754,7 @@ async function init() {
     `ALTER TABLE players ADD COLUMN run_loot_positions TEXT NOT NULL DEFAULT '{}'`,          // EPIC-VV-1755: JSON de posición de ítems raros
     `ALTER TABLE players ADD COLUMN rune_hp_bonus INTEGER NOT NULL DEFAULT 0`,               // DIS-1770: tracking del HP máximo obtenido via fusión de runas (hielo +5, luz +3)
     `ALTER TABLE players ADD COLUMN last_target_monster_id INTEGER`,                          // BUG-1921: ID del último monstruo atacado con 'attack' (para que skills sin target apunten al target activo)
+    `ALTER TABLE players ADD COLUMN main_quest_data TEXT NOT NULL DEFAULT '{}'`,              // EPIC-KAELTHAS (DIS-1967): JSON con estado de la quest principal — { fragments_found: [], main_quest_state: 'inactive'|'active'|'completed'|'ended', kaelthas_fragments_count: 0, lich_died_with_quest: false, started_at: null }
     ];
   for (const sql of migrations) {
     applyMigration(sql);
@@ -4751,6 +4752,69 @@ function activateCampaign(campaignId) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// EPIC-KAELTHAS (DIS-1967): Quest Principal de Kaelthas — helpers de main_quest_data
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Schema de main_quest_data (JSON almacenado en columna main_quest_data de players):
+ * {
+ *   fragments_found: string[],           // IDs de fragmentos ya encontrados
+ *   main_quest_state: string,            // 'inactive' | 'active' | 'completed' | 'ended'
+ *   kaelthas_fragments_count: number,    // cantidad de fragmentos encontrados (0-4)
+ *   lich_died_with_quest: boolean,       // true si mató al Lich con quest completa
+ *   started_at: string|null,             // ISO timestamp de activación de la quest
+ * }
+ *
+ * Fragmentos de la quest (IDs):
+ *   'trono'      — Sala del Trono (sala 9): leer inscripción de Hermana Vela
+ *   'mausoleo'   — Galería de Hielo (sala 12): examine columnas
+ *   'capilla'    — Capilla Olvidada (sala 5): examine altar
+ *   'catedral'   — Catedral de la Oscuridad (sala 15): examine altar catedral
+ */
+
+const MQD_DEFAULTS = {
+  fragments_found: [],
+  main_quest_state: 'inactive',
+  kaelthas_fragments_count: 0,
+  lich_died_with_quest: false,
+  started_at: null,
+};
+
+/**
+ * Obtener main_quest_data de un jugador (parseado y con defaults).
+ * @param {string} playerId
+ * @returns {object} — main_quest_data con defaults aplicados
+ */
+function getMainQuestData(playerId) {
+  try {
+    const row = one('SELECT main_quest_data FROM players WHERE id = ?', [playerId]);
+    if (!row) return { ...MQD_DEFAULTS };
+    const parsed = JSON.parse(row.main_quest_data || '{}');
+    return { ...MQD_DEFAULTS, ...parsed };
+  } catch (_) {
+    return { ...MQD_DEFAULTS };
+  }
+}
+
+/**
+ * Actualizar main_quest_data de un jugador (merge parcial).
+ * @param {string} playerId
+ * @param {object} patch — campos a sobreescribir
+ */
+function updateMainQuestData(playerId, patch) {
+  try {
+    const current = getMainQuestData(playerId);
+    const updated = { ...current, ...patch };
+    db.run(
+      'UPDATE players SET main_quest_data = ? WHERE id = ?',
+      [JSON.stringify(updated), playerId]
+    );
+  } catch (e) {
+    console.error('[db] updateMainQuestData:', e.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
   init, persist,
@@ -4840,4 +4904,6 @@ module.exports = {
   // EPIC-CAMP: Sistema de Campaña Narrativa
   getActiveCampaign, contributeToCurrentCampaign, getCampaignHistory, getPlayerCampaignContributions,
   activateCampaign,
+  // EPIC-KAELTHAS (DIS-1967): Quest Principal — helpers de main_quest_data
+  getMainQuestData, updateMainQuestData,
   };
