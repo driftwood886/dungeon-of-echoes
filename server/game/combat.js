@@ -182,7 +182,12 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
       console.warn('[combat] BUG-697: Error restaurando HP de boss tras muerte del jugador:', e.message);
     }
     // STORY-019: entrada de diario con color emocional para primera muerte
+    // DIS-1955: mensaje explicativo de la primera muerte — aclarar penalidades para reducir ansiedad.
     if (deaths === 1) {
+      lines.push(`\n💀 Caíste. Alguien te rescató antes de que te perdiera el dungeon.`);
+      lines.push(`   Tu inventario está intacto — nada se pierde al morir.`);
+      lines.push(`   Reaparecés en la Entrada con ${respawnHp}/${freshP.max_hp} HP (25% de tu vida máxima).`);
+      lines.push(`   📖 (Esta aclaración solo aparece la primera vez. En muertes siguientes: respawn silencioso.)`);
       db.addJournalEntry(playerId, 'death', `💀 Moriste. No fue heroico. Fue un pasillo oscuro y algo que no viste.`);
     } else {
       db.addJournalEntry(playerId, 'death', `💀 Caíste de nuevo. ${deaths} veces y el dungeon sigue en pie.`);
