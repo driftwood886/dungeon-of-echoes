@@ -6474,6 +6474,20 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // ── T-1977 EPIC-KAELTHAS-F2: Diálogo del Lich en primer turno de combate ──
+  // Solo se muestra la primera vez que el jugador ataca al Lich Anciano en cada combate.
+  // Las 3 variantes: null (quest inactiva), texto corto (quest parcial), monólogo (quest completa).
+  let lichDialoguePrefix = '';
+  if (!prevCombo && monster.id === 13 && player.current_room_id === 15 && player.is_bot !== 1) {
+    try {
+      const freshForLichDialogue = db.getPlayer(player.id);
+      const lichDialogueText = kaelthasQuest.getLichDialogue(freshForLichDialogue || player);
+      if (lichDialogueText) {
+        lichDialoguePrefix = lichDialogueText + '\n\n';
+      }
+    } catch (_lichDialogueErr) { /* no romper combate si falla el diálogo */ }
+  }
+
   // ── T211: Prefijar el grito de batalla (solo en primer turno del combate) ──
   const battlecryPrefix = battlecryText && !prevCombo
     ? `⚔️ "${battlecryText}" — grita ${player.username}.\n`
@@ -6730,7 +6744,7 @@ function cmdAttack(player, targetName) {
   }
 
   // DIS-1879: la advertencia de mochila al final del output (antes estaba al inicio, era disruptiva en momentos de tensión)
-  const baseText = battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg + (_bug1781BossInvWarning ? '\n\n' + _bug1781BossInvWarning.trim() : '');
+  const baseText = lichDialoguePrefix + battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg + (_bug1781BossInvWarning ? '\n\n' + _bug1781BossInvWarning.trim() : '');
 
   // DIS-1800: Hint de flee para zona profunda — primera vez que el jugador ataca
   // al Troll de las Cavernas o al Golem de Forja (sala 12), mobs muy difíciles.
