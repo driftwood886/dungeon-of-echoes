@@ -388,7 +388,7 @@ async function init() {
       type: 'trade',
       slot: 'secundaria',
       condition: JSON.stringify({ event: 'trade', action: 'buy', min_value: 20, count: 1 }),
-      reward: JSON.stringify({ gold: 20, xp: 15 }),
+      reward: JSON.stringify({ gold: 25, xp: 5 }),
       require_level: 1,
       require_faction: null,
       require_class: null,
@@ -758,6 +758,11 @@ async function init() {
   for (const sql of migrations) {
     applyMigration(sql);
   }
+
+  // DIS-1954: Ajustar reward de quest 'trade_comprar_equipo' (Inversión Táctica)
+  // Reward anterior: {gold: 20, xp: 15} — causaba level-up al comprar (nivel 2→3 requiere +90 XP).
+  // Reward nuevo:   {gold: 25, xp: 5}  — inversión táctica = más gold, menos XP (el combate da el nivel).
+  applyMigration(`UPDATE quest_definitions SET reward = '{"gold":25,"xp":5}' WHERE id = 'trade_comprar_equipo'`);
 
   // BUG-1247: migración para marcar bots de playtest existentes (nombres con patrones conocidos)
   // Se ejecuta cada vez que se inicia, pero es idempotente (solo actualiza donde is_bot=0)
