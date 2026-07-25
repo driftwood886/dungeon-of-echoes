@@ -41,6 +41,7 @@ const questEngine = require('./questEngine'); // EPIC-QD: sistema de quests din�
 const factionMissions = require('./factionMissions'); // EPIC Facciones Vivas (IMPL-FM-1706)
 const { EVENTS: VV_EVENTS, generateNewSeed: vvGenerateNewSeed, generateRunState: vvGenerateRunState } = require('./run-state');  // IMPL-VV-1760: desafíos y diálogos de evento; BUG-1762: inicializar VV para jugadores pre-VV
 const memory = require('./memory.js'); // EPIC-1820-DEF: hooks de memoria del dungeon
+const kaelthasQuest = require('./kaelthasQuest'); // EPIC-KAELTHAS (T-1971): quest principal de Kaelthas
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // DIS-1514: helper para mensaje de progreso de XP dentro del nivel actual
@@ -659,7 +660,16 @@ function execute(playerId, input, context) {
     case 'quest': {                                                                        // EPIC-QD: detalle/abandon/historial
       const questSub = (action.args && action.args[0] || '').toLowerCase();
       if (questSub === 'info' && action.args.length > 1) {
-        result = questEngine.getQuestDetail(player, action.args.slice(1).join(' '));
+        // EPIC-KAELTHAS (T-1973): quest info el libro de los muertos → estado de quest principal
+        const questInfoQuery = action.args.slice(1).join(' ').toLowerCase();
+        if (questInfoQuery === 'el libro de los muertos' || questInfoQuery === 'kaelthas' || questInfoQuery === 'principal') {
+          result = { text: kaelthasQuest.getQuestState(player) };
+        } else {
+          result = questEngine.getQuestDetail(player, action.args.slice(1).join(' '));
+        }
+      } else if (questSub === 'info' && action.args.length === 1) {
+        // EPIC-KAELTHAS (T-1973): «quest info» solo → mostrar estado de quest de Kaelthas primero
+        result = { text: kaelthasQuest.getQuestState(player) };
       } else if (questSub === 'abandonar' && action.args.length > 1) {
         result = questEngine.abandonQuest(player, action.args.slice(1).join(' '));
       } else if (questSub === 'historial') {
@@ -677,6 +687,21 @@ function execute(playerId, input, context) {
       // BUG-267: si hay args, intentar examinar el ítem del inventario primero
       if (action.args && action.args.length > 0) {
         const query = action.args.join(' ');
+        // EPIC-KAELTHAS (T-1972): «leer libro» → epitafio de Kaelthas (si tiene el libro en inv)
+        const queryLow = query.toLowerCase().trim();
+        if (queryLow === 'libro' || queryLow === 'libro de kaelthas' || queryLow === 'diario' || queryLow === 'diario de kaelthas') {
+          const freshRLK = db.getPlayer(player.id);
+          const targetPlayer = freshRLK || player;
+          const inv = targetPlayer.inventory || [];
+          const hasLibro = Array.isArray(inv) && inv.some(i => (typeof i === 'string' ? i : i.name || '').toLowerCase().includes('libro de kaelthas'));
+          if (hasLibro) {
+            const epitaph = kaelthasQuest.getEpitaph(targetPlayer);
+            result = { text: epitaph || '📖 El libro está en blanco. Seguí explorando.' };
+          } else {
+            result = { text: '📖 No tenés el libro de Kaelthas en el inventario.\n💡 El libro aparece al derrotar al Lich Anciano con la quest «El Libro de los Muertos» activa.' };
+          }
+          break;
+        }
         const fresh = db.getPlayer(player.id);
         // ¿El ítem está en el inventario?
         const invItem = fresh && fresh.inventory ? items.findItem(fresh.inventory, query) : null;
@@ -9018,7 +9043,15 @@ function cmdExamine(player, query) {
             return { text: 'La estatua monstruosa que domina el Santuario Profano es más altar que escultura. Está tallada en piedra oscura y tiene una postura que sugiere expectativa —como si estuviera esperando que alguien venga a ofrendar.\n\nLas runas grabadas en la base son antiguas: en el idioma del reino caído, describen un pacto de protección a cambio de devoción. El altar responde a ofrendas de oro directas.\n\n💡 Rezá en este altar con: `pray Xg` (ej: `pray 5g`) — 1-4g para Bendición Menor, 5-9g para Bendición de Plata, 10+g para Bendición Mayor.\n\n(También podés usar monedas físicas con `pray <moneda>` si las tenés en el inventario.)' };
           }
           // Sala 5 — Capilla Olvidada
-          return { text: 'El altar de piedra negra tiene marcas de uso continuo a lo largo de siglos, pero lo que llama tu atención está en la base: hay cera derretida fresca. Reciente. Las llamas de las velas se apagaron hace siglos —¿quién estuvo aquí, y cuándo? El resto del dungeon no tiene respuestas. Pero alguien las tiene.' };
+          const altarSala5Text = 'El altar de piedra negra tiene marcas de uso continuo a lo largo de siglos, pero lo que llama tu atención está en la base: hay cera derretida fresca. Reciente. Las llamas de las velas se apagaron hace siglos —¿quién estuvo aquí, y cuándo? El resto del dungeon no tiene respuestas. Pero alguien las tiene.';
+          try {
+            const freshKQAlt = db.getPlayer(player.id);
+            const kqAltResult = kaelthasQuest.checkKaelthasFragment(freshKQAlt || player, 'capilla');
+            if (kqAltResult.text) {
+              return { text: altarSala5Text + kqAltResult.text };
+            }
+          } catch (_) { /* no romper examine */ }
+          return { text: altarSala5Text };
         }
         // DIS-977: runas dinámicas — sala 10 (Santuario) vs sala 18 (Fuente Eterna)
         if (val.text === '__RUNAS_DYNAMIC__') {
@@ -9053,6 +9086,45 @@ function cmdExamine(player, query) {
               return { text: val.text + '\n\n📕 *Fragmento narrativo guardado en tu diario de lore. Escribí `lore` para ver lo que descubriste.*' };
             }
           } catch (_) { /* no romper examine */ }
+        }
+
+        // EPIC-KAELTHAS (T-1972): hooks de quest principal — fragmentos 'mausoleo', 'capilla', 'catedral'
+        // Se evalúan antes del return principal para poder append el texto de quest al lore existente.
+        {
+          // Fragmento 'mausoleo' — sala 11, examine columnas
+          if (key === 'columnas' && player.current_room_id === 11) {
+            try {
+              const freshKQ = db.getPlayer(player.id);
+              const kqResult = kaelthasQuest.checkKaelthasFragment(freshKQ || player, 'mausoleo');
+              if (kqResult.text) {
+                return { text: val.text + kqResult.text };
+              }
+            } catch (_) { /* no romper examine */ }
+          }
+          // Fragmento 'capilla' — sala 5, examine altar
+          if (key === 'altar' && player.current_room_id === 5) {
+            try {
+              const freshKQ = db.getPlayer(player.id);
+              const kqResult = kaelthasQuest.checkKaelthasFragment(freshKQ || player, 'capilla');
+              if (kqResult.text) {
+                // El texto del altar en sala 5 viene del bloque __ALTAR_DYNAMIC__ más arriba,
+                // que ya retornó. Este hook se dispara cuando llegamos acá (nunca llega si sala 10).
+                // Para sala 5 el __ALTAR_DYNAMIC__ retorna directo, así que este bloque
+                // se usa como fallback por si en alguna refactorización cambia el flujo.
+                // El hook real de capilla se aplica en el bloque __ALTAR_DYNAMIC__ de sala 5.
+              }
+            } catch (_) { /* no romper examine */ }
+          }
+          // Fragmento 'catedral' — sala 15, examine 'altar catedral'
+          if (key === 'altar catedral' && player.current_room_id === 15) {
+            try {
+              const freshKQ = db.getPlayer(player.id);
+              const kqResult = kaelthasQuest.checkKaelthasFragment(freshKQ || player, 'catedral');
+              if (kqResult.text) {
+                return { text: val.text + kqResult.text };
+              }
+            } catch (_) { /* no romper examine */ }
+          }
         }
         // IMPL-VV-1760: tracking silencio_del_abismo — contar inscripciones leídas
         // Solo cuentan lore objects que son inscripciones, paredes, grabados, runas
@@ -23936,6 +24008,19 @@ function cmdReadWall(player) {
           // Agregar nota al final del output
           lines.push('\n📕 *Fragmento narrativo guardado en tu diario de lore. Escribí `lore` para ver lo que descubriste.*');
         }
+      }
+    } catch (_) {}
+  }
+
+  // EPIC-KAELTHAS (T-1972): hook de quest principal — fragmento 'trono' en sala 9
+  // Se dispara siempre que se lee la sala 9, independientemente del lore de diario.
+  // El módulo kaelthasQuest verifica internamente si el fragmento ya fue encontrado.
+  if (player.current_room_id === 9) {
+    try {
+      const freshForQuest = db.getPlayer(player.id);
+      const questResult = kaelthasQuest.checkKaelthasFragment(freshForQuest || player, 'trono');
+      if (questResult.text) {
+        lines.push(questResult.text);
       }
     } catch (_) {}
   }
