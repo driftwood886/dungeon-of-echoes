@@ -121,10 +121,13 @@ function checkKaelthasFragment(player, fragmentId) {
     // Texto narrativo a mostrar
     let text = FRAGMENT_TEXTS[fragmentId] || null;
 
-    // Si la quest tenía 1+ fragmentos ya, ajustar el número en textos de actualización
-    // (mausoleo/capilla/catedral ya incluyen el número hardcodeado en el texto final aprobado)
-    // Si el orden fue diferente al esperado, el count puede no coincidir con el texto hardcodeado.
-    // Por ahora se usa el texto aprobado directamente — mejora futura: texto dinámico.
+    // BUG-1980: reemplazar número hardcodeado por count dinámico.
+    // FRAGMENT_TEXTS para mausoleo/capilla/catedral incluyen "(N/4 fragmentos)" con número fijo.
+    // Si el jugador encontró fragmentos en distinto orden, el número no coincide con quest info.
+    // Reemplazamos el patrón "(\d/4 fragmentos" por el count real antes de devolver el texto.
+    if (text && count > 1) {
+      text = text.replace(/\(\d\/4 fragmentos/, `(${count}/4 fragmentos`);
+    }
 
     return { text, questActivated, questCompleted };
 
