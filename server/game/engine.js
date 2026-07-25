@@ -4444,12 +4444,21 @@ function cmdStatus(player) {
     if (effect === 'last_flee') continue;
     // BUG-775: cleric_bless ya se muestra en el bloque de blessing_shield con más detalle
     if (effect === 'cleric_bless') continue;
-    if (data.expires_at > now) {
-      const secsLeft = Math.ceil((data.expires_at - now) / 1000);
-      // DIS-929: mostrar tiempo en formato legible (Xm Ys en lugar de solo Xs)
-      const timeLeftStr = secsLeft >= 60
-        ? `${Math.floor(secsLeft / 60)}m ${secsLeft % 60}s`
-        : `${secsLeft}s`;
+    // Soporte para buffs con charges_left (sin expires_at) — DIS-1959
+    const hasChargesStatus = typeof data.charges_left === 'number';
+    const chargesActiveStatus = hasChargesStatus && data.charges_left > 0;
+    const timeActiveStatus = !hasChargesStatus && data.expires_at > now;
+    if (chargesActiveStatus || timeActiveStatus) {
+      let timeLeftStr;
+      if (hasChargesStatus) {
+        timeLeftStr = `${data.charges_left} combate${data.charges_left === 1 ? '' : 's'} restantes`;
+      } else {
+        const secsLeft = Math.ceil((data.expires_at - now) / 1000);
+        // DIS-929: mostrar tiempo en formato legible (Xm Ys en lugar de solo Xs)
+        timeLeftStr = secsLeft >= 60
+          ? `${Math.floor(secsLeft / 60)}m ${secsLeft % 60}s`
+          : `${secsLeft}s`;
+      }
       const parts = [];
       if (data.atk_bonus > 0) parts.push(`+${data.atk_bonus} ATK`);
       if (data.def_bonus > 0) parts.push(`+${data.def_bonus} DEF`);
@@ -4475,12 +4484,13 @@ function cmdStatus(player) {
           altar_blessing: '🙏 BENDICIÓN DE ALTAR',
           blessing: '✨ BENDICIÓN (poción)',
           cleric_bless: '✨ BENDICIÓN (Clérigo)',
+          marea_blessing: '🙏 BENDICIÓN ANTIMUERTE',
         };
         // BUG-490: si el dato tiene label propio (ej: altar_blessing), usarlo primero
         effectLabel = effectNames[effect] || (data.label ? `✨ ${data.label}` : '📜 BUFF');
       }
       const partsStr = parts.length > 0 ? ` — ${parts.join(', ')}` : '';
-      activeBuffLines.push(`  ${effectLabel}${partsStr} (${timeLeftStr} restantes)`);
+      activeBuffLines.push(`  ${effectLabel}${partsStr} (${timeLeftStr})`);
     }
   }
   // DIS-929: mostrar sección "Efectos activos" solo si hay buffs activos
@@ -6456,6 +6466,20 @@ function cmdAttack(player, targetName) {
         db.updatePlayer(player.id, { active_scrolls: JSON.stringify(hongoScrolls) });
       }
     } catch (_) { /* no romper combate si falla decremento esencia */ }
+
+    // DIS-1959: decrementar charges de Bendición Antimuerte (marea_blessing) tras cada combate ganado
+    try {
+      const freshForMarea = db.getPlayer(player.id);
+      const mareaScrolls = JSON.parse(freshForMarea.active_scrolls || '{}');
+      if (mareaScrolls['marea_blessing'] && typeof mareaScrolls['marea_blessing'].charges_left === 'number') {
+        mareaScrolls['marea_blessing'].charges_left -= 1;
+        if (mareaScrolls['marea_blessing'].charges_left <= 0) {
+          delete mareaScrolls['marea_blessing'];
+          expeditionKillMsg += '\n🙏 La Bendición Antimuerte se disipa.';
+        }
+        db.updatePlayer(player.id, { active_scrolls: JSON.stringify(mareaScrolls) });
+      }
+    } catch (_) { /* no romper combate si falla decremento marea_blessing */ }
   }
 
   // EPIC-1160: hook de expedición — notificar muerte del jugador (reset_on_death)
@@ -26595,6 +26619,43 @@ function cmdPray(player, args) {
   const offering = argsFiltered.join(' ').trim().toLowerCase();
 
   if (!offering) {
+    // DIS-1959: durante la Marea Espectral, pray sin ítem en la Capilla (sala 5)
+    // otorga Bendición Antimuerte (+2 DEF por 3 combates). Contrapartida para el jugador.
+    if (roomId === 5) {
+      try {
+        const eventScheduler = require('./eventScheduler');
+        const evInfo = eventScheduler.getActiveEventInfo();
+        if (evInfo && evInfo.event && evInfo.event.id === 'SPECTRAL_TIDE') {
+          // Verificar cooldown (mismo cooldown normal del altar)
+          const altarKeyMarea = `${player.id}_${roomId}`;
+          const lastPrayMarea = altarCooldowns.get(altarKeyMarea) || 0;
+          const elapsedMarea = Date.now() - lastPrayMarea;
+          if (elapsedMarea < COOLDOWN_MS) {
+            const remainingSecMarea = Math.ceil((COOLDOWN_MS - elapsedMarea) / 1000);
+            const remMinMarea = Math.floor(remainingSecMarea / 60);
+            const remSecMarea = remainingSecMarea % 60;
+            return { text: `🙏 El altar aún necesita recuperarse de tu última ofrenda. Espera ${remMinMarea}m ${remSecMarea}s.` };
+          }
+          // Otorgar Bendición Antimuerte
+          const scrollsMarea = JSON.parse(player.active_scrolls || '{}');
+          scrollsMarea['marea_blessing'] = {
+            atk_bonus: 0,
+            def_bonus: 2,
+            charges_left: 3,
+            label: 'Bendición Antimuerte',
+          };
+          db.updatePlayer(player.id, { active_scrolls: JSON.stringify(scrollsMarea) });
+          altarCooldowns.set(altarKeyMarea, Date.now());
+          const minLeft = evInfo.minutesRemaining;
+          return {
+            text: `🙏 La Marea de No-Muertos sacude el dungeon. Rezás ante el altar de la Capilla sin ofrenda — una súplica pura.\n\nLa cera fresca en el altar arde con intensidad. Alguien estuvo aquí antes que vos.\n\n✨ **Bendición Antimuerte** — +2 DEF por los próximos 3 combates.\n\n💡 Esta bendición no requiere ítem — solo fe y urgencia. (Marea termina en ~${minLeft} min)`,
+            event: `${player.username} reza ante el altar de la Capilla durante la Marea.`,
+            eventRoomId: roomId,
+          };
+        }
+      } catch (_) { /* no romper pray si falla el chequeo de evento */ }
+    }
+
     const altarName = roomId === 5 ? 'Altar de la Capilla' : 'Estatua del Santuario';
     const lines = [
       `┌────────────────────────────────────────────┐`,
@@ -26617,6 +26678,10 @@ function cmdPray(player, args) {
       `│  • materiales de criatura (pelaje, garras, │`,
       `│    hongos, escamas, esencias...) → buff 90s│`,
       `│  • cualquier ítem misc → ofrenda humilde   │`,
+      `│                                            │`,
+      `│ 💡 Durante la Marea Espectral: pray sin    │`,
+      `│    ítem en la Capilla → Bendición          │`,
+      `│    Antimuerte (+2 DEF por 3 combates).     │`,
       `│                                            │`,
       `│ Cooldown: 5 minutos entre ofrendas.        │`,
       `└────────────────────────────────────────────┘`,
@@ -27103,6 +27168,9 @@ function cmdCalendar(player) {
   lines.push(`║ ${'✨ TUS BUFFS ACTIVOS'.padEnd(W - 2)} ║`);
   const scrolls = JSON.parse(player.active_scrolls || '{}');
   const scrollEntries = Object.entries(scrolls).filter(([, v]) => {
+    // Soportar tanto expires_at como charges_left (DIS-1959)
+    const hasCharges = typeof v.charges_left === 'number';
+    if (hasCharges) return v.charges_left > 0;
     const exp = new Date(v.expires_at).getTime();
     return exp > now;
   });
@@ -27110,12 +27178,19 @@ function cmdCalendar(player) {
     lines.push(`║  ${'(sin buffs activos)'.padEnd(W - 3)} ║`);
   } else {
     for (const [key, val] of scrollEntries) {
-      const remMs = new Date(val.expires_at).getTime() - now;
       const atkStr = val.atk_bonus ? `+${val.atk_bonus}ATK` : '';
       const defStr = val.def_bonus ? `+${val.def_bonus}DEF` : '';
       const statStr = [atkStr, defStr].filter(Boolean).join(' ') || '?';
       const name = key.replace('_', ' ');
-      lines.push(`║  ${pad(name, 22)} ${pad(statStr, 10)} expira en: ${fmt(remMs)}`.padEnd(W + 1) + '║');
+      const hasChargesC = typeof val.charges_left === 'number';
+      let expiryStr;
+      if (hasChargesC) {
+        expiryStr = `${val.charges_left} combate${val.charges_left === 1 ? '' : 's'}`;
+      } else {
+        const remMs = new Date(val.expires_at).getTime() - now;
+        expiryStr = `expira en: ${fmt(remMs)}`;
+      }
+      lines.push(`║  ${pad(name, 22)} ${pad(statStr, 10)} ${expiryStr}`.padEnd(W + 1) + '║');
     }
   }
 
