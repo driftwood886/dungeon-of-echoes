@@ -6743,8 +6743,35 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // ── T-1978 EPIC-KAELTHAS-F2: Closing scene al derrotar al Lich con quest completa ──
+  // Se llama solo si lichKill=true y el jugador tiene los 4 fragmentos (activateKaelthasEnding verifica internamente).
+  // Agrega el ítem "libro de kaelthas" al inventario y devuelve el texto de la closing scene.
+  let kaelthasEndingBlock = '';
+  if (lichKill && !playerDead) {
+    try {
+      const freshForEnding = db.getPlayer(player.id);
+      const endingResult = kaelthasQuest.activateKaelthasEnding(freshForEnding || player);
+      if (endingResult && endingResult.closingText) {
+        // Agregar ítem "libro de kaelthas" al inventario (intransmisible, flavor text puro)
+        const invForEnding = Array.isArray(freshForEnding.inventory)
+          ? [...freshForEnding.inventory]
+          : JSON.parse(freshForEnding.inventory || '[]');
+        // Solo agregar si no lo tiene ya (idempotente)
+        const yaLoTiene = invForEnding.some(i => {
+          const n = (typeof i === 'string' ? i : (i.name || '')).toLowerCase();
+          return n.includes('libro de kaelthas');
+        });
+        if (!yaLoTiene) {
+          invForEnding.push('libro de kaelthas');
+          db.updatePlayer(player.id, { inventory: invForEnding });
+        }
+        kaelthasEndingBlock = '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' + endingResult.closingText + '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+      }
+    } catch (_endingErr) { /* no romper combate si falla la closing scene */ }
+  }
+
   // DIS-1879: la advertencia de mochila al final del output (antes estaba al inicio, era disruptiva en momentos de tensión)
-  const baseText = lichDialoguePrefix + battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg + (_bug1781BossInvWarning ? '\n\n' + _bug1781BossInvWarning.trim() : '');
+  const baseText = lichDialoguePrefix + battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + kaelthasEndingBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg + (_bug1781BossInvWarning ? '\n\n' + _bug1781BossInvWarning.trim() : '');
 
   // DIS-1800: Hint de flee para zona profunda — primera vez que el jugador ataca
   // al Troll de las Cavernas o al Golem de Forja (sala 12), mobs muy difíciles.

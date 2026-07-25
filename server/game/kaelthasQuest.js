@@ -194,6 +194,11 @@ function activateKaelthasEnding(player) {
     // Idempotente: ya fue procesado
     if (mqd.lich_died_with_quest === true) return null;
 
+    // Solo activar si el jugador tiene la quest activa con los 4 fragmentos
+    const state = mqd.main_quest_state || 'inactive';
+    const count = mqd.kaelthas_fragments_count || 0;
+    if (state === 'inactive' || count < 4) return null;
+
     db.updateMainQuestData(player.id, {
       lich_died_with_quest: true,
       main_quest_state: 'ended',
