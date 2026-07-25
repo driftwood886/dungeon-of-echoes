@@ -1072,6 +1072,48 @@ async function init() {
     console.error('[db] BUG-030 HP restore error:', hpRestoreErr.message);
   }
 
+  // T-1974: Migration retroactiva de la quest principal de Kaelthas.
+  // Para jugadores reales que ya leyeron la Sala del Trono (kaelthas_nota_trono_9_read === true en status_effects)
+  // y cuya quest todavía está 'inactive', activar la quest con el fragmento 'trono' ya registrado.
+  // Idempotente: solo actúa si main_quest_state === 'inactive' (default).
+  try {
+    const allPlayersForKQ = db.exec(`SELECT id, status_effects, main_quest_data FROM players WHERE is_bot = 0`);
+    if (allPlayersForKQ.length > 0) {
+      const { columns, values } = allPlayersForKQ[0];
+      let migratedCount = 0;
+      for (const row of values) {
+        const pid = row[columns.indexOf('id')];
+        let se = {};
+        try { se = JSON.parse(row[columns.indexOf('status_effects')] || '{}'); } catch (_) {}
+        if (!se.kaelthas_nota_trono_9_read) continue; // No leyó el trono
+
+        let mqd = {};
+        try { mqd = JSON.parse(row[columns.indexOf('main_quest_data')] || '{}'); } catch (_) {}
+        const state = mqd.main_quest_state || 'inactive';
+        if (state !== 'inactive') continue; // Ya tiene quest activa/completada, no tocar
+
+        // Activar quest con fragmento 'trono'
+        const updatedMqd = {
+          fragments_found: ['trono'],
+          main_quest_state: 'active',
+          kaelthas_fragments_count: 1,
+          lich_died_with_quest: false,
+          started_at: new Date().toISOString(),
+        };
+        db.run(
+          `UPDATE players SET main_quest_data = ? WHERE id = ?`,
+          [JSON.stringify(updatedMqd), pid]
+        );
+        migratedCount++;
+      }
+      if (migratedCount > 0) {
+        console.log(`[db] T-1974: Migration retroactiva Kaelthas — ${migratedCount} jugador(es) con quest activada (fragmento 'trono' retroactivo).`);
+      }
+    }
+  } catch (kqMigErr) {
+    console.error('[db] T-1974 Kaelthas retroactive migration error:', kqMigErr.message);
+  }
+
   // T-1229: Tablas para desafíos diarios y semanal colectivo (Gaceta del Corredor - Fase 2)
   db.run(`
     CREATE TABLE IF NOT EXISTS daily_challenge_progress (
