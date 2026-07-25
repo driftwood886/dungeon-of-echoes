@@ -32,7 +32,9 @@ const COMMAND_ALIASES = {
   // junk — DIS-711: listar ítems descartables del inventario
   junk: 'junk', basura: 'junk', limpiar: 'junk', clean: 'junk',
   // status
-  status: 'status', stats: 'status', estado: 'status', stat: 'status',
+  status: 'status', estado: 'status', stat: 'status',
+  // stats / me — DIS-1958: resumen compacto de stats
+  stats: 'stats', me: 'stats',
   // attack
   attack: 'attack', atacar: 'attack', ataque: 'attack', golpear: 'attack', kill: 'attack',
   // pick

@@ -423,6 +423,8 @@ function execute(playerId, input, context) {
     case 'goto':      result = cmdGoto(player, action.args, context); break;  // DIS-1419: autotravel
     case 'inventory': result = cmdInventory(player); break;
     case 'status':    result = cmdStatus(player); break;
+    case 'stats':     result = cmdStats(player); break;  // DIS-1958: resumen compacto de stats
+    case 'me':        result = cmdStats(player); break;  // DIS-1958: alias de stats
     case 'junk':      result = cmdJunk(player); break;
     case 'sell_junk': result = cmdSellJunk(player); break;  // DIS-1657
     case 'attack':    result = cmdAttack(player, action.args.join(' ')); break;
@@ -790,6 +792,7 @@ Comandos que necesitás para jugar:
   attack <monstruo> — Atacar a un monstruo
   flee             — Huir del combate
   status           — Ver tu HP, ataque, defensa y clase
+  stats / me       — Resumen compacto de stats (una sola línea)
   inv / inventario — Ver tu mochila
   pick <ítem>      — Recoger un ítem del suelo (pick todo = todo)
   use <ítem>       — Usar un ítem del inventario
@@ -4287,6 +4290,70 @@ function cmdSellJunk(player) {
     event: `${player.username} vende basura al mercader.`,
     eventRoomId: player.current_room_id,
   };
+}
+
+/**
+ * stats / me — DIS-1958: Resumen compacto de stats del jugador en una sola vista.
+ * Formato: Nivel X [Clase] | HP: 39/55 | ATK: 17 | DEF: 3 | XP: 54/180 | Gold: 68g
+ */
+function cmdStats(player) {
+  player = db.getPlayer(player.id); // refrescar
+  const level = player.level || 1;
+  const hp    = player.hp    || 0;
+  const maxHp = player.max_hp || 20;
+  const xp    = player.xp    || 0;
+  const gold  = player.gold  || 0;
+  const kills = player.kills || 0;
+  const deaths = player.deaths || 0;
+
+  // Calcular ATK efectivo (base + arma)
+  const BASE_ATK_BY_CLASS = { guerrero: 8, picaro: 6, mago: 5, clerigo: 5 };
+  const baseAtk = BASE_ATK_BY_CLASS[player.player_class] || 5;
+  // Buscar bonus de arma equipada
+  const WEAPON_BONUSES = {
+    'espada de hierro': 3, 'hacha de guerra': 4, 'maza de guardia': 3,
+    'bastón de roble': 2, 'daga élfica': 3, 'arco corto': 3,
+    'escudo de gladiador': 2, 'espada larga': 5, 'hacha rúnica': 6,
+    'libro de hechizos': 4, 'varita arcana': 3,
+  };
+  const equippedWeapon = (player.equipped_weapon && player.equipped_weapon !== 'null')
+    ? player.equipped_weapon.toLowerCase() : null;
+  const weaponBonus = equippedWeapon ? (WEAPON_BONUSES[equippedWeapon] || 0) : 0;
+  // Bonus de nivel
+  const levelBonus = Math.floor((level - 1) * 0.7);
+  const atk = baseAtk + weaponBonus + levelBonus;
+
+  // DEF base
+  const BASE_DEF_BY_CLASS = { guerrero: 2, picaro: 1, mago: 0, clerigo: 1 };
+  const def = (BASE_DEF_BY_CLASS[player.player_class] || 0) + (player.defense_bonus || 0);
+
+  // XP info
+  const xpNextNeeded = xpSystem.xpForNextLevel(level);
+  const isMaxLevel   = (level >= xpSystem.MAX_LEVEL);
+  const xpText = isMaxLevel ? 'MAX' : `${xpSystem.xpIntoLevel(xp, level)}/${xpNextNeeded}`;
+
+  // Clase y especialización
+  const claseRaw = player.player_class || 'sin clase';
+  const claseMap = { guerrero: 'Guerrero', picaro: 'Pícaro', mago: 'Mago', clerigo: 'Clérigo' };
+  const claseStr = claseMap[claseRaw] || claseRaw;
+  const specStr = player.specialization ? ` (${player.specialization})` : '';
+
+  // HP bar simple
+  const hpPct = maxHp > 0 ? hp / maxHp : 0;
+  const hpEmoji = hpPct > 0.60 ? '💚' : hpPct > 0.30 ? '💛' : '❤️';
+
+  const lines = [
+    `${hpEmoji} **${player.username}** — Nivel ${level} ${claseStr}${specStr}`,
+    `   HP: ${hp}/${maxHp}  ·  ATK: ~${atk}  ·  DEF: ${def}  ·  XP: ${xpText}  ·  Gold: ${gold}g`,
+    `   Kills: ${kills}  ·  Muertes: ${deaths}`,
+  ];
+  if (equippedWeapon) {
+    lines.push(`   Arma: ${player.equipped_weapon}`);
+  } else {
+    lines.push(`   Arma: (ninguna — ataque base)`);
+  }
+  lines.push(`\n💡 Para ver inventario completo: «inventario». Para detalle completo: «status».`);
+  return { text: lines.join('\n') };
 }
 
 /**
