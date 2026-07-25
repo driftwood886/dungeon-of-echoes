@@ -545,12 +545,14 @@ function attackRound(player, monster) {
         monsterNameLower.includes('momia') ||
         monsterNameLower.includes('óseo') ||
         monsterNameLower.includes('muerto');
-      // DIS-1534: en salas early (1-5) la Marea Espectral no paraliza criaturas —
-      // las cuevas exteriores están demasiado lejos del epicentro espectral.
+      // DIS-1534: en salas early (1-7) la Marea Espectral no paraliza criaturas —
+      // las cuevas exteriores (Sala de Práctica, Pradera, Capilla, Ratas, Arañas) están
+      // demasiado lejos del epicentro espectral para ser afectadas.
+      // DIS-1951: expandido de <=5 a <=7 (Rata Gigante sala 6, Araña sala 7 siempre accesibles)
       // BUG-1936: sala 16 (Antesala del Tutorial) también queda exenta — los eventos globales
       // no deben interrumpir la secuencia de onboarding de nuevos jugadores.
       const TUTORIAL_ROOM_ID_COMBAT = 16;
-      const isEarlyZone = player && (player.current_room_id <= 5 || player.current_room_id === TUTORIAL_ROOM_ID_COMBAT);
+      const isEarlyZone = player && (player.current_room_id <= 7 || player.current_room_id === TUTORIAL_ROOM_ID_COMBAT);
       if (!isSpectral && !isUndead && !isEarlyZone) {
         const minLeft = newEvCheck.minutesRemaining;
         // DIS-1405: detectar si la quest activa tiene a este monstruo como objetivo
@@ -572,7 +574,7 @@ function attackRound(player, monster) {
           }
         } catch (_) {}
         return {
-          lines: [`👻 MAREA ESPECTRAL — Solo los no-muertos están activos. ${articuloMonstruo(monster.name)} ${monster.name} huye ante la marea espectral y no puede ser combatido ahora. (Evento termina en ~${minLeft} min)${questHint}`],
+          lines: [`👻 MAREA ESPECTRAL — Solo los no-muertos están activos. ${articuloMonstruo(monster.name)} ${monster.name} está temporalmente inactivo por la marea espectral y no puede ser combatido ahora. (Evento termina en ~${minLeft} min)${questHint}`],
           monsterDead: false, playerDead: false, loot: [], spectralBlocked: true
         };
       }

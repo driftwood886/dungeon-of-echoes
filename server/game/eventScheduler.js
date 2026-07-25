@@ -59,8 +59,8 @@ const GLOBAL_EVENTS = [
     id: 'SPECTRAL_TIDE',
     name: '👻 Marea Espectral',
     description: 'Solo los monstruos espectrales y no-muertos están activos. El XP de espectros es el doble.',
-    durationMs: 8 * 60 * 1000, // 8 minutos
-    announcement: '👻 Una marea espectral recorre el dungeon. Solo los no-muertos y espectros están activos.',
+    durationMs: 5 * 60 * 1000, // 5 minutos (DIS-1951: reducido de 8 min — 8 dejaba zonas early/mid sin combate demasiado tiempo)
+    announcement: '👻 Una marea espectral recorre el dungeon. Solo los no-muertos y espectros están activos. Las criaturas de las cuevas exteriores no se ven afectadas.',
     data: {
       spectral_only: true,
       spectral_xp_mult: 2.0

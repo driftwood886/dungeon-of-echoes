@@ -4903,12 +4903,13 @@ function cmdAttack(player, targetName) {
     } else if (monstersInRoom && monstersInRoom.length > 1) {
       // DIS-D325: Mostrar lista numerada de enemigos cuando hay múltiples targets
       let alive = monstersInRoom.filter(m => m.hp > 0);
-      // DIS-1728: Durante Marea Espectral (salas > 5), filtrar monstruos inactivos del pool
+      // DIS-1728: Durante Marea Espectral (salas > 7), filtrar monstruos inactivos del pool
       // de auto-targeting para que el hint de "objetivos disponibles" no incluya enemigos bloqueados.
+      // DIS-1951: expandido de > 5 a > 7 (Rata Gigante sala 6, Araña sala 7 siempre accesibles)
       try {
         const attackEvCheck = eventScheduler.getActiveEventInfo ? eventScheduler.getActiveEventInfo() : null;
         if (attackEvCheck && attackEvCheck.event && attackEvCheck.event.id === 'SPECTRAL_TIDE'
-            && player.current_room_id > 5 && player.current_room_id !== 16) { // BUG-1936: sala 16 (tutorial) exenta
+            && player.current_room_id > 7 && player.current_room_id !== 16) { // BUG-1936: sala 16 (tutorial) exenta
           const SPECTRAL_ACTIVE_IDS = new Set([4, 8, 12, 13, 21, 22]);
           const spectralAlive = alive.filter(m => {
             const mName = (m.name || '').toLowerCase();
@@ -18879,7 +18880,7 @@ function cmdSombras(player, args) {
   }) : aliveRaw;
   if (alive.length === 0) {
     const minLeft = sombraEvCheck ? sombraEvCheck.minutesRemaining : '?';
-    return { text: `🌑 No podés activar el golpe desde las sombras — los enemigos presentes huyen ante la Marea Espectral.\n👻 MAREA ESPECTRAL activa — solo no-muertos y espectros pueden combatirse ahora. (Evento termina en ~${minLeft} min)\n\n⚠️ Tus cargas de sombra (●●●) se conservan.` };
+    return { text: `🌑 No podés activar el golpe desde las sombras — los enemigos presentes están inactivos por la Marea Espectral.\n👻 MAREA ESPECTRAL activa — solo no-muertos y espectros pueden combatirse ahora. (Evento termina en ~${minLeft} min)\n\n⚠️ Tus cargas de sombra (●●●) se conservan.` };
   }
 
   // Leer shadow_points
@@ -20334,7 +20335,7 @@ function cmdUseSkill(player, args, context) {
     // Si el target especificado está bloqueado por Marea Espectral → mensaje descriptivo
     if (smashSpectralBlockedMonster) {
       const minLeftSp = (() => { try { return require('./eventScheduler').getActiveEventInfo().minutesRemaining; } catch(_) { return '?'; } })();
-      return { text: `👻 MAREA ESPECTRAL — Solo los no-muertos están activos. ${smashSpectralBlockedMonster.name} huye ante la marea espectral y no puede ser golpeado ahora. (~${minLeftSp} min restantes)` };
+      return { text: `👻 MAREA ESPECTRAL — Solo los no-muertos están activos. ${smashSpectralBlockedMonster.name} está temporalmente inactivo por la marea espectral y no puede ser golpeado ahora. (~${minLeftSp} min restantes)` };
     }
 
     if (alive.length === 0) {
@@ -20342,7 +20343,7 @@ function cmdUseSkill(player, args, context) {
       if (aliveRaw.length > 0) {
         const minLeftSp2 = (() => { try { return require('./eventScheduler').getActiveEventInfo().minutesRemaining; } catch(_) { return '?'; } })();
         const blockedNames = aliveRaw.map(m => m.name).join(', ');
-        return { text: `⚡ No hay objetivos atacables con Golpetazo.\n👻 MAREA ESPECTRAL activa — ${blockedNames} huye ante la marea espectral y no puede ser combatido. (~${minLeftSp2} min restantes)` };
+        return { text: `⚡ No hay objetivos atacables con Golpetazo.\n👻 MAREA ESPECTRAL activa — ${blockedNames} está temporalmente inactivo por la marea espectral y no puede ser combatido. (~${minLeftSp2} min restantes)` };
       }
       // DIS-1264: respuesta contextual si hay monstruos muertos en la sala
       const dead = monsters.filter(m => m.hp <= 0);
