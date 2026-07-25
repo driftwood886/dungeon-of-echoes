@@ -640,7 +640,22 @@ function execute(playerId, input, context) {
     case 'runas':        result = cmdRunas(player); break;
     case 'challenge':    result = cmdChallenge(player); break;
     case 'contract':     result = cmdContract(player); break;
-    case 'quests':       result = questEngine.getQuestsDisplay(player); break;           // EPIC-QD: quests activas
+    case 'quests': {                                                                       // EPIC-QD: quests activas
+      const questsResult = questEngine.getQuestsDisplay(player);
+      // DIS-1961: tip contextual la primera vez que el jugador ejecuta 'quests'
+      try {
+        const freshForQuests = db.getPlayer(player.id);
+        const seQuests = parseSE(freshForQuests.status_effects);
+        if (!seQuests['first_quests_seen']) {
+          const newSeQuests = { ...seQuests, first_quests_seen: true };
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeQuests) });
+          const questTip = '📜 Las misiones del dungeon te dan XP extra, oro y reputación. Completarlas abre nuevas posibilidades con las facciones.';
+          questsResult.text = questTip + '\n\n' + (questsResult.text || '');
+        }
+      } catch (_) { /* no romper quests si falla el tip */ }
+      result = questsResult;
+      break;
+    }
     case 'quest': {                                                                        // EPIC-QD: detalle/abandon/historial
       const questSub = (action.args && action.args[0] || '').toLowerCase();
       if (questSub === 'info' && action.args.length > 1) {
