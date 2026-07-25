@@ -64,7 +64,7 @@ const ITEM_CATALOG = {
   'antorcha':            { type: 'misc', description: 'Una antorcha encendida. Ilumina los pasillos oscuros.' },
   'libro viejo':         { type: 'misc', description: 'Un grimorio con páginas incomprensibles.' },
   'cuerda':              { type: 'misc', description: 'Una cuerda resistente de unos 10 metros.' },
-  'llave oxidada':       { type: 'misc', description: 'Una llave de hierro con el símbolo de dos llaves cruzadas grabado en el mango —el mismo símbolo que viste en otros lugares del dungeon. Abre la reja norte del Pozo Sin Fondo (sala 7), aunque nadie que haya cruzado ha vuelto a mencionar qué encontró al otro lado.' },
+  'llave oxidada':       { type: 'misc', description: 'Una llave de hierro con el símbolo de dos llaves cruzadas grabado en el mango —el mismo símbolo que viste en otros lugares del dungeon. Abre la reja norte del Pozo Sin Fondo (sala 7), aunque nadie que haya cruzado ha vuelto a mencionar qué encontró al otro lado. ⚠️ Es de un solo uso: se rompe al girar — usarla es una decisión sin vuelta atrás.' },
   'amuleto oscuro':      { type: 'misc', description: 'Un amuleto con una gema negra. Irradia una energía extraña.' },
   'monedas de cobre':    { type: 'misc', description: 'Unas pocas monedas de cobre gastadas.' },
   'monedas de plata':    { type: 'misc', description: 'Monedas de plata con inscripciones antiguas.' },
