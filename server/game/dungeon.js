@@ -14,6 +14,7 @@ const ambient = require('./ambient');
 const weather = require('./weather'); // T166: clima del dungeon
 const items   = require('./items');
 const eventScheduler = require('./eventScheduler'); // DIS-1451: Marea Espectral en lista de criaturas
+const kaelthasQuest = require('./kaelthasQuest'); // BUG-1981: hint del Guardián Anciano en sala 16
 
 // Nombres de dirección en español
 const DIR_NAMES = {
@@ -207,6 +208,20 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
   // de nivel bajo (< 3). Suprimido al llegar a nivel 3 (cuando las facciones se desbloquean).
   if (room.id === 1 && player && (player.level || 1) < 3) {
     lines.push('\n🏴 Las paredes de la entrada muestran marcas de tres grupos distintos — estandartes rivales grabados a cuchillo sobre la piedra. Grupos de aventureros compiten por el control del dungeon. Cuando llegues al nivel 3, podrás unirte a uno (escribí «facciones» entonces).');
+  }
+
+  // BUG-1981 / T-1979: Hint del Guardián Anciano en sala 16 (Antesala del Dungeon).
+  // El trigger anterior en engine.js usaba `destId === 16` al moverse, pero sala 16
+  // no es accesible desde el dungeon — solo tiene salida south → 1. Se mueve aquí
+  // para que se dispare en el `look` de la sala 16 (tanto al entrar como al escribir look).
+  if (room.id === 16 && player && !player.is_bot) {
+    try {
+      const freshForGuardian = db.getPlayer(player.id);
+      const guardianHintText = kaelthasQuest.getGuardianHint(freshForGuardian || player);
+      if (guardianHintText) {
+        lines.push('\n\n' + guardianHintText);
+      }
+    } catch (_guardianErr) { /* no romper describeRoom */ }
   }
 
   // DIS-1444: En sala 18 (Fuente Eterna), mostrar cuánto HP restauraría para que el jugador
