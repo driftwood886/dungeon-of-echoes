@@ -23896,7 +23896,11 @@ function cmdReadWall(player) {
     lines.push(`  ✍️ ${m.player_name} [${date}]: ${m.message}`);
   }
 
-  // EPIC-1373: Influencia de facción por leer inscripción
+  // BUG-1965: si tras filtrar bots solo queda el header (sin lore ni mensajes reales),
+  // devolver mensaje de "paredes vacías" en lugar de un header vacío
+  if (lines.length === 1) {
+    return { text: '📜 Las paredes están vacías. Nadie ha dejado ningún mensaje aquí.' };
+  }
   if (msgs.length > 0 || loreForRoom.length > 0) {
     db.addFactionInfluence(player.id, 1);
   }
