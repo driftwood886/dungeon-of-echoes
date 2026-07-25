@@ -6831,6 +6831,26 @@ function cmdPick(player, itemQuery) {
     const notPicked = [];
     let current = db.getPlayer(player.id);
     let totalGoldConverted = 0;
+    // DIS-1940: detectar si habrá ítems que no quepan, para prefixar el resultado con un aviso
+    let pickTodoWarnPrefix = '';
+    {
+      const GOLD_ITEMS_NAMES_CHK = ['monedas de oro', 'monedas de plata', 'monedas de cobre', 'monedas', 'oro', 'bolsa de monedas', 'cofre de oro'];
+      const nonGoldFloor = floorItems.filter(i => {
+        const il = i.toLowerCase();
+        if (GOLD_ITEMS_NAMES_CHK.includes(il)) return false;
+        if (il.match(/^bolsa de monedas caídas \(\d+g\)$/)) return false;
+        return true;
+      });
+      const invNow = Array.isArray(current.inventory) ? current.inventory : [];
+      const eqNow = (current.equipped_weapon ? 1 : 0) + (current.equipped_armor ? 1 : 0);
+      const maxNow = INV_BASE_SLOTS + (current.inventory_bonus || 0);
+      const freeSlots = maxNow - invNow.length - eqNow;
+      if (nonGoldFloor.length > 0 && freeSlots < nonGoldFloor.length) {
+        const canFit = Math.max(0, freeSlots);
+        const wontFit = nonGoldFloor.length - canFit;
+        pickTodoWarnPrefix = `⚠️ Inventario casi lleno — solo ${canFit} slot${canFit !== 1 ? 's' : ''} libre${canFit !== 1 ? 's' : ''} de ${nonGoldFloor.length} ítem${nonGoldFloor.length !== 1 ? 's' : ''} en el suelo. ${wontFit} ítem${wontFit !== 1 ? 's' : ''} quedará${wontFit !== 1 ? 'n' : ''} sin recoger.\n`;
+      }
+    }
     for (const item of floorItems) {
       // DIS-589: monedas se auto-convierten a oro sin ocupar inventario
       // BUG-880: usar comparación exacta para evitar falsos positivos (ej: 'corona rota'.includes('oro'))
@@ -6924,7 +6944,7 @@ function cmdPick(player, itemQuery) {
         pickAllQuestLine += `\n📅 Desafío diario: ${pickAllCr.challenge.desc} (${pickAllCr.challenge.progress}/${pickAllCr.challenge.goal})`;
       }
     }
-    let resultMsg = `📦 Recogiste ${total} ítem(s) del suelo${goldSuffix}:\n${pickedLines.join('\n')}${pickAllQuestLine}`;
+    let resultMsg = `${pickTodoWarnPrefix}📦 Recogiste ${total} ítem(s) del suelo${goldSuffix}:\n${pickedLines.join('\n')}${pickAllQuestLine}`;
     // BUG-707: condensar todos los ítems que no cupieron en un único bloque al final
     // BUG-714: no presentar los ítems del suelo como "loot fresco del boss" — son todos los ítems del suelo (pueden ser pre-existentes de sesiones previas)
     if (notPicked.length > 0) {
