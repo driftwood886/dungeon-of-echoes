@@ -7315,6 +7315,14 @@ function cmdPick(player, itemQuery) {
 
   const found = items.findItem(room.items, itemQuery.trim());
   if (!found) {
+    // DIS-2000: mejorar el mensaje cuando el ítem ya está en el inventario del jugador.
+    // Puede pasar si un boss lo soltó directamente al inventario y el jugador intenta hacer pick.
+    const freshPick = db.getPlayer(player.id);
+    const invPick = Array.isArray(freshPick.inventory) ? freshPick.inventory : JSON.parse(freshPick.inventory || '[]');
+    const inInv = items.findItem(invPick, itemQuery.trim());
+    if (inInv) {
+      return { text: `Ya tenés "${inInv}" en tu inventario (fue agregado automáticamente al derrotar al enemigo).` };
+    }
     return { text: `No hay ningún "${itemQuery}" en el suelo.` };
   }
 
