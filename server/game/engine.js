@@ -5960,7 +5960,7 @@ function cmdAttack(player, targetName) {
           const freshFor1377 = db.getPlayer(player.id);
           if (!freshFor1377.faction_notified && !freshFor1377.faction) {
             db.setFactionNotified(freshFor1377.id);
-            _factionInviteMsg = `\n\n📜 Un mensajero acaba de dejarte una nota en la entrada del dungeon.\n\n"Las facciones del dungeon han notado tu progreso, aventurero.\nLa Orden del Filo, el Cónclave Arcano y la Hermandad del Mercado\nte ofrecen membresía.\n\nEscribí 'facciones' para ver descripción completa de cada una.\nO unite directamente:\n  faccion elegir orden_filo confirmar\n  faccion elegir conclave_arcano confirmar\n  faccion elegir hermandad_mercado confirmar"`;
+            _factionInviteMsg = `\n\n📜 Un mensajero acaba de dejarte una nota en la entrada del dungeon.\n\n"Las facciones del dungeon han notado tu progreso, aventurero.\nLa Orden del Filo, el Cónclave Arcano y la Hermandad del Mercado\nte ofrecen membresía.\n\nEscribí 'facciones' para ver descripción completa de cada una.\nO unite directamente:\n  unirse orden_filo\n  unirse conclave_arcano\n  unirse hermandad_mercado"`;
           }
         }
       }
@@ -14428,7 +14428,7 @@ function cmdFacciones(player) {
     }
   } else {
     lines.push(`║  No tenés facción aún.                                ║`);
-    lines.push(`║  Elegí una con: faccion elegir <nombre>               ║`);
+    lines.push(`║  Elegí una con: unirse <nombre>                       ║`);
     lines.push(`║  (disponible en nivel 3)                              ║`);
     lines.push(`╟──────────────────────────────────────────────────────╢`);
     lines.push(`║  🗡️  Orden del Filo      → combate                    ║`);
@@ -23997,6 +23997,11 @@ function cmdReadWall(player) {
     15: [ // Catedral de la Oscuridad
       { author: 'El último de los Doce', date: 'hora undécima', msg: 'Once entramos. Llegué solo. El Lich no usa las mismas tácticas dos veces — aprende entre combates. Si leyeron esto antes de entrar: tengan pociones de maná. No para atacar. Para sobrevivir los contra-hechizos.' },
       { author: 'Desconocida — letra temblorosa', date: 'muy reciente', msg: 'La voz del Lich cuando muere dice siempre lo mismo. En el idioma antiguo significa "volveré". No sé si es una advertencia o una promesa. Quizás ambas.' },
+    ],
+    17: [ // Casa de Subastas — BUG-1984: lore hardcoded para que `read` devuelva contenido
+      { author: 'Reglamento de la Casa — tablilla de bronce', date: 'permanente', msg: 'Las subastas duran 5 minutos. El precio mínimo lo fija el vendedor. Toda puja es irrevocable. La Casa cobra 10% al vendedor si hay ganador. En caso de empate, gana quien pujó primero. Incumplir las normas resulta en expulsión.' },
+      { author: 'Aviso del Encargado', date: 'actualizado esta temporada', msg: 'La Casa no se hace responsable por ítems malditos, envenenados o de procedencia dudosa. Comprá con cuidado. «Caveat emptor», como dicen los magos.' },
+      { author: 'Graffiti ilegible, esquina inferior', date: 'reciente', msg: 'El mejor trato que hice aquí: vendí una daga oxidada por 80 monedas. El comprador era un coleccionista. No pregunté. — F.R.' },
     ],
     22: [ // Cripta de los Valientes — BUG-1382: inscripciones de las placas funerarias
       { author: 'Gretha la Tenaz — placa norte, tercera hilera', date: 'grabado con cincel de maestro', msg: 'Llegó donde otros no se atrevieron. Murió como vivió: de frente.' },
