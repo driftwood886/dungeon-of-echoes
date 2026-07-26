@@ -1683,8 +1683,19 @@ function attackRound(player, monster) {
         const maxSlots2 = 24 + (freshPlayer2.inventory_bonus || 0); // DIS-1825: base 20→24
         const freeSlots2 = Math.max(0, maxSlots2 - inv2.length - eqCount2);
 
-        const fitsInInv = directLootItems.slice(0, freeSlots2);
-        const goesToFloor = directLootItems.slice(freeSlots2);
+        // DIS-2006: ordenar directLootItems por rareza descendente antes de dividir en fits/floor
+        // Así los ítems más valiosos entran primero al inventario y los comunes son los que quedan en el suelo
+        const RARITY_PRIORITY = { 'legendario': 4, 'épico': 3, 'raro': 2, 'poco común': 1, 'común': 0 };
+        const sortedDirectLoot = [...directLootItems].sort((a, b) => {
+          try {
+            const ra = RARITY_PRIORITY[items.getItemRarity(a)] ?? 0;
+            const rb = RARITY_PRIORITY[items.getItemRarity(b)] ?? 0;
+            return rb - ra;
+          } catch (_) { return 0; }
+        });
+
+        const fitsInInv = sortedDirectLoot.slice(0, freeSlots2);
+        const goesToFloor = sortedDirectLoot.slice(freeSlots2);
 
         if (fitsInInv.length > 0) {
           const newInv2 = [...inv2, ...fitsInInv];
