@@ -3559,6 +3559,7 @@ function cmdMove(player, direction) {
   }
 
   // DIS-1102: Recordatorio de especialización pendiente — 1 vez por sesión al moverse entre salas
+  // DIS-1997: El recordatorio ahora es diegético (Aldric lo menciona en tienda). No interrumpir salas narrativas.
   let specReminderMsg = '';
   {
     const freshForSpec = db.getPlayer(player.id) || player;
@@ -3569,7 +3570,8 @@ function cmdMove(player, direction) {
     if (needsSpec) {
       const seForSpec = parseSE(freshForSpec.status_effects);
       if (!seForSpec.spec_reminder_shown) {
-        specReminderMsg = '\n\n🌟 **¡Recordatorio!** Ya tenés nivel 5 y podés especializarte. Escribí "especializar" para elegir tu subclase permanente y desbloquear habilidades exclusivas.';
+        // DIS-1997: suprimido el bloque de sistema — Aldric lo menciona diegéticamente al visitar tienda.
+        // specReminderMsg queda vacío; el flag se marca para no re-evaluar en cada movimiento.
         const newSeSpec = { ...seForSpec, spec_reminder_shown: true };
         db.updatePlayer(freshForSpec.id, { status_effects: JSON.stringify(newSeSpec) });
       }
@@ -12947,6 +12949,8 @@ function cmdTalk(player, target) {
     return { text: `🏪 Aldric te mira cuando entrás. No dice nada de inmediato —deja que el silencio ocupe el espacio.\n\n"Así que fuiste vos." No es acusación. Es reconocimiento.\n\nSe apoya sobre el mostrador con los brazos cruzados. "El esqueleto que guardaba este corredor. Llevaba aquí desde antes de que yo llegara a montar la tienda.${countNote}"\n\n"Podría pagarte por el trabajo que ya hiciste." Una pausa. "O pedirte algo más." Te mira directamente por primera vez. "La sala de los ecos necesita alguien que mate lo que aparezca ahí con regularidad. Tres kills y te paso algo de lo que no pongo en el catálogo."\n\n_💡 Pista: matá 3 monstruos en cualquier sala del corredor y volvé a hablar con Aldric para la recompensa._` + expeditionTalkCmdMsg };
   }
 
+  // DIS-1997: hint de especialización diegético — ver cmdTalk → trigger de quest (líneas abajo)
+
   // EPIC-MR-1079: Leer memoria de Aldric y preparar sufijo de diálogo
   let aldricMem = {};
   try { aldricMem = (JSON.parse(player.npc_memory || '{}')).aldric || {}; } catch (_) {}
@@ -13117,7 +13121,26 @@ function cmdTalk(player, target) {
         db.logGlobalEvent('quest', `📜 ${player.username} completó la quest de Aldric (había leído la carta antes).`);
         return { text: 'Aldric te mira con ojos que calculan más de lo que dicen.\n\n"No la traés," dice. Una afirmación, no una pregunta.\n\nParece esperar algo más. Vos no hablás.\n\n"La abriste," dice al fin. "Leíste las palabras."\n\nNo hay reproche en su voz —solo algo parecido al alivio.\n\n"Entonces ya sabés." Se inclina sobre el mostrador. "El nombre. Kaelthas Vorn. El guardián. Las dos llaves no eran del castillo —eran del pacto que mantenía unido al reino. Él las cargaba. Y cuando lo mataron, el pacto se rompió."\n\nPausa. "La carta ya hizo su trabajo. Lo hizo a través de vos."\n\n"Tomá esto de todas formas. El mensaje llegó aunque por un camino diferente."\n\n🎉 Quest completada: El Sello de las Dos Llaves. (+50 XP · +25g)\n📜 El lore de Kaelthas Vorn está ahora completo.\n📖 Diario actualizado.' + lvlA2.levelUpMsg };
       }
-      return { text: 'Aldric asiente levemente cuando te ve.\n\n"¿La encontraste ya?"\n\nSu expresión no cambia, pero algo en sus ojos dice que sí le importa.\n\n"Sala 8. La prisión del nivel inferior. Buscá la carta con el sello de las dos llaves cruzadas. Traémela."\n\nVuelve a sus cuentas. La conversación terminó.' };
+      // DIS-1997: sufijo de especialización al recordar la quest
+      let _aldricSpecSuffix1997b = '';
+      try {
+        const fSpec1997b = db.getPlayer(player.id);
+        const needsS1997b = (fSpec1997b.level || 1) >= 5 && fSpec1997b.player_class && fSpec1997b.player_class !== 'sin_clase' && !fSpec1997b.specialization;
+        if (needsS1997b) {
+          const specM1997b = (JSON.parse(fSpec1997b.npc_memory || '{}')).aldric || {};
+          if (!specM1997b.spec_reminder_shown) {
+            const mSpec1997b = {};
+            try { Object.assign(mSpec1997b, JSON.parse(fSpec1997b.npc_memory || '{}')); } catch (_) {}
+            if (!mSpec1997b.aldric) mSpec1997b.aldric = {};
+            mSpec1997b.aldric.spec_reminder_shown = true;
+            db.updatePlayer(fSpec1997b.id, { npc_memory: JSON.stringify(mSpec1997b) });
+            const cnMap1997b = { guerrero: 'guerrero', mago: 'mago', clerigo: 'clérigo' };
+            const cn1997b = cnMap1997b[fSpec1997b.player_class] || fSpec1997b.player_class;
+            _aldricSpecSuffix1997b = `\n\nAntes de que te vayas, Aldric agrega algo sin levantar la vista:\n\n«Para un ${cn1997b} de nivel cinco hay caminos que se abren. Escribí "especializar" cuando estés listo. Es decisión permanente.»`;
+          }
+        }
+      } catch (_) {}
+      return { text: 'Aldric asiente levemente cuando te ve.\n\n"¿La encontraste ya?"\n\nSu expresión no cambia, pero algo en sus ojos dice que sí le importa.\n\n"Sala 8. La prisión del nivel inferior. Buscá la carta con el sello de las dos llaves cruzadas. Traémela."\n\nVuelve a sus cuentas. La conversación terminó.' + _aldricSpecSuffix1997b };
     }
   }
 
@@ -13203,7 +13226,30 @@ function cmdTalk(player, target) {
 
   db.updatePlayer(player.id, { aldric_quest: 'active' });
   db.addJournalEntry(player.id, 'quest', '📜 Aldric me habló del sello. Quiere que le traiga una carta de sala 8.');
-  return { text: 'Aldric te mira durante más tiempo del necesario cuando te acercás.\n\n"Pasaste ya por los niveles inferiores," dice. No lo pregunta.\n\nGuarda el libro de cuentas debajo del mostrador. Cuando vuelve a mirarte, tiene una expresión diferente: menos mercader, más algo que no sabés nombrar.\n\n"Hay algo en la prisión del nivel inferior. Sala 8." Baja la voz. "Una carta con el sello de las dos llaves cruzadas. Si la encontrás, traémela. Sin abrirla."\n\n"¿Por qué?" preguntás.\n\n"Porque era del reino. Y yo era del reino."\n\nVuelve a sacar el libro de cuentas. La conversación terminó, aunque él todavía no se fue.\n\n📜 Nueva quest: El Sello de las Dos Llaves — Encontrá la carta sellada en sala 8 y traésela a Aldric.' };
+  // DIS-1997: sufijo diegético de especialización — una sola vez, al activar la quest
+  let aldricSpecSuffix1997 = '';
+  {
+    const freshForSpec1997 = db.getPlayer(player.id);
+    const needsSpec1997 = (freshForSpec1997.level || 1) >= 5
+      && freshForSpec1997.player_class
+      && freshForSpec1997.player_class !== 'sin_clase'
+      && !freshForSpec1997.specialization;
+    if (needsSpec1997) {
+      let specMem1997 = {};
+      try { specMem1997 = (JSON.parse(freshForSpec1997.npc_memory || '{}')).aldric || {}; } catch (_) {}
+      if (!specMem1997.spec_reminder_shown) {
+        const memSpec1997 = {};
+        try { Object.assign(memSpec1997, JSON.parse(freshForSpec1997.npc_memory || '{}')); } catch (_) {}
+        if (!memSpec1997.aldric) memSpec1997.aldric = {};
+        memSpec1997.aldric.spec_reminder_shown = true;
+        db.updatePlayer(freshForSpec1997.id, { npc_memory: JSON.stringify(memSpec1997) });
+        const classNameMap1997 = { guerrero: 'guerrero', mago: 'mago', clerigo: 'clérigo' };
+        const className1997 = classNameMap1997[freshForSpec1997.player_class] || freshForSpec1997.player_class;
+        aldricSpecSuffix1997 = `\n\nAntes de que te vayas, Aldric agrega algo sin levantar la vista:\n\n«Para un ${className1997} de nivel cinco hay caminos que se abren. No es urgente, pero tampoco es infinito.» Una pausa. «Escribí "especializar" cuando estés listo. Es decisión permanente — hacelo cuando tengas claro qué querés ser en este dungeon.»`;
+      }
+    }
+  }
+  return { text: 'Aldric te mira durante más tiempo del necesario cuando te acercás.\n\n"Pasaste ya por los niveles inferiores," dice. No lo pregunta.\n\nGuarda el libro de cuentas debajo del mostrador. Cuando vuelve a mirarte, tiene una expresión diferente: menos mercader, más algo que no sabés nombrar.\n\n"Hay algo en la prisión del nivel inferior. Sala 8." Baja la voz. "Una carta con el sello de las dos llaves cruzadas. Si la encontrás, traémela. Sin abrirla."\n\n"¿Por qué?" preguntás.\n\n"Porque era del reino. Y yo era del reino."\n\nVuelve a sacar el libro de cuentas. La conversación terminó, aunque él todavía no se fue.\n\n📜 Nueva quest: El Sello de las Dos Llaves — Encontrá la carta sellada en sala 8 y traésela a Aldric.' + aldricSpecSuffix1997 };
 }
 
 function cmdShop(player, args) {
