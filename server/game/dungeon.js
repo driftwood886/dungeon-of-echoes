@@ -403,8 +403,19 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
 
   // DIS-1178: Sala 1 (Entrada) — hint temprano sobre el mercader
   // DIS-1346: suprimir para jugadores veteranos (nivel 3+) que ya visitaron la sala
+  // DIS-1989: suprimir si el jugador ya visitó sala 2 o sala 4 (ya recibió la introducción
+  //           narrativa de Aldric en el Corredor — el evento cinémático es el contexto correcto).
   if (roomId === 1 && !isVeteranPlayer) {
-    lines.push(`\n💡 Consejo: Hay un mercader dentro del dungeon. Su tienda está al norte (Corredor) y luego al este. Seguí el olor a cuero.`);
+    let yaVioCorredor = false;
+    if (player && player.rooms_visited) {
+      try {
+        const vis1989 = JSON.parse(player.rooms_visited || '[]');
+        yaVioCorredor = vis1989.includes(2) || vis1989.includes('2') || vis1989.includes(4) || vis1989.includes('4');
+      } catch (_) {}
+    }
+    if (!yaVioCorredor) {
+      lines.push(`\n💡 Consejo: Hay un mercader dentro del dungeon. Su tienda está al norte (Corredor) y luego al este. Seguí el olor a cuero.`);
+    }
   }
 
   // DIS-1178: Sala 2 (Corredor de las Sombras) — hint olfativo hacia la tienda
