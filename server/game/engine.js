@@ -584,6 +584,13 @@ function execute(playerId, input, context) {
         const FOUNTAIN_ALIASES_972 = ['fuente', 'fountain', 'agua', 'agua plateada', 'source', 'beber fuente', 'fuente eterna'];
         if (player.current_room_id === FOUNTAIN_ROOM_ID && FOUNTAIN_ALIASES_972.includes(queryLow972)) {
           result = cmdDrink(player);
+        // BUG-2010: "beber cuenco" → redirigir al handler del cuenco sagrado (sala 5) o cuenco de cristal (sala 19)
+        } else if (['cuenco', 'cuenco sagrado', 'bowl', 'ofrenda'].includes(queryLow972)) {
+          if (player.current_room_id === ECHO_ROOM_ID) {
+            result = cmdEchoBowl(player);
+          } else {
+            result = cmdChapelBowl(player);
+          }
         } else {
           const invItem = freshP && freshP.inventory ? items.findItem(freshP.inventory, query) : null;
           if (invItem) {
