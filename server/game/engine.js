@@ -5960,7 +5960,7 @@ function cmdAttack(player, targetName) {
           const freshFor1377 = db.getPlayer(player.id);
           if (!freshFor1377.faction_notified && !freshFor1377.faction) {
             db.setFactionNotified(freshFor1377.id);
-            _factionInviteMsg = `\n\n📜 Un mensajero acaba de dejarte una nota en la entrada del dungeon.\n\n"Las facciones del dungeon han notado tu progreso, aventurero.\nLa Orden del Filo, el Cónclave Arcano y la Hermandad del Mercado\nte ofrecen membresía.\n\nEscribí 'facciones' para ver descripción completa de cada una.\nO unite directamente:\n  unirse orden_filo\n  unirse conclave_arcano\n  unirse hermandad_mercado"`;
+            _factionInviteMsg = `\n\n📜 Un mensajero acaba de dejarte una nota en la entrada del dungeon.\n\n"Las facciones del dungeon han notado tu progreso, aventurero.\nLa Orden del Filo, el Cónclave Arcano y la Hermandad del Mercado\nte ofrecen membresía.\n\nPara unirte (muestra la ficha y te une al instante):\n  faccion elegir orden_filo\n  faccion elegir conclave_arcano\n  faccion elegir hermandad_mercado\n\nPara solo ver info sin unirte: faccion info <nombre>"`;
           }
         }
       }
@@ -14571,9 +14571,9 @@ function cmdFaccion(player, args) {
     if (player.faction) {
       const lore = FACTION_LORE[player.faction];
       const display = lore ? `${lore.icon} ${lore.name}` : player.faction;
-      return { text: `Pertenecés a ${display}.\n\nComandos disponibles:\n  faccion elegir <nombre>  — elegir/cambiar facción\n  faccion cambiar <nombre> — cambiar facción (100g + cooldown 7 días)\n  facciones                — ver influencia semanal\n\nFacciones disponibles: orden_filo, conclave_arcano, hermandad_mercado` };
+      return { text: `Pertenecés a ${display}.\n\nComandos disponibles:\n  faccion info <nombre>    — ver ficha de otra facción\n  faccion cambiar <nombre> — cambiar facción (100g + cooldown 7 días)\n  facciones                — ver influencia semanal\n\nFacciones disponibles: orden_filo, conclave_arcano, hermandad_mercado` };
     }
-    return { text: `No tenés facción. Elegí una con: faccion elegir <nombre>\n\nFacciones disponibles:\n  🗡️  orden_filo        — La Orden del Filo (combate)\n  🔮  conclave_arcano  — El Cónclave Arcano (exploración)\n  🪙  hermandad_mercado — La Hermandad del Mercado (economía)\n\n${(player.level || 1) < 3 ? `⚔️ Disponible en nivel 3+ (sos nivel ${player.level || 1} — seguí explorando).` : 'Usá: faccion elegir <nombre> para ver la ficha completa y unirte.'}` };
+    return { text: `No tenés facción. Elegí una con: faccion elegir <nombre>\n\nFacciones disponibles:\n  🗡️  orden_filo        — La Orden del Filo (combate)\n  🔮  conclave_arcano  — El Cónclave Arcano (exploración)\n  🪙  hermandad_mercado — La Hermandad del Mercado (economía)\n\n${(player.level || 1) < 3 ? `⚔️ Disponible en nivel 3+ (sos nivel ${player.level || 1} — seguí explorando).` : 'Usá: faccion elegir <nombre> para ver la ficha y unirte en un solo paso.\nPara solo ver la ficha sin unirte: faccion info <nombre>'}` };
   }
 
   const sub = args[0].toLowerCase();
@@ -14634,7 +14634,7 @@ function cmdFaccion(player, args) {
     return _cmdFaccionElegir(player, [candidateId, ...restArgs]);
   }
 
-  return { text: 'Usá: faccion elegir <nombre> | faccion cambiar <nombre> | faccion info <nombre>\n\nNombres de facción: orden_filo, conclave_arcano, hermandad_mercado' };
+  return { text: 'Usá: faccion elegir <nombre> | faccion cambiar <nombre> | faccion info <nombre>\n\nNombres de facción: orden_filo, conclave_arcano, hermandad_mercado\n\n💡 faccion elegir <nombre> — une directamente mostrando la ficha\n   faccion info <nombre>   — solo ver la ficha sin unirte' };
 }
 
 /**
@@ -14759,8 +14759,8 @@ function _cmdFaccionElegir(player, args) {
       '     Tuyo: misiones de lore exclusivas · título en leaderboard',
       '  🪙  hermandad_mercado — La Hermandad del Mercado (economía)',
       '     Tuyo: misiones de comercio exclusivas · sello de descuento Aldric\n',
-      'Para ver descripción completa: faccion elegir <nombre>',
-      'Para unirte directamente:      faccion elegir <nombre> confirmar',
+      'Para unirte (con ficha): faccion elegir <nombre>',
+      'Para ver info sin unirte: faccion info <nombre>',
     ];
     return { text: lines.join('\n') };
   }
@@ -14790,45 +14790,14 @@ function _cmdFaccionElegir(player, args) {
     };
   }
 
-  // Sin confirmación → mostrar tarjeta y pedir confirmación inline (DIS-1564)
+  // DIS-1987: faccion elegir <nombre> une directamente, mostrando la ficha como parte
+  // del mensaje de bienvenida. Para ver la ficha sin unirse: faccion info <nombre>.
+  // (Eliminado el flujo de 2 pasos con faction_pending — era la principal fuente de fricción.)
   if (!hasConfirm) {
-    const sePending = parseSE(player.status_effects);
-    const alreadySawCard = sePending.faction_pending === factionId;
-    // Guardar pending como fallback (para "faccion confirmar" si el jugador lo prefiere)
-    sePending.faction_pending = factionId;
-    db.updatePlayer(player.id, { status_effects: JSON.stringify(sePending) });
-    const sep = '━'.repeat(56);
-    // DIS-1564: mostrar comando inline completo (un solo paso) en lugar de "faccion confirmar"
-    // DIS-1591: bloque de confirmación más explícito — dejar claro que NO se unió aún
-    // DIS-1619: si el jugador ya vio la tarjeta (faction_pending ya era esta facción),
-    //           mostrar SOLO el CTA de confirmación, sin repetir la tarjeta larga
-    // DIS-1720: mostrar comando de confirmación con nombre natural (espacios) + atajo corto "faccion si"
-    const confirmCmdFull = `faccion elegir ${lore.name.toLowerCase()} confirmar`;
-    const confirmCmdShort = `faccion si`;
-    if (alreadySawCard) {
-      // BUG-1874: si el jugador ya vio la tarjeta y repite "faccion elegir <nombre>",
-      // auto-confirmar — el gesto de repetir el mismo comando ES la confirmación.
-      return _cmdFaccionElegir(player, [factionId, 'confirmar']);
-    }
+    const joinResult = _cmdFaccionElegir(player, [factionId, 'confirmar']);
     const card = _buildFactionCard(lore, false);
-    // DIS-1856: incluir alias `unirse <nombre>` en el bloque de confirmación para claridad
-    const confirmCmdUnirse = `unirse ${lore.id}`;
-    const confirmBlock = [
-      '',
-      sep,
-      `  ⚠️  Todavía NO te uniste a ${lore.name}.`,
-      ``,
-      `  Para CONFIRMAR tu ingreso, escribí UNO de estos:`,
-      ``,
-      `     ✅  ${confirmCmdShort}              (atajo más rápido)`,
-      `     ✅  ${confirmCmdUnirse}`,
-      `     ✅  ${confirmCmdFull}   (une directamente)`,
-      ``,
-      `  (Si querés explorar otras facciones: faccion elegir <nombre>)`,
-      sep,
-    ].join('\n');
     return {
-      text: card + '\n' + confirmBlock,
+      text: card + '\n\n' + joinResult.text,
     };
   }
 
