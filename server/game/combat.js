@@ -1760,23 +1760,35 @@ function attackRound(player, monster) {
             : `Tu inventario tiene solo ${slotsLibres} slot${slotsLibres !== 1 ? 's' : ''} libre${slotsLibres !== 1 ? 's' : ''} (${slotsUsed}/${maxSlots})`;
           lines.push(`\n⚠️  [LOOT ÉPICO EN RIESGO] ${fullMsg}.`);
           lines.push(`   El boss soltó ${loot.length} ítem${loot.length !== 1 ? 's' : ''} — ${slotsNeeded} no entr${slotsNeeded !== 1 ? 'aron' : 'ó'} y quedaron en el suelo.`);
-          lines.push(`   Liberá espacio con \`drop <ítem>\` y luego recogé con \`loot\`.`);
-          // DIS-1920: el loot de boss persiste hasta el respawn del boss (~30 min) — aclarar al jugador
-          lines.push(`   Los ítems en el suelo se preservan hasta que el boss respawnee (~30 min). Podés ir a la tienda (sala 4) y volver.`);
+          // DIS-1920/DIS-2001: El mensaje de persistencia ahora está integrado por ítem en la lista de abajo
 
           // DIS-1993: loot garantizado — guardar hasta 2 ítems raros/épicos/legendarios en slot temporal
-          // Así el jugador no pierde loot épico por inventario lleno, incluso si se va sin recoger
+          // DIS-2001: Mejorar UX mostrando lista explícita de ítems en suelo con estado garantizado/en riesgo
           try {
             const GUARANTEED_RARITIES = new Set(['raro', 'épico', 'legendario']);
-            // Solo los ítems del boss que quedaron en el suelo (los que no entraron)
-            // loot contiene todos los ítems dropeados; los que entraron son los primeros slotsLibres
-            const lootRareSorted = [...loot]
+            // Los primeros slotsLibres ítems entraron al inventario; el resto quedó en el suelo
+            const lootEnSuelo = loot.slice(Math.max(0, slotsLibres));
+            const lootRareSorted = [...lootEnSuelo]
               .filter(i => GUARANTEED_RARITIES.has(items.getItemRarity(i)))
               .sort((a, b) => {
                 const RARITY_VAL = { 'legendario': 3, 'épico': 2, 'raro': 1 };
                 return (RARITY_VAL[items.getItemRarity(b)] || 0) - (RARITY_VAL[items.getItemRarity(a)] || 0);
               });
             const toGuarantee = lootRareSorted.slice(0, 2);
+            const guaranteedSet = new Set(toGuarantee);
+
+            // DIS-2001: Mostrar lista explícita de ítems en el suelo con su estado
+            if (lootEnSuelo.length > 0) {
+              lines.push(`\n📦 Ítems en el suelo:`);
+              for (const item of lootEnSuelo) {
+                if (guaranteedSet.has(item)) {
+                  lines.push(`   🔒 ${item} — garantizado (no se pierde aunque el boss respawnee)`);
+                } else {
+                  lines.push(`   ⚠️  ${item} — en riesgo (se pierde si el boss respawnea en ~30 min)`);
+                }
+              }
+            }
+
             if (toGuarantee.length > 0) {
               const freshForGuar = db.getPlayer(player.id);
               if (freshForGuar) {
@@ -1785,9 +1797,10 @@ function attackRound(player, monster) {
                   : (freshForGuar.status_effects || {});
                 seGuar.boss_guaranteed_loot = toGuarantee;
                 db.updatePlayer(player.id, { status_effects: JSON.stringify(seGuar) });
-                lines.push(`\n🔒 [Loot Garantizado] ${toGuarantee.map(i => `**${i}**`).join(', ')} ${toGuarantee.length === 1 ? 'fue reservado' : 'fueron reservados'} para vos.`);
-                lines.push(`   Liberá espacio y usá \`loot\` para reclamar${toGuarantee.length === 1 ? 'lo' : 'los'} — no ${toGuarantee.length === 1 ? 'se pierde' : 'se pierden'} aunque el boss respawnee.`);
+                lines.push(`\n   Liberá espacio con \`drop <ítem>\` y usá \`loot\` para reclamar${toGuarantee.length === 1 ? ' el ítem garantizado' : ' los ítems garantizados'}.`);
               }
+            } else if (lootEnSuelo.length > 0) {
+              lines.push(`\n   Liberá espacio con \`drop <ítem>\` y usá \`loot\` antes de que el boss respawnee (~30 min).`);
             }
           } catch (_dis1993) { /* no romper combate si falla el loot garantizado */ }
         }
