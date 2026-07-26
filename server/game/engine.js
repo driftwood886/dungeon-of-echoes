@@ -10046,6 +10046,26 @@ function cmdLoot(player) {
         }
         db.updatePlayer(player.id, { inventory: newInvGuar, status_effects: JSON.stringify(seUpdGuar) });
         player = db.getPlayer(player.id); // re-leer con inventario actualizado
+        // BUG-2011: remover los ítems garantizados que ya entraron al inventario del suelo de la sala.
+        // Sin este paso, los mismos ítems quedan en el suelo Y en el inventario (duplicación).
+        try {
+          const roomForGuar2011 = db.getRoom(player.current_room_id);
+          if (roomForGuar2011) {
+            // Remover exactamente una instancia de cada ítem de enterNow del suelo
+            const toRemove2011 = [...enterNow];
+            const updatedFloor2011 = (roomForGuar2011.items || []).filter(floorItem => {
+              const idx = toRemove2011.indexOf(floorItem);
+              if (idx !== -1) {
+                toRemove2011.splice(idx, 1); // consumir esta instancia
+                return false; // no dejar en el suelo
+              }
+              return true;
+            });
+            db.updateRoomItems(player.current_room_id, updatedFloor2011);
+            room = roomForGuar2011; // BUG-2011: actualizar referencia local para que floorItems use el suelo correcto
+            room.items = updatedFloor2011;
+          }
+        } catch (_bug2011) { /* no interrumpir loot si falla el cleanup del suelo */ }
         guaranteedLootLines.push(`🔒 [Loot Garantizado] Reclamás: ${enterNow.map(i => `**${items.getRarityEmoji(i)} ${i}**`).join(', ')}.`);
       }
       if (stillPending.length > 0) {
