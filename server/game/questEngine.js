@@ -1170,6 +1170,28 @@ function getQuestDetail(player, questName) {
     if (q.type === 'explore' && cond.location_hint) {
       lines.push(`\n🗺️ *${cond.location_hint}*`);
     }
+    // DIS-2008: hint de siguiente acción para quests de chain
+    if (q.type === 'chain' || q.slot === 'narrativa') {
+      let hint = null;
+      // La condición puede tener event='chain_trigger' con trigger anidado
+      const trigger = cond.trigger || cond.event;
+      const npcId = cond.npc_id;
+      const andThenRoom = cond.and_then_visit_room;
+      const bt = '`'; // backtick helper para template literals
+      if (trigger === 'talk_npc' && andThenRoom) {
+        hint = `💡 **Siguiente paso:** Hablá con el NPC indicado (${bt}hablar ${npcId || 'npc'}${bt}) y luego regresá a la sala ${andThenRoom}.`;
+      } else if (trigger === 'talk_npc' || cond.event === 'talk_npc') {
+        hint = `💡 **Siguiente paso:** Hablá con el NPC mencionado en la descripción (escribí ${bt}hablar <nombre>${bt}).`;
+      } else if (trigger === 'visit_room' || cond.event === 'visit_room') {
+        const roomTarget = cond.room_id;
+        hint = roomTarget
+          ? `💡 **Siguiente paso:** Visitá la sala ${roomTarget} — movete con ${bt}norte${bt}, ${bt}sur${bt}, etc. (escribí ${bt}mapa${bt} para orientarte).`
+          : `💡 **Siguiente paso:** Visitá la sala indicada — movete con ${bt}norte${bt}, ${bt}sur${bt}, etc.`;
+      } else if (cond.event === 'chain_trigger') {
+        hint = `💡 **Siguiente paso:** Seguí las instrucciones de la descripción de la quest.`;
+      }
+      if (hint) lines.push(`\n${hint}`);
+    }
   } catch (_) {}
 
   lines.push(`\nSlot: ${q.slot}`);
