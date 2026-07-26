@@ -1741,6 +1741,33 @@ function attackRound(player, monster) {
           lines.push(`   Liberá espacio con \`drop <ítem>\` y luego recogé con \`loot\`.`);
           // DIS-1920: el loot de boss persiste hasta el respawn del boss (~30 min) — aclarar al jugador
           lines.push(`   Los ítems en el suelo se preservan hasta que el boss respawnee (~30 min). Podés ir a la tienda (sala 4) y volver.`);
+
+          // DIS-1993: loot garantizado — guardar hasta 2 ítems raros/épicos/legendarios en slot temporal
+          // Así el jugador no pierde loot épico por inventario lleno, incluso si se va sin recoger
+          try {
+            const GUARANTEED_RARITIES = new Set(['raro', 'épico', 'legendario']);
+            // Solo los ítems del boss que quedaron en el suelo (los que no entraron)
+            // loot contiene todos los ítems dropeados; los que entraron son los primeros slotsLibres
+            const lootRareSorted = [...loot]
+              .filter(i => GUARANTEED_RARITIES.has(items.getItemRarity(i)))
+              .sort((a, b) => {
+                const RARITY_VAL = { 'legendario': 3, 'épico': 2, 'raro': 1 };
+                return (RARITY_VAL[items.getItemRarity(b)] || 0) - (RARITY_VAL[items.getItemRarity(a)] || 0);
+              });
+            const toGuarantee = lootRareSorted.slice(0, 2);
+            if (toGuarantee.length > 0) {
+              const freshForGuar = db.getPlayer(player.id);
+              if (freshForGuar) {
+                const seGuar = typeof freshForGuar.status_effects === 'string'
+                  ? JSON.parse(freshForGuar.status_effects || '{}')
+                  : (freshForGuar.status_effects || {});
+                seGuar.boss_guaranteed_loot = toGuarantee;
+                db.updatePlayer(player.id, { status_effects: JSON.stringify(seGuar) });
+                lines.push(`\n🔒 [Loot Garantizado] ${toGuarantee.map(i => `**${i}**`).join(', ')} ${toGuarantee.length === 1 ? 'fue reservado' : 'fueron reservados'} para vos.`);
+                lines.push(`   Liberá espacio y usá \`loot\` para reclamar${toGuarantee.length === 1 ? 'lo' : 'los'} — no ${toGuarantee.length === 1 ? 'se pierde' : 'se pierden'} aunque el boss respawnee.`);
+              }
+            }
+          } catch (_dis1993) { /* no romper combate si falla el loot garantizado */ }
         }
       }
     }

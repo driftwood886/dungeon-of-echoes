@@ -10001,8 +10001,46 @@ function cmdLoot(player) {
     return { text: 'Error: habitación no encontrada.' };
   }
 
+  // DIS-1993: loot garantizado — verificar si hay ítems reservados de boss antes de chequear suelo vacío
+  let guaranteedLootLines = [];
+  try {
+    const seForGuar = typeof player.status_effects === 'string'
+      ? JSON.parse(player.status_effects || '{}')
+      : (player.status_effects || {});
+    const guaranteed = Array.isArray(seForGuar.boss_guaranteed_loot) ? seForGuar.boss_guaranteed_loot : [];
+    if (guaranteed.length > 0) {
+      // Intentar mover al inventario
+      const MAX_INV_GUAR = 24 + (player.inventory_bonus || 0);
+      const eqCountGuar = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
+      const freeGuar = MAX_INV_GUAR - player.inventory.length - eqCountGuar;
+      const enterNow = guaranteed.slice(0, Math.max(0, freeGuar));
+      const stillPending = guaranteed.slice(Math.max(0, freeGuar));
+      if (enterNow.length > 0) {
+        const freshGuar = db.getPlayer(player.id);
+        const newInvGuar = [...freshGuar.inventory, ...enterNow];
+        const seUpdGuar = typeof freshGuar.status_effects === 'string'
+          ? JSON.parse(freshGuar.status_effects || '{}')
+          : (freshGuar.status_effects || {});
+        if (stillPending.length > 0) {
+          seUpdGuar.boss_guaranteed_loot = stillPending;
+        } else {
+          delete seUpdGuar.boss_guaranteed_loot;
+        }
+        db.updatePlayer(player.id, { inventory: newInvGuar, status_effects: JSON.stringify(seUpdGuar) });
+        player = db.getPlayer(player.id); // re-leer con inventario actualizado
+        guaranteedLootLines.push(`🔒 [Loot Garantizado] Reclamás: ${enterNow.map(i => `**${items.getRarityEmoji(i)} ${i}**`).join(', ')}.`);
+      }
+      if (stillPending.length > 0) {
+        guaranteedLootLines.push(`🔒 [Loot Garantizado] Aún tenés ${stillPending.map(i => `**${i}**`).join(', ')} reservado${stillPending.length > 1 ? 's' : ''} — liberá espacio para reclamar${stillPending.length > 1 ? 'los' : 'lo'}.`);
+      }
+    }
+  } catch (_dis1993loot) { /* no interrumpir loot si falla el bloque garantizado */ }
+
   const floorItems = room.items || [];
   if (floorItems.length === 0) {
+    if (guaranteedLootLines.length > 0) {
+      return { text: guaranteedLootLines.join('\n') };
+    }
     return { text: 'No hay nada en el suelo para recoger.' };
   }
 
@@ -10221,8 +10259,9 @@ function cmdLoot(player) {
     const lootVaultHint = lootPlayerLevel <= 4
       ? ''
       : ' También guardá en la bóveda (vault) en sala 1, 17 o 19.';
+    const guaranteedPrefix = guaranteedLootLines.length > 0 ? guaranteedLootLines.join('\n') + '\n\n' : '';
     return {
-      text: `🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada.\nQuedaron en el suelo:\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}\n\n💡 Hacé espacio con \`drop <ítem>\` o vendé en la tienda de Aldric (sala 4).${lootVaultHint} Podés comprar una **bolsa de lona** (20g) en Aldric para +4 slots.`,
+      text: `${guaranteedPrefix}🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada.\nQuedaron en el suelo:\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}\n\n💡 Hacé espacio con \`drop <ítem>\` o vendé en la tienda de Aldric (sala 4).${lootVaultHint} Podés comprar una **bolsa de lona** (20g) en Aldric para +4 slots.`,
       event: null,
       eventRoomId: room.id,
     };
@@ -10256,7 +10295,7 @@ function cmdLoot(player) {
   }
 
   return {
-    text: `Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${craftableJunkLine}${fullBagLine}${allFitConfirmLine}${inventoryWarnLine}${bagHintLine}${lootChallengeMsg ? '\n' + lootChallengeMsg.trim() : ''}${vvLootChallengeMsg}`,
+    text: `${guaranteedLootLines.length > 0 ? guaranteedLootLines.join('\n') + '\n\n' : ''}Recogés todo del suelo (${totalItems} ítem${totalItems !== 1 ? 's' : ''}):\n${lista}${goldLine}${craftHintLine}${craftableJunkLine}${fullBagLine}${allFitConfirmLine}${inventoryWarnLine}${bagHintLine}${lootChallengeMsg ? '\n' + lootChallengeMsg.trim() : ''}${vvLootChallengeMsg}`,
     event: `${player.username} saquea el suelo de la sala.`,
     eventRoomId: room.id,
   };
