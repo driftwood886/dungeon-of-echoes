@@ -261,6 +261,18 @@ const BOSS_MONSTERS = {
     deathAnnouncement: null, // sin anuncio global — es un mob tutorial
     lootBonus: [],
   },
+  4: { // Espectro del Corredor — DIS-1986: no debe huir (chase lleva al Santuario con Gólem nivel 6+, rompe la progresión)
+    respawnMinutes: 5,
+    deathAnnouncement: null, // sin anuncio global — no es un boss mayor
+    lootBonus: [],
+    // DIS-1986: "barrera espectral" al 50% HP — el Espectro se intangibiliza brevemente
+    // Sube su ATK en +2 (de 6 a 8) y agrega 1 punto de DEF espectral. Mecánica narrativa.
+    phase2: {
+      atkBonus: 2,
+      defBonus: 1,
+      message: '👻 ¡El Espectro del Corredor parpadea — su forma se vuelve translúcida! Una barrera de energía espectral envuelve su contorno. (BARRERA ESPECTRAL)\n💨 Sus ataques se vuelven más erráticos e impredecibles. No puede huir de este plano hasta que caiga.',
+    },
+  },
   8: { // Guardia Espectral — BUG-443: miniboss de la Prisión Subterránea, faltaba aquí, podía huir con <25% HP
     respawnMinutes: 10,
     deathAnnouncement: null, // sin anuncio global — es un miniboss local
