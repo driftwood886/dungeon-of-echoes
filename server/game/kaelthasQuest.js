@@ -40,7 +40,8 @@ const FRAGMENT_JOURNAL = {
 };
 
 // Closing scene (DIS-1969 — aprobado)
-const CLOSING_SCENE_TEXT = `El Lich se desmorona. Las runas del suelo se apagan una a una.\n\nSobre el altar oscuro, el libro permanece intacto.\nLo tomás. Las páginas están en blanco. Todas.\n\nNo era un libro de magia. Era un diario.\nKaelthas escribió en él durante siglos esperando que alguien llegara a leerlo.\n\n(Escribí «leer libro» para ver su último mensaje.)`;
+const CLOSING_SCENE_TEXT = `El Lich se desmorona. Las runas del suelo se apagan una a una.\n\nSobre el altar oscuro, el libro permanece intacto.\nLo tomás. Las páginas están en blanco. Todas.\n\nNo era un libro de magia. Era un diario.\nKaelthas escribió en él durante siglos esperando que alguien llegara a leerlo.\n\nAl caer, el último eco de su voz resuena en las bóvedas:\n«...te dije que guardaba el nombre real. Este lugar se llamó alguna vez la Catedral Roja.\nFue roja por las flores que crecían entre las piedras. Antes de que yo llegara.\nAhora ya lo sabés. Quizás eso cambie algo.»\n\n(Escribí «leer libro» para ver su último mensaje.)`;
+
 
 // Epitafio de Kaelthas (DIS-1969 — aprobado)
 const EPITAPH_TEXT = `📖 La última página del diario de Kaelthas:\n\n   «Encontré el libro cuando el reino todavía respiraba.\n   Prometía derrotar a la muerte. No mentía — solo omitió\n   que "derrotar" no es lo mismo que "escapar".\n\n   Sigo aquí. Sigo en pie. No soy el mismo.\n   Lo que soy ahora no tiene nombre en el idioma de los vivos.\n\n   Escribí esto para el que llegara después.\n   Para que supiera que el libro funciona.\n   Y que ojalá, para vos, funcione diferente.»\n\n                    — Kaelthas, Rey de Valdrath\n                      Primera entrada: año 0 del reino\n                      Última entrada: sin fecha`;
