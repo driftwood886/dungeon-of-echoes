@@ -5301,7 +5301,7 @@ function cmdAttack(player, targetName) {
         const roomItems = db.getRoom(player.current_room_id);
         const hasLoot = roomItems && roomItems.items && roomItems.items.length > 0;
         const lootHint = hasLoot
-          ? `💡 El monstruo está muerto. ¿Querés recoger el loot? Escribí: pick todo`
+          ? `💡 El monstruo está muerto. ¿Querés recoger el loot? Escribí: loot`
           : `💡 El monstruo está muerto y ya fue saqueado. Buscá la siguiente sala.`;
         // BUG-1425: inferir género para artículo y adjetivo correctos
         const inferFemenino = (nombre) => {

@@ -1704,10 +1704,11 @@ function attackRound(player, monster) {
 
         if (goesToFloor.length > 0) {
           // Inventario lleno — los ítems restantes caen al suelo
+          // BUG-2004 fix: NO agregar goesToFloor a `loot` — ya tienen su propio mensaje de aviso
+          // y aparecerían duplicados en la línea del loot principal (1716).
           const currentRoom = db.getRoom(player.current_room_id);
           const roomItems = Array.isArray(currentRoom.items) ? currentRoom.items : (currentRoom.items ? JSON.parse(currentRoom.items) : []);
           db.updateRoomItems(player.current_room_id, [...roomItems, ...goesToFloor]);
-          loot = [...loot, ...goesToFloor];
           lines.push(`⚠️ Inventario lleno — **${goesToFloor.join(', ')}** quedaron en el suelo. Usá \`loot\` para recogerlos.`);
         }
       }
