@@ -1716,6 +1716,8 @@ function attackRound(player, monster) {
         lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
         // DIS-1766: Avisar si la mochila está llena al momento del kill (para monstruos no-boss).
         // Los bosses ya tienen su propio bloque de aviso más detallado (línea ~1495).
+        // BUG-1998: también avisar cuando la mochila tiene espacio, para que el jugador sepa
+        // que el loot queda en el suelo y debe usar `loot` explícitamente.
         if (!isBossMonster) {
           try {
             const freshPForBag = db.getPlayer(player.id);
@@ -1726,6 +1728,9 @@ function attackRound(player, monster) {
               const maxBag = 24 + (freshPForBag.inventory_bonus || 0); // DIS-1825: base 20→24
               if (usedBag >= maxBag) {
                 lines.push(`⚠️ Mochila llena (${usedBag}/${maxBag}) — antes de usar \`loot\` liberá espacio con \`drop <ítem>\`.`);
+              } else {
+                // BUG-1998: hint de loot siempre que haya ítems en el suelo (no solo al llenar mochila)
+                lines.push(`  → Usá \`loot\` para recogerlo${loot.length !== 1 ? 's' : ''}.`);
               }
             }
           } catch (_) { /* no romper combat si falla el check de mochila */ }
