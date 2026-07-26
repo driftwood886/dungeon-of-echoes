@@ -3823,7 +3823,30 @@ function cmdMove(player, direction) {
   // Mensajes pasivos: cartogAchLines (logros), moveEventLine (countdown Marea Espectral / evento),
   //                   specReminderMsg (recordatorio especialización), questMoveHint (hint quest).
   // El resto de mensajes (trapText, effectText, levelWarnMsg, etc.) mantienen su posición.
-  const _passiveBlocks = [cartogAchLines, moveEventLine, specReminderMsg, questMoveHint]
+
+  // DIS-1990: mostrar recordatorio de facción diferido al llegar a sala neutra (sin combate activo).
+  // Se activa cuando combat.js dejó el flag faction_level5_reminder en status_effects al subir a nivel 5.
+  let _factionDeferredMsg = '';
+  try {
+    const freshForFactionDefer = db.getPlayer(player.id);
+    if (freshForFactionDefer && !freshForFactionDefer.faction) {
+      const seFD = parseSE(freshForFactionDefer.status_effects);
+      if (seFD.faction_level5_reminder) {
+        // Solo mostrar si no hay monstruos activos en la sala destino (contexto neutral)
+        const monstersInDest = db.getMonstersInRoom(targetId);
+        const hasLivingMonsters = monstersInDest && monstersInDest.some(m => m.hp > 0);
+        if (!hasLivingMonsters) {
+          _factionDeferredMsg = `⚔️ Recordatorio: alcanzaste el nivel 5 sin unirte a ninguna facción. Podés hacerlo cuando quieras — escribí \`facciones\` para ver opciones. (Este es el último aviso del sistema.)`;
+          // Limpiar el flag
+          const seFDClean = { ...seFD };
+          delete seFDClean.faction_level5_reminder;
+          db.updatePlayer(freshForFactionDefer.id, { status_effects: JSON.stringify(seFDClean) });
+        }
+      }
+    }
+  } catch (_dis1990) { /* no romper move si falla */ }
+
+  const _passiveBlocks = [cartogAchLines, moveEventLine, specReminderMsg, questMoveHint, _factionDeferredMsg]
     .map(s => (s || '').trim())
     .filter(s => s.length > 0);
   let _sistemaBlock = '';

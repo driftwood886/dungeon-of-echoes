@@ -1887,9 +1887,19 @@ function attackRound(player, monster) {
       }
       // DIS-1831/DIS-1855: recordatorio de facciones al subir de nivel 5 o más sin haber elegido una
       // DIS-1945: solo mostrar en la transición EXACTA a nivel 5 (no en cada nivel posterior)
-      // y con texto diferente al de nivel 3 para no repetir lo mismo
+      // DIS-1990: diferir el recordatorio para no romper la atmósfera del momento dramático.
+      // Se guarda un flag en status_effects y se muestra al llegar al próximo área neutra.
       if (newLevel === 5 && !freshPlayer.faction) {
-        lines.push(`\n⚔️ Último recordatorio: llegaste al nivel 5 sin unirte a ninguna facción. Podés hacerlo cuando quieras — escribí \`facciones\` para ver opciones. (El sistema no te va a volver a recordar esto.)`);
+        try {
+          const seDefer = freshPlayer.status_effects
+            ? (typeof freshPlayer.status_effects === 'string' ? JSON.parse(freshPlayer.status_effects) : freshPlayer.status_effects)
+            : {};
+          // Combinar con status_effects ya en updates (por si spec_reminder_shown también se escribió)
+          const existing = updates.status_effects
+            ? (typeof updates.status_effects === 'string' ? JSON.parse(updates.status_effects) : updates.status_effects)
+            : seDefer;
+          updates.status_effects = JSON.stringify({ ...existing, faction_level5_reminder: true });
+        } catch (_) { /* no interrumpir si falla */ }
       }
     }
     lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})${impulsoXpMult > 1.0 ? ' ✨[+20% Impulso]' : ''}${finalBloodmoonXpMult > 1.0 ? ` 🌑[+${Math.round((finalBloodmoonXpMult-1)*100)}% Luna]` : ''}${campaignXpMult > 1.0 ? ` 🏆[+${Math.round((campaignXpMult-1)*100)}% Victoria Campaña]` : ''}${xpProgressSuffix(newXp, newLevel)}`);
