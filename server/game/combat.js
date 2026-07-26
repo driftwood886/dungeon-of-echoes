@@ -1714,7 +1714,17 @@ function attackRound(player, monster) {
       }
 
       if (loot.length > 0) {
-        lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${loot.join(', ')}.`);
+        // DIS-2007: colapsar ítems repetidos para evitar muro de texto con GOLD_RUSH u otros multiplicadores
+        const lootCollapsed = (() => {
+          const counts = {};
+          const order = [];
+          for (const item of loot) {
+            if (!counts[item]) { counts[item] = 0; order.push(item); }
+            counts[item]++;
+          }
+          return order.map(i => counts[i] > 1 ? `${i} (×${counts[i]})` : i).join(', ');
+        })();
+        lines.push(`💰 ${articuloMonstruo(monster.name)} ${monster.name} suelta: ${lootCollapsed}.`);
         // DIS-1766: Avisar si la mochila está llena al momento del kill (para monstruos no-boss).
         // Los bosses ya tienen su propio bloque de aviso más detallado (línea ~1495).
         // BUG-1998: también avisar cuando la mochila tiene espacio, para que el jugador sepa
