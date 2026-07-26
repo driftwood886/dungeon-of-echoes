@@ -7618,11 +7618,20 @@ function cmdPick(player, itemQuery) {
   }
 
   // DIS-1173: aviso proactivo de inventario casi lleno al recoger un ítem individual
+  // DIS-1991: threshold proporcional (80%) en lugar de fijo (16) — para jugadores con
+  //           bolsas de lona (max 24 o 28), el aviso anterior se disparaba al 66%/57%.
   const freshForInvWarn = db.getPlayer(player.id);
   const invWarnCount = (freshForInvWarn.inventory || []).length + ((freshForInvWarn.equipped_weapon ? 1 : 0) + (freshForInvWarn.equipped_armor ? 1 : 0));
   const invWarnMax = INV_BASE_SLOTS + (freshForInvWarn.inventory_bonus || 0); // DIS-1480
-  if (invWarnCount >= 16) {
-    pickSingleMsg += `\n\n⚠️  Inventario casi lleno (${invWarnCount}/${invWarnMax}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`;  // DIS-1657
+  const invWarnThreshold = Math.ceil(invWarnMax * 0.80); // 80% de capacidad
+  if (invWarnCount >= invWarnThreshold) {
+    const currentBonus = freshForInvWarn.inventory_bonus || 0;
+    const MAX_BAG_BONUS = 8;
+    const puedeMasBolsa = currentBonus < MAX_BAG_BONUS;
+    const bolsaHint = puedeMasBolsa
+      ? ` Ampliá con una bolsa de lona (+4 slots, 20g — Aldric sala 4).`
+      : '';
+    pickSingleMsg += `\n\n⚠️  Inventario casi lleno (${invWarnCount}/${invWarnMax}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.${bolsaHint}`;  // DIS-1657, DIS-1991
   }
 
   // ── EPIC-1158: hook de expedición — trigger 'pickup' ─────────────────────
