@@ -283,6 +283,23 @@ const BOSS_MONSTERS = {
     deathAnnouncement: null, // sin anuncio global — boss del Santuario Profano pero no merece anuncio global
     lootBonus: [],
   },
+  9: { // Elemental de Hielo — DIS-1996: boss narrativo de Galería de Hielo (sala 11), no debe huir
+    // Cuando llega a <10% HP y "huye", deja loot en el suelo (solución narrativa: se desintegra parcialmente)
+    respawnMinutes: 15,
+    deathAnnouncement: null,
+    lootBonus: [],
+    dropLootOnFlee: true, // DIS-1996: si por algún bug llega al check de huida, tirar loot garantizado al suelo
+  },
+  11: { // Krakeling Abismal — DIS-1996: mid-boss de zona profunda, no debe huir
+    respawnMinutes: 15,
+    deathAnnouncement: null,
+    lootBonus: [],
+  },
+  29: { // Troll de las Cavernas — DIS-1996: boss de sala 12 con mecánica de regeneración, no debe huir
+    respawnMinutes: 20,
+    deathAnnouncement: null,
+    lootBonus: [],
+  },
 };
 
 // T145: Habilidades especiales de monstruos
