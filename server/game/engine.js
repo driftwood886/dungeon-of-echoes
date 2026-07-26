@@ -8324,6 +8324,31 @@ function cmdDrop(player, itemQuery) {
 
   player = db.getPlayer(player.id);
 
+  // DIS-1988: Sala 7 (Pozo Sin Fondo) — interceptar "tirar cuerda" / "jalar cuerda"
+  // La cuerda es un objeto de sala, no de inventario. El graffiti dice "No tires de la cuerda".
+  if (player.current_room_id === 7) {
+    const dropQ = itemQuery.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const cuerdaTerms = ['cuerda', 'jalar', 'jalar cuerda', 'tirar de la cuerda', 'tirar cuerda', 'halar', 'halar cuerda'];
+    if (cuerdaTerms.some(t => dropQ.includes(t))) {
+      // Evento aleatorio de 3 tipos — el graffiti tenía razón
+      const roll = Math.random();
+      if (roll < 0.40) {
+        // Respuesta inerte: solo cruje
+        return { text: `Agarrás la cuerda y jalás con cuidado.\n\nLa tensión cede unos centímetros — una contracción suave, casi muscular. La cuerda vibra entre tus dedos con una frecuencia muy baja, casi inaudible.\n\nLuego se tensa de nuevo. Como si algo al otro extremo hubiera respondido.\n\nSoltás la cuerda. El frío del pozo sube un grado.\n\n💡 El graffiti en la pared decía «No tires de la cuerda». Ya lo leíste, ¿no?` };
+      } else if (roll < 0.75) {
+        // Daño menor + lore
+        const freshP = db.getPlayer(player.id);
+        const dmg = Math.floor(Math.random() * 3) + 2; // 2-4 HP
+        const newHp = Math.max(1, freshP.hp - dmg);
+        db.updatePlayer(player.id, { hp: newHp });
+        return { text: `Jalás la cuerda con fuerza.\n\nPor un momento sientes resistencia desde abajo — luego la cuerda *cede* de golpe, como si lo que la sujetaba hubiera soltado voluntariamente.\n\nEl impulso te desequilibra. Tu cabeza golpea el brocal al caer hacia atrás.\n\n💥 -${dmg} HP por el impacto. (${newHp}/${freshP.max_hp || 30} HP)\n\nLa cuerda vuelve a colgar, tensa. El frío del pozo no cambió. Abajo, nada cambió. Lo que sea que estaba al otro extremo sigue ahí.` };
+      } else {
+        // Nada — el pozo absorbe
+        return { text: `Jalás la cuerda.\n\nNo pasa nada.\n\nLa cuerda cuelga tensa, como siempre. El frío sube, como siempre. El silencio del pozo tiene exactamente la misma textura que antes.\n\nEs posible que hayas hecho exactamente lo que querías algo de ahí abajo. O que no hayas hecho absolutamente nada. No hay forma de saberlo.` };
+      }
+    }
+  }
+
   // DIS-D44: drop junk / basura / todo basura — tirar todos los ítems sin valor mecánico
   const queryNorm = itemQuery.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (['junk', 'basura', 'todo basura', 'all junk', 'loot basura', 'tirar todo'].includes(queryNorm)) {
