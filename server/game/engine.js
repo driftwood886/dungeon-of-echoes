@@ -13570,6 +13570,35 @@ function cmdBuy(player, itemQuery) {
     const buyEqCount = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
     const buyUsedSlots = (player.inventory || []).length + buyEqCount;
     if (buyUsedSlots >= buyInvMax) {
+      // DIS-1995: si el ítem es una bolsa de lona y aún puede expandir el inventario,
+      // aplicar el efecto directamente en el acto de compra (sin pasar por inventario).
+      const buyItemDef = items.getItemDef(item.name);
+      const MAX_BAG_BONUS = 8;
+      if (buyItemDef && buyItemDef.type === 'bag') {
+        const currentBagBonus = player.inventory_bonus || 0;
+        if (currentBagBonus >= MAX_BAG_BONUS) {
+          return { text: `🎒 Ya tenés el máximo de bolsas adicionales (2). Tu mochila no puede expandirse más.` };
+        }
+        // Inventario lleno pero puede ampliar: aplicar bolsa directamente sin pasar por inventario
+        const newBagBonus = Math.min(MAX_BAG_BONUS, currentBagBonus + (buyItemDef.slots || 4));
+        const newGoldBag = gold - finalPrice;
+        db.updatePlayer(player.id, { gold: newGoldBag, inventory_bonus: newBagBonus });
+        db.addGoldSpent(player.id, finalPrice);
+        db.addFactionInfluence(player.id, 1);
+        { // memoria Aldric
+          const memBag = db.getPlayer(player.id);
+          let memBagObj = {};
+          try { memBagObj = JSON.parse(memBag.npc_memory || '{}'); } catch (_) {}
+          if (!memBagObj.aldric) memBagObj.aldric = { purchases: 0, gold_spent_at_aldric: 0 };
+          memBagObj.aldric.purchases = (memBagObj.aldric.purchases || 0) + 1;
+          memBagObj.aldric.gold_spent_at_aldric = (memBagObj.aldric.gold_spent_at_aldric || 0) + finalPrice;
+          db.updatePlayer(player.id, { npc_memory: JSON.stringify(memBagObj) });
+        }
+        const freshBagDirect = db.getPlayer(player.id);
+        const newSlotsDirect = INV_BASE_SLOTS + newBagBonus;
+        const usedSlotsDirect = (freshBagDirect.inventory || []).length + (freshBagDirect.equipped_weapon ? 1 : 0) + (freshBagDirect.equipped_armor ? 1 : 0);
+        return { text: `🎒 Aldric te la pasa y vos la atás directo a la mochila — sin pararla por el inventario, que ya estaba lleno.${aldricPrecioSubeMsg}\n✅ Compraste: ${item.name} por ${finalPrice}g y la expandiste al instante.\n📦 Inventario: ${usedSlotsDirect}/${newSlotsDirect} slots (ganaste +${newBagBonus - currentBagBonus} slots).\n💰 Oro restante: ${newGoldBag}g.` };
+      }
       return { text: `🎒 Tu inventario está lleno (${buyUsedSlots}/${buyInvMax}). Vendé algo, usá el vault (sala 1, 17 o 19) o comprá una bolsa de lona (+4 slots).` };
     }
   }
