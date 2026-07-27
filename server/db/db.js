@@ -1479,6 +1479,21 @@ async function init() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_camp_contrib_campaign ON campaign_contributions(campaign_id, contributed_at)`);
   console.log('[db] EPIC-CAMP: tablas campaigns, active_campaign, campaign_contributions listas');
 
+  // EPIC-2045: Boss Stats — kill counter global por boss (alimenta diálogos y Crónica del Dungeon)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS boss_stats (
+      boss_id          TEXT PRIMARY KEY,     -- ej: 'lich_anciano', 'guardia_espectral'
+      total_kills      INTEGER NOT NULL DEFAULT 0,
+      kills_this_week  INTEGER NOT NULL DEFAULT 0,
+      last_killed_by   TEXT,                 -- username del último en matarlo
+      last_killed_at   TEXT,                 -- ISO timestamp
+      first_killed_by  TEXT,                 -- username del primero en matarlo
+      first_killed_at  TEXT,
+      week_start       TEXT                  -- inicio de la semana actual para resets
+    )
+  `);
+  console.log('[db] EPIC-2045: tabla boss_stats lista');
+
   // EPIC-CAMP: Seed de la campaña "La Invasión de Veth" (INSERT OR IGNORE — idempotente)
   try {
     db.run(`
@@ -4879,6 +4894,87 @@ function updateMainQuestData(playerId, patch) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// EPIC-2045: Boss Stats — kill counter global para el Boss Dialogue Engine
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Devuelve el registro de stats de un boss (o null si no existe).
+ * @param {string} bossId — ej: 'lich_anciano'
+ */
+function getBossStats(bossId) {
+  try {
+    return one(`SELECT * FROM boss_stats WHERE boss_id = ?`, [bossId]);
+  } catch (e) {
+    console.error('[db] getBossStats:', e.message);
+    return null;
+  }
+}
+
+/**
+ * Registra un kill de boss. Actualiza total_kills, kills_this_week, last_killed_by.
+ * Si es el primer kill, registra first_killed_by.
+ * Resetea automáticamente kills_this_week si cambió la semana.
+ * @param {string} bossId — ej: 'lich_anciano'
+ * @param {string} killerUsername
+ */
+function recordBossKill(bossId, killerUsername) {
+  try {
+    const now = new Date().toISOString();
+    // Calcular inicio de semana ISO (lunes)
+    const d = new Date();
+    const day = d.getUTCDay(); // 0 = domingo
+    const diff = (day === 0 ? -6 : 1 - day);
+    const monday = new Date(d);
+    monday.setUTCDate(d.getUTCDate() + diff);
+    monday.setUTCHours(0, 0, 0, 0);
+    const weekStart = monday.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+
+    const existing = getBossStats(bossId);
+    if (!existing) {
+      // Primer kill ever
+      run(`
+        INSERT INTO boss_stats (boss_id, total_kills, kills_this_week, last_killed_by, last_killed_at, first_killed_by, first_killed_at, week_start)
+        VALUES (?, 1, 1, ?, ?, ?, ?, ?)
+      `, [bossId, killerUsername, now, killerUsername, now, weekStart]);
+    } else {
+      // Resetear kills_this_week si cambió la semana
+      const thisWeekKills = existing.week_start === weekStart ? (existing.kills_this_week + 1) : 1;
+      run(`
+        UPDATE boss_stats
+        SET total_kills = total_kills + 1,
+            kills_this_week = ?,
+            last_killed_by = ?,
+            last_killed_at = ?,
+            week_start = ?
+        WHERE boss_id = ?
+      `, [thisWeekKills, killerUsername, now, weekStart, bossId]);
+    }
+    return getBossStats(bossId);
+  } catch (e) {
+    console.error('[db] recordBossKill:', e.message);
+    return null;
+  }
+}
+
+/**
+ * Resetea kills_this_week para todos los bosses (llamar al inicio de cada semana).
+ */
+function resetWeeklyBossKills() {
+  try {
+    const d = new Date();
+    const day = d.getUTCDay();
+    const diff = (day === 0 ? -6 : 1 - day);
+    const monday = new Date(d);
+    monday.setUTCDate(d.getUTCDate() + diff);
+    monday.setUTCHours(0, 0, 0, 0);
+    const weekStart = monday.toISOString().slice(0, 10);
+    run(`UPDATE boss_stats SET kills_this_week = 0, week_start = ? WHERE week_start != ?`, [weekStart, weekStart]);
+  } catch (e) {
+    console.error('[db] resetWeeklyBossKills:', e.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
   init, persist,
@@ -4970,4 +5066,6 @@ module.exports = {
   activateCampaign,
   // EPIC-KAELTHAS (DIS-1967): Quest Principal — helpers de main_quest_data
   getMainQuestData, updateMainQuestData,
+  // EPIC-2045: Boss Stats (Voces del Abismo — kill counter global)
+  getBossStats, recordBossKill, resetWeeklyBossKills,
   };
