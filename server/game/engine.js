@@ -951,6 +951,8 @@ Para el diario de lore: lore  (usá «read» en ítems con texto para guardar fr
           enchant: 'enchant', encantar: 'enchant', encantamiento: 'enchant',
           // DIS-1003: alias de logout/salir
           logout: 'logout', salir: 'logout', exit: 'logout', quit: 'logout', bye: 'logout', chau: 'logout',
+          // DIS-2015: alias de postura para que 'help combate' y 'help postura' funcionen
+          postura: 'stance', combate: 'stance', stance: 'stance', 'postura combate': 'stance',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];

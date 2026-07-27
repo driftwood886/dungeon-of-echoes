@@ -2004,6 +2004,12 @@ function attackRound(player, monster) {
       lines.push(`💡 Tip: Hay ítems en el suelo — escribí \`loot\` para recogerlos todos.`);
     }
 
+    // DIS-2015: Hint de posturas en el tercer kill real del jugador
+    // (no al primero — hay demasiado info ya; al tercero el jugador ya sabe lo básico)
+    if (newKills === 3) {
+      lines.push(`⚔️ Tip: ¿Sabías que podés cambiar tu postura de combate?\n   · \`postura agresivo\`   → +2 ATK, -1 DEF (atacás más fuerte)\n   · \`postura defensivo\`  → -1 ATK, +2 DEF (aguantás más)\n   · \`postura equilibrado\` → sin cambios (postura actual)\n   La postura cambia tu estilo de pelea. Escribí \`postura\` para ver tu configuración.`);
+    }
+
     // T-1231: Tracking de desafíos diarios — al matar un monstruo
     try {
       const freshForChallenge = db.getPlayer(player.id);
