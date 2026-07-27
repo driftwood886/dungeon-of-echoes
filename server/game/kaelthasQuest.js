@@ -51,6 +51,8 @@ const LICH_DIALOGUES = {
   none:        null,
   partial:     '💀 *El Lich te mira un momento antes de levantar el bastón.*\n   «Otro que vino a morir. El libro no es para vos.»',
   complete:    '💀 *El Lich baja el bastón. Por primera vez, no ataca de inmediato.*\n\n   «Ya sabés, entonces. Cuánto tiempo esperé que alguien llegara con la historia completa.»\n\n   «El libro prometía la victoria sobre la muerte. No mentía.»\n   «Aquí estoy: muerto, y todavía en pie.»\n\n   «Vamos. Sería un desperdicio matarte sin que lo hayas entendido.»',
+  // IMPL-2052 (EPIC-KAELTHAS-F3): Legado memoria_kaelthas — el jugador ya vivió la historia antes
+  returning:   '💀 *El Lich te mira. Sus cuencas vacías muestran algo que no es exactamente sorpresa.*\n\n   «Volviste. Esa historia ya la viviste.»\n\n   *Una pausa. Algo que podría ser consideración.*\n   «Entonces ya sabés cómo termina esto también.»',
 };
 
 // Hint del Guardián Anciano (DIS-1969)
@@ -163,7 +165,16 @@ function getQuestState(player) {
     const found = Array.isArray(mqd.fragments_found) ? mqd.fragments_found : [];
 
     if (state === 'active' && found.length >= 4) {
-      return `📖 Quest: El Libro de los Muertos [COMPLETA — PENDIENTE ENDING]\n   Encontraste los 4 fragmentos. Solo falta enfrentar al Lich con todo el contexto.\n   ✅ ✅ ✅ ✅  Todos los fragmentos encontrados.\n   ⚔️  El Lich Anciano te espera en la Catedral de la Oscuridad (sala 15).`;
+      // IMPL-2052 (EPIC-KAELTHAS-F3): si el jugador tiene el legado memoria_kaelthas, personalizar el mensaje
+      let heritageNote = '';
+      try {
+        const rawBonus = player.legacy_bonus;
+        const lb = rawBonus ? (typeof rawBonus === 'string' ? JSON.parse(rawBonus) : rawBonus) : null;
+        if (lb && lb.type === 'memoria_kaelthas') {
+          heritageNote = '\n   📜 Legado «La Memoria de Kaelthas» activo — ya conocés la historia desde el inicio.';
+        }
+      } catch (_) {}
+      return `📖 Quest: El Libro de los Muertos [COMPLETA — PENDIENTE ENDING]\n   Encontraste los 4 fragmentos. Solo falta enfrentar al Lich con todo el contexto.\n   ✅ ✅ ✅ ✅  Todos los fragmentos encontrados.\n   ⚔️  El Lich Anciano te espera en la Catedral de la Oscuridad (sala 15).${heritageNote}`;
     }
 
     // Estado active con 1-3 fragmentos
@@ -238,6 +249,19 @@ function getLichDialogue(player) {
     if (state === 'inactive') {
       return LICH_DIALOGUES.none;
     }
+
+    // IMPL-2052 (EPIC-KAELTHAS-F3): detectar legado memoria_kaelthas.
+    // El jugador heredó los 4 fragmentos desde el inicio (ascensión previa con quest completa),
+    // pero no ha derrotado al Lich en ESTA run aún (lich_died_with_quest === false).
+    // La señal: tiene 4 fragmentos Y los fragmentos ya estaban desde el login (no los leyó en esta sesión).
+    // Proxy: verificar si legacy_bonus.type === 'memoria_kaelthas'
+    try {
+      const rawBonus = player.legacy_bonus;
+      const legacyBonus = rawBonus ? (typeof rawBonus === 'string' ? JSON.parse(rawBonus) : rawBonus) : null;
+      if (legacyBonus && legacyBonus.type === 'memoria_kaelthas' && count >= 4 && !mqd.lich_died_with_quest) {
+        return LICH_DIALOGUES.returning;
+      }
+    } catch (_) {}
 
     if (state === 'active' && count < 4) {
       return LICH_DIALOGUES.partial;

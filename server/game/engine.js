@@ -16354,6 +16354,23 @@ function applyLegacyBonus(player, legacyBonus) {
     }
   }
 
+  // IMPL-2052 (EPIC-KAELTHAS-F3): Legado especial 'memoria_kaelthas' — inicializar main_quest_data con todos los fragmentos
+  // No está limitado por el cap de ascensiones porque es narrativo, no de stats.
+  if (effects.kaelthas_heritage === true) {
+    try {
+      const allFragments = ['trono', 'mausoleo', 'capilla', 'catedral'];
+      db.updateMainQuestData(player.id, {
+        fragments_found: allFragments,
+        kaelthas_fragments_count: 4,
+        main_quest_state: 'active',
+        started_at: new Date().toISOString(),
+      });
+      console.log(`[IMPL-2052] memoria_kaelthas aplicado a ${player.username} — quest de Kaelthas iniciada con 4 fragmentos.`);
+    } catch (e) {
+      console.error('[IMPL-2052] Error aplicando kaelthas_heritage:', e.message);
+    }
+  }
+
   // Legados persistentes (no limitados por cap — son banderas en legacy_bonus para ser leídas en runtime)
   // 'marca_lich', 'vinculo_animal', 'pet_discount', 'skill_discount', 'rest_free_until_tutorial',
   // 'levelup1_bonus', 'boss_damage_bonus' — estos se leen directamente de legacy_bonus en los handlers
@@ -29753,6 +29770,17 @@ const LEGACY_POOL = [
     effects: { levelup1_bonus: 2 } },
 ];
 
+// IMPL-2052 (EPIC-KAELTHAS-F3): Legado especial de Kaelthas — solo disponible si completaste la quest
+const KAELTHAS_LEGACY = {
+  id: 'memoria_kaelthas',
+  emoji: '📜',
+  nombre: 'La Memoria de Kaelthas',
+  desc: '[nombre] llegó con la historia completa. El Lich lo supo.',
+  efecto: 'El próximo personaje empieza conociendo los 4 fragmentos de la historia de Kaelthas. El Lich Anciano lo reconocerá desde el primer encuentro.',
+  effects: { kaelthas_heritage: true },
+  special: true, // Este legado no aparece en el pool normal — se muestra solo si aplica
+};
+
 /**
  * Genera 3 legados pseudoaleatorios basados en el player.id como seed.
  * Devuelve siempre el mismo set para el mismo jugador (reproducibilidad).
@@ -29836,6 +29864,14 @@ function cmdAscend(player, args, context) {
     const charName = fresh.username;
     const lichKillsCount = fresh.lich_kills || 0;
     const ascCount = fresh.ascension_count || 0;
+
+    // IMPL-2052 (EPIC-KAELTHAS-F3): verificar si el jugador completó la quest de Kaelthas
+    let hasKaelthasLegacy = false;
+    try {
+      const mqd = db.getMainQuestData(fresh.id);
+      hasKaelthasLegacy = mqd.lich_died_with_quest === true;
+    } catch (_) {}
+
     const lines = [
       ``,
       `╔══════════════════════════════════════════════════════╗`,
@@ -29878,8 +29914,21 @@ function cmdAscend(player, args, context) {
       lines.push(``);
     });
 
+    // IMPL-2052 (EPIC-KAELTHAS-F3): Si el jugador completó la quest de Kaelthas, mostrar legado especial
+    if (hasKaelthasLegacy) {
+      const kDesc = KAELTHAS_LEGACY.desc.replace('[nombre]', charName);
+      lines.push(`  ✦ ${KAELTHAS_LEGACY.emoji} ${KAELTHAS_LEGACY.nombre}  ← LEGADO ESPECIAL`);
+      lines.push(`     "${kDesc}"`);
+      lines.push(`     → ${KAELTHAS_LEGACY.efecto}`);
+      lines.push(`     💡 Disponible porque derrotaste al Lich con la historia completa.`);
+      lines.push(``);
+    }
+
     lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     lines.push(`Para ascender:  \`ascender 1\`, \`ascender 2\` o \`ascender 3\``);
+    if (hasKaelthasLegacy) {
+      lines.push(`Legado Kaelthas: \`ascender memoria_kaelthas\``);
+    }
     lines.push(`Con epitafio:   \`ascender 1 Que el eco de mis pasos perdure\``);
     lines.push(`                (El epitafio queda grabado en el Salón.)`);
     lines.push(``);
@@ -29899,7 +29948,20 @@ function cmdAscend(player, args, context) {
   // El jugador eligió un legado — ejecutar la ascensión
   const choiceIdx = parseInt(match[1]) - 1;
   const epitaph = match[2] ? match[2].trim() : null;
-  const legadoElegido = choices[choiceIdx];
+  let legadoElegido = choices[choiceIdx];
+
+  // IMPL-2052 (EPIC-KAELTHAS-F3): verificar si eligió el legado especial de Kaelthas por ID textual
+  if (!legadoElegido && match[1] === 'memoria_kaelthas') {
+    // Verificar que el jugador tiene acceso al legado
+    let hasKaelthasForChoice = false;
+    try {
+      const mqd = db.getMainQuestData(fresh.id);
+      hasKaelthasForChoice = mqd.lich_died_with_quest === true;
+    } catch (_) {}
+    if (hasKaelthasForChoice) {
+      legadoElegido = KAELTHAS_LEGACY;
+    }
+  }
 
   if (!legadoElegido) {
     return { text: '❌ Opción inválida. Elegí 1, 2 o 3.' };
