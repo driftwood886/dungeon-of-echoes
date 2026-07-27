@@ -5854,11 +5854,18 @@ function cmdAttack(player, targetName) {
   if (monsterDead) {
     challengeResult = db.updateDailyChallengeProgress(player.id, 'kill', monster.name, 1, player.current_room_id);
     // BUG-1544: trackear kill en el nuevo sistema de desafíos (challengePool)
+    // BUG-2038: este es el único punto donde se llama trackKill para combate normal
+    // (el call duplicado en combat.js fue removido). Contexto expandido para mejor tracking.
     try {
       const freshForTrack = db.getPlayer(player.id);
+      const evForTrack = worldEvents.getCurrentEvent() || {};
+      const activeEventIdForTrack = evForTrack.id || null;
       const tkMsg = challengeTracker.trackKill(player.id, freshForTrack, monster, {
-        equippedWeapon: player.equipped_weapon || null,
-        playerHp: player.hp || 0,
+        equippedWeapon: (freshForTrack && freshForTrack.equipped_weapon) || player.equipped_weapon || null,
+        playerHp: (freshForTrack && freshForTrack.hp) || player.hp || 0,
+        playerTookNoDamage: false,
+        playerDidntHeal: false,
+        activeEventId: activeEventIdForTrack,
       });
       if (tkMsg) challengeMsg += tkMsg;
     } catch (_) { /* no romper combate */ }

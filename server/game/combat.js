@@ -2014,21 +2014,9 @@ function attackRound(player, monster) {
       lines.push(`⚔️ Tip: ¿Sabías que podés cambiar tu postura de combate?\n   · \`postura agresivo\`   → +2 ATK, -1 DEF (atacás más fuerte)\n   · \`postura defensivo\`  → -1 ATK, +2 DEF (aguantás más)\n   · \`postura equilibrado\` → sin cambios (postura actual)\n   La postura cambia tu estilo de pelea. Escribí \`postura\` para ver tu configuración.`);
     }
 
-    // T-1231: Tracking de desafíos diarios — al matar un monstruo
-    try {
-      const freshForChallenge = db.getPlayer(player.id);
-      const newEvForChallenge = getNewActiveEvent();
-      const activeEventIdForChallenge = newEvForChallenge && newEvForChallenge.event
-        ? newEvForChallenge.event.id : (worldEvents.getCurrentEvent() || {}).id || null;
-      const challengeKillMsg = challengeTracker.trackKill(player.id, freshForChallenge, monster, {
-        equippedWeapon: freshForChallenge.equipped_weapon,
-        playerHp: freshForChallenge.hp,
-        playerTookNoDamage: false, // simplificación: no rastreamos esto por ahora
-        playerDidntHeal: false,
-        activeEventId: activeEventIdForChallenge,
-      });
-      if (challengeKillMsg) lines.push(challengeKillMsg.trim());
-    } catch (_) { /* no interrumpir combate si falla el tracker */ }
+    // BUG-2038: trackKill() removido de aquí — engine.js ya lo llama post-combatResult
+    // con contexto más completo (equippedWeapon, activeEventId, etc.). Tenerlo en ambos
+    // lugares causaba doble conteo en desafíos diarios (challenge avanzaba 2 por kill).
 
     // DIS-914: Asesino — al matar con crítico, 15% chance de loot doble
     if (player.specialization === 'asesino' && isCrit && loot.length > 0 && Math.random() < 0.15) {
