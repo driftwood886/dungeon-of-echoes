@@ -6874,7 +6874,21 @@ function cmdAttack(player, targetName) {
   }
 
   // DIS-1879: la advertencia de mochila al final del output (antes estaba al inicio, era disruptiva en momentos de tensión)
-  const baseText = lichDialoguePrefix + battlecryPrefix + lines.join('\n') + comboMsg + achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + skillHint + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + kaelthasEndingBlock + _autoTargetHint + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg + (_bug1781BossInvWarning ? '\n\n' + _bug1781BossInvWarning.trim() : '');
+  // DIS-2041: Separar el resultado del turno de combate de las notificaciones secundarias.
+  // El resultado del turno (HP, daño, habilidades) siempre aparece primero y visible.
+  // Las notificaciones (logros, quests, desafíos, facciones, etc.) se agrupan al final
+  // con un separador visual cuando el monstruo muere, para evitar que entierren el output de combate.
+  const combatBlock = lichDialoguePrefix + battlecryPrefix + lines.join('\n') + comboMsg + skillHint + _autoTargetHint;
+
+  const notifRaw = achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + kaelthasEndingBlock + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg + (_bug1781BossInvWarning ? '\n\n' + _bug1781BossInvWarning.trim() : '');
+
+  // DIS-2041: cuando el monstruo muere, agregar separador antes de las notificaciones
+  // para que el resultado del turno (arriba) sea siempre lo primero que ve el jugador.
+  const notifBlock = (monsterDead && notifRaw.trim())
+    ? '\n\n─── Notificaciones ───' + notifRaw
+    : notifRaw;
+
+  const baseText = combatBlock + notifBlock;
 
   // DIS-1800: Hint de flee para zona profunda — primera vez que el jugador ataca
   // al Troll de las Cavernas o al Golem de Forja (sala 12), mobs muy difíciles.
