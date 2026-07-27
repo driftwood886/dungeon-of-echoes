@@ -1705,7 +1705,11 @@ function attackRound(player, monster) {
           const normalDirect = fitsInInv.filter(i => !campFragSet.has(i));
           const campDirect = fitsInInv.filter(i => campFragSet.has(i));
           if (normalDirect.length > 0) {
-            lines.push(`⚔️ ${articuloMonstruo(monster.name)} ${monster.name} suelta directamente: **${normalDirect.join(', ')}** (ya en tu inventario).`);
+            // BUG-2032: mensaje mejorado — explicar que el loot de boss va directo al inventario
+            // para que no suene sorpresivo. Los ítems épicos de boss van directo (DIS-1007)
+            // para evitar que otro jugador los recoja antes de que puedas usar `loot`.
+            const itemList2032 = normalDirect.join(', ');
+            lines.push(`🎁 ¡${articuloMonstruo(monster.name)} ${monster.name} suelta **${itemList2032}**! (Botín de boss — entró directo a tu mochila para que nadie más pueda tomarlo. Revisá tu inventario con \`inv\`.)`);
           }
           if (campDirect.length > 0) {
             const countFrags = campDirect.length;
