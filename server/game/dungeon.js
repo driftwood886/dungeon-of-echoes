@@ -274,7 +274,9 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
           mNameLower.includes('zombi') || mNameLower.includes('vampiro') || mNameLower.includes('momia') ||
           mNameLower.includes('óseo') || mNameLower.includes('muerto');
         if (!isSpectral && !isUndead) {
-          return `  • ${m.name} 👻 (huye / inactiva durante la Marea Espectral)`;
+          // DIS-2023: mostrar tiempo restante junto al mensaje de inactiva
+          const minLeftInact = spectralEvCheck && spectralEvCheck.minutesRemaining ? spectralEvCheck.minutesRemaining : '?';
+          return `  • ${m.name} 👻 (inactiva durante la Marea Espectral — ~${minLeftInact} min restantes)`;
         }
       } else if (isSpectralTide && isEarlyZone) {
         // DIS-1534: zona early — las criaturas siguen activas, pero con nota narrativa
@@ -296,6 +298,22 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     if (isSpectralTide && room.id <= 5) {
       const minLeftEarly = spectralEvCheck && spectralEvCheck.minutesRemaining ? spectralEvCheck.minutesRemaining : '?';
       lines.push(`\n👻 Marea Espectral activa en las profundidades (~${minLeftEarly} min). Las criaturas exteriores siguen activas.`);
+    }
+    // DIS-2023: en zonas profundas con Marea Espectral, agregar tip de XP doble si hay inactivos
+    if (isSpectralTide && room.id > 5) {
+      const hasInactive = monsters.some(m => {
+        const mNameLower = (m.name || '').toLowerCase();
+        const isSpectral = SPECTRAL_TIDE_IDS.has(m.id) ||
+          mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
+          mNameLower.includes('espectral') || mNameLower.includes('lich') || mNameLower.includes('sombra');
+        const isUndead = mNameLower.includes('esqueleto') || mNameLower.includes('zombie') ||
+          mNameLower.includes('zombi') || mNameLower.includes('vampiro') || mNameLower.includes('momia') ||
+          mNameLower.includes('óseo') || mNameLower.includes('muerto');
+        return !isSpectral && !isUndead;
+      });
+      if (hasInactive) {
+        lines.push(`\n💡 Los monstruos espectrales dan el doble de XP durante la Marea Espectral — buscá en zonas más profundas.`);
+      }
     }
   } else {
     // DIS-508: mostrar criaturas en respawn para dar contexto al jugador
