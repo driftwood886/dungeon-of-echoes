@@ -278,7 +278,8 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
           mNameLower.includes('óseo') || mNameLower.includes('muerto');
         if (!isSpectral && !isUndead) {
           // DIS-2023: mostrar tiempo restante junto al mensaje de inactiva
-          const minLeftInact = spectralEvCheck && spectralEvCheck.minutesRemaining ? spectralEvCheck.minutesRemaining : '?';
+          // BUG-2034: usar != null para que minutesRemaining=0 muestre "0" en lugar de "?"
+          const minLeftInact = (spectralEvCheck && spectralEvCheck.minutesRemaining != null) ? spectralEvCheck.minutesRemaining : '?';
           return `  • ${m.name} 👻 (inactiva durante la Marea Espectral — ~${minLeftInact} min restantes)`;
         }
       } else if (isSpectralTide && isEarlyZone) {
@@ -300,7 +301,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     // DIS-1744: mensaje acortado para reducir acumulación de bloques informativos en sala 2
     // BUG-2030: threshold actualizado a <=7 para consistencia con combat.js
     if (isSpectralTide && (room.id <= 7 || room.id === 16)) {
-      const minLeftEarly = spectralEvCheck && spectralEvCheck.minutesRemaining ? spectralEvCheck.minutesRemaining : '?';
+      const minLeftEarly = (spectralEvCheck && spectralEvCheck.minutesRemaining != null) ? spectralEvCheck.minutesRemaining : '?'; // BUG-2034
       lines.push(`\n👻 Marea Espectral activa en las profundidades (~${minLeftEarly} min). Las criaturas exteriores siguen activas.`);
     }
     // DIS-2023: en zonas profundas con Marea Espectral, agregar tip de XP doble si hay inactivos

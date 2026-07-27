@@ -5319,7 +5319,7 @@ function cmdAttack(player, targetName) {
           const activeEv = eventScheduler.getActiveEventInfo ? eventScheduler.getActiveEventInfo() : null;
           const isMareaEspectral = activeEv && activeEv.event && activeEv.event.id === 'SPECTRAL_TIDE';
           if (isMareaEspectral) {
-            const minLeft = activeEv.minutesRemaining || '?';
+            const minLeft = activeEv.minutesRemaining != null ? activeEv.minutesRemaining : '?'; // BUG-2034
             return { text: `🦴 El Esqueleto Guerrero está de pie junto a la puerta, inmóvil como siempre.\n\nEs el guardia personal de Aldric. No ataca a compradores — y durante la Marea Espectral, está demasiado ocupado protegiéndolo como para distraerse con vos. (~${minLeft} min hasta que el evento termine)\n\n💡 Si querés practicar combate, volvé a la Sala de Práctica (sala 1).` };
           } else {
             return { text: `🦴 El Esqueleto Guerrero es el guardia personal de Aldric. No te atacará mientras estés aquí como comprador — y atacarlo provocaría exactamente eso.\n\n💡 Si necesitás practicar combate, hay un maniquí en la Sala de Práctica (sala 1).` };
@@ -6973,7 +6973,7 @@ function cmdFlee(player, targetQuery) {
           return isSpectral || isUndead;
         });
         if (activeMonsters.length === 0) {
-          const minLeft = fleeActiveEv.minutesRemaining || '?';
+          const minLeft = fleeActiveEv.minutesRemaining != null ? fleeActiveEv.minutesRemaining : '?'; // BUG-2034
           return { text: `👻 MAREA ESPECTRAL — Los monstruos de esta sala están inactivos por la marea espectral. No hay nada de lo que huir ahora. (Evento termina en ~${minLeft} min)\n\n💡 Podés moverte libremente — usá \"move <dirección>\" para salir de la sala.` };
         }
         monsters = activeMonsters;
@@ -19393,7 +19393,7 @@ function cmdModoBerserk(player, context) {
     return isSpectral || isUndead;
   });
   if (mbMonsters.length === 0) {
-    const minLeft = mbActiveEvCheck ? mbActiveEvCheck.minutesRemaining : '?';
+    const minLeft = mbActiveEvCheck ? (mbActiveEvCheck.minutesRemaining != null ? mbActiveEvCheck.minutesRemaining : '?') : '?'; // BUG-2034
     return { text: `🪓 Modo Berserk solo puede activarse en combate. No hay enemigos atacables.\n👻 MAREA ESPECTRAL activa — solo no-muertos y espectros pueden combatirse ahora. (Evento termina en ~${minLeft} min)` };
   }
 
@@ -19557,7 +19557,7 @@ function cmdSombras(player, args) {
     return isSpectral || isUndead;
   }) : aliveRaw;
   if (alive.length === 0) {
-    const minLeft = sombraEvCheck ? sombraEvCheck.minutesRemaining : '?';
+    const minLeft = sombraEvCheck ? (sombraEvCheck.minutesRemaining != null ? sombraEvCheck.minutesRemaining : '?') : '?'; // BUG-2034
     return { text: `🌑 No podés activar el golpe desde las sombras — los enemigos presentes están inactivos por la Marea Espectral.\n👻 MAREA ESPECTRAL activa — solo no-muertos y espectros pueden combatirse ahora. (Evento termina en ~${minLeft} min)\n\n⚠️ Tus cargas de sombra (●●●) se conservan.` };
   }
 
@@ -21399,7 +21399,7 @@ function cmdUseSkill(player, args, context) {
       return isSpectral || isUndead;
     });
     if (aliveForRage.length === 0) {
-      const minLeft = furiaActiveEv ? furiaActiveEv.minutesRemaining : '?';
+      const minLeft = furiaActiveEv ? (furiaActiveEv.minutesRemaining != null ? furiaActiveEv.minutesRemaining : '?') : '?'; // BUG-2034
       return { text: `🪓 ¡La Furia solo puede desatarse en combate! No hay enemigos atacables.\n👻 MAREA ESPECTRAL activa — solo no-muertos y espectros pueden combatirse ahora. (Evento termina en ~${minLeft} min)` };
     }
     // Calcular costo en HP: 20% del HP máximo
