@@ -7531,7 +7531,7 @@ function cmdPick(player, itemQuery) {
       const hKey = `craft_hint_${recipe.result.toLowerCase().replace(/\s+/g, '_')}`;
       if (!shownH2[hKey]) {
         const equippedIng = invNorm2.includes(ingA.toLowerCase().trim()) ? ingB : ingA;
-        pickCraftHint = `\n💡 ¡Podés craftear ${recipe.result}! Tenés todos los ingredientes, pero «${equippedIng}» está equipado.\n   Flujo: \`desequipar\` → \`craft ${ingA} con ${ingB}\` → \`equipar ${recipe.result}\``;
+        pickCraftHint = `\n💡 ¡Podés craftear ${recipe.result}! Tenés todos los ingredientes, pero «${equippedIng}» está equipado.\n   Flujo: \`desequipar ${equippedIng}\` → \`craft ${ingA} con ${ingB}\` → \`equipar ${recipe.result}\``;
         db.updatePlayer(freshP2.id, { status_effects: JSON.stringify({ ...shownH2, [hKey]: true }) });
         break;
       }
@@ -10393,8 +10393,14 @@ function cmdUnequip(player, itemQuery) {
   if (itemQuery && itemQuery.trim() && player.equipped_armor) {
     const armorNameLower = player.equipped_armor.toLowerCase();
     const queryLower = itemQuery.trim().toLowerCase();
+    // DIS-2014: excluir queries genéricos que se refieren al slot de arma, no a una armadura específica.
+    // "arma", "mi arma", "arma equipada" deben desequipar el arma, no redirigir a unwear
+    // aunque la armadura equipada sea "armadura de placas" (que contiene "arma").
+    const WEAPON_SLOT_KEYWORDS = ['arma', 'mi arma', 'arma equipada', 'weapon', 'espada', 'hacha', 'lanza', 'daga', 'maza', 'bastón', 'mazo', 'arco', 'cuchillo', 'vara'];
+    const isWeaponSlotRef = WEAPON_SLOT_KEYWORDS.some(kw => queryLower === kw || queryLower.startsWith(kw + ' '));
     // coincidencia parcial: si el query está contenido en el nombre de la armadura o viceversa
-    if (armorNameLower.includes(queryLower) || queryLower.includes(armorNameLower)) {
+    // Pero solo si no es una referencia genérica al slot de arma
+    if (!isWeaponSlotRef && (armorNameLower.includes(queryLower) || queryLower.includes(armorNameLower))) {
       return cmdUnwear(player);
     }
   }
