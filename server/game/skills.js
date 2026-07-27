@@ -454,7 +454,7 @@ function canUseSkill(player, skillId) {
   if (expiresAt) {
     const remaining = Math.ceil((new Date(expiresAt) - Date.now()) / 1000);
     if (remaining > 0) {
-      return { ok: false, error: `${skill.name} está en cooldown: ${remaining}s restantes.` };
+      return { ok: false, error: `${skill.name} está en cooldown: ${remaining}s restantes (tiempo real — no turnos de combate).` };
     }
   }
 
