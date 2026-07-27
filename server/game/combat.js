@@ -3273,6 +3273,30 @@ function checkRespawns(onBossRespawn, onAnyRespawn) {
       try { onAnyRespawn(m.id, baseNameForElite, m.respawn_room_id, isElite); } catch (_) {}
     }
   }
+
+  // DIS-2021: Mecánica de "acecho" — si hay jugadores en la sala de respawn de un monstruo muerto,
+  // y el tiempo restante de respawn supera 2 minutos, reducirlo a 2 minutos.
+  // Esto crea tensión: el jugador siente que su presencia "atrae" al monstruo de vuelta.
+  // Solo aplica a monstruos no-boss y no-goblin-de-practica.
+  const LURK_RESPAWN_MS = 2 * 60 * 1000; // 2 minutos
+  const LURK_TRIGGER_MS = 2 * 60 * 1000; // solo acelerar si queda más de 2 min
+  try {
+    const nowForLurk = new Date().toISOString();
+    const lurkingMonsters = db.getMonstersAwaitingRespawnWithPlayers(nowForLurk);
+    for (const lm of lurkingMonsters) {
+      // Excluir goblin de práctica y bosses
+      if (lm.id === 20 || BOSS_MONSTERS[lm.id]) continue;
+      const timeLeft = new Date(lm.respawn_at).getTime() - Date.now();
+      if (timeLeft > LURK_TRIGGER_MS) {
+        const newRespawnAt = new Date(Date.now() + LURK_RESPAWN_MS).toISOString();
+        db.updateMonster(lm.id, { respawn_at: newRespawnAt });
+        console.log(`[combat] DIS-2021: Acecho — ${lm.name} en sala ${lm.respawn_room_id} acelerado (quedan ${Math.round(timeLeft/1000/60)}min → 2min)`);
+      }
+    }
+  } catch (e) {
+    // No romper el ciclo normal si falla el acecho
+    console.warn('[combat] DIS-2021 acecho error:', e.message);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

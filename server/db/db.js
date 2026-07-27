@@ -1932,6 +1932,28 @@ function getMonstersForRespawn(now) {
   ).map(m => ({ ...m, loot: JSON.parse(m.loot || '[]') }));
 }
 
+/**
+ * DIS-2021: Devuelve monstruos muertos cuyo respawn_room_id tiene jugadores activos
+ * y cuyo respawn_at es mayor a `minRespawnAt` (aún no es hora, pero podría acelerarse).
+ * Se usa para implementar la mecánica de "acecho": el jugador espera en la sala
+ * y el monstruo respawnea antes.
+ */
+function getMonstersAwaitingRespawnWithPlayers(minRespawnAt) {
+  const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString().replace('T', ' ').split('.')[0];
+  // Obtener monstruos muertos con respawn_room_id en salas donde hay jugadores activos
+  return all(
+    `SELECT m.* FROM monsters m
+     WHERE m.room_id IS NULL
+       AND m.respawn_at IS NOT NULL
+       AND m.respawn_at > ?
+       AND m.respawn_room_id IN (
+         SELECT current_room_id FROM players
+         WHERE is_archived = 0 AND last_seen > ?
+       )`,
+    [minRespawnAt, cutoff]
+  ).map(m => ({ ...m, loot: JSON.parse(m.loot || '[]') }));
+}
+
 function upsertMonster(monster) {
   run(
     `INSERT OR REPLACE INTO monsters
@@ -4869,7 +4891,7 @@ module.exports = {
   // rooms
   getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, checkTrapRespawns,
   // monsters
-  getMonster, getMonstersInRoom, getAllMonsters, getLivingMonstersWithRoom, getMonstersForRespawn, upsertMonster, updateMonster,
+  getMonster, getMonstersInRoom, getAllMonsters, getLivingMonstersWithRoom, getMonstersForRespawn, getMonstersAwaitingRespawnWithPlayers, upsertMonster, updateMonster,
   // events
   logEvent, getRecentEvents,
   // offline messages (tell)

@@ -1782,7 +1782,34 @@ function cmdLook(player, options = {}) {
     }
   } catch (_dis1826) { /* no romper look si falla el check de stats */ }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine };
+  // DIS-2021: Mensaje de "acecho" — si el jugador está en una sala con monstruos que van a respawnear
+  // pronto (hasta 2 min), mostrar un aviso narrativo que crea tensión de "el peligro vuelve".
+  let lurkingLine = '';
+  try {
+    const nowForLurk = new Date().toISOString();
+    // Obtener monstruos muertos cuya sala de respawn es la sala actual
+    const allRespawning = db.getMonstersAwaitingRespawnWithPlayers
+      ? db.getMonstersAwaitingRespawnWithPlayers(nowForLurk)
+      : [];
+    const inThisRoom = allRespawning.filter(m =>
+      m.respawn_room_id === player.current_room_id &&
+      m.id !== 20 && // excluir goblin de práctica
+      !combat.BOSS_MONSTERS?.[m.id]
+    );
+    if (inThisRoom.length > 0) {
+      // Mostrar solo el monstruo con menos tiempo restante
+      inThisRoom.sort((a, b) => new Date(a.respawn_at) - new Date(b.respawn_at));
+      const soonest = inThisRoom[0];
+      const secsLeft = Math.max(1, Math.ceil((new Date(soonest.respawn_at).getTime() - Date.now()) / 1000));
+      const minsLeft = Math.floor(secsLeft / 60);
+      const secsRem = secsLeft % 60;
+      const timeStr = minsLeft > 0 ? `${minsLeft}m ${secsRem}s` : `${secsLeft}s`;
+      const baseName = soonest.name.startsWith('⭐ ') ? soonest.name.slice(2) : soonest.name;
+      lurkingLine = `\n👁 Sentís que la sala no está vacía. El ${baseName} volverá en ~${timeStr}. Tu presencia lo atrae antes.`;
+    }
+  } catch (_lurk) { /* no romper look si falla el acecho */ }
+
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine + lurkingLine };
 }
 
 /**
