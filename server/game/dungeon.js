@@ -263,8 +263,11 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
         return `  • ${m.name} [🌁 oculto por la niebla]`;
       }
       // DIS-1451: si Marea Espectral activa y el monstruo no es espectral/undead, mostrarlo como inactivo
-      // DIS-1534: excepción — salas early (1-5) quedan fuera del epicentro espectral
-      const isEarlyZone = room.id <= 5;
+      // DIS-1534: excepción — salas early (1-7) quedan fuera del epicentro espectral
+      // DIS-1951: expandido de <=5 a <=7 para alinear con combat.js (BUG-2030: mismatch entre display e combat)
+      // BUG-1936: sala 16 (Antesala del Tutorial) también exenta — onboarding no debe interrumpirse
+      const TUTORIAL_ROOM_ID_DISPLAY = 16;
+      const isEarlyZone = room.id <= 7 || room.id === TUTORIAL_ROOM_ID_DISPLAY;
       if (isSpectralTide && !isEarlyZone) {
         const mNameLower = (m.name || '').toLowerCase();
         const isSpectral = SPECTRAL_TIDE_IDS.has(m.id) ||
@@ -295,12 +298,14 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     lines.push(`\nCriaturas:\n${monsterList}`);
     // DIS-1534: si hay Marea Espectral pero estamos en zona early, agregar contexto narrativo (una línea compacta)
     // DIS-1744: mensaje acortado para reducir acumulación de bloques informativos en sala 2
-    if (isSpectralTide && room.id <= 5) {
+    // BUG-2030: threshold actualizado a <=7 para consistencia con combat.js
+    if (isSpectralTide && (room.id <= 7 || room.id === 16)) {
       const minLeftEarly = spectralEvCheck && spectralEvCheck.minutesRemaining ? spectralEvCheck.minutesRemaining : '?';
       lines.push(`\n👻 Marea Espectral activa en las profundidades (~${minLeftEarly} min). Las criaturas exteriores siguen activas.`);
     }
     // DIS-2023: en zonas profundas con Marea Espectral, agregar tip de XP doble si hay inactivos
-    if (isSpectralTide && room.id > 5) {
+    // BUG-2030: threshold actualizado a >7 para consistencia con combat.js
+    if (isSpectralTide && room.id > 7 && room.id !== 16) {
       const hasInactive = monsters.some(m => {
         const mNameLower = (m.name || '').toLowerCase();
         const isSpectral = SPECTRAL_TIDE_IDS.has(m.id) ||
