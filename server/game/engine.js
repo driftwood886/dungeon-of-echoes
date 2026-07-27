@@ -13704,8 +13704,8 @@ function cmdShop(player, args) {
 
   if (basicMode) {
     if (basicItemNames) {
-      lines.push(`🎯 Mostrando ítems recomendados para ${clsForFilter.emoji} ${clsForFilter.name}.`);
-      lines.push(`💡 Usá "tienda todo" para ver el catálogo completo (${buyableCatalog.length} ítems).`);
+      lines.push(`🎯 **${filteredCatalog.length} de ${buyableCatalog.length} ítems** — filtrado por clase (${clsForFilter.emoji} ${clsForFilter.name}).`);
+      lines.push(`📦 Escribí **"tienda todo"** para ver el catálogo completo (${buyableCatalog.length} ítems disponibles).`);
     } else {
       lines.push('💡 Usá "tienda todo" para ver el catálogo completo.');
     }
