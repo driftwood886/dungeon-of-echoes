@@ -9418,7 +9418,47 @@ function cmdLore(player, query) {
       lines.push(`╟${'─'.repeat(W)}╢`);
     }
     lines[lines.length - 1] = `╚${'═'.repeat(W)}╝`;
-    lines.push(`(${loreEntries.length} fragmento(s) descubierto(s) · más se revelan explorando)`);
+    // DIS-2017: contador de fragmentos y pista sobre zonas sin explorar
+    const KNOWN_LORE_ZONES = [
+      { key: 'sala_trono',    hint: 'Sala del Trono (sala 9) — las inscripciones de las paredes' },
+      { key: 'prision',       hint: 'Prisión Subterránea (sala 8) — marcas de prisioneros' },
+      { key: 'catedral',      hint: 'Catedral de la Oscuridad (sala 15) — letra temblorosa' },
+      { key: 'corredor',      hint: 'Corredor de las Sombras (sala 2) — la inscripción con cera' },
+      { key: 'galeria',       hint: 'Galería de Hielo (sala 12) — las placas al pie de las columnas' },
+      { key: 'kaelthas_lich', hint: 'Derrotar al Lich en la Catedral' },
+      { key: 'santuario',     hint: 'Santuario Profano (zona profunda) — presencias sin nombre' },
+      { key: 'aldric_lore',   hint: 'Hablar con Aldric sobre el pasado del dungeon' },
+    ];
+    // Detectar cuáles ya se descubrieron (por keywords en las entradas de lore)
+    const ZONE_KEYWORDS = {
+      sala_trono:    ['Sala del Trono', 'Torvin', 'Hermana Vela'],
+      prision:       ['Prisión Subterránea', 'Prisi'],
+      catedral:      ['Catedral', 'Lich cuando muere'],
+      corredor:      ['Corredor de las Sombras', 'cera'],
+      galeria:       ['Galería de Hielo', 'mausoleo'],
+      kaelthas_lich: ['La Catedral Roja', 'nombre verdadero', 'Kaelthas — EL QUE NO QUISO'],
+      santuario:     ['Santuario Profano', 'sin origen pronunció'],
+      aldric_lore:   ['Aldric', 'Archivo de Valdrath', 'diagrama quemado'],
+    };
+    const allLoreText = loreEntries.map(e => e.message || '').join(' ');
+    const undiscovered = KNOWN_LORE_ZONES.filter(z => {
+      const kws = ZONE_KEYWORDS[z.key] || [];
+      return !kws.some(kw => allLoreText.includes(kw));
+    });
+    lines.push(`(${loreEntries.length} fragmento(s) descubierto(s))`);
+    if (undiscovered.length > 0) {
+      // Mostrar 1-2 pistas vagas sobre zonas sin descubrir
+      const hint1 = undiscovered[0];
+      const hint2 = undiscovered.length > 1 ? undiscovered[Math.floor(undiscovered.length / 2)] : null;
+      lines.push('');
+      lines.push('🔍 Hay secretos sin descubrir. Pistas:');
+      lines.push(`   • ${hint1.hint}`);
+      if (hint2) lines.push(`   • ${hint2.hint}`);
+      if (undiscovered.length > 2) lines.push(`   • ... y ${undiscovered.length - 2} zona(s) más por explorar.`);
+    } else {
+      lines.push('✨ Descubriste todos los fragmentos conocidos. El dungeon ya no guarda secretos... ¿o sí?');
+    }
+    lines.push('');
     lines.push('');
     lines.push('Para el catálogo de ítems: lore <nombre>  |  Para el diario completo: journal');
 
