@@ -4642,8 +4642,9 @@ function cmdStatus(player) {
   }
 
   // DIS-1764: recordatorio de especialización en status si nivel ≥5 y tiene clase pero sin especialización
+  // DIS-2036: usar unshift para que aparezca al inicio (prominente), no al final
   if ((player.level || 1) >= 5 && player.player_class && player.player_class !== 'sin_clase' && !player.specialization) {
-    statusLines.push(`💡 Podés especializarte — escribí \`especializar\` para desbloquear habilidades de tu clase.`);
+    statusLines.unshift(`🌟 ¡ESPECIALIZACIÓN DISPONIBLE! → escribí \`especializar\` para ver opciones y elegir tu camino.`);
   }
 
   const text = [
