@@ -2957,6 +2957,8 @@ function cmdMove(player, direction) {
   }
   // DIS-1848: Aviso proactivo de mochila casi llena al entrar a sala con boss
   // Si el jugador entra a una sala con boss y tiene menos de 2 slots libres, avisar antes de entrar.
+  // DIS-2037: La flag se resetea cuando el inventario tiene espacio suficiente, para que el aviso
+  //           se vuelva a mostrar si el jugador vuelve con inventario lleno en un run posterior.
   const BOSS_ROOMS_DIS1848 = new Set([8, 9, 10, 12, 14, 15, 19, 20]);
   if (BOSS_ROOMS_DIS1848.has(targetId)) {
     const fresh1848 = db.getPlayer(player.id);
@@ -2979,6 +2981,16 @@ function cmdMove(player, direction) {
       const clearedSe1848 = { ...se1848 };
       delete clearedSe1848[warnKey1848];
       db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe1848) });
+    } else {
+      // DIS-2037: Si el inventario tiene espacio suficiente, limpiar la flag para que el aviso
+      // vuelva a aparecer si el jugador regresa con inventario lleno en el futuro.
+      const se1848reset = parseSE(db.getPlayer(player.id).status_effects);
+      const warnKey1848reset = `inv_warn_boss_room_${targetId}`;
+      if (se1848reset[warnKey1848reset]) {
+        const clearedSe = { ...se1848reset };
+        delete clearedSe[warnKey1848reset];
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe) });
+      }
     }
   }
 
