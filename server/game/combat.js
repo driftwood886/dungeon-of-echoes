@@ -25,6 +25,7 @@ const combatStates = require('./combatStates'); // EPIC-1291-F1: sistema de esta
 const quests      = require('./quests');       // DIS-1405: hint de quest bloqueada por Marea Espectral
 const { articuloMonstruo, derrotadoMonstruo, MONSTER_GENERO_FEMENINO } = require('./gender'); // BUG-1427: centralizar género
 const memory = require('./memory.js'); // EPIC-1820-DEF: hooks de memoria del dungeon
+const { getBossDialogue, formatBossDialogue, BOSS_DIALOGUE_IDS } = require('./bossDialogue'); // EPIC-2045: Boss Dialogue Engine
 
 // DIS-1514: helper para mensaje de XP con progreso de nivel
 function xpProgressSuffix(newXp, newLevel) {
@@ -1228,7 +1229,24 @@ function attackRound(player, monster) {
           defense: newDefP2,
           status_effects: JSON.stringify(monsterFxP2),
         });
-        lines.push(p2.message);
+        // EPIC-2045: Boss Dialogue Engine — trigger 'phase2'
+        // Intentar obtener diálogo personalizado; si no hay match, usar el message estándar
+        try {
+          const bossDialId = BOSS_DIALOGUE_IDS[monster.id];
+          if (bossDialId) {
+            const bossStats = db.getBossStats ? db.getBossStats(bossDialId) : null;
+            const dialResult = getBossDialogue(bossDialId, 'phase2', player, bossStats);
+            if (dialResult.matched && (dialResult.text || dialResult.ambient_text)) {
+              lines.push(formatBossDialogue(dialResult, ''));
+            } else {
+              lines.push(p2.message);
+            }
+          } else {
+            lines.push(p2.message);
+          }
+        } catch (_bde) {
+          lines.push(p2.message); // fallback seguro
+        }
         // DIS-1827: Si la fase 2 tiene drainDot, aplicar lich_drain al jugador
         if (p2.drainDot) {
           try {
@@ -2813,10 +2831,20 @@ function tryFlee(player, monster, room, preferredDirection = null) {
     if (!usedPreferredDir && preferredDirection && actualDirName && destRoomName) {
       toText += ` (huiste hacia el ${actualDirName}, no hacia el ${preferredDirection} que intentaste)`;
     }
+    // EPIC-2045: Boss Dialogue Engine — trigger 'escape'
+    let bossEscapeDialogue = '';
+    try {
+      const escDialId = BOSS_DIALOGUE_IDS[monster.id];
+      if (escDialId) {
+        const bossStats = db.getBossStats ? db.getBossStats(escDialId) : null;
+        const escResult = getBossDialogue(escDialId, 'escape', player, bossStats);
+        if (escResult.matched) bossEscapeDialogue = formatBossDialogue(escResult);
+      }
+    } catch (_) {}
     return {
       fled: true,
       destRoomId,
-      line: `🏃 ¡Conseguís huir del ${monster.name} (${monsterHpDesc})!${toText}`,
+      line: `🏃 ¡Conseguís huir del ${monster.name} (${monsterHpDesc})!${toText}${bossEscapeDialogue}`,
     };
   }
   // El monstruo golpea al intentar huir
@@ -3377,4 +3405,8 @@ module.exports = {
   BOSS_MONSTERS,
   MONSTER_SPECIALS,
   articuloMonstruo,
+  // EPIC-2045: Boss Dialogue Engine (re-exportado para acceso desde engine.js)
+  getBossDialogue,
+  formatBossDialogue,
+  BOSS_DIALOGUE_IDS,
 };

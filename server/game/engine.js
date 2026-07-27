@@ -5680,6 +5680,22 @@ function cmdAttack(player, targetName) {
     if (!seForBossAtk[`boss_attacked_${player.current_room_id}`]) {
       seForBossAtk[`boss_attacked_${player.current_room_id}`] = true;
       db.updatePlayer(player.id, { status_effects: JSON.stringify(seForBossAtk) });
+      // EPIC-2045: Boss Dialogue Engine — trigger 'encounter' (primer ataque al boss)
+      try {
+        const bossDialIdEnc = combat.BOSS_DIALOGUE_IDS && combat.BOSS_DIALOGUE_IDS[monster.id];
+        if (bossDialIdEnc) {
+          const bossStatsEnc = db.getBossStats ? db.getBossStats(bossDialIdEnc) : null;
+          const freshPlayerEnc = db.getPlayer(player.id);
+          const encResult = combat.getBossDialogue(bossDialIdEnc, 'encounter', freshPlayerEnc, bossStatsEnc);
+          if (encResult.matched) {
+            const encText = combat.formatBossDialogue(encResult);
+            if (encText) {
+              // Prepender el diálogo de encuentro al resultado actual
+              result.text = encText + '\n\n' + (result.text || '');
+            }
+          }
+        }
+      } catch (_encErr) { /* no romper combate si falla el diálogo de encuentro */ }
     }
   }
 
@@ -6888,12 +6904,29 @@ function cmdAttack(player, targetName) {
     } catch (_endingErr) { /* no romper combate si falla la closing scene */ }
   }
 
+  // EPIC-2045: Boss Dialogue Engine — trigger 'death' para bosses no-Lich
+  // (el Lich ya tiene su propio bloque bossVictoryBlock / kaelthasEndingBlock)
+  let bossDeathDialogueBlock = '';
+  if (monsterDead && bossKill && monster.id !== LICH_MONSTER_ID && !playerDead) {
+    try {
+      const bossDialIdDeath = combat.BOSS_DIALOGUE_IDS && combat.BOSS_DIALOGUE_IDS[monster.id];
+      if (bossDialIdDeath) {
+        const bossStatsDeath = db.getBossStats ? db.getBossStats(bossDialIdDeath) : null;
+        const freshPlayerDeath = db.getPlayer(player.id);
+        const deathResult = combat.getBossDialogue(bossDialIdDeath, 'death', freshPlayerDeath, bossStatsDeath);
+        if (deathResult.matched) {
+          bossDeathDialogueBlock = combat.formatBossDialogue(deathResult);
+        }
+      }
+    } catch (_bdd) { /* no romper si falla */ }
+  }
+
   // DIS-1879: la advertencia de mochila al final del output (antes estaba al inicio, era disruptiva en momentos de tensión)
   // DIS-2041: Separar el resultado del turno de combate de las notificaciones secundarias.
   // El resultado del turno (HP, daño, habilidades) siempre aparece primero y visible.
   // Las notificaciones (logros, quests, desafíos, facciones, etc.) se agrupan al final
   // con un separador visual cuando el monstruo muere, para evitar que entierren el output de combate.
-  const combatBlock = lichDialoguePrefix + battlecryPrefix + lines.join('\n') + comboMsg + skillHint + _autoTargetHint;
+  const combatBlock = lichDialoguePrefix + battlecryPrefix + lines.join('\n') + bossDeathDialogueBlock + comboMsg + skillHint + _autoTargetHint;
 
   const notifRaw = achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + kaelthasEndingBlock + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg + (_bug1781BossInvWarning ? '\n\n' + _bug1781BossInvWarning.trim() : '');
 
