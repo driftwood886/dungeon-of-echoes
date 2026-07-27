@@ -1127,6 +1127,55 @@ function getQuestDetail(player, questName) {
     }
   }
 
+  // DIS-2022: detectar si el jugador busca la misión de facción (no está en player_quests)
+  {
+    const freshFm = db.getPlayer(player.id) || player;
+    if (freshFm.faction) {
+      const fm = factionMissions.getMissionForPlayer(freshFm);
+      if (fm) {
+        const queryFm = _normalizeSearch(questName);
+        const mNameNorm = _normalizeSearch(fm.name || '');
+        if (mNameNorm.includes(queryFm) || queryFm.includes(mNameNorm) ||
+            queryFm.includes('edicto') || queryFm.includes('faccion') || queryFm.includes('faction')) {
+          // Reusamos el mismo texto que _factionMissionBlock pero más detallado
+          const FACTION_NAMES = {
+            orden_filo: '🗡️  La Orden del Filo',
+            conclave_arcano: '🔮 El Cónclave Arcano',
+            hermandad_mercado: '🪙 La Hermandad del Mercado',
+          };
+          const factionDisplay = FACTION_NAMES[freshFm.faction] || freshFm.faction;
+          const desc = (fm.description_template || fm.name || '').replace('{target}', fm.target);
+          const progress = fm.status === 'completed' ? '✅ COMPLETADA' : `${fm.progress || 0}/${fm.target}`;
+          const lines = [
+            `🏴 **${fm.name}** [MISIÓN DE FACCIÓN]`,
+            `${factionDisplay}`,
+            ``,
+            desc,
+            ``,
+            `**Progreso:** ${progress}`,
+          ];
+          // Hint de postura si aplica
+          if (fm.target_filter) {
+            try {
+              const filter = JSON.parse(fm.target_filter);
+              if (filter.stance) {
+                const sn = filter.stance;
+                lines.push(``);
+                lines.push(`💡 Esta misión requiere postura **${sn}**: escribí \`postura ${sn}\` antes de atacar. Luego usá \`atacar\` normalmente — el contador sube automáticamente.`);
+                if ((fm.progress || 0) > 0) {
+                  lines.push(`✅ Ya acumulaste ${fm.progress}/${fm.target} kills en postura ${sn}.`);
+                }
+              }
+            } catch (_) {}
+          }
+          lines.push(``);
+          lines.push(`Ver detalles completos: \`mision-faccion\``);
+          return { text: lines.join('\n') };
+        }
+      }
+    }
+  }
+
   const activeQuests = _getActiveQuests(player.id);
   if (!activeQuests.length) return { text: 'No tenés quests activas.' };
 

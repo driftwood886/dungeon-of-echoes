@@ -14647,18 +14647,37 @@ function cmdMisionFaccion(player) {
   const bar = progressBar(mission.progress, mission.target);
   const pct = Math.round((mission.progress / mission.target) * 100);
 
-  return {
-    text: [
-      `${factionDisplay}`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `📋 **${mission.name}**`,
-      `   ${desc}`,
-      ``,
-      `   Progreso: ${bar}  ${mission.progress}/${mission.target} (${pct}%)`,
-      `   Recompensa: ${rewardParts.join(', ')}`,
-      `   Tiempo restante: ${daysLeft} día${daysLeft !== 1 ? 's' : ''}`,
-    ].join('\n')
-  };
+  // DIS-2022: hint de postura cuando la misión exige un stance específico
+  let stanceHint = null;
+  if (mission.target_filter) {
+    try {
+      const filter = JSON.parse(mission.target_filter);
+      if (filter.stance) {
+        const stanceName = filter.stance;
+        stanceHint = `💡 Esta misión requiere postura **${stanceName}**: escribí \`postura ${stanceName}\` antes de atacar. Luego usá \`atacar\` normalmente — el contador sube automáticamente.`;
+        if ((mission.progress || 0) > 0) {
+          stanceHint += `\n   ✅ Ya acumulaste ${mission.progress}/${mission.target} kills en postura ${stanceName}.`;
+        }
+      }
+    } catch (_) {}
+  }
+
+  const lines = [
+    `${factionDisplay}`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `📋 **${mission.name}**`,
+    `   ${desc}`,
+    ``,
+    `   Progreso: ${bar}  ${mission.progress}/${mission.target} (${pct}%)`,
+    `   Recompensa: ${rewardParts.join(', ')}`,
+    `   Tiempo restante: ${daysLeft} día${daysLeft !== 1 ? 's' : ''}`,
+  ];
+  if (stanceHint) {
+    lines.push(``);
+    lines.push(`   ${stanceHint}`);
+  }
+
+  return { text: lines.join('\n') };
 }
 
 /**
