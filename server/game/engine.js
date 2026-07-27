@@ -21281,7 +21281,8 @@ function cmdUseSkill(player, args, context) {
       }
     } else {
       text += `\n  El ${target.name} tiene ${newHp}/${target.max_hp} HP.`;
-      text += `\n  (Cooldown: ${skill.cooldown_seconds}s)`;
+      // DIS-2025: mostrar cooldown proactivamente también cuando el monstruo sobrevive
+      text += `\n  ⏱ Golpetazo disponible en: ${skill.cooldown_seconds}s.`;
       // DIS-914: Paladín — smash aplica Aturdido con 25% de chance si el monstruo sobrevive
       if (freshPlayer.specialization === 'paladin' && Math.random() < 0.25) {
         const mFxPaladin = target.status_effects ? (typeof target.status_effects === 'string' ? JSON.parse(target.status_effects) : target.status_effects) : {};
@@ -21355,6 +21356,10 @@ function cmdUseSkill(player, args, context) {
           if (qeSmashResult && qeSmashResult.text) text += '\n\n' + qeSmashResult.text;
         }
       } catch (_) {}
+    }
+    // DIS-2025: mostrar cuándo estará disponible Golpetazo para que el jugador planifique
+    if (dead) {
+      text += `\n⏱ Golpetazo disponible en: ${skill.cooldown_seconds}s.`;
     }
     return { text };
   }
