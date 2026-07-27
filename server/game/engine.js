@@ -9599,7 +9599,7 @@ function cmdLore(player, query) {
     const craftResult = RECIPES.find(r => r.result.toLowerCase() === itemKey.toLowerCase());
     // Tienda: catálogo del mercader Aldric
     const SHOP_CATALOG = [
-      'poción de salud', 'poción mayor', 'antídoto', 'cuchillo oxidado', 'espada oxidada',
+      'poción de salud', 'poción menor', 'poción mayor', 'antídoto', 'cuchillo oxidado', 'espada oxidada',
       'hierba curativa', 'poción de maná', 'cuero endurecido', 'cota de malla', 'veste de sombra',
       'espada de hierro', 'daga envenenada', 'escudo de madera', 'antorcha', 'cuerda', 'red de pesca', 'llave oxidada',
       'túnica encantada', 'poción de maná mayor', 'cristal helado',
@@ -12659,6 +12659,9 @@ const MERCHANT_ROOM_ID = 4;
 
 const SHOP_CATALOG = [
   { name: 'poción de salud',         price: 15, description: 'Recupera 15 HP. Esencial para aventureros.' },
+  // DIS-2033: poción menor agregada a la tienda — ingrediente de crafteo (hierba curativa + poción menor → poción de vida)
+  // Sin esto el tip de crafteo aparecía sin que el jugador pudiera completar la receta en early game.
+  { name: 'poción menor',            price: 8,  description: 'Poción débil que restaura 8 HP. Útil como ingrediente: hierba curativa + poción menor = poción de vida (+30 HP).' },
   { name: 'poción mayor de salud',   price: 35, description: 'Recupera 50 HP. Para las situaciones desesperadas.' },
   { name: 'antídoto',                price: 20, description: 'Cura el veneno al instante.' },
   { name: 'espada de hierro',        price: 10, description: 'Arma de iniciación. +8 ATK — ideal para los primeros combates. Las mazmorras profundas tienen mejores armas como drops de boss.' },  // DIS-1554: 20g→10g — repositionada como arma de transición barata; el jugador no siente que "tiró" el oro cuando el primer boss dropea algo mejor
