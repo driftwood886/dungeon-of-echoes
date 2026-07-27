@@ -1127,67 +1127,75 @@ function getQuestDetail(player, questName) {
     }
   }
 
-  // DIS-2022: detectar si el jugador busca la misión de facción (no está en player_quests)
-  {
-    const freshFm = db.getPlayer(player.id) || player;
-    if (freshFm.faction) {
-      const fm = factionMissions.getMissionForPlayer(freshFm);
-      if (fm) {
-        const queryFm = _normalizeSearch(questName);
-        const mNameNorm = _normalizeSearch(fm.name || '');
-        if (mNameNorm.includes(queryFm) || queryFm.includes(mNameNorm) ||
-            queryFm.includes('edicto') || queryFm.includes('faccion') || queryFm.includes('faction')) {
-          // Reusamos el mismo texto que _factionMissionBlock pero más detallado
-          const FACTION_NAMES = {
-            orden_filo: '🗡️  La Orden del Filo',
-            conclave_arcano: '🔮 El Cónclave Arcano',
-            hermandad_mercado: '🪙 La Hermandad del Mercado',
-          };
-          const factionDisplay = FACTION_NAMES[freshFm.faction] || freshFm.faction;
-          const desc = (fm.description_template || fm.name || '').replace('{target}', fm.target);
-          const progress = fm.status === 'completed' ? '✅ COMPLETADA' : `${fm.progress || 0}/${fm.target}`;
-          const lines = [
-            `🏴 **${fm.name}** [MISIÓN DE FACCIÓN]`,
-            `${factionDisplay}`,
-            ``,
-            desc,
-            ``,
-            `**Progreso:** ${progress}`,
-          ];
-          // Hint de postura si aplica
-          if (fm.target_filter) {
-            try {
-              const filter = JSON.parse(fm.target_filter);
-              if (filter.stance) {
-                const sn = filter.stance;
-                lines.push(``);
-                lines.push(`💡 Esta misión requiere postura **${sn}**: escribí \`postura ${sn}\` antes de atacar. Luego usá \`atacar\` normalmente — el contador sube automáticamente.`);
-                if ((fm.progress || 0) > 0) {
-                  lines.push(`✅ Ya acumulaste ${fm.progress}/${fm.target} kills en postura ${sn}.`);
+  // BUG-2026: buscar primero en las quests activas del jugador (player_quests).
+  // Solo si no hay match, buscar en misión de facción.
+  // Esto evita que queries como "El Edicto del Filo" (quest activa) retornen
+  // la misión de facción por un match parcial con el nombre de la facción.
+  const activeQuests = _getActiveQuests(player.id);
+  const query = _normalizeSearch(questName);
+  const q = activeQuests.length ? activeQuests.find(aq => _normalizeSearch(aq.name).includes(query)) : null;
+
+  // Si encontró match en quests activas, saltar directamente al display (más abajo).
+  // Si no, intentar misión de facción (DIS-2022).
+  if (!q) {
+    // DIS-2022: detectar si el jugador busca la misión de facción (no está en player_quests)
+    {
+      const freshFm = db.getPlayer(player.id) || player;
+      if (freshFm.faction) {
+        const fm = factionMissions.getMissionForPlayer(freshFm);
+        if (fm) {
+          const queryFm = _normalizeSearch(questName);
+          const mNameNorm = _normalizeSearch(fm.name || '');
+          if (mNameNorm.includes(queryFm) || queryFm.includes(mNameNorm) ||
+              queryFm.includes('faccion') || queryFm.includes('faction') ||
+              queryFm.includes('mision') || queryFm.includes('contrato')) {
+            // Reusamos el mismo texto que _factionMissionBlock pero más detallado
+            const FACTION_NAMES = {
+              orden_filo: '🗡️  La Orden del Filo',
+              conclave_arcano: '🔮 El Cónclave Arcano',
+              hermandad_mercado: '🪙 La Hermandad del Mercado',
+            };
+            const factionDisplay = FACTION_NAMES[freshFm.faction] || freshFm.faction;
+            const desc = (fm.description_template || fm.name || '').replace('{target}', fm.target);
+            const progress = fm.status === 'completed' ? '✅ COMPLETADA' : `${fm.progress || 0}/${fm.target}`;
+            const fmLines = [
+              `🏴 **${fm.name}** [MISIÓN DE FACCIÓN]`,
+              `${factionDisplay}`,
+              ``,
+              desc,
+              ``,
+              `**Progreso:** ${progress}`,
+            ];
+            // Hint de postura si aplica
+            if (fm.target_filter) {
+              try {
+                const filter = JSON.parse(fm.target_filter);
+                if (filter.stance) {
+                  const sn = filter.stance;
+                  fmLines.push(``);
+                  fmLines.push(`💡 Esta misión requiere postura **${sn}**: escribí \`postura ${sn}\` antes de atacar. Luego usá \`atacar\` normalmente — el contador sube automáticamente.`);
+                  if ((fm.progress || 0) > 0) {
+                    fmLines.push(`✅ Ya acumulaste ${fm.progress}/${fm.target} kills en postura ${sn}.`);
+                  }
                 }
-              }
-            } catch (_) {}
+              } catch (_) {}
+            }
+            fmLines.push(``);
+            fmLines.push(`Ver detalles completos: \`mision-faccion\``);
+            return { text: fmLines.join('\n') };
           }
-          lines.push(``);
-          lines.push(`Ver detalles completos: \`mision-faccion\``);
-          return { text: lines.join('\n') };
         }
       }
     }
-  }
 
-  const activeQuests = _getActiveQuests(player.id);
-  if (!activeQuests.length) return { text: 'No tenés quests activas.' };
-
-  const query = _normalizeSearch(questName);
-  const q = activeQuests.find(aq => _normalizeSearch(aq.name).includes(query));
-
-  if (!q) {
+    // Sin match en quests activas ni en misión de facción
+    if (!activeQuests.length) return { text: 'No tenés quests activas.' };
     return {
       text: `No encontré una quest activa llamada "${questName}".\nTus quests activas: ${activeQuests.map(aq => `"${aq.name}"`).join(', ')}`
     };
   }
 
+  // q es la quest activa encontrada — continuar con el display normal
   const lines = [];
   const icon = _questIcon(q.type, q.slot);
   lines.push(`${icon} **${q.name}**`);

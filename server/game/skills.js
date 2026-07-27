@@ -213,7 +213,7 @@ const SKILLS = {
     duration_turns: 3,
     exhaustion_penalty: 2,     // −2 ATK durante agotamiento post-berserk
     exhaustion_turns: 2,       // duración del agotamiento
-    description: 'Entrás en estado de combate alterado por 3 turnos: +5 ATK, sin postura defensiva, sin huida, inmune a slowed/frozen. Al terminar: −2 ATK por 2 turnos de agotamiento. Sin costo. Solo Berserker (nivel 5+). Cooldown: 90s.',
+    description: 'Entrás en estado de combate alterado: +5 ATK por 3 turnos de ataque (no se pierde turno al activar — el primer turno empieza cuando escribís "atacar"). Sin postura defensiva, sin huida, inmune a slowed/frozen. Al terminar: −2 ATK por 2 turnos de agotamiento. Sin costo. Solo Berserker (nivel 5+). Cooldown: 90s.',
     combat_only: true,
   },
   // EPIC-1307-F5: Calmar Furia — cancela modo berserk
