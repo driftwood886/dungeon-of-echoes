@@ -7797,6 +7797,38 @@ function cmdUse(player, itemQuery) {
 
   const def = items.getItemDef(found);
 
+  // BUG-2012: Smart swap — si el query es genérico ("pocion") y matcheó una mana_potion
+  // pero el maná está lleno y el HP está bajo, preferir una poción de salud si hay una.
+  // Solo aplica si el query no especificó "maná" o "mana" explícitamente.
+  if (def && def.type === 'mana_potion') {
+    const queryNormBug2012 = itemQuery.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const isGenericQuery = !queryNormBug2012.includes('mana');
+    if (isGenericQuery) {
+      const currentMana2012 = player.mana != null ? player.mana : 20;
+      const maxMana2012 = player.max_mana || 20;
+      const maxHp2012 = player.max_hp || 30;
+      const hpPct2012 = Math.round((player.hp / maxHp2012) * 100);
+      if (currentMana2012 >= maxMana2012 && hpPct2012 < 50) {
+        // Buscar poción de salud en inventario
+        const HEAL_POTS_BUG2012 = ['poción de salud', 'poción de vida', 'poción mayor de salud', 'poción menor'];
+        const healPot2012 = HEAL_POTS_BUG2012.find(name => player.inventory && player.inventory.includes(name));
+        if (healPot2012) {
+          // Redirigir automáticamente y avisar al jugador
+          const redirectDef = items.getItemDef(healPot2012);
+          if (redirectDef) {
+            // Modificar found y def para usar la poción de salud
+            // Agregar aviso al texto de resultado
+            const redirectResult = cmdUse(player, healPot2012);
+            return {
+              text: `⚠️ Tu maná está lleno — usás \"${healPot2012}\" en lugar de la poción de maná.\n${redirectResult.text}`,
+              ...(redirectResult.broadcast ? { broadcast: redirectResult.broadcast } : {}),
+            };
+          }
+        }
+      }
+    }
+  }
+
   // EPIC-1900: Handler para ítems de campaña (deposit_items)
   if (def && def.type === 'campaign_item') {
     const activeCamp = db.getActiveCampaign();
@@ -7948,7 +7980,18 @@ function cmdUse(player, itemQuery) {
     const currentMana = player.mana != null ? player.mana : 20;
     const maxMana = player.max_mana || 20;
     if (currentMana >= maxMana) {
-      return { text: `💧 Tu maná ya está al máximo (${currentMana}/${maxMana}). Guardás la ${found}.` };
+      // BUG-2012: si el HP está bajo y el jugador tiene pociones de salud, avisarlo
+      const maxHpCheck = player.max_hp || 30;
+      const hpPctCheck = Math.round((player.hp / maxHpCheck) * 100);
+      const HEAL_POTION_NAMES = ['poción de salud', 'poción de vida', 'poción mayor de salud', 'poción menor'];
+      const availableHealPot = HEAL_POTION_NAMES.find(name => player.inventory && player.inventory.includes(name));
+      let warningMsg = `💧 Tu maná ya está al máximo (${currentMana}/${maxMana}). Guardás la ${found}.`;
+      if (hpPctCheck < 50 && availableHealPot) {
+        warningMsg += `\n⚠️ Tenés el HP al ${hpPctCheck}% (${player.hp}/${maxHpCheck}). Tal vez querías usar \"${availableHealPot}\" en lugar de la poción de maná.`;
+      } else if (hpPctCheck < 50) {
+        warningMsg += `\n⚠️ Tenés el HP al ${hpPctCheck}% (${player.hp}/${maxHpCheck}). Considerá descansar o buscar una poción de salud.`;
+      }
+      return { text: warningMsg };
     }
     const newMana = Math.min(maxMana, currentMana + def.amount);
     const restored = newMana - currentMana;
