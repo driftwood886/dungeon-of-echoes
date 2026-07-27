@@ -2900,26 +2900,27 @@ function cmdMove(player, direction) {
     const playerLevel1504 = player.level || 1;
     const underLevel1504 = playerLevel1504 < boss1504.level - 1; // 2+ niveles por debajo
     if (underLevel1504) {
-      const visitedRooms1504 = (() => { try { return JSON.parse(player.rooms_visited || '[]'); } catch (_) { return []; } })();
-      const neverVisited1504 = !visitedRooms1504.includes(targetId);
-      if (neverVisited1504) {
-        const se1504 = parseSE(player.status_effects);
-        const warnKey1504 = `danger_warning_room_${targetId}`;
-        if (!se1504[warnKey1504]) {
-          // Primera vez: mostrar warning sin mover al jugador
-          const newSe1504 = { ...se1504, [warnKey1504]: true };
-          db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1504) });
-          const dirNorm1504 = dungeon.normalizeDirection(direction);
-          const dirEs1504 = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNorm1504]) || dirNorm1504 || 'la dirección indicada';
-          return {
-            text: `⚠️  ${boss1504.icon} Antes de entrar a ${boss1504.roomName}, algo te detiene — el aire se vuelve más denso, más peligroso.\n\n**${boss1504.name}** aguarda dentro. Nivel recomendado: ${boss1504.level}+ (tu nivel actual: ${playerLevel1504}).\n\nEntrar ahora es un riesgo considerable. Conviene explorar más, subir de nivel o conseguir mejores equipos antes.\n\n💡 Si aun así querés entrar, escribí «${dirEs1504}» de nuevo.`,
-          };
-        }
-        // Segunda vez: limpiar flag y dejar pasar
-        const clearedSe1504 = { ...se1504 };
-        delete clearedSe1504[warnKey1504];
-        db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe1504) });
+      // BUG-2031: el key incluye la sala de origen para que la advertencia se resetee
+      // cada vez que el jugador abandona la sala y vuelve a intentar entrar.
+      // Antes solo se advertía si la sala nunca fue visitada (neverVisited) — ahora
+      // la advertencia aparece siempre que el jugador esté bajo de nivel.
+      const fromRoom1504 = player.current_room_id || player.room_id || 0;
+      const se1504 = parseSE(player.status_effects);
+      const warnKey1504 = `danger_warning_from_${fromRoom1504}_to_${targetId}`;
+      if (!se1504[warnKey1504]) {
+        // Primera vez (o primera vez desde esta sala): mostrar warning sin mover al jugador
+        const newSe1504 = { ...se1504, [warnKey1504]: true };
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1504) });
+        const dirNorm1504 = dungeon.normalizeDirection(direction);
+        const dirEs1504 = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNorm1504]) || dirNorm1504 || 'la dirección indicada';
+        return {
+          text: `⚠️  ${boss1504.icon} Antes de entrar a ${boss1504.roomName}, algo te detiene — el aire se vuelve más denso, más peligroso.\n\n**${boss1504.name}** aguarda dentro. Nivel recomendado: ${boss1504.level}+ (tu nivel actual: ${playerLevel1504}).\n\nEntrar ahora es un riesgo considerable. Conviene explorar más, subir de nivel o conseguir mejores equipos antes.\n\n💡 Si aun así querés entrar, escribí «${dirEs1504}» de nuevo.`,
+        };
       }
+      // Segunda vez consecutiva desde la misma sala: limpiar flag y dejar pasar
+      const clearedSe1504 = { ...se1504 };
+      delete clearedSe1504[warnKey1504];
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe1504) });
     }
   }
 
