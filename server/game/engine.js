@@ -1674,7 +1674,22 @@ function cmdLook(player, options = {}) {
         const evMinLeft = Math.floor(currentEv.remainingMs / 60000);
         const evSecLeft = Math.floor((currentEv.remainingMs % 60000) / 1000);
         const evTimeStr = evMinLeft > 0 ? `${evMinLeft}m ${evSecLeft}s` : `${evSecLeft}s`;
-        activeEventLine = `\n${currentEv.name} — ${currentEv.description} (⏱ ${evTimeStr} restantes)`;
+        // DIS-2039: mostrar banner completo solo la primera vez o cuando quedan ≤2 min
+        const weKey = `we_notified_${currentEv.id}`;
+        const weSE = parseSE(player.status_effects);
+        const weAlreadyNotified = weSE[weKey];
+        const weNearlyOver = evMinLeft < 2;
+        if (!weAlreadyNotified) {
+          // Primera vez — mostrar banner completo y marcar
+          try { const seUpd = { ...weSE, [weKey]: true }; db.updatePlayer(player.id, { status_effects: JSON.stringify(seUpd) }); } catch (_) {}
+          activeEventLine = `\n${currentEv.name} — ${currentEv.description} (⏱ ${evTimeStr} restantes)`;
+        } else if (weNearlyOver) {
+          // Quedan ≤2 min — recordatorio urgente
+          activeEventLine = `\n⚠️ ${currentEv.name} termina en ${evTimeStr}.`;
+        } else {
+          // Ya fue notificado y no es urgente — mostrar solo ícono+tiempo breve
+          activeEventLine = `\n🌐 ${currentEv.name} (⏱ ${evTimeStr} restantes)`;
+        }
       }
     }
   } catch (_) { /* no romper look si worldEvents falla */ }
