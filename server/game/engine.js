@@ -1518,6 +1518,9 @@ function cmdLook(player, options = {}) {
         db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeFV) });
         // Entrada en el diario
         db.addJournalEntry(player.id, 'lore', `✨ En el Santuario Profano, una voz sin origen pronunció tu nombre. No era un eco.`);
+        // DIS-2024: suprimir advertencias de boss adyacente en la primera visita al Santuario
+        // para no romper el momento narrativo con texto técnico
+        adjacentDangerLine = '';
       }
     }
   } catch (_) { /* no romper look si falla el evento */ }
