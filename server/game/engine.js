@@ -638,7 +638,7 @@ function execute(playerId, input, context) {
     case 'enemies':      result = cmdEnemies(action.args); break;
     case 'compare':      result = cmdCompare(player, action.args); break;
     case 'reputation':   result = cmdReputation(player); break;
-    case 'recall':       result = cmdRecall(player); break;
+    case 'recall':       result = cmdRecall(player, action.args); break;
     case 'back':         result = cmdBack(player, context); break;
     case 'chase':        result = cmdChase(player, context); break;
     case 'trade':        result = cmdTrade(player, action.args); break;
@@ -11879,12 +11879,13 @@ function cmdRest(player, context) {
  * T131: recall / volver — Teletransportarse a la sala de inicio (sala 1).
  * Cooldown: 10 minutos. Cuesta 5 HP.
  */
-function cmdRecall(player) {
+function cmdRecall(player, args = []) {
   player = db.getPlayer(player.id);
 
   const START_ROOM = 1;
   const COOLDOWN_MS = 10 * 60 * 1000; // 10 minutos
   const HP_COST = 5;
+  const HP_WARNING_THRESHOLD = 30;
 
   // Ya estás en la sala de inicio
   if (player.current_room_id === START_ROOM) {
@@ -11906,6 +11907,15 @@ function cmdRecall(player) {
   // Verificar HP suficiente
   if (player.hp <= HP_COST) {
     return { text: `🔮 No tenés suficiente energía para el retorno. Necesitás más de ${HP_COST} HP.` };
+  }
+
+  // DIS-2013: Advertencia cuando HP < umbral y no se confirmó
+  const confirmed = args && args.some(a => a === 'confirmar' || a === 'confirma' || a === 'confirm');
+  if (player.hp < HP_WARNING_THRESHOLD && !confirmed) {
+    return {
+      text: `⚠️  El recall cuesta ${HP_COST} HP y estás a ${player.hp}/${player.max_hp} HP.\n` +
+            `Esto podría ponerte en peligro. Si estás seguro, escribí: \`recall confirmar\``
+    };
   }
 
   // Realizar el teletransporte
