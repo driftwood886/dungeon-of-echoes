@@ -14637,13 +14637,22 @@ function cmdFacciones(player) {
     const bar = makeBar(f.week_influence, total);
     const isLeader = f.id === leader.id;
     const crown = isLeader ? ' 👑' : '   ';
-    lines.push(`║  ${f.icon} ${f.name.padEnd(22)} [${bar}] ${String(pct).padStart(3)}%${crown} ║`);
+    // DIS-2016: ocultar % exacto cuando el jugador no tiene facción (reduce sesgo de elección)
+    const pctDisplay = player.faction ? String(pct).padStart(3) + '%' : ' ??%';
+    lines.push(`║  ${f.icon} ${f.name.padEnd(22)} [${bar}] ${pctDisplay}${crown} ║`);
   }
 
   lines.push(`╟──────────────────────────────────────────────────────╢`);
   if (leader.week_influence > 0) {
-    lines.push(`║  Control actual: ${leader.name.padEnd(35)}║`);
-    lines.push(`║  Bonus activo: ${(BONUSES[leader.id] || '???').padEnd(37)}║`);
+    if (player.faction) {
+      // Miembro: ver el control completo con bonus activo
+      lines.push(`║  Control actual: ${leader.name.padEnd(35)}║`);
+      lines.push(`║  Bonus activo: ${(BONUSES[leader.id] || '???').padEnd(37)}║`);
+    } else {
+      // DIS-2016: jugador sin facción — ocultar quién controla para no sesgar la elección
+      lines.push(`║  Hay una facción con control esta semana.             ║`);
+      lines.push(`║  Uníte para ver quién lidera y qué bonus está activo. ║`);
+    }
   } else {
     lines.push(`║  Sin control establecido esta semana aún.             ║`);
     lines.push(`║  Sé el primero en acumular influencia.                ║`);
