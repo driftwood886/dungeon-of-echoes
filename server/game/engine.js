@@ -1634,7 +1634,7 @@ function cmdLook(player, options = {}) {
     const stance = player.stance || 'equilibrado';
     // Mostrar hint si el jugador está en postura por defecto (nunca la cambió)
     if (stance === 'equilibrado') {
-      practicaPosturaHint = `\n\n⚔️ Consejo del entrenador: Los guerreros experimentados ajustan su postura de combate.\n  · postura agresivo   → +2 ATK, -2 DEF (atacás con más fuerza)\n  · postura defensivo  → -2 ATK, +2 DEF (aguantás más golpes)\n  · postura equilibrado → sin modificadores (postura actual)\nProbá cambiar de postura aquí con los maniquíes — sin riesgo.`; // DIS-1056
+      practicaPosturaHint = `\n\n⚔️ Consejo del entrenador: Los guerreros experimentados ajustan su postura de combate.\n  · postura agresivo   → +2 ATK, -1 DEF (atacás con más fuerza)\n  · postura defensivo  → -1 ATK, +2 DEF (aguantás más golpes)\n  · postura equilibrado → sin modificadores (postura actual)\nProbá cambiar de postura aquí con los maniquíes — sin riesgo.`; // DIS-1056 BUG-2020
     }
   }
 
