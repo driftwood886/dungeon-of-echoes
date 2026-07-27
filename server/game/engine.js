@@ -21069,7 +21069,19 @@ function cmdUseSkill(player, args, context) {
       : {};
     const smashAtkDebuff = smashAtkFx.atk_debuffed ? (smashAtkFx.atk_debuffed.amount || 0) : 0;
     const effectiveSmashAtk = Math.max(1, baseDmg - smashAtkDebuff);
-    const rawDmg = Math.max(1, Math.floor(effectiveSmashAtk * skill.dmg_multiplier));
+    // BUG-2018: aplicar buff berserker_rage si está activo (espejo de combat.js línea 992-1001)
+    const smashScrolls = freshPlayer.active_scrolls
+      ? (typeof freshPlayer.active_scrolls === 'string' ? JSON.parse(freshPlayer.active_scrolls) : freshPlayer.active_scrolls)
+      : {};
+    let smashRageMultiplier = 1.0;
+    let smashRageLabel = '';
+    if (smashScrolls['berserker_rage'] && smashScrolls['berserker_rage'].expires_at > Date.now()) {
+      smashRageMultiplier = smashScrolls['berserker_rage'].dmg_multiplier || 2.0;
+      smashRageLabel = ` 🪓 [FURIA ×${smashRageMultiplier}]`;
+      delete smashScrolls['berserker_rage'];
+      db.updatePlayer(freshPlayer.id, { active_scrolls: JSON.stringify(smashScrolls) });
+    }
+    const rawDmg = Math.max(1, Math.floor(effectiveSmashAtk * skill.dmg_multiplier * smashRageMultiplier));
     const variation = Math.floor(rawDmg * 0.2);
     const dmg = rawDmg + Math.floor(Math.random() * (variation * 2 + 1)) - variation;
     // BUG-658: aplicar resistencia física igual que combat.js (×0.75 para el Gólem de Piedra)
@@ -21099,7 +21111,7 @@ function cmdUseSkill(player, args, context) {
     const dead = newHp <= 0;
     const smashResistNote = smashPhysResist < 1.0 ? ` ${smashResistLabel}` : '';
     const smashOverkillNote = smashIsOverkill ? ` *(excesivo, pero eficaz)*` : '';
-    let text = `${smashLichDrainPrefix}⚡ ¡GOLPETAZO! Golpeás al ${target.name} con toda tu fuerza causando ${finalDmg} de daño (×1.8)!${smashResistNote}${smashOverkillNote}`;
+    let text = `${smashLichDrainPrefix}⚡ ¡GOLPETAZO! Golpeás al ${target.name} con toda tu fuerza causando ${finalDmg} de daño (×1.8)!${smashRageLabel}${smashResistNote}${smashOverkillNote}`;
     if (dead) {
       text += `\n💀 El ${target.name} sucumbe ante tu brutal ataque.`;
       // Loot via dropLoot (igual que cmdAttack) — incluye loot bonus de boss
