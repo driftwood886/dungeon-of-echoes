@@ -7720,6 +7720,10 @@ function cmdPick(player, itemQuery) {
   if (found.toLowerCase().includes('páginas congeladas') || found.toLowerCase().includes('paginas congeladas')) {
     cartaHint += `\n\n📖 Las páginas están soldadas por el hielo — un diario parcial de alguien que llegó aquí antes que vos. Usá \`use páginas congeladas\` o \`examine páginas congeladas\` para leerlas. No tienen uso de combate pero revelan algo sobre el dungeon.`;
   }
+  // DIS-2042: hint al recoger la corona rota en sala 8 — el jugador puede venderla sin saber su uso
+  if (found.toLowerCase().includes('corona rota') && player.current_room_id === 8) {
+    cartaHint += `\n\n👑 Esta corona emana un frío antinatural — el metal vibra como si reconociera algo. Guardala: sirve para desactivar la trampa de hielo en la Sala del Trono (sala 9, norte del Túnel de los Hongos). Usá \`examine corona rota\` para más info.`;
+  }
 
   // DIS-1103: para ítems raros/épicos/legendarios en pick individual → bloque destacado propio
   let pickSingleMsg;
