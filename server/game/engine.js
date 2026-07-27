@@ -6911,6 +6911,10 @@ function cmdAttack(player, targetName) {
     try {
       const bossDialIdDeath = combat.BOSS_DIALOGUE_IDS && combat.BOSS_DIALOGUE_IDS[monster.id];
       if (bossDialIdDeath) {
+        // IMPL-2050: Registrar el kill en boss_stats para alimentar los kill_count de diálogos
+        if (db.recordBossKill) {
+          db.recordBossKill(bossDialIdDeath, player.username);
+        }
         const bossStatsDeath = db.getBossStats ? db.getBossStats(bossDialIdDeath) : null;
         const freshPlayerDeath = db.getPlayer(player.id);
         const deathResult = combat.getBossDialogue(bossDialIdDeath, 'death', freshPlayerDeath, bossStatsDeath);
@@ -6919,6 +6923,12 @@ function cmdAttack(player, targetName) {
         }
       }
     } catch (_bdd) { /* no romper si falla */ }
+  }
+  // IMPL-2050: Registrar kill del Lich en boss_stats también
+  if (lichKill && !playerDead) {
+    try {
+      if (db.recordBossKill) db.recordBossKill('lich_anciano', player.username);
+    } catch (_bkl) { /* no romper */ }
   }
 
   // DIS-1879: la advertencia de mochila al final del output (antes estaba al inicio, era disruptiva en momentos de tensión)
