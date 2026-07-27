@@ -45,7 +45,7 @@ const challengePool = [
     id: 'CHAL-C02',
     category: 'combate',
     title: 'Cazador de Ratas',
-    description: 'Elimina a 3 Ratas Gigantes. Están cerca de la entrada.',
+    description: 'Elimina a 3 Ratas Gigantes. Las encontrás en el Túnel de los Hongos (sala 6) — llegás por Entrada → este → norte, o por Corredor → oeste.',
     condition: { type: 'kill', target: 'Rata Gigante', amount: 3, extra: {} },
     reward: { xp: 35, gold: 5, rep: 0 },
     min_level: 1, max_level: 3,
