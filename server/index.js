@@ -862,6 +862,10 @@ async function main() {
       });
       console.log(`[weather] Nuevo clima: ${weatherResult.weather.name}`);
     }
+
+    // IMPL-2051 (EPIC-KAELTHAS-F1): Reset semanal de kills_this_week en boss_stats.
+    // La función verifica internamente si cambió la semana ISO — no hace writes innecesarios.
+    try { db.resetWeeklyBossKills(); } catch (_) {}
   }, 60000);
 
   // T-1225: Scheduler de eventos cíclicos globales (La Gaceta del Corredor)
