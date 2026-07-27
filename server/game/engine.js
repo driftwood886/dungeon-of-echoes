@@ -5490,6 +5490,7 @@ function cmdAttack(player, targetName) {
   // EPIC-1307-F5: Modo Berserk — +5 ATK durante los 3 turnos activos
   let modoBerserkMsg = null;
   let berserkTurnsRemaining = 0;
+  let savedAgotamientoEntry = null; // BUG-2029: capturar agotamiento antes del decremento para posible reversión
   const mbFresh = db.getPlayer(player.id);
   const mbSE = parseSE(mbFresh.status_effects);
   if (mbSE.modo_berserk_activo) {
@@ -5528,6 +5529,7 @@ function cmdAttack(player, targetName) {
     const agot = mbSE.berserk_agotamiento;
     const agotTurns = agot.turns_remaining || 0;
     if (agotTurns > 0) {
+      savedAgotamientoEntry = { ...agot, turns_remaining: agotTurns }; // BUG-2029: snapshot antes de decrementar
       player = { ...player, attack: Math.max(1, (player.attack || 5) - (agot.atk_penalty || 2)) };
       const newAgotTurns = agotTurns - 1;
       if (newAgotTurns <= 0) {
@@ -5561,7 +5563,9 @@ function cmdAttack(player, targetName) {
 
   // BUG-1398: Si el ataque fue bloqueado por Marea Espectral (spectralBlocked),
   // los recursos de habilidades NO deben consumirse — revertir decrementos.
-  if (combatResult.spectralBlocked) {
+  // BUG-2029: También revertir si el jugador estuvo paralizado — el modo_berserk define
+  // "+5 ATK por 3 turnos de ATAQUE", y un turno paralizado no es un turno de ataque.
+  if (combatResult.spectralBlocked || combatResult.paralyzed) {
     const freshMb = db.getPlayer(player.id);
     const freshMbSE = parseSE(freshMb.status_effects);
     let needsUpdate = false;
@@ -5574,6 +5578,13 @@ function cmdAttack(player, targetName) {
       delete freshMbSE.berserk_agotamiento;
       needsUpdate = true;
     }
+    // Revertir agotamiento post-berserk si el turno fue paralizado y el agotamiento
+    // fue decrementado este turno (BUG-2029: el agotamiento tampoco debe contar turnos paralizado)
+    if (combatResult.paralyzed && savedAgotamientoEntry) {
+      // Restaurar el agotamiento al valor pre-decremento
+      freshMbSE.berserk_agotamiento = { ...savedAgotamientoEntry };
+      needsUpdate = true;
+    }
     // Revertir quemar_combo si fue consumido (no debería gastar el combo si no atacó)
     if (savedQuemarComboEntry) {
       // Restaurar quemar_combo_activo en la DB
@@ -5583,7 +5594,8 @@ function cmdAttack(player, targetName) {
     if (needsUpdate) {
       db.updatePlayer(player.id, { status_effects: JSON.stringify(freshMbSE) });
     }
-    // No agregar mensajes de habilidades — el ataque no ocurrió
+    // No agregar mensajes de habilidades — el ataque no ocurrió (spectralBlocked)
+    // Para parálisis, el mensaje de berserk no se muestra (el jugador no atacó)
   } else {
     // EPIC-1302-F4: Agregar mensaje de quemar combo si aplica
     if (quemarComboMsg) {
