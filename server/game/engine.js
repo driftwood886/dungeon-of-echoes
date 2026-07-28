@@ -2931,7 +2931,9 @@ function cmdMove(player, direction) {
   const boss1504 = BOSS_ROOM_DANGER_PREMOVE[targetId];
   if (boss1504) {
     const playerLevel1504 = player.level || 1;
-    const underLevel1504 = playerLevel1504 < boss1504.level - 1; // 2+ niveles por debajo
+    // DIS-2076: umbral ajustado — avisa si el jugador está por debajo del nivel recomendado
+    // (antes: boss.level - 1; ahora: < boss.level, para que el jugador de nivel exacto también reciba el aviso)
+    const underLevel1504 = playerLevel1504 < boss1504.level;
     if (underLevel1504) {
       // BUG-2031: el key incluye la sala de origen para que la advertencia se resetee
       // cada vez que el jugador abandona la sala y vuelve a intentar entrar.
