@@ -8485,12 +8485,20 @@ function cmdUse(player, itemQuery) {
         try {
           const currentRoomForKey = db.getRoom(player.current_room_id);
           let keyExits = {};
-          try { keyExits = JSON.parse(currentRoomForKey.exits || '{}'); } catch (_) { keyExits = {}; }
-          const lockedExitEntries = Object.entries(keyExits).filter(([, v]) => v && typeof v === 'object' && v.locked);
+          try {
+            const rawExitsForKey = currentRoomForKey.exits;
+            // DIS-2068: db.getRoom() ya parsea exits a objeto; manejar ambos casos (objeto o string)
+            keyExits = (rawExitsForKey && typeof rawExitsForKey === 'object')
+              ? rawExitsForKey
+              : JSON.parse(rawExitsForKey || '{}');
+          } catch (_) { keyExits = {}; }
+          // DIS-2068: detectar salidas con .locked O con .key (la puerta norte de sala 7 usa { room_id, key })
+          const lockedExitEntries = Object.entries(keyExits).filter(([, v]) => v && typeof v === 'object' && (v.locked || v.key));
           if (lockedExitEntries.length > 0) {
             // Hay una puerta bloqueada — intentar cruzarla como si el jugador hubiera escrito "move <dir>"
             const [targetDir] = lockedExitEntries[0];
-            const moveResult = cmdMove(player, [targetDir]);
+            // DIS-2068: pasar targetDir como string (no array) — cmdMove espera direction: string
+            const moveResult = cmdMove(player, targetDir);
             if (moveResult && moveResult.text && !moveResult.text.includes('bloqueada') && !moveResult.text.includes('🔒')) {
               // El movimiento funcionó — la llave fue usada exitosamente
               return moveResult;
