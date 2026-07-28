@@ -319,6 +319,15 @@ function getEpitaph(player) {
 function getGuardianHint(player) {
   if (player.is_bot === 1) return null;
 
+  // IMPL-2052 (a): Para legado memoria_kaelthas, suprimir hint — el jugador ya conoce la historia.
+  // (La quest también queda en 'active' al aplicar el legado, así que la condición
+  //  state === 'inactive' abajo ya lo excluye; este guard es explícito para robustez.)
+  try {
+    const rawBonus = player.legacy_bonus;
+    const lb = rawBonus ? (typeof rawBonus === 'string' ? JSON.parse(rawBonus) : rawBonus) : null;
+    if (lb && lb.type === 'memoria_kaelthas') return null;
+  } catch (_) {}
+
   try {
     const mqd = db.getMainQuestData(player.id);
     const state = mqd.main_quest_state || 'inactive';
@@ -346,6 +355,32 @@ function getGuardianHint(player) {
   }
 }
 
+// ─── Función 7: seedLegacyJournal ────────────────────────────────────────────
+
+/**
+ * IMPL-2052 (b): Al aplicar el legado 'memoria_kaelthas', poblar el diario del nuevo
+ * personaje con las 4 entradas narrativas de los fragmentos.
+ * El jugador debería ver su diario de quest ya poblado desde el primer login.
+ *
+ * @param {number} playerId — id del nuevo personaje
+ */
+function seedLegacyJournal(playerId) {
+  try {
+    for (const fid of FRAGMENT_IDS) {
+      db.addJournalEntry(playerId, 'quest', FRAGMENT_JOURNAL[fid]);
+    }
+    db.addJournalEntry(
+      playerId,
+      'quest',
+      '📖 [LEGADO] La Memoria de Kaelthas — empezás esta run sabiendo lo que descubriste en la anterior. ' +
+      'Los cuatro fragmentos ya son parte de tu historia. El Lich te espera en la sala 15.',
+    );
+    console.log(`[IMPL-2052] seedLegacyJournal: diario de Kaelthas poblado para jugador ${playerId}.`);
+  } catch (e) {
+    console.error('[kaelthasQuest] seedLegacyJournal error:', e.message);
+  }
+}
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -355,6 +390,7 @@ module.exports = {
   getLichDialogue,
   getEpitaph,
   getGuardianHint,
+  seedLegacyJournal,
   // Constantes exportadas para tests y engine.js
   FRAGMENT_IDS,
   FRAGMENT_NAMES,

@@ -16365,6 +16365,8 @@ function applyLegacyBonus(player, legacyBonus) {
         main_quest_state: 'active',
         started_at: new Date().toISOString(),
       });
+      // IMPL-2052 (b): Poblar el diario del nuevo personaje con las entradas narrativas de los fragmentos
+      kaelthasQuest.seedLegacyJournal(player.id);
       console.log(`[IMPL-2052] memoria_kaelthas aplicado a ${player.username} — quest de Kaelthas iniciada con 4 fragmentos.`);
     } catch (e) {
       console.error('[IMPL-2052] Error aplicando kaelthas_heritage:', e.message);
