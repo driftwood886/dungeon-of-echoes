@@ -15183,10 +15183,14 @@ function cmdFaccion(player, args) {
   // (cuando el alias 'unirse'/'join' → 'faccion' y el nombre queda como primer arg)
   // DIS-1856: cuando se usa el alias directo "unirse <nombre>", confirmar automáticamente
   //           (sin mostrar la tarjeta — el usuario ya eligió al escribir "unirse")
-  if (FACTION_LORE[sub] || FACTION_LORE[nameArg] || FACTION_LORE[sub.replace(/\s+/g, '_')]) {
+  // BUG-2064: también intentar resolver el nombre completo multi-palabra (ej: "orden del filo")
+  //           usando _normalizeFactionId antes de caer al error genérico
+  const fullNameAttempt = _normalizeFactionId(args.join(' '));
+  if (FACTION_LORE[sub] || FACTION_LORE[nameArg] || FACTION_LORE[sub.replace(/\s+/g, '_')] || fullNameAttempt) {
     const candidateId = FACTION_LORE[sub] ? sub :
                         FACTION_LORE[nameArg] ? nameArg :
-                        sub.replace(/\s+/g, '_');
+                        FACTION_LORE[sub.replace(/\s+/g, '_')] ? sub.replace(/\s+/g, '_') :
+                        fullNameAttempt;
     const restArgs = args.slice(1);
     if (!restArgs.some(a => a.toLowerCase() === 'confirmar')) restArgs.push('confirmar');
     return _cmdFaccionElegir(player, [candidateId, ...restArgs]);
