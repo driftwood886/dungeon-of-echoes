@@ -4790,12 +4790,13 @@ function cmdStatus(player) {
         if (atkBuffTotal > 0) bonusParts.push(`+${atkBuffTotal} 📜buff`);
         if (stanceAtkMod > 0) bonusParts.push(`+${stanceAtkMod} postura`);
         else if (stanceAtkMod < 0) bonusParts.push(`${stanceAtkMod} postura`);
-        if (roomAtkMod !== 0) bonusParts.push(`${roomAtkMod} sala actual`);
+        if (roomAtkMod !== 0) bonusParts.push(`${roomAtkMod > 0 ? '+' : ''}${roomAtkMod} sala[temporal]`);
         if (berserkAtkMod > 0) bonusParts.push(`+${berserkAtkMod} 🪓berserk`);
         else if (berserkAtkMod < 0) bonusParts.push(`${berserkAtkMod} 😤agotamiento`);
         // DIS-1268: agregar ícono de debuff ambiental al label del Ataque si hay penalización de sala
         const atkLabel = roomAtkMod < 0 ? `Ataque:❄️` : `Ataque:  `;
-        return `${atkLabel} ${player.attack} (${bonusParts.join(', ')} = ${effectiveAtk} efectivo)`;
+        // DIS-2059: formato mejorado — flecha para mayor claridad (base → efectivo)
+        return `${atkLabel} ${player.attack} → ${effectiveAtk} efectivo (${bonusParts.join(', ')})`;
       }
       return `Ataque:   ${player.attack}`;
     })(),
