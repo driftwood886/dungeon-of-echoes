@@ -21117,6 +21117,32 @@ function cmdSpecialize(player, args) {
   }
 
   // ¡Confirmar elección!
+  // DIS-2077: si la especialización tiene penalidad de HP (ej. Juicio: −15 HP),
+  // requerir confirmación explícita antes de aplicar. El jugador debe escribir
+  // "especializar juicio confirmar" para proceder.
+  const mods2077 = specObj.combat_modifiers || {};
+  const requiresHpConfirm = !!(mods2077.max_hp_penalty);
+  const hasConfirm = args && args.some(a => a.toLowerCase() === 'confirmar' || a.toLowerCase() === 'confirm' || a.toLowerCase() === 'si' || a.toLowerCase() === 'sí');
+  if (requiresHpConfirm && !hasConfirm) {
+    const freshForConfirm = db.getPlayer(fresh.id);
+    const curMaxHp = freshForConfirm.max_hp || 30;
+    const afterMaxHp = Math.max(15, curMaxHp - mods2077.max_hp_penalty);
+    return {
+      text: [
+        `⚖️ ${specObj.emoji} ${specObj.name.toUpperCase()} — Confirmación requerida`,
+        '',
+        `Esta especialización aplica una penalidad permanente e irrecuperable:`,
+        ``,
+        `  ⚠️  HP máximo: ${curMaxHp} → ${afterMaxHp}  (−${mods2077.max_hp_penalty} HP permanentes)`,
+        ``,
+        `Esta decisión NO tiene vuelta atrás para este personaje.`,
+        ``,
+        `Si estás seguro, escribí:  **especializar ${specId} confirmar**`,
+        `Para cancelar, escribí:    **especializar** (ver opciones)`,
+      ].join('\n'),
+    };
+  }
+
   db.updatePlayer(fresh.id, { specialization: specId });
 
   // Bonus pasivos que se aplican inmediatamente
