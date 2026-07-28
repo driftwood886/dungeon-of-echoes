@@ -14131,13 +14131,14 @@ function cmdBuy(player, itemQuery) {
       const newDef = boughtWeapon;
       const isUpgrade = newDef.amount && currentDef && currentDef.amount && newDef.amount > currentDef.amount;
       if (isUpgrade) {
-        equipTip = `\n💡 Mejora disponible (+${newDef.amount - currentDef.amount} ATK vs ${currentWeapon}). Para equiparla: \`equipar ${item.name}\``;
+        equipTip = `\n💡 Mejora disponible (+${newDef.amount - currentDef.amount} ATK vs ${currentWeapon}). Para reemplazar «${currentWeapon}»: \`equipar ${item.name}\``;
       } else {
-        equipTip = `\n💡 Para empuñarla: \`equipar ${item.name}\``;
+        // DIS-2069: mencionar explícitamente que reemplazará el arma actual
+        equipTip = `\n💡 Ya tenés «${currentWeapon}» equipada. Para reemplazarla: \`equipar ${item.name}\``;
       }
     } else if (boughtWeapon.type === 'armor') {
-      // Ya tiene armadura equipada
-      equipTip = `\n💡 Para equiparla: \`equipar ${item.name}\``;
+      // DIS-2069: ya tiene armadura equipada — mencionar que hay que reemplazar la actual
+      equipTip = `\n💡 Ya tenés «${currentArm}» equipada. Para reemplazarla: \`equipar ${item.name}\``;
     }
   }
 
