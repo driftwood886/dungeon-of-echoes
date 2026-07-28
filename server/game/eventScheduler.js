@@ -58,7 +58,7 @@ const GLOBAL_EVENTS = [
   {
     id: 'SPECTRAL_TIDE',
     name: '👻 Marea Espectral',
-    description: 'Solo los monstruos espectrales y no-muertos están activos. El XP de espectros es el doble.',
+    description: 'Solo los monstruos espectrales y no-muertos están activos. Goblins, arañas, ratas y otras criaturas físicas de las primeras salas siguen activos normalmente. El XP de espectros es el doble.',
     durationMs: 5 * 60 * 1000, // 5 minutos (DIS-1951: reducido de 8 min — 8 dejaba zonas early/mid sin combate demasiado tiempo)
     announcement: '👻 Una marea espectral recorre el dungeon. Solo los no-muertos y espectros están activos. Las criaturas de las cuevas exteriores no se ven afectadas. 🙏 Consejo: rezá ante el altar de la Capilla Olvidada (sala 5) sin ofrenda para recibir una Bendición Antimuerte (+2 DEF por 3 combates).',
     data: {
