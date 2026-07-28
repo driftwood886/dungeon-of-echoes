@@ -209,6 +209,8 @@ const SPECIALIZATIONS = {
       '+2 ATK permanente, −15 HP máximo (más frágil pero más peligroso)',
       'Rayo Divino (`rayo_divino`): ataque sagrado ×1.5 que ignora la defensa del monstruo',
       '+50% daño extra contra monstruos no-muertos (esqueletos, sombras, Lich)',
+      'Condenar cuesta 4 maná en lugar de 6 (herramienta principal del Juicio)',
+      'Fervor Divino mejorado: regenera 3 maná/turno si tenés ≤50% maná (vs. 2/turno al 20% base)',
       'Cooldown de `sanacion_mayor` aumenta a 80s (era 60s) — el Juicio prioriza atacar',
     ],
     new_commands: ['rayo_divino'],

@@ -2722,19 +2722,22 @@ function attackRound(player, monster) {
     }
   }
 
-  // DIS-1792: Regeneración pasiva de maná en combate para el Clérigo con maná bajo.
+  // DIS-1792 / DIS-2073: Regeneración pasiva de maná en combate para el Clérigo.
   // El Clérigo regenera solo 6 maná/minuto (tiempo real), prácticamente nada entre turnos.
-  // Con 0 maná pierde su identidad de clase. Fix: si el Clérigo tiene ≤20% maná y no está
-  // muerto, recupera +2 maná por turno (fervor divino pasivo en combate).
-  // Límite: no activa si el maná ya está al 60%+ para evitar hacer al Clérigo infinito.
+  // Fix base: si el Clérigo tiene ≤20% maná → +2 maná/turno (Fervor Divino).
+  // DIS-2073: el Juicio tiene un umbral mayor (≤50%) y regenera +3 maná/turno,
+  // porque su pool se agota rápido con condenar+rayo_divino y los últimos turnos quedan vacíos.
   if (!playerDead && player.player_class === 'clerigo') {
     try {
       const freshCleric1792 = db.getPlayer(player.id);
       const clericMana = freshCleric1792.mana != null ? freshCleric1792.mana : 0;
       const clericMaxMana = freshCleric1792.max_mana || 20;
       const clericManaRatio = clericMana / clericMaxMana;
-      if (clericManaRatio <= 0.20) {
-        const manaRegenAmt = 2;
+      const isJuicio = freshCleric1792.specialization === 'juicio';
+      // Juicio: umbral 50%, regen 3. Otros Clérigos: umbral 20%, regen 2.
+      const fervorThreshold = isJuicio ? 0.50 : 0.20;
+      const manaRegenAmt = isJuicio ? 3 : 2;
+      if (clericManaRatio <= fervorThreshold) {
         const newClericMana = Math.min(clericMaxMana, clericMana + manaRegenAmt);
         if (newClericMana > clericMana) {
           db.updatePlayer(player.id, { mana: newClericMana });

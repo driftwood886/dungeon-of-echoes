@@ -19545,9 +19545,11 @@ function cmdCondenar(player, args) {
   }
 
   // Verificar maná
+  // DIS-2073: el Juicio paga 4 maná en lugar de 6 (condenar es su herramienta principal)
   const freshCond = db.getPlayer(player.id);
-  if ((freshCond.mana || 0) < 6) {
-    return { text: `⚕️ No tenés maná suficiente para invocar la condena (necesitás 6, tenés ${freshCond.mana || 0}).` };
+  const condenarManaCost = (freshCond.specialization === 'juicio') ? 4 : 6;
+  if ((freshCond.mana || 0) < condenarManaCost) {
+    return { text: `⚕️ No tenés maná suficiente para invocar la condena (necesitás ${condenarManaCost}, tenés ${freshCond.mana || 0}).` };
   }
 
   // Verificar cooldown (en status_effects)
@@ -19580,15 +19582,16 @@ function cmdCondenar(player, args) {
   };
   db.updateMonster(target.id, { status_effects: JSON.stringify(monsterSE) });
 
-  // Gastar maná
-  db.updatePlayer(player.id, { mana: (freshCond.mana || 0) - 6 });
+  // Gastar maná (DIS-2073: costo reducido para Juicio)
+  db.updatePlayer(player.id, { mana: (freshCond.mana || 0) - condenarManaCost });
 
   // Aplicar cooldown de 20s
   condSE.condenar_cooldown = new Date(Date.now() + 20 * 1000).toISOString();
   db.updatePlayer(player.id, { status_effects: JSON.stringify(condSE) });
 
+  const condenarCostMsg = freshCond.specialization === 'juicio' ? `-${condenarManaCost} maná (Juicio)` : `-${condenarManaCost} maná`;
   return {
-    text: `⚕️ CONDENADO. Una marca divina señala al ${target.name}.\n   El próximo golpe contra él causa ×1.30 daño. (Cooldown: 20s · -6 maná)`,
+    text: `⚕️ CONDENADO. Una marca divina señala al ${target.name}.\n   El próximo golpe contra él causa ×1.30 daño. (Cooldown: 20s · ${condenarCostMsg})`,
     event: `${player.username} marca al ${target.name} con la condena divina.`,
   };
 }
