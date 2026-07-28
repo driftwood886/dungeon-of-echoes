@@ -3666,12 +3666,17 @@ function cmdMove(player, direction) {
 
   // DIS-1130: Advertencia de trampas adyacentes también en primera visita al moverse
   // (En look ya se muestra, pero al entrar por primera vez el jugador podría no hacer look)
+  // DIS-2072: Suprimir en sala 2 primera visita — el jugador ya recibe evento cinemático +
+  // descripción + trampa al oeste. El aviso del Túnel (norte) es ruido extra en ese momento;
+  // lo verá en el look posterior o al intentar ir al norte.
   let adjacentTrapMoveMsg = '';
   try {
     const TRAP_ROOM_DANGER_MOVE = {
       13: { icon: '💧', name: 'trampa de inundación', roomName: 'Caverna Sumergida', dmg: 7, dmgRange: '6-8' },
       6:  { icon: '👃', name: 'trampa de esporas',    roomName: 'Túnel de los Hongos', dmg: 5, dmgRange: '4-6' },
     };
+    // DIS-2072: En sala 2 primera visita, omitir este bloque (ya hay demasiada info simultánea)
+    if (targetId === 2 && firstVisitEver) throw new Error('dis2072_skip');
     const freshAfterMove = db.getPlayer(player.id) || player;
     let visitedArrMove = [];
     try { visitedArrMove = JSON.parse(freshAfterMove.rooms_visited || '[]'); } catch (_) {}
