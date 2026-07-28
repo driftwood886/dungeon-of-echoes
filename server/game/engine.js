@@ -9288,9 +9288,12 @@ function cmdExamine(player, query) {
     } else if (questState === 'active') {
       // Quest activa — ya habló con Aldric, ahora buscar la carta en sala 8
       baseText = '\n\n🔍 Agachás la vista hacia la base del trono. Hay letras grabadas con algo oscuro —casi ilegibles. Un nombre incompleto. El resto está borrado por el tiempo o protegido por algo.\n\n💡 Ya hablaste con Aldric. El siguiente paso: buscá la **carta sellada** en la **Prisión Subterránea** (sala 8, al norte del Tesoro). Tiene el sello de las dos llaves cruzadas.';
-    } else if (tieneCarta || cartaFueLeida) {
-      // Tiene la carta pero no activó la quest con Aldric — ir a Aldric primero
+    } else if (cartaFueLeida) {
+      // Leyó la carta (ya no está en inventario) — recordar lo que decía
       baseText = '\n\n🔍 Recordás algo que leíste: \"Lo grabé en la base del trono. Mirá abajo, no arriba.\" Agachás la vista hacia la base del trono. Hay letras grabadas con algo oscuro —casi ilegibles— pero podés distinguir un nombre incompleto. El resto está borrado por el tiempo o protegido por algo.\n\n💡 Siguiente paso: hablá con **Aldric** en la tienda (sala 4) — preguntale sobre Kaelthas. Tiene información que completará lo que ves aquí.';
+    } else if (tieneCarta) {
+      // BUG-2055: tiene la carta sellada pero no la leyó — no puede "recordar" lo que dice
+      baseText = '\n\n🔍 Agachás la vista hacia la base del trono. Hay letras grabadas con algo oscuro —casi ilegibles— pero podés distinguir un nombre incompleto. El resto está borrado por el tiempo o protegido por algo.\n\n💡 Tenés una **carta sellada** en tu mochila que no abriste. Puede tener pistas. También podés hablar con **Aldric** en la tienda (sala 4).';
     } else {
       // No sabe nada todavía — DIS-1513: dar fragmento parcial en lugar de dead-end puro
       baseText = '\n\n🔍 En la base del trono, casi invisible por el tiempo y la suciedad, hay letras grabadas con algo oscuro —no tinta. El nombre está en gran parte borrado, pero podés distinguir las últimas letras: **...THAS**.\n\nAlguien se tomó el trabajo de grabar esto con algo que no es tinta. Y alguien más se tomó el trabajo de borrarlo casi por completo.\n\n💡 Aldric, el mercader de la sala 4, lleva décadas en este dungeon. Preguntale sobre lo que viste.';
@@ -9315,7 +9318,8 @@ function cmdExamine(player, query) {
       return { text: baseOnlyText || 'La base del trono está cubierta de polvo centenario. No hay nada visible aquí por ahora.' };
     }
     // examine trono — descripción visual + hint sutil si jugador ya tiene pista de la carta
-    const tronoBonusHint = (tieneCarta || cartaFueLeida || questState === 'active' || questState === 'done')
+    // BUG-2055: solo mostrar si la carta fue LEÍDA (no solo si la tiene en inventario)
+    const tronoBonusHint = (cartaFueLeida || questState === 'active' || questState === 'done')
       ? '\n\n💡 La carta mencionaba algo sobre mirar abajo...'
       : '';
     return { text: tronoCuerpo + tronoBonusHint };
