@@ -4773,7 +4773,16 @@ function cmdStatus(player) {
       const echoAmuletCancels = hasEchoAmulet && player.current_room_id === 19;
       const roomAtkMod = (roomEffStatus && roomEffStatus.type === 'debuff' && roomEffStatus.stat === 'attack' && !echoAmuletCancels)
         ? roomEffStatus.amount : 0;
-      const totalBonus = atkBuffTotal + stanceAtkMod + petAtk + roomAtkMod;
+      // BUG-2044: incluir modificadores de estado berserk (modo activo = +5, agotamiento = -penalty)
+      const seStatusAtk = parseSE(player.status_effects);
+      let berserkAtkMod = 0;
+      if (seStatusAtk.modo_berserk_activo && (seStatusAtk.modo_berserk_activo.turns_remaining || 0) > 0) {
+        berserkAtkMod += 5;
+      }
+      if (seStatusAtk.berserk_agotamiento && (seStatusAtk.berserk_agotamiento.turns_remaining || 0) > 0) {
+        berserkAtkMod -= (seStatusAtk.berserk_agotamiento.atk_penalty || 2);
+      }
+      const totalBonus = atkBuffTotal + stanceAtkMod + petAtk + roomAtkMod + berserkAtkMod;
       const effectiveAtk = player.attack + totalBonus;
       if (totalBonus !== 0) {
         const bonusParts = [];
@@ -4782,6 +4791,8 @@ function cmdStatus(player) {
         if (stanceAtkMod > 0) bonusParts.push(`+${stanceAtkMod} postura`);
         else if (stanceAtkMod < 0) bonusParts.push(`${stanceAtkMod} postura`);
         if (roomAtkMod !== 0) bonusParts.push(`${roomAtkMod} sala actual`);
+        if (berserkAtkMod > 0) bonusParts.push(`+${berserkAtkMod} 🪓berserk`);
+        else if (berserkAtkMod < 0) bonusParts.push(`${berserkAtkMod} 😤agotamiento`);
         // DIS-1268: agregar ícono de debuff ambiental al label del Ataque si hay penalización de sala
         const atkLabel = roomAtkMod < 0 ? `Ataque:❄️` : `Ataque:  `;
         return `${atkLabel} ${player.attack} (${bonusParts.join(', ')} = ${effectiveAtk} efectivo)`;
