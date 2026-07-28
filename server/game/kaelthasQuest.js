@@ -58,6 +58,9 @@ const LICH_DIALOGUES = {
 // Hint del Guardián Anciano (DIS-1969)
 const GUARDIAN_HINT = '🧙 El anciano te mira con algo que no es exactamente compasión.\n   «Dicen que hay un nombre grabado en el Trono de Huesos.\n    Más de uno intentó descifrar quién era.\n    Ninguno volvió para contarlo. Vos capaz sí.»';
 
+// Hint especial del Guardián para jugadores con legado memoria_kaelthas (IMPL-2053)
+const GUARDIAN_LEGACY_HINT = '🧙 El anciano te mira diferente. Como si ya te hubiera visto antes.\n   «Sabés quién es el que está abajo, ¿verdad?»\n   Sus ojos se clavan en los tuyos.\n   «Lo que queda de él.»';
+
 // ─── Función 1: checkKaelthasFragment ────────────────────────────────────────
 
 /**
@@ -319,13 +322,24 @@ function getEpitaph(player) {
 function getGuardianHint(player) {
   if (player.is_bot === 1) return null;
 
-  // IMPL-2052 (a): Para legado memoria_kaelthas, suprimir hint — el jugador ya conoce la historia.
-  // (La quest también queda en 'active' al aplicar el legado, así que la condición
-  //  state === 'inactive' abajo ya lo excluye; este guard es explícito para robustez.)
+  // IMPL-2053 (EPIC-KAELTHAS-F3): Para legado memoria_kaelthas, mostrar un hint especial
+  // de reconocimiento una sola vez (flag guardian_legacy_hint_shown), en vez del hint genérico.
+  // El jugador ya conoce la historia, pero el Anciano lo percibe.
   try {
     const rawBonus = player.legacy_bonus;
     const lb = rawBonus ? (typeof rawBonus === 'string' ? JSON.parse(rawBonus) : rawBonus) : null;
-    if (lb && lb.type === 'memoria_kaelthas') return null;
+    if (lb && lb.type === 'memoria_kaelthas') {
+      const freshForLegacy = db.getPlayer(player.id);
+      const se = freshForLegacy && freshForLegacy.status_effects
+        ? (typeof freshForLegacy.status_effects === 'string' ? JSON.parse(freshForLegacy.status_effects) : freshForLegacy.status_effects)
+        : {};
+      if (se.guardian_legacy_hint_shown) return null; // Ya mostrado
+
+      // Marcar como mostrado y devolver hint especial
+      se.guardian_legacy_hint_shown = true;
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(se) });
+      return GUARDIAN_LEGACY_HINT;
+    }
   } catch (_) {}
 
   try {
