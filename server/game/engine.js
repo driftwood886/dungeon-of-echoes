@@ -4802,7 +4802,11 @@ function cmdStatus(player) {
       }
       const totalBonus = atkBuffTotal + stanceAtkMod + petAtk + roomAtkMod + berserkAtkMod;
       const effectiveAtk = player.attack + totalBonus;
-      if (totalBonus !== 0) {
+      // BUG-2062: mostrar breakdown aunque totalBonus === 0 si hay modificadores individuales
+      // que se cancelan entre sí (ej: +2 postura + -2 agotamiento berserk = 0 total pero
+      // el jugador debe ver que el agotamiento está activo)
+      const hasAnyMod = atkBuffTotal !== 0 || stanceAtkMod !== 0 || petAtk !== 0 || roomAtkMod !== 0 || berserkAtkMod !== 0;
+      if (hasAnyMod) {
         const bonusParts = [];
         if (petAtk) bonusParts.push(`+1 🐾`);
         if (atkBuffTotal > 0) bonusParts.push(`+${atkBuffTotal} 📜buff`);
