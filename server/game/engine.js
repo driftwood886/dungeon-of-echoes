@@ -15424,7 +15424,7 @@ function _cmdFaccionElegir(player, args) {
   }
 
   return {
-    text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.${_missionBlock}\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
+    text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.${_missionBlock}\n\n⚠️ **Nota sobre misiones de facción:** Los kills y acciones realizados antes de unirte a la facción no cuentan para las misiones semanales — el progreso trackea desde ahora. Si ya mataste criaturas hoy, el contador empieza desde cero.\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
   };
 }
 
