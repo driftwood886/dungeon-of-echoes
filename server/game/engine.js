@@ -20879,17 +20879,21 @@ function cmdSkills(player) {
     lines.push(`     Absorbés el próximo golpe (DEF base +3). El combo no se rompe. Solo en combate.`);
     lines.push(`     Estado: ${posturaStatus}`);
     // quemar_combo
-    const comboCount = seGuerrero.combo_count || 0;
+    // DIS-2070: leer combo del comboMap en memoria (la fuente real) — no de status_effects.combo_count que siempre era 0
+    const comboEntry = comboMap.get(player.id);
+    const comboCount = comboEntry ? comboEntry.count : 0;
     const quemarStatus = comboCount >= 3 ? `✅ Lista (combo ×${comboCount})` : `🔒 Necesitás combo ×3 (tenés ×${comboCount})`;
     lines.push(`  💥 Quemar Combo [quemar_combo]`);
     lines.push(`     Consumís el combo (x3+) para un golpe masivo. ×3→×2.5dmg · ×4→×3.0 · ×5→×3.5`);
     lines.push(`     Estado: ${quemarStatus}`);
     // DIS-1665: explicar la mecánica de Combo acumulado (antes era invisible)
+    // DIS-2070: corregir condiciones de reset — el combo NO se resetea al recibir daño
     lines.push('─'.repeat(40));
     lines.push('⚡ MECÁNICA: COMBO (todos los Guerreros)');
     lines.push(`  Al atacar consecutivamente al mismo objetivo, acumulás un bonus:`);
     lines.push(`    ×1 (base) → ×2 (+1 dmg) → ×3 (+2 dmg) → ×4 (+3 dmg) → ×5 máx (+4 dmg)`);
-    lines.push(`  El combo se RESETEA si: cambiás de objetivo · recibís daño · usás quemar_combo.`);
+    lines.push(`  El combo se RESETEA si: cambiás de objetivo · usás quemar_combo · matás al objetivo.`);
+    lines.push(`  El daño recibido (incluido drain de vida) NO rompe el combo.`);
     lines.push(`  Combo actual: ×${comboCount}`);
     lines.push(`  Consejo: mantené el foco en el mismo enemigo para escalar el daño antes de rematar.`);
   } else if (playerClassMec === 'clerigo') {
