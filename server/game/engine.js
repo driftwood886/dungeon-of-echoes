@@ -15185,13 +15185,25 @@ function cmdFaccion(player, args) {
   //           (sin mostrar la tarjeta — el usuario ya eligió al escribir "unirse")
   // BUG-2064: también intentar resolver el nombre completo multi-palabra (ej: "orden del filo")
   //           usando _normalizeFactionId antes de caer al error genérico
+  // BUG-2065: cuando el candidateId viene del fullNameAttempt, todos los args son parte del nombre
+  //           → no pasar restArgs contaminados; solo pasar ['confirmar']
   const fullNameAttempt = _normalizeFactionId(args.join(' '));
   if (FACTION_LORE[sub] || FACTION_LORE[nameArg] || FACTION_LORE[sub.replace(/\s+/g, '_')] || fullNameAttempt) {
-    const candidateId = FACTION_LORE[sub] ? sub :
-                        FACTION_LORE[nameArg] ? nameArg :
-                        FACTION_LORE[sub.replace(/\s+/g, '_')] ? sub.replace(/\s+/g, '_') :
-                        fullNameAttempt;
-    const restArgs = args.slice(1);
+    let candidateId, restArgs;
+    if (FACTION_LORE[sub]) {
+      candidateId = sub;
+      restArgs = args.slice(1);
+    } else if (FACTION_LORE[nameArg]) {
+      candidateId = nameArg;
+      restArgs = args.slice(2);
+    } else if (FACTION_LORE[sub.replace(/\s+/g, '_')]) {
+      candidateId = sub.replace(/\s+/g, '_');
+      restArgs = args.slice(1);
+    } else {
+      // fullNameAttempt: todos los args forman el nombre — no pasar resto como args adicionales
+      candidateId = fullNameAttempt;
+      restArgs = [];
+    }
     if (!restArgs.some(a => a.toLowerCase() === 'confirmar')) restArgs.push('confirmar');
     return _cmdFaccionElegir(player, [candidateId, ...restArgs]);
   }
