@@ -20355,7 +20355,10 @@ function cmdClase(player, args) {
   // BUG-1077 fix: al elegir clase el jugador recibe HP completo (newMaxHp).
   // Antes: Math.min(currentHp, newMaxHp) dejaba el HP sin curar, mostrando ej. 30/35.
   const newHp      = newMaxHp;
-  const newMana    = Math.min(freshForClass.mana || newMaxMana, newMaxMana);
+  // DIS-2075 fix: para primera clase, maná siempre al máximo (freshForClass.mana=20 por default
+  // en DB causaba que el Clérigo arrancara 20/30 — menor al máximo de su clase).
+  // Para cambio de clase: preservar el maná actual pero sin exceder el nuevo máximo.
+  const newMana    = isFirstClass ? newMaxMana : Math.min(freshForClass.mana || newMaxMana, newMaxMana);
   const startingGold = isFirstClass ? (freshForClass.gold || 0) + 25 : (freshForClass.gold || 0);
 
   db.updatePlayer(player.id, {
