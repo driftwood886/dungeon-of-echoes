@@ -14044,31 +14044,54 @@ function cmdBuy(player, itemQuery) {
     ? '\n"Una espada sin protección es invitación al funeral." Aldric señala el cuero endurecido. "15 monedas — más barato que respawnear."'
     : '';
 
-  // DIS-1263: Compra → autoequip hint contextual
-  // Si compró un arma/armadura, mostrar hint contextual según si tiene algo equipado
+  // DIS-2057: Auto-equip al comprar si el slot está vacío
+  // Si el jugador compra arma/armadura y no tiene nada equipado en ese slot, equipar automáticamente.
+  // Si ya tiene algo equipado, mostrar hint contextual (DIS-1263).
   let equipTip = '';
-  if (boughtWeapon && boughtWeapon.type === 'weapon') {
+  let autoEquipMsg = '';
+  if (boughtWeapon && (boughtWeapon.type === 'weapon' || boughtWeapon.type === 'armor')) {
     const currentWeapon = freshBuyer.equipped_weapon && freshBuyer.equipped_weapon !== 'null' ? freshBuyer.equipped_weapon : null;
-    if (!currentWeapon) {
-      // No tiene arma equipada — hint directo y urgente
-      equipTip = `\n⚔️ Aldric nota tu mano vacía. \"Equipala antes de salir —\" señala la puerta. Para empuñarla: \`equipar ${item.name}\``;
-    } else {
+    const currentArm    = freshBuyer.equipped_armor  && freshBuyer.equipped_armor  !== 'null' ? freshBuyer.equipped_armor  : null;
+    const slotEmpty = boughtWeapon.type === 'weapon' ? !currentWeapon : !currentArm;
+
+    if (slotEmpty) {
+      // Auto-equipar: el slot está vacío — equipar sin pedir confirmación
+      try {
+        const autoResult = boughtWeapon.type === 'weapon'
+          ? cmdEquip(freshBuyer, item.name)
+          : cmdWear(freshBuyer, item.name);
+        // Verificar que el equip tuvo éxito (no contiene mensaje de error conocido)
+        const autoFailed = !autoResult || !autoResult.text
+          || autoResult.text.includes('No tenés')
+          || autoResult.text.includes('no es un arma')
+          || autoResult.text.includes('no se puede equipar');
+        if (!autoFailed) {
+          const autoIcon = boughtWeapon.type === 'weapon' ? '⚔️' : '🛡';
+          autoEquipMsg = `\n${autoIcon} Aldric te lo entrega y lo llevás puesto al instante. **¡${item.name} equipada automáticamente!**`;
+        } else {
+          // Auto-equip falló (restricción de clase u otro motivo) — caer al hint manual
+          equipTip = boughtWeapon.type === 'weapon'
+            ? `\n⚔️ Para empuñarla: \`equipar ${item.name}\``
+            : `\n🛡 Para equiparla: \`equipar ${item.name}\``;
+        }
+      } catch (_) {
+        // Si falla con excepción, mostrar hint manual como fallback
+        equipTip = boughtWeapon.type === 'weapon'
+          ? `\n⚔️ Para empuñarla: \`equipar ${item.name}\``
+          : `\n🛡 Para equiparla: \`equipar ${item.name}\``;
+      }
+    } else if (boughtWeapon.type === 'weapon') {
+      // DIS-1263: ya tiene arma equipada — hint contextual
       const currentDef = items.getItemDef(currentWeapon);
       const newDef = boughtWeapon;
       const isUpgrade = newDef.amount && currentDef && currentDef.amount && newDef.amount > currentDef.amount;
       if (isUpgrade) {
-        // Nueva arma es superior — recomendar el cambio
         equipTip = `\n💡 Mejora disponible (+${newDef.amount - currentDef.amount} ATK vs ${currentWeapon}). Para equiparla: \`equipar ${item.name}\``;
       } else {
-        // Hint estándar
         equipTip = `\n💡 Para empuñarla: \`equipar ${item.name}\``;
       }
-    }
-  } else if (boughtWeapon && boughtWeapon.type === 'armor') {
-    const currentArm = freshBuyer.equipped_armor && freshBuyer.equipped_armor !== 'null' ? freshBuyer.equipped_armor : null;
-    if (!currentArm) {
-      equipTip = `\n🛡 Sin armadura equipada. Para equiparla: \`equipar ${item.name}\``;
-    } else {
+    } else if (boughtWeapon.type === 'armor') {
+      // Ya tiene armadura equipada
       equipTip = `\n💡 Para equiparla: \`equipar ${item.name}\``;
     }
   }
@@ -14177,7 +14200,7 @@ function cmdBuy(player, itemQuery) {
   } catch (_) { /* no romper compra si falla factionMissions */ }
 
   return {
-    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}${craftAlternativeHint}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${equipTip}${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}${questBuyMsg}${fmBuyMsg}`,
+    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}${craftAlternativeHint}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${autoEquipMsg}${equipTip}${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}${questBuyMsg}${fmBuyMsg}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
