@@ -9338,14 +9338,28 @@ function cmdExamine(player, query) {
       // examine base del trono — solo el contenido de la base (el secreto)
       // Si no hay nada en la base (sin quest), dar la descripción de la base sin el cuerpo del trono
       const baseOnlyText = baseText.trimStart(); // quitar el \n\n inicial
-      return { text: baseOnlyText || 'La base del trono está cubierta de polvo centenario. No hay nada visible aquí por ahora.' };
+      // BUG-2067: también activar fragmento de quest al examinar la base del trono
+      let questSuffix2067b = '';
+      try {
+        const freshForQuest2067b = db.getPlayer(player.id);
+        const qRes2067b = kaelthasQuest.checkKaelthasFragment(freshForQuest2067b || player, 'trono');
+        if (qRes2067b && qRes2067b.text) questSuffix2067b = '\n' + qRes2067b.text;
+      } catch (_) {}
+      return { text: (baseOnlyText || 'La base del trono está cubierta de polvo centenario. No hay nada visible aquí por ahora.') + questSuffix2067b };
     }
     // examine trono — descripción visual + hint sutil si jugador ya tiene pista de la carta
     // BUG-2055: solo mostrar si la carta fue LEÍDA (no solo si la tiene en inventario)
     const tronoBonusHint = (cartaFueLeida || questState === 'active' || questState === 'done')
       ? '\n\n💡 La carta mencionaba algo sobre mirar abajo...'
       : '';
-    return { text: tronoCuerpo + tronoBonusHint };
+    // BUG-2067: activar fragmento de quest al examinar el trono (igual que cmdRead en sala 9)
+    let questSuffix2067 = '';
+    try {
+      const freshForQuest2067 = db.getPlayer(player.id);
+      const qRes2067 = kaelthasQuest.checkKaelthasFragment(freshForQuest2067 || player, 'trono');
+      if (qRes2067 && qRes2067.text) questSuffix2067 = '\n' + qRes2067.text;
+    } catch (_) {}
+    return { text: tronoCuerpo + tronoBonusHint + questSuffix2067 };
   }
 
   for (const [key, val] of Object.entries(loreObjects)) {
