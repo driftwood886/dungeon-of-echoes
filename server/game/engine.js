@@ -10078,11 +10078,28 @@ function cmdScore(player, args, context) {
   // incluirlo como única entrada. En Render free-tier la DB se resetea frecuentemente y todos
   // los jugadores activos son bots excluidos — mostrar vacío cuando hay actividad real es confuso.
   // BUG-1887: no incluir bots de playtest en este fallback (el bot vería su propia entrada aunque esté filtrado)
+  // DIS-2056: si el jugador activo NO aparece en los resultados (leaderboard vacío o solo hay otros),
+  //           incluirlo con sus datos actuales. Usar objeto player de sesión como fallback si la DB
+  //           no lo encuentra (caso Render free-tier: DB reseteada con sesión activa en memoria).
   let displayLeaders = leaders;
-  if (leaders.length === 0 && !mode2) {
-    const fresh = db.getPlayer(player.id);
-    if (fresh && ((fresh.kills || 0) > 0 || (fresh.level || 1) > 1) && !fresh.is_bot && !isBot(fresh.username || '')) {
-      displayLeaders = [fresh];
+  const playerIsBot = !!(player.is_bot) || isBot(player.username || '');
+  if (!playerIsBot && !mode2) {
+    const playerAlreadyInList = leaders.some(p => p.id === player.id || p.username === player.username);
+    if (!playerAlreadyInList) {
+      // Intentar obtener datos frescos de la BD; si no existe (DB reseteada), usar los de sesión
+      const fresh = db.getPlayer(player.id) || player;
+      const hasActivity = ((fresh.kills || 0) > 0 || (fresh.level || 1) > 1);
+      if (hasActivity) {
+        if (leaders.length === 0) {
+          // Leaderboard completamente vacío — mostrar solo el jugador
+          displayLeaders = [fresh];
+        } else {
+          // Leaderboard tiene otros jugadores — agregar al jugador al final si no está en top 10
+          displayLeaders = [...leaders, { ...fresh, _isCurrentPlayer: true }];
+        }
+      } else if (leaders.length === 0) {
+        // Sin actividad y lista vacía — mantener vacío
+      }
     }
   }
 
@@ -10108,7 +10125,9 @@ function cmdScore(player, args, context) {
     const kills  = String(p.kills || 0).padStart(5, ' ');
     const deaths = String(p.deaths || 0).padStart(8, ' ');
     const medal  = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
-    lines.push(`║ ${medal}${rank}  ${hcTag}${name}  ${level}  ${xp}  ${kills}  ${deaths}  ║`);
+    // DIS-2056: si es el jugador actual añadido como extra (fuera del top 10), marcar con →
+    const rowMark = p._isCurrentPlayer ? '→' : ' ';
+    lines.push(`║${rowMark}${medal}${rank}  ${hcTag}${name}  ${level}  ${xp}  ${kills}  ${deaths}  ║`);
   });
 
   lines.push(`╚═════════════════════════════════════════════════════╝`);
