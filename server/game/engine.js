@@ -10194,6 +10194,18 @@ function cmdScore(player, args, context) {
   lines.push(`╚═════════════════════════════════════════════════════╝`);
   lines.push(`  Subcategorías: "score oro" | "score duelos" | "score rep" | "score crafteos" | "score tiempo" | "score amigos" | "score sesión"`);
   lines.push(`  (Bots de playtest ocultos. "score todo" para ver todos.)`);
+  // DIS-2078: mensaje contextual si el jugador tiene actividad pero no aparece en el score
+  if (!playerIsBot && !mode2) {
+    const playerInDisplay = displayLeaders.some(p => p.id === player.id || p.username === player.username || p._isCurrentPlayer);
+    if (!playerInDisplay) {
+      const freshFor2078 = db.getPlayer(player.id) || player;
+      const hasMeaningfulActivity = (freshFor2078.kills || 0) >= 3 || (freshFor2078.level || 1) >= 3;
+      if (hasMeaningfulActivity) {
+        lines.push(`\n💡 ${player.username}, todavía no aparecés en el score global — aparecerás al finalizar esta run (logout o muerte).`);
+        lines.push(`   (Score de sesión: \`score sesión\` para ver tu posición actual.)`);
+      }
+    }
+  }
   // DIS-1194: mencionar Ascensión para jugadores nuevos que no conocen el sistema
   lines.push(`\n✨ Los aventureros que derrotan al Lich Anciano pueden Ascender: reiniciar con un legado heredado.`);
   lines.push(`   Escribí "ascender" luego de vencer al Lich para elegir tu herencia (bonus permanente para el próximo personaje).`);
