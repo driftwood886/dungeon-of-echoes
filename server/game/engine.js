@@ -7286,6 +7286,15 @@ function cmdPick(player, itemQuery) {
     return { text: 'Error: tu habitación actual no existe.' };
   }
 
+  // DIS-2071: Sala 7 (Pozo Sin Fondo) — interceptar intento de recoger la cuerda narrativa
+  // La cuerda del Pozo está fija al brocal; no es un ítem de suelo recogible.
+  if (player.current_room_id === 7) {
+    const pickQ2071 = itemQuery.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (pickQ2071 === 'cuerda' || pickQ2071 === 'la cuerda') {
+      return { text: '🪢 La cuerda está sujeta al brocal con un gancho oxidado —no podés desprenderla.\n\n💡 Para la trampa del Corredor de las Sombras (norte) necesitás una cuerda propia:\n  • Comprala a Aldric el Mercader (sala 4) por 5g\n  • O buscala con «buscar» en salas de la zona.' };
+    }
+  }
+
   // DIS-D308: pick todo / pick all / pick everything — recoger todos los ítems del suelo
   const queryNorm = itemQuery.trim().toLowerCase();
   if (['todo', 'all', 'everything', 'todos', 'todas', 'recoger todo'].includes(queryNorm)) {
@@ -8839,7 +8848,7 @@ function cmdExamine(player, query) {
   if (player.current_room_id === 7) {
     const POZO_LORE = {
       'pozo':    '🕳 El brocal tiene unos setenta centímetros de diámetro. Las piedras del borde están gastadas de forma circular, como si hubiera sido usado miles de veces —no para sacar agua, sino para asomarse.\n\nLas marcas de uñas son visibles en la piedra: no arañazos del pánico, sino marcas decididas, de alguien que bajó voluntariamente y necesitó, en algún momento, sujetarse. Hay más de un conjunto. Hay muchos conjuntos.\n\nEl frío que sube no es el frío del agua ni el de la roca. Es el frío de un espacio muy grande, habitado.\n\n💡 Si encontraste una nota rasgada cerca del brocal, examinala (\\`examine nota rasgada\\`). Puede haber más contexto.',
-      'cuerda':  '🪢 La cuerda cuelga desde un gancho oxidado en el brocal. Es gruesa, bien conservada —mucho más nueva que el resto del Pozo. Alguien la colgó recientemente, con cuidado.\n\nTirás de ella. Está tensa. Como si hubiera peso al otro lado. Como si el otro extremo estuviera atado a algo que no podés ver.\n\nO como si simplemente el frío la contrajera. No podés saber cuál.\n\n💡 Llevá la cuerda al Corredor de las Sombras (norte) para desactivar una trampa.',
+      'cuerda':  '🪢 La cuerda cuelga desde un gancho oxidado en el brocal. Es gruesa, bien conservada —mucho más nueva que el resto del Pozo. Alguien la colgó recientemente, con cuidado.\n\nTirás de ella. Está tensa. Como si hubiera peso al otro lado. Como si el otro extremo estuviera atado a algo que no podés ver.\n\nO como si simplemente el frío la contrajera. No podés saber cuál.\n\n💡 Esta cuerda está fija al brocal —no podés llevártela. Para desactivar la trampa del Corredor (norte), necesitás una cuerda propia: comprala a Aldric el Mercader (sala 4, 5g) o buscala con «buscar» en alguna sala.',
       'marcas':  'Las marcas en el brocal son profundas, decisivas. No son de miedo: son de alguien que bajó por voluntad propia y necesitó sujetarse en algún tramo. Varios conjuntos de marcas, todos con el mismo patrón: mano izquierda, cuatro dedos, pausa larga.',
       'brocal':  'El brocal es viejo —siglos, quizás milenios— pero el Pozo mismo parece más antiguo que eso. Las piedras del borde tienen una patina diferente a las del piso, como si pertenecieran a una construcción anterior que fue enterrada y luego excavada de nuevo.',
     };
