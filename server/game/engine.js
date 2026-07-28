@@ -1827,7 +1827,25 @@ function cmdLook(player, options = {}) {
     }
   } catch (_lurk) { /* no romper look si falla el acecho */ }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine + lurkingLine };
+  // DIS-2060: Hint de combo en riesgo — si el jugador tiene combo activo y hay monstruos
+  // de id diferente al objetivo del combo en la sala actual, alertar proactivamente.
+  let comboRiskLine = '';
+  try {
+    const activeCombo = comboMap.get(player.id);
+    if (activeCombo && activeCombo.count >= 2) {
+      const monstersForCombo = db.getMonstersInRoom(player.current_room_id);
+      const hasOtherTarget = monstersForCombo && monstersForCombo.some(
+        m => m.hp > 0 && m.id !== activeCombo.monsterId
+      );
+      if (hasOtherTarget) {
+        const comboTarget = monstersForCombo.find(m => m.id === activeCombo.monsterId && m.hp > 0);
+        const targetName = comboTarget ? comboTarget.name : 'tu objetivo actual';
+        comboRiskLine = `\n⚠️ Combo ×${activeCombo.count} activo — cambiar de objetivo lo romperá. Seguí atacando a ${targetName}.`;
+      }
+    }
+  } catch (_combo2060) { /* no romper look si falla el check de combo */ }
+
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine + lurkingLine + comboRiskLine };
 }
 
 /**
