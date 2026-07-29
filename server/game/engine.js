@@ -1428,7 +1428,7 @@ function cmdLook(player, options = {}) {
     9:  { name: 'el Espectro del Corredor', level: 3, icon: '👻', roomName: 'Sala del Trono', monsterId: 4 }, // DIS-890: advertir desde Túnel de los Hongos
     15: { name: 'el Lich Anciano',     level: 7, icon: '💀', roomName: 'Catedral de la Oscuridad', monsterId: 13, armorTip: 'Equipá cota de malla o mejor (DEF 6+).' },
     10: { name: 'el Gólem de Piedra',  level: 5, icon: '🪨', roomName: 'Santuario Profano',        monsterId: 5  },
-    8:  { name: 'el Guardia Espectral',level: 4, icon: '👻', roomName: 'Prisión Subterránea',       monsterId: 8  },
+    8:  { name: 'el Guardia Espectral',level: 4, icon: '👻', roomName: 'Prisión Subterránea',       monsterId: 8, skipFromRooms: [4] }, // DIS-2103: desde sala 4 (Cámara del Tesoro) el hint es redundante con el tip de navegación; desde sala 17 (Casa de Subastas) sí es útil
     20: { name: 'la Sombra del Vacío', level: 8, icon: '🌑', roomName: 'Abismo Eterno',             monsterId: 22 }, // DIS-606 / DIS-1390: nivel recomendado 7→8
     12: { name: 'el Golem de Forja',   level: 5, icon: '🔥', roomName: 'Taller de la Forja',        monsterId: 10 }, // DIS-631
     19: { name: 'el Eco Viviente',     level: 6, icon: '🔊', roomName: 'Cámara del Eco',            monsterId: 21 }, // DIS-637: boss que bloquea flee — agregar advertencia previa
@@ -1444,6 +1444,8 @@ function cmdLook(player, options = {}) {
       for (const [dir, destId] of Object.entries(curExits)) {
         const danger = BOSS_ROOM_DANGER[destId];
         if (danger) {
+          // DIS-2103: algunas salas suprimen el aviso de boss adyacente por ser redundante
+          if (danger.skipFromRooms && danger.skipFromRooms.includes(player.current_room_id)) continue;
           // BUG-584: verificar si el boss está efectivamente vivo antes de advertir
           // Si está muerto (en respawn), no tiene sentido alertar al jugador
           const bossMonster = db.getMonster(danger.monsterId);
@@ -24122,7 +24124,8 @@ function cmdRunas(player) {
     },
     // Mago
     mago: {
-      default: { rune: 'caos', emoji: '🌀', reason: '+maná = más hechizos por combate' },
+      // DIS-2102: la recomendación default para Mago se ajusta por nivel más abajo
+      default: { rune: 'caos', emoji: '🌀', reason: '+maná = más hechizos por combate (mid/late game)' },
       evoker:   { rune: 'caos', emoji: '🌀', reason: '+maná — más explosiones, más daño' },
     },
     // Clérigo
@@ -24134,6 +24137,15 @@ function cmdRunas(player) {
   };
 
   const clsRecs = RUNE_REC[cls];
+  // DIS-2102: para Mago sin especialización, ajustar recomendación por nivel
+  // En early game (nivel ≤ 4) el +1 DEF de Sombra vale más que el +3 maná de Caos
+  // (el maná regenera rápido y 3 de maná extra no cambia cuántos hechizos podés lanzar)
+  if (cls === 'mago' && !spec && clsRecs) {
+    const playerLevel = fresh.level || 1;
+    if (playerLevel <= 4) {
+      clsRecs.default = { rune: 'sombra', emoji: '🌑', reason: 'early game — +1 DEF te ayuda más que el maná extra ahora' };
+    }
+  }
   if (clsRecs) {
     const rec = (spec && clsRecs[spec]) || clsRecs.default;
     if (rec) {
@@ -24147,6 +24159,10 @@ function cmdRunas(player) {
       lines.push('║' + recLine + '║');
       const reasonLine = `  ${rec.reason}`.padEnd(44);
       lines.push('║' + reasonLine + '║');
+      // DIS-2102: nota contextual para Mago early-game
+      if (cls === 'mago' && !spec && (fresh.level || 1) <= 4) {
+        lines.push('║  (A nivel 5+, Caos 🌀 pasa a ser mejor elección) ║');
+      }
     }
   }
 
