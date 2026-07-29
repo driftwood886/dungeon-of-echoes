@@ -20401,11 +20401,16 @@ function cmdClase(player, args) {
   const isFirstClass = currentClass === 'sin_clase';
   let newMaxHp, newAttack, newDefense, newMaxMana;
   if (isFirstClass) {
-    // Primera clase: usar stats de clase directamente
-    newMaxHp   = clsStats.max_hp;
-    newAttack  = clsStats.attack;
-    newDefense = clsStats.defense;
-    newMaxMana = clsStats.max_mana;
+    // BUG-2089 fix: primera clase — aplicar stats base de clase + bonos de level-ups previos.
+    // Antes se usaban los stats de clase directamente (nivel 1), ignorando que el jugador
+    // puede haber subido niveles sin haber elegido clase, acumulando +5 HP y +1 ATK por nivel.
+    // El fix replica la lógica de calcLevelUp: bonus = (level - 1) niveles desde la base de clase.
+    const levelBonus = Math.max(0, (freshForClass.level || 1) - 1);
+    newMaxHp   = clsStats.max_hp   + 5 * levelBonus;
+    newAttack  = clsStats.attack   + 1 * levelBonus;
+    newDefense = clsStats.defense; // la defensa no sube con level-up genérico
+    const isManaClass = (className === 'mago' || className === 'clerigo');
+    newMaxMana = clsStats.max_mana + (isManaClass ? 3 * levelBonus : 0);
   } else {
     // Cambio de clase (período de prueba): preservar ganancias de nivel
     newMaxHp   = Math.max(clsStats.max_hp,   freshForClass.max_hp   || 30);
@@ -20451,6 +20456,9 @@ function cmdClase(player, args) {
     `   HP:     ${newHp}/${newMaxHp}`,
     `   ATK:    ${newAttack}   DEF: ${newDefense}`,
     `   Maná:   ${newMana}/${newMaxMana}`,
+    ...(isFirstClass && (freshForClass.level || 1) > 1
+      ? [`   (incluye bonos de ${(freshForClass.level || 1) - 1} nivel${(freshForClass.level || 1) - 1 > 1 ? 'es' : ''} previo${(freshForClass.level || 1) - 1 > 1 ? 's' : ''})`]
+      : []),
     ``,
     `🌟 Ventajas de clase:`,
     ...clsStats.perks.map(p => `   ▸ ${p}`),
