@@ -155,6 +155,8 @@ const ITEM_CATALOG = {
   'cota de malla':       { type: 'armor', effect: 'defense_bonus', amount: 3,  description: 'Una cota de malla de hierro. Pesada pero fiable. +3 de defensa.' },
   'cota de cuero':       { type: 'armor', effect: 'defense_bonus', amount: 3,  description: 'Cuero grueso endurecido con placas de metal remachadas. Equilibrio entre movilidad y protección. +3 de defensa.' },
   'cuero endurecido':    { type: 'armor', effect: 'defense_bonus', amount: 2,  description: 'Armadura de cuero tratado con resina. Flexible y ligera. +2 de defensa.' },
+  // DIS-2101: ropa de viajero — armadura barata para Mago early game (DEF base 3 sin armadura es insostenible)
+  'ropa de viajero':     { type: 'armor', effect: 'defense_bonus', amount: 2,  description: 'Una capa gruesa con remiendos de cuero en los hombros y codos. Menos protección que la túnica encantada, pero cuesta la mitad. Ideal para magos de nivel 1-3. +2 de defensa.' },
   'túnica encantada':    { type: 'armor', effect: 'defense_bonus', amount: 4,  description: 'Una túnica de tela mágica que repele golpes. +4 de defensa. Ideal para magos.' },
   'armadura de placas':  { type: 'armor', effect: 'defense_bonus', amount: 5,  description: 'Placas de acero que cubren el cuerpo. La protección más alta del dungeon. +5 de defensa.' },
 

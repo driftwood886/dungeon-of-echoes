@@ -12948,6 +12948,8 @@ const SHOP_CATALOG = [
   { name: 'llave oxidada',           price: 20, description: 'Abre la puerta al norte del Pozo Sin Fondo. El hierro está gastado por años de uso —quizás décadas. Algunos aventureros la encontraron en el suelo del Pozo, envuelta en seda: la Araña Tejedora la tomó de alguien que no salió. No sabés si ese alguien llegó más lejos que vos. ⚠️ Es de un solo uso: se rompe al girar la cerradura.' },
   // T152: Armaduras
   { name: 'cuero endurecido',        price: 15, description: 'Armadura ligera. +2 defensa.' },  // DIS-676: 30g→20g para incentivar compra temprana. DIS-1172: 20g→15g — permite comprar espada (15g)+armadura con ~30g del early game
+  // DIS-2101: ropa de viajero — armadura barata para Mago early game. El Mago empieza con 65g y esta le deja comprar también una vara de energía (40g)
+  { name: 'ropa de viajero',          price: 22, description: '🔮 (Mago) Capa con remiendos de cuero. +2 defensa. Opción económica para magos de nivel 1-3 antes de poder pagar la túnica encantada.' },
   // DIS-863: cota de cuero como tier intermedio (35g, +3 DEF) entre cuero endurecido (20g, +2) y cota de malla (60g, +3)
   { name: 'cota de cuero',           price: 35, description: 'Cuero reforzado con placas de metal. +3 defensa. Tier intermedio — mejor que el cuero endurecido, más accesible que la cota de malla.' },
   { name: 'cota de malla',           price: 60, description: 'Armadura de hierro. +3 defensa.' },
@@ -13758,6 +13760,11 @@ function cmdShop(player, args) {
     lines.push(`  «Eso explica las cicatrices. Mirá un "${armorRec}" — te va a cambiar la vida en los niveles siguientes.» (escribí 'tienda todo' para verlo en el catálogo)`);
     lines.push('');
   }
+  // DIS-2101: si el Mago es nivel 1-4 sin armadura, sugerir la ropa de viajero como opción económica
+  if (player.player_class === 'mago' && (player.level || 1) < 5 && !shopArmor) {
+    lines.push(`🛡️ Aldric señala una percha con capas de tela. «Para un mago en early game, la "ropa de viajero" (22g) te da +2 DEF sin romper el presupuesto. La "túnica encantada" (60g) es mejor, pero cuesta más del doble.»`);
+    lines.push('');
+  }
   // DIS-1721: en la primera visita (aldricRep=0) y sin bolsa de lona comprada, Aldric menciona la bolsa proactivamente
   if (aldricRep === 0 && !(player.inventory_bonus > 0)) {
     lines.push(`🎒 Aldric señala un montón de bolsas de cuero en el rincón. «Primera vez por aquí, ¿verdad? Un consejo gratuito.»`);
@@ -13781,10 +13788,10 @@ function cmdShop(player, args) {
     // Armas básicas de tienda (ATK <= 10) — no recomendarlas si el jugador ya tiene arma épica/legendaria
     const BASIC_SHOP_WEAPONS = new Set(['espada de hierro', 'espada de acero', 'daga envenenada', 'daga básica', 'espada oxidada', 'guantes de cuero fino', 'vara de energía', 'símbolo sagrado']);
     // Armaduras básicas de tienda — no recomendarlas si el jugador ya tiene armadura épica
-    const BASIC_SHOP_ARMORS = new Set(['escudo de madera', 'cuero endurecido', 'cota de cuero', 'cota de malla', 'túnica encantada']);
+    const BASIC_SHOP_ARMORS = new Set(['escudo de madera', 'cuero endurecido', 'cota de cuero', 'cota de malla', 'túnica encantada', 'ropa de viajero']);
 
     const CLASS_RECS = {
-      'Mago':    ['vara de energía', 'túnica encantada', 'pergamino de hechizo', 'poción de maná'],
+      'Mago':    ['vara de energía', 'ropa de viajero', 'túnica encantada', 'pergamino de hechizo', 'poción de maná'],
       'Clérigo': ['símbolo sagrado', 'poción de bendición', 'poción de salud'],
       'Pícaro':  ['daga básica', 'guantes de cuero fino', 'veneno de contacto', 'daga envenenada'],
       'Guerrero':['espada de hierro', 'escudo de madera', 'poción de salud'],
@@ -13893,7 +13900,7 @@ function cmdShop(player, args) {
   const clsForFilter = classes.getPlayerClass(player);
   const CLASS_BASIC_ITEMS = {
     'Guerrero': ['poción de salud', 'poción mayor de salud', 'antídoto', 'espada de hierro', 'espada de acero', 'escudo de madera', 'cuero endurecido', 'cota de cuero', 'cota de malla', 'peto de huesos', 'cuerda', 'bolsa de lona', 'antorcha'],
-    'Mago':     ['poción de salud', 'poción mayor de salud', 'antídoto', 'poción de maná', 'poción de maná mayor', 'vara de energía', 'pergamino de hechizo', 'túnica encantada', 'cuerda', 'bolsa de lona', 'cristal helado'],
+    'Mago':     ['poción de salud', 'poción mayor de salud', 'antídoto', 'poción de maná', 'poción de maná mayor', 'vara de energía', 'pergamino de hechizo', 'ropa de viajero', 'túnica encantada', 'cuerda', 'bolsa de lona', 'cristal helado'],
     'Clérigo':  ['poción de salud', 'poción mayor de salud', 'antídoto', 'poción de maná', 'símbolo sagrado', 'poción de bendición', 'cuero endurecido', 'cota de cuero', 'cota de malla', 'cuerda', 'bolsa de lona'],
     'Pícaro':   ['poción de salud', 'poción mayor de salud', 'antídoto', 'daga básica', 'daga envenenada', 'veneno de contacto', 'guantes de cuero fino', 'cuero endurecido', 'cota de cuero', 'cuerda', 'bolsa de lona', 'antorcha'],
   };
