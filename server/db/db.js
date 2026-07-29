@@ -812,7 +812,9 @@ async function init() {
         username LIKE 'NuevoJugador%' OR username LIKE 'nuevojugador%' OR
         username LIKE 'NuevoJug%' OR username LIKE 'nuevojug%' OR
         username LIKE 'AgentTest%' OR username LIKE 'agenttest%' OR
-        username LIKE 'admin' OR username LIKE 'Admin' OR username LIKE 'ADMIN'
+        username LIKE 'admin' OR username LIKE 'Admin' OR username LIKE 'ADMIN' OR
+        -- BUG-2081: patrones bot*_test (e.g. botclerico_test, botguardia_test)
+        username LIKE 'bot%\_test' ESCAPE '\\'
       )
     `);
   } catch (e) {
@@ -1650,7 +1652,9 @@ function isBotUsername(username) {
     u.startsWith('nuevojugador') ||   // NuevoJugador2026, NuevoJugador_Test, etc.
     u.startsWith('nuevojug') ||       // NuevoJug2026
     u.startsWith('agenttest') ||      // AgentTest
-    u.startsWith('admin')             // admin (cuenta de prueba administrativa)
+    u.startsWith('admin') ||           // admin (cuenta de prueba administrativa)
+    // BUG-2081: patrones bot*_test (e.g. botclerico_test, botguardia_test)
+    (u.startsWith('bot') && u.endsWith('_test'))
   );
 }
 
