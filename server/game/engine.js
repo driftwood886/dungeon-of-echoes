@@ -2205,6 +2205,8 @@ function cmdMove(player, direction) {
           }
         }
         db.updatePlayer(player.id, { current_room_id: destId });
+        // DIS-2100: resetear combo al cambiar de sala — el monstruo combatido queda atrás
+        try { comboMap.delete(player.id); } catch (_) {}
         // BUG-790: registrar sala visitada en el path de monstruos sin boss (early return)
         const nbVisitResult = db.trackRoomVisit(player.id, destId);
         // T-1231: Tracking de desafíos — visita de sala
@@ -2569,6 +2571,8 @@ function cmdMove(player, direction) {
           }
         }
         db.updatePlayer(player.id, { current_room_id: destId });
+        // DIS-2100: resetear combo al cambiar de sala — el monstruo combatido queda atrás
+        try { comboMap.delete(player.id); } catch (_) {}
         // BUG-790: registrar sala visitada incluso en el path bossAtFullHp (early return)
         const bfhVisitResult = db.trackRoomVisit(player.id, destId);
         // T-1231: Tracking de desafíos — visita de sala
@@ -3077,6 +3081,8 @@ function cmdMove(player, direction) {
 
   // Actualizar posición del jugador
   db.updatePlayer(player.id, { current_room_id: targetId });
+  // DIS-2100: resetear combo al cambiar de sala — el monstruo combatido queda atrás
+  try { comboMap.delete(player.id); } catch (_) {}
 
   // IMPL-VV-1757: Aplicar variante de monstruo si la sala destino es variable y el player tiene variante activa
   try {
@@ -7213,6 +7219,8 @@ function cmdFlee(player, targetQuery) {
     const destId = exitIds.length > 0 ? exitIds[Math.floor(Math.random() * exitIds.length)] : null;
     if (destId) {
       db.updatePlayer(player.id, { current_room_id: destId });
+      // DIS-2100: resetear combo al cambiar de sala — el monstruo combatido queda atrás
+      try { comboMap.delete(player.id); } catch (_) {}
       // BUG-790: registrar sala visitada en el path cmdFlee bossAtFullHp (early return)
       db.trackRoomVisit(player.id, destId);
       const destRoom = db.getRoom(destId);
