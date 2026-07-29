@@ -3141,3 +3141,15 @@ function migrateFactionMisionContratoSangrientoDIS1918() {
   }
 }
 
+/**
+ * DIS-2093: Casa de Subastas (sala 17) — agregar pista de retorno al hub principal.
+ * Jugadores nuevos que exploran desde Cámara del Tesoro (→ este) quedan sin orientación
+ * sobre cómo volver al hub central. Se agrega una línea al inicio del primer visit.
+ * Implementado en engine.js como hint contextual al entrar a la sala 17 por primera vez.
+ */
+function migrateSubastaRetornoHubDIS2093() {
+  // La lógica de hint de primera visita se implementa en engine.js (firstVisit hook).
+  // Esta función es un marcador de migración para el historial — no modifica la DB.
+  console.log('[seed] migrateSubastaRetornoHubDIS2093: hint de retorno implementado en engine.js. DIS-2093 ✓');
+}
+

@@ -1857,7 +1857,22 @@ function cmdLook(player, options = {}) {
     }
   } catch (_combo2060) { /* no romper look si falla el check de combo */ }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine + lurkingLine + comboRiskLine };
+  // DIS-2093: Casa de Subastas (sala 17) — hint de retorno al hub principal en primera visita.
+  // Un jugador nuevo que exploró "este" desde la Cámara del Tesoro puede quedar desorientado.
+  // Solo se muestra una vez (flag subastas_first_visit en status_effects).
+  let subastaFirstVisitLine = '';
+  try {
+    if (player.current_room_id === 17) {
+      const seFSub = parseSE(player.status_effects);
+      if (!seFSub.subastas_first_visit) {
+        subastaFirstVisitLine = '\n\n🗺️ Para volver al hub principal: oeste → Cámara del Tesoro → oeste → Ecos → norte (Entrada).';
+        const newSeFSub = { ...seFSub, subastas_first_visit: true };
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeFSub) });
+      }
+    }
+  } catch (_dis2093) { /* no romper look si falla el hint */ }
+
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine + lurkingLine + comboRiskLine + subastaFirstVisitLine };
 }
 
 /**

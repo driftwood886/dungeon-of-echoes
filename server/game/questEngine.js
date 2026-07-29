@@ -474,7 +474,18 @@ function onKill(player, monster) {
           `UPDATE player_quests SET progress = ? WHERE id = ?`,
           [JSON.stringify({ kills: newKills }), row.id]
         );
-        messages.push(`📋 Quest "${row.name}": ${newKills}/${needed} kills`);
+        // DIS-2094: si es el primer kill (current === 0), agregar línea de flavor que explica el origen de la quest
+        // y muestra la recompensa, para que el jugador no quede confundido con un tracker sin contexto.
+        if (current === 0) {
+          const reward = JSON.parse(row.reward || '{}');
+          const rewardPreview = [];
+          if (reward.gold)  rewardPreview.push(`${reward.gold} 💰 gold`);
+          if (reward.xp)    rewardPreview.push(`${reward.xp} ⭐ XP`);
+          const rewardStr = rewardPreview.length ? ` (Recompensa: ${rewardPreview.join(', ')})` : '';
+          messages.push(`📋 Quest activada: "${row.name}" — ${row.name === 'Polvo al Polvo' ? 'Un susurro desde las sombras te encarga limpiar los no-muertos.' : 'Una misión automática se activó.'}\n   ${newKills}/${needed} kills${rewardStr}`);
+        } else {
+          messages.push(`📋 Quest "${row.name}": ${newKills}/${needed} kills`);
+        }
       }
     } catch (e) {
       console.error('[questEngine] Error en onKill:', e.message);

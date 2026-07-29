@@ -74,10 +74,16 @@ const COMPLETE_MSG_WITH_CLASS = `🎉 ¡TUTORIAL COMPLETADO!\nGanás +10 XP y +4
 /**
  * DIS-D278: Devuelve el mensaje de completar tutorial apropiado.
  * Si el jugador ya eligió clase, omite el recordatorio de clase.
+ * DIS-2092: Si el jugador es Guerrero, agrega tip de upgrade de arma.
  */
 function getCompleteMsg(player) {
   const hasClass = player && player.player_class && player.player_class !== 'sin_clase';
-  return hasClass ? COMPLETE_MSG_WITH_CLASS : COMPLETE_MSG;
+  let msg = hasClass ? COMPLETE_MSG_WITH_CLASS : COMPLETE_MSG;
+  // DIS-2092: tip de arma para Guerreros — el cuchillo oxidado no acompaña la fantasía de clase
+  if (player && player.player_class === 'guerrero') {
+    msg += '\n\n⚔️  TIP DE GUERRERO: Tu primer upgrade prioritario es una espada.\n   Aldric el Mercader (Sala de los Ecos → sur) vende espadas desde 10g — tenés oro de sobra.\n   Escribí:  sur  →  comprar espada de hierro';
+  }
+  return msg;
 }
 
 /**

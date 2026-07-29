@@ -535,8 +535,20 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     if (golemAlive) {
       lines.push(`\n🪨 Las marcas en el suelo del Santuario muestran el patrón de un constructo antiguo que se repara a sí mismo. Los fragmentos dispersos de piedra no están en el suelo por accidente — se reensamblan. Atacarlo sin daño sostenido es inútil.`);
       // DIS-1957: advertencia de nivel si el jugador está por debajo del mínimo recomendado
+      // DIS-2096: también advertir sobre nivel mínimo de equipo (arma ATK 8+)
       if (player && player.level < 6) {
         lines.push(`⚠️ **El Gólem de Piedra requiere nivel 6+ para ser vencido de forma confiable.** Con tu nivel actual (${player.level}) podés intentarlo, pero necesitás pociones y tus mejores habilidades. Considera subir otro nivel antes.`);
+      }
+      // DIS-2096: hint de equipo mínimo recomendado (independiente del nivel)
+      if (player) {
+        try {
+          const inv = JSON.parse(player.inventory || '[]');
+          const equipped = inv.find(i => i && i.equipped && (i.attack_bonus !== undefined || i.attack !== undefined));
+          const currentAtk = player.attack || 8;
+          if (currentAtk < 10) {
+            lines.push(`⚔️ Equipo recomendado: arma con ATK 8+ (tu ATK actual: ${currentAtk}). El Gólem tiene regeneración activa — con daño bajo la pelea se extiende peligrosamente. Aldric vende armas en la Cámara del Tesoro (oeste desde la Entrada).`);
+          }
+        } catch (_) { /* no romper la sala si falla */ }
       }
     }
   }
