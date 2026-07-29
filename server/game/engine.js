@@ -133,6 +133,8 @@ const sessionExploredRooms = new Map();
 // Se resetea al cambiar de objetivo, al morir, o al morir el monstruo.
 const comboMap = new Map();
 const COMBO_MAX = 5;
+// DIS-2085: set de jugadores a quienes ya se les mostró el tooltip de combo en esta sesión
+const comboHintShownSet = new Set();
 
 // T212: estado del campeón de la hora en memoria
 const hourlyChampionMap = new Map(); // key 'champion' → {id, username}
@@ -953,6 +955,8 @@ Para el diario de lore: lore  (usá «read» en ítems con texto para guardar fr
           logout: 'logout', salir: 'logout', exit: 'logout', quit: 'logout', bye: 'logout', chau: 'logout',
           // DIS-2015: alias de postura para que 'help combate' y 'help postura' funcionen
           postura: 'stance', combate: 'stance', stance: 'stance', 'postura combate': 'stance',
+          // DIS-2085: alias de combo para que 'help combo' funcione
+          combo: 'combo', combos: 'combo',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
@@ -5781,6 +5785,11 @@ function cmdAttack(player, targetName) {
   let comboMsg = '';
   if (!playerDead && !combatResult.paralyzed && !combatResult.spectralBlocked && comboCount >= 2) {
     comboMsg = '\n' + (COMBO_MSGS[comboCount] || `⚡ ¡COMBO x${comboCount}!`) + ` (+${comboBonusDmg} dmg)`;
+    // DIS-2085: mostrar tooltip de combo la primera vez en la sesión (solo en x2, solo una vez)
+    if (comboCount === 2 && !comboHintShownSet.has(player.id)) {
+      comboHintShownSet.add(player.id);
+      comboMsg += '\n   💡 Combos: atacar al mismo monstruo seguido acumula daño (x5 máx). Se resetea al cambiar objetivo. `help combo` para más info.';
+    }
   }
   // DIS-1686: añadir mensaje de combo roto si aplica (cambiaste de objetivo con combo activo)
   if (comboBrokenMsg) comboMsg = comboBrokenMsg + comboMsg;
