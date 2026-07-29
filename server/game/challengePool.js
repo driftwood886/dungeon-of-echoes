@@ -75,7 +75,7 @@ const challengePool = [
     id: 'CHAL-C05',
     category: 'combate',
     title: 'Caza de Arañas',
-    description: 'Aplasta 4 Arañas Tejedoras en el Pozo Sin Fondo (sala 7).',
+    description: 'Aplasta 4 Arañas Tejedoras en el Pozo Sin Fondo (sala 7). Ruta desde la entrada: norte, norte, oeste.',
     condition: { type: 'kill', target: 'Araña Tejedora', amount: 4, extra: {} },
     reward: { xp: 50, gold: 8, rep: 0 },
     min_level: 1, max_level: 4,

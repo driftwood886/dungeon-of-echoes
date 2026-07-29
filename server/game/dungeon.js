@@ -480,6 +480,16 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     if (!yaEnSala4) {
       lines.push(`\n🏪 Al este, el olor a cuero se vuelve inconfundible — la tienda del mercader Aldric está ahí.\n   ⚔️  El Esqueleto Guerrero custodia la entrada, pero Aldric lo instruyó para no atacar a compradores que lleguen sin arma desenvainada. Podés entrar sin pelear.`);
     }
+    // DIS-2104: hint hacia sala 7 (Pozo Sin Fondo) para jugadores nuevos que no la conocen aún
+    const yaEnSala7 = (() => {
+      try {
+        const vis = JSON.parse(player && player.rooms_visited ? player.rooms_visited : '[]');
+        return vis.includes(7) || vis.includes('7');
+      } catch (_) { return true; } // si falla, no mostrar
+    })();
+    if (!yaEnSala7) {
+      lines.push(`\n🕷️ Al oeste de esta sala hay un pozo sin fondo — los que llegaron a explorar ese camino mencionaron haber visto algo moviéndose en las sombras. (Usá «oeste» para ir al Pozo Sin Fondo.)`);
+    }
   }
 
   // NPC Mercader en sala 4

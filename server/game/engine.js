@@ -24458,6 +24458,22 @@ function cmdChallenge(player) {
     // Descripción con word-wrap
     const descRows = wrapDesc(ch.description, '      ', W);
     for (const row of descRows) lines.push('║' + row.padEnd(W) + '║');
+    // DIS-2104: hints de ubicación/ruta para desafíos de kill con sala conocida
+    const CHALLENGE_LOCATIONS = {
+      'CHAL-C01': '📍 Sala 2 — Corredor de las Sombras (norte desde la entrada)',
+      'CHAL-C02': '📍 Sala 2 — Corredor de las Sombras (norte desde la entrada)',
+      'CHAL-C03': '📍 Sala 4 — Cámara del Tesoro (norte, norte, este)',
+      'CHAL-C04': '📍 Sala 6 — Túnel de los Hongos (norte, oeste)',
+      'CHAL-C05': '📍 Sala 7 — Pozo Sin Fondo. Ruta: norte → norte → oeste',
+      'CHAL-C06': '📍 Sala 5 — Capilla Olvidada (este desde la entrada)',
+      'CHAL-C07': '📍 Sala 10 — Santuario Profano (norte, norte, norte, este — o por la llave oxidada en sala 7)',
+      'CHAL-C08': '📍 Sala 11 — Galería de Hielo (vía Santuario Profano)',
+      'CHAL-C09': '📍 Sala 8 — Prisión Subterránea (norte, norte, este, norte)',
+    };
+    if (CHALLENGE_LOCATIONS[ch.id] && !ch.completed && ch.condition && ch.condition.type && ch.condition.type.includes('kill')) {
+      const hintRows = wrapDesc(CHALLENGE_LOCATIONS[ch.id], '      ', W);
+      for (const row of hintRows) lines.push('║' + row.padEnd(W) + '║');
+    }
     const barDisplay = mkBar(ch.progress, ch.condition.amount);
     const statusStr = ch.completed
       ? '✅ ¡COMPLETADO!'
