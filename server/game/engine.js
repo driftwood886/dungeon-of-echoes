@@ -603,7 +603,15 @@ function execute(playerId, input, context) {
           }
         }
       } else {
-        result = cmdDrink(player);
+        // BUG-2088: si el jugador está en la Capilla (sala 5), "beber" redirige al cuenco sagrado
+        if (player.current_room_id === CHAPEL_ROOM_ID) {
+          result = cmdChapelBowl(player);
+        // BUG-2088: si está en la Cámara del Eco (sala 19), redirigir al cuenco de cristal
+        } else if (player.current_room_id === ECHO_ROOM_ID) {
+          result = cmdEchoBowl(player);
+        } else {
+          result = cmdDrink(player);
+        }
       }
       break;
     }
