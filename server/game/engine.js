@@ -20753,6 +20753,8 @@ function cmdBestiary(player) {
   }
   // Reemplazar la última separación por el cierre
   lines[lines.length - 1] = `╚════════════════════════════════════════╝`;
+  // DIS-2105: explicar el sistema de estrellas al pie del bestiario
+  lines.push(`  ⭐ Estrellas: 1★=5 kills · 2★=10 · 3★=15 · 4★=20 · 5★=25 · 6★=30+`);
   const TOTAL_TYPES = 15; // BUG-1000: hay 15 tipos de monstruo (sin Goblin de Práctica)
   const entryCount = entries.filter(e => e.name !== 'Goblin de Práctica').length;
   // DIS-D294: verificar también si el logro ya fue desbloqueado (override si hay desincronización)

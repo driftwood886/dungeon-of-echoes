@@ -412,6 +412,9 @@ function listRecipesForPlayer(inventory) {
   const available = [];
   const missing1 = []; // recetas donde tiene 1 de 2 ingredientes
   const rest = [];
+  // DIS-2106: evitar mostrar múltiples variantes del mismo resultado en "casi listo"
+  const seenResultAvailable = new Set();
+  const seenResultMissing1 = new Set();
 
   for (const r of RECIPES) {
     const has0 = invNorm.includes(r.ingredients[0].toLowerCase());
@@ -421,9 +424,14 @@ function listRecipesForPlayer(inventory) {
       : `${r.ingredients[0]} + ${r.ingredients[1]} → **${r.result}**`;
     if (has0 && has1) {
       available.push(`  ✅ ${label}`);
+      seenResultAvailable.add(r.result);
     } else if (has0 || has1) {
+      // DIS-2106: si ya hay una receta "casi lista" para este resultado, no duplicar
+      // (el jugador solo ve una variante, la primera que matchea)
+      if (seenResultMissing1.has(r.result) || seenResultAvailable.has(r.result)) continue;
       const missing = has0 ? r.ingredients[1] : r.ingredients[0];
       missing1.push(`  🟡 ${label}  (falta: «${missing}»)`);
+      seenResultMissing1.add(r.result);
     } else {
       rest.push(`  ⬜ ${r.ingredients[0]} + ${r.ingredients[1]} → ${r.result}`);
     }

@@ -10,7 +10,7 @@ const MONSTER_GENERO_FEMENINO = new Set([
   'Araña Tejedora',
   'Rata Gigante',
   'Sombra del Vacío',
-  'Guardia Espectral', // "La Guardia" es femenino
+  // BUG-2099: 'Guardia Espectral' removido — el nombre canónico es "el Guardia Espectral" (masculino)
 ]);
 
 /**
