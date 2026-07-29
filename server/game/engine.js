@@ -272,7 +272,9 @@ function calcLevelUp(freshPlayer, xpGain) {
         const se = freshPlayer.status_effects
           ? (typeof freshPlayer.status_effects === 'string' ? JSON.parse(freshPlayer.status_effects) : freshPlayer.status_effects)
           : {};
-        fields.status_effects = JSON.stringify({ ...se, spec_reminder_shown: true });
+        // DIS-2095: diferir el aviso de especialización al próximo look/status
+        // para no interrumpir el flujo de combate o exploración con texto largo
+        fields.status_effects = JSON.stringify({ ...se, spec_reminder_shown: true, spec_notify_deferred: true });
       } catch (_) { /* no interrumpir */ }
     }
   }
@@ -293,10 +295,10 @@ function calcLevelUp(freshPlayer, xpGain) {
   let unlockLines = '';
   if (levelUp) {
     for (let lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
-      if (lvl === 5 && !freshPlayer.specialization) {
-        unlockLines += `\n   ⚠️ Nivel 5 — elegí tu especialización: \`especializar\` (podés hacerlo ahora o más tarde, no hay límite de tiempo)`;
-      }
+      // DIS-2095: ya no agregar aviso de especialización aquí — se muestra en el próximo look/status
+      // (el flag spec_notify_deferred ya fue marcado en status_effects arriba)
       // Aquí se pueden agregar más unlocks futuros de niveles específicos
+      void lvl;
     }
   }
   // BUG-1718: Legado "Veterano Silencioso" — bonus de +1 stat elegible al primer level up (nivel 1→2)
@@ -1872,7 +1874,24 @@ function cmdLook(player, options = {}) {
     }
   } catch (_dis2093) { /* no romper look si falla el hint */ }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine + lurkingLine + comboRiskLine + subastaFirstVisitLine };
+  // DIS-2095: aviso diferido de especialización — mostrar en el próximo look post-nivel 5
+  // para no interrumpir combate/exploración con texto largo.
+  let specDeferredLine = '';
+  try {
+    const seDeferred = parseSE(player.status_effects);
+    if (seDeferred.spec_notify_deferred) {
+      const freshForSpec2095 = db.getPlayer(player.id) || player;
+      if (!freshForSpec2095.specialization && freshForSpec2095.player_class && freshForSpec2095.player_class !== 'sin_clase') {
+        specDeferredLine = '\n\n🌟 ¡NIVEL 5 ALCANZADO! Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente y define tu estilo de juego.\n   Escribí `especializar` para ver las opciones y escoger tu camino.\n   💡 No hay límite de tiempo — podés hacerlo ahora o cuando estés listo.';
+      }
+      // Limpiar el flag (tanto si el jugador ya especializó como si no)
+      const newSe2095 = { ...seDeferred };
+      delete newSe2095.spec_notify_deferred;
+      db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe2095) });
+    }
+  } catch (_dis2095) { /* no romper look */ }
+
+  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine + lurkingLine + comboRiskLine + subastaFirstVisitLine + specDeferredLine };
 }
 
 /**
@@ -3141,7 +3160,14 @@ function cmdMove(player, direction) {
         }
       } catch (_) { /* no interrumpir */ }
     }
-    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${exploXp} XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${newLevel === 5 && !freshExp.specialization ? '\n\n⚠️  ¡HAS ALCANZADO EL NIVEL 5!\n   Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente.\n   Escribí `especializar` para ver las opciones y escoger tu camino.\n   💡 No hay límite de tiempo — podés hacerlo ahora o cuando estés listo.' : ''}${expAldricReminder}` : ''}`;
+    // DIS-2095: diferir aviso de especialización al próximo look — no mezclarlo con el XP de exploración
+    if (levelUp && newLevel === 5 && !freshExp.specialization && freshExp.player_class && freshExp.player_class !== 'sin_clase') {
+      try {
+        const seExp5 = parseSE(db.getPlayer(player.id).status_effects);
+        db.updatePlayer(player.id, { status_effects: JSON.stringify({ ...seExp5, spec_notify_deferred: true }) });
+      } catch (_) { /* no interrumpir */ }
+    }
+    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${exploXp} XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${expAldricReminder}` : ''}`;
     // EPIC-1373: Influencia de facción por exploración (nueva sala)
     db.addFactionInfluence(player.id, 2);
     // IMPL-WM-1711: hook exploración nueva sala → Misión de Guerra conclave_arcano
