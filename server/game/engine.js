@@ -11852,20 +11852,10 @@ function cmdDisarm(player, args) {
         const ownItemIdx = (player.inventory || []).findIndex(i => i.toLowerCase() === ownItem.toLowerCase());
         const playerHasOwnItem = ownItemIdx !== -1;
         if (playerHasOwnItem) {
-          // DIS-1731: jugador tiene el ítem para SU trampa local pero apuntó a la adyacente.
-          // Si hay trampa activa en la sala actual Y tiene el ítem, auto-desactivar la local.
-          const ownInv = [...(player.inventory || [])];
-          ownInv.splice(ownItemIdx, 1);
-          const updatedKnownDisarm1731 = { ...(player.known_traps || {}), [currentRoomForHint.id]: true };
-          db.updatePlayer(player.id, { inventory: JSON.stringify(ownInv), known_traps: JSON.stringify(updatedKnownDisarm1731) });
-          const respawnAt1731 = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-          const newOwnTrap = { ...currentRoomForHint.trap, active: false, respawn_at: respawnAt1731 };
-          db.updateRoomTrap(currentRoomForHint.id, newOwnTrap);
-          return {
-            text: `🎯 Trampa objetivo: «${adjRoom.name}» (al ${dirLabel2}) — ítem requerido: "${trapAdj.item_needed}", que no tenés.\n\n💡 Sin embargo, notás que TU sala (${currentRoomForHint.name}) tiene una trampa activa y que tenés «${ownItem}» — el ítem exacto para desactivarla.\n\n🔧 Desactivás la trampa de ${currentRoomForHint.name} con tu ${ownItem}.\n✅ Trampa local desactivada. (${ownItem} consumido.)\n\n🧠 Para la trampa de ${adjRoom.name} (al ${dirLabel2}), necesitás: "${trapAdj.item_needed}".`,
-            event: `${player.username} desactiva una trampa en la sala.`,
-            eventRoomId: player.current_room_id,
-          };
+          // DIS-2091: jugador tiene el ítem para SU trampa local pero apuntó EXPLÍCITAMENTE a la adyacente.
+          // Respetar la intención del jugador: no auto-desactivar la trampa local.
+          // Solo informar sobre la trampa adyacente y mencionar la local como nota opcional.
+          ownTrapHint = `\n\n💡 Nota: tu sala (${currentRoomForHint.name}) también tiene una trampa activa y tenés «${ownItem}» para desactivarla. Escribí \"desactivar trampa\" (sin dirección) si querés desactivar esa.`;
         } else {
           ownTrapHint = `\n💡 Nota: esta sala (${currentRoomForHint.name}) también tiene trampa — necesitás "${ownItem}" y escribí "desactivar trampa" (sin dirección) para desactivarla aquí.`;
         }
