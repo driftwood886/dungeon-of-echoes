@@ -10625,9 +10625,12 @@ function cmdLoot(player) {
     const usedSlots = player.inventory.length + equippedCountLoot;
     // DIS-1535: mensaje contextualizado por nivel
     const lootPlayerLevel = player.level || 1;
+    // DIS-2082: para nivel 10+ mencionar acceso remoto a vault
     const lootVaultHint = lootPlayerLevel <= 4
       ? ''
-      : ' También guardá en la bóveda (vault) en sala 1, 17 o 19.';
+      : lootPlayerLevel >= 10
+        ? ' También guardá en la bóveda (vault) — desde nivel 10 podés hacerlo desde cualquier sala por 15🪙.'
+        : ' También guardá en la bóveda (vault) en sala 1, 17 o 19.';
     const guaranteedPrefix = guaranteedLootLines.length > 0 ? guaranteedLootLines.join('\n') + '\n\n' : '';
     return {
       text: `${guaranteedPrefix}🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada.\nQuedaron en el suelo:\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}\n\n💡 Hacé espacio con \`drop <ítem>\` o vendé en la tienda de Aldric (sala 4).${lootVaultHint} Podés comprar una **bolsa de lona** (20g) en Aldric para +4 slots.`,
@@ -28879,13 +28882,19 @@ function cmdBattlecry(player, args) {
 // ══════════════════════════════════════════════════════════════════════════════
 const VAULT_MAX = 20;
 const VAULT_ROOMS = new Set([1, 4, 17, 19]); // Entrada + Cámara del Tesoro de Aldric + Casa de Subastas + Cámara del Eco (DIS-1252: acceso en zona profunda; BUG-1384: sala 4)
+const VAULT_REMOTE_MIN_LEVEL = 10; // DIS-2082: nivel mínimo para acceso remoto
+const VAULT_REMOTE_COST = 15;      // DIS-2082: costo en monedas por operación remota (store/take)
 function cmdVault(player, args) {
   const W = 48;
   const vaultItems = JSON.parse(player.vault || '[]');
 
-  // Accesible solo en sala 1 (Entrada), sala 4 (Cámara del Tesoro de Aldric), sala 17 (Casa de Subastas) o sala 19 (Cámara del Eco)
-  if (!VAULT_ROOMS.has(player.current_room_id)) {
-    return { text: '🏛️  La bóveda es accesible en la Entrada (sala 1), la Cámara del Tesoro de Aldric (sala 4), la Casa de Subastas (sala 17) o la Cámara del Eco (sala 19).\n  Usá `recall` para volver a la Entrada.' };
+  // DIS-2082: acceso remoto para jugadores nivel 10+ con costo de 15g por operación
+  const inVaultRoom = VAULT_ROOMS.has(player.current_room_id);
+  const canRemote = !inVaultRoom && (player.level || 1) >= VAULT_REMOTE_MIN_LEVEL;
+
+  // Accesible solo en salas autorizadas — o remotamente si nivel >= 10
+  if (!inVaultRoom && !canRemote) {
+    return { text: '🏛️  La bóveda es accesible en la Entrada (sala 1), la Cámara del Tesoro de Aldric (sala 4), la Casa de Subastas (sala 17) o la Cámara del Eco (sala 19).\n  Usá `recall` para volver a la Entrada.\n\n💡 Al nivel 10+ podés acceder a la bóveda desde cualquier sala por 15🪙 por operación.' };
   }
 
   // Sin args: listar el contenido
@@ -28893,6 +28902,9 @@ function cmdVault(player, args) {
     const lines = [];
     lines.push(`╔${'═'.repeat(W)}╗`);
     lines.push(`║${'  🏛️  BÓVEDA PERSONAL'.padEnd(W)}║`);
+    if (canRemote) {
+      lines.push(`║${'  📡 Acceso remoto · 15🪙 por operación'.padEnd(W)}║`);
+    }
     lines.push(`╠${'═'.repeat(W)}╣`);
     if (vaultItems.length === 0) {
       lines.push(`║  (vacía)`.padEnd(W + 2) + `║`);
@@ -28944,13 +28956,23 @@ function cmdVault(player, args) {
 
     const item = inv[idx];
 
+    // DIS-2082: cobrar por acceso remoto
+    if (canRemote) {
+      const freshCoins = db.getPlayer(player.id);
+      if ((freshCoins.gold || 0) < VAULT_REMOTE_COST) {
+        return { text: `📡 El acceso remoto a la bóveda cuesta ${VAULT_REMOTE_COST}🪙. Tenés ${freshCoins.gold || 0}🪙 — no alcanza.` };
+      }
+      db.updatePlayer(player.id, { gold: (freshCoins.gold || 0) - VAULT_REMOTE_COST });
+    }
+
     inv.splice(idx, 1);
     vaultItems.push(item);
     db.updatePlayer(player.id, {
       inventory: JSON.stringify(inv),
       vault: JSON.stringify(vaultItems),
     });
-    return { text: `🏛️  "${item}" guardado en la bóveda. (${vaultItems.length}/${VAULT_MAX})` };
+    const remoteSuffix = canRemote ? ` · −${VAULT_REMOTE_COST}🪙 (acceso remoto)` : '';
+    return { text: `🏛️  "${item}" guardado en la bóveda. (${vaultItems.length}/${VAULT_MAX})${remoteSuffix}` };
   }
 
   if (subcmd === 'take' || subcmd === 'sacar' || subcmd === 'retirar') {
@@ -28967,13 +28989,23 @@ function cmdVault(player, args) {
     const equippedCountVault = (player.equipped_weapon ? 1 : 0) + (player.equipped_armor ? 1 : 0);
     if (inv.length + equippedCountVault >= maxInvVault) return { text: `🎒 El inventario está lleno (${inv.length + equippedCountVault}/${maxInvVault}). Tirá algo primero.` };
 
+    // DIS-2082: cobrar por acceso remoto
+    if (canRemote) {
+      const freshCoins = db.getPlayer(player.id);
+      if ((freshCoins.gold || 0) < VAULT_REMOTE_COST) {
+        return { text: `📡 El acceso remoto a la bóveda cuesta ${VAULT_REMOTE_COST}🪙. Tenés ${freshCoins.gold || 0}🪙 — no alcanza.` };
+      }
+      db.updatePlayer(player.id, { gold: (freshCoins.gold || 0) - VAULT_REMOTE_COST });
+    }
+
     vaultItems.splice(idx, 1);
     inv.push(item);
     db.updatePlayer(player.id, {
       inventory: JSON.stringify(inv),
       vault: JSON.stringify(vaultItems),
     });
-    return { text: `🏛️  "${item}" sacado de la bóveda y añadido al inventario.` };
+    const remoteSuffix = canRemote ? ` · −${VAULT_REMOTE_COST}🪙 (acceso remoto)` : '';
+    return { text: `🏛️  "${item}" sacado de la bóveda y añadido al inventario.${remoteSuffix}` };
   }
 
   return { text: 'Subcomandos: vault (listar) · vault store <ítem> · vault take <ítem>' };
