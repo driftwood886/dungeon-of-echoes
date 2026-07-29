@@ -5096,12 +5096,19 @@ function cmdStatus(player) {
 
   // DIS-1831: recordatorio de facciones para jugadores nivel 5+ sin facción
   // DIS-1929: no mostrar si hay una elección de facción pendiente (faction_pending en status_effects)
+  // DIS-2083: mensaje más prominente según nivel (más insistente a partir de nivel 10)
   let factionReminderLine = '';
   if ((player.level || 1) >= 5 && !player.faction) {
     let seStatus = {};
     try { seStatus = JSON.parse(player.status_effects || '{}'); } catch (_) {}
     if (!seStatus.faction_pending) {
-      factionReminderLine = `\n\n⚔️ Nota: Aún no te uniste a ninguna facción — escribí \`facciones\` para ver las opciones y sus beneficios.`;
+      const pLevel2083 = player.level || 1;
+      if (pLevel2083 >= 10) {
+        // DIS-2083: jugadores avanzados — bloque destacado, no una línea pequeña
+        factionReminderLine = `\n\n╔══════════════════════════════════════════════╗\n║  ⚠️  FACCIÓN: SIN ASIGNAR (nivel ${String(pLevel2083).padEnd(13)}║\n║  Estás perdiendo bonus de kills semanales.   ║\n║  Elegí ahora: faccion elegir <nombre>        ║\n║    🗡️  orden_filo  🔮  conclave_arcano       ║\n║    🪙  hermandad_mercado                      ║\n╚══════════════════════════════════════════════╝`;
+      } else {
+        factionReminderLine = `\n\n⚔️ Nota: Aún no te uniste a ninguna facción — escribí \`facciones\` para ver las opciones y sus beneficios.`;
+      }
     }
   }
 
@@ -15432,6 +15439,26 @@ function _cmdFaccionElegir(player, args) {
   // ── CON confirmación: unirse a la facción ─────────────────────────────────
   db.setPlayerFaction(player.id, factionId);
 
+  // DIS-2083: crédito retroactivo de influencia para jugadores avanzados
+  // Si el jugador se une en nivel 10+, recibe influencia inicial basada en sus kills previos.
+  // Fórmula: min(kills * 0.3, 50) — hasta 50 puntos de influencia de regalo.
+  let retroInfluenceMsg = '';
+  try {
+    const freshRetro = db.getPlayer(player.id);
+    const retroLevel = freshRetro ? (freshRetro.level || 1) : 1;
+    if (retroLevel >= 10 && freshRetro) {
+      const retroKills = freshRetro.kills || 0;
+      const retroInfluence = Math.min(Math.floor(retroKills * 0.3), 50);
+      if (retroInfluence > 0) {
+        db.updatePlayer(player.id, {
+          faction_influence:      (freshRetro.faction_influence || 0) + retroInfluence,
+          faction_week_influence: (freshRetro.faction_week_influence || 0) + retroInfluence,
+        });
+        retroInfluenceMsg = `\n\n⚡ **Bono de veterano:** Recibís ${retroInfluence} puntos de influencia retroactivos por tus ${retroKills} kills anteriores. ¡Tu historial ya trabaja para la facción!`;
+      }
+    }
+  } catch (_) { /* no romper unión si falla el bono */ }
+
   // BUG-1582: assignQuests solo se llamaba en login — llamarlo también al unirse a facción
   // para que el slot principal se llene con la quest de facción inmediatamente
   try {
@@ -15517,7 +15544,7 @@ function _cmdFaccionElegir(player, args) {
   }
 
   return {
-    text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.${_missionBlock}\n\n⚠️ **Nota sobre misiones de facción:** Los kills y acciones realizados antes de unirte a la facción no cuentan para las misiones semanales — el progreso trackea desde ahora. Si ya mataste criaturas hoy, el contador empieza desde cero.\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
+    text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.${retroInfluenceMsg}${_missionBlock}\n\n⚠️ **Nota sobre misiones de facción:** Los kills y acciones realizados antes de unirte a la facción no cuentan para las misiones semanales — el progreso trackea desde ahora. Si ya mataste criaturas hoy, el contador empieza desde cero.\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
   };
 }
 
