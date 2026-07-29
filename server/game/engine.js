@@ -21437,6 +21437,7 @@ function cmdUseSkill(player, args, context) {
       return _cmdTrainingFight(freshPlayer, target);
     }
     // BUG-1836: Aplicar lich_drain antes del ataque con smash (igual que en combat.js línea 586-606)
+    // BUG-2087: verificar que el Lich siga vivo antes de aplicar el drenaje
     let smashLichDrainPrefix = '';
     try {
       const freshForLichDrainSmash = db.getPlayer(freshPlayer.id);
@@ -21444,15 +21445,23 @@ function cmdUseSkill(player, args, context) {
         ? (typeof freshForLichDrainSmash.status_effects === 'string' ? JSON.parse(freshForLichDrainSmash.status_effects) : freshForLichDrainSmash.status_effects)
         : {};
       if (lichDrainFxSmash.lich_drain) {
-        const drainDmgSmash = lichDrainFxSmash.lich_drain.damage || 5;
-        const newHpAfterDrainSmash = Math.max(0, (freshForLichDrainSmash.hp || 0) - drainDmgSmash);
-        db.updatePlayer(freshPlayer.id, { hp: newHpAfterDrainSmash });
-        freshPlayer.hp = newHpAfterDrainSmash;
-        smashLichDrainPrefix = `💜 El aura oscura del Lich drena tu fuerza vital (-${drainDmgSmash} HP). (${newHpAfterDrainSmash}/${freshPlayer.max_hp} HP)\n`;
-        if (newHpAfterDrainSmash <= 0) {
-          db.addJournalEntry(freshPlayer.id, 'death', `💀 Muerto por el drenaje de vida del Lich Anciano.`);
-          handlePlayerDeath(freshPlayer.id, [], 'drenaje del Lich');
-          return { text: `${smashLichDrainPrefix}💀 ¡El drenaje del Lich acabó contigo! Respawneás en la entrada del dungeon con 25% HP...` };
+        // BUG-2087: verificar si el Lich Anciano (id=13) sigue vivo
+        let lichAliveSmash = false;
+        try { const lm = db.getMonster(13); lichAliveSmash = !!(lm && lm.hp > 0 && lm.room_id != null); } catch (_) { lichAliveSmash = true; }
+        if (!lichAliveSmash) {
+          delete lichDrainFxSmash.lich_drain;
+          db.updatePlayer(freshPlayer.id, { status_effects: JSON.stringify(lichDrainFxSmash) });
+        } else {
+          const drainDmgSmash = lichDrainFxSmash.lich_drain.damage || 5;
+          const newHpAfterDrainSmash = Math.max(0, (freshForLichDrainSmash.hp || 0) - drainDmgSmash);
+          db.updatePlayer(freshPlayer.id, { hp: newHpAfterDrainSmash });
+          freshPlayer.hp = newHpAfterDrainSmash;
+          smashLichDrainPrefix = `💜 El aura oscura del Lich drena tu fuerza vital (-${drainDmgSmash} HP). (${newHpAfterDrainSmash}/${freshPlayer.max_hp} HP)\n`;
+          if (newHpAfterDrainSmash <= 0) {
+            db.addJournalEntry(freshPlayer.id, 'death', `💀 Muerto por el drenaje de vida del Lich Anciano.`);
+            handlePlayerDeath(freshPlayer.id, [], 'drenaje del Lich');
+            return { text: `${smashLichDrainPrefix}💀 ¡El drenaje del Lich acabó contigo! Respawneás en la entrada del dungeon con 25% HP...` };
+          }
         }
       }
     } catch (_) { /* no romper skill si falla */ }
@@ -21878,6 +21887,7 @@ function cmdUseSkill(player, args, context) {
       return _cmdTrainingFight(freshPlayer, target);
     }
     // BUG-1836: Aplicar lich_drain antes del ataque con shield_bash (igual que en combat.js línea 586-606)
+    // BUG-2087: verificar que el Lich siga vivo antes de aplicar el drenaje
     let bashLichDrainPrefix = '';
     try {
       const freshForLichDrainBash = db.getPlayer(freshPlayer.id);
@@ -21885,15 +21895,23 @@ function cmdUseSkill(player, args, context) {
         ? (typeof freshForLichDrainBash.status_effects === 'string' ? JSON.parse(freshForLichDrainBash.status_effects) : freshForLichDrainBash.status_effects)
         : {};
       if (lichDrainFxBash.lich_drain) {
-        const drainDmgBash = lichDrainFxBash.lich_drain.damage || 5;
-        const newHpAfterDrainBash = Math.max(0, (freshForLichDrainBash.hp || 0) - drainDmgBash);
-        db.updatePlayer(freshPlayer.id, { hp: newHpAfterDrainBash });
-        freshPlayer.hp = newHpAfterDrainBash;
-        bashLichDrainPrefix = `💜 El aura oscura del Lich drena tu fuerza vital (-${drainDmgBash} HP). (${newHpAfterDrainBash}/${freshPlayer.max_hp} HP)\n`;
-        if (newHpAfterDrainBash <= 0) {
-          db.addJournalEntry(freshPlayer.id, 'death', `💀 Muerto por el drenaje de vida del Lich Anciano.`);
-          handlePlayerDeath(freshPlayer.id, [], 'drenaje del Lich');
-          return { text: `${bashLichDrainPrefix}💀 ¡El drenaje del Lich acabó contigo! Respawneás en la entrada del dungeon con 25% HP...` };
+        // BUG-2087: verificar si el Lich Anciano (id=13) sigue vivo
+        let lichAliveBash = false;
+        try { const lm = db.getMonster(13); lichAliveBash = !!(lm && lm.hp > 0 && lm.room_id != null); } catch (_) { lichAliveBash = true; }
+        if (!lichAliveBash) {
+          delete lichDrainFxBash.lich_drain;
+          db.updatePlayer(freshPlayer.id, { status_effects: JSON.stringify(lichDrainFxBash) });
+        } else {
+          const drainDmgBash = lichDrainFxBash.lich_drain.damage || 5;
+          const newHpAfterDrainBash = Math.max(0, (freshForLichDrainBash.hp || 0) - drainDmgBash);
+          db.updatePlayer(freshPlayer.id, { hp: newHpAfterDrainBash });
+          freshPlayer.hp = newHpAfterDrainBash;
+          bashLichDrainPrefix = `💜 El aura oscura del Lich drena tu fuerza vital (-${drainDmgBash} HP). (${newHpAfterDrainBash}/${freshPlayer.max_hp} HP)\n`;
+          if (newHpAfterDrainBash <= 0) {
+            db.addJournalEntry(freshPlayer.id, 'death', `💀 Muerto por el drenaje de vida del Lich Anciano.`);
+            handlePlayerDeath(freshPlayer.id, [], 'drenaje del Lich');
+            return { text: `${bashLichDrainPrefix}💀 ¡El drenaje del Lich acabó contigo! Respawneás en la entrada del dungeon con 25% HP...` };
+          }
         }
       }
     } catch (_) { /* no romper skill si falla */ }

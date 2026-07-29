@@ -656,6 +656,7 @@ function attackRound(player, monster) {
   }
 
   // DIS-1827: Efecto de drenaje de vida del Lich Anciano (lich_drain) — persiste hasta que el Lich muere
+  // BUG-2087: verificar que el Lich siga vivo antes de aplicar el drenaje; si murió, limpiar el efecto
   // Leemos directo de BD para no depender de player.status_effects (puede ser stale)
   try {
     const freshForLichDrain = db.getPlayer(player.id);
@@ -663,16 +664,30 @@ function attackRound(player, monster) {
       ? (typeof freshForLichDrain.status_effects === 'string' ? JSON.parse(freshForLichDrain.status_effects) : freshForLichDrain.status_effects)
       : {};
     if (lichDrainFx.lich_drain) {
-      const drainDmg = lichDrainFx.lich_drain.damage || 5;
-      player.hp = Math.max(0, player.hp - drainDmg);
-      lines.push(`💜 El aura oscura del Lich drena tu fuerza vital (-${drainDmg} HP). (${player.hp}/${player.max_hp} HP)`);
-      db.updatePlayer(player.id, { hp: player.hp });
-      if (player.hp <= 0) {
-        playerDead = true;
-        lines.push(`💀 ¡El drenaje del Lich acabó contigo! Respawneás en la entrada del dungeon con 25% HP...`);
-        db.addJournalEntry(player.id, 'death', `💀 Muerto por el drenaje de vida del Lich Anciano.`);
-        const hcResultDrain = handlePlayerDeath(player.id, lines, 'drenaje del Lich');
-        return { lines, monsterDead, playerDead, loot, poisonSurvived, ...(hcResultDrain.globalEvent ? { globalEvent: hcResultDrain.globalEvent } : {}) };
+      // BUG-2087: verificar si el Lich Anciano (id=13) sigue vivo en la BD
+      let lichStillAlive = false;
+      try {
+        const lichMonster = db.getMonster(13);
+        lichStillAlive = !!(lichMonster && lichMonster.hp > 0 && lichMonster.room_id != null);
+      } catch (_lichCheck) { lichStillAlive = true; } // en caso de error, asumir vivo (safe default)
+
+      if (!lichStillAlive) {
+        // El Lich ya murió pero el efecto no se limpió — limpiarlo ahora silenciosamente
+        delete lichDrainFx.lich_drain;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(lichDrainFx) });
+        // No aplicar daño ni mostrar mensaje (el Lich ya cayó)
+      } else {
+        const drainDmg = lichDrainFx.lich_drain.damage || 5;
+        player.hp = Math.max(0, player.hp - drainDmg);
+        lines.push(`💜 El aura oscura del Lich drena tu fuerza vital (-${drainDmg} HP). (${player.hp}/${player.max_hp} HP)`);
+        db.updatePlayer(player.id, { hp: player.hp });
+        if (player.hp <= 0) {
+          playerDead = true;
+          lines.push(`💀 ¡El drenaje del Lich acabó contigo! Respawneás en la entrada del dungeon con 25% HP...`);
+          db.addJournalEntry(player.id, 'death', `💀 Muerto por el drenaje de vida del Lich Anciano.`);
+          const hcResultDrain = handlePlayerDeath(player.id, lines, 'drenaje del Lich');
+          return { lines, monsterDead, playerDead, loot, poisonSurvived, ...(hcResultDrain.globalEvent ? { globalEvent: hcResultDrain.globalEvent } : {}) };
+        }
       }
     }
   } catch (_) { /* no romper combate si falla */ }
