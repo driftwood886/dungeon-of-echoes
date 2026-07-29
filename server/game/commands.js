@@ -459,6 +459,8 @@ function parse(input) {
       'modo berserk':   { cmd: 'modo_berserk', skillId: null },
       'desatar ira':    { cmd: 'modo_berserk', skillId: null },
       'calmar furia':   { cmd: 'calmar_furia', skillId: null },
+      'escudo sagrado':  { cmd: 'useSkill', skillId: 'escudo_sagrado' },  // BUG-2080: alias multi-palabra faltante para Clérigo
+      'barrera sagrada': { cmd: 'useSkill', skillId: 'escudo_sagrado' }, // BUG-2080: alias multi-palabra faltante
       'sanacion mayor': { cmd: 'useSkill', skillId: 'sanacion_mayor' },  // DIS-663: clérigo
       'sanación mayor': { cmd: 'useSkill', skillId: 'sanacion_mayor' },
       'gran curacion':  { cmd: 'useSkill', skillId: 'sanacion_mayor' },
