@@ -10415,7 +10415,7 @@ function cmdHealPotion(player) {
  */
 function cmdLoot(player) {
   player = db.getPlayer(player.id);
-  const room = db.getRoom(player.current_room_id);
+  let room = db.getRoom(player.current_room_id); // BUG-2098: let (no const) para permitir reasignación en el bloque BUG-2011
 
   if (!room) {
     return { text: 'Error: habitación no encontrada.' };
