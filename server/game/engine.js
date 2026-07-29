@@ -9269,8 +9269,10 @@ function cmdExamine(player, query) {
     'estantes':        { rooms: [4],  text: 'Los estantes de madera oscura de la Cámara están parcialmente llenos con objetos que nadie ha reclamado: cerámica de distintas épocas, rollos de cuero cuya escritura se ha borrado, instrumentos de metal de función incierta. Todo está catalogado con etiquetas atadas —los precios de un mercader sistemático.\n\nEl estante del fondo tiene un espacio vacío con dos ganchos de metal, como si algo importante estuvo colgado ahí hasta hace poco. Aldric nunca menciona lo que desapareció de esos ganchos. Si le preguntás directamente, cambia el tema.' },
     // DIS-2097: Cámara del Tesoro (sala 4) — cuarta inscripción para evento "El Dungeon Callado"
     // Agrega una inscripción accesible sin combate difícil, aliviando la presión del desafío de 3 inscripciones.
-    'pared':           { rooms: [4],  text: 'En la pared oeste de la Cámara del Tesoro, casi oculta detrás del estante más alto, hay una inscripción grabada con herramienta de precisión —no la urgencia tosca de alguien que escapa, sino la calma de alguien que tenía todo el tiempo del mundo.\n\n  «EL INVENTARIO DE UN DUNGEON NO SE MIDE EN ORO.\n   SE MIDE EN LO QUE LOS QUE PASARON ELIGIERON NO LLEVARSE.\n   LO QUE DEJARON: MIEDO. LO QUE TOMARON: ILUSIÓN.\n   LO QUE ENCONTRARÁN DESPUÉS: LA DIFERENCIA.»\n\nDebajo, en letra más pequeña y más reciente, alguien agregó una sola línea:\\n«Kaelthas sabía esto. Lo usó.»' },
-    'inscripciones':   { rooms: [4],  text: 'En la pared oeste de la Cámara del Tesoro, casi oculta detrás del estante más alto, hay una inscripción grabada con herramienta de precisión —no la urgencia tosca de alguien que escapa, sino la calma de alguien que tenía todo el tiempo del mundo.\n\n  «EL INVENTARIO DE UN DUNGEON NO SE MIDE EN ORO.\n   SE MIDE EN LO QUE LOS QUE PASARON ELIGIERON NO LLEVARSE.\n   LO QUE DEJARON: MIEDO. LO QUE TOMARON: ILUSIÓN.\n   LO QUE ENCONTRARÁN DESPUÉS: LA DIFERENCIA.»\n\nDebajo, en letra más pequeña y más reciente, alguien agregó una sola línea:\\n«Kaelthas sabía esto. Lo usó.»' },
+    // BUG-2098: 'pared' e 'inscripciones' estaban duplicados → la sala 4 sobreescribía la sala 2 en el objeto JS.
+    // Solución: usar keys 'pared tesoro' e 'inscripciones tesoro' para sala 4 (alias registrados en INSCRIPTION_KEYS).
+    'pared tesoro':           { rooms: [4],  text: 'En la pared oeste de la Cámara del Tesoro, casi oculta detrás del estante más alto, hay una inscripción grabada con herramienta de precisión —no la urgencia tosca de alguien que escapa, sino la calma de alguien que tenía todo el tiempo del mundo.\n\n  «EL INVENTARIO DE UN DUNGEON NO SE MIDE EN ORO.\n   SE MIDE EN LO QUE LOS QUE PASARON ELIGIERON NO LLEVARSE.\n   LO QUE DEJARON: MIEDO. LO QUE TOMARON: ILUSIÓN.\n   LO QUE ENCONTRARÁN DESPUÉS: LA DIFERENCIA.»\n\nDebajo, en letra más pequeña y más reciente, alguien agregó una sola línea:\n«Kaelthas sabía esto. Lo usó.»' },
+    'inscripciones tesoro':   { rooms: [4],  text: 'En la pared oeste de la Cámara del Tesoro, casi oculta detrás del estante más alto, hay una inscripción grabada con herramienta de precisión —no la urgencia tosca de alguien que escapa, sino la calma de alguien que tenía todo el tiempo del mundo.\n\n  «EL INVENTARIO DE UN DUNGEON NO SE MIDE EN ORO.\n   SE MIDE EN LO QUE LOS QUE PASARON ELIGIERON NO LLEVARSE.\n   LO QUE DEJARON: MIEDO. LO QUE TOMARON: ILUSIÓN.\n   LO QUE ENCONTRARÁN DESPUÉS: LA DIFERENCIA.»\n\nDebajo, en letra más pequeña y más reciente, alguien agregó una sola línea:\n«Kaelthas sabía esto. Lo usó.»' },
     // DIS-D420: Capilla Olvidada (sala 5) — velas y cera
     'velas':           { rooms: [5],  text: 'Las velas de la Capilla están apagadas desde hace siglos —el pabilo negro y quebradizo, la cera endurecida y opaca. Pero hay algo que no encaja: algunas de las velas tienen marcas de haber ardido recientemente. La cera en esas tiene una textura distinta, más suave, con el brillo mate característico de la cera enfriada en las últimas horas.\n\nAlguien encendió velas aquí. Las dejó arder. Volvió antes de que se consumieran o las apagó. Y se fue sin dejar otra huella.\n\nLa inscripción en la pared dice: "Quienquiera que encienda estas velas merece lo que viene." No sabés si es advertencia o promesa.' },
     'cera':            { rooms: [5],  text: 'La cera derretida fresca en la base del altar no tiene explicación inocente. El altar lleva siglos sin ser usado —la piedra negra tiene depósitos minerales que solo se forman con décadas de inactividad. Y sin embargo, la cera es reciente.\n\nMirás más de cerca: hay dos charcos. Uno antiguo, opaco, de hace siglos. Uno encima, translúcido, de hace días. La misma persona que conoce este lugar lo suficiente para saber dónde están las velas lo conoce también lo suficiente para saber qué se invoca aquí.\n\n🔍 El altar tiene más que mostrar — probá también examine altar.' },
@@ -9366,8 +9368,8 @@ function cmdExamine(player, query) {
     }
   }
 
-  // DIS-456: set de lore objects que mencionan a Kaelthas (sala 2 inscripciones, sala 9 trono, sala 10 runas)
-  const KAELTHAS_LORE_KEYS = new Set(['pared', 'inscripciones', 'trono', 'runas', 'runa']);
+  // DIS-456: set de lore objects que mencionan a Kaelthas (sala 2 inscripciones, sala 9 trono, sala 10 runas, sala 4 pared tesoro)
+  const KAELTHAS_LORE_KEYS = new Set(['pared', 'inscripciones', 'trono', 'runas', 'runa', 'pared tesoro', 'inscripciones tesoro']);
 
   // BUG-602: La descripción de 'examine puerta' en sala 7 debe verificar si ya está desbloqueada
   if (player.current_room_id === 7 && (qNorm.includes('puerta') || qNorm === 'reja')) {
@@ -9596,7 +9598,7 @@ function cmdExamine(player, query) {
         }
         // IMPL-VV-1760: tracking silencio_del_abismo — contar inscripciones leídas
         // Solo cuentan lore objects que son inscripciones, paredes, grabados, runas
-        const INSCRIPTION_KEYS = new Set(['inscripciones', 'inscripcion', 'inscripción', 'pared', 'grabado', 'runas', 'runa']);
+        const INSCRIPTION_KEYS = new Set(['inscripciones', 'inscripcion', 'inscripción', 'pared', 'grabado', 'runas', 'runa', 'pared tesoro', 'inscripciones tesoro']);
         if (player.run_event === 'silencio_del_abismo' && INSCRIPTION_KEYS.has(key)) {
           try {
             const freshVVEx = db.getPlayer(player.id);
