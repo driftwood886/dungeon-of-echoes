@@ -270,7 +270,33 @@ function assignQuests(player) {
       const playerSeedOffset = player.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
       const seed = (weekNum * 10000 + playerSeedOffset) & 0x7fffffff;
       const shuffled = _seededShuffle(pool, seed);
-      const questId = shuffled[0];
+      // DIS-2084: preferir quests cuyo require_level esté cerca del nivel del jugador.
+      // Obtener require_level de cada quest en el pool y elegir del tier más apropiado.
+      let questId = shuffled[0];
+      try {
+        const poolLevelsResult = rawDb.exec(
+          `SELECT id, require_level FROM quest_definitions WHERE id IN (${shuffled.map(() => '?').join(',')})`,
+          shuffled
+        );
+        if (poolLevelsResult.length && poolLevelsResult[0].values.length) {
+          const lvlCols = poolLevelsResult[0].columns;
+          const poolWithLevel = poolLevelsResult[0].values.map(r =>
+            Object.fromEntries(lvlCols.map((c, i) => [c, r[i]]))
+          );
+          // Tier preferido: quests con require_level en [playerLevel - 6, playerLevel]
+          // Esto asegura que un jugador nivel 17 vea quests de nivel 12+, no de nivel 1
+          const tierPreferred = shuffled.filter(id => {
+            const q = poolWithLevel.find(p => p.id === id);
+            return q && q.require_level >= Math.max(1, playerLevel - 6) && q.require_level <= playerLevel;
+          });
+          if (tierPreferred.length > 0) {
+            questId = tierPreferred[0]; // el shuffle ya garantiza variedad semanal
+          }
+          // Si no hay quests en el tier preferido, caer al primero del pool (comportamiento previo)
+        }
+      } catch (tierErr) {
+        console.error('[questEngine] DIS-2084: error en selección por tier:', tierErr.message);
+      }
       try {
         rawDb.run(
           `INSERT OR IGNORE INTO player_quests (player_id, quest_id, status, progress, slot)
@@ -380,6 +406,12 @@ function onKill(player, monster) {
       if (cond.require_stance) {
         const playerStance = (player.stance || '').toLowerCase();
         if (playerStance !== cond.require_stance.toLowerCase()) continue;
+      }
+
+      // DIS-2084: verificar min_room_id (quests de zonas profundas)
+      if (cond.min_room_id !== undefined && cond.min_room_id !== null) {
+        const playerRoom = player.current_room_id || 1;
+        if (playerRoom < cond.min_room_id) continue;
       }
 
       // Incrementar progreso
