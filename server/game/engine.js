@@ -7911,10 +7911,13 @@ function cmdPick(player, itemQuery) {
   // DIS-1173: aviso proactivo de inventario casi lleno al recoger un ítem individual
   // DIS-1991: threshold proporcional (80%) en lugar de fijo (16) — para jugadores con
   //           bolsas de lona (max 24 o 28), el aviso anterior se disparaba al 66%/57%.
+  // DIS-2119: para jugadores nivel ≤ 3 (early game), bajar threshold al 70% y mostrar
+  //           tip explícito de "vender basura" las primeras 2 veces (flag sell_junk_hint_count).
   const freshForInvWarn = db.getPlayer(player.id);
   const invWarnCount = (freshForInvWarn.inventory || []).length + ((freshForInvWarn.equipped_weapon ? 1 : 0) + (freshForInvWarn.equipped_armor ? 1 : 0));
   const invWarnMax = INV_BASE_SLOTS + (freshForInvWarn.inventory_bonus || 0); // DIS-1480
-  const invWarnThreshold = Math.ceil(invWarnMax * 0.80); // 80% de capacidad
+  const isEarlyGame2119 = (freshForInvWarn.level || 1) <= 3;
+  const invWarnThreshold = isEarlyGame2119 ? Math.ceil(invWarnMax * 0.70) : Math.ceil(invWarnMax * 0.80); // DIS-2119: 70% en early game, 80% en mid/late
   if (invWarnCount >= invWarnThreshold) {
     const currentBonus = freshForInvWarn.inventory_bonus || 0;
     const MAX_BAG_BONUS = 8;
@@ -7922,7 +7925,15 @@ function cmdPick(player, itemQuery) {
     const bolsaHint = puedeMasBolsa
       ? ` Ampliá con una bolsa de lona (+4 slots, 20g — Aldric sala 4).`
       : '';
-    pickSingleMsg += `\n\n⚠️  Inventario casi lleno (${invWarnCount}/${invWarnMax}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.${bolsaHint}`;  // DIS-1657, DIS-1991
+    // DIS-2119: en early game, mostrar tip de "vender basura" (máx 2 veces) — más visible
+    const se2119 = parseSE(freshForInvWarn.status_effects);
+    const sellHintCount2119 = se2119.sell_junk_hint_count || 0;
+    if (isEarlyGame2119 && sellHintCount2119 < 2) {
+      pickSingleMsg += `\n\n⚠️  Inventario al ${Math.round(invWarnCount / invWarnMax * 100)}% (${invWarnCount}/${invWarnMax}) — en la tienda de Aldric (sala 4) escribí **"vender basura"** para vender de golpe todos los ítems inútiles (cuchillos oxidados, hachas viejas, etc.) y liberar espacio.${bolsaHint}`;
+      db.updatePlayer(freshForInvWarn.id, { status_effects: JSON.stringify({ ...se2119, sell_junk_hint_count: sellHintCount2119 + 1 }) });
+    } else {
+      pickSingleMsg += `\n\n⚠️  Inventario casi lleno (${invWarnCount}/${invWarnMax}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.${bolsaHint}`;  // DIS-1657, DIS-1991
+    }
   }
 
   // ── EPIC-1158: hook de expedición — trigger 'pickup' ─────────────────────
@@ -10743,6 +10754,7 @@ function cmdLoot(player) {
   // DIS-1173: aviso proactivo cuando inventario supera 25/MAX_INVENTORY (DIS-1434: umbral 20→25 al subir límite 25→30)
   // DIS-1825: umbral ajustado a MAX_INVENTORY-4 (era 25 hardcoded, ahora relativo al límite real)
   // DIS-1915: umbral aumentado a MAX_INVENTORY-6 para avisar más temprano (18/24 en lugar de 20/24)
+  // DIS-2119: para early game (nivel ≤ 3), aviso más temprano y explícito sobre "vender basura"
   const usedAfterLoot = newInventory.length + equippedCountLoot;
   // DIS-1919: al llegar a 20/24 (MAX_INVENTORY-4), agregar tip de bolsa de lona si no la tiene aún
   const bagHintLine = (
@@ -10750,9 +10762,24 @@ function cmdLoot(player) {
     (player.inventory_bonus || 0) === 0 &&
     itemsLeft.length === 0
   ) ? `\n💡 Con 4 slots o menos libres, considerá comprar una **bolsa de lona** (20g) en la tienda de Aldric (sala 4) para +4 slots extra — antes de que el boss aparezca y el inventario esté lleno.` : '';
-  const inventoryWarnLine = (usedAfterLoot >= MAX_INVENTORY - 6 && itemsLeft.length === 0)
-    ? `\n\n⚠️  Inventario casi lleno (${usedAfterLoot}/${MAX_INVENTORY}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`  // DIS-1657
-    : '';
+  // DIS-2119: para nivel ≤ 3, activar aviso al 70% (en lugar de MAX-6) con mensaje más explícito
+  const isEarlyGameLoot2119 = (player.level || 1) <= 3;
+  const lootWarnThreshold = isEarlyGameLoot2119 ? Math.ceil(MAX_INVENTORY * 0.70) : MAX_INVENTORY - 6;
+  let inventoryWarnLine = '';
+  if (usedAfterLoot >= lootWarnThreshold && itemsLeft.length === 0) {
+    if (isEarlyGameLoot2119) {
+      const seLoot2119 = parseSE(db.getPlayer(player.id).status_effects);
+      const sellHintCntLoot = seLoot2119.sell_junk_hint_count || 0;
+      if (sellHintCntLoot < 2) {
+        inventoryWarnLine = `\n\n⚠️  Inventario al ${Math.round(usedAfterLoot / MAX_INVENTORY * 100)}% (${usedAfterLoot}/${MAX_INVENTORY}) — en la tienda de Aldric (sala 4) escribí **"vender basura"** para vender de golpe todos los ítems inútiles (cuchillos oxidados, hachas viejas, etc.) y liberar espacio.`;
+        db.updatePlayer(player.id, { status_effects: JSON.stringify({ ...seLoot2119, sell_junk_hint_count: sellHintCntLoot + 1 }) });
+      } else {
+        inventoryWarnLine = `\n\n⚠️  Inventario casi lleno (${usedAfterLoot}/${MAX_INVENTORY}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`;
+      }
+    } else {
+      inventoryWarnLine = `\n\n⚠️  Inventario casi lleno (${usedAfterLoot}/${MAX_INVENTORY}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`;  // DIS-1657
+    }
+  }
 
   // DIS-1815: si hay junk en el suelo que es ingrediente de alguna receta, avisar al jugador
   // DIS-2116: filtrar ítems para los que ya se mostró este hint (flag craft_junk_hint_<slug>)
