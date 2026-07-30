@@ -474,6 +474,121 @@ async function main() {
   });
 
   /**
+   * EPIC-2125: Admin endpoints de gestión manual de campañas
+   *
+   * GET  /api/admin/campaign/status   — Estado actual de la campaña activa
+   * POST /api/admin/campaign/start    — Activar una campaña específica
+   * POST /api/admin/campaign/resolve  — Forzar resolución de la campaña activa
+   *
+   * Todos protegidos por ADMIN_TOKEN.
+   */
+  app.get('/api/admin/campaign/status', (req, res) => {
+    if (!_adminAuth(req, res)) return;
+    try {
+      const data = db.getActiveCampaign();
+      if (!data) return res.json({ status: 'no_campaign', message: 'No hay campaña activa.' });
+      res.json({
+        status: 'ok',
+        campaign_id: data.campaign.id,
+        campaign_name: data.campaign.name,
+        state: data.active.state,
+        progress: data.progress,
+        goal_target: data.goal_target,
+        pct: Math.round(data.progress / data.goal_target * 100),
+        days_remaining: data.days_remaining,
+        ends_at: data.active.ends_at,
+        started_at: data.active.started_at,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/admin/campaign/start', (req, res) => {
+    if (!_adminAuth(req, res)) return;
+    const { campaign_id } = req.body || {};
+    if (!campaign_id) return res.status(400).json({ error: 'Falta campo: campaign_id' });
+    try {
+      const ok = db.activateCampaign(campaign_id);
+      if (!ok) return res.status(404).json({ error: `Campaña '${campaign_id}' no encontrada en BD.` });
+      db.persist();
+      console.log(`[admin] Campaña activada manualmente: ${campaign_id}`);
+      res.json({ status: 'ok', message: `Campaña '${campaign_id}' activada. Reiniciar servidor si es necesario.` });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/admin/campaign/resolve', (req, res) => {
+    if (!_adminAuth(req, res)) return;
+    try {
+      const data = db.getActiveCampaign();
+      if (!data) return res.status(404).json({ error: 'No hay campaña activa.' });
+      if (data.active.state !== 'active') {
+        return res.status(400).json({ error: `La campaña ya está en estado '${data.active.state}'.` });
+      }
+
+      const { campaign, active, progress, goal_target } = data;
+      const victoryThreshold = Math.ceil(goal_target * 0.8);
+      const isVictory = progress >= victoryThreshold;
+      const outcome = isVictory ? 'victory' : 'defeat';
+      const now_unix = Date.now();
+
+      // Aplicar efectos
+      if (isVictory) {
+        const reward = campaign.reward_victory || {};
+        const bonusPct = reward.xp_bonus_pct || 25;
+        const durationHours = reward.duration_hours || 24;
+        const expiresAt = now_unix + (durationHours * 60 * 60 * 1000);
+        db.setWorldState('campaign_xp_bonus_active', 1);
+        db.setWorldState('campaign_xp_bonus_pct', bonusPct);
+        db.setWorldState('campaign_xp_bonus_expires', expiresAt);
+        db.setWorldState('campaign_outcome_message', `🏆 ¡La campaña "${campaign.name}" fue un éxito! +${bonusPct}% XP durante ${durationHours}h.`);
+        db.setWorldState('campaign_undead_hp_bonus_active', 0);
+        db.setWorldState('campaign_undead_hp_bonus_pct', 0);
+        db.setWorldState('campaign_undead_hp_bonus_expires', 0);
+      } else {
+        const consequence = campaign.consequence_defeat || {};
+        const hpBonusPct = consequence.hp_bonus_pct || 10;
+        const durationDays = consequence.duration_days || 3;
+        const expiresAt = now_unix + (durationDays * 24 * 60 * 60 * 1000);
+        db.setWorldState('campaign_undead_hp_bonus_active', 1);
+        db.setWorldState('campaign_undead_hp_bonus_pct', hpBonusPct);
+        db.setWorldState('campaign_undead_hp_bonus_expires', expiresAt);
+        db.setWorldState('campaign_outcome_message', `💀 La campaña "${campaign.name}" fue una derrota. +${hpBonusPct}% HP a no-muertos durante ${durationDays} días.`);
+        db.setWorldState('campaign_xp_bonus_active', 0);
+        db.setWorldState('campaign_xp_bonus_pct', 0);
+        db.setWorldState('campaign_xp_bonus_expires', 0);
+      }
+
+      // Registrar resolución
+      db.setWorldState('last_campaign_id', campaign.id);
+      db.setWorldState('last_campaign_name', campaign.name);
+      db.setWorldState('last_campaign_outcome', outcome);
+      db.setWorldState('last_campaign_resolved_at', now_unix);
+      db.setWorldState('last_campaign_progress', progress);
+      db.setWorldState('last_campaign_goal', goal_target);
+
+      // EPIC-2125: Asignar títulos
+      const titleResult = db.awardCampaignTitles(campaign.id, campaign.name, outcome);
+      console.log(`[admin] Campaña resuelta manualmente: ${campaign.id} — ${outcome}. Títulos: ${titleResult.awarded.join(', ') || 'ninguno'}`);
+
+      db.persist();
+      res.json({
+        status: 'ok',
+        campaign_id: campaign.id,
+        outcome,
+        progress,
+        goal_target,
+        titles_awarded: titleResult.awarded,
+        message: `Campaña '${campaign.name}' resuelta como ${outcome}. Reiniciar servidor para aplicar efectos en runtime.`,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
    * GET /api/world — Evento global activo del dungeon (T090) + resumen de salas (BUG-1051)
    */
   app.get('/api/world', (req, res) => {

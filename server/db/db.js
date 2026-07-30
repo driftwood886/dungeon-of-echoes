@@ -2259,6 +2259,7 @@ function getActivePlayers(cutoff) {
   ).map(p => ({
     ...p,
     inventory: JSON.parse(p.inventory || '[]'),
+    status_effects: p.status_effects ? (() => { try { return JSON.parse(p.status_effects); } catch(_) { return {}; } })() : {},
   }));
 }
 
@@ -5016,6 +5017,69 @@ function getPlayerCampaignContributions(playerUsername, campaignId) {
 }
 
 /**
+ * awardCampaignTitles(campaignId, campaignName, outcome) → { awarded: string[], skipped: string[] }
+ * EPIC-2125: Al resolver una campaña, asigna títulos de campaña a jugadores que contribuyeron 3+ veces.
+ *
+ * - Victoria: "🏆 Defensor de la Mazmorra — <campaignName>"
+ * - Derrota con contribución: "🛡️ Resistió hasta el final — <campaignName>"
+ *
+ * El título se guarda en status_effects.campaign_titles como array de strings.
+ * También se guarda el más reciente en status_effects.campaign_title_latest.
+ */
+function awardCampaignTitles(campaignId, campaignName, outcome) {
+  const awarded = [];
+  const skipped = [];
+  try {
+    // Obtener jugadores que contribuyeron 3+ veces en esta campaña
+    const rows = all(
+      `SELECT player_username, SUM(contribution) as total_contribution, COUNT(*) as actions
+       FROM campaign_contributions
+       WHERE campaign_id = ?
+       GROUP BY player_username
+       HAVING actions >= 3`,
+      [campaignId]
+    );
+
+    if (!rows.length) {
+      console.log(`[db] awardCampaignTitles: ningún jugador con 3+ contribuciones en ${campaignId}`);
+      return { awarded, skipped };
+    }
+
+    const title = outcome === 'victory'
+      ? `🏆 Defensor de la Mazmorra — ${campaignName}`
+      : `🛡️ Resistió hasta el final — ${campaignName}`;
+
+    for (const row of rows) {
+      const username = row.player_username;
+      // Buscar jugador por username
+      const playerRow = one(`SELECT id, status_effects FROM players WHERE username = ? AND is_bot = 0`, [username]);
+      if (!playerRow) {
+        skipped.push(username);
+        continue;
+      }
+
+      let se = {};
+      try { se = JSON.parse(playerRow.status_effects || '{}'); } catch (_) {}
+
+      // Agregar título al array de títulos de campaña
+      if (!se.campaign_titles) se.campaign_titles = [];
+      // Evitar duplicados del mismo título
+      if (!se.campaign_titles.includes(title)) {
+        se.campaign_titles.push(title);
+      }
+      se.campaign_title_latest = title;
+
+      db.run(`UPDATE players SET status_effects = ? WHERE id = ?`, [JSON.stringify(se), playerRow.id]);
+      awarded.push(username);
+      console.log(`[db] awardCampaignTitles: título asignado a ${username} → "${title}"`);
+    }
+  } catch (e) {
+    console.error('[db] awardCampaignTitles:', e.message);
+  }
+  return { awarded, skipped };
+}
+
+/**
  * activateCampaign(campaignId) → boolean
  *
  * Activa una campaña existente. Requiere que la campaña esté registrada en tabla `campaigns`.
@@ -5296,6 +5360,7 @@ module.exports = {
   upsertCryptPlaque, upsertChronicle, getCryptCandidates,
   // EPIC-CAMP: Sistema de Campaña Narrativa
   getActiveCampaign, contributeToCurrentCampaign, getCampaignHistory, getPlayerCampaignContributions,
+  awardCampaignTitles,
   activateCampaign,
   // EPIC-KAELTHAS (DIS-1967): Quest Principal — helpers de main_quest_data
   getMainQuestData, updateMainQuestData,

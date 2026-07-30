@@ -10236,7 +10236,10 @@ function cmdWho() {
       const streakTag = streak >= 5 ? ` 🔥${streak}` : '';
       const stanceIcon = STANCES[p.stance || 'equilibrado'] ? STANCES[p.stance || 'equilibrado'].icon : '';
       const displayName = p.nickname ? `${p.username} "${p.nickname}"` : p.username;
-      return `  ${(displayName + guildTag).padEnd(22)} ${titleIcon}${repIcon} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}${afkTag}${streakTag} ${stanceIcon} │  ${p.room_name || 'Desconocido'}`;
+      // EPIC-2125: título de campaña más reciente
+      const se = p.status_effects || {};
+      const campaignTitle = se.campaign_title_latest ? ` ${se.campaign_title_latest}` : '';
+      return `  ${(displayName + guildTag).padEnd(22)} ${titleIcon}${repIcon} Lv${String(level).padStart(2,' ')} ${hpBar} ${hpText.padStart(7)}  ☠${deaths}${afkTag}${streakTag} ${stanceIcon} │  ${p.room_name || 'Desconocido'}${campaignTitle}`;
     }),
     ``,
     `(jugadores activos en los últimos 5 minutos)`,
@@ -20970,6 +20973,11 @@ function cmdProfile(player, context) {
     return full.slice(0, W);
   };
 
+  // EPIC-2125: Títulos de campaña en status_effects
+  const campaignTitles = fresh.status_effects && fresh.status_effects.campaign_titles
+    ? fresh.status_effects.campaign_titles
+    : [];
+
   const lines = [
     ``,
     `╔${'═'.repeat(W)}╗`,
@@ -20999,6 +21007,12 @@ function cmdProfile(player, context) {
     `║  ${achIcons.slice(0, W - 2)}║`,
     `║${line('Bestiario', `${bestiaryCount} tipos cazados · ${totalBestiaryKills} kills totales`)}║`,
     `║${line('Tiempo   ', (() => { const dbT = fresh.playtime_minutes || 0; const sessD = context && context.sessionData; const sessMin = sessD && sessD.startTime ? Math.floor((Date.now() - sessD.startTime) / 60000) : 0; const t = dbT + sessMin; const h = Math.floor(t/60); const m = t%60; return h > 0 ? `${h}h ${m}m` : `${m}m`; })())}║`,
+    // EPIC-2125: Mostrar títulos de campaña si los tiene
+    ...(campaignTitles.length > 0 ? [
+      `╟${'─'.repeat(W)}╢`,
+      `║${center('🎖️  TÍTULOS DE CAMPAÑA')}║`,
+      ...campaignTitles.map(t => `║  ${t.slice(0, W - 2).padEnd(W - 2)}║`),
+    ] : []),
     `╚${'═'.repeat(W)}╝`,
   ];
 

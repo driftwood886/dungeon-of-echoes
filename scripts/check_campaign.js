@@ -182,6 +182,18 @@ async function main() {
   db.setWorldState('last_campaign_progress', progress);
   db.setWorldState('last_campaign_goal', goal_target);
 
+  // ─── 6b. EPIC-2125: Asignar títulos a contribuidores ──────────
+  console.log(`\n🎖️  Asignando títulos de campaña a contribuidores (3+ acciones)...`);
+  const titleResult = db.awardCampaignTitles(campaign.id, campaign.name, outcome);
+  if (titleResult.awarded.length > 0) {
+    console.log(`   ✅ Títulos asignados a: ${titleResult.awarded.join(', ')}`);
+  } else {
+    console.log(`   ℹ️  Ningún jugador calificó (requiere 3+ acciones).`);
+  }
+  if (titleResult.skipped.length > 0) {
+    console.log(`   ⚠️  No encontrados en BD: ${titleResult.skipped.join(', ')}`);
+  }
+
   // ─── 7. Activar siguiente campaña en rotación ─────────────────
   console.log(`\n🔄 Activando siguiente campaña del pool...`);
 
