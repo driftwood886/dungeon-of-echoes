@@ -9207,9 +9207,9 @@ function cmdExamine(player, query) {
     'yunque':          { rooms: [12], text: 'El yunque es de hierro oscuro, casi negro, con una superficie que debería estar rallada y marcada por años de golpes. En cambio, la superficie superior es casi perfecta —excepto por una serie de marcas en los bordes que no parecen de herramienta. Son demasiado irregulares para un cincel. Demasiado precisas para ser accidentales.\n\nEl molde de espada que descansa sobre él tiene el contorno de una hoja que nunca existió en ningún catálogo de armas conocido. No es de origen humano. No completamente.' },
     'runas':           { rooms: [10, 18], text: '__RUNAS_DYNAMIC__' },
     'runa':            { rooms: [10, 18], text: '__RUNAS_DYNAMIC__' },
-    'estatua':         { rooms: [10], text: 'La estatua con diez brazos no corresponde a ningún dios que conozcas. Cada brazo sostiene algo distinto: un escudo, una espada, un libro, una llave, una copa, una antorcha... Los últimos tres brazos están vacíos. La placa en la base está en blanco, raspada hasta la piedra. Alguien borró el nombre deliberadamente.' },
+    'estatua':         { rooms: [10], text: '__ESTATUA_DYNAMIC__' },
     'brazos':          { rooms: [10], text: 'Siete de los diez brazos de la estatua sostienen objetos: un escudo, una espada, un libro, una llave, una copa, una antorcha y algo que no reconocés —una esfera de obsidiana perfecta. Los otros tres brazos están extendidos y vacíos, con las palmas hacia arriba, como esperando ofrendas. El polvo de siglos ha respetado los huecos.' },
-    'placa':           { rooms: [10], text: 'La placa de piedra en la base de la estatua fue raspada con deliberación, no por el tiempo. Podés ver las marcas de una herramienta afilada —alguien borró el nombre con cuidado. Aun así, quedan trazos. Con luz y paciencia, podés adivinar tres letras: K, A, E. El resto desapareció para siempre.' },
+    'placa':           { rooms: [10], text: '__PLACA_DYNAMIC__' },
     'suelo':           { rooms: [10], text: 'El suelo del Santuario es la parte más perturbadora de la sala. Las runas forman círculos concéntricos que convergen en el centro exacto —donde estás parado. El diámetro del círculo externo coincide perfectamente con las dimensiones de la sala. Alguien diseñó esto. No fue accidental.' },
     'sangre':          { rooms: [10], text: 'La sangre seca de las runas lleva décadas aquí, pero no se ha oscurecido como debería. Tiene un color rojo profundo, casi fresco. Al acercarte, notás que emana un calor tenue —el mismo que reconocerías si alguna vez pusiste la mano sobre una brasa casi apagada. Algo mantiene esto activo.' },
     'carta':           { rooms: [8],  text: 'Un sobre sellado con cera negra, marcado con el símbolo de dos llaves cruzadas. La cera está intacta. Podés abrirla, pero algo en vos duda: hay cosas que no se pueden ignorar una vez que se saben.\n\n💡 Tip: usá "use carta sellada" o "open carta sellada" para leer su contenido.' },
@@ -9558,6 +9558,55 @@ function cmdExamine(player, query) {
           }
           // Sala 10 — Santuario Profano
           return { text: 'Las runas con sangre seca forman un patrón que tardás un momento en ver completo: es un círculo, y en su centro hay un nombre escrito en un idioma que nadie habla hace doscientos años. No sabés cómo, pero lo podés leer: K-A-E-L-T-H-A-S. El patrón de las runas forma un nombre. No querés saber cómo lo sabés.' };
+        }
+        // DIS-2120: examine estatua dinámica en sala 10 — conectar con narrativa de Kaelthas
+        if (val.text === '__ESTATUA_DYNAMIC__' && player.current_room_id === 10) {
+          const baseEstatua = 'La estatua con diez brazos no corresponde a ningún dios que conozcas. Cada brazo sostiene algo distinto: un escudo, una espada, un libro, una llave, una copa, una antorcha... Los últimos tres brazos están vacíos, con las palmas hacia arriba.\n\nLa placa en la base fue raspada hasta la piedra — el nombre, borrado deliberadamente. Pero alguien tomó el trabajo de construir esto para que dure siglos. No fue vandalismo. Fue una decisión.';
+          try {
+            const freshEst = db.getPlayer(player.id);
+            const mqEst = db.getMainQuestData(freshEst.id);
+            const questState = (mqEst && mqEst.main_quest_state) || 'inactive';
+            const seEst = parseSE(freshEst.status_effects);
+            if (!seEst.estatua_santuario_lore) {
+              // Primera vez: registrar en diario
+              seEst.estatua_santuario_lore = true;
+              db.updatePlayer(freshEst.id, { status_effects: JSON.stringify(seEst) });
+              db.addJournalEntry(freshEst.id, 'lore', '🗿 La estatua del Santuario Profano tiene diez brazos y una placa borrada. Alguien no quería que se supiera a quién representa. Pero la dejaron en pie.');
+            }
+            if (questState === 'inactive') {
+              // Sin quest activa: dar pista directa hacia el trono y las runas
+              return { text: baseEstatua + '\n\n🔍 Las runas del suelo forman un nombre. La placa de la estatua tiene letras raspadas que casi se pueden leer. Y hay un trono al oeste, en la Sala del Trono, con algo grabado en el respaldo. Parece que varias cosas en este dungeon apuntan al mismo nombre.\n\n💡 Escribí «examine runas» para leer el nombre del suelo, o explorá hacia el oeste para ver el trono.' };
+            } else if (questState === 'active') {
+              const fragmentsFound = Array.isArray(mqEst.fragments_found) ? mqEst.fragments_found : [];
+              if (fragmentsFound.includes('trono')) {
+                // Ya saben quién es Kaelthas
+                return { text: baseEstatua + '\n\n📜 Ahora que sabés el nombre en el trono —Kaelthas— la placa raspada cobra otro sentido. Alguien borró el nombre de esta estatua. El mismo que lo grabó en el trono. El mismo que eligió seguir en pie cuando debería haber caído.\n\n💡 Quest «El Libro de los Muertos»: seguí buscando los fragmentos restantes.' };
+              } else {
+                // Quest activa pero no tienen el fragmento del trono
+                return { text: baseEstatua + '\n\n🔍 La placa fue borrada a propósito. Hay algo en este dungeon que tiene un nombre que alguien quiso silenciar —y que otro alguien grabó en otros lugares para que no se olvidara. El trono al oeste tiene letras en el respaldo. Pueden conectar.\n\n💡 Explorá la Sala del Trono (oeste) y «examine trono».' };
+              }
+            }
+          } catch (_) { /* no romper examine */ }
+          return { text: baseEstatua };
+        }
+        // DIS-2120: examine placa dinámica en sala 10 — conectar con narrativa de Kaelthas
+        if (val.text === '__PLACA_DYNAMIC__' && player.current_room_id === 10) {
+          const basePlaca = 'La placa de piedra en la base de la estatua fue raspada con deliberación, no por el tiempo. Podés ver las marcas de una herramienta afilada —alguien borró el nombre con cuidado. Aun así, quedan trazos. Con luz y paciencia, podés adivinar tres letras: K, A, E.';
+          try {
+            const freshPl = db.getPlayer(player.id);
+            const mqPl = db.getMainQuestData(freshPl.id);
+            const questStatePl = (mqPl && mqPl.main_quest_state) || 'inactive';
+            if (questStatePl === 'inactive') {
+              return { text: basePlaca + '\n\nK, A, E... Quizás el resto del dungeon complete las letras. El trono de la sala al oeste tiene algo grabado en el respaldo. Podría ser el mismo nombre.\n\n💡 Escribí «ir oeste» o «examinar trono» para investigar.' };
+            } else {
+              const fragmentsPl = Array.isArray(mqPl.fragments_found) ? mqPl.fragments_found : [];
+              if (fragmentsPl.includes('trono')) {
+                return { text: basePlaca + '\n\nK, A, E... KAELTHAS. Ya sabés el nombre completo. Alguien borró esto de aquí pero lo dejó grabado en el trono, en las runas, en la historia del dungeon. Como si la supresión fuera parte del mensaje.' };
+              }
+              return { text: basePlaca + '\n\nK, A, E... el nombre no termina aquí. Hay otras superficies en este dungeon con letras del mismo idioma. El trono al oeste fue lo primero que alguien grabó antes de borrar todo lo demás.' };
+            }
+          } catch (_) { /* no romper */ }
+          return { text: basePlaca };
         }
         // BUG-555 / DIS-913: carta sellada — si el jugador ya la abrió (flag por jugador), mostrar descripción post-apertura
         if ((key === 'carta' || key === 'carta sellada') && player.current_room_id === 8) {

@@ -585,6 +585,16 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     if (entroConLlave || !alreadyVisited) {
       lines.push(`\n🗺️ **Salidas del Santuario:** oeste → Sala del Trono · sur → Pozo Sin Fondo (la puerta del Pozo queda abierta una vez usada la llave — podés cruzar de vuelta libremente). Para ver el camino completo a la salida escribí \`ruta entrada\` o \`ruta 1\`.`);
     }
+    // DIS-2120: Hint narrativo para jugadores sin quest activa — conectar con la historia del dungeon
+    if (!alreadyVisited && !player.is_bot) {
+      try {
+        const mqSantuario = db.getMainQuestData(player.id);
+        const questStateSantuario = (mqSantuario && mqSantuario.main_quest_state) || 'inactive';
+        if (questStateSantuario === 'inactive') {
+          lines.push(`\n🗿 La estatua de diez brazos en el centro de la sala tiene una placa borrada en la base. Las runas del suelo —escritas con algo que no querés identificar— forman un patrón circular. Esta sala no es una mazmorra aleatoria. Tiene propósito. Escribí «examine estatua» o «examine runas» para empezar a entenderlo.`);
+        }
+      } catch (_) { /* no romper describeRoom */ }
+    }
   }
 
   // DIS-1839: Taller de la Forja (sala 12) — advertencia sobre regeneración del Troll de las Cavernas
