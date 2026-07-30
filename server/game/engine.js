@@ -1277,10 +1277,13 @@ function completeTutorial(player) {
   db.updatePlayer(player.id, updateData);
   // DIS-1609: dar 2 hierbas curativas al completar el tutorial como "provisiones del guardia"
   // Esto da contexto inmediato al sistema de inventario y da un ítem útil de arranque.
+  // DIS-2108: dar también 1 bolsa de lona gratis — el equipo básico (arma+armadura) deja al jugador
+  // con ~9g, insuficiente para comprar la bolsa (20g) que Aldric recomienda explícitamente.
+  // Solución: incluirla en el kit de inicio para eliminar la fricción económica del early game.
   try {
     const freshForItems = db.getPlayer(player.id);
     const currentInv = freshForItems.inventory || [];
-    db.updatePlayer(player.id, { inventory: [...currentInv, 'hierba curativa', 'hierba curativa'] });
+    db.updatePlayer(player.id, { inventory: [...currentInv, 'hierba curativa', 'hierba curativa', 'bolsa de lona'] });
   } catch (_) { /* silencioso — no bloquear tutorial por esto */ }
   // DIS-799: registrar sala 1 como visitada — completeTutorial setea current_room_id=1 pero
   // nunca llamaba trackRoomVisit, así que sala 1 aparecía como ?? en el mapa siempre.
@@ -20884,7 +20887,7 @@ function cmdSkills(player) {
       mago: [
         `Nivel 1 — Drenar Arcano, hechizos (rayo menor/chispa ⚡, rayo, bola de fuego, curación, escudo)`,
         `Nivel 3 — Bola de Fuego (cast bola_de_fuego) potenciado`,
-        `Nivel 5 — 🌟 Especialización: Arcanista o Elementalista`,
+        `Nivel 5 — 🌟 Especialización: Evoker o Elementalista`,
         `Nivel 5 — Tormenta de Hielo (cast tormenta_de_hielo)`,
       ],
       picaro: (() => {
@@ -20921,6 +20924,17 @@ function cmdSkills(player) {
         lines.push(`  ${done ? '✅' : '🔒'} ${step}`);
       }
       lines.push('─'.repeat(40));
+      // DIS-2109: preview de especializaciones para Mago de bajo nivel — permite planear el build
+      if (cls === 'mago' && level < 5 && !fresh.specialization) {
+        lines.push('');
+        lines.push('🔮 PREVIEW DE ESPECIALIZACIONES (nivel 5):');
+        lines.push('   ⚡ Evoker — Daño puro. Tus hechizos golpean un 25% más fuerte.');
+        lines.push('      → Mejor para: burst, combates rápidos, monstruos resistentes.');
+        lines.push('   🌪️ Elementalista — Control y capas. Escarcha + fuego = sinergia +20% daño.');
+        lines.push('      → Mejor para: combates sostenidos, múltiples monstruos, debuffs.');
+        lines.push('   💡 Empezá pensando tu build desde ahora — ¿matás rápido o controlás?');
+        lines.push('');
+      }
     }
   }
 
