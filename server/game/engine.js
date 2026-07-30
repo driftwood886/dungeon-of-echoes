@@ -21794,6 +21794,18 @@ function cmdUseSkill(player, args, context) {
     const dead = newHp <= 0;
     const smashResistNote = smashPhysResist < 1.0 ? ` ${smashResistLabel}` : '';
     const smashOverkillNote = smashIsOverkill ? ` *(excesivo, pero eficaz)*` : '';
+    // DIS-2127: si overkill Y imposition disponible (cooldown = 0), sugerir su uso
+    let smashImpositionHint = '';
+    if (smashIsOverkill) {
+      try {
+        const cd2127 = skills.getCooldowns(freshPlayer);
+        const impositionExpires = cd2127['imposition'];
+        const impositionReady = !impositionExpires || new Date(impositionExpires).getTime() <= Date.now();
+        if (impositionReady) {
+          smashImpositionHint = `\n💡 Con imposition disponible podrías haber terminado esto con estilo — debilitando a otro enemigo en el mismo golpe. Guardala para cuando haya varios rivales.`;
+        }
+      } catch (_) { /* no romper smash si falla */ }
+    }
     let text = `${smashLichDrainPrefix}⚡ ¡GOLPETAZO! Golpeás al ${target.name} con toda tu fuerza causando ${finalDmg} de daño (×1.8)!${smashRageLabel}${smashResistNote}${smashOverkillNote}`;
     if (dead) {
       text += `\n💀 El ${target.name} sucumbe ante tu brutal ataque.`;
@@ -21995,6 +22007,8 @@ function cmdUseSkill(player, args, context) {
     if (dead) {
       text += `\n⏱ Golpetazo disponible en: ${skill.cooldown_seconds}s.`;
     }
+    // DIS-2127: agregar hint de imposition si aplica
+    if (smashImpositionHint) text += smashImpositionHint;
     return { text };
   }
 
