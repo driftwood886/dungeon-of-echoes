@@ -18922,6 +18922,42 @@ function cmdCast(player, args) {
     lines.push(`   ${target.name} recibe ${finalDmgCondenado} puntos de daño mágico.${dmgNote} (HP: ${target.hp} → ${newHp})`);
     if (spellCondenadoMsg) { lines.push(spellCondenadoMsg); }  // EPIC-1303-F4: mensaje de marca condenado
 
+    // DIS-2110: pre-calcular splash de Bola de Fuego aquí para mostrarlo junto al daño principal,
+    // antes del bloque de muerte del target — mejora legibilidad del combate AoE.
+    // Los DB updates del splash se hacen aquí mismo (no hay dependencia con el kill del target).
+    let splashLinesForLater = [];
+    if (spellName === 'bola de fuego') {
+      const splashTargetsEarly = monsters.filter(m => m.id !== target.id && m.hp > 0);
+      if (splashTargetsEarly.length > 0) {
+        lines.push(`   🔥 ¡La explosión se expande!`);
+        for (const splashM of splashTargetsEarly) {
+          const splashDmgRaw = Math.max(1, Math.round(spell.amount * 0.5 * magicResist));
+          const splashNewHp = Math.max(0, splashM.hp - splashDmgRaw);
+          if (splashNewHp <= 0) {
+            const splashRespawnAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+            db.updateMonster(splashM.id, { hp: 0, room_id: null, respawn_at: splashRespawnAt, status_effects: '{}' });
+            const { droppedLoot: splashLoot } = combat.dropLoot(splashM, player.current_room_id);
+            lines.push(`   🔥 ${splashM.name} recibe ${splashDmgRaw} de daño colateral (HP: ${splashM.hp} → 0). ¡Cae!`);
+            if (splashLoot.length > 0) lines.push(`   💰 Deja: ${splashLoot.join(', ')}.`);
+            const splashXp = Math.floor(5 + (splashM.max_hp || 10) / 2);
+            const freshForSplash = db.getPlayer(player.id);
+            const splashNewKills = (freshForSplash.kills || 0) + 1;
+            const splashNewXp = (freshForSplash.xp || 0) + splashXp;
+            const splashNewLevel = xpSystem.levelFromXp(splashNewXp);
+            db.updatePlayer(player.id, { kills: splashNewKills, xp: splashNewXp, level: splashNewLevel });
+            db.addBestiaryKill(player.id, splashM.name);
+            memory.onMonsterKill(player.current_room_id, splashM.name, player.username); // EPIC-1820-DEF
+            quests.recordProgress(db.getPlayer(player.id), 'kill', { monsterName: splashM.name });
+            lines.push(`   ⭐ +${splashXp} XP (splash)`);
+          } else {
+            db.updateMonster(splashM.id, { hp: splashNewHp });
+            lines.push(`   🔥 ${splashM.name} recibe ${splashDmgRaw} de daño colateral (HP: ${splashM.hp} → ${splashNewHp}).`);
+          }
+        }
+      }
+    }
+    const _splashAlreadyDone = spellName === 'bola de fuego'; // flag para evitar doble ejecución abajo
+
     // T214 / EPIC-1290-F1 / EPIC-1294-F2: rayo aturde SIEMPRE (100% determinista) si el monstruo sobrevive
     // EPIC-1294-F2: cambió stun_chance → always_stun. Costo del rayo subió de 12→14 para compensar.
     // EPIC-1296-F2: pasar isBoss para que applyDebuff aplique resistencias correctas
@@ -19289,7 +19325,8 @@ function cmdCast(player, args) {
 
     // DIS-1176: Bola de Fuego — efecto de área: daña también a otros monstruos en la sala
     // El splash hace 50% del daño base del hechizo (sin spell_power para no ser OP)
-    if (spellName === 'bola de fuego') {
+    // DIS-2110: el splash ahora se procesa antes (justo tras el daño al target) — este bloque ya no ejecuta.
+    if (spellName === 'bola de fuego' && !_splashAlreadyDone) {
       const splashTargets = monsters.filter(m => m.id !== target.id && m.hp > 0);
       if (splashTargets.length > 0) {
         lines.push(`   🔥 ¡La explosión se expande!`);
