@@ -586,12 +586,21 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
       lines.push(`\n🗺️ **Salidas del Santuario:** oeste → Sala del Trono · sur → Pozo Sin Fondo (la puerta del Pozo queda abierta una vez usada la llave — podés cruzar de vuelta libremente). Para ver el camino completo a la salida escribí \`ruta entrada\` o \`ruta 1\`.`);
     }
     // DIS-2120: Hint narrativo para jugadores sin quest activa — conectar con la historia del dungeon
-    if (!alreadyVisited && !player.is_bot) {
+    // Usamos un flag en status_effects para que aparezca exactamente en la primera visita,
+    // independientemente del orden en que rooms_visited se actualice.
+    if (!player.is_bot) {
       try {
-        const mqSantuario = db.getMainQuestData(player.id);
-        const questStateSantuario = (mqSantuario && mqSantuario.main_quest_state) || 'inactive';
-        if (questStateSantuario === 'inactive') {
-          lines.push(`\n🗿 La estatua de diez brazos en el centro de la sala tiene una placa borrada en la base. Las runas del suelo —escritas con algo que no querés identificar— forman un patrón circular. Esta sala no es una mazmorra aleatoria. Tiene propósito. Escribí «examine estatua» o «examine runas» para empezar a entenderlo.`);
+        // Checar el flag directamente desde BD para evitar cache stale
+        const freshForHint = db.getPlayer(player.id);
+        const seForHint = (() => { try { const s = freshForHint.status_effects; if (!s) return {}; if (typeof s === 'object' && !Array.isArray(s)) return s; return JSON.parse(s); } catch (_) { return {}; } })();
+        if (!seForHint.santuario_narrative_hint_shown) {
+          const mqSantuario = db.getMainQuestData(player.id);
+          const questStateSantuario = (mqSantuario && mqSantuario.main_quest_state) || 'inactive';
+          if (questStateSantuario === 'inactive') {
+            seForHint.santuario_narrative_hint_shown = true;
+            db.updatePlayer(player.id, { status_effects: JSON.stringify(seForHint) });
+            lines.push(`\n🗿 La estatua de diez brazos en el centro de la sala tiene una placa borrada en la base. Las runas del suelo —escritas con algo que no querés identificar— forman un patrón circular. Esta sala no es una mazmorra aleatoria. Tiene propósito. Escribí «examine estatua» o «examine runas» para empezar a entenderlo.`);
+          }
         }
       } catch (_) { /* no romper describeRoom */ }
     }
