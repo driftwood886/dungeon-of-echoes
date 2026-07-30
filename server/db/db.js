@@ -1658,6 +1658,114 @@ async function init() {
     console.error('[db] EPIC-CAMP seed Veth:', e.message);
   }
 
+  // EPIC-2124: Pool de campañas adicionales — La Plaga de las Esporas
+  try {
+    db.run(`
+      INSERT OR IGNORE INTO campaigns
+        (id, name, lore_intro, lore_midpoint, lore_victory, lore_defeat,
+         goal_type, goal_target, goal_key, duration_days,
+         reward_victory, consequence_defeat, active_effects)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      'plaga_esporas',
+      'La Plaga de las Esporas',
+      'Las Arañas Tejedoras del Pozo Sin Fondo están cambiando. Forastero — no es agresividad normal. Sus esporas se esparcen hacia los pasillos superiores. En tres días el Corredor de las Sombras va a ser intransitable sin antídoto.\n\nHay una sola persona que puede hacer algo al respecto: Aldric. Puede sintetizar un neutralizante si le traés suficientes glándulas venenosas de las mismas arañas. No es irónico — es química.\n\nCada Araña Tejedora del Pozo tiene las glándulas que Aldric necesita. Matá las arañas, recogé la glándula si la soltaron, y llevala directamente a la tienda (sala 4). Él hace el resto.',
+      'Las arañas siguen reproductores. El Pozo huele diferente — un ácido orgánico que irrita los ojos. Aldric está procesando las glándulas que le trajeron, pero necesita más.\n\nCada glándula que entreguen le da diez minutos más de trabajo. No para — lleva dos días despierto. Cuando esto termine, el dungeon va a deberle algo.',
+      'Suficientes glándulas. Aldric terminó el trabajo — el neutralizante está distribuido por los pasillos. Las esporas que quedaban en el aire se descomponen en contacto con el agente. El Pozo Sin Fondo está limpio.\n\nLas Arañas Tejedoras están quietas. No van a estarlo para siempre, pero esta semana sí. Buen trabajo.',
+      'No llegamos. El neutralizante no estuvo listo a tiempo — las esporas se asentaron en las paredes del Corredor. Aldric tuvo que cerrar el frasco a la mitad. Las arañas están más activas que nunca, y sus glándulas venenosas ahora son un poco más potentes.\n\nEl Pozo va a ser un lugar más difícil la próxima semana. Preparate.',
+      'deposit_items',
+      80,
+      'campana_esporas_glandulas_entregadas',
+      14,
+      JSON.stringify({ type: 'room_special_text', duration_hours: 48, room_id: 7, message: '🕷️ El Pozo Sin Fondo está silencioso. Las arañas sobrevivientes se replegaron hacia las fisuras. El suelo está limpio — ya no hay esporas flotantes. Los aventureros de esta semana lo lograron.' }),
+      JSON.stringify({ type: 'monster_hp_bonus', monster_type: 'araña', hp_bonus_pct: 15, duration_days: 3, message: '🕷️ La Plaga de las Esporas no fue contenida. Las Arañas Tejedoras del Pozo están más resistentes. +15% HP durante 3 días.' }),
+      JSON.stringify({
+        drop_items: [
+          { monster_type: 'araña', item: 'glándula venenosa', rate: 0.50 },
+        ],
+        deposit_room_id: 4,
+        deposit_item: 'glándula venenosa',
+        deposit_message: '🧪 Entregás la Glándula Venenosa a Aldric. Él la examina con cuidado y la añade a su proceso. \"Esto ayuda\", dice sin levantar la vista. Contribuiste a la campaña contra la Plaga de las Esporas.',
+        campaign_drop_message: '🕷️ ¡La araña cargaba una Glándula Venenosa intacta! Aldric puede usarla para el neutralizante. Llevala a su tienda (sala 4) y usá `usar glándula venenosa`.',
+      }),
+    ]);
+    console.log('[db] EPIC-2124: Campaña "La Plaga de las Esporas" sembrada (INSERT OR IGNORE)');
+  } catch (e) {
+    console.error('[db] EPIC-2124 seed plaga_esporas:', e.message);
+  }
+
+  // EPIC-2124: Pool de campañas adicionales — El Sello Roto
+  try {
+    db.run(`
+      INSERT OR IGNORE INTO campaigns
+        (id, name, lore_intro, lore_midpoint, lore_victory, lore_defeat,
+         goal_type, goal_target, goal_key, duration_days,
+         reward_victory, consequence_defeat, active_effects)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      'sello_roto',
+      'El Sello Roto',
+      'Algo salió mal hace siglos en las profundidades. Un sello que mantenía separadas dos energías incompatibles — lo que hay en la Catedral y lo que hay más abajo — se fragmentó. Los pedazos se esparcieron por los guardianes de las zonas profundas. Los cargan sin saberlo.\n\nNecesitamos cinco fragmentos para reconstruir el sello y ponerlo en la Sala del Trono, donde las dos energías se cruzan. Los bosses de las zonas más profundas del dungeon los tienen. No todos, no siempre — pero cuando caen, hay que mirar bien.\n\nSi juntamos los cinco fragmentos y los depositamos en el trono antes de que termine la semana, el sello queda restaurado. Si no — las dos energías van a seguir filtrándose una en la otra.',
+      'Algunos fragmentos llegaron. El altar del Trono los acepta — se anclan solos cuando los ponés cerca. Pero quedan espacios vacíos en la estructura del sello. Los guardianes más profundos todavía portan los que faltan.\n\nLas profundidades se sienten diferentes esta semana — algo está cambiando. Apurate.',
+      'El sello está completo. Los cinco fragmentos se fusionaron en el altar del Trono con un sonido que se sintió en todo el dungeon. La filtración se detuvo — las dos energías volvieron a sus zonas.\n\nLas zonas profundas van a estar un poco más tranquilas por un tiempo. El Lich no sabe lo que perdió.',
+      'El sello no se completó. Los fragmentos que llegaron fueron insuficientes — la estructura parcial se desestabilizó y los fragmentos depositados se perdieron con ella. La filtración entre las dos energías continúa.\n\nEl Lich está absorbiendo esa energía. Va a estar más resistente la próxima semana. Preparate para una pelea más difícil.',
+      'deposit_items',
+      5,
+      'campana_sello_fragmentos_depositados',
+      14,
+      JSON.stringify({ type: 'xp_bonus', xp_bonus_pct: 20, zone: 'deep', duration_hours: 48, message: '🔮 El Sello fue restaurado. Las zonas profundas del dungeon irradian energía estabilizada. +20% XP en salas profundas durante 48 horas.' }),
+      JSON.stringify({ type: 'boss_hp_bonus', boss_id: 'lich', hp_bonus_pct: 10, duration_days: 7, message: '💀 El Sello Roto no fue restaurado. La energía filtrada fortaleció al Lich. +10% HP al Lich Anciano durante 1 semana.' }),
+      JSON.stringify({
+        drop_items: [
+          { monster_type: 'gólem de forja', item: 'fragmento de sello', rate: 0.80 },
+          { monster_type: 'campeón espectral', item: 'fragmento de sello', rate: 0.70 },
+          { monster_type: 'lich', item: 'fragmento de sello', rate: 1.00 },
+          { monster_type: 'sombra del vacío', item: 'fragmento de sello', rate: 0.90 },
+          { monster_type: 'eco viviente', item: 'fragmento de sello', rate: 0.80 },
+        ],
+        deposit_room_id: 9,
+        deposit_item: 'fragmento de sello',
+        deposit_message: '🔮 Colocás el Fragmento de Sello en el altar del Trono. Se adhiere solo a la estructura parcial — una luz fría lo recorre por un momento. Contribuiste a restaurar el Sello Roto.',
+        campaign_drop_message: '🔮 ¡El guardián portaba un Fragmento de Sello! Necesita ser depositado en la Sala del Trono (sala 9). Usá `usar fragmento de sello` allí para contribuir a la campaña.',
+      }),
+    ]);
+    console.log('[db] EPIC-2124: Campaña "El Sello Roto" sembrada (INSERT OR IGNORE)');
+  } catch (e) {
+    console.error('[db] EPIC-2124 seed sello_roto:', e.message);
+  }
+
+  // EPIC-2124: Pool de campañas adicionales — La Vigilia del Corredor
+  try {
+    db.run(`
+      INSERT OR IGNORE INTO campaigns
+        (id, name, lore_intro, lore_midpoint, lore_victory, lore_defeat,
+         goal_type, goal_target, goal_key, duration_days,
+         reward_victory, consequence_defeat, active_effects)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      'vigilia_corredor',
+      'La Vigilia del Corredor',
+      'Los Gnolls Merodeadores están reagrupándose. En condiciones normales hay uno, dos a lo sumo en el Corredor de las Sombras. Esta semana llegaron refuerzos desde fuera del dungeon — hay marcas frescas de manada.\n\nSi no se controla, el Corredor va a quedar inaccesible. Los Gnolls no atacan solos — esperan en grupos. Para cuando un aventurero nuevo llegue a la sala 2, ya es tarde.\n\nLa respuesta es simple: 300 kills colectivos en el Corredor antes de que terminen los 14 días. No hay ítem que recoger, no hay altar que alimentar. Solo un recuento. Cada Gnoll que cae en la sala 2 suma. Los aventureros llevan el conteo solos — el dungeon lleva el registro.',
+      'Van a mitad. Los Gnolls siguen llegando pero las marcas frescas ya no se ven en los muros del Corredor. Los que cazaron esta semana dejaron espacio. Sigan — falta la otra mitad.',
+      'El Corredor está limpio. Trescientos Gnolls eliminados — el dungeon registró cada uno. Los refuerzos que llegaron esta semana ya no tienen manada a la que sumarse. El Corredor de las Sombras vuelve a ser un pasillo transitable.\n\nLas marcas de gnoll en las paredes están secas — ya no son frescas. Por unas horas, el loot de la zona es más rico. Los Gnolls que quedan están asustados y cargan todo lo que tienen.',
+      'No llegamos a 300. Los Gnolls establecieron una presencia permanente en el Corredor. Sus marcas están en las paredes — territorio reclamado. Son más agresivos ahora, y atacan con más fuerza. El Corredor va a ser más difícil la próxima semana.',
+      'kill_count',
+      300,
+      'campana_vigilia_gnolls_eliminados',
+      14,
+      JSON.stringify({ type: 'room_loot_bonus', room_id: 2, duration_hours: 24, message: '⚔️ ¡La Vigilia del Corredor fue exitosa! 300 Gnolls eliminados. El Corredor de las Sombras está limpio — loot mejorado en sala 2 durante 24 horas.' }),
+      JSON.stringify({ type: 'monster_atk_bonus', monster_type: 'gnoll', atk_bonus_pct: 10, duration_days: 3, message: '⚔️ La Vigilia del Corredor falló. Los Gnolls se establecieron en el Corredor. +10% ATK a Gnolls durante 3 días.' }),
+      JSON.stringify({
+        kill_monster_type: 'gnoll',
+        kill_room_id: 2,
+        kill_message: '⚔️ Kill de Gnoll registrado para la Vigilia del Corredor.',
+      }),
+    ]);
+    console.log('[db] EPIC-2124: Campaña "La Vigilia del Corredor" sembrada (INSERT OR IGNORE)');
+  } catch (e) {
+    console.error('[db] EPIC-2124 seed vigilia_corredor:', e.message);
+  }
+
   process.on('exit', persist);
   process.on('SIGINT', () => { persist(); process.exit(0); });
   process.on('SIGTERM', () => { persist(); process.exit(0); });

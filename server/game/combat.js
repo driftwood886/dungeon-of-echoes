@@ -1415,7 +1415,13 @@ function attackRound(player, monster) {
             const petCampFragSet = new Set(petCampFrags || []);
             const petCampDirect = petDirectLoot.filter(i => petCampFragSet.has(i));
             if (petCampDirect.length > 0) {
-              lines.push(`🔮 ¡El no-muerto cargaba un Fragmento de Ritual de Veth! Usá \`usar fragmento de ritual\` en la Capilla Olvidada.`);
+              try {
+                const activeCampPet = db.getActiveCampaign();
+                const petCampDropMsg = activeCampPet && activeCampPet.campaign && activeCampPet.campaign.active_effects && activeCampPet.campaign.active_effects.campaign_drop_message;
+                lines.push(petCampDropMsg || `🔮 ¡El no-muerto cargaba un Fragmento de Ritual de Veth! Usá \`usar fragmento de ritual\` en la Capilla Olvidada.`);
+              } catch (_) {
+                lines.push(`🔮 ¡El monstruo cargaba un ítem de campaña!`);
+              }
             }
           }
           const xpBasePet = Math.max(5, Math.floor(monster.max_hp * 2));
@@ -1703,7 +1709,7 @@ function attackRound(player, monster) {
       loot = [];
     } else {
       // Soltar loot en la habitación (flujo normal)
-      const { droppedLoot, directLoot: directLootItems, globalEvent: dropGlobalEvent, lootNote: ln936, campaignDirectLoot: campFrags } = dropLoot(monster, player.current_room_id, player);
+      const { droppedLoot, directLoot: directLootItems, globalEvent: dropGlobalEvent, lootNote: ln936, campaignDirectLoot: campFrags, campaignKillMsg: campKillMsg } = dropLoot(monster, player.current_room_id, player);
       loot = droppedLoot;
       globalEvent = dropGlobalEvent;
 
@@ -1753,8 +1759,20 @@ function attackRound(player, monster) {
             }
           }
           if (campDirect.length > 0) {
-            const countFrags = campDirect.length;
-            lines.push(`🔮 ¡El no-muerto cargaba ${countFrags === 1 ? 'un' : countFrags} Fragmento${countFrags > 1 ? 's' : ''} de Ritual de Veth! Usá \`usar fragmento de ritual\` en la Capilla Olvidada (sala 5) para neutralizarlo${countFrags > 1 ? 's' : ''}.`);
+            try {
+              const activeCampForMsg = db.getActiveCampaign();
+              const campDropMsg = activeCampForMsg && activeCampForMsg.campaign && activeCampForMsg.campaign.active_effects && activeCampForMsg.campaign.active_effects.campaign_drop_message;
+              if (campDropMsg) {
+                lines.push(campDropMsg);
+              } else {
+                // fallback: mensaje genérico
+                const countFrags = campDirect.length;
+                lines.push(`🔮 ¡El no-muerto cargaba ${countFrags === 1 ? 'un' : countFrags} Fragmento${countFrags > 1 ? 's' : ''} de Ritual de Veth! Usá \`usar fragmento de ritual\` en la Capilla Olvidada (sala 5) para neutralizarlo${countFrags > 1 ? 's' : ''}.`);
+              }
+            } catch (_) {
+              const countFrags = campDirect.length;
+              lines.push(`🔮 ¡El monstruo cargaba ${countFrags === 1 ? 'un ítem' : `${countFrags} ítems`} de campaña!`);
+            }
           }
         }
 
@@ -1806,6 +1824,9 @@ function attackRound(player, monster) {
         lines.push(`${articuloMonstruo(monster.name)} ${monster.name} no deja nada.`);
       }
       if (ln936) lines.push(ln936);
+
+      // EPIC-2124: Mostrar progreso de campaña kill_count si corresponde
+      if (campKillMsg) lines.push(campKillMsg);
 
       // DIS-1548: Aviso prominente al matar boss con loot en el suelo e inventario lleno.
       // DIS-1697: También avisar cuando el inventario está casi lleno y no entran todos los ítems del boss.
@@ -3173,6 +3194,7 @@ function dropLoot(monster, roomId, player) {
 
   // EPIC-1899: Drop de Fragmento de Ritual de Veth durante campaña activa (va directo al inventario)
   const campaignDirectLoot = [];
+  let campaignKillMsg = null; // EPIC-2124: mensaje para campaña de kill_count
   try {
     const activeCamp = db.getActiveCampaign();
     if (activeCamp && activeCamp.active && activeCamp.active.state === 'active') {
@@ -3191,6 +3213,33 @@ function dropLoot(monster, roomId, player) {
           }
         }
       }
+
+      // EPIC-2124: Hook de kill_count — contribuir automáticamente al matar el monstruo objetivo
+      if (activeCamp.campaign && activeCamp.campaign.goal_type === 'kill_count') {
+        const killMonsterType = activeCamp.campaign.active_effects && activeCamp.campaign.active_effects.kill_monster_type;
+        const killRoomId = activeCamp.campaign.active_effects && activeCamp.campaign.active_effects.kill_room_id;
+        if (killMonsterType) {
+          const monNameLower = monster.name.toLowerCase();
+          const typeMatches = monNameLower.includes(killMonsterType.toLowerCase());
+          // Si hay restricción de sala, verificarla; si no hay restricción, cualquier sala vale
+          const roomMatches = !killRoomId || (monster.room_id === killRoomId);
+          if (typeMatches && roomMatches) {
+            // contribuir a la campaña (incrementa el contador colectivo)
+            db.contributeToCurrentCampaign(player.username, 1);
+            // Cada 25 kills, mostrar progreso de campaña al jugador
+            try {
+              const updatedKillCamp = db.getActiveCampaign();
+              if (updatedKillCamp) {
+                const prog = updatedKillCamp.progress || 0;
+                const goal = updatedKillCamp.goal_target || 1;
+                if (prog % 25 === 0 || prog === goal) {
+                  campaignKillMsg = `⚔️ [${activeCamp.campaign.name}] Progreso: ${prog}/${goal} kills.`;
+                }
+              }
+            } catch (_) {}
+          }
+        }
+      }
     }
   } catch (_) {}
 
@@ -3200,6 +3249,7 @@ function dropLoot(monster, roomId, player) {
     globalEvent,
     lootNote,
     campaignDirectLoot, // para que attackRound pueda mostrar mensaje especial
+    campaignKillMsg,    // EPIC-2124: mensaje de progreso de kill_count
   };
 }
 

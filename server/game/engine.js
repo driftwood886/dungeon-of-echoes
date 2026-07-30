@@ -8122,10 +8122,13 @@ function cmdUse(player, itemQuery) {
     }
     // Verificar sala correcta
     if (player.current_room_id !== def.deposit_room_id) {
-      const depositMessage = (activeCamp.campaign.active_effects && activeCamp.campaign.active_effects.deposit_message)
-        ? `El fragmento reacciona al altar de la Capilla Olvidada — necesitás estar allí para usarlo.`
-        : `Necesitás estar en la Capilla Olvidada (sala 5) para usar el fragmento.`;
-      return { text: `🔮 ${depositMessage}` };
+      // Obtener nombre de sala de depósito para el mensaje
+      let depositRoomName = `sala ${def.deposit_room_id}`;
+      try {
+        const depositRoom = db.getRoom(def.deposit_room_id);
+        if (depositRoom && depositRoom.name) depositRoomName = `${depositRoom.name} (sala ${def.deposit_room_id})`;
+      } catch (_) {}
+      return { text: `🔮 El ${found} necesita ser entregado en ${depositRoomName}.` };
     }
     // Depositar: contribuir a la campaña y remover del inventario
     const contributed = db.contributeToCurrentCampaign(player.username, 1);
@@ -8142,7 +8145,8 @@ function cmdUse(player, itemQuery) {
     const updatedCamp = db.getActiveCampaign();
     const progress = updatedCamp ? updatedCamp.progress : '?';
     const goalTarget = updatedCamp ? updatedCamp.goal_target : '?';
-    return { text: `${depositMsg}\n📊 Progreso de campaña: ${progress}/${goalTarget} rituales neutralizados.` };
+    const goalKey = updatedCamp && updatedCamp.campaign ? (updatedCamp.campaign.goal_key || '').replace(/_/g, ' ') : 'contribuciones';
+    return { text: `${depositMsg}\n📊 Progreso de campaña: ${progress}/${goalTarget}.` };
   }
 
   // EPIC-1902: Handler para consumibles de campaña (frasco purificador — contribución doble)

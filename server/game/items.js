@@ -131,6 +131,12 @@ const ITEM_CATALOG = {
   // Cuenta como 2 contribuciones al depositarlo en el altar. Solo se puede comprar mientras la campaña esté activa.
   'frasco purificador':   { type: 'campaign_consumable', campaign_id: 'arquinecromante_veth', deposit_room_id: 5, contribution: 2, description: 'Un frasco de aceite sagrado preparado por Aldric especialmente para contrarrestar la magia de Veth. Al vaciarlo en el altar de la Capilla Olvidada (sala 5), neutraliza el poder de dos Fragmentos de Ritual a la vez. Usá `usar frasco purificador` en la Capilla para contribuir x2 a la campaña.' },
 
+  // ── EPIC-2124: Ítems de campaña — Pool de campañas adicionales ───────────
+  // La Plaga de las Esporas: Glándula Venenosa (arañas → Aldric en sala 4)
+  'glándula venenosa': { type: 'campaign_item', campaign_id: 'plaga_esporas', deposit_room_id: 4, value: 5, description: 'Una glándula viscosa extraída de una Araña Tejedora durante la Plaga de las Esporas. Aldric puede sintetizar un antídoto con ella. Llevala a su tienda (sala 4) — usá `usar glándula venenosa` allí para contribuir a la campaña.' },
+  // El Sello Roto: Fragmento de Sello (bosses en salas profundas → Sala del Trono sala 9)
+  'fragmento de sello': { type: 'campaign_item', campaign_id: 'sello_roto', deposit_room_id: 9, value: 8, description: 'Un fragmento de cristal negro con runas grabadas. Lo portaba un boss en las profundidades del dungeon. El Sello Roto necesita ser restaurado — depositalo en la Sala del Trono (sala 9). Usá `usar fragmento de sello` allí para contribuir a la campaña.' },
+
   // ── Armas artesanales avanzadas — Dungeon Extendido (T132) ──────────────────
   'lanza espectral del eco': { type: 'weapon', effect: 'attack_bonus', amount: 12, spectral_bonus: 3, description: 'Versión potenciada de la lanza espectral, forjada con los ecos de los caídos en las profundidades. El arma más poderosa del mid-game. Requiere: cristal resonante (drop del Campeón Espectral) + esencia de eco (drop del Eco Viviente). +12 de ataque; +3 ATK adicional contra espectrales y criaturas mágicas.' },
   'daga del vacío':      { type: 'weapon', effect: 'attack_bonus', amount: 15, on_hit: { type: 'void_drain', chance: 0.30, drain: 3 }, description: 'Una daga que absorbe la realidad. +15 de ataque. 30% de chance de drenar 3 HP al golpear (vida robada). El arma más poderosa de las profundidades.' },  // BUG-1849: subida de +12 a +15 ATK + efecto on_hit void_drain (antes igual a espada de obsidiana)

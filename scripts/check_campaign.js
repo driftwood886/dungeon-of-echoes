@@ -23,12 +23,12 @@ const db = require('../server/db/db');
 const FORCE_RESOLVE = process.argv.includes('--force-resolve');
 
 // Orden del pool de campañas (rotación circular)
-// Cuando se agregen campañas nuevas (EPIC-2124), añadirlas aquí
+// EPIC-2124: pool completado con 4 campañas (8 semanas de contenido único)
 const CAMPAIGN_POOL_ORDER = [
   'arquinecromante_veth',
-  // 'plaga_esporas',    // EPIC-2124 (pendiente)
-  // 'sello_roto',       // EPIC-2124 (pendiente)
-  // 'vigilia_corredor', // EPIC-2124 (pendiente)
+  'plaga_esporas',
+  'sello_roto',
+  'vigilia_corredor',
 ];
 
 function fmtDate(d) {
