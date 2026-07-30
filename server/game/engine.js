@@ -20972,6 +20972,17 @@ function cmdSkills(player) {
         lines.push('   💡 Empezá pensando tu build desde ahora — ¿matás rápido o controlás?');
         lines.push('');
       }
+      // DIS-2113: preview de especializaciones para Clérigo de bajo nivel
+      if (cls === 'clerigo' && level < 5 && !fresh.specialization) {
+        lines.push('');
+        lines.push('✨ PREVIEW DE ESPECIALIZACIONES (nivel 5):');
+        lines.push('   💚 Sanador — Curación masiva. Tu heal_grupal restaura vida a todos en la sala.');
+        lines.push('      → Mejor para: soporte en grupos, combates largos, mantener aliados vivos.');
+        lines.push('   ⚡ Juicio — Castigo divino. Rayo_divino golpea fuerte pero te cuesta 15 HP.');
+        lines.push('      → Mejor para: daño sostenido en solitario, trade de HP por DPS.');
+        lines.push('   💡 ¿Querés curar o castigar? El Clérigo es el único que puede hacer ambas.');
+        lines.push('');
+      }
     }
   }
 
