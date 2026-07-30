@@ -5630,6 +5630,7 @@ function cmdAttack(player, targetName) {
 
   // EPIC-1307-F5: Modo Berserk — +5 ATK durante los 3 turnos activos
   let modoBerserkMsg = null;
+  let berserkExhaustMsg = null; // DIS-2115: aviso de inicio de agotamiento (separado)
   let berserkTurnsRemaining = 0;
   let savedAgotamientoEntry = null; // BUG-2029: capturar agotamiento antes del decremento para posible reversión
   const mbFresh = db.getPlayer(player.id);
@@ -5659,7 +5660,9 @@ function cmdAttack(player, targetName) {
             if (gfx.stone_shield) golemShieldWarning = ' ⚠️ Gólem: escudo activo este turno.';
           }
         } catch (_) {}
-        modoBerserkMsg = `🪓 MODO BERSERK (turno final) +5 ATK → ¡La rabia se agota! Agotamiento: -2 ATK por 2 turnos.${golemShieldWarning}`;
+        modoBerserkMsg = `🪓 MODO BERSERK (turno final) +5 ATK${golemShieldWarning}`;
+        // DIS-2115: aviso de inicio de agotamiento con más prominencia visual — separado del resto
+        berserkExhaustMsg = `\n⚠️  LA RABIA SE AGOTA — Agotamiento: -2 ATK durante los próximos 2 turnos.\n   (Usá 'status' para ver cuántos turnos quedan.)`;
       } else {
         db.updatePlayer(player.id, { status_effects: JSON.stringify(mbSE) });
         modoBerserkMsg = `🪓 MODO BERSERK activo: +5 ATK (${newTurns}t restantes)`;
@@ -7053,7 +7056,8 @@ function cmdAttack(player, targetName) {
   // El resultado del turno (HP, daño, habilidades) siempre aparece primero y visible.
   // Las notificaciones (logros, quests, desafíos, facciones, etc.) se agrupan al final
   // con un separador visual cuando el monstruo muere, para evitar que entierren el output de combate.
-  const combatBlock = lichDialoguePrefix + battlecryPrefix + lines.join('\n') + bossDeathDialogueBlock + comboMsg + skillHint + _autoTargetHint;
+  // DIS-2115: añadir aviso de inicio de agotamiento berserk al final del bloque de combate (prominencia visual)
+  const combatBlock = lichDialoguePrefix + battlecryPrefix + lines.join('\n') + bossDeathDialogueBlock + comboMsg + skillHint + _autoTargetHint + (berserkExhaustMsg || '');
 
   const notifRaw = achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + kaelthasEndingBlock + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg + (_bug1781BossInvWarning ? '\n\n' + _bug1781BossInvWarning.trim() : '');
 
