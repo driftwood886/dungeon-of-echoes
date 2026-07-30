@@ -14,8 +14,9 @@
 
 'use strict';
 
-const db     = require('../db/db');
-const engine = require('../game/engine');
+const db      = require('../db/db');
+const engine  = require('../game/engine');
+const classes = require('../game/classes');
 
 // Mapa global: playerId → socket (para enviar mensajes directos)
 const playerSockets = new Map();
@@ -72,10 +73,16 @@ function registerHandlers(io) {
 
       const player = engine.getOrCreatePlayer(username.trim().slice(0, 20));
       // BUG-481: Si se pasa class y el jugador aún no tiene clase, aplicarla automáticamente
+      // BUG-2112: Validar que la clase sea válida antes de ejecutar el comando.
+      // Si se pasa una clase inválida (ej. "Arquero"), ignorarla silenciosamente.
       if (requestedClass && typeof requestedClass === 'string') {
         const freshP = db.getPlayer(player.id);
         if (!freshP.player_class || freshP.player_class === 'sin_clase') {
-          engine.execute(player.id, `clase ${requestedClass.trim()}`);
+          const resolvedClass = classes.resolveClass(requestedClass.trim().toLowerCase());
+          if (resolvedClass) {
+            engine.execute(player.id, `clase ${requestedClass.trim()}`);
+          }
+          // Si clase inválida: ignorar silenciosamente (no mostrar error al jugador)
         }
       }
       currentPlayerId = player.id;
