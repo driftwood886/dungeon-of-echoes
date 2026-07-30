@@ -405,12 +405,14 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
       const itemNeeded = adjRoom.trap.item_needed
         ? ` — necesitás "${adjRoom.trap.item_needed}"${TRAP_ITEM_WHERE[adjRoom.trap.item_needed] || ''} para desactivarla`
         : '';
+      // DIS-2118: incluir nombre de sala destino para que el jugador no confunda trampas de salas distintas
+      const destName = adjRoom.name ? ` [${adjRoom.name}]` : '';
       // DIS-2072: En sala 2 primera visita, mostrar hint abreviado (no abrumar con detalles de trampa)
       if (roomId === 2 && !alreadyVisited) {
         const itemShort = adjRoom.trap.item_needed ? ` (necesitás «${adjRoom.trap.item_needed}»)` : '';
-        trapHints.push(`${DIR_NAMES[dir] || dir}: hay una trampa activa${itemShort}. Detalle con «look» o «examine ${DIR_NAMES[dir] || dir}»`);
+        trapHints.push(`${DIR_NAMES[dir] || dir}${destName}: hay una trampa activa${itemShort}. Detalle con «look» o «examine ${DIR_NAMES[dir] || dir}»`);
       } else {
-        trapHints.push(`${DIR_NAMES[dir] || dir}: marcas de mecanismo sospechosas en el umbral${itemNeeded} (podés escribir "desactivar trampa ${DIR_NAMES[dir] || dir}" para neutralizarla sin entrar)`);
+        trapHints.push(`${DIR_NAMES[dir] || dir}${destName}: marcas de mecanismo sospechosas en el umbral${itemNeeded} (podés escribir "desactivar trampa ${DIR_NAMES[dir] || dir}" para neutralizarla sin entrar)`);
       }
     }
   }
