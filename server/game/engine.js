@@ -1887,7 +1887,7 @@ function cmdLook(player, options = {}) {
     if (seDeferred.spec_notify_deferred) {
       const freshForSpec2095 = db.getPlayer(player.id) || player;
       if (!freshForSpec2095.specialization && freshForSpec2095.player_class && freshForSpec2095.player_class !== 'sin_clase') {
-        specDeferredLine = '\n\n🌟 ¡NIVEL 5 ALCANZADO! Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente y define tu estilo de juego.\n   Escribí `especializar` para ver las opciones y escoger tu camino.\n   💡 No hay límite de tiempo — podés hacerlo ahora o cuando estés listo.';
+        specDeferredLine = '\n\n🌟 ¡NIVEL 5 ALCANZADO! Ahora podés elegir tu ESPECIALIZACIÓN de clase. Esta decisión es permanente y define tu estilo de juego.\n   Escribí `especializar` para ver las opciones y escoger tu camino.\n   📍 Para elegir necesitás estar en la 🏚️ tienda de Aldric (sala 4) o en la 🕯️ Capilla Olvidada (sala 5).\n   💡 No hay límite de tiempo — podés hacerlo cuando estés listo.';
       }
       // Limpiar el flag (tanto si el jugador ya especializó como si no)
       const newSe2095 = { ...seDeferred };
@@ -21195,8 +21195,18 @@ function cmdSpecialize(player, args) {
     const clsObj = classes.getPlayerClass(fresh) || {};
     // DIS-1688: escena narrativa antes de las opciones mecánicas
     // DIS-1947: usar intro alternativa si el jugador NO está en la tienda de Aldric (sala 4)
+    // DIS-2117: especialización requiere un lugar de poder (sala 4 o sala 5)
     const ALDRIC_SHOP_ROOM = 4;
+    const CAPILLA_ROOM = 5;
     const isInAldricShop = fresh.current_room_id === ALDRIC_SHOP_ROOM;
+    const isInCapilla = fresh.current_room_id === CAPILLA_ROOM;
+
+    // DIS-2117: si el jugador no está en un lugar de poder, redirigirlo
+    if (!isInAldricShop && !isInCapilla) {
+      return {
+        text: `⚔️ _Para elegir tu camino, necesitás estar en un lugar de poder._\n\nLa especialización no es una decisión que se toma en el medio del dungeon —es un momento de transformación que requiere un lugar que la sostenga.\n\n📍 Podés especializarte en:\n   • 🏚️ **La tienda de Aldric** — sala 4, al oeste desde la Entrada.\n   • 🕯️ **La Capilla Olvidada** — sala 5, al este desde la Entrada (el altar de piedra negra responde a quienes están listos).\n\n💡 Llegá a uno de esos lugares y volvé a escribir \`especializar\`.`,
+      };
+    }
 
     // DIS-1960: línea personalizada con el historial del jugador (kills totales, racha, muertes)
     let dis1960PersonalLine = '';
@@ -21224,19 +21234,20 @@ function cmdSpecialize(player, args) {
       }
     } catch (_) {}
 
+    // DIS-2117: intros por clase + por lugar (Aldric shop vs Capilla)
     const DIS1688_INTROS = {
       guerrero: isInAldricShop
         ? `🏚️ _Llegás a la tienda de Aldric. Él te mira de una forma diferente esta vez._\n\n"Sobreviviste hasta el nivel 5", dice despacio, apoyando las manos sobre el mostrador. "Eso no es suerte, eso es decisión."\n\nSaca un pergamino viejo y lo extiende frente a vos.\n\n"Los guerreros que llegan tan lejos tienen que elegir qué tipo de guerrero van a ser. Algunos van por la fuerza bruta. Otros aprenden a aguantar lo que nadie más puede."\n\n_Esperá tu momento._\n\n`
-        : `⚔️ _Cerrás los ojos un momento. Recordás el camino que te trajo hasta aquí — cada pelea, cada sala, cada decisión que te mantuvo vivo hasta el nivel 5._\n\nNo hace falta estar en ningún lugar específico. Este momento es tuyo, no del dungeon.\n\n"Los guerreros que llegan tan lejos tienen que elegir qué tipo de guerrero van a ser. Algunos van por la fuerza bruta. Otros aprenden a aguantar lo que nadie más puede."\n\n_Esperá tu momento._\n\n`,
+        : `⚔️ _Ponés la mano sobre el altar de piedra negra. Está frío — más frío de lo que debería. Y por un momento, sentís algo que no tiene nombre: como si el dungeon te mirara de vuelta._\n\nEste lugar ha visto morir a docenas. Vos llegaste hasta el nivel 5. El altar lo sabe.\n\n"Los guerreros que llegan tan lejos tienen que elegir qué tipo de guerrero van a ser. Algunos van por la fuerza bruta. Otros aprenden a aguantar lo que nadie más puede."\n\n_Esperá tu momento._\n\n`,
       picaro: isInAldricShop
         ? `🏚️ _Una sombra familiar — quizás la tuya — se mueve en las paredes de la tienda._\n\nAldric no levanta la vista del libro cuando hablás. "Llegaste al momento que esperaba", dice.\n\n"Un pícaro que sobrevive cinco niveles ya tomó mil decisiones pequeñas. Ahora toca la decisión grande."\n\nCierra el libro y te mira. "¿Velocidad o muerte? Hay pícaro que esquiva. Hay pícaro que no le da tiempo al enemigo de esquivar."\n\n_Tu camino, tu elección._\n\n`
-        : `🌑 _Cerrás los ojos. Instintivamente tomás el puesto más sombríos de la sala — lo hacés sin pensarlo, desde el nivel 1._\n\nCinco niveles. Mil decisiones pequeñas. Ahora toca la decisión grande.\n\n"¿Velocidad o muerte? Hay pícaro que esquiva. Hay pícaro que no le da tiempo al enemigo de esquivar."\n\n_Tu camino, tu elección._\n\n`,
+        : `🌑 _La llama de la Capilla no oscila. Pero tu sombra sí — moviéndose sola, lentamente, como si ya supiera lo que vas a decidir._\n\nCinco niveles. Mil decisiones pequeñas tomadas en silencio, en oscuridad, entre un latido y el siguiente. Ahora toca la decisión grande.\n\n"¿Velocidad o muerte? Hay pícaro que esquiva. Hay pícaro que no le da tiempo al enemigo de esquivar."\n\n_Tu camino, tu elección._\n\n`,
       mago: isInAldricShop
         ? `🏚️ _El altar de la Capilla Olvidada vibra levemente cuando pasás cerca. La piedra negra te reconoce._\n\nAldric lo nota desde la tienda.\n\n"El dungeon empieza a responderte", dice en voz baja. "Eso significa que ya tenés suficiente magia dentro como para decidir qué querés hacer con ella."\n\n"Un mago de nivel cinco puede especializarse en destruir, o en controlar. No hay una mejor. Hay una que te llama."\n\n_¿Cuál escuchás?_\n\n`
-        : `✨ _Sentís algo que no supiste nombrar antes. El dungeon te responde — sutilmente, como una resonancia._\n\nNivel cinco. Ya tenés suficiente magia dentro como para decidir qué hacer con ella.\n\n"Un mago de nivel cinco puede especializarse en destruir, o en controlar. No hay una mejor. Hay una que te llama."\n\n_¿Cuál escuchás?_\n\n`,
+        : `✨ _El altar vibra. No lo tocaste — pero lo sentís igual, como un zumbido en los huesos._\n\nLa piedra negra de esta capilla es la misma piedra del Santuario Profano. Algo los conecta. Y en este momento, ese algo también te incluye a vos.\n\nNivel cinco. Ya tenés suficiente magia dentro como para decidir qué hacer con ella.\n\n"Un mago de nivel cinco puede especializarse en destruir, o en controlar. No hay una mejor. Hay una que te llama."\n\n_¿Cuál escuchás?_\n\n`,
       clerigo: isInAldricShop
         ? `🏚️ _La llama de una antorcha en el corredor tintila sin que haya viento._\n\n"Nivel cinco", dice Aldric cuando entrás. No lo dice con sorpresa. Lo dice con algo parecido al respeto.\n\n"Los clérigos que llegan aquí ya curaron lo suficiente como para entender que la cura no es todo. Ahora tenés que elegir: ¿vas a dedicarte a sostener a otros, o a castigar lo que hace daño?"\n\nPausa. "Ambas son formas de servir. El dungeon no juzga cuál."\n\n_La elección es tuya._\n\n`
-        : `🕯️ _La llama más cercana titila. Cerrás los ojos._\n\nNivel cinco. Curaste lo suficiente como para entender que la cura no es todo.\n\n"Tenés que elegir: ¿vas a dedicarte a sostener a otros, o a castigar lo que hace daño? Ambas son formas de servir. El dungeon no juzga cuál."\n\n_La elección es tuya._\n\n`,
+        : `🕯️ _Las velas de la Capilla están apagadas desde hace siglos. Pero al pararte frente al altar, una se enciende sola. Apenas un hilo de luz._\n\nAlgo en este lugar responde a lo que llevás dentro. Nivel cinco. Curaste lo suficiente como para entender que la cura no es todo.\n\n"Tenés que elegir: ¿vas a dedicarte a sostener a otros, o a castigar lo que hace daño? Ambas son formas de servir. El dungeon no juzga cuál."\n\n_La elección es tuya._\n\n`,
     };
     const introText = DIS1688_INTROS[playerClass] || `_Has llegado al nivel 5. El dungeon espera tu decisión._\n\n`;
     const lines = [
