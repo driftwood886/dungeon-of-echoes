@@ -1896,7 +1896,10 @@ function cmdLook(player, options = {}) {
     }
   } catch (_dis2095) { /* no romper look */ }
 
-  return { text: text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine + lurkingLine + comboRiskLine + subastaFirstVisitLine + specDeferredLine };
+  // DIS-2129: fix defensiva — suprimir tooltips vacíos (líneas que son solo "💡 " sin contenido)
+  const _rawLookText = text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine + lurkingLine + comboRiskLine + subastaFirstVisitLine + specDeferredLine;
+  const _cleanLookText = _rawLookText.replace(/\n💡 \n/g, '\n').replace(/\n💡 $/g, '').replace(/\n\n💡 \n/g, '\n');
+  return { text: _cleanLookText };
 }
 
 /**
@@ -7928,11 +7931,21 @@ function cmdPick(player, itemQuery) {
     // DIS-2119: en early game, mostrar tip de "vender basura" (máx 2 veces) — más visible
     const se2119 = parseSE(freshForInvWarn.status_effects);
     const sellHintCount2119 = se2119.sell_junk_hint_count || 0;
+    // DIS-2131: sugerir ítems de menor valor para descartar
+    let junkSuggestion2131 = '';
+    try {
+      const inv2131 = Array.isArray(freshForInvWarn.inventory) ? freshForInvWarn.inventory : JSON.parse(freshForInvWarn.inventory || '[]');
+      const junk2131 = inv2131.filter(i => items.isJunkItem(i));
+      if (junk2131.length > 0) {
+        const topJunk = junk2131.slice(0, 3);
+        junkSuggestion2131 = `\n🗑️ Podés descartar: ${topJunk.map(j => `«${j}»`).join(', ')}${junk2131.length > 3 ? ` y ${junk2131.length - 3} más` : ''} — escribí \`drop <ítem>\` o \`vender basura\` en sala 4.`;
+      }
+    } catch (_) { /* no romper el pick si falla */ }
     if (isEarlyGame2119 && sellHintCount2119 < 2) {
-      pickSingleMsg += `\n\n⚠️  Inventario al ${Math.round(invWarnCount / invWarnMax * 100)}% (${invWarnCount}/${invWarnMax}) — en la tienda de Aldric (sala 4) escribí **"vender basura"** para vender de golpe todos los ítems inútiles (cuchillos oxidados, hachas viejas, etc.) y liberar espacio.${bolsaHint}`;
+      pickSingleMsg += `\n\n⚠️  Inventario al ${Math.round(invWarnCount / invWarnMax * 100)}% (${invWarnCount}/${invWarnMax}) — en la tienda de Aldric (sala 4) escribí **"vender basura"** para vender de golpe todos los ítems inútiles (cuchillos oxidados, hachas viejas, etc.) y liberar espacio.${bolsaHint}${junkSuggestion2131}`;
       db.updatePlayer(freshForInvWarn.id, { status_effects: JSON.stringify({ ...se2119, sell_junk_hint_count: sellHintCount2119 + 1 }) });
     } else {
-      pickSingleMsg += `\n\n⚠️  Inventario casi lleno (${invWarnCount}/${invWarnMax}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.${bolsaHint}`;  // DIS-1657, DIS-1991
+      pickSingleMsg += `\n\n⚠️  Inventario casi lleno (${invWarnCount}/${invWarnMax}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.${bolsaHint}${junkSuggestion2131}`;  // DIS-1657, DIS-1991, DIS-2131
     }
   }
 

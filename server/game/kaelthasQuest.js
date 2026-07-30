@@ -180,10 +180,21 @@ function getQuestState(player) {
       return `📖 Quest: El Libro de los Muertos [COMPLETA — PENDIENTE ENDING]\n   Encontraste los 4 fragmentos. Solo falta enfrentar al Lich con todo el contexto.\n   ✅ ✅ ✅ ✅  Todos los fragmentos encontrados.\n   ⚔️  El Lich Anciano te espera en la Catedral de la Oscuridad (sala 15).${heritageNote}`;
     }
 
+    // DIS-2130: pistas por fragmento pendiente — no spoilear ubicación exacta, pero dar dirección
+    const FRAGMENT_HINTS = {
+      trono:    '💡 Pista: explorá las zonas más profundas del dungeon. Los bosses de los pisos intermedios guardan secretos.',
+      mausoleo: '💡 Pista: buscá en las áreas frías del dungeon. Las inscripciones de piedra guardan historia.',
+      capilla:  '💡 Pista: revisá los altares y lugares de culto dentro del dungeon. Algo sigue activo allí.',
+      catedral: '💡 Pista: el fragmento final está cerca del centro del poder del dungeon. Es el más peligroso de encontrar.',
+    };
+
     // Estado active con 1-3 fragmentos
     const lines = FRAGMENT_IDS.map(fid => {
-      const check = found.includes(fid) ? '✅' : '⬜';
-      return `   ${check} ${FRAGMENT_NAMES[fid]}`;
+      if (found.includes(fid)) {
+        return `   ✅ ${FRAGMENT_NAMES[fid]}`;
+      } else {
+        return `   ⬜ ${FRAGMENT_NAMES[fid]}\n      ${FRAGMENT_HINTS[fid]}`;
+      }
     });
 
     return `📖 Quest: El Libro de los Muertos [EN PROGRESO]\n   Kaelthas fue un rey que encontró un libro que prometía derrotar a la muerte.\n   Encontrá los 4 fragmentos para entender qué fue de él.\n\n   Fragmentos encontrados (${found.length}/4):\n${lines.join('\n')}`;
