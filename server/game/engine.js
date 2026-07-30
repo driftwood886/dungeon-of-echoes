@@ -6209,7 +6209,7 @@ function cmdAttack(player, targetName) {
           const freshFor1377 = db.getPlayer(player.id);
           if (!freshFor1377.faction_notified && !freshFor1377.faction) {
             db.setFactionNotified(freshFor1377.id);
-            _factionInviteMsg = `\n\n📜 Un mensajero acaba de dejarte una nota en la entrada del dungeon.\n\n"Las facciones del dungeon han notado tu progreso, aventurero.\nLa Orden del Filo, el Cónclave Arcano y la Hermandad del Mercado\nte ofrecen membresía.\n\nPara unirte (muestra la ficha y te une al instante):\n  faccion elegir orden_filo\n  faccion elegir conclave_arcano\n  faccion elegir hermandad_mercado\n\nPara solo ver info sin unirte: faccion info <nombre>"`;
+            _factionInviteMsg = `\n\n📜 Un mensajero acaba de dejarte una nota en la entrada del dungeon.\n\n"Las facciones del dungeon han notado tu progreso, aventurero.\nLa Orden del Filo, el Cónclave Arcano y la Hermandad del Mercado\nte ofrecen membresía.\n\nPara unirte directamente:\n  faccion elegir orden_filo\n  faccion elegir conclave_arcano\n  faccion elegir hermandad_mercado\n\nPara ver la ficha antes de decidir: faccion info <nombre>"`;
           }
         }
       }
@@ -15378,7 +15378,7 @@ function cmdFaccion(player, args) {
       const display = lore ? `${lore.icon} ${lore.name}` : player.faction;
       return { text: `Pertenecés a ${display}.\n\nComandos disponibles:\n  faccion info <nombre>    — ver ficha de otra facción\n  faccion cambiar <nombre> — cambiar facción (100g + cooldown 7 días)\n  facciones                — ver influencia semanal\n\nFacciones disponibles: orden_filo, conclave_arcano, hermandad_mercado` };
     }
-    return { text: `No tenés facción. Elegí una con: faccion elegir <nombre>\n\nFacciones disponibles:\n  🗡️  orden_filo        — La Orden del Filo (combate)\n  🔮  conclave_arcano  — El Cónclave Arcano (exploración)\n  🪙  hermandad_mercado — La Hermandad del Mercado (economía)\n\n${(player.level || 1) < 3 ? `⚔️ Disponible en nivel 3+ (sos nivel ${player.level || 1} — seguí explorando).` : 'Usá: faccion elegir <nombre> para ver la ficha y unirte en un solo paso.\nPara solo ver la ficha sin unirte: faccion info <nombre>'}` };
+    return { text: `No tenés facción. Elegí una con: faccion elegir <nombre>\n\nFacciones disponibles:\n  🗡️  orden_filo        — La Orden del Filo (combate)\n  🔮  conclave_arcano  — El Cónclave Arcano (exploración)\n  🪙  hermandad_mercado — La Hermandad del Mercado (economía)\n\n${(player.level || 1) < 3 ? `⚔️ Disponible en nivel 3+ (sos nivel ${player.level || 1} — seguí explorando).` : 'Usá: faccion elegir <nombre> para unirte directamente.\nPara ver la ficha antes de decidir: faccion info <nombre>'}` };
   }
 
   const sub = args[0].toLowerCase();
@@ -15455,7 +15455,7 @@ function cmdFaccion(player, args) {
     return _cmdFaccionElegir(player, [candidateId, ...restArgs]);
   }
 
-  return { text: 'Usá: faccion elegir <nombre> | faccion cambiar <nombre> | faccion info <nombre>\n\nNombres de facción: orden_filo, conclave_arcano, hermandad_mercado\n\n💡 faccion elegir <nombre> — une directamente mostrando la ficha\n   faccion info <nombre>   — solo ver la ficha sin unirte' };
+  return { text: 'Usá: faccion elegir <nombre> | faccion cambiar <nombre> | faccion info <nombre>\n\nNombres de facción: orden_filo, conclave_arcano, hermandad_mercado\n\n💡 faccion elegir <nombre> — une directamente (sin ficha)\n   faccion info <nombre>   — ver la ficha antes de decidir' };
 }
 
 /**
@@ -15580,8 +15580,8 @@ function _cmdFaccionElegir(player, args) {
       '     Tuyo: misiones de lore exclusivas · título en leaderboard',
       '  🪙  hermandad_mercado — La Hermandad del Mercado (economía)',
       '     Tuyo: misiones de comercio exclusivas · sello de descuento Aldric\n',
-      'Para unirte (con ficha): faccion elegir <nombre>',
-      'Para ver info sin unirte: faccion info <nombre>',
+      'Para unirte directamente: faccion elegir <nombre>',
+      'Para ver la ficha antes de decidir: faccion info <nombre>',
     ];
     return { text: lines.join('\n') };
   }
@@ -15611,15 +15611,12 @@ function _cmdFaccionElegir(player, args) {
     };
   }
 
-  // DIS-1987: faccion elegir <nombre> une directamente, mostrando la ficha como parte
-  // del mensaje de bienvenida. Para ver la ficha sin unirse: faccion info <nombre>.
-  // (Eliminado el flujo de 2 pasos con faction_pending — era la principal fuente de fricción.)
+  // DIS-1987: faccion elegir <nombre> une directamente.
+  // DIS-2128: ya no mostramos la ficha completa al unirse — eso es para `faccion info`.
+  // Si el jugador quiere la ficha primero, puede usar `faccion info <nombre>`.
+  // Al unirse directamente, solo se muestra el mensaje de bienvenida (corto y limpio).
   if (!hasConfirm) {
-    const joinResult = _cmdFaccionElegir(player, [factionId, 'confirmar']);
-    const card = _buildFactionCard(lore, false);
-    return {
-      text: card + '\n\n' + joinResult.text,
-    };
+    return _cmdFaccionElegir(player, [factionId, 'confirmar']);
   }
 
   // ── CON confirmación: unirse a la facción ─────────────────────────────────
