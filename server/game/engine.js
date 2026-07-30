@@ -21274,7 +21274,11 @@ function cmdSpecialize(player, args) {
   }
 
   // Con argumento: intentar confirmar elección
-  const specId = resolveSpec(args.join(' '));
+  // BUG-2111: filtrar "confirmar"/"confirm"/"si"/"sí" antes de resolver el specId
+  // (si no, "juicio confirmar" no matchea en SPEC_ALIASES)
+  const CONFIRM_TOKENS = new Set(['confirmar', 'confirm', 'si', 'sí']);
+  const specArgs = args.filter(a => !CONFIRM_TOKENS.has(a.toLowerCase()));
+  const specId = resolveSpec(specArgs.join(' '));
   if (!specId) {
     const names = available.map(s => s.id).join(' | ');
     return { text: `⚠️ Especialización no reconocida. Opciones para tu clase: ${names}\n\nEjemplo: especializar ${available[0].id}` };
