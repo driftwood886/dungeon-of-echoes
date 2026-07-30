@@ -2313,7 +2313,9 @@ function attackRound(player, monster) {
       // Primer contraataque — golpe espectral inevitable
       const openingDmg = Math.max(0, 8 - Math.floor((player.defense || 0) * 0.5));
       player.hp = Math.max(0, player.hp - openingDmg);
-      lines.push(`👻 ¡El Guardia Espectral lanza un GOLPE ESPECTRAL de apertura! ${openingDmg} de daño (inevitable). (${player.hp}/${player.max_hp} HP)`);
+      // DIS-2126: agregar contexto narrativo antes del golpe de apertura
+      lines.push(`👻 La Guardia Espectral te recibe antes de que puedas reaccionar — su energía espectral traspasa la armadura física.`);
+      lines.push(`👻 ¡GOLPE ESPECTRAL de apertura! ${openingDmg} de daño inevitable. (${player.hp}/${player.max_hp} HP)`);
       guardFx.guardian_opening_done = true;
       monster.status_effects = guardFx;
       db.updateMonster(monster.id, { status_effects: JSON.stringify(guardFx) });
