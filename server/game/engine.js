@@ -18407,7 +18407,7 @@ function cmdBid(player, args) {
   try {
     const freshForFMBid = db.getPlayer(player.id);
     if (freshForFMBid && freshForFMBid.faction) {
-      const fmBidResult = factionMissions.onEvent(freshForFMBid, 'bid', {});
+      const fmBidResult = factionMissions.onEvent(freshForFMBid, 'bid', { bid_amount: amount, min_price: auction.min_price });
       if (fmBidResult && fmBidResult.text) fmBidMsg = '\n\n' + fmBidResult.text;
     }
   } catch (_) { /* no romper puja si falla factionMissions */ }

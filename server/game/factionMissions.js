@@ -258,6 +258,14 @@ function onEvent(player, eventType, data = {}) {
       if (monsterMaxHp < filter.min_max_hp) return null;
     }
 
+    // Filtro por monto mínimo de puja relativo al precio mínimo (solo para bids)
+    if (filter.min_bid_pct && eventType === 'bid') {
+      const bidAmount = data.bid_amount || 0;
+      const minPrice = data.min_price || 0;
+      const threshold = minPrice > 0 ? minPrice * filter.min_bid_pct : 0;
+      if (bidAmount < threshold) return null;
+    }
+
     // Filtro por room_id específica
     if (filter.room_id !== undefined && eventType === 'explore_room') {
       if (data.room_id !== filter.room_id) return null;

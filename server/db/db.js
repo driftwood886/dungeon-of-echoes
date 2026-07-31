@@ -1502,9 +1502,9 @@ async function init() {
         id: 'fm_hermandad_bids',
         faction: 'hermandad_mercado',
         name: 'El Arte de la Puja',
-        description_template: 'El mercado vive de sus actores. Participá en {target} subastas esta semana (no necesitás ganar).',
+        description_template: 'El mercado no perdona la timidez. Realizá {target} pujas serias esta semana (cada puja debe ser al menos el 50% del precio mínimo de la subasta).',
         event_hook: 'bid',
-        target_filter: null,
+        target_filter: JSON.stringify({ min_bid_pct: 0.5 }),
         base_target: 2,
         scale_per_level: 0.0,
         reward_xp: 160,
@@ -1543,6 +1543,13 @@ async function init() {
          m.target_filter || null, m.base_target, m.scale_per_level,
          m.reward_xp, m.reward_gold, m.reward_influence,
          m.require_level, m.priority, m.is_active]
+      );
+      // DIS-2143: Actualizar definiciones existentes que hayan cambiado (description, target_filter)
+      db.run(
+        `UPDATE faction_mission_definitions
+         SET description_template = ?, target_filter = ?, name = ?
+         WHERE id = ?`,
+        [m.description_template, m.target_filter || null, m.name, m.id]
       );
     }
     console.log('[db] EPIC-FM: 9 misiones de facción en pool (INSERT OR IGNORE — idempotente)');
