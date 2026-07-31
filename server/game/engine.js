@@ -6850,6 +6850,17 @@ function cmdAttack(player, targetName) {
         if (fmResult && fmResult.text) {
           questKillMsg += '\n\n' + fmResult.text;
         }
+      } else if (freshForFM && !freshForFM.faction) {
+        // DIS-2136: trackear kills agresivos de la sesión para crédito retroactivo
+        // si el jugador se une a Orden del Filo más adelante en esta misma sesión.
+        const stanceForTrack = (freshForFM.stance || 'equilibrado').toLowerCase();
+        if (stanceForTrack === 'agresivo') {
+          try {
+            const seForTrack = parseSE(freshForFM.status_effects);
+            seForTrack.ses_agresivo_kills = (seForTrack.ses_agresivo_kills || 0) + 1;
+            db.updatePlayer(freshForFM.id, { status_effects: JSON.stringify(seForTrack) });
+          } catch (_) { /* no romper combate si falla tracking */ }
+        }
       }
     } catch (_) { /* no romper combate si falla factionMissions */ }
   }
@@ -15686,6 +15697,38 @@ function _cmdFaccionElegir(player, args) {
     }
   } catch (_) { /* no romper unión a facción si falla factionMissions */ }
 
+  // DIS-2136: crédito retroactivo de kills agresivos para Orden del Filo.
+  // Si la misión asignada requiere postura agresiva y el jugador mató criaturas en esa
+  // postura antes de unirse (trackeado en ses_agresivo_kills), aplicar ese progreso ahora.
+  let _retroAgresivo = 0;
+  if (factionId === 'orden_filo' && _welcomeMission) {
+    try {
+      let _mFilter = {};
+      try { _mFilter = JSON.parse(_welcomeMission.target_filter || '{}'); } catch (_e) {}
+      if (_mFilter.stance && _mFilter.stance.toLowerCase() === 'agresivo') {
+        const freshForRetro = db.getPlayer(player.id);
+        const seForRetro = parseSE(freshForRetro ? freshForRetro.status_effects : null);
+        const sesKills = seForRetro.ses_agresivo_kills || 0;
+        if (sesKills > 0) {
+          // Aplicar el mínimo entre los kills acumulados y el target de la misión
+          const creditKills = Math.min(sesKills, _welcomeMission.target);
+          const rawDbRetro = db.raw();
+          rawDbRetro.run(
+            `UPDATE faction_missions SET progress = ? WHERE id = ?`,
+            [creditKills, _welcomeMission.id]
+          );
+          // Limpiar el counter de sesión (ya fue contabilizado)
+          delete seForRetro.ses_agresivo_kills;
+          db.updatePlayer(player.id, { status_effects: JSON.stringify(seForRetro) });
+          _retroAgresivo = creditKills;
+          // Recargar misión con el progreso actualizado
+          const freshAfterRetro = db.getPlayer(player.id);
+          if (freshAfterRetro) _welcomeMission = factionMissions.getMissionForPlayer(freshAfterRetro);
+        }
+      }
+    } catch (_) { /* no romper unión si falla crédito retroactivo */ }
+  }
+
   // Mensaje narrativo de bienvenida según facción
   const WELCOME_MSGS = {
     orden_filo:
@@ -15738,7 +15781,12 @@ function _cmdFaccionElegir(player, args) {
       if (_welcomeMission.reward_xp)       _mRewards.push(`+${_welcomeMission.reward_xp} XP`);
       if (_welcomeMission.reward_gold)     _mRewards.push(`+${_welcomeMission.reward_gold} 💰`);
       if (_welcomeMission.reward_influence) _mRewards.push(`+${_welcomeMission.reward_influence} 🏴`);
-      _missionBlock = `\n\n🏴 **Tu misión de esta semana:**\n   📋 ${_mDesc}\n   🎁 Recompensa: ${_mRewards.join(' | ') || '—'}\n   (Progreso: 0/${_welcomeMission.target} — escribí «misión facción» para más detalles.)`;
+      const _mProgress = _welcomeMission.progress || 0;
+      // DIS-2136: mostrar progreso retroactivo si aplica
+      const _retroLine = _retroAgresivo > 0
+        ? `\n   ⚡ **Crédito retroactivo:** Tus ${_retroAgresivo} kill${_retroAgresivo !== 1 ? 's' : ''} en postura agresiva de esta sesión ya cuentan. Progreso actual: ${_mProgress}/${_welcomeMission.target}.`
+        : '';
+      _missionBlock = `\n\n🏴 **Tu misión de esta semana:**\n   📋 ${_mDesc}\n   🎁 Recompensa: ${_mRewards.join(' | ') || '—'}\n   (Progreso: ${_mProgress}/${_welcomeMission.target} — escribí «misión facción» para más detalles.)${_retroLine}`;
     } catch (_) {
       // La misión existe pero falló el formateo — al menos indicar que existe
       _missionBlock = `\n\n🏴 **Misión de facción:** Misión semanal asignada. Escribí «misión facción» para ver detalles.`;
@@ -15751,7 +15799,7 @@ function _cmdFaccionElegir(player, args) {
   }
 
   return {
-    text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.${retroInfluenceMsg}${_missionBlock}\n\n⚠️ **Nota sobre misiones de facción:** Los kills y acciones realizados antes de unirte a la facción no cuentan para las misiones semanales — el progreso trackea desde ahora. Si ya mataste criaturas hoy, el contador empieza desde cero.\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
+    text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.${retroInfluenceMsg}${_missionBlock}\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
   };
 }
 
@@ -17687,20 +17735,8 @@ function cmdDrink(player) {
 
   const hpBar = buildBar(player.max_hp, player.max_hp, 20);
 
-  // DIS-1469: verificar si los bosses adyacentes están vivos antes de advertir
-  const golems1469 = db.getMonster(5); // Gólem de Piedra (monsterId 5)
-  const shadow1469 = db.getMonster(22); // Sombra del Vacío (monsterId 22)
-  const golemAlive1469 = golems1469 && golems1469.room_id != null && (golems1469.hp || 0) > 0;
-  const shadowAlive1469 = shadow1469 && shadow1469.room_id != null && (shadow1469.hp || 0) > 0;
-  const dangerParts1469 = [];
-  if (golemAlive1469) dangerParts1469.push('el Gólem de Piedra (sur, nivel 5+)');
-  if (shadowAlive1469) dangerParts1469.push('la Sombra del Vacío (abajo, nivel 8+)');
-  const dangerMsg1469 = dangerParts1469.length > 0
-    ? `\n\n⚠️ Esta sala tiene salidas peligrosas: ${dangerParts1469.join(' y ')}. Revisá tu equipo antes de avanzar.`
-    : '';
-
   return {
-    text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! (+${restored} HP recuperado)\n${hpBar} ${player.max_hp}/${player.max_hp} HP${manaBonus1114}\n\n⏳ La fuente empieza a atenuarse... necesitará 3 minutos para recargarse.${dangerMsg1469}`,
+    text: `💧 Te arrodillás ante la fuente y bebés del agua plateada.\nUna energía cálida recorre tu cuerpo de pies a cabeza.\n¡HP completamente restaurado! (+${restored} HP recuperado)\n${hpBar} ${player.max_hp}/${player.max_hp} HP${manaBonus1114}\n\n⏳ La fuente empieza a atenuarse... necesitará 3 minutos para recargarse.`,
     event: `${player.username} bebe de la Fuente Eterna. Un resplandor plateado llena la sala.`,
     eventRoomId: FOUNTAIN_ROOM_ID,
   };
