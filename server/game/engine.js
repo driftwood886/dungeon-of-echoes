@@ -22109,7 +22109,8 @@ function cmdUseSkill(player, args, context) {
     const monstersForRage = db.getMonstersInRoom(freshBs.current_room_id);
     const aliveForRageRaw = monstersForRage.filter(m => m.hp > 0);
     if (aliveForRageRaw.length === 0) {
-      return { text: '🪓 ¡La Furia solo puede desatarse en combate! No hay enemigos aquí.' };
+      // DIS-2146: mensaje de flavor en lugar del genérico cuando no hay enemigos
+      return { text: '🪓 La furia necesita un objetivo. Buscá algo que matar — en esta sala no hay nada que merezca tu rabia.' };
     }
     // BUG-1473: verificar que al menos un monstruo sea atacable durante Marea Espectral
     const FURIA_SPECTRAL_IDS = new Set([4, 8, 12, 13, 21, 22]);
