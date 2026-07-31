@@ -32,7 +32,7 @@ const SKILLS = {
     cooldown_seconds: 30,  // DIS-1106: reducido de 45s a 30s para permitir usarlo 2 veces en peleas largas con jefes que regeneran
     type: 'attack',
     dmg_multiplier: 1.8,
-    description: 'Un golpe devastador que hace ×1.8 del daño normal. Cooldown: 30s. No disponible contra enemigos con muy poco HP. Solo Guerrero (o sin clase aún).',
+    description: 'Un golpe devastador que hace ×1.8 del daño normal. Cooldown: 30s de reloj real (no turnos de combate). No disponible contra enemigos con muy poco HP. Solo Guerrero (o sin clase aún).',
     combat_only: true,
     excluded_classes: ['mago', 'clerigo', 'picaro'],  // DIS-D304: Mago usa hechizos; DIS-612: Clérigo tiene habilidades propias; DIS-616/DIS-1529: Pícaro tiene habilidades propias
   },

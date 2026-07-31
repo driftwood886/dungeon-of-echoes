@@ -21147,7 +21147,7 @@ function cmdSkills(player) {
     for (const sk of unlocked) {
       const exp = cooldowns[sk.id];
       const remaining = exp ? Math.max(0, Math.ceil((new Date(exp) - now) / 1000)) : 0;
-      const status = remaining > 0 ? `⏳ ${remaining}s cooldown` : '✅ Lista';
+      const status = remaining > 0 ? `⏳ ${remaining}s cooldown (tiempo real — no turnos)` : '✅ Lista';
       lines.push(`  ⚡ ${sk.name} [${sk.aliases[0]}]`);
       lines.push(`     ${sk.description}`);
       // DIS-903: mostrar el comando exacto para usar la habilidad
