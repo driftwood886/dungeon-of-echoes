@@ -3198,7 +3198,19 @@ function cmdMove(player, direction) {
     }
     explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${exploXp} XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${expAldricReminder}` : ''}`;
     // EPIC-1373: Influencia de facción por exploración (nueva sala)
-    db.addFactionInfluence(player.id, 2);
+    // DIS-2162: retroalimentación inmediata de influencia
+    const _fExploAdded = db.addFactionInfluence(player.id, 2);
+    if (_fExploAdded) {
+      const _fExploFresh = db.getPlayer(player.id);
+      if (_fExploFresh && _fExploFresh.faction) {
+        const _fExploIcons = { orden_filo: '🗡️', conclave_arcano: '🔮', hermandad_mercado: '🪙' };
+        const _fExploLabel = _fExploFresh.faction === 'orden_filo' ? 'Orden'
+          : _fExploFresh.faction === 'conclave_arcano' ? 'Cónclave'
+          : _fExploFresh.faction === 'hermandad_mercado' ? 'Hermandad'
+          : _fExploFresh.faction;
+        explorationMsg += `\n${_fExploIcons[_fExploFresh.faction] || '🏴'} +2 inf. ${_fExploLabel}`;
+      }
+    }
     // IMPL-WM-1711: hook exploración nueva sala → Misión de Guerra conclave_arcano
     try {
       const freshForWMExplore = db.getPlayer(player.id);
@@ -6123,9 +6135,23 @@ function cmdAttack(player, targetName) {
   }
 
   // ── EPIC-1373: Influencia de facción por kill ────────────────────────────
+  let factionKillInfluenceMsg = '';
   if (monsterDead) {
     const factionKillPoints = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]) ? 5 : 1;
-    db.addFactionInfluence(player.id, factionKillPoints);
+    const factionKillAdded = db.addFactionInfluence(player.id, factionKillPoints);
+    // DIS-2162: retroalimentación inmediata de influencia
+    if (factionKillAdded) {
+      const freshForFaction = db.getPlayer(player.id);
+      if (freshForFaction && freshForFaction.faction) {
+        const FACTION_ICONS = { orden_filo: '🗡️', conclave_arcano: '🔮', hermandad_mercado: '🪙' };
+        const fIcon = FACTION_ICONS[freshForFaction.faction] || '🏴';
+        const fLabel = freshForFaction.faction === 'orden_filo' ? 'Orden'
+          : freshForFaction.faction === 'conclave_arcano' ? 'Cónclave'
+          : freshForFaction.faction === 'hermandad_mercado' ? 'Hermandad'
+          : freshForFaction.faction;
+        factionKillInfluenceMsg = `\n${fIcon} +${factionKillPoints} inf. ${fLabel}`;
+      }
+    }
   }
 
   // ── Evaluar logros tras el combate ──────────────────────────────────────
@@ -7122,7 +7148,7 @@ function cmdAttack(player, targetName) {
   // DIS-2115: añadir aviso de inicio de agotamiento berserk al final del bloque de combate (prominencia visual)
   const combatBlock = lichDialoguePrefix + battlecryPrefix + lines.join('\n') + bossDeathDialogueBlock + comboMsg + skillHint + _autoTargetHint + (berserkExhaustMsg || '');
 
-  const notifRaw = achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + kaelthasEndingBlock + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg + (_bug1781BossInvWarning ? '\n\n' + _bug1781BossInvWarning.trim() : '');
+  const notifRaw = achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + kaelthasEndingBlock + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg + factionKillInfluenceMsg + (_bug1781BossInvWarning ? '\n\n' + _bug1781BossInvWarning.trim() : '');
 
   // DIS-2041: cuando el monstruo muere, agregar separador antes de las notificaciones
   // para que el resultado del turno (arriba) sea siempre lo primero que ve el jugador.
@@ -14317,7 +14343,22 @@ function cmdBuy(player, itemQuery) {
         const newGoldBag = gold - finalPrice;
         db.updatePlayer(player.id, { gold: newGoldBag, inventory_bonus: newBagBonus });
         db.addGoldSpent(player.id, finalPrice);
-        db.addFactionInfluence(player.id, 1);
+        // DIS-2162: retroalimentación inmediata de influencia
+        let _fBagInfluenceMsg = '';
+        {
+          const _fBagAdded = db.addFactionInfluence(player.id, 1);
+          if (_fBagAdded) {
+            const _fBagFresh = db.getPlayer(player.id);
+            if (_fBagFresh && _fBagFresh.faction) {
+              const _fBagIcons = { orden_filo: '🗡️', conclave_arcano: '🔮', hermandad_mercado: '🪙' };
+              const _fBagLabel = _fBagFresh.faction === 'orden_filo' ? 'Orden'
+                : _fBagFresh.faction === 'conclave_arcano' ? 'Cónclave'
+                : _fBagFresh.faction === 'hermandad_mercado' ? 'Hermandad'
+                : _fBagFresh.faction;
+              _fBagInfluenceMsg = `\n${_fBagIcons[_fBagFresh.faction] || '🏴'} +1 inf. ${_fBagLabel}`;
+            }
+          }
+        }
         { // memoria Aldric
           const memBag = db.getPlayer(player.id);
           let memBagObj = {};
@@ -14330,7 +14371,7 @@ function cmdBuy(player, itemQuery) {
         const freshBagDirect = db.getPlayer(player.id);
         const newSlotsDirect = INV_BASE_SLOTS + newBagBonus;
         const usedSlotsDirect = (freshBagDirect.inventory || []).length + (freshBagDirect.equipped_weapon ? 1 : 0) + (freshBagDirect.equipped_armor ? 1 : 0);
-        return { text: `🎒 Aldric te la pasa y vos la atás directo a la mochila — sin pararla por el inventario, que ya estaba lleno.${aldricPrecioSubeMsg}\n✅ Compraste: ${item.name} por ${finalPrice}g y la expandiste al instante.\n📦 Inventario: ${usedSlotsDirect}/${newSlotsDirect} slots (ganaste +${newBagBonus - currentBagBonus} slots).\n💰 Oro restante: ${newGoldBag}g.` };
+        return { text: `🎒 Aldric te la pasa y vos la atás directo a la mochila — sin pararla por el inventario, que ya estaba lleno.${aldricPrecioSubeMsg}\n✅ Compraste: ${item.name} por ${finalPrice}g y la expandiste al instante.\n📦 Inventario: ${usedSlotsDirect}/${newSlotsDirect} slots (ganaste +${newBagBonus - currentBagBonus} slots).\n💰 Oro restante: ${newGoldBag}g.${_fBagInfluenceMsg}` };
       }
       return { text: `🎒 Tu inventario está lleno (${buyUsedSlots}/${buyInvMax}). Vendé algo, usá el vault (sala 1, 17 o 19) o comprá una bolsa de lona (+4 slots).` };
     }
@@ -14373,7 +14414,22 @@ function cmdBuy(player, itemQuery) {
   db.addGoldSpent(player.id, finalPrice);
 
   // EPIC-1373: Influencia de facción por compra en tienda
-  db.addFactionInfluence(player.id, 1);
+  // DIS-2162: retroalimentación inmediata de influencia
+  let factionBuyInfluenceMsg = '';
+  {
+    const _fBuyAdded = db.addFactionInfluence(player.id, 1);
+    if (_fBuyAdded) {
+      const _fBuyFresh = db.getPlayer(player.id);
+      if (_fBuyFresh && _fBuyFresh.faction) {
+        const _fBuyIcons = { orden_filo: '🗡️', conclave_arcano: '🔮', hermandad_mercado: '🪙' };
+        const _fBuyLabel = _fBuyFresh.faction === 'orden_filo' ? 'Orden'
+          : _fBuyFresh.faction === 'conclave_arcano' ? 'Cónclave'
+          : _fBuyFresh.faction === 'hermandad_mercado' ? 'Hermandad'
+          : _fBuyFresh.faction;
+        factionBuyInfluenceMsg = `\n${_fBuyIcons[_fBuyFresh.faction] || '🏴'} +1 inf. ${_fBuyLabel}`;
+      }
+    }
+  }
 
   // EPIC-MR-1079: Actualizar memoria de Aldric (purchases y gold_spent_at_aldric)
   {
@@ -14575,7 +14631,7 @@ function cmdBuy(player, itemQuery) {
   } catch (_) { /* no romper compra si falla factionMissions */ }
 
   return {
-    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}${craftAlternativeHint}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${autoEquipMsg}${equipTip}${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}${questBuyMsg}${fmBuyMsg}`,
+    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}${craftAlternativeHint}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${autoEquipMsg}${equipTip}${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}${questBuyMsg}${fmBuyMsg}${factionBuyInfluenceMsg}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
@@ -19539,9 +19595,21 @@ function cmdCast(player, args) {
         lines.push(`   📜 Contrato semanal: ${wcrCast.contract.target} (${wcrCast.contract.progress}/${wcrCast.contract.goal})`);
       }
       // EPIC-1373: Influencia de facción por kill con hechizo
+      // DIS-2162: retroalimentación inmediata de influencia
       {
         const factionSpellKillPoints = castBossKill ? 5 : 1;
-        db.addFactionInfluence(player.id, factionSpellKillPoints);
+        const _fSpellAdded = db.addFactionInfluence(player.id, factionSpellKillPoints);
+        if (_fSpellAdded) {
+          const _fSpellFresh = db.getPlayer(player.id);
+          if (_fSpellFresh && _fSpellFresh.faction) {
+            const _fSpellIcons = { orden_filo: '🗡️', conclave_arcano: '🔮', hermandad_mercado: '🪙' };
+            const _fSpellLabel = _fSpellFresh.faction === 'orden_filo' ? 'Orden'
+              : _fSpellFresh.faction === 'conclave_arcano' ? 'Cónclave'
+              : _fSpellFresh.faction === 'hermandad_mercado' ? 'Hermandad'
+              : _fSpellFresh.faction;
+            lines.push(`${_fSpellIcons[_fSpellFresh.faction] || '🏴'} +${factionSpellKillPoints} inf. ${_fSpellLabel}`);
+          }
+        }
       }
       // BUG-672: Completar tutorial si el goblin de práctica murió con un hechizo
       {
@@ -22059,7 +22127,22 @@ function cmdUseSkill(player, args, context) {
         text += `\n📜 Contrato semanal: ${wcrSmash.contract.target} (${wcrSmash.contract.progress}/${wcrSmash.contract.goal})`;
       }
       // EPIC-1373: Influencia de facción por kill con smash
-      db.addFactionInfluence(freshPlayer.id, smashBossKill ? 5 : 1);
+      // DIS-2162: retroalimentación inmediata de influencia
+      {
+        const _smashFPoints = smashBossKill ? 5 : 1;
+        const _smashFAdded = db.addFactionInfluence(freshPlayer.id, _smashFPoints);
+        if (_smashFAdded) {
+          const _smashFFresh = db.getPlayer(freshPlayer.id);
+          if (_smashFFresh && _smashFFresh.faction) {
+            const _smashFIcons = { orden_filo: '🗡️', conclave_arcano: '🔮', hermandad_mercado: '🪙' };
+            const _smashFLabel = _smashFFresh.faction === 'orden_filo' ? 'Orden'
+              : _smashFFresh.faction === 'conclave_arcano' ? 'Cónclave'
+              : _smashFFresh.faction === 'hermandad_mercado' ? 'Hermandad'
+              : _smashFFresh.faction;
+            text += `\n${_smashFIcons[_smashFFresh.faction] || '🏴'} +${_smashFPoints} inf. ${_smashFLabel}`;
+          }
+        }
+      }
       if (crSmash && crSmash.reward) {
         text += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
       } else if (crSmash && crSmash.challenge && !crSmash.challenge.done) {
@@ -22491,7 +22574,22 @@ function cmdUseSkill(player, args, context) {
         text += `\n📜 Contrato semanal: ${wcrBash.contract.target} (${wcrBash.contract.progress}/${wcrBash.contract.goal})`;
       }
       // EPIC-1373: Influencia de facción por kill con shield_bash
-      db.addFactionInfluence(freshPlayer.id, bashBossKill ? 5 : 1);
+      // DIS-2162: retroalimentación inmediata de influencia
+      {
+        const _bashFPoints = bashBossKill ? 5 : 1;
+        const _bashFAdded = db.addFactionInfluence(freshPlayer.id, _bashFPoints);
+        if (_bashFAdded) {
+          const _bashFFresh = db.getPlayer(freshPlayer.id);
+          if (_bashFFresh && _bashFFresh.faction) {
+            const _bashFIcons = { orden_filo: '🗡️', conclave_arcano: '🔮', hermandad_mercado: '🪙' };
+            const _bashFLabel = _bashFFresh.faction === 'orden_filo' ? 'Orden'
+              : _bashFFresh.faction === 'conclave_arcano' ? 'Cónclave'
+              : _bashFFresh.faction === 'hermandad_mercado' ? 'Hermandad'
+              : _bashFFresh.faction;
+            text += `\n${_bashFIcons[_bashFFresh.faction] || '🏴'} +${_bashFPoints} inf. ${_bashFLabel}`;
+          }
+        }
+      }
       if (crBash && crBash.reward) {
         text += `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
       } else if (crBash && crBash.challenge && !crBash.challenge.done) {
@@ -25243,7 +25341,19 @@ function cmdReadWall(player) {
     return { text: '📜 Las paredes están vacías. Nadie ha dejado ningún mensaje aquí.' };
   }
   if (msgs.length > 0 || loreForRoom.length > 0) {
-    db.addFactionInfluence(player.id, 1);
+    // DIS-2162: retroalimentación inmediata de influencia por leer inscripciones
+    const _fReadAdded = db.addFactionInfluence(player.id, 1);
+    if (_fReadAdded) {
+      const _fReadFresh = db.getPlayer(player.id);
+      if (_fReadFresh && _fReadFresh.faction) {
+        const _fReadIcons = { orden_filo: '🗡️', conclave_arcano: '🔮', hermandad_mercado: '🪙' };
+        const _fReadLabel = _fReadFresh.faction === 'orden_filo' ? 'Orden'
+          : _fReadFresh.faction === 'conclave_arcano' ? 'Cónclave'
+          : _fReadFresh.faction === 'hermandad_mercado' ? 'Hermandad'
+          : _fReadFresh.faction;
+        lines.push(`${_fReadIcons[_fReadFresh.faction] || '🏴'} +1 inf. ${_fReadLabel}`);
+      }
+    }
   }
 
   // DIS-1492: registrar fragmentos de lore en el diario al leer inscripciones narrativas
