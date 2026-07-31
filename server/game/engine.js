@@ -26960,7 +26960,7 @@ function cmdEvento() {
 ║  🌑 Luna de Sangre  — Monstruos fuertes  ║
 ║  ⚡ Carga Arcana    — Hechizos +50% daño ║
 ║  🌿 Respiro Dungeon — Spawns x2          ║
-║  👻 Marea Espectral — Solo espectros     ║
+║  👻 Marea Espectral — XP ×2 espectros   ║
 ║  💰 Fiebre del Oro  — Oro x3            ║
 ╚══════════════════════════════════════════╝` };
   }

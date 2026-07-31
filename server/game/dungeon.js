@@ -302,7 +302,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     // BUG-2030: threshold actualizado a <=7 para consistencia con combat.js
     if (isSpectralTide && (room.id <= 7 || room.id === 16)) {
       const minLeftEarly = (spectralEvCheck && spectralEvCheck.minutesRemaining != null) ? spectralEvCheck.minutesRemaining : '?'; // BUG-2034
-      lines.push(`\n👻 Marea Espectral activa en las profundidades (~${minLeftEarly} min). Las criaturas exteriores siguen activas.`);
+      lines.push(`\n👻 Marea Espectral activa en las profundidades (~${minLeftEarly} min). Esta zona exterior no se ve afectada — todas sus criaturas siguen activas.`);
     }
     // DIS-2023: en zonas profundas con Marea Espectral, agregar tip de XP doble si hay inactivos
     // BUG-2030: threshold actualizado a >7 para consistencia con combat.js
