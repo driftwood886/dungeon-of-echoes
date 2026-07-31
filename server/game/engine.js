@@ -4397,6 +4397,12 @@ function cmdJunk(player) {
     const itemLower = item.toLowerCase();
     const def = items.getItemDef(item);
 
+    // DIS-2156: si el ítem está explícitamente en JUNK_ITEMS → siempre es basura
+    // (aunque tenga type weapon o sea ingrediente de receta — estos son ítems que 'inventario' ya marca como descartables)
+    if (items.isJunkItem(item)) {
+      junkItems.push(item);
+      continue;
+    }
     // Equipables (weapon/armor) → conservar
     if (def && (def.type === 'weapon' || def.type === 'armor')) {
       keepItems.push({ item, reason: 'equipable' });
@@ -4486,8 +4492,14 @@ function cmdSellJunk(player) {
   }
 
   // Determinar ítems basura — misma lógica que cmdJunk
+  // DIS-2156: si el ítem está marcado explícitamente como descartable en JUNK_ITEMS → siempre incluir
+  // (evita inconsistencia con 'inventario' que usa isJunkItem para la sección de descartables)
   const junkItems = [];
   for (const item of inv) {
+    if (items.isJunkItem(item)) {
+      junkItems.push(item);
+      continue;
+    }
     const def = items.getItemDef(item);
     if (def && (def.type === 'weapon' || def.type === 'armor')) continue;
     const rarity = items.getItemRarity(item);
