@@ -14569,6 +14569,32 @@ function cmdSell(player, itemQuery) {
   }
 
   const found = items.findItem(player.inventory, resolvedQuery);
+
+  // BUG-2153: ítems de trampa (quest items) — no vendibles.
+  // La corona rota (y otros ítems de un solo uso para desactivar trampas) son
+  // irreemplazables o difíciles de recuperar. Venderlos es una pérdida permanente
+  // no intencionada para el jugador.
+  const TRAP_KEY_ITEMS = [
+    'corona rota',
+    'filacteria rota',
+    'hongo azul',
+    'cuerda',
+    'sello arcano',
+    'fragmento de sello',
+  ];
+  if (found) {
+    const foundNorm = found.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const isTrapKey = TRAP_KEY_ITEMS.some(k => {
+      const kNorm = k.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return foundNorm.includes(kNorm);
+    });
+    if (isTrapKey) {
+      return {
+        text: `🏪 Aldric inspecciona el objeto y arruga el ceño.\n"Esto... esto no te lo compro. Tiene uso en el dungeon. Si te deshacés de esto, te podés arrepentir."\n\n⚠️ Los ítems de trampa y piezas clave del dungeon no se pueden vender. Son tu única forma de desactivar ciertas trampas o acceder a zonas bloqueadas.`,
+      };
+    }
+  }
+
   if (!found) {
     // BUG-517: también buscar en ítems equipados (no están en player.inventory)
     const nq = resolvedQuery.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
