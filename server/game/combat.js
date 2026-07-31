@@ -2958,7 +2958,24 @@ function findMonsterInRoom(roomId, targetName) {
   const monsters = db.getMonstersInRoom(roomId);
   const normalize = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const name = normalize(targetName.trim());
-  return monsters.find(m => normalize(m.name).includes(name)) || null;
+
+  // Paso 1: matching por substring exacto (comportamiento original)
+  const exact = monsters.find(m => normalize(m.name).includes(name));
+  if (exact) return exact;
+
+  // Paso 2: BUG-2139 — matching por palabras individuales
+  // "golem forja" debe matchear "Golem de Forja" aunque no sea substring exacto
+  // Solo aplica si la query tiene múltiples palabras
+  const words = name.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    const byWords = monsters.find(m => {
+      const mNorm = normalize(m.name);
+      return words.every(w => mNorm.includes(w));
+    });
+    if (byWords) return byWords;
+  }
+
+  return null;
 }
 
 // ─── Helpers privados ─────────────────────────────────────────────────────────
