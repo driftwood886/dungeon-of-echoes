@@ -2151,8 +2151,10 @@ function cmdMove(player, direction) {
               if (!seNBCorona.trono_corona_warning_done) {
                 const newSeNBCorona = { ...seNBCorona, trono_corona_warning_done: true };
                 db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeNBCorona) });
+                const dirNormNBCorona = dungeon.normalizeDirection(direction);
+                const dirEsNBCorona = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNormNBCorona]) || dirNormNBCorona || 'el mismo comando';
                 return {
-                  text: `👑 Vas a entrar a la Sala del Trono. Tenés una «corona rota» en el inventario.\n\nSi entrás ahora, la corona será ofrendada al trono automáticamente, desactivando la trampa de frío — pero **se consumirá** y no la recuperarás.\n\n¿Querés usarla?\n   ✅ Sí, entrar y usar la corona: repetí el comando de movimiento\n   ❌ No, guardarla: usá «desactivar trampa» desde afuera para desactivarla sin entrar (mismo efecto pero más control)\n\n💡 Si entrás sin querer usar la corona, podés escapar con «flee» antes de que se aplique el daño de trampa.`,
+                   text: `👑 Vas a entrar a la Sala del Trono. Tenés una «corona rota» en el inventario.\n\nSi entrás ahora, la corona será ofrendada al trono automáticamente, desactivando la trampa de frío — pero **se consumirá** y no la recuperarás.\n\n¿Querés usarla?\n   ✅ Sí, entrar y usar la corona: escribí «${dirEsNBCorona}» de nuevo\n   ❌ No, guardarla: usá «desactivar trampa» desde afuera para desactivarla sin entrar (mismo efecto pero más control)\n\n💡 Si entrás sin querer usar la corona, podés escapar con «flee» antes de que se aplique el daño de trampa.`,
                 };
               }
               // Segunda vez: limpiar flag y seguir — auto-consume en la trampa
@@ -2171,7 +2173,7 @@ function cmdMove(player, direction) {
                 const currentRoomNB1249 = db.getRoom(player.current_room_id);
                 const currentRoomNameNB1249 = currentRoomNB1249 ? currentRoomNB1249.name : 'tu sala actual';
                 return {
-                  text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance\n   • Derrotá al Espectro del Corredor en la Sala del Trono (sala 9) — drop garantizado\n     ⚠️  El Espectro VIVE en esta sala trampeada. Si entrás sin la corona, tomás el daño de la trampa una vez, pero el sistema aprende que ya la conocés — las visitas siguientes son sin daño.\n   → Con la corona en mano, **desde ${currentRoomNameNB1249}**: escribí «desactivar trampa ${dirEsNB1249}»\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+                    text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance\n   • Derrotá al Espectro del Corredor en la Sala del Trono (sala 9) — drop garantizado\n     ⚠️  El Espectro VIVE en esta sala trampeada. Si entrás sin la corona, tomás el daño de la trampa una vez, pero el sistema aprende que ya la conocés — las visitas siguientes son sin daño.\n   → Con la corona en mano, **desde ${currentRoomNameNB1249}**: escribí «desactivar trampa ${dirEsNB1249}»\n\n💡 Si aun así querés entrar (asumiendo el riesgo), escribí «${dirEsNB1249}» de nuevo.`,
                 };
               }
               // Segunda vez: limpiar flag y continuar
@@ -2524,8 +2526,10 @@ function cmdMove(player, direction) {
               if (!seBFH1948Corona.trono_corona_warning_done) {
                 const newSeBFH1948Corona = { ...seBFH1948Corona, trono_corona_warning_done: true };
                 db.updatePlayer(player.id, { status_effects: JSON.stringify(newSeBFH1948Corona) });
+                const dirNormBFHCorona = dungeon.normalizeDirection(direction);
+                const dirEsBFHCorona = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNormBFHCorona]) || dirNormBFHCorona || 'el mismo comando';
                 return {
-                  text: `👑 Vas a entrar a la Sala del Trono. Tenés una «corona rota» en el inventario.\n\nSi entrás ahora, la corona será ofrendada al trono automáticamente, desactivando la trampa de frío — pero **se consumirá** y no la recuperarás.\n\n¿Querés usarla?\n   ✅ Sí, entrar y usar la corona: repetí el comando de movimiento\n   ❌ No, guardarla: usá «desactivar trampa» desde afuera para desactivarla sin entrar (mismo efecto pero más control)\n\n💡 Si entrás sin querer usar la corona, podés escapar con «flee» antes de que se aplique el daño de trampa.`,
+                   text: `👑 Vas a entrar a la Sala del Trono. Tenés una «corona rota» en el inventario.\n\nSi entrás ahora, la corona será ofrendada al trono automáticamente, desactivando la trampa de frío — pero **se consumirá** y no la recuperarás.\n\n¿Querés usarla?\n   ✅ Sí, entrar y usar la corona: escribí «${dirEsBFHCorona}» de nuevo\n   ❌ No, guardarla: usá «desactivar trampa» desde afuera para desactivarla sin entrar (mismo efecto pero más control)\n\n💡 Si entrás sin querer usar la corona, podés escapar con «flee» antes de que se aplique el daño de trampa.`,
                 };
               }
               // Segunda vez: limpiar flag y seguir
@@ -2543,7 +2547,7 @@ function cmdMove(player, direction) {
                 const currentRoomBFH1948 = db.getRoom(player.current_room_id);
                 const currentRoomNameBFH1948 = currentRoomBFH1948 ? currentRoomBFH1948.name : 'tu sala actual';
                 return {
-                  text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance\n   • Derrotá al Espectro del Corredor en la Sala del Trono (sala 9) — drop garantizado\n     ⚠️  El Espectro VIVE en esta sala trampeada. Si entrás sin la corona, tomás el daño de la trampa una vez, pero el sistema aprende que ya la conocés — las visitas siguientes son sin daño.\n   → Con la corona en mano, **desde ${currentRoomNameBFH1948}**: escribí «desactivar trampa ${dirEsBFH1948t}»\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+                    text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance\n   • Derrotá al Espectro del Corredor en la Sala del Trono (sala 9) — drop garantizado\n     ⚠️  El Espectro VIVE en esta sala trampeada. Si entrás sin la corona, tomás el daño de la trampa una vez, pero el sistema aprende que ya la conocés — las visitas siguientes son sin daño.\n   → Con la corona en mano, **desde ${currentRoomNameBFH1948}**: escribí «desactivar trampa ${dirEsBFH1948t}»\n\n💡 Si aun así querés entrar (asumiendo el riesgo), escribí «${dirEsBFH1948t}» de nuevo.`,
                 };
               }
               // Segunda vez: limpiar flag y continuar
@@ -2940,8 +2944,10 @@ function cmdMove(player, direction) {
         if (!se1249Corona.trono_corona_warning_done) {
           const newSe1249Corona = { ...se1249Corona, trono_corona_warning_done: true };
           db.updatePlayer(player.id, { status_effects: JSON.stringify(newSe1249Corona) });
+          const dirNorm1249Corona = dungeon.normalizeDirection(direction);
+          const dirEs1249Corona = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNorm1249Corona]) || dirNorm1249Corona || 'el mismo comando';
           return {
-            text: `👑 Vas a entrar a la Sala del Trono. Tenés una «corona rota» en el inventario.\n\nSi entrás ahora, la corona será ofrendada al trono automáticamente, desactivando la trampa de frío — pero **se consumirá** y no la recuperarás.\n\n¿Querés usarla?\n   ✅ Sí, entrar y usar la corona: repetí el comando de movimiento\n   ❌ No, guardarla: usá «desactivar trampa» desde afuera para desactivarla sin entrar (misma efecto pero más control)\n\n💡 Si entrás sin querer usar la corona, podés escapar con «flee» antes de que se aplique el daño de trampa.`,
+             text: `👑 Vas a entrar a la Sala del Trono. Tenés una «corona rota» en el inventario.\n\nSi entrás ahora, la corona será ofrendada al trono automáticamente, desactivando la trampa de frío — pero **se consumirá** y no la recuperarás.\n\n¿Querés usarla?\n   ✅ Sí, entrar y usar la corona: escribí «${dirEs1249Corona}» de nuevo\n   ❌ No, guardarla: usá «desactivar trampa» desde afuera para desactivarla sin entrar (mismo efecto pero más control)\n\n💡 Si entrás sin querer usar la corona, podés escapar con «flee» antes de que se aplique el daño de trampa.`,
           };
         }
         // Segunda vez: limpiar el flag y seguir — el auto-consume en la trampa se encarga del resto
@@ -2961,7 +2967,7 @@ function cmdMove(player, direction) {
           const currentRoom1249 = db.getRoom(player.current_room_id);
           const currentRoomName1249 = currentRoom1249 ? currentRoom1249.name : 'tu sala actual';
           return {
-                  text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance\n   • Derrotá al Espectro del Corredor en la Sala del Trono (sala 9) — drop garantizado\n     ⚠️  El Espectro VIVE en esta sala trampeada. Si entrás sin la corona, tomás el daño de la trampa una vez, pero el sistema aprende que ya la conocés — las visitas siguientes son sin daño.\n   → Con la corona en mano, **desde ${currentRoomName1249}**: escribí «desactivar trampa ${dirEs1249}»\n\n💡 Si aun así querés entrar (asumiendo el riesgo), repetí el comando de movimiento.`,
+                   text: `⚠️  Al asomarte al umbral de la Sala del Trono, sentís un frío antinatural que te traspasa la ropa — no es temperatura, es algo más profundo, como si el aire mismo te rechazara.\n\nHay una trampa de frío activa dentro. Al cruzar, el frío se intensificará y perderás HP.\n\n👑 Para evitar el daño, conseguí una «corona rota» y desactivá la trampa desde afuera:\n   • «buscar» en la Prisión Subterránea (sala 8) — 35% de chance\n   • Derrotá al Espectro del Corredor en la Sala del Trono (sala 9) — drop garantizado\n     ⚠️  El Espectro VIVE en esta sala trampeada. Si entrás sin la corona, tomás el daño de la trampa una vez, pero el sistema aprende que ya la conocés — las visitas siguientes son sin daño.\n   → Con la corona en mano, **desde ${currentRoomName1249}**: escribí «desactivar trampa ${dirEs1249}»\n\n💡 Si aun así querés entrar (asumiendo el riesgo), escribí «${dirEs1249}» de nuevo.`,
           };
         }
         // Segunda vez: limpiar el flag y continuar con el movimiento normal (recibirá daño de trampa)
