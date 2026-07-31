@@ -11646,13 +11646,19 @@ function cmdMap(player, args = []) {
     // DIS-1527: simplificar salas no exploradas — usar ░ en vez de · para indicar
     // neblina de exploración de forma más clara y compacta visualmente.
     if (!visitedRooms.has(id)) {
+      // DIS-2142: Reformatear salas no exploradas para que el layout sea siempre
+      // [ NN:XXXXXXXXX] (mismo ancho que una celda normal), eliminando el '?' al inicio
+      // que confundía al jugador al mezclar marcador, número e indicadores en un bloque críptico.
       if (discoveredRooms.has(id)) {
-        // Sala detectada (adyacente): mostrar nombre abreviado + niebla
-        const hint = (NAMES[id] || `S${id}`).substring(0, 5).padEnd(5, '░');
-        return `[?${String(id).padStart(2, ' ')}:${hint}░░░░]`;
+        // Sala detectada (adyacente a una visitada): nombre parcial + '?' de relleno hasta 9 chars
+        // Ej: [ 18:Fuent????] — el jugador ve el ID y entiende que hay más por explorar
+        const hint = (NAMES[id] || `S${id}`).substring(0, 5);
+        const filler = '?'.repeat(9 - hint.length);
+        return `[ ${String(id).padStart(2, ' ')}:${hint}${filler}]`;
       }
-      // Sala totalmente desconocida: solo el número + neblina densa
-      return `[?${String(id).padStart(2, ' ')} ░░░░░░░░░]`;
+      // Sala totalmente desconocida: número + puntos homogéneos (sin ':' que confunda)
+      // Ej: [ 18 ·········] — señal de que existe pero no hay info aún
+      return `[ ${String(id).padStart(2, ' ')} ·········]`;
     }
     const label = (NAMES[id] || `Sala${id}`).substring(0, 9).padEnd(9, ' ');
     const marker = id === here ? '★' : ' ';
@@ -11787,7 +11793,7 @@ function cmdMap(player, args = []) {
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
       : `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda del Mercader)`,
-    `[?NN ░░░░░░░░░] = sala no explorada (usá "ruta NN" para llegar)  [?NN:Nom░░░░] = sala detectada (adyacente)  [16/21] = salas de tutorial`,
+    `[ NN ·········] = sala no explorada (usá "ruta NN" para llegar)  [ NN:Nom?????] = sala detectada (adyacente, aún sin visitar)  [16/21] = salas de tutorial`,
     // DIS-921: conteo de salas exploradas al pie del mapa
     (() => {
       const MAP_DUNGEON_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18,19,20,22];
