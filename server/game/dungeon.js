@@ -494,6 +494,19 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
     }
   }
 
+  // DIS-2150: Sala 3 (Sala de los Ecos) — advertencia de nivel recomendado si hay Zombie Caminante
+  // El Zombie Caminante (HP 22, id 31) aparece como variante y puede matar a jugadores lvl 1-2.
+  // Mostrar advertencia similar al Gólem de Piedra (sala 10) cuando está presente y activo.
+  if (roomId === 3 && player) {
+    try {
+      const monstersRoom3 = db.getMonstersInRoom(3);
+      const zombieAlive = monstersRoom3.some(m => m.hp > 0 && (m.name || '').toLowerCase().includes('zombie caminante'));
+      if (zombieAlive && (player.level || 1) < 3) {
+        lines.push(`\n⚠️ Un muerto viviente merodea esta sala. Nivel recomendado: 3+ (tu nivel actual: ${player.level || 1}). Considerá equiparte mejor antes de atacarlo — o busca otro camino.`);
+      }
+    } catch (_) { /* no romper la sala si falla */ }
+  }
+
   // NPC Mercader en sala 4
   // DIS-1346: para veteranos, solo mostrar que Aldric está presente (útil), suprimir hints instructivos
   if (roomId === 4) {
