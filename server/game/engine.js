@@ -3007,7 +3007,7 @@ function cmdMove(player, direction) {
         const dirNorm1504 = dungeon.normalizeDirection(direction);
         const dirEs1504 = (dungeon.DIR_NAMES && dungeon.DIR_NAMES[dirNorm1504]) || dirNorm1504 || 'la dirección indicada';
         return {
-          text: `⚠️  ${boss1504.icon} Antes de entrar a ${boss1504.roomName}, algo te detiene — el aire se vuelve más denso, más peligroso.\n\n**${boss1504.name}** aguarda dentro. Nivel recomendado: ${boss1504.level}+ (tu nivel actual: ${playerLevel1504}).\n\nEntrar ahora es un riesgo considerable. Conviene explorar más, subir de nivel o conseguir mejores equipos antes.\n\n💡 Si aun así querés entrar, escribí «${dirEs1504}» de nuevo.`,
+          text: `⚠️  ${boss1504.icon} Antes de entrar a ${boss1504.roomName}, algo te detiene — el aire se vuelve más denso, más peligroso.\n\n**${boss1504.name}** aguarda dentro. Nivel recomendado: ${boss1504.level}+ (tu nivel actual: ${playerLevel1504}).\n\nEntrar ahora es un riesgo considerable. Conviene explorar más, subir de nivel o conseguir mejores equipos antes.\n\n💡 Para ignorar la advertencia y entrar igual: repetí el mismo comando de dirección («${dirEs1504}» de nuevo).`,
         };
       }
       // Segunda vez consecutiva desde la misma sala: limpiar flag y dejar pasar
