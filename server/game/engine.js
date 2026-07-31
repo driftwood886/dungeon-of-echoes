@@ -10325,16 +10325,15 @@ function cmdScore(player, args, context) {
   }
 
   // Modo default: kills + XP
-  // BUG-1247: el filtro de bots ahora se hace en la DB (is_bot = 0 en getLeaderboard).
+  // BUG-1247: el filtro de bots se hace en la DB (is_bot = 0 en getLeaderboard).
+  // BUG-2152: se eliminó el filtro JS secundario con BOT_PATTERNS — causaba inconsistencia:
+  //   la API /api/leaderboard mostraba jugadores con is_bot=0 pero el comando in-game los ocultaba
+  //   si su nombre coincidía con algún patrón de bot. La DB es la única fuente de verdad para is_bot.
   // Para "score todo/bots", usar getLeaderboardAll que incluye bots.
-  // Mantenemos el filtro JS como respaldo por si hay bots sin la columna is_bot seteada.
-  const BOT_PATTERNS = [/^BotTester/i, /^playtest_bot/i, /^PTBot/i, /^DisTester/i, /^PTBotD/i, /^DisDesign/i, /^PlayBot/i, /^bot_/i, /^BotPlaytest/i, /^Bot\w*(Bugs|Diseno|Design|Mago)/i, /^playtest/i, /^PTDesign/i, /bugbot/i, /^diseno/i, /^design/i, /MagoBot/i, /^bottest/i, /^tester/i, /^testbot/i, /^pt_/i, /_pt$/, /_bot$/, /^diseñador/i, /^bot.*_test$/i];
-  const isBot = name => BOT_PATTERNS.some(p => p.test(name));
-
   const mode2 = mode === 'bots' || mode === 'todo';
   // BUG-1247: getLeaderboard ya excluye bots via is_bot=0; getLeaderboardAll los incluye todos
   const rawLeaders = mode2 ? db.getLeaderboardAll(10) : db.getLeaderboard(10);
-  const leaders = mode2 ? rawLeaders : rawLeaders.filter(p => !isBot(p.username || ''));
+  const leaders = rawLeaders;
 
   // BUG-1875: si el leaderboard está vacío pero el jugador tiene logros (kills > 0 o level > 1),
   // incluirlo como única entrada. En Render free-tier la DB se resetea frecuentemente y todos
@@ -10344,7 +10343,8 @@ function cmdScore(player, args, context) {
   //           incluirlo con sus datos actuales. Usar objeto player de sesión como fallback si la DB
   //           no lo encuentra (caso Render free-tier: DB reseteada con sesión activa en memoria).
   let displayLeaders = leaders;
-  const playerIsBot = !!(player.is_bot) || isBot(player.username || '');
+  // BUG-2152: usar solo is_bot de la DB como fuente de verdad (se eliminó isBot() JS)
+  const playerIsBot = !!(player.is_bot);
   if (!playerIsBot && !mode2) {
     const playerAlreadyInList = leaders.some(p => p.id === player.id || p.username === player.username);
     if (!playerAlreadyInList) {
