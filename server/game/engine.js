@@ -14050,7 +14050,14 @@ function cmdShop(player, args) {
           lines.push(`${clsShop.emoji} Aldric nota tu equipo.`);
           lines.push(`  \"${player.username}... con ese armamento, lo que vas a necesitar son estos:\"`);
         } else {
-          lines.push(`${clsShop.emoji} Como ${clsShop.name}, Aldric te recomienda especialmente:`);
+          // DIS-2147: texto diferenciado por clase con rol explicado, no solo "te recomienda"
+          const CLASS_SHOP_INTRO = {
+            'Guerrero': `${clsShop.emoji} Aldric asiente al verte entrar. «${player.username}. Un guerrero. Necesitás hierro y aguante.» Señala directamente al equipo ofensivo y defensivo:`,
+            'Mago':     `${clsShop.emoji} Aldric saca su catálogo especial de pergaminos y materiales arcanos. «Para los que usan magia, no fuerza bruta —» murmura, ignorando las espadas en el estante:`,
+            'Clérigo':  `${clsShop.emoji} «Un clérigo.» Aldric baja la voz con algo parecido al respeto. «Los curanderos duran más que todos. Pero necesitán sus propios materiales.» Señala su sección sagrada:`,
+            'Pícaro':   `${clsShop.emoji} Aldric arquea una ceja. «Pícaro. Menos metal, más filo y sigilo.» Sin decir más, apunta a lo que le sirve a alguien que prefiere las sombras:`,
+          };
+          lines.push(CLASS_SHOP_INTRO[clsShop.name] || `${clsShop.emoji} Como ${clsShop.name}, Aldric te recomienda especialmente:`);
         }
         lines.push(recItems.join('  '));
         lines.push('');
