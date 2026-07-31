@@ -15186,7 +15186,10 @@ function cmdFacciones(player) {
     const isLeader = f.id === leader.id;
     const crown = isLeader ? ' 👑' : '   ';
     // DIS-2016: ocultar % exacto cuando el jugador no tiene facción (reduce sesgo de elección)
-    const pctDisplay = player.faction ? String(pct).padStart(3) + '%' : ' ??%';
+    // DIS-2135: mostrar posición ordinal en lugar de ??% — revela orden sin revelar % exacto
+    const factionRank = ranking.indexOf(f) + 1;
+    const rankLabel = factionRank === 1 ? '1° ' : factionRank === 2 ? '2° ' : '3° ';
+    const pctDisplay = player.faction ? String(pct).padStart(3) + '%' : rankLabel;
     lines.push(`║  ${f.icon} ${f.name.padEnd(22)} [${bar}] ${pctDisplay}${crown} ║`);
   }
 
@@ -15198,8 +15201,9 @@ function cmdFacciones(player) {
       lines.push(`║  Bonus activo: ${(BONUSES[leader.id] || '???').padEnd(37)}║`);
     } else {
       // DIS-2016: jugador sin facción — ocultar quién controla para no sesgar la elección
-      lines.push(`║  Hay una facción con control esta semana.             ║`);
-      lines.push(`║  Uníte para ver quién lidera y qué bonus está activo. ║`);
+      // DIS-2135: aclarar que pueden ver el orden relativo aunque no el % exacto
+      lines.push(`║  Ves el orden relativo (1°/2°/3°) pero no el % exacto. ║`);
+      lines.push(`║  Uníte para ver el liderador y el bonus activo.       ║`);
     }
   } else {
     lines.push(`║  Sin control establecido esta semana aún.             ║`);
