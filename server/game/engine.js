@@ -3529,6 +3529,9 @@ function cmdMove(player, direction) {
         // Debuff temporal narrativo — solo en primera visita (en revisitas lo muestra look)
         if (firstVisitEver) {
           effectText = `\n\n${roomEffect.msg}`;
+        } else if (targetId === 9) {
+          // DIS-2161: en revisitas a la Sala del Trono, recordatorio compacto del debuff ambiental
+          effectText = `\n\n❄️ El frío sobrenatural sigue activo en esta sala. (-1 ATK mientras estés aquí)`;
         }
         // En revisitas: silencioso. El bloque 🌐 de `look` ya informa el efecto activo.
       } else if (echoAmuletCancelsDebuff) {
