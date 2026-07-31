@@ -2590,16 +2590,29 @@ function migrateQuestPurgaOrdenDIS1605() {
     }
     const currentCond = exists[0].values[0][1];
     const parsed = JSON.parse(currentCond || '{}');
+    const newDescription = 'Las presencias espectrales del dungeon no son monstruos ordinarios — son una contaminación que la Orden del Filo tiene el deber de erradicar. Tu misión: eliminá 3 criaturas de tipo espectro. Cuentan: Espectro del Corredor, Guardia Espectral, Campeón Espectral. (No cuentan esqueletos, trolls ni criaturas no-espectrales.) La postura es tuya, el resultado es lo que importa.';
     if (parsed.target_type === 'espectro') {
-      console.log('[seed] migrateQuestPurgaOrdenDIS1605: quest ya tiene target_type=espectro — sin cambios. ✓');
+      // Condition ya está migrada — pero verificar si la descripción fue actualizada con DIS-2140
+      const existsDesc = rawDb.exec(`SELECT description FROM quest_definitions WHERE id = 'faccion_orden_filo_purga'`);
+      const currentDesc = existsDesc && existsDesc[0] && existsDesc[0].values[0] ? existsDesc[0].values[0][0] : '';
+      if (currentDesc.includes('Campeón Espectral')) {
+        console.log('[seed] migrateQuestPurgaOrdenDIS1605: quest ya actualizada (DIS-2140 desc) — sin cambios. ✓');
+        return;
+      }
+      // Actualizar solo la descripción (DIS-2140)
+      rawDb.run(
+        `UPDATE quest_definitions SET description = ? WHERE id = 'faccion_orden_filo_purga'`,
+        [newDescription]
+      );
+      console.log('[seed] migrateQuestPurgaOrdenDIS1605: descripción actualizada con lista explícita de espectros (DIS-2140). ✓');
       return;
     }
     const newCondition = JSON.stringify({ event: 'kill', target_type: 'espectro', require_stance: null, count: 3 });
-    const newDescription = 'Las presencias espectrales del dungeon no son monstruos ordinarios — son una contaminación que la Orden del Filo tiene el deber de erradicar. Tu misión: eliminá 3 espectros. Espectros del Corredor, Guardia Espectral — todos cuentan. La postura es tuya, el resultado es lo que importa.';
+    const newDesc2140 = 'Las presencias espectrales del dungeon no son monstruos ordinarios — son una contaminación que la Orden del Filo tiene el deber de erradicar. Tu misión: eliminá 3 criaturas de tipo espectro. Cuentan: Espectro del Corredor, Guardia Espectral, Campeón Espectral. (No cuentan esqueletos, trolls ni criaturas no-espectrales.) La postura es tuya, el resultado es lo que importa.';
     rawDb.run(
       `UPDATE quest_definitions SET description = ?, condition = ?, reward = ? WHERE id = 'faccion_orden_filo_purga'`,
       [
-        newDescription,
+        newDesc2140,
         newCondition,
         JSON.stringify({ gold: 50, xp: 40, faction_influence: 6 }),
       ]

@@ -400,7 +400,15 @@ function onKill(player, monster) {
       // Verificar target_type: nombre parcial del monstruo (case-insensitive) o "any"
       const targetType = (cond.target_type || 'any').toLowerCase();
       const monsterName = (monster.name || '').toLowerCase();
-      if (targetType !== 'any' && !monsterName.includes(targetType)) continue;
+      if (targetType !== 'any') {
+        // DIS-2140: matching de familia espectral — 'espectro' también matchea monstruos
+        // con 'espectral' en el nombre (Guardia Espectral, Campeón Espectral son de la misma
+        // familia que el Espectro del Corredor — la descripción de la quest los incluye)
+        const SPECTRAL_ALIASES = { 'espectro': ['espectro', 'espectral'] };
+        const aliases = SPECTRAL_ALIASES[targetType] || [targetType];
+        const monsterMatches = aliases.some(alias => monsterName.includes(alias));
+        if (!monsterMatches) continue;
+      }
 
       // Verificar require_stance (solo quests de guerrero)
       if (cond.require_stance) {
