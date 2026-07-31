@@ -69,12 +69,12 @@ const GLOBAL_EVENTS = [
   {
     id: 'GOLD_RUSH',
     name: '💰 Fiebre del Oro',
-    description: 'El loot de monedas es el triple y los precios de Aldric están al 80%.',
+    description: 'El loot de monedas es el doble y los precios de Aldric están al 90%.',
     durationMs: 10 * 60 * 1000, // 10 minutos
     announcement: '💰 ¡El Mercader tiene una oferta especial! Algo cambió en la economía del dungeon.',
     data: {
-      gold_loot_mult: 3.0,
-      shop_price_mult: 0.8
+      gold_loot_mult: 2.0,   // DIS-2148: reducido de 3.0 — x3 era demasiado generoso
+      shop_price_mult: 0.9   // DIS-2148: reducido de 0.8 — el descuento combinado con loot x3 era inflacionario
     }
   }
 ];

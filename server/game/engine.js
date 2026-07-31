@@ -13085,7 +13085,7 @@ const SHOP_CATALOG = [
   // DIS-2033: poción menor agregada a la tienda — ingrediente de crafteo (hierba curativa + poción menor → poción de vida)
   // Sin esto el tip de crafteo aparecía sin que el jugador pudiera completar la receta en early game.
   { name: 'poción menor',            price: 8,  description: 'Poción débil que restaura 8 HP. Útil como ingrediente: hierba curativa + poción menor = poción de vida (+30 HP).' },
-  { name: 'poción mayor de salud',   price: 35, description: 'Recupera 50 HP. Para las situaciones desesperadas.' },
+  { name: 'poción mayor de salud',   price: 45, description: 'Recupera 50 HP. Para las situaciones desesperadas.' },
   { name: 'antídoto',                price: 20, description: 'Cura el veneno al instante.' },
   { name: 'espada de hierro',        price: 10, description: 'Arma de iniciación. +8 ATK — ideal para los primeros combates. Las mazmorras profundas tienen mejores armas como drops de boss.' },  // DIS-1554: 20g→10g — repositionada como arma de transición barata; el jugador no siente que "tiró" el oro cuando el primer boss dropea algo mejor
   { name: 'daga envenenada',         price: 45, description: 'Daño +4, aplica veneno al enemigo.' },
@@ -13108,7 +13108,7 @@ const SHOP_CATALOG = [
   { name: 'ropa de viajero',          price: 22, description: '🔮 (Mago) Capa con remiendos de cuero. +2 defensa. Opción económica para magos de nivel 1-3 antes de poder pagar la túnica encantada.' },
   // DIS-863: cota de cuero como tier intermedio (35g, +3 DEF) entre cuero endurecido (20g, +2) y cota de malla (60g, +3)
   { name: 'cota de cuero',           price: 35, description: 'Cuero reforzado con placas de metal. +3 defensa. Tier intermedio — mejor que el cuero endurecido, más accesible que la cota de malla.' },
-  { name: 'cota de malla',           price: 60, description: 'Armadura de hierro. +3 defensa.' },
+  { name: 'cota de malla',           price: 80, description: 'Armadura de hierro. +3 defensa.' },
   { name: 'túnica encantada',        price: 60, description: 'Armadura mágica. +4 defensa. Ideal para magos.' },  // DIS-1338: 80g→60g — accesible en nivel 1-2 (el Mago empieza con 65g)
   // DIS-D27: poción de maná para Magos
   // DIS-559: precio bajado de 20g → 12g para compensar economía doble del Mago
@@ -13132,9 +13132,9 @@ const SHOP_CATALOG = [
   // DIS-595: bolsa de lona — expande inventario +4 slots, máx 2 bolsas
   { name: 'bolsa de lona',           price: 20, description: 'Una bolsa de lona resistente con correas de cuero. Al usarla, amplía tu capacidad de inventario en 4 slots (+4 más si comprás una segunda). Máximo 2.' },
   // DIS-1479: ítems premium de alto valor para crear tensión económica en el early/mid game
-  { name: 'elixir de poder',         price: 80,  description: '⚗️ Elixir concentrado de bestia. Da +2 ATK permanente al beberlo. Rarísimo — Aldric solo consigue uno por semana. Requiere farmear.' },
-  { name: 'amuleto de protección',   price: 90,  description: '🔮 Amuleto arcano de la cripta profunda. Da +3 DEF permanente. Aldric lo consiguió en el nivel 12. "Costó caro traerlo acá," dice.' },
-  { name: 'grifo de vitalidad',      price: 100, description: '💎 Frasco sellado con esencia de dragón. Da +15 HP máximo permanente. "Esto no lo doy a cualquiera," dice Aldric. "Sabés lo que vale."' },
+  { name: 'elixir de poder',         price: 110,  description: '⚗️ Elixir concentrado de bestia. Da +2 ATK permanente al beberlo. Rarísimo — Aldric solo consigue uno por semana. Requiere farmear.' }, // DIS-2148: 80→110
+  { name: 'amuleto de protección',   price: 120,  description: '🔮 Amuleto arcano de la cripta profunda. Da +3 DEF permanente. Aldric lo consiguió en el nivel 12. "Costó caro traerlo acá," dice.' }, // DIS-2148: 90→120
+  { name: 'grifo de vitalidad',      price: 130, description: '💎 Frasco sellado con esencia de dragón. Da +15 HP máximo permanente. "Esto no lo doy a cualquiera," dice Aldric. "Sabés lo que vale."' }, // DIS-2148: 100→130
   // DIS-585: materiales de loot con precios diferenciados (sellOnly — no aparecen en la tienda)
   { name: 'pelaje áspero',           price: 13,  sellOnly: true, description: 'Pelaje de rata gigante. Aldric lo compra para curtiembre.' },
   { name: 'garra de esqueleto',      price: 15,  sellOnly: true, description: 'Garra de esqueleto. Aldric la compra como material de armamento.' },
