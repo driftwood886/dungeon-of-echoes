@@ -12217,8 +12217,16 @@ function cmdDisarm(player, args) {
     roomEffectNote744 = '\n🥶 Nota: el "Frío sobrenatural" (-1 ATK) es un efecto permanente de la Sala del Trono — es el ambiente de la sala, no parte de la trampa. Seguirá presente aunque la trampa esté desactivada.';
   }
 
+  // DIS-2141: si el jugador ya conocía esta trampa, aclarar por qué valió la pena desactivarla
+  // (ya no le hacía daño a él, pero seguía activa para otros jugadores que no la conocen)
+  let knownTrapNote2141 = '';
+  const knownTraps2141 = player.known_traps || {};
+  if (knownTraps2141[room.id]) {
+    knownTrapNote2141 = '\n💡 Ya conocías esta trampa — no te hacía daño en tus visitas. Al desactivarla protegiste a otros jugadores que aún no la conocen. El ítem fue consumido de todas formas.';
+  }
+
   return {
-    text: `${trap.disarm_msg}\n✅ La trampa está desactivada. Usaste: "${trap.item_needed}".${roomEffectNote744}${disarmConsumedNote1854local}`,
+    text: `${trap.disarm_msg}\n✅ La trampa está desactivada. Usaste: "${trap.item_needed}".${roomEffectNote744}${knownTrapNote2141}${disarmConsumedNote1854local}`,
     event: `${player.username} desactiva una trampa en la sala.`,
     eventRoomId: room.id,
   };
