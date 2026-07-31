@@ -4945,9 +4945,16 @@ function cmdStatus(player) {
       ? `Armadura: 🛡 ${player.equipped_armor}`
       : `Armadura: (sin armadura — defensa base)`,
     (() => {
+      // DIS-2137: mostrar efectos de postura en status para que el jugador pueda verificar que tuvo efecto
       const stanceName = player.stance || 'equilibrado';
       const st = (typeof STANCES !== 'undefined' ? STANCES : {})[stanceName];
-      return st ? `Postura:  ${st.icon} ${st.label || stanceName}` : null;
+      if (!st) return null;
+      const stEffects = [];
+      if (st.atkMod !== 0) stEffects.push(`${st.atkMod > 0 ? '+' : ''}${st.atkMod} ATK`);
+      if (st.defMod !== 0) stEffects.push(`${st.defMod > 0 ? '+' : ''}${st.defMod} DEF`);
+      if (st.extraMiss && st.extraMiss > 0) stEffects.push(`+${Math.round(st.extraMiss * 100)}% miss`);
+      const stEffStr = stEffects.length > 0 ? ` — ${stEffects.join(', ')}` : '';
+      return `Postura:  ${st.icon} ${st.label || stanceName}${stEffStr}`;
     })(),
     duelWins === 0 && duelLosses === 0
       ? `Duelos:   ⚔️ 0 ganados / 0 perdidos  (💡 usá "duel <nombre>" para retar a alguien en tu sala)`
@@ -25819,6 +25826,19 @@ function cmdStance(player, args) {
 
   const s = STANCES[target];
   const cls = player.player_class || player.class || 'sin_clase';
+
+  // DIS-2137: mostrar stats antes/después para que el jugador pueda verificar el efecto
+  const prevStance = STANCES[currentStance] || STANCES.equilibrado;
+  const baseAtk = player.attack; // base ya incluye arma, nivel y clase
+  const baseDef = player.defense;
+  const prevAtk = baseAtk + (prevStance.atkMod || 0);
+  const prevDef = baseDef + (prevStance.defMod || 0);
+  const newAtk  = baseAtk + (s.atkMod || 0);
+  const newDef  = baseDef + (s.defMod || 0);
+  const atkArrow = prevAtk === newAtk ? `${newAtk}` : `${prevAtk} → ${newAtk}`;
+  const defArrow = prevDef === newDef ? `${newDef}` : `${prevDef} → ${newDef}`;
+  const statsLine = `📊 Tus stats ahora: ATK ${atkArrow}  |  DEF ${defArrow}`;
+
   // DIS-1742: Para Pícaro en postura agresiva, mostrar el bonus de crit de forma explícita
   let stanceDesc = s.desc;
   if (target === 'agresivo' && cls === 'picaro') {
@@ -25829,7 +25849,7 @@ function cmdStance(player, args) {
     stanceDesc += `\n\n💡 Como Pícaro: en esta postura tus ataques buscan puntos vitales más activamente — crit ${agresivoCrit}% (+2% vs equilibrado). Combinado con +2 ATK fijo, es tu postura de mayor daño bruto.`;
   }
   return {
-    text: `${s.icon} Adoptás la postura **${s.label || target}**.\n${stanceDesc}`,
+    text: `${s.icon} Adoptás la postura **${s.label || target}**.\n${stanceDesc}\n${statsLine}`,
     event: 'stance_change',
   };
 }
