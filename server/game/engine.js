@@ -4755,6 +4755,21 @@ function cmdStatus(player) {
     statusLines.push(`😤 AGOTAMIENTO BERSERK — -${agotPenalty} ATK (${agotTurns}t restantes)`);
   }
 
+  // DIS-2144: Impulso del Aventurero — mostrar countdown en status cuando está activo
+  try {
+    const impulsoKey2144 = `impulso_aventurero_${player.id}`;
+    const impulsoTs2144 = db.getWorldStateValue ? db.getWorldStateValue(impulsoKey2144) : null;
+    if (impulsoTs2144) {
+      const impulsoRemaining2144 = parseInt(impulsoTs2144) - Date.now();
+      if (impulsoRemaining2144 > 0) {
+        const impulsoMins = Math.floor(impulsoRemaining2144 / 60000);
+        const impulsoSecs = Math.ceil((impulsoRemaining2144 % 60000) / 1000);
+        const impulsoTimeStr = impulsoMins > 0 ? `${impulsoMins}m ${impulsoSecs}s` : `${impulsoSecs}s`;
+        statusLines.push(`✨ IMPULSO DEL AVENTURERO — +20% XP en todos los combates (${impulsoTimeStr} restantes)`);
+      }
+    }
+  } catch (_) {}
+
   // DIS-D383: recordatorio de clase si nivel >= 3 y sin clase elegida
   if ((player.level || 1) >= 3 && (!player.player_class || player.player_class === 'sin_clase')) {
     statusLines.unshift(`💡 Aún no elegiste clase (nivel ${player.level}). Escribí 'clase' para ver las opciones.`);
