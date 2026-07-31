@@ -12155,8 +12155,20 @@ function cmdDisarm(player, args) {
           ownTrapHint = `\n💡 Nota: esta sala (${currentRoomForHint.name}) también tiene trampa — necesitás "${ownItem}" y escribí "desactivar trampa" (sin dirección) para desactivarla aquí.`;
         }
       }
+      // DIS-2160: verificar si el ítem requerido está en el suelo de la sala actual
+      let floorItemHint = '';
+      try {
+        const currentRoomForFloor = db.getRoom(player.current_room_id);
+        if (currentRoomForFloor && Array.isArray(currentRoomForFloor.items)) {
+          const itemNeededNorm = trapAdj.item_needed.toLowerCase();
+          const isOnFloor = currentRoomForFloor.items.some(i => i.toLowerCase() === itemNeededNorm);
+          if (isOnFloor) {
+            floorItemHint = `\n🔍 Hay un «${trapAdj.item_needed}» en el suelo de esta sala — recogelo primero con «loot ${trapAdj.item_needed}» y volvé a intentarlo.`;
+          }
+        }
+      } catch (_) {}
       return {
-        text: `${targetHeader}No tenés lo necesario para desactivar esta trampa desde aquí.\n💡 ${TRAP_ITEM_SOURCE[trapAdj.item_needed] || `Conseguí "${trapAdj.item_needed}" primero.`}\n⛔ Si entrás sin desactivarla recibirás daño.${ownTrapHint}`,
+        text: `${targetHeader}No tenés lo necesario para desactivar esta trampa desde aquí.${floorItemHint}\n💡 ${TRAP_ITEM_SOURCE[trapAdj.item_needed] || `Conseguí "${trapAdj.item_needed}" primero.`}\n⛔ Si entrás sin desactivarla recibirás daño.${ownTrapHint}`,
       };
     }
 
