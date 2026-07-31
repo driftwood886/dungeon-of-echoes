@@ -4438,6 +4438,11 @@ function cmdJunk(player) {
       keepItems.push({ item, reason: 'consumible' });
       continue;
     }
+    // DIS-2158: bolsas (expansores de inventario) → conservar
+    if (def && def.type === 'bag') {
+      keepItems.push({ item, reason: 'expansor de mochila' });
+      continue;
+    }
     // Es basura candidata
     junkItems.push(item);
   }
@@ -4520,6 +4525,8 @@ function cmdSellJunk(player) {
     if (def && (def.type === 'consumable' || def.type === 'potion' || def.type === 'mana_potion' ||
                 def.type === 'atk_potion' || def.type === 'scroll' || def.type === 'key' ||
                 def.type === 'blessing_potion')) continue;
+    // DIS-2158: excluir bolsas (expansores de inventario) de la basura vendible
+    if (def && def.type === 'bag') continue;
     junkItems.push(item);
   }
 
