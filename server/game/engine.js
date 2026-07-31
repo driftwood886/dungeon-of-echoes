@@ -10849,8 +10849,13 @@ function cmdLoot(player) {
   const itemsLeftList = itemsLeft.length > 0
     ? `\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}`
     : '';
+  // DIS-2157: si hubo priorización por rareza (hay ítems en el suelo), indicarlo al jugador
+  const hadPrioritization = itemsLeft.length > 0 && nonGoldItems.length > spaceAvailable;
+  const prioritizationNote = hadPrioritization
+    ? '\n  ✨ (Los ítems más valiosos/raros fueron priorizados automáticamente.)'
+    : '';
   const fullBagLine = itemsLeft.length > 0
-    ? `\n\n🎒 Mochila llena — ${itemsLeft.length} ítem${itemsLeft.length !== 1 ? 's' : ''} quedaron en el suelo:${itemsLeftList}`
+    ? `\n\n🎒 Mochila llena — ${itemsLeft.length} ítem${itemsLeft.length !== 1 ? 's' : ''} quedaron en el suelo:${itemsLeftList}${prioritizationNote}`
     : '';
 
   // DIS-1765: confirmación cuando el inventario venía justo y se recogió todo
@@ -10874,7 +10879,7 @@ function cmdLoot(player) {
         : ' También guardá en la bóveda (vault) en sala 1, 17 o 19.';
     const guaranteedPrefix = guaranteedLootLines.length > 0 ? guaranteedLootLines.join('\n') + '\n\n' : '';
     return {
-      text: `${guaranteedPrefix}🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada.\nQuedaron en el suelo:\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}\n\n💡 Hacé espacio con \`drop <ítem>\` o vendé en la tienda de Aldric (sala 4).${lootVaultHint} Podés comprar una **bolsa de lona** (20g) en Aldric para +4 slots.`,
+      text: `${guaranteedPrefix}🎒 Mochila llena (${usedSlots}/${MAX_INVENTORY}) — no pudiste recoger nada.\nQuedaron en el suelo:\n  ${itemsLeft.map(i => `❌ ${i}`).join('\n  ')}\n  ✨ (Si hubiera espacio, los ítems más valiosos habrían sido priorizados.)\n\n💡 Hacé espacio con \`drop <ítem>\` o vendé en la tienda de Aldric (sala 4).${lootVaultHint} Podés comprar una **bolsa de lona** (20g) en Aldric para +4 slots.`,
       event: null,
       eventRoomId: room.id,
     };
