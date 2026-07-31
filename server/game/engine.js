@@ -17214,7 +17214,16 @@ function cmdForage(player) {
         return { text: `🔍 Rebuscás en la Caverna Sumergida...\n\n💧 Encontrás los mismos conductos de agua que ya conocés. Pero ya tenés una **red de pesca** en tu mochila — con eso podés desactivar la trampa de inundación.\n\n💡 Para usarla: escribí \`desactivar trampa\` (o movete hacia la sala con trampa activa y el juego te guiará).` };
       }
     }
-    return { text: `🎒 Inventario lleno (${_forageUsed}/${_forageMax}) — no hay espacio para lo que podrías encontrar.\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g) en la tienda de Aldric para +4 slots.` };
+    // DIS-2132: listar 1-3 junk items del inventario para ayudar al jugador a decidir qué soltar
+    let junkHint2132 = '';
+    try {
+      const junk2132 = _forageInv.filter(i => items.isJunkItem(i));
+      if (junk2132.length > 0) {
+        const topJunk2132 = junk2132.slice(0, 3);
+        junkHint2132 = `\n🗑️ Podés soltar: ${topJunk2132.map(j => `«${j}»`).join(', ')}${junk2132.length > 3 ? ` y ${junk2132.length - 3} más` : ''} — escribí \`drop <ítem>\` o \`drop junk\` para limpiar toda la basura.`;
+      }
+    } catch (_) { /* no romper forage si falla */ }
+    return { text: `🎒 Inventario lleno (${_forageUsed}/${_forageMax}) — no hay espacio para lo que podrías encontrar.\n   💡 Hacé espacio con \`drop <ítem>\` o \`subastar <ítem> <precio>\`. También podés comprar una **bolsa de lona** (20g) en la tienda de Aldric para +4 slots.${junkHint2132}` };
   }
 
   // T242: Quest narrativa con Aldric — carta sellada en sala 8 si quest activa
