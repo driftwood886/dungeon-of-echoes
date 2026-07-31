@@ -2978,13 +2978,14 @@ function cmdMove(player, direction) {
   // Si el jugador es 2+ niveles por debajo del nivel recomendado del boss, la primera vez
   // que intente entrar, se muestra un aviso y se frena. El segundo intento deja pasar.
   // Solo aplica si el boss está vivo y el jugador nunca visitó esa sala antes.
+  // BUG-2154: agregado monsterId a cada entrada para verificar si el boss está vivo antes de advertir.
   const BOSS_ROOM_DANGER_PREMOVE = {
-    8:  { name: 'el Guardia Espectral', level: 4, icon: '👻', roomName: 'Prisión Subterránea' },
-    10: { name: 'el Gólem de Piedra',   level: 5, icon: '🪨', roomName: 'Santuario Profano'   },
-    11: { name: 'el Elemental de Hielo', level: 7, icon: '❄️', roomName: 'Galería de Hielo'  }, // DIS-1858
-    12: { name: 'el Golem de Forja',    level: 5, icon: '🔥', roomName: 'Taller de la Forja'  },
-    19: { name: 'el Eco Viviente',      level: 6, icon: '🔊', roomName: 'Cámara del Eco'      },
-    20: { name: 'la Sombra del Vacío',  level: 8, icon: '🌑', roomName: 'Abismo Eterno'       },
+    8:  { name: 'el Guardia Espectral',  level: 4, icon: '👻', roomName: 'Prisión Subterránea', monsterId: 8  },
+    10: { name: 'el Gólem de Piedra',    level: 5, icon: '🪨', roomName: 'Santuario Profano',   monsterId: 5  },
+    11: { name: 'el Elemental de Hielo', level: 7, icon: '❄️', roomName: 'Galería de Hielo',   monsterId: 9  }, // DIS-1858
+    12: { name: 'el Golem de Forja',     level: 5, icon: '🔥', roomName: 'Taller de la Forja',  monsterId: 10 },
+    19: { name: 'el Eco Viviente',       level: 6, icon: '🔊', roomName: 'Cámara del Eco',      monsterId: 21 },
+    20: { name: 'la Sombra del Vacío',   level: 8, icon: '🌑', roomName: 'Abismo Eterno',       monsterId: 22 },
   };
   const boss1504 = BOSS_ROOM_DANGER_PREMOVE[targetId];
   if (boss1504) {
@@ -2992,7 +2993,21 @@ function cmdMove(player, direction) {
     // DIS-2076: umbral ajustado — avisa si el jugador está por debajo del nivel recomendado
     // (antes: boss.level - 1; ahora: < boss.level, para que el jugador de nivel exacto también reciba el aviso)
     const underLevel1504 = playerLevel1504 < boss1504.level;
-    if (underLevel1504) {
+    // BUG-2154: verificar si el boss está vivo. Si está muerto (en respawn), omitir la advertencia.
+    const bossMonster2154 = boss1504.monsterId ? db.getMonster(boss1504.monsterId) : null;
+    const bossAlive2154 = !boss1504.monsterId || (bossMonster2154 && bossMonster2154.room_id !== null && bossMonster2154.room_id !== undefined && (bossMonster2154.hp || 0) > 0);
+    if (!bossAlive2154) {
+      // Boss muerto — limpiar flag pendiente para que no quede "bloqueado" al primer intento
+      const fromRoom2154 = player.current_room_id || player.room_id || 0;
+      const warnKey2154dead = `danger_warning_from_${fromRoom2154}_to_${targetId}`;
+      const se2154dead = parseSE(player.status_effects);
+      if (se2154dead[warnKey2154dead]) {
+        const cleared2154 = { ...se2154dead };
+        delete cleared2154[warnKey2154dead];
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(cleared2154) });
+      }
+      // No mostrar advertencia — continuar normalmente (el boss está muerto)
+    } else if (underLevel1504) {
       // BUG-2031: el key incluye la sala de origen para que la advertencia se resetee
       // cada vez que el jugador abandona la sala y vuelve a intentar entrar.
       // Antes solo se advertía si la sala nunca fue visitada (neverVisited) — ahora
@@ -14071,7 +14086,10 @@ function cmdShop(player, args) {
         lines.push('');
       }
       // DIS-800: sugerir venta de materiales al Mago que no tiene suficiente oro para la vara de energía
-      if (clsShop.name === 'Mago' && (player.gold || 0) < 40) {
+      // BUG-2155: verificar que el Mago no tenga ya la vara equipada o en inventario antes de sugerir comprarla
+      const magoHasVara = (player.equipped_weapon && player.equipped_weapon.toLowerCase() === 'vara de energía')
+        || playerEquippedSet.has('vara de energía');
+      if (clsShop.name === 'Mago' && (player.gold || 0) < 40 && !magoHasVara) {
         const inv = Array.isArray(player.inventory) ? player.inventory : [];
         const sellableMaterials = inv.filter(item => {
           const cat = SHOP_CATALOG.find(i => i.name === item && i.sellOnly);
