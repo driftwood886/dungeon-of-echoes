@@ -121,6 +121,31 @@ async function main() {
   // IMPL-WM-1711: asegurar que las Misiones de Guerra de la semana actual existan al arrancar
   try { db.ensureWarMissionsForWeek(); console.log('[index] IMPL-WM-1711: Misiones de Guerra de la semana aseguradas. ✓'); } catch (e) { console.error('[index] Error en ensureWarMissionsForWeek:', e.message); }
 
+  // BUG-2165: helper para calcular room_effect dinámicamente según known_traps del jugador.
+  // La sala 15 (Catedral de la Oscuridad) tiene type:"damage" estático en ROOM_EFFECTS,
+  // pero si el jugador ya conoce la maldición (heat_room_15 en known_traps) no recibe daño.
+  // En ese caso devolvemos type:"none" y active:false para que los clientes no muestren advertencia.
+  function getRoomEffect(room, player) {
+    const effect = ROOM_EFFECTS[room.id];
+    if (!effect) return null;
+    // Para sala 15 con efecto de daño, verificar si el jugador ya conoce la maldición
+    if (effect.type === 'damage' && room.id === 15 && player) {
+      try {
+        const knownRaw = player.known_traps;
+        const knownObj = typeof knownRaw === 'object' && knownRaw !== null
+          ? knownRaw
+          : JSON.parse(knownRaw || '{}');
+        const alreadyKnows = Array.isArray(knownObj)
+          ? knownObj.includes('heat_room_15')
+          : Boolean(knownObj['heat_room_15']);
+        if (alreadyKnows) {
+          return { label: '💀 Energía oscura residual (maldición conocida — sin daño)', type: 'none', active: false };
+        }
+      } catch (_) { /* usar efecto por defecto */ }
+    }
+    return { label: effect.label, type: effect.type };
+  }
+
   // 2. Crear app Express
   const app = express();
   app.use(cors());
@@ -251,7 +276,7 @@ async function main() {
         creatures: monsterList, // alias de monsters — ambos son equivalentes
         items: room.items,
         trap: room.trap ? { active: room.trap.active, type: room.trap.type } : null,
-        room_effect: ROOM_EFFECTS[room.id] ? { label: ROOM_EFFECTS[room.id].label, type: ROOM_EFFECTS[room.id].type } : null,
+        room_effect: getRoomEffect(room, player),
       },
       player: {
         id: player.id,
@@ -738,7 +763,7 @@ async function main() {
           creatures: actionMonsterList, // alias de monsters
           items: room.items,
           trap: room.trap ? { active: room.trap.active, type: room.trap.type } : null,
-          room_effect: ROOM_EFFECTS[room.id] ? { label: ROOM_EFFECTS[room.id].label, type: ROOM_EFFECTS[room.id].type } : null,
+          room_effect: getRoomEffect(room, player),
         },
         player: {
           id: player.id,
