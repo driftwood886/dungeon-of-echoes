@@ -7164,13 +7164,32 @@ function cmdAttack(player, targetName) {
   // DIS-2115: añadir aviso de inicio de agotamiento berserk al final del bloque de combate (prominencia visual)
   const combatBlock = lichDialoguePrefix + battlecryPrefix + lines.join('\n') + bossDeathDialogueBlock + comboMsg + skillHint + _autoTargetHint + (berserkExhaustMsg || '');
 
-  const notifRaw = achLines + questLines + guildQuestLines + partyXpLines + runeMsg + challengeMsg + contractMsg + streakMsg + worldGoalMsg + championMsg + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '') + bossVictoryBlock + kaelthasEndingBlock + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + expeditionKillMsg + questKillMsg + vvChallengeMsg + factionKillInfluenceMsg + (_bug1781BossInvWarning ? '\n\n' + _bug1781BossInvWarning.trim() : '');
+  // DIS-2167: Organizar notificaciones por categoría para reducir sobrecarga de feedback.
+  // Categoría 1: Logros & Runas — recompensas simbólicas y coleccionables
+  const notifAchievements = (achLines || '') + (runeMsg || '');
+  // Categoría 2: Quests & Desafíos — progreso de objetivos
+  const notifQuests = (questLines || '') + (guildQuestLines || '') + (challengeMsg || '') + (contractMsg || '');
+  // Categoría 3: Progreso — rachas, facciones, party, récords
+  const notifProgress = (streakMsg || '') + (factionKillInfluenceMsg || '') + (partyXpLines || '')
+    + (worldGoalMsg || '') + (championMsg || '')
+    + (recordMsgs.length ? '\n' + recordMsgs.map(m => `🌟 ${m}`).join('\n') : '');
+  // Categoría 4: Eventos especiales — boss endings, heredados, facciones, expediciones, etc.
+  const notifSpecial = (bossVictoryBlock || '') + (kaelthasEndingBlock || '') + (_inheritedItemMsg969 || '') + (_factionInviteMsg || '') + (expeditionKillMsg || '') + (questKillMsg || '') + (vvChallengeMsg || '') + (_bug1781BossInvWarning ? '\n\n' + _bug1781BossInvWarning.trim() : '');
 
-  // DIS-2041: cuando el monstruo muere, agregar separador antes de las notificaciones
-  // para que el resultado del turno (arriba) sea siempre lo primero que ve el jugador.
-  const notifBlock = (monsterDead && notifRaw.trim())
-    ? '\n\n─── Notificaciones ───' + notifRaw
-    : notifRaw;
+  // DIS-2041 + DIS-2167: cuando el monstruo muere, agrupar notificaciones por categoría con un separador.
+  // En turnos intermedios (sin kill), solo mostrar notificaciones que realmente importan (streak, challenge en curso).
+  let notifBlock;
+  if (monsterDead && (notifAchievements + notifQuests + notifProgress + notifSpecial).trim()) {
+    const parts = [];
+    if (notifAchievements.trim()) parts.push(notifAchievements.trimStart());
+    if (notifQuests.trim()) parts.push(notifQuests.trimStart());
+    if (notifProgress.trim()) parts.push(notifProgress.trimStart());
+    if (notifSpecial.trim()) parts.push(notifSpecial.trimStart());
+    notifBlock = '\n\n─── Notificaciones ───\n' + parts.join('\n');
+  } else {
+    // Sin kill: mostrar notificaciones en línea (streak, challenge) — sin separador de bloque
+    notifBlock = (notifProgress || '') + (notifQuests || '');
+  }
 
   const baseText = combatBlock + notifBlock;
 

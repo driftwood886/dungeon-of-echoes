@@ -454,17 +454,23 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
   // DIS-1329: suprimir si es primera visita (el evento cinemático ya menciona el olor a cuero curtido)
   // DIS-1346: suprimir para jugadores veteranos
   // DIS-1744: suprimir si el jugador ya visitó sala 4 (ya conoce a Aldric — hint redundante)
+  // DIS-2168: suprimir en visitas subsecuentes — solo mostrar si el jugador está volviendo por segunda vez
+  //           (no en la primera, que ya tiene el cinemático, y no en la tercera+, que es repetición)
   if (roomId === 2 && !isVeteranPlayer) {
     let sala2PrimeraVisita = false;
+    let sala2SegundaVisita = false;
     let yaConoceAldric = false;
     if (player && player.rooms_visited) {
       try {
         const visitados = JSON.parse(player.rooms_visited || '[]');
-        sala2PrimeraVisita = !visitados.includes(2);
+        const visitas2 = visitados.filter(v => v == 2 || v === '2').length;
+        sala2PrimeraVisita = !visitados.includes(2) && !visitados.includes('2');
+        sala2SegundaVisita = visitas2 === 1; // esta es la segunda visita (ya aparece en la lista una vez)
         yaConoceAldric = visitados.includes(4) || visitados.includes('4');
       } catch (_) {}
     }
-    if (!sala2PrimeraVisita && !yaConoceAldric) {
+    // DIS-2168: mostrar solo en la segunda visita exacta (no en primera ni en tercera+)
+    if (sala2SegundaVisita && !yaConoceAldric) {
       lines.push(`\n👃 Un tenue olor a cuero curtido y especias de ultramar llega desde el norte. Quizás hay algo interesante en esa dirección.`);
     }
   }
@@ -512,10 +518,29 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
   if (roomId === 4) {
     lines.push(`\n🏪 Aldric el Mercader está aquí, sentado detrás de un improvisado mostrador de cajas.\n   "Bienvenido. Escribí 'tienda' (o 'shop') para ver mis artículos."`);
     if (!isVeteranPlayer) {
-      // DIS-1178: nota que el Esqueleto es guardia de Aldric y no ataca primero
-      lines.push(`\n⚔️  El Esqueleto Guerrero en la sala es el guardia personal de Aldric. No te atacará si no lo provocás — llegaste como comprador, no como invasor. (Si lo atacás, Aldric lo notará.)`);
-      // DIS-1097: hint sobre acceso a la Casa de Subastas sin pelear
-      lines.push(`\n🏛️ Pista: Al este de esta sala podés acceder a la Casa de Subastas (sala 17).\n   Usá el comando «este» para llegar directamente.`);
+      // DIS-2168: los hints instructivos de la sala 4 solo se muestran la primera vez que el jugador la visita.
+      // En visitas subsecuentes son redundantes — el jugador ya sabe que el Esqueleto no ataca y que hay subasta.
+      const esPrimeraVisitaSala4 = (() => {
+        try {
+          const vis = JSON.parse(player && player.rooms_visited ? player.rooms_visited : '[]');
+          return !vis.includes(4) && !vis.includes('4');
+        } catch (_) { return true; }
+      })();
+      if (esPrimeraVisitaSala4) {
+        // DIS-1178: nota que el Esqueleto es guardia de Aldric y no ataca primero
+        lines.push(`\n⚔️  El Esqueleto Guerrero en la sala es el guardia personal de Aldric. No te atacará si no lo provocás — llegaste como comprador, no como invasor. (Si lo atacás, Aldric lo notará.)`);
+        // DIS-1097: hint sobre acceso a la Casa de Subastas sin pelear
+        // DIS-2168: solo en primera visita — en visitas subsecuentes, el jugador ya sabe que existe
+        const yaVisitóSubasta = (() => {
+          try {
+            const vis = JSON.parse(player && player.rooms_visited ? player.rooms_visited : '[]');
+            return vis.includes(17) || vis.includes('17');
+          } catch (_) { return false; }
+        })();
+        if (!yaVisitóSubasta) {
+          lines.push(`\n🏛️ Pista: Al este de esta sala podés acceder a la Casa de Subastas (sala 17).\n   Usá el comando «este» para llegar directamente.`);
+        }
+      }
     }
   }
 
