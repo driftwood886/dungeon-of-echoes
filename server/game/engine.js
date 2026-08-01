@@ -971,6 +971,8 @@ Para el diario de lore: lore  (usá «read» en ítems con texto para guardar fr
           postura: 'stance', combate: 'stance', stance: 'stance', 'postura combate': 'stance',
           // DIS-2085: alias de combo para que 'help combo' funcione
           combo: 'combo', combos: 'combo',
+          // DIS-2205: alias de duel para que 'help duelo' funcione
+          duelo: 'duel', duel: 'duel',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
