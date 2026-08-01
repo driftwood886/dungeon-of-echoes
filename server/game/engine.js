@@ -4272,9 +4272,9 @@ function cmdInventory(player) {
   // DIS-1825: umbrales ajustados a 17/24 (≈70%) al subir base 20→24
   let slotHint = '';
   if (invBonus === 0 && usedSlots > 17) {
-    slotHint = ` · Ampliá con bolsa de lona (+4 slots, 20g en tienda de Aldric sala 4 — hacé "use bolsa de lona" al comprarla). En salas avanzadas: usá vault en sala 19.`;
+    slotHint = ` · Ampliá con bolsa de lona (+4 slots, 20g en tienda de Aldric sala 4 — hacé "use bolsa de lona" al comprarla). Desde nivel 10 podés guardar desde cualquier sala con \`vault store <ítem>\` (15g), o gratis en salas 1, 4, 17 y 19.`;
   } else if (invBonus < 8 && usedSlots > (17 + invBonus)) {
-    slotHint = ` · Podés comprar una 2da bolsa de lona (+4 slots más, 20g en tienda de Aldric sala 4). En salas avanzadas: usá vault en sala 19.`;
+    slotHint = ` · Podés comprar una 2da bolsa de lona (+4 slots más, 20g en tienda de Aldric sala 4). Desde nivel 10 podés guardar desde cualquier sala con \`vault store <ítem>\` (15g), o gratis en salas 1, 4, 17 y 19.`;
   }
   const rareCount = allItems.filter(i => items.getItemRarity(i) !== 'común').length
     + equippedItems.filter(e => items.getItemRarity(e.name) !== 'común').length;
