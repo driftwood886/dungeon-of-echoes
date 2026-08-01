@@ -508,6 +508,14 @@ function parse(input) {
       // DIS-1657: vender basura — venta masiva automática de ítems no valiosos
       'vender basura':   { cmd: 'sell_junk', skillId: null },
       'sell junk':       { cmd: 'sell_junk', skillId: null },
+      // DIS-2186: "mision faccion" (con espacio) → mision_faccion
+      // Sin esto, "mision" se resuelve por COMMAND_ALIASES a 'quest' y faccion queda como arg perdido.
+      // Las claves multi-palabra en COMMAND_ALIASES como 'mision faction' no funcionan porque
+      // parse() solo busca COMMAND_ALIASES[first] donde first es la primera palabra.
+      'mision faccion':  { cmd: 'mision_faccion', skillId: null },
+      'misión facción':  { cmd: 'mision_faccion', skillId: null },
+      'mision faction':  { cmd: 'mision_faccion', skillId: null },
+      'mission faction': { cmd: 'mision_faccion', skillId: null },
     };
     const mwMatch = MULTI_WORD_ALIASES[twoWord];
     if (mwMatch) {
