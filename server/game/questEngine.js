@@ -1081,6 +1081,16 @@ function getQuestsDisplay(player) {
       // BUG-1723: también mostrar misión de facción si aplica
       const fmBlock = _factionMissionBlock(player);
       if (fmBlock) { lines.push(''); lines.push(fmBlock); }
+      // DIS-2172: mostrar contrato semanal aunque estemos en path de Aldric
+      try {
+        const ctA = db.getWeeklyContract(player);
+        if (ctA) {
+          const ctAStatus = ctA.done ? '✅ completado esta semana' : `${ctA.progress || 0}/${ctA.goal} ${ctA.target}`;
+          lines.push('');
+          lines.push(`📜 Contrato semanal: ${ctAStatus} · Escribí \`contrato\` para ver detalles.`);
+          lines.push('   (Es un sistema separado de las quests — recompensas de XP, oro e ítem especial.)');
+        }
+      } catch (_) {}
       return { text: lines.join('\n') };
     }
     // Sin quests activas — mensaje orientativo
@@ -1101,6 +1111,16 @@ function getQuestsDisplay(player) {
     // BUG-1723: mostrar misión de facción aunque no haya quests genéricas
     const fmBlock = _factionMissionBlock(player);
     if (fmBlock) { lines.push(''); lines.push(fmBlock); }
+    // DIS-2172: mostrar contrato semanal en path "sin quests activas"
+    try {
+      const ctB = db.getWeeklyContract(player);
+      if (ctB) {
+        const ctBStatus = ctB.done ? '✅ completado esta semana' : `${ctB.progress || 0}/${ctB.goal} ${ctB.target}`;
+        lines.push('');
+        lines.push(`📜 Contrato semanal: ${ctBStatus} · Escribí \`contrato\` para ver detalles.`);
+        lines.push('   (Es un sistema separado de las quests — recompensas de XP, oro e ítem especial.)');
+      }
+    } catch (_) {}
     return { text: lines.join('\n') };
   }
 
@@ -1150,6 +1170,20 @@ function getQuestsDisplay(player) {
   // BUG-1723: si tiene facción, mostrar también la misión semanal de facción
   const fmBlockEnd = _factionMissionBlock(player);
   if (fmBlockEnd) { lines.push(''); lines.push(fmBlockEnd); }
+
+  // DIS-2172: mencionar el contrato semanal al final de 'quests' — es un sistema separado
+  // que el jugador puede no conocer. No mostramos el detalle aquí, solo un recordatorio.
+  try {
+    const ct2172 = db.getWeeklyContract(player);
+    if (ct2172) {
+      const ct2172Status = ct2172.done
+        ? '✅ completado esta semana'
+        : `${ct2172.progress || 0}/${ct2172.goal} ${ct2172.target}`;
+      lines.push('');
+      lines.push(`📜 Contrato semanal: ${ct2172Status} · Escribí \`contrato\` para ver detalles.`);
+      lines.push('   (Es un sistema separado de las quests — recompensas de XP, oro e ítem especial.)')
+    }
+  } catch (_) { /* no romper quests si falla el contrato */ }
 
   return { text: lines.join('\n') };
 }
