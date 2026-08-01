@@ -29616,6 +29616,7 @@ function cmdVault(player, args) {
     lines.push(`║${'  🏛️  BÓVEDA PERSONAL'.padEnd(W)}║`);
     if (canRemote) {
       lines.push(`║${'  📡 Acceso remoto · 15🪙 por operación'.padEnd(W)}║`);
+      lines.push(`║${'  (Estás en sala ' + player.current_room_id + ' — gratis en salas 1, 4, 17 y 19)'.padEnd(W)}║`);
     }
     lines.push(`╠${'═'.repeat(W)}╣`);
     if (vaultItems.length === 0) {
@@ -29683,7 +29684,7 @@ function cmdVault(player, args) {
       inventory: JSON.stringify(inv),
       vault: JSON.stringify(vaultItems),
     });
-    const remoteSuffix = canRemote ? ` · −${VAULT_REMOTE_COST}🪙 (acceso remoto)` : '';
+    const remoteSuffix = canRemote ? ` · −${VAULT_REMOTE_COST}🪙 (acceso remoto desde sala ${player.current_room_id}; gratis en salas 1, 4, 17 y 19)` : '';
     return { text: `🏛️  "${item}" guardado en la bóveda. (${vaultItems.length}/${VAULT_MAX})${remoteSuffix}` };
   }
 
@@ -29716,7 +29717,7 @@ function cmdVault(player, args) {
       inventory: JSON.stringify(inv),
       vault: JSON.stringify(vaultItems),
     });
-    const remoteSuffix = canRemote ? ` · −${VAULT_REMOTE_COST}🪙 (acceso remoto)` : '';
+    const remoteSuffix = canRemote ? ` · −${VAULT_REMOTE_COST}🪙 (acceso remoto desde sala ${player.current_room_id}; gratis en salas 1, 4, 17 y 19)` : '';
     return { text: `🏛️  "${item}" sacado de la bóveda y añadido al inventario.${remoteSuffix}` };
   }
 
