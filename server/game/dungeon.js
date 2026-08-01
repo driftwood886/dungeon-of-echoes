@@ -38,6 +38,8 @@ const DIR_ALIASES = {
   norte: 'north', sur: 'south',
   este:  'east',  oeste: 'west',
   arriba: 'up',   abajo: 'down',
+  // DIS-2169: aliases adicionales de movimiento vertical para consistencia con el texto del juego
+  subir: 'up', bajar: 'down', descender: 'down', ascender: 'up',
   n: 'north', s: 'south', e: 'east', o: 'west',
   w: 'west',
 };
