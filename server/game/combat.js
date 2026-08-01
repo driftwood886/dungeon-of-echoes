@@ -3465,9 +3465,35 @@ function wanderMonsters(onMove) {
       }
 
       const exits = currentRoom.exits || {};
-      const adjacentRoomIds = Object.values(exits)
+      let adjacentRoomIds = Object.values(exits)
         .map(v => typeof v === 'object' ? v.room_id : v)
         .filter(id => id && !EXCLUDED_ROOMS.has(id));
+
+      // BUG-2164: Durante Marea Espectral, monstruos no-espectrales/no-muertos no deben
+      // wanderear a salas > 7 (zona profunda), donde serían invisibles en display pero
+      // atacables en combate (mismatch que el fix BUG-2163 no cubría).
+      // La Rata Gigante (id 3) y el Goblin Merodeador (id 1) son criaturas físicas que
+      // deben quedarse en el early zone (salas ≤7) durante el evento.
+      try {
+        const spectralEvForWander = eventScheduler.getActiveEventInfo ? eventScheduler.getActiveEventInfo() : null;
+        if (spectralEvForWander && spectralEvForWander.event && spectralEvForWander.event.id === 'SPECTRAL_TIDE') {
+          const mNameLower = (monster.name || '').toLowerCase();
+          const isSpectralMonster =
+            mNameLower.includes('espectro') || mNameLower.includes('fantasma') ||
+            mNameLower.includes('espectral') || mNameLower.includes('lich') ||
+            mNameLower.includes('sombra') || mNameLower.includes('esqueleto') ||
+            mNameLower.includes('zombie') || mNameLower.includes('zombi') ||
+            mNameLower.includes('vampiro') || mNameLower.includes('momia') ||
+            mNameLower.includes('óseo') || mNameLower.includes('muerto');
+          if (!isSpectralMonster) {
+            // Restringir destino a salas ≤7 (zona early — exenta de la Marea Espectral)
+            adjacentRoomIds = adjacentRoomIds.filter(id => id <= 7);
+            if (adjacentRoomIds.length === 0) {
+              console.log(`[wander] BUG-2164: ${monster.name} bloqueado por Marea Espectral — sin salas early adyacentes disponibles.`);
+            }
+          }
+        }
+      } catch (_wanderSpectral) { /* no romper el wander si falla la comprobación del evento */ }
 
       if (adjacentRoomIds.length === 0) continue;
 
