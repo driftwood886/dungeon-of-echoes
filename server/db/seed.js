@@ -672,7 +672,7 @@ function migrateDIS2182FixCorredorDuplicates() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745, migrateGnollMerodeadorIMPL1761, migrateZombieCaminanteIMPL1761, migrateElementalFuegoIMPL1761, migrateBatVampireDescDIS1775, migrateFuenteEternaDescDIS1778, migrateSubastaNorthHintDIS1789, migrateConclaveExamineDIS1796, migrateGaleriaHieloExamineDIS1797, migrateGnollDagaBasicaDIS1811, migrateCampeonEmblemaDIS1812, migrateQuestEdictoDIS1916, migrateFactionMisionContratoSangrientoDIS1918, migrateDIS2182FixCorredorDuplicates };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745, migrateGnollMerodeadorIMPL1761, migrateZombieCaminanteIMPL1761, migrateElementalFuegoIMPL1761, migrateBatVampireDescDIS1775, migrateFuenteEternaDescDIS1778, migrateSubastaNorthHintDIS1789, migrateConclaveExamineDIS1796, migrateGaleriaHieloExamineDIS1797, migrateGnollDagaBasicaDIS1811, migrateCampeonEmblemaDIS1812, migrateQuestEdictoDIS1916, migrateFactionMisionContratoSangrientoDIS1918, migrateDIS2182FixCorredorDuplicates, migrateSubastaRetornoHubDIS2093, migrateMonsterRebalanceDIS2183 };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -2868,9 +2868,10 @@ function migrateGnollMerodeadorIMPL1761() {
 /**
  * IMPL-VV-1761b: Zombie Caminante (id 31)
  * Monstruo variable para sala 3 según run_monster_variants.
- * HP 22, ATK 4. Tipo undead (detectado por nombre — contiene 'zombie').
- * En evento marea_no_muertos: +2 HP (24 HP).
+ * HP 28, ATK 9. Tipo undead (detectado por nombre — contiene 'zombie').
+ * En evento marea_no_muertos: +2 HP (30 HP).
  * Loot: tela podrida, monedas de cobre.
+ * DIS-2183: ATK subido 4→9, HP 22→28 para que el combate sea desafiante nivel 2-3.
  */
 function migrateZombieCaminanteIMPL1761() {
   try {
@@ -3192,5 +3193,83 @@ function migrateSubastaRetornoHubDIS2093() {
   // La lógica de hint de primera visita se implementa en engine.js (firstVisit hook).
   // Esta función es un marcador de migración para el historial — no modifica la DB.
   console.log('[seed] migrateSubastaRetornoHubDIS2093: hint de retorno implementado en engine.js. DIS-2093 ✓');
+}
+
+/**
+ * DIS-2183: Rebalanceo de combate zonas 1-4 (niveles 1-3).
+ *
+ * Problema: un guerrero nivel 2 con espada de hierro (ATK 15, DEF 4, HP 40) recibe
+ * solo 2 daño por golpe de un Zombie Caminante (ATK 4) debido al piso mínimo de
+ * daño (max(2, ceil(atk*0.30))). El combate es trivial — 20+ golpes para morir.
+ *
+ * Root cause: monstruos de zona media (sala 3, 4, 9) tienen ATK 4-6, que la DEF 4
+ * del guerrero absorbe casi completamente.
+ *
+ * Fix: subir ATK y HP de los monstruos de zona media para que:
+ * - Zombie Caminante (sala 3, nivel rec. 3+): ATK 4→9, HP 22→28
+ *   → guerrero nivel 2 recibe 5-10 dmg/turno (real), pelea en ~5-8 turnos
+ * - Espectro del Corredor (sala 9, id 4): ATK 6→9, HP 18→22
+ *   → igual de peligroso que el Zombie (zona alta del early game)
+ * - Esqueleto Guerrero (sala 4, id 2): ATK 5→7, HP 20→24
+ *   → primer monstruo difícil cerca del mercader
+ *
+ * Nota: Goblin Merodeador (id 1), Rata Gigante (id 3) y Murciélago Vampiro (id 6)
+ * NO se tocan — son la zona introductoria nivel 1-2, ya balanceados en DIS-1324.
+ *
+ * Idempotente: solo sube si el ATK/HP actual es menor al objetivo.
+ */
+function migrateMonsterRebalanceDIS2183() {
+  try {
+    const all = db.getAllMonsters ? db.getAllMonsters() : [];
+    let changed = 0;
+
+    // ID 31: Zombie Caminante (sala 3, variante) — nivel recomendado 3+
+    const zombie = all.find(m => m.id === 31);
+    if (zombie) {
+      const updates = {};
+      if ((zombie.attack || 0) < 9) { updates.attack = 9; }
+      if ((zombie.max_hp || 0) < 28) { updates.hp = 28; updates.max_hp = 28; }
+      if (Object.keys(updates).length > 0) {
+        db.updateMonster(31, updates);
+        console.log(`[seed] migrateMonsterRebalanceDIS2183: Zombie Caminante (id 31) ATK ${zombie.attack}→${updates.attack || zombie.attack}, HP ${zombie.max_hp}→${updates.max_hp || zombie.max_hp}. ✓`);
+        changed++;
+      }
+    }
+
+    // ID 4: Espectro del Corredor (sala 9) — zona alta temprana
+    const espectro = all.find(m => m.id === 4);
+    if (espectro) {
+      const updates = {};
+      if ((espectro.attack || 0) < 9) { updates.attack = 9; }
+      if ((espectro.max_hp || 0) < 22) { updates.hp = 22; updates.max_hp = 22; }
+      if (Object.keys(updates).length > 0) {
+        db.updateMonster(4, updates);
+        console.log(`[seed] migrateMonsterRebalanceDIS2183: Espectro del Corredor (id 4) ATK ${espectro.attack}→${updates.attack || espectro.attack}, HP ${espectro.max_hp}→${updates.max_hp || espectro.max_hp}. ✓`);
+        changed++;
+      }
+    }
+
+    // ID 2: Esqueleto Guerrero (sala 4, mercader) — primer monstruo difícil
+    const esqueleto = all.find(m => m.id === 2);
+    if (esqueleto) {
+      const updates = {};
+      if ((esqueleto.attack || 0) < 7) { updates.attack = 7; }
+      if ((esqueleto.max_hp || 0) < 24) { updates.hp = 24; updates.max_hp = 24; }
+      if (Object.keys(updates).length > 0) {
+        db.updateMonster(2, updates);
+        console.log(`[seed] migrateMonsterRebalanceDIS2183: Esqueleto Guerrero (id 2) ATK ${esqueleto.attack}→${updates.attack || esqueleto.attack}, HP ${esqueleto.max_hp}→${updates.max_hp || esqueleto.max_hp}. ✓`);
+        changed++;
+      }
+    }
+
+    if (changed === 0) {
+      console.log('[seed] migrateMonsterRebalanceDIS2183: todos los monstruos ya tienen stats actualizados. ✓');
+    } else {
+      db.persist();
+      console.log(`[seed] migrateMonsterRebalanceDIS2183: ${changed} monstruos rebalanceados. DIS-2183 ✓`);
+    }
+  } catch (e) {
+    console.warn('[seed] migrateMonsterRebalanceDIS2183:', e.message);
+  }
 }
 

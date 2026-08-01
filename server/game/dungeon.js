@@ -490,7 +490,8 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
   }
 
   // DIS-2150: Sala 3 (Sala de los Ecos) — advertencia de nivel recomendado si hay Zombie Caminante
-  // El Zombie Caminante (HP 22, id 31) aparece como variante y puede matar a jugadores lvl 1-2.
+  // El Zombie Caminante (HP 28, ATK 9, id 31) aparece como variante y puede matar a jugadores lvl 1-2.
+  // DIS-2183: ATK subido 4→9 — el Zombie ahora hace 5-10 daño real vs guerrero nivel 2.
   // Mostrar advertencia similar al Gólem de Piedra (sala 10) cuando está presente y activo.
   if (roomId === 3 && player) {
     try {
