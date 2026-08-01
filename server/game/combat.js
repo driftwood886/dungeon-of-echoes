@@ -1868,7 +1868,20 @@ function attackRound(player, monster) {
             : `Tu inventario tiene solo ${slotsLibres} slot${slotsLibres !== 1 ? 's' : ''} libre${slotsLibres !== 1 ? 's' : ''} (${slotsUsed}/${maxSlots})`;
           lines.push(`\n⚠️  [LOOT ÉPICO EN RIESGO] ${fullMsg}.`);
           lines.push(`   El boss soltó ${loot.length} ítem${loot.length !== 1 ? 's' : ''} — ${slotsNeeded} no entr${slotsNeeded !== 1 ? 'aron' : 'ó'} y quedaron en el suelo.`);
-          // DIS-1920/DIS-2001: El mensaje de persistencia ahora está integrado por ítem en la lista de abajo
+
+          // DIS-2176: Si ya hay más ítems en el suelo de kills anteriores, mostrar el total acumulado
+          // para evitar repetir el bloque completo de "LOOT ÉPICO EN RIESGO" dos veces.
+          try {
+            const roomForTotal = db.getRoom(player.current_room_id);
+            const floorItems = Array.isArray(roomForTotal.items) ? roomForTotal.items : JSON.parse(roomForTotal.items || '[]');
+            // lootEnSuelo todavía no fue calculado aquí — usar slotsLibres para estimar cuántos caen de este boss
+            const fromThisBoss = Math.max(0, loot.length - slotsLibres);
+            // Ítems en el suelo que no vienen de este boss (previos)
+            const prevFloor = floorItems.length - fromThisBoss;
+            if (prevFloor > 0) {
+              lines.push(`   ⚠️  Ya había ${prevFloor} ítem${prevFloor !== 1 ? 's' : ''} en el suelo de esta sala. Total en riesgo: ${floorItems.length}.`);
+            }
+          } catch (_dis2176) { /* no romper combate */ }
 
           // DIS-1993: loot garantizado — guardar hasta 2 ítems raros/épicos/legendarios en slot temporal
           // DIS-2001: Mejorar UX mostrando lista explícita de ítems en suelo con estado garantizado/en riesgo
