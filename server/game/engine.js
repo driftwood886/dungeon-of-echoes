@@ -16013,8 +16013,47 @@ function _cmdFaccionElegir(player, args) {
     _missionBlock = `\n\n📜 **Misiones del Cónclave disponibles a partir de ahora:**\n   🗺️ Explorar salas nuevas (avanzar a zonas inexploradas)\n   📖 Descubrir inscripciones y lore del dungeon\n   🔮 Completar objetivos de exploración semanales\n   Las misiones se asignan automáticamente cada semana. Usá «misión facción» para ver tu progreso.`;
   }
 
+  // DIS-2187: al unirse a una facción, mostrar resumen de los 3 sistemas de progresión.
+  // El jugador puede estar confundido sobre qué sistemas están activos.
+  let _progressSummary = '';
+  try {
+    const _freshSummary = db.getPlayer(player.id);
+    if (_freshSummary) {
+      const _summaryLines = ['\n\n📊 **Tus objetivos activos:**'];
+      // 1. Quest principal
+      const _aq = questEngine.getActiveQuest();
+      const _qProgress = (() => { try { const p = JSON.parse(_freshSummary.quest_progress || '{}'); return p; } catch (_) { return {}; } })();
+      if (_aq && _aq.questDef) {
+        const _qp = (_qProgress.questId === _aq.questDef.id) ? (_qProgress.progress || 0) : 0;
+        _summaryLines.push(`   📜 Quest: ${_aq.questDef.name} (${_qp}/${_aq.questDef.goal}) · Escribí \`quests\` para detalles.`);
+      } else {
+        _summaryLines.push(`   📜 Quest: sin quest activa · Escribí \`quests\` para ver.`);
+      }
+      // 2. Misión de facción (ya mostrada en _missionBlock, referencia corta)
+      if (_welcomeMission && _welcomeMission.status !== 'completed') {
+        const _mp = _welcomeMission.progress || 0;
+        _summaryLines.push(`   🏴 Misión de facción: ${_mp}/${_welcomeMission.target} · Escribí \`mision faccion\` para detalles.`);
+      } else if (_welcomeMission && _welcomeMission.status === 'completed') {
+        _summaryLines.push(`   🏴 Misión de facción: ✅ completada esta semana.`);
+      }
+      // 3. Contrato semanal
+      try {
+        const _ct = db.getWeeklyContract(_freshSummary);
+        if (_ct) {
+          const _ctStatus = _ct.completed ? `✅ completado` : `${_ct.progress || 0}/${_ct.target}`;
+          _summaryLines.push(`   🎯 Contrato semanal: ${_ctStatus} · Escribí \`contrato\` para detalles.`);
+        } else {
+          _summaryLines.push(`   🎯 Contrato semanal: disponible · Escribí \`contrato\` para ver.`);
+        }
+      } catch (_) { /* silencioso */ }
+      if (_summaryLines.length > 1) {
+        _progressSummary = _summaryLines.join('\n');
+      }
+    }
+  } catch (_) { /* no romper unión si falla el resumen */ }
+
   return {
-    text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.${retroInfluenceMsg}${_missionBlock}\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
+    text: `${welcomeMsg}${welcomeItemLine}\n\n✅ Ahora sos miembro de ${lore.icon} ${lore.name}.${retroInfluenceMsg}${_missionBlock}${_progressSummary}\n\n💡 Cómo se acumula influencia para tu facción:\n   🗡️ Matar monstruos: +1 por kill | +5 al matar un boss\n   🗺️ Explorar sala nueva: +2 por primera visita\n   🛒 Comprar en tienda (Aldric): +1 por compra\n   📖 Leer inscripciones del dungeon: +1 por lectura\n\nUsá \"facciones\" para ver el estado semanal y quién lidera.`,
   };
 }
 
