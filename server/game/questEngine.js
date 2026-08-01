@@ -1506,6 +1506,7 @@ module.exports = {
   getQuestDetail,
   abandonQuest,
   getHistory,
+  getActiveQuests: _getActiveQuests,  // DIS-2204: exportar para uso en resumen de objetivos al unirse a facción
   // Internals exportados para testing y uso en otros módulos
   _weekNumber,
   _seededShuffle,

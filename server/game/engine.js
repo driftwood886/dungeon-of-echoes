@@ -16088,11 +16088,15 @@ function _cmdFaccionElegir(player, args) {
     if (_freshSummary) {
       const _summaryLines = ['\n\n📊 **Tus objetivos activos:**'];
       // 1. Quest principal
-      const _aq = questEngine.getActiveQuest();
-      const _qProgress = (() => { try { const p = JSON.parse(_freshSummary.quest_progress || '{}'); return p; } catch (_) { return {}; } })();
-      if (_aq && _aq.questDef) {
-        const _qp = (_qProgress.questId === _aq.questDef.id) ? (_qProgress.progress || 0) : 0;
-        _summaryLines.push(`   📜 Quest: ${_aq.questDef.name} (${_qp}/${_aq.questDef.goal}) · Escribí \`quests\` para detalles.`);
+      const _aq = questEngine.getActiveQuests(player.id);
+      if (_aq && _aq.length > 0) {
+        const _mainQ = _aq[0];
+        const _qProgress = _mainQ.progress || 0;
+        const _qTarget = (() => { try { const c = JSON.parse(_mainQ.condition || '{}'); return c.count || c.target || '?'; } catch (_) { return '?'; } })();
+        _summaryLines.push(`   📜 Quest: ${_mainQ.name} (${_qProgress}/${_qTarget}) · Escribí \`quests\` para detalles.`);
+        if (_aq.length > 1) {
+          _summaryLines.push(`   📜 +${_aq.length - 1} quest${_aq.length - 1 > 1 ? 's' : ''} secundaria${_aq.length - 1 > 1 ? 's' : ''} activa${_aq.length - 1 > 1 ? 's' : ''}.`);
+        }
       } else {
         _summaryLines.push(`   📜 Quest: sin quest activa · Escribí \`quests\` para ver.`);
       }
