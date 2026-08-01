@@ -4651,6 +4651,12 @@ function cmdStats(player) {
   // en lugar de recalcular con tabla hardcodeada incompleta (mismo patrón que BUG-1964 para ATK)
   const def = player.defense || 2;
 
+  // DIS-2206: aplicar modificadores de postura para mostrar valores efectivos
+  const currentStanceName = player.stance || 'equilibrado';
+  const currentStance2206 = STANCES[currentStanceName] || STANCES.equilibrado;
+  const atkEfectivo = atk + currentStance2206.atkMod;
+  const defEfectivo = def + currentStance2206.defMod;
+
   // XP info
   const xpNextNeeded = xpSystem.xpForNextLevel(level);
   const isMaxLevel   = (level >= xpSystem.MAX_LEVEL);
@@ -4666,9 +4672,20 @@ function cmdStats(player) {
   const hpPct = maxHp > 0 ? hp / maxHp : 0;
   const hpEmoji = hpPct > 0.60 ? '💚' : hpPct > 0.30 ? '💛' : '❤️';
 
+  // DIS-2206: mostrar ATK/DEF efectivos con modificadores de postura
+  const atkStr = currentStance2206.atkMod !== 0
+    ? `${atkEfectivo} [${atk}${currentStance2206.atkMod > 0 ? '+' : ''}${currentStance2206.atkMod} postura]`
+    : `${atk}`;
+  const defStr = currentStance2206.defMod !== 0
+    ? `${defEfectivo} [${def}${currentStance2206.defMod > 0 ? '+' : ''}${currentStance2206.defMod} postura]`
+    : `${def}`;
+  const stanceStr2206 = currentStanceName !== 'equilibrado'
+    ? `  ·  Postura: ${currentStance2206.icon} ${currentStanceName}`
+    : '';
+
   const lines = [
     `${hpEmoji} **${player.username}** — Nivel ${level} ${claseStr}${specStr}`,
-    `   HP: ${hp}/${maxHp}  ·  ATK: ${atk}  ·  DEF: ${def}  ·  XP: ${xpText}  ·  Gold: ${gold}g`,
+    `   HP: ${hp}/${maxHp}  ·  ATK: ${atkStr}  ·  DEF: ${defStr}  ·  XP: ${xpText}  ·  Gold: ${gold}g${stanceStr2206}`,
     `   Kills: ${kills}  ·  Muertes: ${deaths}`,
   ];
   if (equippedWeapon) {
@@ -22484,7 +22501,14 @@ function cmdUseSkill(player, args, context) {
       skill_cooldowns: newCDsBs,
       active_scrolls: JSON.stringify(scrollsBs),
     });
-    const text = `🪓 ¡FURIA! La rabia te consume. Sacrificás ${hpCost} HP (${currentHpBs} → ${newHpBs}).\n   ✨ Tu próximo ataque causa ×${skill.dmg_multiplier || 2.0} de daño. (Cooldown: ${skill.cooldown_seconds}s)`;
+    const stanceWarning2207 = (() => {
+      const stanceBs = freshBs.stance || 'equilibrado';
+      if (stanceBs === 'agresivo') {
+        return `\n   ⚠️  Postura agresiva activa (+5% miss) — si el ataque falla, el ×${skill.dmg_multiplier || 2.0} se pierde (HP ya gastado).`;
+      }
+      return `\n   ⚠️  El costo de HP se cobra ahora. Si el próximo ataque falla, el ×${skill.dmg_multiplier || 2.0} se pierde.`;
+    })();
+    const text = `🪓 ¡FURIA! La rabia te consume. Sacrificás ${hpCost} HP (${currentHpBs} → ${newHpBs}).\n   ✨ Tu próximo ataque causa ×${skill.dmg_multiplier || 2.0} de daño. (Cooldown: ${skill.cooldown_seconds}s)${stanceWarning2207}`;
     if (context && context.broadcastToRoom) {
       context.broadcastToRoom(freshBs.current_room_id, freshBs.id,
         `🪓 ${freshBs.username} entra en FURIA — su próximo ataque será devastador!`);

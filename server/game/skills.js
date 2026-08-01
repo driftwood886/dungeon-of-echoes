@@ -196,7 +196,7 @@ const SKILLS = {
     type: 'berserker_rage',
     dmg_multiplier: 2.0,
     hp_cost_pct: 0.20, // DIS-1238: cuesta 20% del HP máximo
-    description: 'Sacrificás 20% de tu HP máximo para hacer ×2.0 daño en el próximo ataque. ¡La sangre alimenta la rabia! Solo Berserker (nivel 5+). Cooldown: 60s.',
+    description: 'Sacrificás 20% de tu HP máximo para hacer ×2.0 daño en el próximo ataque. ¡La sangre alimenta la rabia! ⚠️ Si el ataque falla (miss), el ×2 se pierde — el HP ya se gastó. Solo Berserker (nivel 5+). Cooldown: 60s.',
     combat_only: true,
   },
   // EPIC-1307-F5: Modo Berserk — estado de combate de 3 turnos
