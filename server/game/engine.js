@@ -4664,6 +4664,24 @@ function cmdStats(player) {
     lines.push(`   Arma: (ninguna — ataque base)`);
   }
   lines.push(`\n💡 Para ver inventario completo: «inventario». Para detalle completo: «status».`);
+
+  // DIS-2188: mostrar cooldowns activos en stats para que el jugador sepa cuándo puede usar smash/habilidades
+  try {
+    const _cds = skills.getCooldowns(player);
+    const _now = Date.now();
+    const _activeCds = Object.entries(_cds)
+      .map(([skillId, expiresAt]) => ({ skillId, remaining: Math.ceil((new Date(expiresAt) - _now) / 1000) }))
+      .filter(cd => cd.remaining > 0);
+    if (_activeCds.length > 0) {
+      const _skillNames = { smash: 'Golpetazo', golpe_sucio: 'Golpe Sucio', sanacion_mayor: 'Sanación Mayor', shield_bash: 'Shield Bash', arenga: 'Arenga', bendicion: 'Bendición', golpe_sombra: 'Golpe Sombra', evasion: 'Evasión', rayo_divino: 'Rayo Divino', escudo_sagrado: 'Escudo Sagrado', drenar_arcano: 'Drenar Arcano', modo_berserk: 'Modo Berserk', emboscada_oscura: 'Emboscada Oscura', consagrar_sala: 'Consagrar Sala' };
+      const _cdLines = _activeCds.map(cd => {
+        const name = _skillNames[cd.skillId] || cd.skillId;
+        return `   ⏳ ${name}: ${cd.remaining}s`;
+      });
+      lines.push(`⏱️ Cooldowns activos:\n${_cdLines.join('\n')}`);
+    }
+  } catch (_) { /* no romper stats si falla */ }
+
   return { text: lines.join('\n') };
 }
 
