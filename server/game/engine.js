@@ -30874,9 +30874,13 @@ function cmdAscend(player, args, context) {
     return { text: lines.join('\n') };
   }
 
-  // El jugador eligió un legado — ejecutar la ascensión
+  // El jugador eligió un legado — pedir confirmación antes de ejecutar
   const choiceIdx = parseInt(match[1]) - 1;
-  const epitaph = match[2] ? match[2].trim() : null;
+  let epitaph = match[2] ? match[2].trim() : null;
+  // DIS-2174: si hay epitafio guardado en el SE (del paso de confirmación), usarlo si no hay uno nuevo
+  if (!epitaph && se.ascension_pending_epitaph) {
+    epitaph = se.ascension_pending_epitaph;
+  }
   let legadoElegido = choices[choiceIdx];
 
   // IMPL-2052 (EPIC-KAELTHAS-F3): verificar si eligió el legado especial de Kaelthas por ID textual
@@ -30894,6 +30898,47 @@ function cmdAscend(player, args, context) {
 
   if (!legadoElegido) {
     return { text: '❌ Opción inválida. Elegí 1, 2 o 3.' };
+  }
+
+  // DIS-2174: Confirmación explícita antes de ejecutar la ascensión (es permanente e irreversible).
+  // Si el jugador eligió una opción pero no confirmó, guardar la elección y mostrar pantalla de confirmación.
+  // Si ya hay una elección pendiente Y el argumento es "confirmar", ejecutar la ascensión.
+  const CONFIRM_KEYWORDS = new Set(['confirmar', 'confirm', 'sí', 'si', 'yes']);
+
+  // Detectar si el jugador está confirmando una elección previa
+  const pendingChoiceId = se.ascension_pending_choice;
+  const isConfirmingCommand = args && args.length > 0 && CONFIRM_KEYWORDS.has(args[args.length - 1].toLowerCase());
+  const isConfirmingPending = isConfirmingCommand && pendingChoiceId;
+
+  // Si ya eligió antes y ahora confirma la misma elección
+  if (isConfirmingPending && (pendingChoiceId === legadoElegido.id || isConfirmingCommand)) {
+    // Restaurar la elección guardada si el único arg fue "confirmar"
+    if (!legadoElegido && pendingChoiceId) {
+      legadoElegido = LEGACY_POOL.find(l => l.id === pendingChoiceId) || (pendingChoiceId === 'memoria_kaelthas' ? KAELTHAS_LEGACY : null);
+      if (!legadoElegido) return { text: '❌ Error: no se encontró el legado pendiente. Escribí `ascender` para ver las opciones de nuevo.' };
+    }
+    // Limpiar la elección pendiente del SE (se usará abajo en la ejecución)
+    const seClean = { ...se };
+    delete seClean.ascension_pending_choice;
+    fresh.status_effects = seClean;
+    // Caer al bloque de ejecución (no retornar aquí)
+  } else if (!isConfirmingPending) {
+    // Primera elección — pedir confirmación
+    const epitaphHint = epitaph ? ` Tu epitafio: "${epitaph}".` : '';
+    const seWithPending = { ...se, ascension_pending_choice: legadoElegido.id };
+    if (epitaph) seWithPending.ascension_pending_epitaph = epitaph;
+    db.updatePlayer(fresh.id, { status_effects: JSON.stringify(seWithPending) });
+
+    return { text: [
+      ``,
+      `⚡ Vas a ascender con el legado: **${legadoElegido.emoji} ${legadoElegido.nombre}**`,
+      `   "${legadoElegido.desc.replace('[nombre]', fresh.username)}"`,
+      ``,
+      `⚠️  Esto es PERMANENTE — tu personaje actual se archivará y empezarás de cero.${epitaphHint}`,
+      ``,
+      `Para confirmar:  \`ascender ${match[1]} confirmar\``,
+      `Para cancelar:   \`ascender cancelar\``,
+    ].join('\n') };
   }
 
   // ─── Ejecutar la ascensión ───────────────────────────────────────────────
