@@ -297,8 +297,12 @@ function calcLevelUp(freshPlayer, xpGain) {
     for (let lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
       // DIS-2095: ya no agregar aviso de especialización aquí — se muestra en el próximo look/status
       // (el flag spec_notify_deferred ya fue marcado en status_effects arriba)
-      // Aquí se pueden agregar más unlocks futuros de niveles específicos
-      void lvl;
+      // DIS-2177: al llegar al nivel 3, notificar que ya se puede unir a una facción.
+      // Solo mostrar si el jugador no fue notificado aún por EPIC-1377 (el mensaje del mensajero en combate).
+      // Cubre paths fuera del combate (XP de quest, exploración) donde EPIC-1377 no se activa.
+      if (lvl === 3 && !freshPlayer.faction && !freshPlayer.faction_notified) {
+        unlockLines += '\n   ⚔️ ¡Ahora podés unirte a una facción! Escribí `facciones` para ver las opciones.';
+      }
     }
   }
   // BUG-1718: Legado "Veterano Silencioso" — bonus de +1 stat elegible al primer level up (nivel 1→2)
