@@ -3227,7 +3227,7 @@ function cmdMove(player, direction) {
         db.updatePlayer(player.id, { status_effects: JSON.stringify({ ...seExp5, spec_notify_deferred: true }) });
       } catch (_) { /* no interrumpir */ }
     }
-    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${exploXp} XP de explorador. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${expAldricReminder}` : ''}`;
+    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${exploXp} XP de explorador${prevVisitedCount < 5 ? ' ✨ (bonus de descubrimiento)' : ''}. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${expAldricReminder}` : ''}`;
     // EPIC-1373: Influencia de facción por exploración (nueva sala)
     // DIS-2162: retroalimentación inmediata de influencia
     const _fExploAdded = db.addFactionInfluence(player.id, 2);
