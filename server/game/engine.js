@@ -21952,7 +21952,8 @@ function cmdUseSkill(player, args, context) {
         return { text: `⚡ El ${deadName} ya está derrotado. ¿Había otro objetivo?\n💡 Si querés avanzar, explorá la sala con \`look\` o movete con \`go [dirección]\`.` };
       }
       if (targetName) return { text: `⚡ No hay ningún "${targetName}" aquí para golpear.` };
-      return { text: '⚡ No hay monstruos aquí para golpear.' };
+      // DIS-2171: cuando la habilidad tiene nombre propio, reconocerla en el mensaje de "no hay enemigos"
+      return { text: '⚡ Preparás el Golpetazo... pero no hay enemigos en la sala. Nada que demoler.' };
     }
     // Buscar monstruo por nombre si se especificó, si no usar el primero
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
@@ -22441,7 +22442,7 @@ function cmdUseSkill(player, args, context) {
     const targetName = args.slice(1).join(' ').trim();
     if (alive.length === 0) {
       if (targetName) return { text: `⚡ No hay ningún "${targetName}" aquí para golpear con el escudo.` };
-      return { text: '⚡ No hay monstruos aquí para golpear con el escudo.' };
+      return { text: '⚡ Preparás el Golpe de Escudo... pero no hay enemigos en la sala. Nadie a quien aturdirte.' };
     }
     // Buscar monstruo por nombre si se especificó, si no usar el primero
     let target = targetName ? combat.findMonsterInRoom(freshPlayer.current_room_id, targetName) : null;
