@@ -197,8 +197,9 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
   // DIS-1208: pistas visuales directas en salas clave de la narrativa de Kaelthas
   // DIS-1346: suprimir para jugadores veteranos (nivel 3+) que ya visitaron la sala
   const isVeteranPlayer = alreadyVisited && (player.level || 1) >= 3;
+  // DIS-2182: sala 2 eliminada — la descripción de sala ya menciona la inscripción con cera
+  // y "✍️ Hay marcas en la pared" la cubre genéricamente. Tener ambos generaba duplicación.
   const KAELTHAS_ROOM_HINTS = {
-    2:  '🔍 Una inscripción en la pared del corredor llama tu atención — el barniz de cera la protege del tiempo. (Escribí "examine pared" o "examine inscripciones" para leerla.)',
     5:  '🕯️ Sobre el altar hay un escudo sin emblema y velas que arden pese al polvo centenario — alguien estuvo aquí recientemente.',
     9:  '👑 El trono tiene marcas en los apoyabrazos — dedos que se aferraron muchas veces. Algo grabado en la piedra del respaldo parece diferente al resto de la decoración. (Escribí "examine trono" para investigar.)',
   };
@@ -456,26 +457,12 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
   // DIS-1329: suprimir si es primera visita (el evento cinemático ya menciona el olor a cuero curtido)
   // DIS-1346: suprimir para jugadores veteranos
   // DIS-1744: suprimir si el jugador ya visitó sala 4 (ya conoce a Aldric — hint redundante)
-  // DIS-2168: suprimir en visitas subsecuentes — solo mostrar si el jugador está volviendo por segunda vez
-  //           (no en la primera, que ya tiene el cinemático, y no en la tercera+, que es repetición)
-  if (roomId === 2 && !isVeteranPlayer) {
-    let sala2PrimeraVisita = false;
-    let sala2SegundaVisita = false;
-    let yaConoceAldric = false;
-    if (player && player.rooms_visited) {
-      try {
-        const visitados = JSON.parse(player.rooms_visited || '[]');
-        const visitas2 = visitados.filter(v => v == 2 || v === '2').length;
-        sala2PrimeraVisita = !visitados.includes(2) && !visitados.includes('2');
-        sala2SegundaVisita = visitas2 === 1; // esta es la segunda visita (ya aparece en la lista una vez)
-        yaConoceAldric = visitados.includes(4) || visitados.includes('4');
-      } catch (_) {}
-    }
-    // DIS-2168: mostrar solo en la segunda visita exacta (no en primera ni en tercera+)
-    if (sala2SegundaVisita && !yaConoceAldric) {
-      lines.push(`\n👃 Un tenue olor a cuero curtido y especias de ultramar llega desde el norte. Quizás hay algo interesante en esa dirección.`);
-    }
-  }
+  // DIS-2168: hint olfativo de Aldric en sala 2 (segunda visita).
+  // DIS-2182: removido — el hint tenía un bug de timing (rooms_visited ya incluye la sala en primera visita,
+  //           entonces sala2SegundaVisita = true incluso en la primera visita real, generando duplicación
+  //           con el CINEMATIC_EVENT). El CINEMATIC_EVENT cubre la primera visita; en revisitas
+  //           el jugador ya sabe de Aldric. El hint olfativo de sala 3 (al este) sigue activo para
+  //           jugadores que no llegaron a sala 4 aún.
 
   // DIS-1178: Sala 3 (Sala de los Ecos) — hint explícito hacia Aldric + nota sobre el Esqueleto
   // DIS-1346: suprimir para jugadores veteranos
