@@ -27380,7 +27380,7 @@ function cmdGuide(args) {
       '',
       'RECETAS PRINCIPALES:',
       '  veneno + cuchillo       → cuchillo envenenado',
-      '  hierba curativa + poción→ poción de vida',
+      '  hierba curativa + poción menor → poción de vida',
       '  núcleo de forja +',
       '    espada oxidada        → espada de obsidiana',
       '  fragmento de hielo +',
@@ -29873,7 +29873,7 @@ function cmdTips(args) {
     crafteo: [
       '⚗️  Usá "lore <ítem>" para ver qué recetas de crafteo usan ese ítem como ingrediente.',
       '🗡️  Receta estrella: núcleo de forja + espada oxidada = espada de obsidiana (mejor arma básica).',
-      '💉 Receta útil: hierba curativa + poción de salud = poción de vida (cura más HP).',
+      '💉 Receta útil: hierba curativa + poción menor = poción de vida (cura más HP). También funciona con poción de salud.',
       '❄️  Receta rara: fragmento de hielo + cristal helado = lanza espectral (arma de élite).',
       '🔪 Veneno concentrado + cuchillo = cuchillo envenenado (35% de envenenar en cada golpe).',
       '🍄 El Túnel de los Hongos (sala 6) es buen lugar para "forage" y conseguir hierbas.',
