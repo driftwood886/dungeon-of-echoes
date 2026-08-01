@@ -1784,6 +1784,26 @@ function attackRound(player, monster) {
           const roomItems = Array.isArray(currentRoom.items) ? currentRoom.items : (currentRoom.items ? JSON.parse(currentRoom.items) : []);
           db.updateRoomItems(player.current_room_id, [...roomItems, ...goesToFloor]);
           lines.push(`⚠️ Inventario lleno — **${goesToFloor.join(', ')}** quedaron en el suelo. Usá \`loot\` para recogerlos.`);
+
+          // BUG-2173: También proteger con loot garantizado los directLootItems que cayeron al suelo.
+          // Antes solo se garantizaban ítems de droppedLoot (abajo, en el bloque isBossMonster).
+          // Un jugador con inventario lleno puede perder ítems épicos de boss al respawn.
+          try {
+            const GUARANTEED_RARITIES_DIRECT = new Set(['raro', 'épico', 'legendario']);
+            const rareFloorDirect = goesToFloor.filter(i => GUARANTEED_RARITIES_DIRECT.has(items.getItemRarity(i)));
+            if (rareFloorDirect.length > 0) {
+              const freshForGD = db.getPlayer(player.id);
+              if (freshForGD) {
+                const seGD = typeof freshForGD.status_effects === 'string'
+                  ? JSON.parse(freshForGD.status_effects || '{}')
+                  : (freshForGD.status_effects || {});
+                // Acumular con los garantizados ya existentes (no sobreescribir)
+                const existingGD = Array.isArray(seGD.boss_guaranteed_loot) ? seGD.boss_guaranteed_loot : [];
+                seGD.boss_guaranteed_loot = [...existingGD, ...rareFloorDirect];
+                db.updatePlayer(player.id, { status_effects: JSON.stringify(seGD) });
+              }
+            }
+          } catch (_bug2173direct) { /* no romper combate */ }
         }
       }
 
@@ -1862,7 +1882,9 @@ function attackRound(player, monster) {
                 const RARITY_VAL = { 'legendario': 3, 'épico': 2, 'raro': 1 };
                 return (RARITY_VAL[items.getItemRarity(b)] || 0) - (RARITY_VAL[items.getItemRarity(a)] || 0);
               });
-            const toGuarantee = lootRareSorted.slice(0, 2);
+            // BUG-2173: garantizar TODOS los ítems raros/épicos/legendarios del suelo, no solo 2.
+            // El cap anterior de 2 dejaba ítems épicos sin protección en inventarios casi llenos.
+            const toGuarantee = lootRareSorted; // sin límite
             const guaranteedSet = new Set(toGuarantee);
 
             // DIS-2001: Mostrar lista explícita de ítems en el suelo con su estado
@@ -1883,7 +1905,9 @@ function attackRound(player, monster) {
                 const seGuar = typeof freshForGuar.status_effects === 'string'
                   ? JSON.parse(freshForGuar.status_effects || '{}')
                   : (freshForGuar.status_effects || {});
-                seGuar.boss_guaranteed_loot = toGuarantee;
+                // BUG-2173: acumular con garantizados ya existentes (del directLoot que cayó al suelo arriba)
+                const existingGuar = Array.isArray(seGuar.boss_guaranteed_loot) ? seGuar.boss_guaranteed_loot : [];
+                seGuar.boss_guaranteed_loot = [...existingGuar, ...toGuarantee];
                 db.updatePlayer(player.id, { status_effects: JSON.stringify(seGuar) });
                 lines.push(`\n   Liberá espacio con \`drop <ítem>\` y usá \`loot\` para reclamar${toGuarantee.length === 1 ? ' el ítem garantizado' : ' los ítems garantizados'}.`);
               }
