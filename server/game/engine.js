@@ -56,21 +56,21 @@ function xpProgressSuffix(newXp, newLevel) {
 const ROOM_EFFECTS = {
   // Sala 9 — Sala del Trono: frío sobrenatural (ya tiene trampa, además debuffa ATK)
   // DIS-1236: msg reformulado para aclarar que es efecto permanente de sala, no parte de la trampa
-  9:  { type: 'debuff', stat: 'attack', amount: -1, label: '🥶 Frío sobrenatural (permanente)', msg: 'El frío sobrenatural de la Sala del Trono te entumece los músculos. (-1 ATK mientras estés aquí)\n   ❄️ Este es un efecto ambiental permanente de la sala — no desaparece al desactivar la trampa.' },
+  9:  { type: 'debuff', stat: 'attack', amount: -1, label: '🥶 Frío sobrenatural · -1 ATK (permanente)', msg: 'El frío sobrenatural de la Sala del Trono te entumece los músculos. (-1 ATK mientras estés aquí)\n   ❄️ Este es un efecto ambiental permanente de la sala — no desaparece al desactivar la trampa.' },
   // Sala 11 — Galería de Hielo: pista narrativa de vulnerabilidad al fuego del Elemental
   // DIS-1935: la descripción ya menciona el frío, pero el jugador necesita una señal más directa
   // del tipo de daño efectivo antes del encuentro (el tip del mapa era demasiado pasivo)
-  11: { type: 'hint', label: '🧊 Susurro del Hielo', msg: '❄️ El frío es tan intenso que el metal de tu arma se enfría al instante.\n   Las paredes brillan con una luz azul espectral. Notás que el suelo cerca del Elemental tiene marcas de chamuscado antiguo — alguien antes que vos descubrió algo.\n   💡 Pista: el fuego parece ser efectivo contra criaturas de hielo.' },
+  11: { type: 'hint', label: '🧊 Susurro del Hielo · 💡 el fuego es efectivo', msg: '❄️ El frío es tan intenso que el metal de tu arma se enfría al instante.\n   Las paredes brillan con una luz azul espectral. Notás que el suelo cerca del Elemental tiene marcas de chamuscado antiguo — alguien antes que vos descubrió algo.\n   💡 Pista: el fuego parece ser efectivo contra criaturas de hielo.' },
   // Sala 12 — Taller de la Forja: calor brutal al entrar
-  12: { type: 'damage', amount: 2, label: '🔥 Calor Abrasador', msg: '🔥 El calor extremo de la forja te abrasa la piel al entrar. (-2 HP)' },
+  12: { type: 'damage', amount: 2, label: '🔥 Calor Abrasador · -2 HP al entrar', msg: '🔥 El calor extremo de la forja te abrasa la piel al entrar. (-2 HP)' },
   // Sala 1 — Entrada del Santuario: aura sagrada regenera HP
-  1:  { type: 'heal', amount: 3, label: '✨ Aura Sagrada', msg: '✨ El aura sagrada de la entrada te reconforta. (+3 HP)' },
+  1:  { type: 'heal', amount: 3, label: '✨ Aura Sagrada · +3 HP al entrar', msg: '✨ El aura sagrada de la entrada te reconforta. (+3 HP)' },
   // Sala 15 — Catedral Maldita: maldición drena HP (solo primera visita — DIS-512)
-  15: { type: 'damage', amount: 1, label: '💀 Maldición del Lich (1ª visita)', msg: '💀 Una maldición oscura te roza al cruzar el umbral. (-1 HP) [Solo ocurre la primera vez que entrás]' },
+  15: { type: 'damage', amount: 1, label: '💀 Maldición del Lich · -1 HP (solo 1ª visita)', msg: '💀 Una maldición oscura te roza al cruzar el umbral. (-1 HP) [Solo ocurre la primera vez que entrás]' },
   // Sala 19 — Cámara del Eco: confusión mental (-1 ATK)
-  19: { type: 'debuff', stat: 'attack', amount: -1, label: '🔊 Ecos Enloquecedores', msg: '🔊 Los ecos multiplicados te confunden y desorientan. (-1 ATK mientras estés aquí)' },
+  19: { type: 'debuff', stat: 'attack', amount: -1, label: '🔊 Ecos Enloquecedores · -1 ATK mientras estés aquí', msg: '🔊 Los ecos multiplicados te confunden y desorientan. (-1 ATK mientras estés aquí)' },
   // Sala 20 — Abismo Eterno: el vacío drena energía (-2 HP al entrar)
-  20: { type: 'damage', amount: 2, label: '🌑 Vacío Eterno', msg: '🌑 La presencia del Abismo Eterno drena tu energía vital. (-2 HP)' },
+  20: { type: 'damage', amount: 2, label: '🌑 Vacío Eterno · -2 HP al entrar', msg: '🌑 La presencia del Abismo Eterno drena tu energía vital. (-2 HP)' },
 };
 
 // ── Registro en memoria: último remitente de whisper/tell por jugador ─────────
@@ -1376,7 +1376,7 @@ function cmdLook(player, options = {}) {
           ? knownTrapsObj.includes('heat_room_15')
           : knownTrapsObj['heat_room_15'];
         if (alreadyKnowsCatedral) {
-          effectLabel = '💀 Energía oscura residual (maldición conocida — sin daño)';
+          effectLabel = '💀 Energía oscura residual · sin efecto (maldición conocida)';
         }
       } catch (_) { /* usar label por defecto */ }
     }
