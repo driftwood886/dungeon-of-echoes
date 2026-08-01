@@ -15399,6 +15399,11 @@ function cmdMisionFaccion(player) {
     lines.push(`   ${stanceHint}`);
   }
 
+  // DIS-2202: aclarar la diferencia entre misión de orden y misión de ranking
+  lines.push(``);
+  lines.push(`💡 Esta es tu **misión de orden** (progreso propio, mata criaturas).`);
+  lines.push(`   Para ver el ranking de influencia semanal de la guerra entre facciones, escribí \`facciones\`.`);
+
   return { text: lines.join('\n') };
 }
 
@@ -15510,10 +15515,12 @@ function cmdFacciones(player) {
       const progressBar = '█'.repeat(Math.round((missionProgress / MISSION_GOAL) * 10)) + '░'.repeat(10 - Math.round((missionProgress / MISSION_GOAL) * 10));
       const missionStatus = missionProgress >= MISSION_GOAL ? '✅ COMPLETADA' : `${missionProgress}/${MISSION_GOAL} pts (${progressPct}%)`;
       lines.push(`╟──────────────────────────────────────────────────────╢`);
-      lines.push(`║  📋 MISIÓN SEMANAL                                    ║`);
+      lines.push(`║  🏆 MISIÓN DE RANKING (influencia semanal)            ║`);
       lines.push(`║  ${weeklyMission.substring(0, 52).padEnd(52)}║`);
       lines.push(`║  Progreso: [${progressBar}] ${missionStatus.padEnd(26)}║`);
       lines.push(`║  ⏰ Plazo: ${timeLeft.padEnd(43)}║`);
+      lines.push(`║  ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ║`);
+      lines.push(`║  📋 Misión de orden: escribí mision-faccion           ║`);
     }
   } else {
     lines.push(`║  No tenés facción aún.                                ║`);
