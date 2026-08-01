@@ -186,6 +186,21 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
   }
   lines.push(roomDesc);
 
+  // DIS-2180: el hint de la Sala de Práctica en sala 1 (Entrada) fue embebido en room.description
+  // por la migración DIS-1041. Solo debe mostrarse a jugadores que aún no completaron el tutorial.
+  // Si tutorial_step === 0 (tutorial completado), suprimir la línea del hint en el último elemento de lines.
+  if (room.id === 1 && player) {
+    const tutStep = player.tutorial_step;
+    const tutorialCompleted = tutStep === 0; // tutorial_step null = jugador viejo/sin tutorial (puede ver el hint)
+    if (tutorialCompleted) {
+      const PRACTICA_HINT = '💡 ¿Sos nuevo? Escribí "abajo" para acceder a la Sala de Práctica y entrenarte sin riesgo antes de adentrarte.';
+      const lastIdx = lines.length - 1;
+      if (lines[lastIdx] && lines[lastIdx].includes(PRACTICA_HINT)) {
+        lines[lastIdx] = lines[lastIdx].replace('\n\n' + PRACTICA_HINT, '').replace('\n' + PRACTICA_HINT, '').replace(PRACTICA_HINT, '');
+      }
+    }
+  }
+
   // DIS-1518: calcular si el jugador ya visitó esta sala (para suprimir mensajes narrativos repetitivos)
   const alreadyVisited = player && (() => {
     try {

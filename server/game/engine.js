@@ -3953,6 +3953,14 @@ function cmdMove(player, direction) {
       // En primera visita (effectText presente), el banner está en effectText — no duplicar.
     }
   } catch (_dis1833) { /* no romper move si falla */ }
+  // DIS-2184: inyectar roomEffectBanner DESPUÉS del encabezado de sala (=== NOMBRE ===)
+  // para que el orden sea: header → efecto → resto de descripción.
+  // Antes el banner iba delante de roomDesc, generando "🌐 ...\n=== SALA ===" en lugar de "=== SALA ===\n🌐 ...".
+  let roomDescWithEffect = roomDesc;
+  if (roomEffectBanner) {
+    roomDescWithEffect = roomDesc.replace(/(\n=== [^\n]+ ===)/, `$1${roomEffectBanner}`);
+    roomEffectBanner = ''; // ya incorporado en roomDescWithEffect — no duplicar en el return
+  }
   // Si hay una quest activa de tipo kill y el jugador tiene progreso parcial,
   // mostrar recordatorio sutil al entrar a cualquier sala (con o sin monstruo objetivo).
   let questMoveHint = '';
@@ -4057,7 +4065,7 @@ function cmdMove(player, direction) {
   }
 
   return {
-    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomEffectBanner}${roomDesc}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${_tronoConsolidated}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${leftEpicMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${questExploreMsg}${_sistemaBlock}`,
+    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${roomEffectBanner}${roomDescWithEffect}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${cinematicEvent}${_tronoConsolidated}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${leftEpicMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${questExploreMsg}${_sistemaBlock}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
