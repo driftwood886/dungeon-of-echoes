@@ -29689,7 +29689,8 @@ function cmdVault(player, args) {
       vault: JSON.stringify(vaultItems),
     });
     const remoteSuffix = canRemote ? ` · −${VAULT_REMOTE_COST}🪙 (acceso remoto desde sala ${player.current_room_id}; gratis en salas 1, 4, 17 y 19)` : '';
-    return { text: `🏛️  "${item}" guardado en la bóveda. (${vaultItems.length}/${VAULT_MAX})${remoteSuffix}` };
+    const localNote = canRemote ? '' : ' · (acceso local, gratis)';
+    return { text: `🏛️  "${item}" guardado en la bóveda. (${vaultItems.length}/${VAULT_MAX})${remoteSuffix}${localNote}` };
   }
 
   if (subcmd === 'take' || subcmd === 'sacar' || subcmd === 'retirar') {
@@ -29722,7 +29723,8 @@ function cmdVault(player, args) {
       vault: JSON.stringify(vaultItems),
     });
     const remoteSuffix = canRemote ? ` · −${VAULT_REMOTE_COST}🪙 (acceso remoto desde sala ${player.current_room_id}; gratis en salas 1, 4, 17 y 19)` : '';
-    return { text: `🏛️  "${item}" sacado de la bóveda y añadido al inventario.${remoteSuffix}` };
+    const localNote2 = canRemote ? '' : ' · (acceso local, gratis)';
+    return { text: `🏛️  "${item}" sacado de la bóveda y añadido al inventario.${remoteSuffix}${localNote2}` };
   }
 
   return { text: 'Subcomandos: vault (listar) · vault store <ítem> · vault take <ítem>' };
