@@ -33,8 +33,8 @@ const COMMAND_ALIASES = {
   junk: 'junk', basura: 'junk', limpiar: 'junk', clean: 'junk',
   // status
   status: 'status', estado: 'status', stat: 'status',
-  // stats / me — DIS-1958: resumen compacto de stats
-  stats: 'stats', me: 'stats',
+  // stats / me — DIS-1958: resumen compacto de stats; cooldowns — DIS-2203: alias para ver cooldowns activos
+  stats: 'stats', me: 'stats', cooldowns: 'stats', cooldown: 'stats', 'mis-cooldowns': 'stats', recargas: 'stats',
   // attack
   attack: 'attack', atacar: 'attack', ataque: 'attack', golpear: 'attack', kill: 'attack',
   // pick
@@ -599,6 +599,7 @@ Comandos disponibles:
   move <dir> / ir <dir> — Moverse (norte, sur, este, oeste)
   inventory / inv       — Ver tu inventario
   status / estado       — Ver tus stats (HP, ataque, defensa)
+  stats / cooldowns     — Resumen compacto de stats + cooldowns activos de habilidades
   attack <monstruo>     — Atacar a un monstruo
   flee / huir           — Intentar huir del combate
   pick <ítem>           — Recoger un ítem del suelo (también: "pick todo" para recoger todo)
