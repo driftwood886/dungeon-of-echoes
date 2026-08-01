@@ -15547,6 +15547,24 @@ function cmdFacciones(player) {
         conclave_arcano:   'Cónclave Arcano',
         hermandad_mercado: 'Hermandad Mercado',
       };
+
+      // DIS-2192: detectar si hay pocos jugadores activos en la facción del jugador
+      // (activos = visto en los últimos 7 días, no bot)
+      let factionActiveCount = 0;
+      if (player.faction) {
+        try {
+          const rawDb = db.raw();
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+          const acResult = rawDb.exec(
+            `SELECT COUNT(*) as cnt FROM players WHERE faction = ? AND is_bot = 0 AND last_seen >= ?`,
+            [player.faction, sevenDaysAgo]
+          );
+          if (acResult.length && acResult[0].values.length) {
+            factionActiveCount = acResult[0].values[0][0] || 0;
+          }
+        } catch (_) { factionActiveCount = 0; }
+      }
+
       lines.push(`╟──────────────────────────────────────────────────────╢`);
       lines.push(`║  ⚔️  MISIONES DE GUERRA — Esta semana                 ║`);
       lines.push(`╟──────────────────────────────────────────────────────╢`);
@@ -15564,6 +15582,14 @@ function cmdFacciones(player) {
         lines.push(`║ ${marker}${icon} ${fname} [${bar}] ${String(pct).padStart(3)}% ║`);
         lines.push(`║   ${label.substring(0, 36).padEnd(36)} ${status.padEnd(13)}║`);
         lines.push(`║   Recompensa: ${String(wm.reward_xp_per_member + ' XP/miembro').padEnd(39)}║`);
+
+        // DIS-2192: aviso contextual cuando hay pocos miembros activos en la facción del jugador
+        if (isMyFaction && !wm.completed && factionActiveCount < 3) {
+          const warningLine1 = `⚠️ Meta colectiva — pocos miembros activos esta semana.`;
+          const warningLine2 = `   Tu aporte individual vale doble. ¡Seguí avanzando!`;
+          lines.push(`║   ${warningLine1.substring(0, 50).padEnd(50)}║`);
+          lines.push(`║   ${warningLine2.substring(0, 50).padEnd(50)}║`);
+        }
       }
     }
   } catch (_) { /* no mostrar errores de war missions */ }
