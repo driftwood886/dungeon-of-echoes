@@ -848,7 +848,8 @@ function attackRound(player, monster) {
 
   // Miss extra por postura agresiva
   if (stanceMods.extraMiss > 0 && Math.random() < stanceMods.extraMiss) {
-    lines.push(`⚔️ [Postura ofensiva] El ataque salvaje falla el blanco!`);
+    // DIS-2233: mensaje diferenciado — deja claro que el miss se debe a la postura agresiva, no al azar
+    lines.push(`⚠️ ¡La postura agresiva te expuso! El ataque salvaje falla el blanco — el riesgo de la postura te costó el turno.`);
     // turno del monstruo igualmente
     const rawMissReturn = Math.max(1, calcDamage(monster.attack) - Math.floor(effectiveDef));
     player.hp = Math.max(0, player.hp - rawMissReturn);
