@@ -490,7 +490,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
       } catch (_) { return false; }
     })();
     if (!yaEnSala4) {
-      lines.push(`\n🏪 Al este, el olor a cuero se vuelve inconfundible — la tienda del mercader Aldric está ahí.\n   ⚔️  El Esqueleto Guerrero en esta sala es el guardia de Aldric. No te atacará si no lo provocás — podés pasar al este sin pelear.`);
+      lines.push(`\n🏪 Al este, el olor a cuero se vuelve inconfundible — la tienda del mercader Aldric está ahí.\n   ⚔️  El Esqueleto Guerrero en la Cámara del Tesoro (al este) es el guardia de Aldric. No te atacará si no lo provocás — podés pasar al este sin pelear.`); // BUG-2249: Esqueleto movido a sala 4 por BUG-2248
     }
     // DIS-2104: hint hacia sala 7 (Pozo Sin Fondo) para jugadores nuevos que no la conocen aún
     const yaEnSala7 = (() => {
@@ -800,7 +800,7 @@ const VARIABLE_ROOMS = new Set([2, 3, 6, 7, 8, 20]);
 //
 // IDs de monstruos base por sala:
 //   Sala 2: Goblin Merodeador (1), Goblin Explorador (28)
-//   Sala 3: Esqueleto Guerrero (2), Murciélago Vampiro (26)
+//   Sala 3: Murciélago Vampiro (26) — Esqueleto Guerrero (2) fue movido a sala 4 (BUG-2248)
 //   Sala 6: Rata Gigante (3), Murciélago Vampiro (27)
 //   Sala 7: Araña Tejedora (7)
 //   Sala 8: Guardia Espectral (8) — el boss no varía, solo puede añadirse Elemental de Maná
@@ -828,7 +828,7 @@ const VARIANT_MONSTER_PLANS = {
   },
 
   // ─── Sala 3 ───────────────────────────────────────────────────────────────
-  // base: Esqueleto Guerrero (2) + Murciélago Vampiro (26)
+  // base: Murciélago Vampiro (26) — Esqueleto Guerrero (2) fue movido a sala 4 por BUG-2248
   'zombie_caminante_x2': {
     roomId: 3,
     add: [31, 31],      // Zombie Caminante × 2 — nota: hay solo 1 id 31 en BD; ver nota abajo
