@@ -16055,7 +16055,31 @@ function _cmdFaccionElegir(player, args) {
             `UPDATE faction_missions SET progress = ? WHERE id = ?`,
             [creditKills, _welcomeMission.id]
           );
-          // Limpiar el counter de sesión (ya fue contabilizado)
+          // DIS-2243: aplicar el mismo crédito retroactivo a la quest principal del questEngine
+          // (El Edicto del Filo — faccion_orden_filo_elite) para consistencia con El Contrato Sangriento.
+          try {
+            const _edQResult = rawDbRetro.exec(
+              `SELECT pq.id, qd.condition FROM player_quests pq
+               JOIN quest_definitions qd ON qd.id = pq.quest_id
+               WHERE pq.player_id = ? AND pq.status = 'active'
+                 AND qd.id = 'faccion_orden_filo_elite'
+               LIMIT 1`,
+              [player.id]
+            );
+            if (_edQResult.length && _edQResult[0].values.length) {
+              const [_edPqId, _edCond] = _edQResult[0].values[0];
+              const _edCondParsed = JSON.parse(_edCond || '{}');
+              const _edCount = _edCondParsed.count || 5;
+              const _edCredit = Math.min(sesKills, _edCount);
+              if (_edCredit > 0) {
+                rawDbRetro.run(
+                  `UPDATE player_quests SET progress = ? WHERE id = ?`,
+                  [JSON.stringify({ kills: _edCredit }), _edPqId]
+                );
+              }
+            }
+          } catch (_edE) { /* no romper si falla el crédito a questEngine */ }
+          // Limpiar el counter de sesión (ya fue contabilizado en ambos sistemas)
           delete seForRetro.ses_agresivo_kills;
           db.updatePlayer(player.id, { status_effects: JSON.stringify(seForRetro) });
           _retroAgresivo = creditKills;
@@ -16063,6 +16087,41 @@ function _cmdFaccionElegir(player, args) {
           const freshAfterRetro = db.getPlayer(player.id);
           if (freshAfterRetro) _welcomeMission = factionMissions.getMissionForPlayer(freshAfterRetro);
         }
+      } else {
+        // DIS-2243: la misión de facción esta semana NO es de tipo agresivo, pero la quest
+        // principal (El Edicto del Filo) SIEMPRE requiere kills agresivos. Aplicar crédito
+        // retroactivo a la quest independientemente de la misión de facción.
+        try {
+          const freshForRetro2 = db.getPlayer(player.id);
+          const seForRetro2 = parseSE(freshForRetro2 ? freshForRetro2.status_effects : null);
+          const sesKills2 = seForRetro2.ses_agresivo_kills || 0;
+          if (sesKills2 > 0) {
+            const rawDbRetro2 = db.raw();
+            const _edQResult2 = rawDbRetro2.exec(
+              `SELECT pq.id, qd.condition FROM player_quests pq
+               JOIN quest_definitions qd ON qd.id = pq.quest_id
+               WHERE pq.player_id = ? AND pq.status = 'active'
+                 AND qd.id = 'faccion_orden_filo_elite'
+               LIMIT 1`,
+              [player.id]
+            );
+            if (_edQResult2.length && _edQResult2[0].values.length) {
+              const [_edPqId2, _edCond2] = _edQResult2[0].values[0];
+              const _edCondParsed2 = JSON.parse(_edCond2 || '{}');
+              const _edCount2 = _edCondParsed2.count || 5;
+              const _edCredit2 = Math.min(sesKills2, _edCount2);
+              if (_edCredit2 > 0) {
+                rawDbRetro2.run(
+                  `UPDATE player_quests SET progress = ? WHERE id = ?`,
+                  [JSON.stringify({ kills: _edCredit2 }), _edPqId2]
+                );
+                // Limpiar el counter de sesión
+                delete seForRetro2.ses_agresivo_kills;
+                db.updatePlayer(player.id, { status_effects: JSON.stringify(seForRetro2) });
+              }
+            }
+          }
+        } catch (_edE2) { /* no romper unión si falla crédito a Edicto (misión no agresiva) */ }
       }
     } catch (_) { /* no romper unión si falla crédito retroactivo */ }
   }
