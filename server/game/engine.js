@@ -1848,7 +1848,15 @@ function cmdLook(player, options = {}) {
       const secsRem = secsLeft % 60;
       const timeStr = minsLeft > 0 ? `${minsLeft}m ${secsRem}s` : `${secsLeft}s`;
       const baseName = soonest.name.startsWith('⭐ ') ? soonest.name.slice(2) : soonest.name;
-      lurkingLine = `\n👁 Sentís que la sala no está vacía. El ${baseName} volverá en ~${timeStr}. Tu presencia lo atrae antes.`;
+      // DIS-2231: flavor narrativo variado al esperar respawn — el silencio debe sentirse reciente
+      const LURK_FLAVORS = [
+        `El silencio aquí es reciente. Todavía huele a combate.`,
+        `Las marcas de la batalla todavía están frescas en el suelo.`,
+        `El polvo de la pelea no terminó de asentarse.`,
+        `Algo en el dungeon recuerda lo que pasó aquí.`,
+      ];
+      const flavorLine = LURK_FLAVORS[Math.floor(Date.now() / 13000) % LURK_FLAVORS.length];
+      lurkingLine = `\n👁 ${flavorLine} El ${baseName} volverá en ~${timeStr}. Tu presencia lo atrae antes.`;
     }
   } catch (_lurk) { /* no romper look si falla el acecho */ }
 
