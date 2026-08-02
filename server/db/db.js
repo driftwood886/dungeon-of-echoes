@@ -2463,6 +2463,230 @@ function setGuildQuest(guildName, questJson) {
   run('UPDATE guilds SET guild_quest = ? WHERE name = ?', [questJson, guildName]);
 }
 
+// ─── GUILD-DEF-002: API interna del Epic Gremios ─────────────────────────────
+
+/**
+ * Crear un gremio nuevo y asignar al creador como líder.
+ * @param {string} leaderId   — ID del jugador fundador
+ * @param {string} guildName  — Nombre único del gremio (ya validado: único, no vacío)
+ * @returns {{ ok: true, guild } | { ok: false, error: string }}
+ */
+function createGuildEpic(leaderId, guildName) {
+  const { randomUUID } = require('crypto');
+  const existing = one('SELECT id FROM guilds WHERE LOWER(name) = LOWER(?)', [guildName]);
+  if (existing) return { ok: false, error: `Ya existe un gremio llamado "${guildName}".` };
+  const player = one('SELECT id, gold, guild_id FROM players WHERE id = ?', [leaderId]);
+  if (!player) return { ok: false, error: 'Jugador no encontrado.' };
+  if (player.guild_id) {
+    const existingGuild = one('SELECT name FROM guilds WHERE id = ?', [player.guild_id]);
+    return { ok: false, error: `Ya pertenecés a un gremio (${existingGuild ? existingGuild.name : 'desconocido'}). Salí primero con «gremio salir».` };
+  }
+  if ((player.gold || 0) < 50) return { ok: false, error: 'Necesitás 50 monedas de oro para fundar un gremio.' };
+  const guildId = randomUUID();
+  const now = new Date().toISOString();
+  run('INSERT INTO guilds (id, name, leader_id, created_at) VALUES (?, ?, ?, ?)', [guildId, guildName, leaderId, now]);
+  run('UPDATE players SET guild_id = ?, gold = gold - 50 WHERE id = ?', [guildId, leaderId]);
+  const guild = one('SELECT * FROM guilds WHERE id = ?', [guildId]);
+  return { ok: true, guild };
+}
+
+/**
+ * Unir un jugador a un gremio existente.
+ * @param {string} playerId   — ID del jugador que se une
+ * @param {string} guildId    — ID del gremio a unirse
+ * @returns {{ ok: true } | { ok: false, error: string }}
+ */
+function joinGuild(playerId, guildId) {
+  const player = one('SELECT id, guild_id FROM players WHERE id = ?', [playerId]);
+  if (!player) return { ok: false, error: 'Jugador no encontrado.' };
+  if (player.guild_id) {
+    const existingGuild = one('SELECT name FROM guilds WHERE id = ?', [player.guild_id]);
+    return { ok: false, error: `Ya pertenecés al gremio "${existingGuild ? existingGuild.name : 'desconocido'}". Salí primero con «gremio salir».` };
+  }
+  const guild = one('SELECT id, name FROM guilds WHERE id = ?', [guildId]);
+  if (!guild) return { ok: false, error: 'Gremio no encontrado.' };
+  run('UPDATE players SET guild_id = ? WHERE id = ?', [guildId, playerId]);
+  // Actualizar rango si corresponde
+  _updateGuildRank(guildId);
+  return { ok: true, guildName: guild.name };
+}
+
+/**
+ * Retirar a un jugador de su gremio actual.
+ * Si el jugador era el líder y hay otros miembros, se transfiere el liderazgo al miembro más antiguo.
+ * Si era el único miembro, el gremio se disuelve.
+ * @param {string} playerId — ID del jugador que sale
+ * @returns {{ ok: true, dissolved?: boolean } | { ok: false, error: string }}
+ */
+function leaveGuild(playerId) {
+  const player = one('SELECT id, guild_id FROM players WHERE id = ?', [playerId]);
+  if (!player || !player.guild_id) return { ok: false, error: 'No pertenecés a ningún gremio.' };
+  const guild = one('SELECT * FROM guilds WHERE id = ?', [player.guild_id]);
+  if (!guild) {
+    // Estado inconsistente: limpiar
+    run('UPDATE players SET guild_id = NULL WHERE id = ?', [playerId]);
+    return { ok: true, dissolved: true };
+  }
+  const members = all('SELECT id FROM players WHERE guild_id = ?', [guild.id]);
+  if (members.length <= 1) {
+    // Único miembro — disolver
+    run('UPDATE players SET guild_id = NULL WHERE id = ?', [playerId]);
+    run('DELETE FROM guilds WHERE id = ?', [guild.id]);
+    return { ok: true, dissolved: true, guildName: guild.name };
+  }
+  // Hay otros miembros
+  run('UPDATE players SET guild_id = NULL WHERE id = ?', [playerId]);
+  // Si era el líder, transferir liderazgo
+  if (guild.leader_id === playerId) {
+    const newLeader = members.find(m => m.id !== playerId);
+    if (newLeader) {
+      run('UPDATE guilds SET leader_id = ? WHERE id = ?', [newLeader.id, guild.id]);
+    }
+  }
+  _updateGuildRank(guild.id);
+  return { ok: true, dissolved: false, guildName: guild.name };
+}
+
+/**
+ * Obtener información completa de un gremio.
+ * @param {string} guildNameOrId — Nombre o ID del gremio
+ * @returns {object | null}
+ */
+function getGuildInfo(guildNameOrId) {
+  let guild = one('SELECT * FROM guilds WHERE id = ?', [guildNameOrId]);
+  if (!guild) guild = one('SELECT * FROM guilds WHERE LOWER(name) = LOWER(?)', [guildNameOrId]);
+  if (!guild) return null;
+  const members = all(
+    'SELECT id, username, level, player_class, kills, last_seen FROM players WHERE guild_id = ? ORDER BY level DESC, kills DESC',
+    [guild.id]
+  );
+  const leader = one('SELECT username FROM players WHERE id = ?', [guild.leader_id]);
+  return {
+    ...guild,
+    items_json: (() => { try { return JSON.parse(guild.items_json || '[]'); } catch { return []; } })(),
+    hall_bulletin: (() => { try { return JSON.parse(guild.hall_bulletin || '[]'); } catch { return []; } })(),
+    members,
+    leader_username: leader ? leader.username : '?',
+    member_count: members.length,
+    rank_name: ['', 'Banda', 'Gremio', 'Forjado', 'Legendario'][guild.rank] || 'Desconocido',
+  };
+}
+
+/**
+ * Depositar un ítem en el banco del gremio.
+ * @param {string} playerId  — ID del jugador que deposita
+ * @param {string} itemName  — Nombre del ítem a depositar
+ * @returns {{ ok: true } | { ok: false, error: string }}
+ */
+function depositItem(playerId, itemName) {
+  const player = one('SELECT id, guild_id, inventory FROM players WHERE id = ?', [playerId]);
+  if (!player || !player.guild_id) return { ok: false, error: 'No pertenecés a ningún gremio.' };
+  let inv;
+  try { inv = JSON.parse(player.inventory || '[]'); } catch { inv = []; }
+  const idx = inv.findIndex(i => i === itemName || (typeof i === 'object' && i.name === itemName));
+  if (idx === -1) return { ok: false, error: `No tenés "${itemName}" en el inventario.` };
+  const guild = one('SELECT id, items_json, rank FROM guilds WHERE id = ?', [player.guild_id]);
+  if (!guild) return { ok: false, error: 'Gremio no encontrado.' };
+  let items;
+  try { items = JSON.parse(guild.items_json || '[]'); } catch { items = []; }
+  // Límite por rango: 1→20, 2→40, 3+→80
+  const maxItems = guild.rank >= 3 ? 80 : guild.rank >= 2 ? 40 : 20;
+  if (items.length >= maxItems) return { ok: false, error: `El banco del gremio está lleno (máximo ${maxItems} ítems para Rango ${guild.rank}).` };
+  // Remover del inventario y agregar al banco
+  inv.splice(idx, 1);
+  items.push(itemName);
+  run('UPDATE players SET inventory = ? WHERE id = ?', [JSON.stringify(inv), playerId]);
+  run('UPDATE guilds SET items_json = ? WHERE id = ?', [JSON.stringify(items), guild.id]);
+  return { ok: true };
+}
+
+/**
+ * Retirar un ítem del banco del gremio.
+ * @param {string} playerId  — ID del jugador que retira
+ * @param {string} itemName  — Nombre del ítem a retirar
+ * @returns {{ ok: true } | { ok: false, error: string }}
+ */
+function withdrawItem(playerId, itemName) {
+  const player = one('SELECT id, guild_id, inventory FROM players WHERE id = ?', [playerId]);
+  if (!player || !player.guild_id) return { ok: false, error: 'No pertenecés a ningún gremio.' };
+  let inv;
+  try { inv = JSON.parse(player.inventory || '[]'); } catch { inv = []; }
+  const guild = one('SELECT id, items_json FROM guilds WHERE id = ?', [player.guild_id]);
+  if (!guild) return { ok: false, error: 'Gremio no encontrado.' };
+  let items;
+  try { items = JSON.parse(guild.items_json || '[]'); } catch { items = []; }
+  const idx = items.findIndex(i => i === itemName || (typeof i === 'object' && i.name === itemName));
+  if (idx === -1) return { ok: false, error: `El banco del gremio no tiene "${itemName}".` };
+  // Verificar capacidad de inventario
+  const maxInv = 8 + (player.inventory_bonus || 0);
+  if (inv.length >= maxInv) return { ok: false, error: 'Tu inventario está lleno.' };
+  items.splice(idx, 1);
+  inv.push(itemName);
+  run('UPDATE guilds SET items_json = ? WHERE id = ?', [JSON.stringify(items), guild.id]);
+  run('UPDATE players SET inventory = ? WHERE id = ?', [JSON.stringify(inv), playerId]);
+  return { ok: true };
+}
+
+/**
+ * Actualizar el rango del gremio según número de miembros y hazañas.
+ * Rango 1=Banda (1-3), Rango 2=Gremio (4-6), Rango 3=Forjado (7+ o ≥10 hazañas), Rango 4=Legendario (solo hazañas épicas)
+ * @param {string} guildId
+ */
+function _updateGuildRank(guildId) {
+  const guild = one('SELECT id, rank, total_hazanas FROM guilds WHERE id = ?', [guildId]);
+  if (!guild) return;
+  const members = all('SELECT id FROM players WHERE guild_id = ?', [guildId]);
+  const count = members.length;
+  const hazanas = guild.total_hazanas || 0;
+  let newRank = 1;
+  if (hazanas >= 10 || count >= 7) newRank = 3;
+  else if (count >= 4) newRank = 2;
+  if (newRank !== guild.rank && newRank > guild.rank) {
+    run('UPDATE guilds SET rank = ? WHERE id = ?', [newRank, guildId]);
+  }
+}
+
+/**
+ * Incrementar kills/quests semanales del gremio de un jugador.
+ * @param {string} playerId
+ * @param {'kills'|'quests'} type
+ * @param {number} amount
+ */
+function incrementGuildWeeklyStat(playerId, type, amount = 1) {
+  const player = one('SELECT guild_id FROM players WHERE id = ?', [playerId]);
+  if (!player || !player.guild_id) return;
+  if (type === 'kills') {
+    run('UPDATE guilds SET weekly_kills = weekly_kills + ? WHERE id = ?', [amount, player.guild_id]);
+  } else if (type === 'quests') {
+    run('UPDATE guilds SET weekly_quests = weekly_quests + ? WHERE id = ?', [amount, player.guild_id]);
+  }
+}
+
+/**
+ * Obtener el gremio de un jugador por ID.
+ * @param {string} playerId
+ * @returns {object | null}
+ */
+function getPlayerGuild(playerId) {
+  const player = one('SELECT guild_id FROM players WHERE id = ?', [playerId]);
+  if (!player || !player.guild_id) return null;
+  return getGuildInfo(player.guild_id);
+}
+
+/**
+ * Obtener todos los gremios activos con info básica.
+ * @returns {Array}
+ */
+function getAllGuildsEpic() {
+  const guilds = all('SELECT g.*, p.username AS leader_username FROM guilds g LEFT JOIN players p ON p.id = g.leader_id ORDER BY g.rank DESC, g.total_hazanas DESC');
+  return guilds.map(g => ({
+    ...g,
+    member_count: (all('SELECT COUNT(*) AS c FROM players WHERE guild_id = ?', [g.id])[0] || {}).c || 0,
+    rank_name: ['', 'Banda', 'Gremio', 'Forjado', 'Legendario'][g.rank] || 'Desconocido',
+  }));
+}
+
+
 // ─── Eventos Globales (T093) ─────────────────────────────────────────────────
 
 /**
@@ -5334,6 +5558,9 @@ module.exports = {
   getGuild, getGuildMembers, createGuild, deleteGuild, setPlayerGuild, getAllGuilds,
   // guild quests (T189)
   getGuildFull, setGuildQuest,
+  // GUILD-DEF-002: API del Epic Gremios
+  createGuildEpic, joinGuild, leaveGuild, getGuildInfo, depositItem, withdrawItem,
+  getPlayerGuild, getAllGuildsEpic, incrementGuildWeeklyStat,
   // global events (T093)
   logGlobalEvent, getGlobalEvents, getGlobalEventsSince, getBossEventsSince, countKillsSince,
   // subastas (T098)
