@@ -5123,7 +5123,19 @@ function cmdStatus(player) {
       });
       return `Enemigos:  \n${lines1292.join('\n')}`;
     })(),
-    player.guild ? `Hermandad: [${player.guild}]` : `Hermandad: (sin guild)`,
+    (() => {
+      // GUILD-DEF-004: mostrar gremio con rango en status
+      if (!player.guild_id && !player.guild) return `Gremio:   (sin gremio — usá «gremio crear» o «gremio unir»)`;
+      const gInfo = player.guild_id ? db.getGuildInfo(player.guild_id) : null;
+      if (gInfo) {
+        const rankEmojis = ['', '🗡', '⚔', '🔥', '🌟'];
+        const rEmoji = rankEmojis[gInfo.rank] || '';
+        return `Gremio:   ${rEmoji} [${gInfo.name}] — Rango ${gInfo.rank}: ${gInfo.rank_name}`;
+      }
+      // Fallback al campo legacy
+      if (player.guild) return `Gremio:   [${player.guild}]`;
+      return null;
+    })(),
     player.pet   ? `Mascota:   ${player.pet}` : `Mascota:   (sin compañero)`,
     (() => {
       // DIS-1666: mostrar facción e influencia semanal en status (impacto visible al unirse)
@@ -10424,7 +10436,9 @@ function cmdWho() {
       const hpText = `${p.hp}/${p.max_hp}`;
       const level = p.level || 1;
       const deaths = p.deaths || 0;
-      const guildTag = p.guild ? ` [${p.guild}]` : '';
+      // GUILD-DEF-004: preferir guild_id (nuevo sistema) sobre campo legacy guild
+      const guildName = p.guild || null; // ambos se sincronizan, usar campo legacy como display rápido
+      const guildTag = guildName ? ` [${guildName}]` : '';
       const titleIcon = getTitle(p.kills || 0).icon;
       const repIcon = db.getReputationLevel(p.reputation || 0).icon;
       const afkTag = afkPlayers.has(p.id) ? ' 💤' : '';
