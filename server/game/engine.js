@@ -18870,8 +18870,16 @@ function cmdAuction(player, args) {
   // Crear subasta (usar realItemName para preservar tildes/mayúsculas del ítem original)
   const auction = db.createAuction(player.id, player.username, realItemName, minPrice);
 
+  // ── BUG-2245: hook de quest — onTrade (auction) ──────────────────────────
+  let questAuctionMsg = '';
+  try {
+    const freshForQAuction = db.getPlayer(player.id);
+    const qaResult = questEngine.onTrade(freshForQAuction || player, 'auction', minPrice);
+    if (qaResult && qaResult.text) questAuctionMsg = '\n\n' + qaResult.text;
+  } catch (_) { /* no romper subasta si falla questEngine */ }
+
   return {
-    text: `🔨 ¡Subasta iniciada!${unequipMsg}\n  Ítem: ${realItemName}\n  Precio mínimo: ${minPrice}g\n  ID de subasta: #${auction.id}\n  Cierra en: 5 minutos\n\nOtros jugadores pueden pujar con: pujar ${auction.id} <monto>`,
+    text: `🔨 ¡Subasta iniciada!${unequipMsg}\n  Ítem: ${realItemName}\n  Precio mínimo: ${minPrice}g\n  ID de subasta: #${auction.id}\n  Cierra en: 5 minutos\n\nOtros jugadores pueden pujar con: pujar ${auction.id} <monto>${questAuctionMsg}`,
     globalEvent: `📣 ¡SUBASTA! ${player.username} pone "${realItemName}" a la venta. Precio mínimo: ${minPrice}g. (ID #${auction.id}) — Usá: pujar ${auction.id} <monto>`,
   };
 }
