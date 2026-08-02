@@ -2090,6 +2090,19 @@ function attackRound(player, monster) {
         } catch (_) { /* no interrumpir si falla */ }
       }
     }
+    // DIS-2239: Boss Dialogue Engine — trigger 'death' antes del sumario de XP
+    // Las frases del boss al morir deben aparecer ANTES de los números de XP para no diluir el drama.
+    try {
+      const bossDeathDialId = BOSS_DIALOGUE_IDS[monster.id];
+      if (bossDeathDialId && isBossMonster) {
+        const bossDeathStats = db.getBossStats ? db.getBossStats(bossDeathDialId) : null;
+        const deathResult = getBossDialogue(bossDeathDialId, 'death', player, bossDeathStats);
+        if (deathResult.matched && (deathResult.text || deathResult.ambient_text)) {
+          lines.push(formatBossDialogue(deathResult));
+        }
+      }
+    } catch (_bde_death) { /* no romper combate si falla el diálogo */ }
+
     lines.push(`⭐ +${xpGain} XP (kills: ${newKills} | nivel: ${newLevel})${impulsoXpMult > 1.0 ? ' ✨[+20% Impulso]' : ''}${finalBloodmoonXpMult > 1.0 ? ` 🌑[+${Math.round((finalBloodmoonXpMult-1)*100)}% Luna]` : ''}${campaignXpMult > 1.0 ? ` 🏆[+${Math.round((campaignXpMult-1)*100)}% Victoria Campaña]` : ''}${xpProgressSuffix(newXp, newLevel)}`);
     // T190: Encantamiento de luz — +3 HP al matar
     if (enchantActive && enchantData.type === 'luz') {
