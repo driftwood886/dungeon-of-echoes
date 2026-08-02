@@ -16606,7 +16606,7 @@ function cmdGuild(player, args) {
       objText = '\n\n📋 Objetivos semanales: (aún no generados — hacé «gremio rango» de nuevo en unos momentos)';
     } else {
       const doneIcon = (d) => d ? '✅' : '⬜';
-      objText = '\n\n📋 Objetivos semanales:';
+      objText = '\n\n📋 Objetivos semanales:\n   ℹ️ Los kills y misiones cuentan a partir de la creación del gremio esta semana.';
       objText += `\n   ${doneIcon(objStatus.killObj.done)} ${objStatus.killObj.label}: ${objStatus.killObj.progress}/${objStatus.killObj.goal}`;
       objText += `\n   ${doneIcon(objStatus.questObj.done)} ${objStatus.questObj.label}: ${objStatus.questObj.progress}/${objStatus.questObj.goal}`;
       objText += `\n   ${doneIcon(objStatus.specialObj.done)} ${objStatus.specialObj.label}: ${objStatus.specialObj.progress}/${objStatus.specialObj.goal}`;
@@ -16630,7 +16630,7 @@ function cmdGuild(player, args) {
     }
     const doneIcon = (d) => d ? '✅' : '⬜';
     const allDone = objStatus.killObj.done && objStatus.questObj.done && objStatus.specialObj.done;
-    let txt = `📋 Objetivos semanales de [${guildInfo.name}]:`;
+    let txt = `📋 Objetivos semanales de [${guildInfo.name}]:\n  ℹ️ Los kills y misiones cuentan a partir de la creación del gremio esta semana.`;
     txt += `\n  ${doneIcon(objStatus.killObj.done)} ${objStatus.killObj.label}: ${objStatus.killObj.progress}/${objStatus.killObj.goal}`;
     txt += `\n  ${doneIcon(objStatus.questObj.done)} ${objStatus.questObj.label}: ${objStatus.questObj.progress}/${objStatus.questObj.goal}`;
     txt += `\n  ${doneIcon(objStatus.specialObj.done)} ${objStatus.specialObj.label}: ${objStatus.specialObj.progress}/${objStatus.specialObj.goal}`;
