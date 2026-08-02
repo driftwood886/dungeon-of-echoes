@@ -1009,6 +1009,24 @@ async function main() {
     // IMPL-2051 (EPIC-KAELTHAS-F1): Reset semanal de kills_this_week en boss_stats.
     // La función verifica internamente si cambió la semana ISO — no hace writes innecesarios.
     try { db.resetWeeklyBossKills(); } catch (_) {}
+
+    // GUILD-DEF-011: Reset semanal de objetivos de gremio.
+    // Evalúa recompensas pendientes, resetea stats y genera nuevos objetivos para la semana.
+    // La función es idempotente — verifica semana ISO internamente.
+    try {
+      const guildResetResult = db.weeklyResetAllGuilds();
+      if (guildResetResult && guildResetResult.reset > 0) {
+        console.log(`[guilds] Reset semanal: ${guildResetResult.reset} gremios actualizados, ${guildResetResult.rewarded} recompensados.`);
+        if (guildResetResult.rewarded > 0) {
+          io.emit('shout', {
+            username: '⭐ GREMIOS',
+            message: `¡Reset semanal! ${guildResetResult.rewarded} gremio(s) completaron sus objetivos y recibieron +150 XP. ¡Nueva semana, nuevos desafíos!`,
+          });
+        }
+      }
+    } catch (guildResetErr) {
+      console.error('[guilds] Error en reset semanal:', guildResetErr);
+    }
   }, 60000);
 
   // T-1225: Scheduler de eventos cíclicos globales (La Gaceta del Corredor)

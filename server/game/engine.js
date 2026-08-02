@@ -6222,6 +6222,21 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // ── GUILD-DEF-008: Tracking de kills semanales del gremio ────────────────
+  let guildKillObjectiveMsg = '';
+  if (monsterDead) {
+    try {
+      const guildKillResult = db.incrementGuildWeeklyStat(player.id, 'kills', 1);
+      if (guildKillResult && guildKillResult.rewarded) {
+        guildKillObjectiveMsg = `\n\n⭐ ¡[${guildKillResult.guildName}] completó todos sus objetivos semanales! +${guildKillResult.xpBonus} XP para todos los miembros.`;
+        Object.assign(combatResult, {
+          guildBroadcast: guildKillResult.guildName,
+          guildBroadcastMsg: `⭐ ¡Objetivos semanales completados! +${guildKillResult.xpBonus} XP para todos los miembros. ¡Hazaña registrada!`,
+        });
+      }
+    } catch (_) { /* no romper combate */ }
+  }
+
   // ── EPIC-1373: Influencia de facción por kill ────────────────────────────
   let factionKillInfluenceMsg = '';
   if (monsterDead) {
@@ -7240,7 +7255,7 @@ function cmdAttack(player, targetName) {
   // Categoría 1: Logros & Runas — recompensas simbólicas y coleccionables
   const notifAchievements = (achLines || '') + (runeMsg || '');
   // Categoría 2: Quests & Desafíos — progreso de objetivos
-  const notifQuests = (questLines || '') + (guildQuestLines || '') + (challengeMsg || '') + (contractMsg || '');
+  const notifQuests = (questLines || '') + (guildQuestLines || '') + (challengeMsg || '') + (contractMsg || '') + (guildKillObjectiveMsg || '');
   // Categoría 3: Progreso — rachas, facciones, party, récords
   const notifProgress = (streakMsg || '') + (factionKillInfluenceMsg || '') + (partyXpLines || '')
     + (worldGoalMsg || '') + (championMsg || '')
@@ -16340,10 +16355,15 @@ function cmdGuild(player, args) {
     if (!result.ok) return { text: result.error };
     // Sincronizar campo legacy guild
     db.updatePlayer(player.id, { guild: targetGuild.name });
+    // GUILD-DEF-010: Verificar si el gremio subió de rango tras unirse
+    const freshGuildAfterJoin = db.getGuildInfo(targetGuild.id);
+    const rankUpMsg = result.rankUp
+      ? `\n\n🎉 ¡[${targetGuild.name}] subió al Rango ${result.rankUp.newRank}: ${result.rankUp.rankName}!`
+      : '';
     return {
-      text: `¡Te uniste al gremio [${targetGuild.name}]! Podés chatear con tus compañeros usando «gc <mensaje>».`,
+      text: `¡Te uniste al gremio [${targetGuild.name}]! Podés chatear con tus compañeros usando «gc <mensaje>».${rankUpMsg}`,
       guildBroadcast: targetGuild.name,
-      guildBroadcastMsg: `⚔ ¡${player.username} se unió al gremio!`,
+      guildBroadcastMsg: `⚔ ¡${player.username} se unió al gremio!${freshGuildAfterJoin && freshGuildAfterJoin.rank > targetGuild.rank ? `\n🎉 ¡[${targetGuild.name}] subió al Rango ${freshGuildAfterJoin.rank}: ${freshGuildAfterJoin.rank_name}!` : ''}`,
     };
   }
 
@@ -16482,7 +16502,78 @@ function cmdGuild(player, args) {
     };
   }
 
-  return { text: `Subcomando desconocido: "${sub}". Usá: gremio crear | unir | salir | info | lista | depositar | retirar | banco | transferir | ir | anuncio | decorar | quest | chat` };
+  // ── gremio rango ─────────────────────────────────────────────────────────── GUILD-DEF-010
+  if (sub === 'rango' || sub === 'rank' || sub === 'progress') {
+    if (!player.guild_id) return { text: 'No pertenecés a ningún gremio.' };
+    const guildInfo = db.getGuildInfo(player.guild_id);
+    if (!guildInfo) return { text: 'Tu gremio ya no existe.' };
+
+    const RANK_NAMES = ['', 'Banda', 'Gremio', 'Forjado', 'Legendario'];
+    const rank = guildInfo.rank || 1;
+    const rankName = RANK_NAMES[rank] || 'Desconocido';
+    const memberCount = (db.all ? db.all('SELECT COUNT(*) AS c FROM players WHERE guild_id = ?', [player.guild_id]) : [{}])[0]?.c || 0;
+
+    // Requisitos para subir de rango
+    const RANK_REQS = [
+      null,
+      { members: 4, hazanas: 0, label: 'Rango 2 (Gremio)' },
+      { members: 7, hazanas: 10, label: 'Rango 3 (Forjado)' },
+      { members: 999, hazanas: 999, label: '(máximo rango)' },
+    ];
+    const nextReq = RANK_REQS[rank];
+    let progressText = '';
+    if (nextReq && rank < 3) {
+      const needMembers = nextReq.members;
+      const needHazanas = nextReq.hazanas;
+      progressText = `\n📈 Progreso hacia ${nextReq.label}:`;
+      progressText += `\n   👥 Miembros: ${memberCount}/${needMembers}${memberCount >= needMembers ? ' ✅' : ''}`;
+      if (needHazanas > 0) {
+        progressText += `\n   ⭐ Hazañas: ${guildInfo.total_hazanas || 0}/${needHazanas}${(guildInfo.total_hazanas || 0) >= needHazanas ? ' ✅' : ''}`;
+      }
+    } else {
+      progressText = `\n🌟 ¡Has alcanzado el rango máximo!`;
+    }
+
+    // Objetivos semanales
+    const objStatus = db.getGuildWeeklyObjectivesStatus(player.guild_id);
+    let objText = '';
+    if (!objStatus || (!guildInfo.weekly_objective_type && !guildInfo.weekly_reset_at)) {
+      objText = '\n\n📋 Objetivos semanales: (no generados aún — usa «gremio rango» la próxima semana)';
+    } else {
+      const doneIcon = (d) => d ? '✅' : '⬜';
+      objText = '\n\n📋 Objetivos semanales:';
+      objText += `\n   ${doneIcon(objStatus.killObj.done)} ${objStatus.killObj.label}: ${objStatus.killObj.progress}/${objStatus.killObj.goal}`;
+      objText += `\n   ${doneIcon(objStatus.questObj.done)} ${objStatus.questObj.label}: ${objStatus.questObj.progress}/${objStatus.questObj.goal}`;
+      objText += `\n   ${doneIcon(objStatus.specialObj.done)} ${objStatus.specialObj.label}: ${objStatus.specialObj.progress}/${objStatus.specialObj.goal}`;
+      const allDone = objStatus.killObj.done && objStatus.questObj.done && objStatus.specialObj.done;
+      if (allDone) objText += '\n\n🎉 ¡Todos los objetivos completados! +150 XP entregados a los miembros.';
+    }
+
+    return {
+      text: `🏰 Rango actual de [${guildInfo.name}]: ${rankName} (${rank}/3)${progressText}${objText}`
+    };
+  }
+
+  // ── gremio objetivos ─────────────────────────────────────────────────────── (alias)
+  if (sub === 'objetivos' || sub === 'goals' || sub === 'objetivo') {
+    if (!player.guild_id) return { text: 'No pertenecés a ningún gremio.' };
+    const guildInfo = db.getGuildInfo(player.guild_id);
+    if (!guildInfo) return { text: 'Tu gremio ya no existe.' };
+    const objStatus = db.getGuildWeeklyObjectivesStatus(player.guild_id);
+    if (!objStatus || !guildInfo.weekly_objective_type) {
+      return { text: '📋 Tu gremio no tiene objetivos semanales generados todavía. Se generan automáticamente al inicio de cada semana.' };
+    }
+    const doneIcon = (d) => d ? '✅' : '⬜';
+    const allDone = objStatus.killObj.done && objStatus.questObj.done && objStatus.specialObj.done;
+    let txt = `📋 Objetivos semanales de [${guildInfo.name}]:`;
+    txt += `\n  ${doneIcon(objStatus.killObj.done)} ${objStatus.killObj.label}: ${objStatus.killObj.progress}/${objStatus.killObj.goal}`;
+    txt += `\n  ${doneIcon(objStatus.questObj.done)} ${objStatus.questObj.label}: ${objStatus.questObj.progress}/${objStatus.questObj.goal}`;
+    txt += `\n  ${doneIcon(objStatus.specialObj.done)} ${objStatus.specialObj.label}: ${objStatus.specialObj.progress}/${objStatus.specialObj.goal}`;
+    if (allDone) txt += '\n\n🎉 ¡Todos los objetivos completados esta semana!';
+    return { text: txt };
+  }
+
+  return { text: `Subcomando desconocido: "${sub}". Usá: gremio crear | unir | salir | info | lista | depositar | retirar | banco | transferir | ir | anuncio | decorar | quest | chat | rango` };
 }
 
 /**

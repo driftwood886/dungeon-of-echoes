@@ -121,6 +121,9 @@ async function init() {
       weekly_reset_at         TEXT,
       weekly_objective_type   TEXT,
       weekly_objective_progress INTEGER NOT NULL DEFAULT 0,
+      weekly_kill_goal        INTEGER NOT NULL DEFAULT 10,
+      weekly_quest_goal       INTEGER NOT NULL DEFAULT 3,
+      weekly_objectives_rewarded INTEGER NOT NULL DEFAULT 0,
       hall_description        TEXT,
       hall_bulletin           TEXT NOT NULL DEFAULT '[]',
       created_at              TEXT NOT NULL DEFAULT (datetime('now'))
@@ -902,6 +905,9 @@ async function init() {
     `ALTER TABLE guilds ADD COLUMN hall_description TEXT`,                                    // GUILD-DEF-001: descripción personalizada de la Guarida (Rango 2+)
     `ALTER TABLE guilds ADD COLUMN hall_bulletin TEXT NOT NULL DEFAULT '[]'`,                 // GUILD-DEF-001: JSON array de mensajes del tablón de anuncios
     `ALTER TABLE guilds ADD COLUMN hall_room_id INTEGER`,                                     // GUILD-DEF-006: ID numérico de la sala Guarida (NULL = no generada aún)
+    `ALTER TABLE guilds ADD COLUMN weekly_kill_goal INTEGER NOT NULL DEFAULT 10`,             // GUILD-DEF-008: meta de kills para el objetivo semanal
+    `ALTER TABLE guilds ADD COLUMN weekly_quest_goal INTEGER NOT NULL DEFAULT 3`,             // GUILD-DEF-008: meta de quests para el objetivo semanal
+    `ALTER TABLE guilds ADD COLUMN weekly_objectives_rewarded INTEGER NOT NULL DEFAULT 0`,    // GUILD-DEF-009: flag para evitar doble recompensa semanal
     `ALTER TABLE players ADD COLUMN guild_id TEXT`,                                           // GUILD-DEF-001: FK a guilds.id (NULL = sin gremio)
     ];
   for (const sql of migrations) {
@@ -2519,8 +2525,8 @@ function joinGuild(playerId, guildId) {
   if (!guild) return { ok: false, error: 'Gremio no encontrado.' };
   run('UPDATE players SET guild_id = ? WHERE id = ?', [guildId, playerId]);
   // Actualizar rango si corresponde
-  _updateGuildRank(guildId);
-  return { ok: true, guildName: guild.name };
+  const rankUpResult = _updateGuildRank(guildId);
+  return { ok: true, guildName: guild.name, rankUp: rankUpResult || null };
 }
 
 /**
@@ -2713,7 +2719,7 @@ function createOrGetGuildHall(guildId) {
  */
 function _updateGuildRank(guildId) {
   const guild = one('SELECT id, rank, total_hazanas FROM guilds WHERE id = ?', [guildId]);
-  if (!guild) return;
+  if (!guild) return null;
   const members = all('SELECT id FROM players WHERE guild_id = ?', [guildId]);
   const count = members.length;
   const hazanas = guild.total_hazanas || 0;
@@ -2726,7 +2732,11 @@ function _updateGuildRank(guildId) {
     if (newRank >= 2) {
       createOrGetGuildHall(guildId);
     }
+    // GUILD-DEF-010: Retornar evento de rank-up para que engine.js pueda hacer broadcast
+    const RANK_NAMES = ['', 'Banda', 'Gremio', 'Forjado', 'Legendario'];
+    return { rankedUp: true, oldRank: guild.rank, newRank, rankName: RANK_NAMES[newRank] || `Rango ${newRank}` };
   }
+  return null;
 }
 
 /**
@@ -2743,6 +2753,225 @@ function incrementGuildWeeklyStat(playerId, type, amount = 1) {
   } else if (type === 'quests') {
     run('UPDATE guilds SET weekly_quests = weekly_quests + ? WHERE id = ?', [amount, player.guild_id]);
   }
+  // GUILD-DEF-009: Verificar si se completó algún objetivo semanal tras actualizar
+  return checkAndRewardGuildObjectives(player.guild_id);
+}
+
+// ─── GUILD-DEF-008: Objetivos Semanales ──────────────────────────────────────
+
+/**
+ * Pool de tipos de objetivo especial (weekly_objective_type).
+ * type: slug único; label: descripción; goal: progreso necesario.
+ */
+const GUILD_SPECIAL_OBJECTIVES = [
+  { type: 'boss_slayer',  label: 'Derrotar a un jefe del dungeon',          goal: 1 },
+  { type: 'rich_guild',   label: 'Acumular 500 monedas en el banco',        goal: 500 },
+  { type: 'quest_rush',   label: 'Completar 10 misiones entre todos',       goal: 10 },
+  { type: 'kill_frenzy',  label: 'Eliminar 50 monstruos entre todos',       goal: 50 },
+  { type: 'rank_up',      label: 'Alcanzar el siguiente rango de gremio',   goal: 1 },
+];
+
+/**
+ * Generar objetivos semanales para un gremio.
+ * - Objetivo 1: matar N monstruos (weekly_kills)
+ * - Objetivo 2: completar N quests (weekly_quests)
+ * - Objetivo 3: especial (weekly_objective_type)
+ * Idempotente si ya tiene objetivos de la semana actual.
+ * @param {string} guildId
+ */
+function generateGuildWeeklyObjectives(guildId) {
+  const guild = one('SELECT id, rank, weekly_reset_at, weekly_objective_type FROM guilds WHERE id = ?', [guildId]);
+  if (!guild) return;
+
+  // Calcular semana ISO actual
+  const now = new Date();
+  const isoWeek = _getISOWeek(now);
+
+  // Si ya tiene objetivos de esta semana, no regenerar
+  if (guild.weekly_reset_at) {
+    const resetWeek = _getISOWeek(new Date(guild.weekly_reset_at));
+    if (resetWeek === isoWeek) return; // ya generados esta semana
+  }
+
+  // Escalar objetivos según rango
+  const rank = guild.rank || 1;
+  const killGoal  = 10 * rank;   // R1: 10, R2: 20, R3: 30
+  const questGoal = 3 * rank;    // R1: 3,  R2: 6,  R3: 9
+
+  // Elegir objetivo especial aleatorio
+  const specials = GUILD_SPECIAL_OBJECTIVES;
+  const special = specials[Math.floor(Math.random() * specials.length)];
+
+  run(
+    `UPDATE guilds SET
+      weekly_kills = 0,
+      weekly_quests = 0,
+      weekly_objective_type = ?,
+      weekly_objective_progress = 0,
+      weekly_reset_at = ?,
+      weekly_kill_goal = ?,
+      weekly_quest_goal = ?
+     WHERE id = ?`,
+    [special.type, now.toISOString(), killGoal, questGoal, guildId]
+  );
+}
+
+/**
+ * Obtener el estado de los 3 objetivos semanales de un gremio.
+ * @param {string} guildId
+ * @returns {{ killObj, questObj, specialObj } | null}
+ */
+function getGuildWeeklyObjectivesStatus(guildId) {
+  const guild = one(
+    'SELECT weekly_kills, weekly_quests, weekly_objective_type, weekly_objective_progress, weekly_kill_goal, weekly_quest_goal FROM guilds WHERE id = ?',
+    [guildId]
+  );
+  if (!guild) return null;
+
+  const killGoal  = guild.weekly_kill_goal  || 10;
+  const questGoal = guild.weekly_quest_goal || 3;
+  const special = GUILD_SPECIAL_OBJECTIVES.find(o => o.type === guild.weekly_objective_type)
+    || GUILD_SPECIAL_OBJECTIVES[0];
+
+  return {
+    killObj: {
+      label:    `Matar ${killGoal} monstruos`,
+      progress: guild.weekly_kills || 0,
+      goal:     killGoal,
+      done:     (guild.weekly_kills || 0) >= killGoal,
+    },
+    questObj: {
+      label:    `Completar ${questGoal} misiones`,
+      progress: guild.weekly_quests || 0,
+      goal:     questGoal,
+      done:     (guild.weekly_quests || 0) >= questGoal,
+    },
+    specialObj: {
+      label:    special.label,
+      progress: guild.weekly_objective_progress || 0,
+      goal:     special.goal,
+      done:     (guild.weekly_objective_progress || 0) >= special.goal,
+    },
+  };
+}
+
+// ─── GUILD-DEF-009: Recompensas por objetivos completados ────────────────────
+
+/**
+ * Verificar si todos los objetivos de la semana están completos y,
+ * si es así, entregar recompensas a los miembros activos.
+ * Se llama automáticamente desde incrementGuildWeeklyStat.
+ * @param {string} guildId
+ * @returns {{ rewarded: boolean, members: string[] } | null}
+ */
+function checkAndRewardGuildObjectives(guildId) {
+  const guild = one(
+    `SELECT id, name, weekly_kills, weekly_quests, weekly_objective_type, weekly_objective_progress,
+            weekly_kill_goal, weekly_quest_goal, weekly_objectives_rewarded, total_hazanas
+     FROM guilds WHERE id = ?`,
+    [guildId]
+  );
+  if (!guild) return null;
+  // Evitar doble recompensa en la misma semana
+  if (guild.weekly_objectives_rewarded) return null;
+
+  const killGoal  = guild.weekly_kill_goal  || 10;
+  const questGoal = guild.weekly_quest_goal || 3;
+  const special = GUILD_SPECIAL_OBJECTIVES.find(o => o.type === guild.weekly_objective_type)
+    || GUILD_SPECIAL_OBJECTIVES[0];
+
+  const killDone  = (guild.weekly_kills  || 0) >= killGoal;
+  const questDone = (guild.weekly_quests || 0) >= questGoal;
+  const specialDone = (guild.weekly_objective_progress || 0) >= special.goal;
+
+  if (!killDone || !questDone || !specialDone) return null;
+
+  // Todos cumplidos — dar recompensas
+  const XP_BONUS = 150;
+  const members = all(
+    'SELECT id, username, xp, level FROM players WHERE guild_id = ?',
+    [guildId]
+  );
+
+  for (const m of members) {
+    run('UPDATE players SET xp = xp + ? WHERE id = ?', [XP_BONUS, m.id]);
+  }
+
+  // Registrar hazaña
+  run('UPDATE guilds SET total_hazanas = total_hazanas + 1, weekly_objectives_rewarded = 1 WHERE id = ?', [guildId]);
+
+  // Actualizar rango por si corresponde
+  _updateGuildRank(guildId);
+
+  return { rewarded: true, members: members.map(m => m.username), guildName: guild.name, xpBonus: XP_BONUS };
+}
+
+/**
+ * Incrementar el progreso del objetivo especial de un gremio.
+ * @param {string} guildId
+ * @param {number} amount
+ */
+function incrementGuildSpecialObjective(guildId, amount = 1) {
+  const guild = one('SELECT id, guild_id FROM guilds WHERE id = ?', [guildId]);
+  if (!guild) return null;
+  run('UPDATE guilds SET weekly_objective_progress = weekly_objective_progress + ? WHERE id = ?', [amount, guildId]);
+  return checkAndRewardGuildObjectives(guildId);
+}
+
+/**
+ * Reset semanal de todos los gremios:
+ * - Evaluar objetivos pendientes (si no se recompensó y algún objetivo parcial)
+ * - Resetear stats semanales
+ * - Generar nuevos objetivos
+ * Idempotente: si ya se reseteó esta semana ISO, no hace nada.
+ * @returns {{ reset: number, rewarded: number } | null}
+ */
+function weeklyResetAllGuilds() {
+  // Verificar si ya se reseteó esta semana revisando el primer gremio con weekly_reset_at de esta semana
+  const currentWeek = _getISOWeek(new Date());
+  const anyGuild = one('SELECT weekly_reset_at FROM guilds LIMIT 1');
+  if (anyGuild && anyGuild.weekly_reset_at) {
+    const guildWeek = _getISOWeek(new Date(anyGuild.weekly_reset_at));
+    if (guildWeek === currentWeek) return null; // Ya reseteado esta semana
+  }
+
+  const guilds = all('SELECT id FROM guilds');
+  if (guilds.length === 0) return { reset: 0, rewarded: 0 };
+
+  let rewardedCount = 0;
+
+  for (const g of guilds) {
+    // Intentar recompensar si corresponde
+    const result = checkAndRewardGuildObjectives(g.id);
+    if (result && result.rewarded) rewardedCount++;
+
+    // Resetear stats semanales (forzar — anula weekly_reset_at para que generateGuildWeeklyObjectives regenere)
+    run(
+      `UPDATE guilds SET
+        weekly_kills = 0,
+        weekly_quests = 0,
+        weekly_objective_progress = 0,
+        weekly_objectives_rewarded = 0,
+        weekly_reset_at = NULL
+       WHERE id = ?`,
+      [g.id]
+    );
+
+    // Generar nuevos objetivos (funciona porque limpiamos weekly_reset_at)
+    generateGuildWeeklyObjectives(g.id);
+  }
+
+  return { reset: guilds.length, rewarded: rewardedCount };
+}
+
+/** Helper: obtener la semana ISO (año-semana) de una fecha. */
+function _getISOWeek(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  const weekNum = 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+  return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
 
 /**
@@ -5644,6 +5873,9 @@ module.exports = {
   // GUILD-DEF-002: API del Epic Gremios
   createGuildEpic, joinGuild, leaveGuild, getGuildInfo, depositItem, withdrawItem, transferGuildLeadership, createOrGetGuildHall,
   getPlayerGuild, getAllGuildsEpic, incrementGuildWeeklyStat,
+  // GUILD-DEF-008/009: Objetivos semanales y recompensas
+  generateGuildWeeklyObjectives, getGuildWeeklyObjectivesStatus, checkAndRewardGuildObjectives,
+  incrementGuildSpecialObjective, weeklyResetAllGuilds,
   // global events (T093)
   logGlobalEvent, getGlobalEvents, getGlobalEventsSince, getBossEventsSince, countKillsSince,
   // subastas (T098)
