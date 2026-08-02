@@ -2110,8 +2110,18 @@ function attackRound(player, monster) {
 
     // DIS-2015: Hint de posturas en el tercer kill real del jugador
     // (no al primero — hay demasiado info ya; al tercero el jugador ya sabe lo básico)
+    // BUG-2236: verificar postura actual del jugador antes de mostrar el tip
     if (newKills === 3) {
-      lines.push(`⚔️ Tip: ¿Sabías que podés cambiar tu postura de combate?\n   · \`postura agresivo\`   → +2 ATK, -1 DEF (atacás más fuerte)\n   · \`postura defensivo\`  → -1 ATK, +2 DEF (aguantás más)\n   · \`postura equilibrado\` → sin cambios (postura actual)\n   La postura cambia tu estilo de pelea. Escribí \`postura\` para ver tu configuración.`);
+      const currentStanceTip = player.stance || 'equilibrado';
+      const stanceLabels = {
+        agresivo:    '`postura agresivo`   → +2 ATK, -1 DEF (atacás más fuerte) ← postura actual',
+        defensivo:   '`postura defensivo`  → -1 ATK, +2 DEF (aguantás más) ← postura actual',
+        equilibrado: '`postura equilibrado` → sin cambios (postura por defecto) ← postura actual',
+      };
+      const aLine    = currentStanceTip === 'agresivo'    ? stanceLabels.agresivo    : '`postura agresivo`   → +2 ATK, -1 DEF (atacás más fuerte)';
+      const dLine    = currentStanceTip === 'defensivo'   ? stanceLabels.defensivo   : '`postura defensivo`  → -1 ATK, +2 DEF (aguantás más)';
+      const eLine    = currentStanceTip === 'equilibrado'  ? stanceLabels.equilibrado : '`postura equilibrado` → sin cambios (postura por defecto)';
+      lines.push(`⚔️ Tip: ¿Sabías que podés cambiar tu postura de combate?\n   · ${aLine}\n   · ${dLine}\n   · ${eLine}\n   La postura cambia tu estilo de pelea. Escribí \`postura\` para ver tu configuración.`);
     }
 
     // BUG-2038: trackKill() removido de aquí — engine.js ya lo llama post-combatResult
