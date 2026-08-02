@@ -14,6 +14,7 @@
 const db = require('../db/db.js');
 const xpSystem = require('./xp.js');  // BUG-1886: calcular level-up al dar XP de quest
 const factionMissions = require('./factionMissions.js');  // BUG-1723: mostrar misión de facción en getQuestsDisplay
+const kaelthasQuest = require('./kaelthasQuest.js');  // DIS-2230: mostrar quest Kaelthas en 'quests' si está activa
 
 // ─── Helpers internos ─────────────────────────────────────────────────────────
 
@@ -1111,6 +1112,20 @@ function getQuestsDisplay(player) {
     // BUG-1723: mostrar misión de facción aunque no haya quests genéricas
     const fmBlock = _factionMissionBlock(player);
     if (fmBlock) { lines.push(''); lines.push(fmBlock); }
+    // DIS-2230: mostrar quest Kaelthas en path "sin quests activas" si está activa
+    try {
+      const mqdB = db.getMainQuestData(player.id);
+      const kStateB = mqdB && mqdB.main_quest_state;
+      if (kStateB && kStateB !== 'inactive') {
+        const foundB = Array.isArray(mqdB.fragments_found) ? mqdB.fragments_found : [];
+        lines.push('');
+        if (kStateB === 'ended') {
+          lines.push('  [NARRATIVA]  📖 "El Libro de los Muertos" — [FINALIZADA] Completaste el arco de Kaelthas.');
+        } else {
+          lines.push(`  [NARRATIVA]  📖 "El Libro de los Muertos" — ${foundB.length}/4 fragmentos encontrados. Escribí \`quest info el libro de los muertos\` para detalles.`);
+        }
+      }
+    } catch (_) { /* no romper quests si falla kaelthas */ }
     // DIS-2172: mostrar contrato semanal en path "sin quests activas"
     try {
       const ctB = db.getWeeklyContract(player);
@@ -1152,6 +1167,21 @@ function getQuestsDisplay(player) {
   if ((player.aldric_quest || 'none') === 'active') {
     lines.push('  [NARRATIVA]  📜 "El Sello de las Dos Llaves" — Encontrá la carta sellada en Sala 8 y traésela a Aldric (Sala 4).');
   }
+
+  // DIS-2230: mostrar quest Kaelthas «El Libro de los Muertos» si está activa
+  // (sistema legacy separado — main_quest_data, no player_quests)
+  try {
+    const mqd = db.getMainQuestData(player.id);
+    const kState = mqd && mqd.main_quest_state;
+    if (kState && kState !== 'inactive') {
+      const found = Array.isArray(mqd.fragments_found) ? mqd.fragments_found : [];
+      if (kState === 'ended') {
+        lines.push('  [NARRATIVA]  📖 "El Libro de los Muertos" — [FINALIZADA] Completaste el arco de Kaelthas.');
+      } else {
+        lines.push(`  [NARRATIVA]  📖 "El Libro de los Muertos" — ${found.length}/4 fragmentos encontrados. Escribí \`quest info el libro de los muertos\` para detalles.`);
+      }
+    }
+  } catch (_) { /* no romper quests si falla kaelthas */ }
 
   lines.push('');
   lines.push('Comandos: `quest info <nombre>` · `quest historial` · `quest abandonar <nombre>`');
