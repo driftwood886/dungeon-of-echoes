@@ -21566,7 +21566,7 @@ function cmdBestiary(player) {
     const starsBar = '★'.repeat(starsFull) + '☆'.repeat(starsEmpty);
     const firstDate = entry.first_kill ? entry.first_kill.slice(0, 10) : '?';
     const skull = entry.kills >= 20 ? '💀' : entry.kills >= 10 ? '☠' : entry.kills >= 5 ? '⚔' : '·';
-    lines.push(`║ ${skull} ${entry.name.padEnd(20).slice(0, 20)} × ${String(entry.kills).padStart(3)} kills ║`);
+    lines.push(`║ ${skull} ${entry.name.padEnd(24).slice(0, 24)} × ${String(entry.kills).padStart(3)} kills ║`);
     lines.push(`║   ${starsBar}  (primera vez: ${firstDate}) ║`);
     // STORY-002: nombre canónico del Lich revelado al haberlo matado
     if (entry.name === 'Lich Anciano') {
