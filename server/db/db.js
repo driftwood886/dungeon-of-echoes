@@ -901,6 +901,7 @@ async function init() {
     `ALTER TABLE guilds ADD COLUMN weekly_objective_progress INTEGER NOT NULL DEFAULT 0`,     // GUILD-DEF-001: progreso del objetivo especial
     `ALTER TABLE guilds ADD COLUMN hall_description TEXT`,                                    // GUILD-DEF-001: descripción personalizada de la Guarida (Rango 2+)
     `ALTER TABLE guilds ADD COLUMN hall_bulletin TEXT NOT NULL DEFAULT '[]'`,                 // GUILD-DEF-001: JSON array de mensajes del tablón de anuncios
+    `ALTER TABLE guilds ADD COLUMN hall_room_id INTEGER`,                                     // GUILD-DEF-006: ID numérico de la sala Guarida (NULL = no generada aún)
     `ALTER TABLE players ADD COLUMN guild_id TEXT`,                                           // GUILD-DEF-001: FK a guilds.id (NULL = sin gremio)
     ];
   for (const sql of migrations) {
@@ -2650,6 +2651,51 @@ function transferGuildLeadership(currentLeaderId, targetUsername) {
 }
 
 /**
+ * Crear (o devolver existente) la sala Guarida del gremio.
+ * La sala se genera con is_generated=1 y tiene una salida 'south' hacia sala 3 (Sala de los Ecos).
+ * Idempotente: si ya existe (hall_room_id en guilds), devuelve la sala existente.
+ * @param {string} guildId
+ * @returns {{ ok: true, roomId: number, isNew: boolean } | { ok: false, error: string }}
+ */
+function createOrGetGuildHall(guildId) {
+  const guild = one('SELECT id, name, rank, hall_room_id, hall_description, leader_id FROM guilds WHERE id = ?', [guildId]);
+  if (!guild) return { ok: false, error: 'Gremio no encontrado.' };
+  if (guild.rank < 2) return { ok: false, error: `La Guarida requiere Rango 2. Tu gremio es Rango ${guild.rank}.` };
+
+  // Si ya tiene guarida, devolverla
+  if (guild.hall_room_id) {
+    const existingRoom = one('SELECT id FROM rooms WHERE id = ?', [guild.hall_room_id]);
+    if (existingRoom) return { ok: true, roomId: guild.hall_room_id, isNew: false };
+    // Si el room no existe en la BD (raro), lo recreamos a continuación
+  }
+
+  // Generar nuevo ID: buscar max de salas generadas >= 30000
+  const maxRow = one('SELECT MAX(id) as max_id FROM rooms WHERE id >= 30000 AND is_generated = 1');
+  const newId = (maxRow && maxRow.max_id) ? maxRow.max_id + 1 : 30001;
+
+  const guildName = guild.name;
+  const defaultDesc = guild.hall_description ||
+    `La Guarida del gremio [${guildName}]. Un espacio propio ganado con esfuerzo colectivo. Las paredes exhiben las insignias del gremio. Hay un tablón de anuncios al fondo.`;
+
+  run(
+    `INSERT OR REPLACE INTO rooms (id, name, description, exits, items, is_generated)
+     VALUES (?, ?, ?, ?, ?, 1)`,
+    [
+      newId,
+      `Guarida de [${guildName}]`,
+      defaultDesc,
+      JSON.stringify({ south: 3 }),  // Salida de regreso a Sala de los Ecos
+      JSON.stringify([]),
+    ]
+  );
+
+  // Guardar hall_room_id en el gremio
+  run('UPDATE guilds SET hall_room_id = ? WHERE id = ?', [newId, guildId]);
+
+  return { ok: true, roomId: newId, isNew: true };
+}
+
+/**
  * Actualizar el rango del gremio según número de miembros y hazañas.
  * Rango 1=Banda (1-3), Rango 2=Gremio (4-6), Rango 3=Forjado (7+ o ≥10 hazañas), Rango 4=Legendario (solo hazañas épicas)
  * @param {string} guildId
@@ -2665,6 +2711,10 @@ function _updateGuildRank(guildId) {
   else if (count >= 4) newRank = 2;
   if (newRank !== guild.rank && newRank > guild.rank) {
     run('UPDATE guilds SET rank = ? WHERE id = ?', [newRank, guildId]);
+    // GUILD-DEF-006: Auto-generar Guarida al alcanzar Rango 2
+    if (newRank >= 2) {
+      createOrGetGuildHall(guildId);
+    }
   }
 }
 
@@ -5581,7 +5631,7 @@ module.exports = {
   // guild quests (T189)
   getGuildFull, setGuildQuest,
   // GUILD-DEF-002: API del Epic Gremios
-  createGuildEpic, joinGuild, leaveGuild, getGuildInfo, depositItem, withdrawItem, transferGuildLeadership,
+  createGuildEpic, joinGuild, leaveGuild, getGuildInfo, depositItem, withdrawItem, transferGuildLeadership, createOrGetGuildHall,
   getPlayerGuild, getAllGuildsEpic, incrementGuildWeeklyStat,
   // global events (T093)
   logGlobalEvent, getGlobalEvents, getGlobalEventsSince, getBossEventsSince, countKillsSince,
