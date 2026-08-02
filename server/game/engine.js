@@ -31670,7 +31670,27 @@ function cmdCampana(player, args) {
   }
 
   if (!data) {
-    return { text: '🏰 **Campaña**\n\nNo hay ninguna campaña activa en este momento.\nUsá `campaña historia` para ver campañas anteriores.' };
+    // DIS-2232: dar contexto temporal cuando no hay campaña activa
+    let contextMsg = '';
+    try {
+      const history = db.getCampaignHistory();
+      if (history && history.length > 0) {
+        const last = history[0];
+        const lastDate = last.ends_at ? new Date(last.ends_at) : (last.started_at ? new Date(last.started_at) : null);
+        if (lastDate) {
+          const diasDesde = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+          contextMsg = `\nLa última campaña («${last.name}») terminó hace ${diasDesde === 0 ? 'hoy' : diasDesde === 1 ? '1 día' : `${diasDesde} días`}.`;
+        }
+      }
+    } catch (_) {}
+    // Calcular próximo lunes (las campañas arrancan lunes)
+    const now = new Date();
+    const dayOfWeek = now.getUTCDay(); // 0=Dom, 1=Lun, ...
+    const daysToMonday = dayOfWeek === 1 ? 7 : (8 - dayOfWeek) % 7;
+    const nextMonday = new Date(now);
+    nextMonday.setUTCDate(now.getUTCDate() + daysToMonday);
+    const nextMondayStr = nextMonday.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    return { text: `🏰 **Campaña**\n\nNo hay ninguna campaña activa en este momento.${contextMsg}\nLa próxima campaña comenzará el **${nextMondayStr}** (cada campaña dura 7 días).\n\nUsá \`campaña historia\` para ver campañas anteriores.` };
   }
 
   const { campaign, active, progress, goal_target, days_remaining } = data;
