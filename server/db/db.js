@@ -2504,6 +2504,8 @@ function createGuildEpic(leaderId, guildName) {
   const now = new Date().toISOString();
   run('INSERT INTO guilds (id, name, leader_id, created_at) VALUES (?, ?, ?, ?)', [guildId, guildName, leaderId, now]);
   run('UPDATE players SET guild_id = ?, gold = gold - 50 WHERE id = ?', [guildId, leaderId]);
+  // DIS-2228: Generar objetivos semanales inmediatamente al crear el gremio
+  generateGuildWeeklyObjectives(guildId);
   const guild = one('SELECT * FROM guilds WHERE id = ?', [guildId]);
   return { ok: true, guild };
 }

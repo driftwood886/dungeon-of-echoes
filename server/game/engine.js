@@ -16538,7 +16538,7 @@ function cmdGuild(player, args) {
     const objStatus = db.getGuildWeeklyObjectivesStatus(player.guild_id);
     let objText = '';
     if (!objStatus || (!guildInfo.weekly_objective_type && !guildInfo.weekly_reset_at)) {
-      objText = '\n\n📋 Objetivos semanales: (no generados aún — usa «gremio rango» la próxima semana)';
+      objText = '\n\n📋 Objetivos semanales: (aún no generados — hacé «gremio rango» de nuevo en unos momentos)';
     } else {
       const doneIcon = (d) => d ? '✅' : '⬜';
       objText = '\n\n📋 Objetivos semanales:';
@@ -16561,7 +16561,7 @@ function cmdGuild(player, args) {
     if (!guildInfo) return { text: 'Tu gremio ya no existe.' };
     const objStatus = db.getGuildWeeklyObjectivesStatus(player.guild_id);
     if (!objStatus || !guildInfo.weekly_objective_type) {
-      return { text: '📋 Tu gremio no tiene objetivos semanales generados todavía. Se generan automáticamente al inicio de cada semana.' };
+      return { text: '📋 Tu gremio no tiene objetivos semanales generados todavía. Se generan al inicio de cada semana (o al crear el gremio). Probá de nuevo en unos instantes.' };
     }
     const doneIcon = (d) => d ? '✅' : '⬜';
     const allDone = objStatus.killObj.done && objStatus.questObj.done && objStatus.specialObj.done;
