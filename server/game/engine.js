@@ -16253,7 +16253,7 @@ function cmdGuild(player, args) {
       const info = db.getGuildInfo(player.guild_id);
       if (info) return { text: _formatGuildCard(info, player.id) };
     }
-    return { text: 'Usá: gremio crear <nombre> | gremio unir <nombre> | gremio salir | gremio info [<nombre>] | gremio lista | gremio depositar <ítem> | gremio retirar <ítem> | gremio quest' };
+    return { text: 'Usá: gremio crear <nombre> | gremio unir <nombre> | gremio salir | gremio info [<nombre>] | gremio lista | gremio depositar <ítem> | gremio retirar <ítem> | gremio transferir <jugador> | gremio quest' };
   }
 
   // Refrescar desde BD
@@ -16407,7 +16407,22 @@ function cmdGuild(player, args) {
     return cmdGuildChat(player, args.slice(1));
   }
 
-  return { text: `Subcomando desconocido: "${sub}". Usá: gremio crear | unir | salir | info | lista | depositar | retirar | banco | quest | chat` };
+  // ── gremio transferir <jugador> ─────────────────────────────────────────────
+  if (sub === 'transferir' || sub === 'transfer') {
+    if (!guildArg) return { text: 'Usá: gremio transferir <nombre_del_jugador>' };
+    if (!player.guild_id) return { text: 'No pertenecés a ningún gremio.' };
+    const result = db.transferGuildLeadership(player.id, guildArg);
+    if (!result.ok) return { text: result.error };
+    const info = db.getGuildInfo(player.guild_id);
+    const guildName = info ? info.name : 'tu gremio';
+    return {
+      text: `👑 Transferiste el liderazgo de [${guildName}] a ${result.newLeaderName}. Ahora sos un miembro regular.`,
+      guildBroadcast: guildName,
+      guildBroadcastMsg: `👑 ${player.username} transfirió el liderazgo a ${result.newLeaderName}.`,
+    };
+  }
+
+  return { text: `Subcomando desconocido: "${sub}". Usá: gremio crear | unir | salir | info | lista | depositar | retirar | banco | transferir | quest | chat` };
 }
 
 /**

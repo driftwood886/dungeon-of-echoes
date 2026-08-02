@@ -2611,8 +2611,10 @@ function withdrawItem(playerId, itemName) {
   if (!player || !player.guild_id) return { ok: false, error: 'No pertenecés a ningún gremio.' };
   let inv;
   try { inv = JSON.parse(player.inventory || '[]'); } catch { inv = []; }
-  const guild = one('SELECT id, items_json FROM guilds WHERE id = ?', [player.guild_id]);
+  const guild = one('SELECT id, items_json, leader_id FROM guilds WHERE id = ?', [player.guild_id]);
   if (!guild) return { ok: false, error: 'Gremio no encontrado.' };
+  // Solo el líder puede retirar ítems del banco
+  if (guild.leader_id !== playerId) return { ok: false, error: '❌ Solo el líder del gremio puede retirar ítems del banco. Los miembros pueden depositar pero no retirar.' };
   let items;
   try { items = JSON.parse(guild.items_json || '[]'); } catch { items = []; }
   const idx = items.findIndex(i => i === itemName || (typeof i === 'object' && i.name === itemName));
@@ -2625,6 +2627,26 @@ function withdrawItem(playerId, itemName) {
   run('UPDATE guilds SET items_json = ? WHERE id = ?', [JSON.stringify(items), guild.id]);
   run('UPDATE players SET inventory = ? WHERE id = ?', [JSON.stringify(inv), playerId]);
   return { ok: true };
+}
+
+/**
+ * Transferir el liderazgo del gremio a otro miembro.
+ * @param {string} currentLeaderId — ID del jugador que transfiere
+ * @param {string} targetUsername  — Username del nuevo líder
+ * @returns {{ ok: true, newLeaderName: string } | { ok: false, error: string }}
+ */
+function transferGuildLeadership(currentLeaderId, targetUsername) {
+  const leader = one('SELECT id, guild_id FROM players WHERE id = ?', [currentLeaderId]);
+  if (!leader || !leader.guild_id) return { ok: false, error: 'No pertenecés a ningún gremio.' };
+  const guild = one('SELECT id, leader_id, name FROM guilds WHERE id = ?', [leader.guild_id]);
+  if (!guild) return { ok: false, error: 'Gremio no encontrado.' };
+  if (guild.leader_id !== currentLeaderId) return { ok: false, error: '❌ Solo el líder puede transferir el liderazgo.' };
+  const target = one('SELECT id, username, guild_id FROM players WHERE username = ?', [targetUsername]);
+  if (!target) return { ok: false, error: `❌ No existe ningún jugador con el nombre "${targetUsername}".` };
+  if (target.guild_id !== leader.guild_id) return { ok: false, error: `❌ ${targetUsername} no pertenece a tu gremio.` };
+  if (target.id === currentLeaderId) return { ok: false, error: '❌ Ya sos el líder.' };
+  run('UPDATE guilds SET leader_id = ? WHERE id = ?', [target.id, guild.id]);
+  return { ok: true, newLeaderName: target.username };
 }
 
 /**
@@ -5559,7 +5581,7 @@ module.exports = {
   // guild quests (T189)
   getGuildFull, setGuildQuest,
   // GUILD-DEF-002: API del Epic Gremios
-  createGuildEpic, joinGuild, leaveGuild, getGuildInfo, depositItem, withdrawItem,
+  createGuildEpic, joinGuild, leaveGuild, getGuildInfo, depositItem, withdrawItem, transferGuildLeadership,
   getPlayerGuild, getAllGuildsEpic, incrementGuildWeeklyStat,
   // global events (T093)
   logGlobalEvent, getGlobalEvents, getGlobalEventsSince, getBossEventsSince, countKillsSince,
