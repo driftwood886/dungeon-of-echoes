@@ -4386,7 +4386,7 @@ function cmdInventory(player) {
     const topSellSuggestions = sellables.slice(0, 3);
     if (topSellSuggestions.length > 0) {
       const sellLines = topSellSuggestions.map(s => `  💰 \`sell ${s.item}\` → ${s.sellPrice}g en tienda de Aldric (sala 4)`);
-      sellSuggestionNote = `\n🏪 Inventario casi lleno — ítems de menor valor que podés vender:\n${sellLines.join('\n')}`;
+      sellSuggestionNote = `\n🏪 Inventario ${usedSlots >= maxSlots ? 'lleno' : 'casi lleno'} — ítems de menor valor que podés vender:\n${sellLines.join('\n')}`;  // BUG-2209
     }
   }
 
@@ -7607,7 +7607,9 @@ function cmdPick(player, itemQuery) {
       if (nonGoldFloor.length > 0 && freeSlots < nonGoldFloor.length) {
         const canFit = Math.max(0, freeSlots);
         const wontFit = nonGoldFloor.length - canFit;
-        pickTodoWarnPrefix = `⚠️ Inventario casi lleno — solo ${canFit} slot${canFit !== 1 ? 's' : ''} libre${canFit !== 1 ? 's' : ''} de ${nonGoldFloor.length} ítem${nonGoldFloor.length !== 1 ? 's' : ''} en el suelo. ${wontFit} ítem${wontFit !== 1 ? 's' : ''} quedará${wontFit !== 1 ? 'n' : ''} sin recoger.\n`;
+        pickTodoWarnPrefix = canFit === 0
+          ? `⚠️ Inventario lleno — no hay slots disponibles. ${wontFit} ítem${wontFit !== 1 ? 's' : ''} quedará${wontFit !== 1 ? 'n' : ''} sin recoger.\n`
+          : `⚠️ Inventario casi lleno — solo ${canFit} slot${canFit !== 1 ? 's' : ''} libre${canFit !== 1 ? 's' : ''} de ${nonGoldFloor.length} ítem${nonGoldFloor.length !== 1 ? 's' : ''} en el suelo. ${wontFit} ítem${wontFit !== 1 ? 's' : ''} quedará${wontFit !== 1 ? 'n' : ''} sin recoger.\n`;  // BUG-2209
       }
     }
     for (const item of floorItems) {
@@ -8126,7 +8128,7 @@ function cmdPick(player, itemQuery) {
       pickSingleMsg += `\n\n⚠️  Inventario al ${Math.round(invWarnCount / invWarnMax * 100)}% (${invWarnCount}/${invWarnMax}) — en la tienda de Aldric (sala 4) escribí **"vender basura"** para vender de golpe todos los ítems inútiles (cuchillos oxidados, hachas viejas, etc.) y liberar espacio.${bolsaHint}${junkSuggestion2131}`;
       db.updatePlayer(freshForInvWarn.id, { status_effects: JSON.stringify({ ...se2119, sell_junk_hint_count: sellHintCount2119 + 1 }) });
     } else {
-      pickSingleMsg += `\n\n⚠️  Inventario casi lleno (${invWarnCount}/${invWarnMax}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.${bolsaHint}${junkSuggestion2131}`;  // DIS-1657, DIS-1991, DIS-2131
+      pickSingleMsg += `\n\n⚠️  Inventario ${invWarnCount >= invWarnMax ? 'lleno' : 'casi lleno'} (${invWarnCount}/${invWarnMax}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.${bolsaHint}${junkSuggestion2131}`;  // DIS-1657, DIS-1991, DIS-2131, BUG-2209
     }
   }
 
@@ -11029,10 +11031,10 @@ function cmdLoot(player) {
         inventoryWarnLine = `\n\n⚠️  Inventario al ${Math.round(usedAfterLoot / MAX_INVENTORY * 100)}% (${usedAfterLoot}/${MAX_INVENTORY}) — en la tienda de Aldric (sala 4) escribí **"vender basura"** para vender de golpe todos los ítems inútiles (cuchillos oxidados, hachas viejas, etc.) y liberar espacio.`;
         db.updatePlayer(player.id, { status_effects: JSON.stringify({ ...seLoot2119, sell_junk_hint_count: sellHintCntLoot + 1 }) });
       } else {
-        inventoryWarnLine = `\n\n⚠️  Inventario casi lleno (${usedAfterLoot}/${MAX_INVENTORY}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`;
+        inventoryWarnLine = `\n\n⚠️  Inventario ${usedAfterLoot >= MAX_INVENTORY ? 'lleno' : 'casi lleno'} (${usedAfterLoot}/${MAX_INVENTORY}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`;
       }
     } else {
-      inventoryWarnLine = `\n\n⚠️  Inventario casi lleno (${usedAfterLoot}/${MAX_INVENTORY}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`;  // DIS-1657
+      inventoryWarnLine = `\n\n⚠️  Inventario ${usedAfterLoot >= MAX_INVENTORY ? 'lleno' : 'casi lleno'} (${usedAfterLoot}/${MAX_INVENTORY}) — tip: "vender basura" en la tienda de Aldric (sala 4) vende de golpe todo lo que no vale la pena guardar.`;  // DIS-1657, BUG-2209
     }
   }
 
