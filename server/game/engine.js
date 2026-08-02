@@ -25467,7 +25467,7 @@ function cmdContract(player) {
   // DIS-893: ubicación de la criatura objetivo
   const CONTRACT_LOCATIONS = {
     'Guardia Espectral':     '📍 Se encuentran en: Prisión Subterránea (sala 8)',
-    'Gólem de Piedra':       '📍 Se encuentran en: Santuario Profano (sala 10)',
+    'Gólem de Piedra':       '📍 Se encuentran en: Santuario Profano (sala 10) · Ruta: Entrada → Corredor → Capilla (5) → Mausoleo (6) → Pozo (7, con llave oxidada) → Santuario (10)',  // DIS-2235: hint de ruta para jugadores nivel bajo
     'Araña Tejedora':        '📍 Se encuentran en: Pozo Sin Fondo (sala 7)',
     'Espectro del Corredor': '📍 Se encuentran en: Sala del Trono (sala 9)',
     'Murciélago Vampiro':    '📍 Se encuentran en: Capilla Olvidada (sala 5)',
