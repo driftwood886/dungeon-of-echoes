@@ -28607,6 +28607,16 @@ function cmdPray(player, args) {
     }
 
     const altarName = roomId === 5 ? 'Altar de la Capilla' : 'Estatua del Santuario';
+
+    // DIS-2238: Si el jugador tiene la quest ritual_pray_capilla activa, agregar hint específico
+    let questHint = '';
+    try {
+      const activeQuests = JSON.parse(player.active_quests || '[]');
+      if (activeQuests.some(q => q.id === 'ritual_pray_capilla')) {
+        questHint = `\n│ 📋 Quest activa: La Devoción del Corredor       │\n│    Necesitás ofrecer un ítem (pray <ítem>).    │\n│    Solo "rezar" sin ofrenda no avanza la quest.│`;
+      }
+    } catch (_) {}
+
     const lines = [
       `┌────────────────────────────────────────────┐`,
       `│ 🙏 ${altarName.padEnd(42)} │`,
@@ -28636,6 +28646,10 @@ function cmdPray(player, args) {
       `│ Cooldown: 5 minutos entre ofrendas.        │`,
       `└────────────────────────────────────────────┘`,
     ];
+    // DIS-2238: insertar hint de quest antes del cierre si el jugador tiene la quest activa
+    if (questHint) {
+      lines.splice(lines.length - 1, 0, questHint);
+    }
     return { text: lines.join('\n') };
   }
 

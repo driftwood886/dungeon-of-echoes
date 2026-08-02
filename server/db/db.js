@@ -417,7 +417,7 @@ async function init() {
     {
       id: 'ritual_pray_capilla',
       name: 'La Devoción del Corredor',
-      description: 'La Capilla Olvidada tiene un altar que lleva años sin recibir devotos regulares. Reza 2 veces ante él — el anciano dice que los rituales repetidos tienen un efecto distinto al de una oración solitaria.',
+      description: 'La Capilla Olvidada tiene un altar que lleva años sin recibir devotos regulares. Ofrecé ítems al altar 2 veces — el anciano dice que los rituales repetidos tienen un efecto distinto al de una oración solitaria. Uso: pray <ítem> (ej: pray monedas de cobre). Cooldown: 5 min entre ofrendas.',
       type: 'ritual',
       slot: 'secundaria',
       condition: JSON.stringify({ event: 'ritual', action: 'pray', count: 2 }),
