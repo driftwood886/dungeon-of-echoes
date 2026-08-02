@@ -490,7 +490,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
       } catch (_) { return false; }
     })();
     if (!yaEnSala4) {
-      lines.push(`\n🏪 Al este, el olor a cuero se vuelve inconfundible — la tienda del mercader Aldric está ahí.\n   ⚔️  El Esqueleto Guerrero custodia la entrada, pero Aldric lo instruyó para no atacar a compradores que lleguen sin arma desenvainada. Podés entrar sin pelear.`);
+      lines.push(`\n🏪 Al este, el olor a cuero se vuelve inconfundible — la tienda del mercader Aldric está ahí.\n   ⚔️  El Esqueleto Guerrero en esta sala es el guardia de Aldric. No te atacará si no lo provocás — podés pasar al este sin pelear.`);
     }
     // DIS-2104: hint hacia sala 7 (Pozo Sin Fondo) para jugadores nuevos que no la conocen aún
     const yaEnSala7 = (() => {
@@ -532,8 +532,8 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
         } catch (_) { return true; }
       })();
       if (esPrimeraVisitaSala4) {
-        // DIS-1178: nota que el Esqueleto es guardia de Aldric y no ataca primero
-        lines.push(`\n⚔️  El Esqueleto Guerrero en la sala es el guardia personal de Aldric. No te atacará si no lo provocás — llegaste como comprador, no como invasor. (Si lo atacás, Aldric lo notará.)`);
+        // DIS-1178: hint sobre acceso a la Casa de Subastas
+        // DIS-D08: el Esqueleto Guerrero fue movido a sala 3 — eliminado hint obsoleto de sala 4
         // DIS-1097: hint sobre acceso a la Casa de Subastas sin pelear
         // DIS-2168: solo en primera visita — en visitas subsecuentes, el jugador ya sabe que existe
         const yaVisitóSubasta = (() => {
