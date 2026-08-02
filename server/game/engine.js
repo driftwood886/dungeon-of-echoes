@@ -16253,7 +16253,7 @@ function cmdGuild(player, args) {
       const info = db.getGuildInfo(player.guild_id);
       if (info) return { text: _formatGuildCard(info, player.id) };
     }
-    return { text: 'Usá: gremio crear <nombre> | gremio unir <nombre> | gremio salir | gremio info [<nombre>] | gremio lista | gremio depositar <ítem> | gremio retirar <ítem> | gremio transferir <jugador> | gremio quest' };
+    return { text: 'Usá: gremio crear <nombre> | gremio unir <nombre> | gremio salir | gremio info [<nombre>] | gremio lista | gremio depositar <ítem> | gremio retirar <ítem> | gremio transferir <jugador> | gremio ir | gremio anuncio <texto> | gremio decorar <texto> | gremio quest' };
   }
 
   // Refrescar desde BD
@@ -16407,6 +16407,66 @@ function cmdGuild(player, args) {
     return cmdGuildChat(player, args.slice(1));
   }
 
+  // ── gremio ir ───────────────────────────────────────────────────────────────
+  if (sub === 'ir' || sub === 'go' || sub === 'hall') {
+    if (!player.guild_id) return { text: 'No pertenecés a ningún gremio.' };
+    const guildInfo = db.getGuildInfo(player.guild_id);
+    if (!guildInfo) return { text: 'Tu gremio ya no existe.' };
+    if (guildInfo.rank < 2) {
+      return { text: `❌ La Guarida se desbloquea en Rango 2. Tu gremio es Rango ${guildInfo.rank} (${guildInfo.rank_name}). Necesitás 4 miembros para subir de rango.` };
+    }
+    const hallResult = db.createOrGetGuildHall(player.guild_id);
+    if (!hallResult.ok) return { text: hallResult.error };
+    if (player.current_room_id === hallResult.roomId) {
+      return { text: `Ya estás en la Guarida de [${guildInfo.name}].` };
+    }
+    // Teletransportar al jugador a la guarida
+    db.updatePlayer(player.id, { current_room_id: hallResult.roomId });
+    const hallRoom = db.getRoom(hallResult.roomId);
+    const desc = hallRoom ? hallRoom.description : `La Guarida de [${guildInfo.name}].`;
+    const exits = hallRoom ? `Salidas: ${Object.keys(hallRoom.exits).map(d => dungeon.DIR_NAMES[d] || d).join(', ')}` : '';
+    return {
+      text: `🏰 Llegaste a la Guarida de [${guildInfo.name}].\n\n${desc}\n\n${exits}`,
+      newRoom: hallResult.roomId,
+    };
+  }
+
+  // ── gremio anuncio <texto> ───────────────────────────────────────────────────
+  if (sub === 'anuncio' || sub === 'bulletin' || sub === 'tablón') {
+    if (!player.guild_id) return { text: 'No pertenecés a ningún gremio.' };
+    const guildInfo = db.getGuildInfo(player.guild_id);
+    if (!guildInfo) return { text: 'Tu gremio ya no existe.' };
+    if (guildInfo.rank < 2) return { text: '❌ El tablón de anuncios se desbloquea en Rango 2.' };
+    if (!guildArg) return { text: 'Usá: gremio anuncio <texto>' };
+    const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    const bulletin = guildInfo.hall_bulletin || [];
+    bulletin.push(`[${now}] ${player.username}: ${guildArg}`);
+    // Mantener solo los últimos 20 anuncios
+    if (bulletin.length > 20) bulletin.splice(0, bulletin.length - 20);
+    db.updateGuildField(player.guild_id, 'hall_bulletin', JSON.stringify(bulletin));
+    return {
+      text: `📋 Anuncio publicado en el tablón de [${guildInfo.name}].`,
+      guildBroadcast: guildInfo.name,
+      guildBroadcastMsg: `📋 ${player.username} publicó en el tablón: "${guildArg}"`,
+    };
+  }
+
+  // ── gremio decorar <texto> ───────────────────────────────────────────────────
+  if (sub === 'decorar' || sub === 'decorate') {
+    if (!player.guild_id) return { text: 'No pertenecés a ningún gremio.' };
+    const guildInfo = db.getGuildInfo(player.guild_id);
+    if (!guildInfo) return { text: 'Tu gremio ya no existe.' };
+    if (guildInfo.rank < 2) return { text: '❌ Decorar la Guarida requiere Rango 2.' };
+    if (guildInfo.leader_id !== player.id) return { text: '❌ Solo el líder puede decorar la Guarida.' };
+    if (!guildArg) return { text: 'Usá: gremio decorar <descripción>' };
+    db.updateGuildField(player.guild_id, 'hall_description', guildArg);
+    // También actualizar la descripción de la sala si existe
+    if (guildInfo.hall_room_id) {
+      db.updateRoomDescription(guildInfo.hall_room_id, guildArg);
+    }
+    return { text: `🎨 La descripción de la Guarida fue actualizada.` };
+  }
+
   // ── gremio transferir <jugador> ─────────────────────────────────────────────
   if (sub === 'transferir' || sub === 'transfer') {
     if (!guildArg) return { text: 'Usá: gremio transferir <nombre_del_jugador>' };
@@ -16422,7 +16482,7 @@ function cmdGuild(player, args) {
     };
   }
 
-  return { text: `Subcomando desconocido: "${sub}". Usá: gremio crear | unir | salir | info | lista | depositar | retirar | banco | transferir | quest | chat` };
+  return { text: `Subcomando desconocido: "${sub}". Usá: gremio crear | unir | salir | info | lista | depositar | retirar | banco | transferir | ir | anuncio | decorar | quest | chat` };
 }
 
 /**

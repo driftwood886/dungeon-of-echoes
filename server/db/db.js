@@ -2147,6 +2147,17 @@ function updateRoomItems(roomId, items) {
   run('UPDATE rooms SET items = ? WHERE id = ?', [JSON.stringify(items), roomId]);
 }
 
+function updateRoomDescription(roomId, description) {
+  run('UPDATE rooms SET description = ? WHERE id = ?', [description, roomId]);
+}
+
+function updateGuildField(guildId, field, value) {
+  // Campos permitidos para evitar SQL injection
+  const ALLOWED = new Set(['hall_bulletin', 'hall_description', 'rank_name', 'lore']);
+  if (!ALLOWED.has(field)) return;
+  run(`UPDATE guilds SET ${field} = ? WHERE id = ?`, [value, guildId]);
+}
+
 function updateRoomTrap(roomId, trap) {
   run('UPDATE rooms SET trap = ? WHERE id = ?', [trap ? JSON.stringify(trap) : null, roomId]);
 }
@@ -5617,7 +5628,7 @@ module.exports = {
   // reputación (T125)
   addReputation, getReputationLevel, getLeaderboardByReputation, getLeaderboardByCrafts,
   // rooms
-  getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, checkTrapRespawns,
+  getRoom, getAllRooms, upsertRoom, updateRoomItems, updateRoomTrap, updateRoomDescription, updateGuildField, checkTrapRespawns,
   // monsters
   getMonster, getMonstersInRoom, getAllMonsters, getLivingMonstersWithRoom, getMonstersForRespawn, getMonstersAwaitingRespawnWithPlayers, upsertMonster, updateMonster,
   // events
