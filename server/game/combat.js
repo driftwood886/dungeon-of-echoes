@@ -1173,7 +1173,7 @@ function attackRound(player, monster) {
       equilibrado: null, // usa mensaje genérico
     };
     const stanceIcons = {
-      agresivo:    '⚡[ofensivo] ',
+      agresivo:    '⚡[agresivo] ',
       defensivo:   '🛡[defensivo] ',
       equilibrado: '',
     };
