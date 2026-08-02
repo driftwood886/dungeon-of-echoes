@@ -1189,6 +1189,10 @@ async function init() {
   // Fix DIS-P02: Migración automática — corregir monstruos con room_id = "null" (string, bug histórico)
   // Estos monstruos quedaron con room_id = '"null"' en lugar de NULL real por un bug en updateMonster.
   // Los resucitamos en su respawn_room_id si ya pasó el respawn_at (o directamente si no tiene respawn_at).
+  // BUG-2247: también recuperar monstruos en estado "fantasma": room_id=NULL, respawn_at=NULL, hp=max_hp.
+  // Estos quedan atascados si el servidor crashea entre el set de room_id=NULL y el set de respawn_at.
+  // El checkRespawns solo los recupera si respawn_at IS NOT NULL — el fix DIS-P02 al arrancar es el único
+  // mecanismo que los rescata. Se amplía para cubrir el estado fantasma explícitamente.
   try {
     const now = new Date().toISOString();
     const allMonsters = db.exec('SELECT * FROM monsters');
@@ -1196,7 +1200,12 @@ async function init() {
       const { columns, values } = allMonsters[0];
       const toFix = values.filter(row => {
         const roomId = row[columns.indexOf('room_id')];
-        return roomId === 'null' || roomId === null;
+        const respawnAt = row[columns.indexOf('respawn_at')];
+        const hp = row[columns.indexOf('hp')];
+        const maxHp = row[columns.indexOf('max_hp')];
+        // Caso 1: room_id es el string "null" (bug histórico)
+        // Caso 2 (BUG-2247): room_id es NULL real, respawn_at es NULL, y hp = max_hp (estado fantasma)
+        return roomId === 'null' || (roomId === null && !respawnAt && hp === maxHp && hp > 0);
       });
       for (const row of toFix) {
         const mId = row[columns.indexOf('id')];
@@ -1208,7 +1217,7 @@ async function init() {
         if (!respawnAt || respawnAt <= now) {
           db.run('UPDATE monsters SET hp = ?, room_id = ?, respawn_at = NULL WHERE id = ?',
             [maxHp, respawnRoomId, mId]);
-          console.log(`[db] Fix DIS-P02: Resucitado monstruo id=${mId} en sala ${respawnRoomId}`);
+          console.log(`[db] Fix DIS-P02/BUG-2247: Resucitado monstruo id=${mId} en sala ${respawnRoomId}`);
         }
       }
     }

@@ -672,7 +672,7 @@ function migrateDIS2182FixCorredorDuplicates() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745, migrateGnollMerodeadorIMPL1761, migrateZombieCaminanteIMPL1761, migrateElementalFuegoIMPL1761, migrateBatVampireDescDIS1775, migrateFuenteEternaDescDIS1778, migrateSubastaNorthHintDIS1789, migrateConclaveExamineDIS1796, migrateGaleriaHieloExamineDIS1797, migrateGnollDagaBasicaDIS1811, migrateCampeonEmblemaDIS1812, migrateQuestEdictoDIS1916, migrateFactionMisionContratoSangrientoDIS1918, migrateDIS2182FixCorredorDuplicates, migrateSubastaRetornoHubDIS2093, migrateMonsterRebalanceDIS2183 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745, migrateGnollMerodeadorIMPL1761, migrateZombieCaminanteIMPL1761, migrateElementalFuegoIMPL1761, migrateBatVampireDescDIS1775, migrateFuenteEternaDescDIS1778, migrateSubastaNorthHintDIS1789, migrateConclaveExamineDIS1796, migrateGaleriaHieloExamineDIS1797, migrateGnollDagaBasicaDIS1811, migrateCampeonEmblemaDIS1812, migrateQuestEdictoDIS1916, migrateFactionMisionContratoSangrientoDIS1918, migrateDIS2182FixCorredorDuplicates, migrateSubastaRetornoHubDIS2093, migrateMonsterRebalanceDIS2183, migrateEsqueletoRespawnRoomBUG2248 };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -3270,6 +3270,39 @@ function migrateMonsterRebalanceDIS2183() {
     }
   } catch (e) {
     console.warn('[seed] migrateMonsterRebalanceDIS2183:', e.message);
+  }
+}
+
+/**
+ * BUG-2248: El Esqueleto Guerrero (id=2) tiene respawn_room_id=3 (Sala de los Ecos)
+ * pero debería ser sala 4 (Cámara del Tesoro). La quest "Polvo al Polvo" dice que están
+ * en la Cámara del Tesoro, y DIS-2242 también señala esta inconsistencia.
+ * Fix: corregir respawn_room_id a 4 y mover el monstruo a sala 4 si actualmente está en sala 3
+ * por el efecto del fix DIS-P02 (que lo colocó en la sala incorrecta al arrancar).
+ */
+function migrateEsqueletoRespawnRoomBUG2248() {
+  try {
+    const esqueleto = db.getMonster(2);
+    if (!esqueleto) {
+      console.warn('[seed] migrateEsqueletoRespawnRoomBUG2248: Esqueleto Guerrero (id 2) no encontrado — omitiendo.');
+      return;
+    }
+    if (esqueleto.respawn_room_id === 4) {
+      // Ya está correcto
+      return;
+    }
+    const updates = { respawn_room_id: 4 };
+    // Si el monstruo está actualmente en sala 3 (colocado por DIS-P02 erróneamente), moverlo a sala 4
+    if (esqueleto.room_id === 3) {
+      updates.room_id = 4;
+      console.log('[seed] migrateEsqueletoRespawnRoomBUG2248: Esqueleto Guerrero movido de sala 3 → sala 4 (Cámara del Tesoro). BUG-2248 ✓');
+    } else {
+      console.log('[seed] migrateEsqueletoRespawnRoomBUG2248: respawn_room_id corregido 3 → 4 (Cámara del Tesoro). BUG-2248 ✓');
+    }
+    db.updateMonster(2, updates);
+    db.persist();
+  } catch (e) {
+    console.warn('[seed] migrateEsqueletoRespawnRoomBUG2248:', e.message);
   }
 }
 
