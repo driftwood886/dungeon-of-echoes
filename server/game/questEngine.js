@@ -1158,8 +1158,9 @@ function getQuestsDisplay(player) {
     // Esto aplica a quests tipo trade y craft que pueden ser confusas sin contexto extra
     const isAtZero = progress === 'pendiente' || progress.startsWith('0/');
     if (isAtZero && q.description) {
-      const shortDesc = q.description.length > 120 ? q.description.substring(0, 117) + '...' : q.description;
-      lines.push(`              💡 ${shortDesc}`);
+      // DIS-2234: no truncar la descripción — el jugador necesita ver el requisito completo
+      // (antes límite 120 chars cortaba "El Edicto del Filo" antes de mencionar la postura agresiva)
+      lines.push(`              💡 ${q.description}`);
     }
   }
 
