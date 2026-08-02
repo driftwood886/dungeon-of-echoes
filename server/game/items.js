@@ -49,7 +49,7 @@ const ITEM_CATALOG = {
   'piedra de poder':     { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'El núcleo de energía que alimentaba los brazos del Gólem de Piedra. Al arrancarlo, el constructo se desplomó. Pulsa con magia telúrica contenida. +4 de ataque.' },
   'diente afilado':      { type: 'weapon', effect: 'attack_bonus', amount: 2,  description: 'Un colmillo de murciélago vampiro, afilado como una aguja. +2 de ataque. 🔧 Crafteo: diente afilado + hilo de seda → collar de garras (+2 DEF) | diente afilado + hongo azul → veneno de colmillo (40% envenenar). 🙏 Ofrenda al altar: Maldición Ósea (+2 ATK, 90s).' },
   'garra de esqueleto':  { type: 'weapon', effect: 'attack_bonus', amount: 3,  description: 'La garra de un esqueleto endurecida por la magia oscura. +3 de ataque. 🔧 Crafteo: garra + cuerda → látigo de garras | garra + escudo roto → escudo de gladiador | garra + hongo verde → polvo de hueso (+2 DEF 120s). 🙏 Ofrenda al altar: Maldición Ósea (+2 ATK, 90s).' },
-  'hacha rústica':       { type: 'weapon', effect: 'attack_bonus', amount: 4,  description: 'Un hacha de mano, tosca pero funcional. +4 de ataque.' },
+  'hacha rústica':       { type: 'weapon', effect: 'attack_bonus', amount: 2,  description: 'Un hacha de mano tosca, arrebatada de un goblin. +2 de ataque. Funcional para empezar, pero pronto querrás algo mejor.' },  // DIS-2229: reducida de +4 a +2 ATK — la espada de hierro (+8 ATK, 10g) debe ser una upgrade obvia, no un lujo innecesario
 
   // ── Armas (dungeon expandido) ─────────────────────────────────────────────
   // STORY-014: Lore narrativo agregado a ítems clave del dungeon
