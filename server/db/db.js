@@ -2997,7 +2997,7 @@ function getAllGuildsEpic() {
     ...g,
     member_count: (all('SELECT COUNT(*) AS c FROM players WHERE guild_id = ?', [g.id])[0] || {}).c || 0,
     rank_name: ['', 'Banda', 'Gremio', 'Forjado', 'Legendario'][g.rank] || 'Desconocido',
-  }));
+  })).filter(g => g.member_count > 0); // BUG-2227: filtrar guilds zombie sin miembros
 }
 
 
