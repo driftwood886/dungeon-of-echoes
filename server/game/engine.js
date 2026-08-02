@@ -16233,7 +16233,13 @@ function _cmdFaccionCambiar(player, args) {
 
 function cmdGuild(player, args) {
   if (!args || args.length === 0) {
-    return { text: 'Usá: guild create <nombre> | guild join <nombre> | guild leave | guild info | guild list | guild quest' };
+    // Sin args: si tiene gremio, mostrar info; si no, mostrar ayuda
+    player = db.getPlayer(player.id);
+    if (player.guild_id) {
+      const info = db.getGuildInfo(player.guild_id);
+      if (info) return { text: _formatGuildCard(info, player.id) };
+    }
+    return { text: 'Usá: gremio crear <nombre> | gremio unir <nombre> | gremio salir | gremio info [<nombre>] | gremio lista | gremio depositar <ítem> | gremio retirar <ítem> | gremio quest' };
   }
 
   // Refrescar desde BD
@@ -16241,173 +16247,186 @@ function cmdGuild(player, args) {
   const sub = args[0].toLowerCase();
   const guildArg = args.slice(1).join(' ').trim();
 
-  // ── guild quest (T189) ───────────────────────────────────────────────────────
+  // ── gremio quest (T189) ─────────────────────────────────────────────────────
   if (sub === 'quest' || sub === 'misión' || sub === 'mision') {
     return _cmdGuildQuest(player);
   }
 
-  // ── guild list ──────────────────────────────────────────────────────────────
-  if (sub === 'list' || sub === 'lista') {
-    const guilds = db.getAllGuilds();
+  // ── gremio lista / list ─────────────────────────────────────────────────────
+  if (sub === 'list' || sub === 'lista' || sub === 'listar') {
+    const guilds = db.getAllGuildsEpic();
     if (guilds.length === 0) {
-      return { text: 'No hay ninguna hermandad activa todavía. ¡Creá la primera con "guild create <nombre>"!' };
+      return { text: 'No hay ningún gremio activo todavía. ¡Creá el primero con «gremio crear <nombre>»!' };
     }
+    const rankEmojis = ['', '🗡', '⚔', '🔥', '🌟'];
     const lines = [
-      '=== HERMANDADES ACTIVAS ===',
-      // BUG-1646: mostrar '(cuenta eliminada)' si el líder ya no existe en players
-      ...guilds.map(g => `  [${g.name}]  Líder: ${g.leader_name || '(cuenta eliminada)'}  Miembros: ${g.member_count}`),
+      '═══ GREMIOS ACTIVOS ═══',
+      ...guilds.map(g => {
+        const rEmoji = rankEmojis[g.rank] || '?';
+        return `  ${rEmoji} [${g.name}]  Líder: ${g.leader_username || '?'}  Miembros: ${g.member_count}  Rango: ${g.rank_name}`;
+      }),
     ];
     return { text: lines.join('\n') };
   }
 
-  // ── guild info ──────────────────────────────────────────────────────────────
-  if (sub === 'info' || sub === 'información' || sub === 'información') {
-    if (!player.guild) {
-      return { text: 'No pertenecés a ninguna hermandad. Usá "guild join <nombre>" o "guild create <nombre>".' };
-    }
-    const guild = db.getGuild(player.guild);
-    if (!guild) {
-      // Datos inconsistentes — limpiar
-      db.setPlayerGuild(player.id, null);
-      return { text: 'Tu hermandad ya no existe. Tu afiliación fue removida.' };
-    }
-    const members = db.getGuildMembers(player.guild);
-    // BUG-1646/1647: el líder puede no estar en members si fue eliminado de players.
-    // Buscar directamente por ID para resolverlo aunque no sea miembro activo.
-    const leaderMember = members.find(m => m.id === guild.leader_id);
-    let leaderName;
-    if (leaderMember) {
-      leaderName = leaderMember.username;
+  // ── gremio info [<nombre>] ──────────────────────────────────────────────────
+  if (sub === 'info' || sub === 'información' || sub === 'informacion') {
+    let info;
+    if (guildArg) {
+      info = db.getGuildInfo(guildArg);
+      if (!info) return { text: `No encontré ningún gremio llamado "${guildArg}". Verificá con «gremio lista».` };
     } else {
-      const leaderPlayer = db.getPlayer(guild.leader_id);
-      leaderName = leaderPlayer?.username || '(cuenta eliminada)';
-    }
-    const memberLines = members.map(m => {
-      const tag = m.id === guild.leader_id ? ' 👑' : '';
-      return `  ${m.username}${tag}  Lv${m.level || 1}  ❤${m.hp}/${m.max_hp}`;
-    });
-    const lines = [
-      `══ 🛡 Hermandad: [${guild.name}] ══`,
-      `Líder: ${leaderName}`,
-      `Miembros (${members.length}):`,
-      ...memberLines,
-    ];
-    return { text: lines.join('\n') };
-  }
-
-  // ── guild leave ─────────────────────────────────────────────────────────────
-  if (sub === 'leave' || sub === 'abandonar' || sub === 'salir') {
-    if (!player.guild) {
-      return { text: 'No pertenecés a ninguna hermandad.' };
-    }
-    const guildName = player.guild;
-    const guild = db.getGuild(guildName);
-
-    // Si el líder se va y hay más miembros, pasarle el liderazgo al primero encontrado
-    if (guild && guild.leader_id === player.id) {
-      const members = db.getGuildMembers(guildName).filter(m => m.id !== player.id);
-      if (members.length > 0) {
-        // Promover al primer miembro como nuevo líder
-        const { randomUUID } = require('crypto');
-        db.deleteGuild(guildName);
-        db.createGuild(randomUUID(), guildName, members[0].id);
-        db.setPlayerGuild(player.id, null);
-        return {
-          text: `Abandonaste la hermandad [${guildName}]. ${members[0].username} es el nuevo líder.`,
-          event: `⚔ ${player.username} abandonó la hermandad [${guildName}]. ¡${members[0].username} es el nuevo líder!`,
-          eventRoomId: player.current_room_id,
-          guildBroadcast: guildName,
-          guildBroadcastMsg: `⚔ ${player.username} abandonó la hermandad. ${members[0].username} es el nuevo líder.`,
-        };
-      } else {
-        // Solo queda el líder — disolver la hermandad
-        db.deleteGuild(guildName);
-        db.setPlayerGuild(player.id, null);
-        return {
-          text: `Eras el último miembro. La hermandad [${guildName}] fue disuelta.`,
-          event: `⚔ La hermandad [${guildName}] fue disuelta por ${player.username}.`,
-          eventRoomId: player.current_room_id,
-        };
+      if (!player.guild_id) {
+        return { text: 'No pertenecés a ningún gremio. Usá «gremio unir <nombre>» o «gremio crear <nombre>».' };
+      }
+      info = db.getGuildInfo(player.guild_id);
+      if (!info) {
+        db.updatePlayer(player.id, { guild_id: null, guild: null });
+        return { text: 'Tu gremio ya no existe. Tu afiliación fue removida.' };
       }
     }
+    return { text: _formatGuildCard(info, player.id) };
+  }
 
-    db.setPlayerGuild(player.id, null);
+  // ── gremio salir / leave ────────────────────────────────────────────────────
+  if (sub === 'leave' || sub === 'abandonar' || sub === 'salir') {
+    if (!player.guild_id) {
+      return { text: 'No pertenecés a ningún gremio.' };
+    }
+    const guildInfo = db.getGuildInfo(player.guild_id);
+    const guildName = guildInfo ? guildInfo.name : '?';
+    const result = db.leaveGuild(player.id);
+    if (!result.ok) return { text: result.error };
+    // Sincronizar campo legacy guild
+    db.updatePlayer(player.id, { guild: null });
+    if (result.dissolved) {
+      return {
+        text: `Eras el último miembro. El gremio [${guildName}] fue disuelto.`,
+        event: `⚔ El gremio [${guildName}] fue disuelto por ${player.username}.`,
+        eventRoomId: player.current_room_id,
+      };
+    }
     return {
-      text: `Abandonaste la hermandad [${guildName}].`,
+      text: `Abandonaste el gremio [${guildName}].`,
       guildBroadcast: guildName,
-      guildBroadcastMsg: `⚔ ${player.username} abandonó la hermandad.`,
+      guildBroadcastMsg: `⚔ ${player.username} abandonó el gremio.`,
     };
   }
 
-  // ── guild join ──────────────────────────────────────────────────────────────
-  if (sub === 'join' || sub === 'unirse' || sub === 'entrar') {
+  // ── gremio unir / join ──────────────────────────────────────────────────────
+  if (sub === 'join' || sub === 'unirse' || sub === 'entrar' || sub === 'unir') {
     if (!guildArg) {
-      return { text: 'Usá: guild join <nombre_de_hermandad>' };
+      return { text: 'Usá: gremio unir <nombre_del_gremio>' };
     }
-    if (player.guild) {
-      return { text: `Ya pertenecés a la hermandad [${player.guild}]. Salí primero con "guild leave".` };
+    const targetGuild = db.getGuildInfo(guildArg);
+    if (!targetGuild) {
+      return { text: `No existe ningún gremio llamado "${guildArg}". Verificá con «gremio lista».` };
     }
-    const guild = db.getGuild(guildArg);
-    if (!guild) {
-      return { text: `No existe ninguna hermandad llamada "${guildArg}". Verificá el nombre con "guild list".` };
-    }
-    db.setPlayerGuild(player.id, guild.name);
+    const result = db.joinGuild(player.id, targetGuild.id);
+    if (!result.ok) return { text: result.error };
+    // Sincronizar campo legacy guild
+    db.updatePlayer(player.id, { guild: targetGuild.name });
     return {
-      text: `¡Te uniste a la hermandad [${guild.name}]! Podés chatear con tus compañeros usando "gc <mensaje>".`,
-      guildBroadcast: guild.name,
-      guildBroadcastMsg: `⚔ ¡${player.username} se unió a la hermandad!`,
+      text: `¡Te uniste al gremio [${targetGuild.name}]! Podés chatear con tus compañeros usando «gc <mensaje>».`,
+      guildBroadcast: targetGuild.name,
+      guildBroadcastMsg: `⚔ ¡${player.username} se unió al gremio!`,
     };
   }
 
-  // ── guild create ────────────────────────────────────────────────────────────
+  // ── gremio crear / create ───────────────────────────────────────────────────
   if (sub === 'create' || sub === 'crear' || sub === 'fundar') {
     if (!guildArg) {
-      return { text: 'Usá: guild create <nombre_de_hermandad>' };
+      return { text: 'Usá: gremio crear <nombre_del_gremio>' };
     }
-    if (guildArg.length > 20) {
-      return { text: 'El nombre de la hermandad no puede superar los 20 caracteres.' };
+    if (guildArg.length > 30) {
+      return { text: 'El nombre del gremio no puede superar los 30 caracteres.' };
     }
     if (!/^[a-zA-Z0-9áéíóúÁÉÍÓÚüÜñÑ _-]+$/.test(guildArg)) {
       return { text: 'El nombre solo puede tener letras, números, espacios, guiones y guiones bajos.' };
     }
-    if (player.guild) {
-      return { text: `Ya pertenecés a la hermandad [${player.guild}]. Salí primero con "guild leave".` };
-    }
-
-    // Costo de fundación: 20 oro (DIS-1043: reducido de 30 para mejorar economía de early game)
-    const gold = player.gold || 0;
-    if (gold < 20) {
-      return { text: `Fundar una hermandad cuesta 20 de oro. Tenés ${gold}g. ¡Conseguí más monedas y volvé!` };
-    }
-
-    // Verificar si ya existe
-    const existing = db.getGuild(guildArg);
-    if (existing) {
-      return { text: `Ya existe una hermandad llamada "${guildArg}". Elegí otro nombre.` };
-    }
-
-    // Crear guild
-    const { randomUUID } = require('crypto');
-    const guildId = randomUUID();
-    db.createGuild(guildId, guildArg, player.id);
-    db.setPlayerGuild(player.id, guildArg);
-    db.updatePlayer(player.id, { gold: gold - 20 });
-
+    const result = db.createGuildEpic(player.id, guildArg);
+    if (!result.ok) return { text: result.error };
+    // Sincronizar campo legacy guild
+    db.updatePlayer(player.id, { guild: guildArg });
+    const gold = (player.gold || 0) - 50;
     return {
-      text: `⚔ ¡Hermandad [${guildArg}] fundada! Te costó 20 de oro. Sos el líder 👑.\nInvitá jugadores diciéndoles que usen "guild join ${guildArg}". Chateá con "gc <mensaje>".\n\n💡 Las hermandades tienen misiones colectivas activas siempre — "guild quest" para ver la actual. ¡Las podés completar vos solo también!`,
-      event: `⚔ ¡${player.username} fundó la hermandad [${guildArg}]!`,
+      text: `⚔ ¡Gremio [${guildArg}] fundado! Te costó 50 de oro (te quedan ${gold}g). Sos el líder 👑.\nInvitá jugadores con «gremio unir ${guildArg}». Chateá con «gc <mensaje>».`,
+      event: `⚔ ¡${player.username} fundó el gremio [${guildArg}]!`,
       eventRoomId: player.current_room_id,
     };
   }
 
-  // ── guild chat <msg> — alias de gc (DIS-1199) ──────────────────────────────
+  // ── gremio depositar <ítem> ─────────────────────────────────────────────────
+  if (sub === 'depositar' || sub === 'deposit') {
+    if (!guildArg) return { text: 'Usá: gremio depositar <nombre_del_ítem>' };
+    const result = db.depositItem(player.id, guildArg);
+    if (!result.ok) return { text: result.error };
+    return { text: `✅ Depositaste "${guildArg}" en el banco del gremio.` };
+  }
+
+  // ── gremio retirar <ítem> ───────────────────────────────────────────────────
+  if (sub === 'retirar' || sub === 'withdraw') {
+    if (!guildArg) return { text: 'Usá: gremio retirar <nombre_del_ítem>' };
+    const result = db.withdrawItem(player.id, guildArg);
+    if (!result.ok) return { text: result.error };
+    return { text: `✅ Retiraste "${guildArg}" del banco del gremio.` };
+  }
+
+  // ── gremio banco ────────────────────────────────────────────────────────────
+  if (sub === 'banco' || sub === 'bank' || sub === 'inventario') {
+    if (!player.guild_id) return { text: 'No pertenecés a ningún gremio.' };
+    const info = db.getGuildInfo(player.guild_id);
+    if (!info) return { text: 'Tu gremio ya no existe.' };
+    const items = info.items_json || [];
+    if (items.length === 0) return { text: `El banco de [${info.name}] está vacío.` };
+    const maxItems = info.rank >= 3 ? 80 : info.rank >= 2 ? 40 : 20;
+    const lines = [
+      `═══ BANCO DE [${info.name}] (${items.length}/${maxItems}) ═══`,
+      ...items.map((it, i) => `  ${i + 1}. ${it}`),
+      `\nUsá «gremio depositar <ítem>» o «gremio retirar <ítem>».`,
+    ];
+    return { text: lines.join('\n') };
+  }
+
+  // ── guild chat <msg> — alias de gc ──────────────────────────────────────────
   if (sub === 'chat') {
-    // Redirigir al handler de gc con el resto de los args
     return cmdGuildChat(player, args.slice(1));
   }
 
-  return { text: `Subcomando desconocido: "${sub}". Usá guild create | join | leave | info | list | quest | chat` };
+  return { text: `Subcomando desconocido: "${sub}". Usá: gremio crear | unir | salir | info | lista | depositar | retirar | banco | quest | chat` };
 }
+
+/**
+ * Formatea la ficha ASCII de un gremio para mostrar al jugador.
+ * @param {object} info — resultado de getGuildInfo()
+ * @param {string} viewerId — ID del jugador que mira (para marcar al líder)
+ */
+function _formatGuildCard(info, viewerId) {
+  const rankEmojis = ['', '🗡', '⚔', '🔥', '🌟'];
+  const rEmoji = rankEmojis[info.rank] || '?';
+  const items = info.items_json || [];
+  const maxItems = info.rank >= 3 ? 80 : info.rank >= 2 ? 40 : 20;
+  const memberLines = (info.members || []).map(m => {
+    const tag = m.id === info.leader_id ? ' 👑' : '';
+    const cls = m.player_class && m.player_class !== 'sin_clase' ? ` (${m.player_class})` : '';
+    return `  ${m.username}${tag}${cls}  Lv${m.level || 1}  ${m.kills || 0} kills`;
+  });
+  const lines = [
+    `╔═══════════════════════════════════════════════╗`,
+    `║  ${rEmoji}  GREMIO: ${info.name.padEnd(35)}║`,
+    `╠═══════════════════════════════════════════════╣`,
+    `║  Líder: ${(info.leader_username || '?').padEnd(38)}║`,
+    `║  Miembros: ${String(info.member_count).padEnd(3)}  Rango: ${info.rank_name.padEnd(25)}║`,
+    `╠═══════════════════════════════════════════════╣`,
+    `║  Banco: ${items.length}/${maxItems} ítems${' '.repeat(Math.max(0, 32 - String(items.length).length - String(maxItems).length))}║`,
+    `╠═══════════════════════════════════════════════╣`,
+    ...memberLines.map(l => `║  ${l.padEnd(43)}║`),
+    `╚═══════════════════════════════════════════════╝`,
+  ];
+  if (info.lore) lines.splice(5, 0, `║  "${info.lore.slice(0, 41).padEnd(41)}"║`);
+  return lines.join('\n');
+}
+
 
 /**
  * guild quest — Ver la misión colectiva activa del guild (T189).
