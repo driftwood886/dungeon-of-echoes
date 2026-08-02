@@ -80,5 +80,31 @@ CREATE TABLE IF NOT EXISTS player_quests (
   slot                 TEXT NOT NULL         -- 'principal' | 'secundaria' | 'narrativa'
 );
 
-CREATE INDEX IF NOT EXISTS idx_player_quests_player_status
-  ON player_quests(player_id, status);
+-- EPIC-GREMIOS (GUILD-DEF-001): Sistema de Gremios de Jugadores
+
+CREATE TABLE IF NOT EXISTS guilds (
+  id                      TEXT PRIMARY KEY,
+  name                    TEXT UNIQUE NOT NULL,
+  leader_id               TEXT NOT NULL,              -- FK → players.id (fundador/líder actual)
+  rank                    INTEGER NOT NULL DEFAULT 1, -- 1=Banda, 2=Gremio, 3=Forjado, 4=Legendario
+  gold                    INTEGER NOT NULL DEFAULT 0,
+  items_json              TEXT NOT NULL DEFAULT '[]', -- JSON array de ítems en el banco del gremio
+  weekly_kills            INTEGER NOT NULL DEFAULT 0, -- kills acumulados esta semana
+  weekly_quests           INTEGER NOT NULL DEFAULT 0, -- quests completadas esta semana
+  total_hazanas           INTEGER NOT NULL DEFAULT 0, -- hazañas totales (determina rango)
+  lore                    TEXT,                        -- descripción/lore personalizable
+  weekly_reset_at         TEXT,                        -- timestamp del último reset semanal
+  weekly_objective_type   TEXT,                        -- slug del objetivo especial semanal
+  weekly_objective_progress INTEGER NOT NULL DEFAULT 0, -- progreso del objetivo especial
+  hall_description        TEXT,                        -- descripción Guarida (Rango 2+)
+  hall_bulletin           TEXT NOT NULL DEFAULT '[]', -- JSON array de mensajes del tablón
+  created_at              TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- guild_id en players: NULL = sin gremio
+-- ALTER TABLE players ADD COLUMN guild_id TEXT REFERENCES guilds(id);
+
+CREATE INDEX IF NOT EXISTS idx_guilds_name ON guilds(name);
+CREATE INDEX IF NOT EXISTS idx_players_guild_id ON players(guild_id);
+CREATE INDEX IF NOT EXISTS idx_guilds_rank ON guilds(rank);
+

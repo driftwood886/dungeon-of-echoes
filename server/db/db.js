@@ -105,13 +105,25 @@ async function init() {
 
   // Migraciones: agregar columnas nuevas si no existen
   // sql.js lanza error si la columna ya existe, lo ignoramos.
-  // Tabla de guilds
+  // GUILD-DEF-001: Tabla de gremios (schema completo — Epic Gremios de Jugadores)
   db.run(`
     CREATE TABLE IF NOT EXISTS guilds (
-      id          TEXT PRIMARY KEY,
-      name        TEXT UNIQUE NOT NULL,
-      leader_id   TEXT NOT NULL,
-      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      id                      TEXT PRIMARY KEY,
+      name                    TEXT UNIQUE NOT NULL,
+      leader_id               TEXT NOT NULL,
+      rank                    INTEGER NOT NULL DEFAULT 1,
+      gold                    INTEGER NOT NULL DEFAULT 0,
+      items_json              TEXT NOT NULL DEFAULT '[]',
+      weekly_kills            INTEGER NOT NULL DEFAULT 0,
+      weekly_quests           INTEGER NOT NULL DEFAULT 0,
+      total_hazanas           INTEGER NOT NULL DEFAULT 0,
+      lore                    TEXT,
+      weekly_reset_at         TEXT,
+      weekly_objective_type   TEXT,
+      weekly_objective_progress INTEGER NOT NULL DEFAULT 0,
+      hall_description        TEXT,
+      hall_bulletin           TEXT NOT NULL DEFAULT '[]',
+      created_at              TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
 
@@ -876,6 +888,20 @@ async function init() {
     `ALTER TABLE players ADD COLUMN rune_hp_bonus INTEGER NOT NULL DEFAULT 0`,               // DIS-1770: tracking del HP máximo obtenido via fusión de runas (hielo +5, luz +3)
     `ALTER TABLE players ADD COLUMN last_target_monster_id INTEGER`,                          // BUG-1921: ID del último monstruo atacado con 'attack' (para que skills sin target apunten al target activo)
     `ALTER TABLE players ADD COLUMN main_quest_data TEXT NOT NULL DEFAULT '{}'`,              // EPIC-KAELTHAS (DIS-1967): JSON con estado de la quest principal — { fragments_found: [], main_quest_state: 'inactive'|'active'|'completed'|'ended', kaelthas_fragments_count: 0, lich_died_with_quest: false, started_at: null }
+    // GUILD-DEF-001: Epic Gremios — ampliar tabla guilds con schema completo
+    `ALTER TABLE guilds ADD COLUMN rank INTEGER NOT NULL DEFAULT 1`,                          // GUILD-DEF-001: rango del gremio (1=Banda, 2=Gremio, 3=Forjado, 4=Legendario)
+    `ALTER TABLE guilds ADD COLUMN gold INTEGER NOT NULL DEFAULT 0`,                          // GUILD-DEF-001: oro en el banco del gremio
+    `ALTER TABLE guilds ADD COLUMN items_json TEXT NOT NULL DEFAULT '[]'`,                    // GUILD-DEF-001: JSON array de ítems en el banco del gremio
+    `ALTER TABLE guilds ADD COLUMN weekly_kills INTEGER NOT NULL DEFAULT 0`,                  // GUILD-DEF-001: kills acumulados esta semana (todos los miembros)
+    `ALTER TABLE guilds ADD COLUMN weekly_quests INTEGER NOT NULL DEFAULT 0`,                 // GUILD-DEF-001: quests completadas esta semana (todos los miembros)
+    `ALTER TABLE guilds ADD COLUMN total_hazanas INTEGER NOT NULL DEFAULT 0`,                 // GUILD-DEF-001: hazañas totales históricas (determina rango)
+    `ALTER TABLE guilds ADD COLUMN lore TEXT`,                                                // GUILD-DEF-001: descripción/lore personalizable por el fundador
+    `ALTER TABLE guilds ADD COLUMN weekly_reset_at TEXT`,                                     // GUILD-DEF-001: timestamp del último reset semanal de objetivos
+    `ALTER TABLE guilds ADD COLUMN weekly_objective_type TEXT`,                               // GUILD-DEF-001: tipo de objetivo especial de la semana (slug)
+    `ALTER TABLE guilds ADD COLUMN weekly_objective_progress INTEGER NOT NULL DEFAULT 0`,     // GUILD-DEF-001: progreso del objetivo especial
+    `ALTER TABLE guilds ADD COLUMN hall_description TEXT`,                                    // GUILD-DEF-001: descripción personalizada de la Guarida (Rango 2+)
+    `ALTER TABLE guilds ADD COLUMN hall_bulletin TEXT NOT NULL DEFAULT '[]'`,                 // GUILD-DEF-001: JSON array de mensajes del tablón de anuncios
+    `ALTER TABLE players ADD COLUMN guild_id TEXT`,                                           // GUILD-DEF-001: FK a guilds.id (NULL = sin gremio)
     ];
   for (const sql of migrations) {
     applyMigration(sql);
@@ -885,6 +911,11 @@ async function init() {
   // Reward anterior: {gold: 20, xp: 15} — causaba level-up al comprar (nivel 2→3 requiere +90 XP).
   // Reward nuevo:   {gold: 25, xp: 5}  — inversión táctica = más gold, menos XP (el combate da el nivel).
   applyMigration(`UPDATE quest_definitions SET reward = '{"gold":25,"xp":5}' WHERE id = 'trade_comprar_equipo'`);
+
+  // GUILD-DEF-001: Índices para el sistema de gremios
+  try { db.run(`CREATE INDEX IF NOT EXISTS idx_guilds_name ON guilds(name)`); } catch (_) {}
+  try { db.run(`CREATE INDEX IF NOT EXISTS idx_players_guild_id ON players(guild_id)`); } catch (_) {}
+  try { db.run(`CREATE INDEX IF NOT EXISTS idx_guilds_rank ON guilds(rank)`); } catch (_) {}
 
   // BUG-1247: migración para marcar bots de playtest existentes (nombres con patrones conocidos)
   // Se ejecuta cada vez que se inicia, pero es idempotente (solo actualiza donde is_bot=0)
