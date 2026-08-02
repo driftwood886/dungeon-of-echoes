@@ -16619,6 +16619,14 @@ function _cmdGuildQuest(player) {
   if (!guildRow) {
     return { text: 'Tu hermandad ya no existe. Salí con "guild leave".' };
   }
+  // BUG-2226: Si la guild no tiene quest activa, crearla y persistirla inmediatamente
+  // para que futuras llamadas devuelvan siempre la misma quest (y no una nueva cada vez).
+  if (!guildRow.guild_quest) {
+    const newQuest = guildQuests.pickNewQuest();
+    db.setGuildQuest(player.guild, JSON.stringify(newQuest));
+    // Construir fila actualizada con la quest recién creada
+    guildRow.guild_quest = JSON.stringify(newQuest);
+  }
   const text = guildQuests.formatGuildQuest(guildRow, player.id);
   return { text };
 }
