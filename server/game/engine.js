@@ -5227,7 +5227,7 @@ function cmdStatus(player) {
       const RUN_EVENT_LABELS = {
         marea_no_muertos:  '💀 Marea de No-Muertos — los no-muertos tienen más aguante. Bosses y runas caídas en alza.',
         caceria_del_filo:  '⚔️ Cacería de la Orden — los bosses caídos sueltan el doble de loot.',
-        plaga_arcana:      '⚡ Plaga Arcana — tus hechizos tienen 20% de chance de lanzarse dos veces.',
+        plaga_arcana:      `⚡ Plaga Arcana — tus hechizos tienen 20% de chance de lanzarse dos veces.${(player.player_class !== 'mago' && player.player_class !== 'clerigo') ? ' (sin efecto en tu clase)' : ''}`,
         festival_de_loot:  '💰 Mercado Activo — el primer ítem que recogés de cada sala te revela su naturaleza.',
         silencio_del_abismo: '🌑 El Dungeon Callado — los monstruos menores caen en silencio. Los grandes tienen más que decir.',
         temporada_de_sangre: '🩸 Temporada de Sangre — con HP ≤ 33%, ganás +3 ATK de furia desesperada.',
