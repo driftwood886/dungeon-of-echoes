@@ -7226,6 +7226,8 @@ function cmdAttack(player, targetName) {
 
   // EPIC-2045: Boss Dialogue Engine — trigger 'death' para bosses no-Lich
   // (el Lich ya tiene su propio bloque bossVictoryBlock / kaelthasEndingBlock)
+  // BUG-2240: bossDeathDialogueBlock ya no genera diálogo aquí — DIS-2239 movió el trigger 'death'
+  // a combat.js (antes del sumario de XP) para mejor impacto dramático. Mantener solo el recordBossKill.
   let bossDeathDialogueBlock = '';
   if (monsterDead && bossKill && monster.id !== LICH_MONSTER_ID && !playerDead) {
     try {
@@ -7235,12 +7237,8 @@ function cmdAttack(player, targetName) {
         if (db.recordBossKill) {
           db.recordBossKill(bossDialIdDeath, player.username);
         }
-        const bossStatsDeath = db.getBossStats ? db.getBossStats(bossDialIdDeath) : null;
-        const freshPlayerDeath = db.getPlayer(player.id);
-        const deathResult = combat.getBossDialogue(bossDialIdDeath, 'death', freshPlayerDeath, bossStatsDeath);
-        if (deathResult.matched) {
-          bossDeathDialogueBlock = combat.formatBossDialogue(deathResult);
-        }
+        // Nota: el diálogo de death se renderiza en combat.js (DIS-2239) para aparecer antes del XP.
+        // No re-renderizar aquí para evitar duplicados (BUG-2240).
       }
     } catch (_bdd) { /* no romper si falla */ }
   }
