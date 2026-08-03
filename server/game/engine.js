@@ -10432,8 +10432,34 @@ function cmdEquip(player, itemQuery) {
     intermediateIngredientWarnMsg = `\n⚠️ ¡Esta arma es también un ingrediente de crafteo! Si conseguís «esencia etérea» (drop del Espectro del Corredor, sala 2), podés reforzarla: craft lanza espectral con esencia etérea → lanza espectral reforzada (+11 ATK). No la vendas si querés la versión mejorada.`;
   }
 
+  // DIS-2253: advertir si el jugador desequipa un arma requerida por un desafío activo
+  let activeWeaponChalWarning = '';
+  try {
+    const prevWeaponBeingSwapped = player.equipped_weapon;
+    if (prevWeaponBeingSwapped && prevWeaponBeingSwapped !== found) {
+      const { getDailyChallengesForPlayer, getTodayUtc } = require('./challengeAssigner');
+      const todayUTC = getTodayUtc();
+      const dailyChallenges = getDailyChallengesForPlayer(player);
+      const progressRows = db.getDailyChallengeProgress(player.id, todayUTC);
+      for (const ch of dailyChallenges) {
+        if (!ch || !ch.condition || !ch.condition.extra || !ch.condition.extra.weapon_equipped) continue;
+        const requiredWeapon = ch.condition.extra.weapon_equipped;
+        const normW = s => s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (normW(prevWeaponBeingSwapped) === normW(requiredWeapon) && normW(found) !== normW(requiredWeapon)) {
+          // Verificar que el desafío no está ya completado
+          const progressRow = progressRows.find(r => r.challenge_id === ch.id);
+          const isDone = progressRow && progressRow.count >= ch.condition.amount;
+          if (!isDone) {
+            const progressCount = progressRow ? progressRow.count : 0;
+            activeWeaponChalWarning = `\n⚠️ El desafío «${ch.title}» requiere ${requiredWeapon} equipada — el progreso se pausará si cambiás de arma. (${progressCount}/${ch.condition.amount} completado)`;
+          }
+        }
+      }
+    }
+  } catch (_) { /* no interrumpir si falla */ }
+
   return {
-    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.${manaRegenWarnMsg}\n${def.description}${magoHeavyFlavor}${critWarnMsg}${weakerWeaponWarnMsg}${intermediateIngredientWarnMsg}${swapMsg}${equipCraftedMsg}`,
+    text: `Empuñás ${found}. Ataque: ${oldAttack} → ${newAttack}${baseStr}.${manaRegenWarnMsg}\n${def.description}${magoHeavyFlavor}${critWarnMsg}${weakerWeaponWarnMsg}${intermediateIngredientWarnMsg}${swapMsg}${equipCraftedMsg}${activeWeaponChalWarning}`,
     event: `${player.username} empuña ${found}.`,
     eventRoomId: player.current_room_id,
   };
@@ -14184,7 +14210,7 @@ function cmdShop(player, args) {
       'Mago':    ['vara de energía', 'ropa de viajero', 'túnica encantada', 'pergamino de hechizo', 'poción de maná'],
       'Clérigo': ['símbolo sagrado', 'poción de bendición', 'poción de salud'],
       'Pícaro':  ['daga básica', 'guantes de cuero fino', 'veneno de contacto', 'daga envenenada'],
-      'Guerrero':['espada de hierro', 'escudo de madera', 'poción de salud'],
+      'Guerrero':['espada de hierro', 'cuero endurecido', 'escudo de madera', 'poción de salud'],  // BUG-2250: cuero endurecido agregado — Aldric lo menciona al comprar arma y el jugador debe poder encontrarlo en la lista
     };
     const recs = CLASS_RECS[clsShop.name];
     if (recs) {
@@ -14620,7 +14646,7 @@ function cmdBuy(player, itemQuery) {
   // DIS-827: tampoco mostrar si es ítem mágico de clase (vara de energía, pergamino, símbolo sagrado) — un Mago no necesita el tip de armadura
   const isBoughtItemDefensive = boughtWeapon && (boughtWeapon.rogue_only_crit_bonus || boughtWeapon.defense_bonus || boughtWeapon.mage_only_bonus || boughtWeapon.cleric_only_bonus);
   const armorTip = (boughtWeapon && boughtWeapon.type === 'weapon' && noArmor && !isBoughtItemDefensive)
-    ? '\n"Una espada sin protección es invitación al funeral." Aldric señala el cuero endurecido. "15 monedas — más barato que respawnear."'
+    ? '\n"Una espada sin protección es invitación al funeral." Aldric señala el cuero endurecido en el estante. "15 monedas — más barato que respawnear. Escribí \'comprar cuero endurecido\' o \'tienda todo\' para verlo."'  // BUG-2250: aclarado cómo encontrar el ítem
     : '';
 
   // DIS-2057: Auto-equip al comprar si el slot está vacío
@@ -16638,7 +16664,29 @@ function cmdGuild(player, args) {
     return { text: txt };
   }
 
-  return { text: `Subcomando desconocido: "${sub}". Usá: gremio crear | unir | salir | info | lista | depositar | retirar | banco | transferir | ir | anuncio | decorar | quest | chat | rango` };
+  // ── gremio ayuda ─────────────────────────────────────────────── BUG-2251
+  if (sub === 'ayuda' || sub === 'help' || sub === '?' || sub === 'comandos') {
+    return {
+      text: `📖 Comandos de gremio:\n` +
+        `  gremio crear <nombre>   — Crear un nuevo gremio (cuesta monedas)\n` +
+        `  gremio unir <nombre>    — Unirte a un gremio existente\n` +
+        `  gremio salir            — Abandonar tu gremio\n` +
+        `  gremio info [nombre]    — Ver ficha del gremio (tuyo u otro)\n` +
+        `  gremio lista            — Listar todos los gremios\n` +
+        `  gremio banco            — Ver saldo del banco gremial\n` +
+        `  gremio depositar <n>    — Depositar monedas al banco\n` +
+        `  gremio retirar <n>      — Retirar monedas del banco (solo líder)\n` +
+        `  gremio chat <mensaje>   — Hablar en el canal privado del gremio\n` +
+        `  gremio anuncio <texto>  — Publicar un anuncio (solo líder)\n` +
+        `  gremio rango            — Ver rango y objetivos semanales\n` +
+        `  gremio ir               — Teletransportarse a la Guarida\n` +
+        `  gremio decorar <texto>  — Cambiar descripción de la Guarida\n` +
+        `  gremio transferir <j>   — Ceder el liderazgo a otro miembro\n` +
+        `  gremio quest            — Ver quests de gremio disponibles`
+    };
+  }
+
+  return { text: `Subcomando desconocido: "${sub}". Usá: gremio ayuda (para ver todos los comandos)` };
 }
 
 /**
@@ -25549,6 +25597,15 @@ function cmdContract(player) {
     'Sombra del Vacío':      '📍 Se encuentran en: Abismo Eterno (sala 20)',
   };
   const locationLine = CONTRACT_LOCATIONS[ct.target] ? `  ${CONTRACT_LOCATIONS[ct.target]}` : '';
+  // DIS-2252: nivel recomendado por objetivo — aviso claro para jugadores que entren con bajo nivel
+  const CONTRACT_LEVEL_RECS = {
+    'Espectro del Corredor': '⚠️ Nivel recomendado: 4+ — El Espectro tiene mucha más vida de lo que parece.',
+    'Gólem de Piedra':       '⚠️ Nivel recomendado: 5+ — El Gólem es muy resistente. Conseguí cota de malla antes.',
+    'Campeón Espectral':     '⚠️ Nivel recomendado: 6+ — Boss de arena. Alta DEF y ATK.',
+    'Sombra del Vacío':      '⚠️ Nivel recomendado: 8+ — El enemigo más duro del dungeon.',
+    'Guardia Espectral':     '⚠️ Nivel recomendado: 4+ — Sala de nivel medio.',
+  };
+  const levelRecLine = CONTRACT_LEVEL_RECS[ct.target] ? `  ${CONTRACT_LEVEL_RECS[ct.target]}` : '';
   const lines = [
     '',
     '╔' + '═'.repeat(50) + '╗',
@@ -25557,6 +25614,7 @@ function cmdContract(player) {
     `  Objetivo: ${ct.target}`,
     `  ${ct.desc}`,
     ...(locationLine ? [locationLine] : []),
+    ...(levelRecLine ? [levelRecLine] : []),
     `  Dificultad: ${ct.difficulty}`,
     '╟' + '─'.repeat(50) + '╢',
     `  Progreso: [${bar}] ${status}`,
