@@ -6406,7 +6406,8 @@ function cmdAttack(player, targetName) {
 
     // EPIC-NE-IMPL-2266: Hookear boss_kill en cmdAttack
     // BUG-2284: usar allowDuplicate:true para registrar cada boss kill (no solo el primero)
-    if (monsterDead && bossKill) {
+    // BUG-2285: excluir mobs de tutorial (Goblin de Práctica id=20) del registro de boss_kill
+    if (monsterDead && bossKill && !TUTORIAL_MONSTER_IDS.has(monster.id)) {
       try {
         const bossKillFresh = freshForAch || db.getPlayer(player.id);
         const bossKillText = `Derrotaste a ${monster.name} a nivel ${bossKillFresh ? bossKillFresh.level : (player.level || 1)}. Un hito permanente.`;
@@ -20491,7 +20492,8 @@ function cmdCast(player, args) {
 
         // EPIC-NE-IMPL-2266: Hookear boss_kill en cmdCast
         // BUG-2284: usar allowDuplicate:true para registrar cada boss kill (no solo el primero)
-        if (castBossKill) {
+        // BUG-2285: excluir mobs de tutorial (Goblin de Práctica id=20) del registro de boss_kill
+        if (castBossKill && !TUTORIAL_MONSTER_IDS.has(target.id)) {
           try {
             const bossKillFreshCast = freshForCastAch || db.getPlayer(player.id);
             const bossKillTextCast = `Derrotaste a ${target.name} a nivel ${bossKillFreshCast ? bossKillFreshCast.level : (player.level || 1)}. Un hito permanente.`;
