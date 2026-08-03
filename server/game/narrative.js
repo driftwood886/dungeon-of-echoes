@@ -204,9 +204,13 @@ function buildFirma(player) {
 function buildMomentos(moments) {
   if (!moments || moments.length === 0) return [];
 
-  // Ordenar por prioridad
+  // Separar boss_kills (pueden ser múltiples) del resto
+  const bossKills = moments.filter(m => m.moment_type === 'boss_kill');
+  const otherMoments = moments.filter(m => m.moment_type !== 'boss_kill');
+
+  // Para momentos no-boss, guardar uno por tipo
   const byType = {};
-  for (const m of moments) {
+  for (const m of otherMoments) {
     if (!byType[m.moment_type]) byType[m.moment_type] = m;
   }
 
@@ -218,7 +222,15 @@ function buildMomentos(moments) {
   }
 
   const selected = [];
+
+  // BUG-2284: agregar todos los boss_kills (pueden ser múltiples), hasta el límite de 3
+  for (const bk of bossKills) {
+    if (selected.length < 3) selected.push(bk);
+  }
+
+  // Completar con el resto de momentos en orden de prioridad
   for (const type of MOMENT_PRIORITY) {
+    if (type === 'boss_kill') continue; // ya procesados arriba
     if (byType[type] && selected.length < 3) {
       selected.push(byType[type]);
     }

@@ -6405,6 +6405,7 @@ function cmdAttack(player, targetName) {
     }
 
     // EPIC-NE-IMPL-2266: Hookear boss_kill en cmdAttack
+    // BUG-2284: usar allowDuplicate:true para registrar cada boss kill (no solo el primero)
     if (monsterDead && bossKill) {
       try {
         const bossKillFresh = freshForAch || db.getPlayer(player.id);
@@ -6415,7 +6416,7 @@ function cmdAttack(player, targetName) {
           level: bossKillFresh ? (bossKillFresh.level || 1) : (player.level || 1),
           kills_at_time: bossKillFresh ? (bossKillFresh.kills || 0) : null,
           skill_used: null,
-        });
+        }, { allowDuplicate: true });
       } catch (_ne2266a) { /* no romper combate */ }
     }
 
@@ -20489,6 +20490,7 @@ function cmdCast(player, args) {
         }
 
         // EPIC-NE-IMPL-2266: Hookear boss_kill en cmdCast
+        // BUG-2284: usar allowDuplicate:true para registrar cada boss kill (no solo el primero)
         if (castBossKill) {
           try {
             const bossKillFreshCast = freshForCastAch || db.getPlayer(player.id);
@@ -20499,7 +20501,7 @@ function cmdCast(player, args) {
               level: bossKillFreshCast ? (bossKillFreshCast.level || 1) : (player.level || 1),
               kills_at_time: bossKillFreshCast ? (bossKillFreshCast.kills || 0) : null,
               skill_used: typeof spellName !== "undefined" ? spellName : null,
-            });
+            }, { allowDuplicate: true });
           } catch (_ne2266b) { /* no romper combate */ }
         }
         if (newCastAchs && newCastAchs.length > 0) {
