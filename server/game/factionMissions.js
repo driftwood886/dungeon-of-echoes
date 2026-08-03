@@ -270,6 +270,13 @@ function onEvent(player, eventType, data = {}) {
     if (filter.room_id !== undefined && eventType === 'explore_room') {
       if (data.room_id !== filter.room_id) return null;
     }
+
+    // DIS-2255: filtro por sala mínima (min_room_id) — para misiones de zona profunda
+    // Solo cuenta salas nuevas con room_id >= min_room_id
+    if (filter.min_room_id !== undefined && eventType === 'explore_new') {
+      const roomId = data.room_id || 0;
+      if (roomId < filter.min_room_id) return null;
+    }
   }
 
   // Incrementar progreso

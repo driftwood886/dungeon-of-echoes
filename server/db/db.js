@@ -1484,15 +1484,17 @@ async function init() {
         id: 'fm_conclave_explorar_salas',
         faction: 'conclave_arcano',
         name: 'Cartografía de las Sombras',
-        description_template: 'El Cónclave necesita registros de primera mano. Explorá {target} salas nuevas que no hayas visitado antes.',
+        // DIS-2255: diferenciada de quest "Cartografía Arcana" (3 salas cualquiera).
+        // Esta misión requiere explorar salas de la zona profunda (sala 7+) — cartografía de riesgo real.
+        description_template: 'El Cónclave necesita registros de primera mano de las zonas profundas del dungeon. Explorá {target} salas nuevas en la zona profunda (sala 7 en adelante) que no hayas visitado antes. Las salas de la superficie ya están documentadas.',
         event_hook: 'explore_new',
-        target_filter: null,
-        base_target: 3,
+        target_filter: JSON.stringify({ min_room_id: 7 }),
+        base_target: 5,
         scale_per_level: 1.0,
-        reward_xp: 180,
-        reward_gold: 60,
-        reward_influence: 8,
-        require_level: 1,
+        reward_xp: 200,
+        reward_gold: 70,
+        reward_influence: 10,
+        require_level: 2,
         priority: 10,
         is_active: 1,
       },
@@ -1592,11 +1594,14 @@ async function init() {
          m.require_level, m.priority, m.is_active]
       );
       // DIS-2143: Actualizar definiciones existentes que hayan cambiado (description, target_filter)
+      // DIS-2255: también actualizar base_target y reward fields
       db.run(
         `UPDATE faction_mission_definitions
-         SET description_template = ?, target_filter = ?, name = ?
+         SET description_template = ?, target_filter = ?, name = ?,
+             base_target = ?, reward_xp = ?, reward_gold = ?, reward_influence = ?, require_level = ?
          WHERE id = ?`,
-        [m.description_template, m.target_filter || null, m.name, m.id]
+        [m.description_template, m.target_filter || null, m.name,
+         m.base_target, m.reward_xp, m.reward_gold, m.reward_influence, m.require_level, m.id]
       );
     }
     console.log('[db] EPIC-FM: 9 misiones de facción en pool (INSERT OR IGNORE — idempotente)');
