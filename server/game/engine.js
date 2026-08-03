@@ -19260,6 +19260,18 @@ function resolveExpiredAuctions(broadcastFn) {
             }
           }
         } catch (_) { /* no romper resolución si falla factionMissions */ }
+
+        // EPIC-NE-IMPL-2268: Hookear subasta_ganada (primera subasta ganada del jugador)
+        if (winner && !winner.is_bot) {
+          try {
+            const subGanadaText = `Ganaste la subasta de ${auction.item_name} por ${auction.current_bid} gold.`;
+            db.recordMoment(winner.id, db.MOMENT_TYPES.subasta_ganada, subGanadaText, {
+              item_name: auction.item_name,
+              gold_paid: auction.current_bid,
+              seller_username: auction.seller_name || null,
+            });
+          } catch (_ne2268) { /* no romper resolución de subasta */ }
+        }
       }
       // DIS-1482: si el ganador es un bot NPC (ID negativo), el ítem "desaparece" (el NPC se lo lleva)
       // No necesita ningún tratamiento adicional — simplemente no se agrega a ningún inventario.
