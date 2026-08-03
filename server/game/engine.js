@@ -13705,6 +13705,10 @@ function cmdTalk(player, target) {
     const ancCurrentAscCount  = player.ascension_count || 0;
     const ancKillsDelta       = ancCurrentKills - ancKillsAtChat;
 
+    // EPIC-NE-IMPL-2272: Leer momentos para prefix poético del Anciano
+    let ancianoPlayerMoments = [];
+    try { ancianoPlayerMoments = db.getPlayerMoments(player.id) || []; } catch (_) {}
+
     // EPIC-1821-F2: Historial cross-run desde memory.js (persiste entre ascensiones)
     const ancianoHistoryDialogo = memory.getAncianoDialogo(player.username);
 
@@ -13797,10 +13801,48 @@ function cmdTalk(player, target) {
     // EPIC-1896: calcular el bloque de campaña para prepend
     const ancianoCampanaPrefix = getAncianoCampanaBlock();
 
-    // DIS-454: Pregunta específica sobre santuario o llave → ruta alternativa directa
+    // EPIC-NE-IMPL-2272: prefix poético del Anciano basado en momentos (>24hs de edad)
+    function getAncianoMomentsPrefix() {
+      try {
+        if (!ancianoPlayerMoments || ancianoPlayerMoments.length === 0) return '';
+        const now = Date.now();
+        const ageThreshold = 24 * 60 * 60 * 1000; // 24 horas
+        const oldMoments = ancianoPlayerMoments.filter(m => {
+          try { return (now - new Date(m.created_at).getTime()) > ageThreshold; } catch (_) { return false; }
+        });
+        if (oldMoments.length === 0) return '';
+        const priority = ['near_death', 'kill_vs_nivel', 'boss_kill', 'maraton_kills'];
+        for (const type of priority) {
+          const m = oldMoments.find(om => om.moment_type === type);
+          if (m) {
+            let ctx = {};
+            try { ctx = JSON.parse(m.context_json || '{}'); } catch (_) {}
+            if (type === 'near_death') {
+              return 'El anciano no dice nada al principio. Solo te mira. «Casi», dice finalmente. «Lo vi en tu cara cuando entraste. No la primera vez que entraste —la otra vez. Cuando volviste del borde.»\n\n';
+            } else if (type === 'kill_vs_nivel') {
+              const monsterName = ctx.monster_name || 'eso';
+              return `«Derrotaste a ${monsterName}.» Vartan no levanta la vista. «Que yo sepa, debería haber sido al revés.» Pausa. «El dungeon ajusta su memoria. Eso no se olvida fácil.»\n\n`;
+            } else if (type === 'boss_kill') {
+              const bossName = ctx.boss_name || 'ese ser';
+              const createdAt = m.created_at;
+              let daysAgo = 0;
+              try { daysAgo = Math.floor((now - new Date(createdAt).getTime()) / (24 * 60 * 60 * 1000)); } catch (_) {}
+              const daysStr = daysAgo <= 1 ? 'un día' : `${daysAgo} días`;
+              return `El anciano lleva la mano a la pared de piedra, como si escuchara algo. «Hubo un silencio hace ${daysStr} —un silencio que no debería existir en un dungeon vivo.» Te mira. «${bossName} cayó. Lo supe cuando el eco llegó hasta aquí.»\n\n`;
+            } else if (type === 'maraton_kills') {
+              return '«Tres en fila», dice el anciano sin introducción. «Eso no es combate. Eso es decisión.» No parece ni aprobación ni crítica. «Muy pocos hacen eso más de una vez.»\n\n';
+            }
+          }
+        }
+      } catch (_) {}
+      return '';
+    }
+    const ancianoPrefixMomentos = getAncianoMomentsPrefix();
+
+
     const askingSanctuaryOrKey = tLow.includes('santuario') || tLow.includes('llave') || tLow.includes('pozo') || tLow.includes('cómo llegar') || tLow.includes('ruta');
     if (askingSanctuaryOrKey) {
-      return { text: ancianoCampanaPrefix + 'El anciano te mira cuando nombrás el Santuario —algo en su postura cambia, como si hubiera estado esperando esa pregunta.\n\n\"Hay dos rutas,\" dice. \"La directa: desde la Sala de los Ecos al oeste, llegás al Pozo Sin Fondo. La puerta al norte tiene cerradura —necesitás una llave oxidada. La vendemos en la tienda de sala 4 por 20 monedas de oro, o podés buscarla en la Prisión al norte del Tesoro. También, la Araña Tejedora del Pozo a veces la lleva consigo.\"\n\nHace una pausa, como calibrando si vale la pena continuar.\n\n\"La otra ruta no necesita llave. Desde aquí: al este, la Capilla Olvidada. Al norte desde ahí, el Túnel de los Hongos. Norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario Profano.\"\n\nSeñala con la mano el camino este mientras habla. \"Es más largo, pero está siempre abierto. No sé por qué ese camino quedó sin cerradura. Tengo mis sospechas.\"' };
+      return { text: ancianoPrefixMomentos + ancianoCampanaPrefix + 'El anciano te mira cuando nombrás el Santuario —algo en su postura cambia, como si hubiera estado esperando esa pregunta.\n\n\"Hay dos rutas,\" dice. \"La directa: desde la Sala de los Ecos al oeste, llegás al Pozo Sin Fondo. La puerta al norte tiene cerradura —necesitás una llave oxidada. La vendemos en la tienda de sala 4 por 20 monedas de oro, o podés buscarla en la Prisión al norte del Tesoro. También, la Araña Tejedora del Pozo a veces la lleva consigo.\"\n\nHace una pausa, como calibrando si vale la pena continuar.\n\n\"La otra ruta no necesita llave. Desde aquí: al este, la Capilla Olvidada. Al norte desde ahí, el Túnel de los Hongos. Norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario Profano.\"\n\nSeñala con la mano el camino este mientras habla. \"Es más largo, pero está siempre abierto. No sé por qué ese camino quedó sin cerradura. Tengo mis sospechas.\"' };
     }
 
     // VARIANTE 1: Logro Cartógrafo — exploró todo el dungeon
@@ -13811,37 +13853,37 @@ function cmdTalk(player, target) {
       } else if (leyoDiario) {
         cartText += '\n\n\"Leíste el diario de la Galería de Hielo, ¿verdad?\" Asiente lentamente. \"Kaelthas. Ese nombre aparece en demasiados lugares para ser casualidad. Si todavía no hablaste con Aldric —el mercader en sala 4— creo que deberías. Él sabe cosas que yo solo intuyo.\"';
       }
-      return { text: ancianoCampanaPrefix + cartText + getAncianoMemorySuffix() };
+      return { text: ancianoPrefixMomentos + ancianoCampanaPrefix + cartText + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 2: Quest de Aldric completada — conoce la historia de Kaelthas
     if (qStateG === 'done') {
-      return { text: ancianoCampanaPrefix + 'El anciano levanta la vista. Algo en tu cara le dice que ya no sos el mismo que entró al dungeon por primera vez.\n\n\"Hablaste con Aldric,\" dice. No es una pregunta.\n\nAsiente despacio. \"Kaelthas Vorn. El guardián del sello. Sabía que tarde o temprano alguien lo iba a descubrir.\" Pausa. \"Yo lo sospechaba hace años, cuando noté que los monstruos nunca desaparecen del todo. No es magia al azar —hay una voluntad detrás.\"\n\n\"Cuidate en la Catedral,\" agrega en voz baja. \"Su presencia ahí es más... directa. El Lich Anciano no es el peligro final. Es solo la puerta.\"' + getAncianoMemorySuffix() };
+      return { text: ancianoPrefixMomentos + ancianoCampanaPrefix + 'El anciano levanta la vista. Algo en tu cara le dice que ya no sos el mismo que entró al dungeon por primera vez.\n\n\"Hablaste con Aldric,\" dice. No es una pregunta.\n\nAsiente despacio. \"Kaelthas Vorn. El guardián del sello. Sabía que tarde o temprano alguien lo iba a descubrir.\" Pausa. \"Yo lo sospechaba hace años, cuando noté que los monstruos nunca desaparecen del todo. No es magia al azar —hay una voluntad detrás.\"\n\n\"Cuidate en la Catedral,\" agrega en voz baja. \"Su presencia ahí es más... directa. El Lich Anciano no es el peligro final. Es solo la puerta.\"' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 3: Leyó el diario — hint directo sobre Kaelthas y Aldric
     if (leyoDiario && qStateG === 'none') {
-      return { text: ancianoCampanaPrefix + 'El anciano pausa al verte. Hay algo diferente en su mirada —te estudia con más atención de lo habitual.\n\n\"Leíste el diario helado,\" dice. No es una pregunta. \"En la Galería de Hielo. Las páginas medio fusionadas.\"\n\nBaja la voz. \"Kaelthas no murió como los libros dicen. Eligió quedarse aquí —y el dungeon lo aceptó.\" Se inclina levemente hacia vos. \"Hay un mercader en sala 4. Aldric. Cuando tengas nivel 5, hablá con él. Llevá cualquier objeto que hayas encontrado en el dungeon —especialmente si tiene un sello grabado. Creo que sabe más. Mucho más.\"\n\nVuelve a mirar la entrada en silencio. Como si temiera que el dungeon lo escuche.' + getAncianoMemorySuffix() };
+      return { text: ancianoPrefixMomentos + ancianoCampanaPrefix + 'El anciano pausa al verte. Hay algo diferente en su mirada —te estudia con más atención de lo habitual.\n\n\"Leíste el diario helado,\" dice. No es una pregunta. \"En la Galería de Hielo. Las páginas medio fusionadas.\"\n\nBaja la voz. \"Kaelthas no murió como los libros dicen. Eligió quedarse aquí —y el dungeon lo aceptó.\" Se inclina levemente hacia vos. \"Hay un mercader en sala 4. Aldric. Cuando tengas nivel 5, hablá con él. Llevá cualquier objeto que hayas encontrado en el dungeon —especialmente si tiene un sello grabado. Creo que sabe más. Mucho más.\"\n\nVuelve a mirar la entrada en silencio. Como si temiera que el dungeon lo escuche.' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 4: Leyó el diario y tiene la quest en progreso — hint de avance
     if (leyoDiario && qStateG === 'active') {
-      return { text: ancianoCampanaPrefix + 'El anciano asiente al verte acercarte.\n\n\"Buscás a Kaelthas.\" Más afirmación que pregunta. \"Aldric te mandó.\"\n\nSeñala la entrada del dungeon. \"La Prisión está en el norte del dungeon —sala 8, al norte de la Cámara del Tesoro. Ahí guardaban las llaves y también los secretos que nadie quería que salieran.\" Pausa. \"Si encontrás una carta con el sello de las dos llaves cruzadas, llevásela a Aldric. Él sabe qué hacer.\"\n\nBaja la vista. \"Kaelthas fue el guardián del sello del reino. No un mago cualquiera. El dungeon no es una mazmorra abandonada —es su archivo.\"' + getAncianoMemorySuffix() };
+      return { text: ancianoPrefixMomentos + ancianoCampanaPrefix + 'El anciano asiente al verte acercarte.\n\n\"Buscás a Kaelthas.\" Más afirmación que pregunta. \"Aldric te mandó.\"\n\nSeñala la entrada del dungeon. \"La Prisión está en el norte del dungeon —sala 8, al norte de la Cámara del Tesoro. Ahí guardaban las llaves y también los secretos que nadie quería que salieran.\" Pausa. \"Si encontrás una carta con el sello de las dos llaves cruzadas, llevásela a Aldric. Él sabe qué hacer.\"\n\nBaja la vista. \"Kaelthas fue el guardián del sello del reino. No un mago cualquiera. El dungeon no es una mazmorra abandonada —es su archivo.\"' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 5: Nivel alto (≥7) — veterano del dungeon
     if (level >= 7) {
-      return { text: ancianoCampanaPrefix + 'El anciano te mira con algo parecido al respeto.\n\n\"Nivel ' + level + '.\" Asiente con lentitud. \"Ya no necesitás mis advertencias sobre el Pozo o la llave.\"\n\nSe recuesta en la pared con expresión seria. \"Si llegaste hasta acá con ese nivel, ya pasaste por la Catedral de la Oscuridad o el Abismo Eterno.\" Pausa. \"¿Encontraste las páginas del diario helado en la Galería? Hay un nombre que aparece en demasiados lugares aquí adentro. Si no lo conectaste todavía, hablá con Aldric en sala 4.\"\n\nTe mira fijo. \"El dungeon tiene memoria. Y vos ya sos parte de ella.\"' + getAncianoMemorySuffix() };
+      return { text: ancianoPrefixMomentos + ancianoCampanaPrefix + 'El anciano te mira con algo parecido al respeto.\n\n\"Nivel ' + level + '.\" Asiente con lentitud. \"Ya no necesitás mis advertencias sobre el Pozo o la llave.\"\n\nSe recuesta en la pared con expresión seria. \"Si llegaste hasta acá con ese nivel, ya pasaste por la Catedral de la Oscuridad o el Abismo Eterno.\" Pausa. \"¿Encontraste las páginas del diario helado en la Galería? Hay un nombre que aparece en demasiados lugares aquí adentro. Si no lo conectaste todavía, hablá con Aldric en sala 4.\"\n\nTe mira fijo. \"El dungeon tiene memoria. Y vos ya sos parte de ella.\"' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 6: Visitó el Pozo — navegación avanzada
     if (hasVisitedPozo) {
-      return { text: ancianoCampanaPrefix + 'El anciano te mira con ojos que han visto demasiado.\n\n\"Ya encontraste el Pozo, ¿verdad? La puerta al norte del Pozo tiene cerradura —necesitás una llave oxidada. La guardaban en la Prisión, sala 8, al norte de la Cámara del Tesoro.\"\n\nTose y continúa: \"Pero si no querés buscarla, hay otro camino. Hacia el este está la Capilla Olvidada. Desde ahí, al norte, el Túnel de los Hongos. Luego al norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario. Sin llave.\"\n\nSonríe brevemente. \"Nadie sabe por qué ese camino quedó abierto. Yo tengo mis sospechas.\"' + getAncianoMemorySuffix() };
+      return { text: ancianoPrefixMomentos + ancianoCampanaPrefix + 'El anciano te mira con ojos que han visto demasiado.\n\n\"Ya encontraste el Pozo, ¿verdad? La puerta al norte del Pozo tiene cerradura —necesitás una llave oxidada. La guardaban en la Prisión, sala 8, al norte de la Cámara del Tesoro.\"\n\nTose y continúa: \"Pero si no querés buscarla, hay otro camino. Hacia el este está la Capilla Olvidada. Desde ahí, al norte, el Túnel de los Hongos. Luego al norte otra vez, la Sala del Trono. Y desde el Trono, al este: el Santuario. Sin llave.\"\n\nSonríe brevemente. \"Nadie sabe por qué ese camino quedó abierto. Yo tengo mis sospechas.\"' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 7: Nivel medio (≥3)
     if (level >= 3) {
-      return { text: ancianoCampanaPrefix + 'El anciano asiente al verte.\n\n\"Buscás llegar al Santuario Profano, ¿no?\" No espera respuesta. \"Hay dos rutas. La directa pasa por el Pozo Sin Fondo —al oeste desde la Sala de los Ecos— pero la puerta al norte tiene cerradura. Necesitás una llave oxidada.\"\n\nSeñala hacia el este. \"La otra ruta es más larga pero abierta: Capilla → Hongos → Trono → Santuario. Sin llave. Muchos lo ignoran y se quedan dando vueltas buscando oro para la tienda.\"\n\nVuelve a apoyarse en la pared, como si esa conversación lo hubiera cansado.' + getAncianoMemorySuffix() };
+      return { text: ancianoPrefixMomentos + ancianoCampanaPrefix + 'El anciano asiente al verte.\n\n\"Buscás llegar al Santuario Profano, ¿no?\" No espera respuesta. \"Hay dos rutas. La directa pasa por el Pozo Sin Fondo —al oeste desde la Sala de los Ecos— pero la puerta al norte tiene cerradura. Necesitás una llave oxidada.\"\n\nSeñala hacia el este. \"La otra ruta es más larga pero abierta: Capilla → Hongos → Trono → Santuario. Sin llave. Muchos lo ignoran y se quedan dando vueltas buscando oro para la tienda.\"\n\nVuelve a apoyarse en la pared, como si esa conversación lo hubiera cansado.' + getAncianoMemorySuffix() };
     }
 
     // VARIANTE 8: Principiante (o veterano cross-run sin otras variantes específicas)
@@ -13849,9 +13891,9 @@ function cmdTalk(player, target) {
     // Si es la primera vez (total_runs <= 1), mostrar el texto de bienvenida detallado del engine
     const isFirstTimePlayer = ancianoHistoryDialogo.includes('Bienvenido al Dungeon');
     if (!isFirstTimePlayer) {
-      return { text: ancianoCampanaPrefix + ancianoHistoryDialogo + getAncianoMemorySuffix() };
+      return { text: ancianoPrefixMomentos + ancianoCampanaPrefix + ancianoHistoryDialogo + getAncianoMemorySuffix() };
     }
-    return { text: ancianoCampanaPrefix + 'El guardián anciano —Vartan, si todavía no sabés su nombre— levanta la vista hacia vos.\n\n\"Nuevo en el dungeon. Bien.\" Pausa. \"Escuchá: el dungeon tiene dos zonas principales. Al norte y al este desde aquí. Al norte hay más combate directo; al este hay cosas más... sutiles.\"\n\nSe rasca la barba. \"Cuando llegués al Pozo Sin Fondo —lo vas a saber cuando lo veas— hay una puerta bloqueada al norte. Si no tenés la llave, no la fuerces. Hay otro camino por el este, pasando por la Capilla. Acordate de eso.\"\n\nSeñala hacia abajo con el pulgar. \"Ah, y si querés practicar sin riesgo —sin que nadie te lastime y sin perder nada— hay una Sala de Práctica debajo de acá. Escribí \'abajo\' para bajar. Los maniquíes no muerden.\"\n\nVuelve a mirar la pared, como si la conversación hubiera terminado.' + getAncianoMemorySuffix() };
+    return { text: ancianoPrefixMomentos + ancianoCampanaPrefix + 'El guardián anciano —Vartan, si todavía no sabés su nombre— levanta la vista hacia vos.\n\n\"Nuevo en el dungeon. Bien.\" Pausa. \"Escuchá: el dungeon tiene dos zonas principales. Al norte y al este desde aquí. Al norte hay más combate directo; al este hay cosas más... sutiles.\"\n\nSe rasca la barba. \"Cuando llegués al Pozo Sin Fondo —lo vas a saber cuando lo veas— hay una puerta bloqueada al norte. Si no tenés la llave, no la fuerces. Hay otro camino por el este, pasando por la Capilla. Acordate de eso.\"\n\nSeñala hacia abajo con el pulgar. \"Ah, y si querés practicar sin riesgo —sin que nadie te lastime y sin perder nada— hay una Sala de Práctica debajo de acá. Escribí \'abajo\' para bajar. Los maniquíes no muerden.\"\n\nVuelve a mirar la pared, como si la conversación hubiera terminado.' + getAncianoMemorySuffix() };
   }
 
   // Solo Aldric por ahora. Acepta: 'aldric', 'mercader', 'tendero', o vacío si está en sala 4
@@ -13888,18 +13930,50 @@ function cmdTalk(player, target) {
     const escSold   = escribaMem.auctions_sold || 0;
     const escWon    = escribaMem.auctions_won || 0;
     const escVol    = escribaMem.gold_volume_auctions || 0;
+    const escLost   = escribaMem.auctions_lost || 0;
     const escBaron   = escSold >= 20 || escVol >= 1000;
     const escSerious = !escBaron && (escSold >= 5 || escVol >= 200);
     const escActive  = !escBaron && !escSerious && (escSold >= 1 || escWon >= 1);
 
+    // EPIC-NE-IMPL-2273: Leer momentos del jugador para enriquecimiento del Escriba
+    let escribaPlayerMoments = [];
+    try { escribaPlayerMoments = db.getPlayerMoments(player.id) || []; } catch (_) {}
+
+    // Variante: primera subasta ganada no mencionada aún
+    let escribaSubastaPrefix = '';
+    {
+      const subastaMoment = escribaPlayerMoments.find(m => m.moment_type === 'subasta_ganada');
+      if (subastaMoment && !escribaMem.primer_subasta_mencionada) {
+        let ctx = {};
+        try { ctx = JSON.parse(subastaMoment.context_json || '{}'); } catch (_) {}
+        const itemName = ctx.item_name || 'ese ítem';
+        const goldPaid = ctx.gold_paid || '?';
+        escribaSubastaPrefix = `«${itemName}. ${goldPaid}g.» Lo dice como si lo hubiera memorizado. «La primera siempre es memorable para el comprador. Para el registro, también.» `;
+        // Marcar como mencionada
+        try {
+          const escMemUpd = {};
+          try { Object.assign(escMemUpd, JSON.parse(player.npc_memory || '{}')); } catch (_) {}
+          if (!escMemUpd.escriba) escMemUpd.escriba = {};
+          escMemUpd.escriba.primer_subasta_mencionada = true;
+          db.updatePlayer(player.id, { npc_memory: JSON.stringify(escMemUpd) });
+        } catch (_) {}
+      }
+    }
+
+    // Variante: perdió más subastas de las que ganó
+    let escribaPerdioSuffix = '';
+    if ((escBaron || escSerious || escActive) && escLost > escWon * 2 && escLost >= 3) {
+      escribaPerdioSuffix = '\n\n— La pluma para un instante. «Las pujas que no ganaste también están en el registro.» Una pausa neutra. «El mercado es así. La mayoría pierde antes de ganar.»';
+    }
+
     if (escBaron) {
-      return { text: `📜 El escriba deja la pluma en el tintero. Completo. Cosa que no hace. Te mira directamente. «${escVol}g en circulación. ${escSold} ventas.» Una pausa. «En los registros de esta sala hay quienes vinieron y se fueron sin dejar rastro.» Señala el libro con un dedo. «Tu nombre aparece demasiadas veces para eso.»` };
+      return { text: `📜 ${escribaSubastaPrefix}El escriba deja la pluma en el tintero. Completo. Cosa que no hace. Te mira directamente. «${escVol}g en circulación. ${escSold} ventas.» Una pausa. «En los registros de esta sala hay quienes vinieron y se fueron sin dejar rastro.» Señala el libro con un dedo. «Tu nombre aparece demasiadas veces para eso.»${escribaPerdioSuffix}` };
     }
     if (escSerious) {
-      return { text: `📜 La pluma del escriba se detiene —solo un instante— cuando entrás. Levanta la vista. Eso no lo hace con casi nadie. «El mercado recuerda quiénes lo mueven», dice. «Y vos lo moviste ${escVol}g de oro este ciclo.» Vuelve a escribir. «¿Qué traés hoy?»` };
+      return { text: `📜 ${escribaSubastaPrefix}La pluma del escriba se detiene —solo un instante— cuando entrás. Levanta la vista. Eso no lo hace con casi nadie. «El mercado recuerda quiénes lo mueven», dice. «Y vos lo moviste ${escVol}g de oro este ciclo.» Vuelve a escribir. «¿Qué traés hoy?»${escribaPerdioSuffix}` };
     }
     if (escActive) {
-      return { text: `📜 «Vos de nuevo.» La pluma no para. «${escSold} ventas. ${escWon} compras. ${escVol}g en circulación.» Una pausa casi imperceptible. «Para los estándares del mercado, eso es... aceptable.»` };
+      return { text: `📜 ${escribaSubastaPrefix}«Vos de nuevo.» La pluma no para. «${escSold} ventas. ${escWon} compras. ${escVol}g en circulación.» Una pausa casi imperceptible. «Para los estándares del mercado, eso es... aceptable.»${escribaPerdioSuffix}` };
     }
     // Nivel 0: nunca usó subastas → texto original explicativo
     // EPIC-1163: si el jugador completó la expedición runa_perdida (ofrecida), el escriba lo menciona
@@ -13994,6 +14068,10 @@ function cmdTalk(player, target) {
   const aldricClassRevealed = aldricMem.class_revealed || null;
   const aldricPlayerClass = player.player_class || 'sin_clase';
 
+  // EPIC-NE-IMPL-2271: Leer momentos del jugador para enriquecimiento de Aldric
+  let aldricPlayerMoments = [];
+  try { aldricPlayerMoments = db.getPlayerMoments(player.id) || []; } catch (_) {}
+
   // Sufijo de reconocimiento según purchases (solo si no está en la quest)
   function getAldricMemorySuffix(skipForQuestFlow = false) {
     if (skipForQuestFlow) return '';
@@ -14025,6 +14103,36 @@ function cmdTalk(player, target) {
         memUpdC.aldric.purchases = aldricPurchases;
         memUpdC.aldric.class_revealed = aldricPlayerClass;
         db.updatePlayer(player.id, { npc_memory: JSON.stringify(memUpdC) });
+        return suffix;
+      }
+    }
+    // Variante por nivel de compras (solo en diálogos neutros)
+    // EPIC-NE-IMPL-2271: Prioridad 3 — boss_kill no visto por Aldric (antes de nivel de compras)
+    {
+      const bossMoment = aldricPlayerMoments.find(m => m.moment_type === 'boss_kill');
+      if (bossMoment && !aldricMem.boss_kill_seen) {
+        let ctx = {};
+        try { ctx = JSON.parse(bossMoment.context_json || '{}'); } catch (_) {}
+        const bossName = ctx.boss_name || 'ese boss';
+        const bossNameLow = bossName.toLowerCase();
+        let bossLine;
+        if (bossNameLow.includes('lich')) {
+          bossLine = `«El Lich.» Pausa larga. «Y seguís vivo.» No agrega nada más.`;
+        } else if (bossNameLow.includes('espectro')) {
+          bossLine = `«El Espectro te encontró, ¿no? O vos lo encontraste a él. El orden importa.»`;
+        } else if (bossNameLow.includes('araña') || bossNameLow.includes('tejedora')) {
+          bossLine = `«La tejedora. Bien. El tejido que deja... ¿lo conservaste? Tiene valor.»`;
+        } else {
+          bossLine = `«${bossName}.» No explica cómo lo sabe. «Las noticias viajan por las grietas del dungeon. Volviste. Eso ya dice algo.»`;
+        }
+        suffix += `\n\n— Aldric levanta la vista del libro. ${bossLine}`;
+        // Marcar boss_kill_seen en npc_memory
+        const memBoss = {};
+        try { Object.assign(memBoss, JSON.parse(player.npc_memory || '{}')); } catch (_) {}
+        if (!memBoss.aldric) memBoss.aldric = {};
+        memBoss.aldric.boss_kill_seen = true;
+        memBoss.aldric.purchases = aldricPurchases;
+        db.updatePlayer(player.id, { npc_memory: JSON.stringify(memBoss) });
         return suffix;
       }
     }
@@ -19255,6 +19363,16 @@ function cmdBid(player, args) {
     if (prevPlayer) {
       db.updatePlayer(prevBidder, { gold: (prevPlayer.gold || 0) + prevBidAmount });
       refundMsg = `\n💰 Se devolvieron ${prevBidAmount}g a ${prevBidderName}.`;
+      // EPIC-NE-IMPL-2273: Trackear auctions_lost para el postor superado
+      if (!prevPlayer.is_bot) {
+        try {
+          const loserMem = {};
+          try { Object.assign(loserMem, JSON.parse(prevPlayer.npc_memory || '{}')); } catch (_) {}
+          if (!loserMem.escriba) loserMem.escriba = {};
+          loserMem.escriba.auctions_lost = (loserMem.escriba.auctions_lost || 0) + 1;
+          db.updatePlayer(prevBidder, { npc_memory: JSON.stringify(loserMem) });
+        } catch (_ne2273) { /* no romper puja si falla tracking */ }
+      }
     }
   }
 
