@@ -979,6 +979,8 @@ Para el diario de lore: lore  (usá «read» en ítems con texto para guardar fr
           combo: 'combo', combos: 'combo',
           // DIS-2205: alias de duel para que 'help duelo' funcione
           duelo: 'duel', duel: 'duel',
+          // DIS-2258: aliases de ascensión para que 'help ascension' funcione
+          ascender: 'ascender', ascend: 'ascender', ascension: 'ascender', 'ascensión': 'ascender',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
@@ -14655,7 +14657,19 @@ function cmdShop(player, args) {
     const maxDescLen = basicMode ? 40 : 999;
     // DIS-2256: badge de stats al inicio de la descripción
     const statBadge = getItemStatBadge(item.name);
-    const descRaw = (statBadge ? statBadge : '') + (item.description || '');
+    // DIS-2259: advertencia de penalidad mágica para Magos que ven armas físicas en la tienda
+    let magoWeaponPenaltyNote = '';
+    if (player.player_class === 'mago') {
+      const itemDef2259 = items.getItemDef(item.name);
+      if (itemDef2259 && itemDef2259.type === 'weapon') {
+        const NON_MAGE_EXEMPTIONS_2259 = ['vara de energía', 'catalizador', 'grimorio', 'cristal mágico', 'espectral', 'del eco', 'arcano', 'arcana', 'mística', 'mágica'];
+        const isPhysicalWeapon2259 = !NON_MAGE_EXEMPTIONS_2259.some(kw => item.name.toLowerCase().includes(kw));
+        if (isPhysicalWeapon2259) {
+          magoWeaponPenaltyNote = ' ⚠️ Mago: -5% daño mágico';
+        }
+      }
+    }
+    const descRaw = (statBadge ? statBadge : '') + (item.description || '') + magoWeaponPenaltyNote;
     const descTrunc = descRaw.length > (maxDescLen + statBadge.length) ? descRaw.slice(0, maxDescLen + statBadge.length - 1) + '…' : descRaw;
     if (discount > 0) {
       const pricePad = `${finalPrice}g`.padEnd(9, ' ');
@@ -15041,6 +15055,19 @@ function cmdBuy(player, itemQuery) {
     ? '\n"He oído tu nombre antes," dice Aldric en voz baja. "Hasta Kaelthas supo que vendría alguien así. No sé si eso es bueno."'
     : '';
 
+  // DIS-2259: advertencia de penalidad de daño mágico al Mago que compra arma física
+  let magoWeaponPenaltyBuyMsg = '';
+  try {
+    const clsBuyMago = classes.getPlayerClass(freshBuyer);
+    if (clsBuyMago && clsBuyMago.name === 'Mago' && boughtWeapon && boughtWeapon.type === 'weapon') {
+      const NON_MAGE_EXEMPTIONS_BUY = ['vara de energía', 'catalizador', 'grimorio', 'cristal mágico', 'espectral', 'del eco', 'arcano', 'arcana', 'mística', 'mágica'];
+      const isPhysicalWeaponBuy = !NON_MAGE_EXEMPTIONS_BUY.some(kw => item.name.toLowerCase().includes(kw));
+      if (isPhysicalWeaponBuy) {
+        magoWeaponPenaltyBuyMsg = '\n⚠️ Aldric te mira un momento antes de entregártela. «Como mago, equipar esta arma física te penaliza -5% de daño mágico. La vara de energía (40g) no tiene esa penalidad — tu elección.»';
+      }
+    }
+  } catch (_) { /* no interrumpir compra */ }
+
   // EPIC-1162: trigger 'command' para expedición mercader_deuda (paso 1: comprar 3 ítems)
   let expeditionBuyMsg = '';
   {
@@ -15084,7 +15111,7 @@ function cmdBuy(player, itemQuery) {
   } catch (_) { /* no romper compra si falla factionMissions */ }
 
   return {
-    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${aldricPrecioSubeMsg}${craftAlternativeHint}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${autoEquipMsg}${equipTip}${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}${questBuyMsg}${fmBuyMsg}${factionBuyInfluenceMsg}`,
+    text: `🏪 ${flavor}${legendaryLine}${armorTip}${bendicionTip}${magoWeaponPenaltyBuyMsg}${aldricPrecioSubeMsg}${craftAlternativeHint}\n✅ Compraste: ${item.name} por ${finalPrice}g${discountMsg}.\n💰 Oro restante: ${newGold}g.${autoEquipMsg}${equipTip}${item.name === 'bolsa de lona' ? '\n💡 Para ampliar tu mochila ahora mismo, escribí: `usar bolsa de lona`' : ''}${buyAchLines}${expeditionBuyMsg}${buyChallengeMsg ? '\n' + buyChallengeMsg.trim() : ''}${questBuyMsg}${fmBuyMsg}${factionBuyInfluenceMsg}`,
     event: `${player.username} compra algo al mercader.`,
     eventRoomId: player.current_room_id,
   };
