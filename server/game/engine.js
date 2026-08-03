@@ -117,6 +117,10 @@ const afkCooldowns = new Map();
 // killStreakMap: playerId → número de kills consecutivos sin morir
 // Se resetea al morir. Bonus XP en hitos: 5, 10, 15, 20...
 const killStreakMap = new Map();
+
+// ── Maratón de kills (EPIC-NE-IMPL-2269) ────────────────────────────────────
+// marathonKillsMap: playerId → { roomId, count } — kills consecutivos sin moverse
+const marathonKillsMap = new Map();
 const STREAK_HITO_BONUS = 10; // XP extra al alcanzar cada hito de racha
 
 // ── XP por exploración de sesión (T160) ───────────────────────────────────────
@@ -1942,6 +1946,9 @@ function cmdMove(player, direction) {
   if (!direction) {
     return { text: 'Indicá una dirección. Ej: "move norte" o simplemente "norte".' };
   }
+  // EPIC-NE-IMPL-2269: resetear contador de maratón al moverse
+  marathonKillsMap.delete(String(player.id));
+
   // BUG-645: guardar sala de origen ANTES de cualquier updatePlayer que cambie current_room_id
   const _originRoomId = player.current_room_id;
 
@@ -6400,6 +6407,58 @@ function cmdAttack(player, targetName) {
           skill_used: null,
         });
       } catch (_ne2266a) { /* no romper combate */ }
+    }
+
+    // EPIC-NE-IMPL-2269: Hookear kill_vs_nivel, maraton_kills, kill_bajo_evento
+    if (monsterDead && !playerDead) {
+      try {
+        const ne2269Fresh = freshForAch || db.getPlayer(player.id);
+        // Estimación de nivel del monstruo por ataque (aprox nivel = ceil(attack/2))
+        // Mapping estático para bosses conocidos
+        const NE2269_BOSS_LEVELS = { 13: 7, 22: 8, 21: 6, 12: 5, 10: 4 };
+        const monsterEstLevel = NE2269_BOSS_LEVELS[monster.id] || Math.ceil((monster.attack || 3) / 2);
+        const playerLevelNE = ne2269Fresh ? (ne2269Fresh.level || 1) : (player.level || 1)
+
+        // (1) kill_vs_nivel: monstruo 3+ niveles por encima del jugador
+        if (monsterEstLevel >= playerLevelNE + 3) {
+          const killVsNivelText = `Derrotaste a ${monster.name} (nivel estimado ${monsterEstLevel}) siendo nivel ${playerLevelNE}.`;
+          db.recordMoment(player.id, db.MOMENT_TYPES.kill_vs_nivel, killVsNivelText, {
+            monster_name: monster.name,
+            monster_recommended_level: monsterEstLevel,
+            player_level: playerLevelNE,
+            damage_dealt: combatResult && combatResult.lastDamage ? combatResult.lastDamage : null,
+          }, { allowDuplicate: false });
+        }
+
+        // (2) maraton_kills: 3+ kills en la misma sala sin moverse
+        const playerIdStr = String(player.id);
+        const curRoomId = player.current_room_id;
+        const prevMaraton = marathonKillsMap.get(playerIdStr) || { roomId: null, count: 0 };
+        const newMaraton = (prevMaraton.roomId === curRoomId)
+          ? { roomId: curRoomId, count: prevMaraton.count + 1 }
+          : { roomId: curRoomId, count: 1 };
+        marathonKillsMap.set(playerIdStr, newMaraton);
+        if (newMaraton.count === 3) {
+          const maratonText = `Mataste 3 enemigos seguidos en ${curRoomId ? "la misma sala" : "el mismo lugar"} sin moverte.`;
+          db.recordMoment(player.id, db.MOMENT_TYPES.maraton_kills, maratonText, {
+            room_id: curRoomId,
+            kills_in_row: newMaraton.count,
+          }, { allowDuplicate: false });
+        }
+
+        // (3) kill_bajo_evento: si hay evento global activo al momento del kill
+        const activeGlobalEv = db.getActiveGlobalEvent ? db.getActiveGlobalEvent() : null;
+        if (activeGlobalEv) {
+          const evSlug = activeGlobalEv.event_type || activeGlobalEv.id || "unknown";
+          const evName = (activeGlobalEv.data && activeGlobalEv.data.name) || evSlug;
+          const killEvText = `Derrotaste a ${monster.name} durante el evento ${evName}.`;
+          db.recordMoment(player.id, db.MOMENT_TYPES.kill_bajo_evento, killEvText, {
+            monster_name: monster.name,
+            event_slug: evSlug,
+            event_name: evName,
+          }, { allowDuplicate: false });
+        }
+      } catch (_ne2269) { /* no romper combate */ }
     }
     // Logros nuevos → registrar el primero en la crónica
     if (newAchs && newAchs.length > 0) {
