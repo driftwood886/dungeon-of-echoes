@@ -1676,6 +1676,20 @@ async function init() {
   `);
   console.log('[db] EPIC-2045: tabla boss_stats lista');
 
+  // EPIC-NE: Sistema de Momentos Épicos (Narrativa Emergente del Personaje)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS player_moments (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      player_id        TEXT NOT NULL,         -- FK → players.id
+      moment_type      TEXT NOT NULL,         -- ver MOMENT_TYPES más abajo
+      description_text TEXT NOT NULL,         -- texto legible generado en el momento
+      context_json     TEXT NOT NULL DEFAULT '{}', -- datos de contexto (varía por tipo)
+      created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_player_moments_player ON player_moments(player_id, moment_type)`);
+  console.log('[db] EPIC-NE: tabla player_moments lista');
+
   // EPIC-CAMP: Seed de la campaña "La Invasión de Veth" (INSERT OR IGNORE — idempotente)
   try {
     db.run(`
@@ -5864,6 +5878,103 @@ function resetWeeklyBossKills() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── EPIC-NE: Sistema de Momentos Épicos (Narrativa Emergente del Personaje) ──
+
+/**
+ * Tipos de momento soportados.
+ * Solo se registra el PRIMERO de cada tipo por defecto,
+ * salvo los que admiten override (near_death y kill_vs_nivel, que actualizan si es más extremo).
+ */
+const MOMENT_TYPES = {
+  primer_kill:          'primer_kill',          // Primer kill del personaje
+  near_death:           'near_death',           // Sobrevivir con HP < 3 (update si nuevo mínimo)
+  boss_kill:            'boss_kill',            // Matar un boss (primer boss kill)
+  primer_crafteo:       'primer_crafteo',       // Primer crafteo del personaje
+  subasta_ganada:       'subasta_ganada',       // Primera subasta ganada
+  kill_vs_nivel:        'kill_vs_nivel',        // Matar monstruo nivel+3 o más por encima del jugador
+  maraton_kills:        'maraton_kills',        // 3+ kills en la misma sala sin moverse
+  kill_bajo_evento:     'kill_bajo_evento',     // Kill bajo evento global activo
+  primer_skill_kill:    'primer_skill_kill',    // Primer kill con habilidad especial (no ataque básico)
+};
+
+/**
+ * Registra un momento épico para un jugador.
+ *
+ * @param {string} playerId   - players.id
+ * @param {string} momentType - una de las claves de MOMENT_TYPES
+ * @param {string} descriptionText - texto narrativo generado en el momento
+ * @param {Object} contextJson - datos de contexto adicionales (libre, según el tipo)
+ * @param {Object} opts
+ * @param {boolean} [opts.allowDuplicate=false] - si true, permite múltiples registros del mismo tipo
+ * @param {function} [opts.shouldUpdate] - si se pasa, se llama con el momento existente; si retorna true, actualiza
+ *
+ * @returns {{ inserted: boolean, updated: boolean, skipped: boolean }}
+ */
+function recordMoment(playerId, momentType, descriptionText, contextJson = {}, opts = {}) {
+  try {
+    const existing = one(
+      `SELECT * FROM player_moments WHERE player_id = ? AND moment_type = ? LIMIT 1`,
+      [playerId, momentType]
+    );
+
+    const ctxStr = JSON.stringify(contextJson);
+
+    if (!existing) {
+      run(
+        `INSERT INTO player_moments (player_id, moment_type, description_text, context_json) VALUES (?, ?, ?, ?)`,
+        [playerId, momentType, descriptionText, ctxStr]
+      );
+      return { inserted: true, updated: false, skipped: false };
+    }
+
+    if (opts.allowDuplicate) {
+      run(
+        `INSERT INTO player_moments (player_id, moment_type, description_text, context_json) VALUES (?, ?, ?, ?)`,
+        [playerId, momentType, descriptionText, ctxStr]
+      );
+      return { inserted: true, updated: false, skipped: false };
+    }
+
+    if (opts.shouldUpdate && opts.shouldUpdate(existing)) {
+      run(
+        `UPDATE player_moments SET description_text = ?, context_json = ?, created_at = datetime('now') WHERE id = ?`,
+        [descriptionText, ctxStr, existing.id]
+      );
+      return { inserted: false, updated: true, skipped: false };
+    }
+
+    return { inserted: false, updated: false, skipped: true };
+  } catch (e) {
+    console.error('[db] recordMoment error:', e.message);
+    return { inserted: false, updated: false, skipped: false };
+  }
+}
+
+/**
+ * Obtiene los momentos épicos de un jugador.
+ *
+ * @param {string} playerId
+ * @param {string|null} [momentType=null] - si se pasa, filtra por tipo
+ * @returns {Array} array de rows de player_moments
+ */
+function getPlayerMoments(playerId, momentType = null) {
+  try {
+    if (momentType) {
+      return all(
+        `SELECT * FROM player_moments WHERE player_id = ? AND moment_type = ? ORDER BY created_at ASC`,
+        [playerId, momentType]
+      );
+    }
+    return all(
+      `SELECT * FROM player_moments WHERE player_id = ? ORDER BY created_at ASC`,
+      [playerId]
+    );
+  } catch (e) {
+    console.error('[db] getPlayerMoments error:', e.message);
+    return [];
+  }
+}
+
 module.exports = {
   init, persist,
   // players
@@ -5963,4 +6074,6 @@ module.exports = {
   getMainQuestData, updateMainQuestData,
   // EPIC-2045: Boss Stats (Voces del Abismo — kill counter global)
   getBossStats, recordBossKill, resetWeeklyBossKills,
+  // EPIC-NE: Sistema de Momentos Épicos (Narrativa Emergente del Personaje)
+  recordMoment, getPlayerMoments, MOMENT_TYPES,
   };
