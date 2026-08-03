@@ -31641,6 +31641,90 @@ function getRandomLegacies(playerId) {
   return shuffled.slice(0, 3);
 }
 
+// EPIC-NE-IMPL-2274: suggestEpitaph — genera sugerencia narrativa basada en firma de juego
+function suggestEpitaph(player, moments) {
+  try {
+    moments = moments || [];
+    const kills = player.kills || 0;
+    const deaths = player.deaths || 0;
+    const crafts = player.crafts_count || 0;
+    const goldSpent = player.gold_spent || 0;
+    const level = player.level || 1;
+    const ascCount = player.ascension_count || 0;
+    const playerClass = player.player_class || 'sin_clase';
+    let aldricPurchasesEpi = 0;
+    let escWonEpi = 0;
+    let escSoldEpi = 0;
+    try {
+      const mem = JSON.parse(player.npc_memory || '{}');
+      aldricPurchasesEpi = (mem.aldric && mem.aldric.purchases) || 0;
+      escWonEpi = (mem.escriba && mem.escriba.auctions_won) || 0;
+      escSoldEpi = (mem.escriba && mem.escriba.auctions_sold) || 0;
+    } catch (_) {}
+
+    // 1. Sin muertes
+    if (deaths === 0) {
+      if (kills < 20) return 'Entró, derrotó al Lich, y no perdió ni un paso.';
+      if (kills < 50) return `${kills} kills. Cero muertes. El dungeon nunca lo tuvo.`;
+      return 'Ni una sola vez cedió el terreno.';
+    }
+
+    // 2. Kill vs nivel en moments
+    const killVsNivelMoment = moments.find(m => m.moment_type === 'kill_vs_nivel');
+    if (killVsNivelMoment) {
+      let ctx = {};
+      try { ctx = JSON.parse(killVsNivelMoment.context_json || '{}'); } catch (_) {}
+      const monsterName = ctx.monster_name;
+      if (monsterName) return `Derrotó a ${monsterName} cuando no debería. Nunca respetó los límites sugeridos.`;
+      return 'Ignoró las advertencias de nivel. El dungeon lo aprendió a las malas.';
+    }
+
+    // 3. Craftero intenso
+    if (crafts >= 10) {
+      if (crafts >= 20) return 'Construyó cada victoria antes de pelearla.';
+      return `${crafts} crafteos. Creyó en el trabajo antes que en el golpe.`;
+    }
+
+    // 4. Comerciante activo
+    if (goldSpent >= 200 && aldricPurchasesEpi >= 8) {
+      if (escSoldEpi >= 5) return 'Movió el mercado del dungeon. Aldric lo recuerda.';
+      return `${goldSpent}g gastados en Aldric. Sabía que el equipamiento gana guerras.`;
+    }
+
+    // 5. Mago purista
+    if (playerClass === 'mago' && kills >= 15 && goldSpent < 30) {
+      return 'Solo magia. Solo eso.';
+    }
+
+    // 6. Boss killer puro
+    const bossMoment = moments.find(m => m.moment_type === 'boss_kill');
+    if (bossMoment && kills < 30) {
+      let ctx = {};
+      try { ctx = JSON.parse(bossMoment.context_json || '{}'); } catch (_) {}
+      const bossName = ctx.boss_name || 'el boss';
+      return `Fue derecho a ${bossName}. No vino por los monstruos del corredor.`;
+    }
+
+    // 7. Sin gastar en tienda
+    if (goldSpent < 20 && level >= 5) {
+      return 'No necesitó de Aldric.';
+    }
+
+    // 8. Veterano de ascensiones
+    if (ascCount >= 3) {
+      if (ascCount >= 5) return 'Cinco ciclos. El Lich ya espera su turno.';
+      return 'El dungeon lo conoce de memoria. Tercera vez.';
+    }
+
+    // Fallback
+    const classNames = { guerrero: 'guerrero', mago: 'mago', picaro: 'pícaro', clerigo: 'clérigo', sin_clase: 'aventurero' };
+    const cls = classNames[playerClass] || 'aventurero';
+    return `${cls.charAt(0).toUpperCase() + cls.slice(1)} de nivel ${level}. ${kills} kills. El dungeon lo recuerda.`;
+  } catch (_) {
+    return null;
+  }
+}
+
 function cmdAscend(player, args, context) {
   const fresh = db.getPlayer(player.id);
   if (!fresh) return { text: '❌ Error al cargar tu personaje.' };
@@ -31777,6 +31861,24 @@ function cmdAscend(player, args, context) {
     lines.push(`Con epitafio:   \`ascender 1 Que el eco de mis pasos perdure\``);
     lines.push(`                (El epitafio queda grabado en el Salón.)`);
     lines.push(``);
+
+    // EPIC-NE-IMPL-2274: Sugerencia de epítafio auto-generado
+    try {
+      const moments2274 = db.getPlayerMoments ? db.getPlayerMoments(fresh.id) : [];
+      const epitafioSugerido = suggestEpitaph(fresh, moments2274);
+      if (epitafioSugerido) {
+        lines.push(`📜 SUGERENCIA DE EPÍTAFIO`);
+        lines.push(`   El dungeon vio tu historia. Esto es lo que diría:`);
+        lines.push(``);
+        lines.push(`   "${epitafioSugerido}"`);
+        lines.push(``);
+        lines.push(`   Usá este epitafio: ascender 1 ${epitafioSugerido}`);
+        lines.push(`   O escribí el tuyo:  ascender 1 [tu texto]`);
+        lines.push(``);
+        lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+      }
+    } catch (_ne2274) { /* no romper ascensión si falla sugerencia */ }
+
     lines.push(`Para cancelar:  \`ascender cancelar\` — volvés al juego sin ascender.`);
     lines.push(`El dungeon no tiene prisa. Pero el Lich volverá.`);
     lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
