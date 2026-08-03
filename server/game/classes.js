@@ -31,8 +31,9 @@ const CLASSES = {
     max_hp: 22,
     attack: 4,
     defense: 3,  // DIS-1338: subido de 2→3 — DEF 2 era insostenible sin armadura en nivel 1-2
-    mana: 42,          // DIS-1736: subido de 35→42 — permite 3 rayos (42/14=3) en vez de 2. El mago early game se quedaba seco a los 2 hechizos.
-    max_mana: 42,
+    mana: 50,          // DIS-1736: subido de 35→42 — permite 3 rayos (42/14=3) en vez de 2. El mago early game se quedaba seco a los 2 hechizos.
+                       // DIS-2257: subido de 42→50 — economía de maná niveles 1-2 muy ajustada. +8 maná base = 1 hechizo más antes de entrar en modo supervivencia.
+    max_mana: 50,
     crit_bonus: 0,
     dodge_bonus: 0,
     spell_power: 1.5,  // hechizos hacen 50% más daño (×1.2 niveles 1-2, ×1.5 nivel 3+)
