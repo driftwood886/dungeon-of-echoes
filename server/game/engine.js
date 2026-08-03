@@ -6386,6 +6386,21 @@ function cmdAttack(player, targetName) {
         }
       }
     }
+
+    // EPIC-NE-IMPL-2266: Hookear boss_kill en cmdAttack
+    if (monsterDead && bossKill) {
+      try {
+        const bossKillFresh = freshForAch || db.getPlayer(player.id);
+        const bossKillText = `Derrotaste a ${monster.name} a nivel ${bossKillFresh ? bossKillFresh.level : (player.level || 1)}. Un hito permanente.`;
+        db.recordMoment(player.id, db.MOMENT_TYPES.boss_kill, bossKillText, {
+          boss_name: monster.name,
+          boss_id: monster.id,
+          level: bossKillFresh ? (bossKillFresh.level || 1) : (player.level || 1),
+          kills_at_time: bossKillFresh ? (bossKillFresh.kills || 0) : null,
+          skill_used: null,
+        });
+      } catch (_ne2266a) { /* no romper combate */ }
+    }
     // Logros nuevos → registrar el primero en la crónica
     if (newAchs && newAchs.length > 0) {
       db.logGlobalEvent('achievement', `🏅 ${player.username} desbloqueó el logro "${newAchs[0].name}".`);
@@ -20208,6 +20223,21 @@ function cmdCast(player, args) {
               console.warn('[engine] BUG-699: Error incrementando lich_kills con hechizo:', e.message);
             }
           }
+        }
+
+        // EPIC-NE-IMPL-2266: Hookear boss_kill en cmdCast
+        if (castBossKill) {
+          try {
+            const bossKillFreshCast = freshForCastAch || db.getPlayer(player.id);
+            const bossKillTextCast = `Derrotaste a ${target.name} a nivel ${bossKillFreshCast ? bossKillFreshCast.level : (player.level || 1)}. Un hito permanente.`;
+            db.recordMoment(player.id, db.MOMENT_TYPES.boss_kill, bossKillTextCast, {
+              boss_name: target.name,
+              boss_id: target.id,
+              level: bossKillFreshCast ? (bossKillFreshCast.level || 1) : (player.level || 1),
+              kills_at_time: bossKillFreshCast ? (bossKillFreshCast.kills || 0) : null,
+              skill_used: typeof spellName !== "undefined" ? spellName : null,
+            });
+          } catch (_ne2266b) { /* no romper combate */ }
         }
         if (newCastAchs && newCastAchs.length > 0) {
           db.logGlobalEvent('achievement', `🏅 ${player.username} desbloqueó el logro "${newCastAchs[0].name}".`);
