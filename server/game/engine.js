@@ -13513,6 +13513,39 @@ function getDiscountedPrice(basePrice, reputation, aldricRep = 0) {
   return Math.max(1, Math.floor(basePrice * (1 - totalDiscount)));
 }
 
+// DIS-2256: badge de stats de un ítem de tienda — ej: "+8 ATK", "+2 DEF", "+15 HP"
+function getItemStatBadge(itemName) {
+  const def = items.getItemDef(itemName);
+  if (!def) return '';
+  const stats = [];
+  if (def.type === 'weapon' && def.amount) {
+    stats.push(`+${def.amount} ATK`);
+    if (def.mage_only_bonus) stats.push(`🔮+${def.amount + def.mage_only_bonus} Mago`);
+    else if (def.cleric_only_bonus) stats.push(`✨+${def.amount + def.cleric_only_bonus} Clérigo`);
+  } else if ((def.type === 'armor' || (def.type === 'potion' && def.effect === 'defense_bonus')) && def.amount) {
+    stats.push(`+${def.amount} DEF`);
+    if (def.duration) stats.push(`${def.duration}s`);
+  } else if (def.effect === 'heal' && def.amount) {
+    stats.push(`+${def.amount} HP`);
+  } else if (def.effect === 'mana' && def.amount) {
+    stats.push(`+${def.amount} MP`);
+  } else if (def.effect === 'mana_restore' && def.amount) {
+    stats.push(`+${def.amount} MP`);
+  } else if (def.type === 'mana_potion' && def.amount) {
+    stats.push(`+${def.amount} MP`);
+  } else if (def.type === 'bag' && def.slots) {
+    stats.push(`+${def.slots} slots`);
+  } else if (def.effect === 'perm_attack' && def.amount) {
+    stats.push(`+${def.amount} ATK perm.`);
+  } else if (def.effect === 'perm_defense' && def.amount) {
+    stats.push(`+${def.amount} DEF perm.`);
+  } else if (def.effect === 'perm_hp' && def.amount) {
+    stats.push(`+${def.amount} HP perm.`);
+  }
+  if (!stats.length) return '';
+  return `[${stats.join('·')}] `;
+}
+
 // ─── T242: Quest narrativa con Aldric ────────────────────────────────────────
 //
 // Estados de aldric_quest en el jugador:
@@ -14293,7 +14326,9 @@ function cmdShop(player, args) {
         const cat = SHOP_CATALOG.find(i => i.name === name && !i.sellOnly);
         if (!cat) return null;
         const fp = getDiscountedPrice(cat.price, player.reputation || 0, player.aldric_rep || 0);
-        return `• ${cat.name} (${fp}g)`;
+        // DIS-2256: incluir stats badge en recomendaciones
+        const badge = getItemStatBadge(name);
+        return `• ${cat.name} (${fp}g)${badge ? '  ' + badge.trim() : ''}`;
       }).filter(Boolean);
       if (recItems.length > 0) {
         if (weaponsWereFiltered) {
@@ -14396,8 +14431,10 @@ function cmdShop(player, args) {
     const finalPrice = getDiscountedPrice(item.price, reputation, aldricRep);
     // DIS-1732: en modo básico (por clase), truncar descripciones largas para que siempre se vea nombre+precio
     const maxDescLen = basicMode ? 40 : 999;
-    const descRaw = item.description || '';
-    const descTrunc = descRaw.length > maxDescLen ? descRaw.slice(0, maxDescLen - 1) + '…' : descRaw;
+    // DIS-2256: badge de stats al inicio de la descripción
+    const statBadge = getItemStatBadge(item.name);
+    const descRaw = (statBadge ? statBadge : '') + (item.description || '');
+    const descTrunc = descRaw.length > (maxDescLen + statBadge.length) ? descRaw.slice(0, maxDescLen + statBadge.length - 1) + '…' : descRaw;
     if (discount > 0) {
       const pricePad = `${finalPrice}g`.padEnd(9, ' ');
       const origPad  = `(${item.price}g)`.padEnd(11, ' ');
