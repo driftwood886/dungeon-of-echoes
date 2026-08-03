@@ -42,6 +42,7 @@ const factionMissions = require('./factionMissions'); // EPIC Facciones Vivas (I
 const { EVENTS: VV_EVENTS, generateNewSeed: vvGenerateNewSeed, generateRunState: vvGenerateRunState } = require('./run-state');  // IMPL-VV-1760: desafíos y diálogos de evento; BUG-1762: inicializar VV para jugadores pre-VV
 const memory = require('./memory.js'); // EPIC-1820-DEF: hooks de memoria del dungeon
 const kaelthasQuest = require('./kaelthasQuest'); // EPIC-KAELTHAS (T-1971): quest principal de Kaelthas
+const { buildPlayerNarrative } = require('./narrative'); // EPIC-NE-IMPL-2270: narrativa emergente del personaje
 
 // ── Efectos pasivos de sala (T087) ────────────────────────────────────────────
 // DIS-1514: helper para mensaje de progreso de XP dentro del nivel actual
@@ -767,6 +768,7 @@ function execute(playerId, input, context) {
     case 'tips':         result = cmdTips(action.args); break;       // T209
     case 'goals':        result = cmdGoals(player, context); break;           // T210
     case 'legado':       result = cmdLegado(player, context); break;          // DIS-D291: legado post-boss
+    case 'historia':     result = cmdHistoria(player); break;                  // EPIC-NE-IMPL-2270: narrativa emergente
     case 'ascender':     result = cmdAscend(player, action.args, context); break; // EPIC-963: Sistema de Ascensión
     case 'campana':      result = cmdCampana(player, action.args); break;         // EPIC-1894/1895: Sistema de Campaña
     case 'enterrar':     result = cmdBury(player, action.args, context); break;   // T967: Ítem Heredado
@@ -30715,6 +30717,26 @@ function cmdGoals(player, context) {
   lines.push(`╚${'═'.repeat(W)}╝`);
 
   return { text: lines.join('\n') };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EPIC-NE-IMPL-2270: cmdHistoria — Narrativa emergente del personaje
+// Muestra la crónica personal: perfil, momentos cumbre, deuda pendiente
+// ══════════════════════════════════════════════════════════════════════════════
+function cmdHistoria(player) {
+  try {
+    const fresh = db.getPlayer(player.id);
+    if (!fresh) return { text: '❌ Error al cargar tu personaje.' };
+
+    const moments = db.getPlayerMoments(fresh.id);
+    const quests  = questEngine.getActiveQuests(fresh.id);
+
+    const text = buildPlayerNarrative(fresh, moments, quests);
+    return { text };
+  } catch (e) {
+    console.error('[cmdHistoria] error:', e.message);
+    return { text: '📖 No se pudo generar la crónica en este momento.' };
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

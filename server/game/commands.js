@@ -338,7 +338,9 @@ const COMMAND_ALIASES = {
   tips: 'tips', tip: 'tips', consejo: 'tips', consejos: 'tips', trucos: 'tips', ayudame: 'tips',  // T209
   goals: 'goals', objetivos: 'goals', metas: 'goals', misiones_personales: 'goals', proximos: 'goals', 'qué-hacer': 'goals',  // T210
   // legado / historial épico del héroe (DIS-D291)
-  legado: 'legado', leyenda: 'legado', historia: 'legado', ciclos: 'legado', 'mis-ciclos': 'legado', endgame: 'legado',
+  legado: 'legado', leyenda: 'legado', ciclos: 'legado', 'mis-ciclos': 'legado', endgame: 'legado',
+  // historia / crónica personal del jugador (EPIC-NE-IMPL-2270)
+  historia: 'historia', cronica_personal: 'historia', 'mi-historia': 'historia', crónica_personal: 'historia',
   // ascender / Sistema de Ascensión (EPIC-963/966)
   ascender: 'ascender', ascend: 'ascender', 'ascension': 'ascender', ascensión: 'ascender', renacimiento: 'ascender', renacer: 'ascender', legado_nuevo: 'ascender',
   // enterrar / desenterrar / excavar — Sistema de Ítem Heredado (T967/T968)
