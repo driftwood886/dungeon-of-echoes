@@ -9264,6 +9264,10 @@ function cmdExamine(player, query) {
           ? `Posible loot: ${monster.loot.join(', ')}`
           : 'No parece llevar nada de valor.',
         ...(specialLine ? [specialLine] : []),
+        // DIS-2283: comunicar al jugador la resistencia mágica alta del Guardia Espectral
+        ...(monster.name.toLowerCase().includes('guardia espectral')
+          ? ['🔮 Su naturaleza espectral lo hace parcialmente inmune a la magia (×0.4 daño). Los hechizos de área y los hechizos poderosos son menos efectivos — los ataques físicos o combinaciones elementales funcionan mejor.']
+          : []),
       ].join('\n'),
     };
   }
