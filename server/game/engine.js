@@ -4215,7 +4215,7 @@ function cmdInventory(player) {
 
   // DIS-1687: Agrupar ítems por categoría para inventarios grandes.
   // Categorías: Equipado | Armamento | Consumibles | Materiales/Otros
-  const CONSUMABLE_TYPES = new Set(['potion', 'atk_potion', 'mana_potion', 'antidote', 'food']);
+  const CONSUMABLE_TYPES = new Set(['potion', 'atk_potion', 'mana_potion', 'antidote', 'food', 'contact_poison', 'weapon_poison']);
   const EQUIPMENT_TYPES  = new Set(['weapon', 'armor']);
 
   // BUG-1429: agrupar ítems duplicados (preservar orden de primera aparición)
@@ -8639,6 +8639,25 @@ function cmdUse(player, itemQuery) {
     if (def.atk_bonus > 0) parts.push(`+${def.atk_bonus} ATK`);
     if (def.def_bonus > 0) parts.push(`+${def.def_bonus} DEF`);
     resultText = `📜 Leés el ${found}. ${def.description.split('(')[0].trim()} (${parts.join(', ')} por ${def.duration}s)`;
+
+  } else if (def.type === 'weapon_poison') {
+    // DIS-2254: veneno de colmillo — aplicable por cualquier clase. Agrega cargas de veneno al arma equipada
+    const freshWP = db.getPlayer(player.id);
+    if (!freshWP.equipped_weapon || freshWP.equipped_weapon === 'null') {
+      return { text: `🧪 Intentás aplicar el veneno, pero no tenés ningún arma equipada.\n💡 Equipá un arma primero con \`equipar <arma>\`, y luego aplicá el veneno.` };
+    }
+    const seWP = parseSE(freshWP.status_effects);
+    const existingCharges = seWP['contact_poison'] ? (seWP['contact_poison'].charges || 0) : 0;
+    seWP['contact_poison'] = {
+      charges: existingCharges + (def.charges || 5),
+      poison_chance: def.on_hit ? def.on_hit.chance : 0.40,
+      damage: def.on_hit ? def.on_hit.damage : 2,
+      turns: def.on_hit ? def.on_hit.turns : 3,
+    };
+    const newInvWP = removeFirst(freshWP.inventory, found);
+    db.updatePlayer(freshWP.id, { inventory: newInvWP, status_effects: JSON.stringify(seWP) });
+    const totalCharges = seWP['contact_poison'].charges;
+    resultText = `🧪 Frotás el veneno de colmillo en ${freshWP.equipped_weapon}. El arma queda impregnada de toxina índigo.\n🗡️ Los próximos ${totalCharges} ataques tienen 40% de envenenar al objetivo (2 dmg/turno por 3 turnos). Las cargas se consumen en cada golpe.`;
 
   } else if (def.type === 'contact_poison') {
     // DIS-615: veneno de contacto — Pícaro. Agrega cargas de veneno al arma equipada

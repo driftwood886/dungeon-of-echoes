@@ -192,10 +192,10 @@ const RECIPES = [
     message: 'Tratás el pelaje con la resina del hongo verde. El cuero se endurece y toma un tinte verdoso. No es elegante, pero protege.',
   },
   {
-    // diente afilado + hongo azul → veneno de colmillo (arma)
+    // diente afilado + hongo azul → veneno de colmillo (consumible aplicable al arma)
     ingredients: ['diente afilado', 'hongo azul'],
     result: 'veneno de colmillo',
-    message: 'El diente afilado disuelto en el jugo del hongo azul crea un veneno viscoso de color índigo. Podés untarlo en tu arma.',
+    message: 'El diente afilado disuelto en el jugo del hongo azul crea un veneno viscoso de color índigo. Podés untarlo en tu arma equipada.',
   },
 ];
 
@@ -226,7 +226,7 @@ const CRAFTED_ITEMS = {
   'ungüento de bestia': { type: 'potion', effect: 'heal', amount: 18, description: 'Un ungüento hecho con pelaje de bestia y hongo rojo. Olor penetrante. Restaura 18 HP al aplicarlo.' },
   'polvo de hueso':     { type: 'armor', effect: 'defense_bonus', amount: 2, duration: 120, description: 'Polvo de hueso de esqueleto mezclado con hongo verde. Frotado en la piel actúa como refuerzo natural por 2 minutos. +2 DEF temporal.' },
   'cuero silvestre':    { type: 'armor', effect: 'defense_bonus', amount: 3, description: 'Cuero de criatura tratado con resina de hongo verde. Verdoso e irregular, pero protege bien. +3 DEF.' },
-  'veneno de colmillo': { type: 'weapon', effect: 'attack_bonus', amount: 3, on_hit: { type: 'poison', chance: 0.40, damage: 2, turns: 3 }, description: 'Veneno de colmillo de murciélago amplificado con hongo azul. Se unta en el arma equipada para añadir 40% de chance de envenenar (2 dmg/turno por 3 turnos). Se consume al usarse.' },
+  'veneno de colmillo': { type: 'weapon_poison', charges: 5, on_hit: { type: 'poison', chance: 0.40, damage: 2, turns: 3 }, description: 'Veneno de colmillo de murciélago amplificado con hongo azul. Al frotarlo en tu arma equipada, los próximos 5 ataques tienen 40% de envenenar al objetivo (2 dmg/turno por 3 turnos). Usá «usar veneno de colmillo» para aplicarlo.' },
 };
 
 // ─── Función de crafteo ────────────────────────────────────────────────────────
@@ -366,6 +366,8 @@ function craft(player, itemA, itemB) {
     ? `\n💡 Es una armadura — equipala con: \`equipar ${recipe.result}\``
     : resultDef.type === 'weapon'
     ? `\n💡 Es un arma — equipala con: \`equipar ${recipe.result}\``
+    : resultDef.type === 'weapon_poison'
+    ? `\n💡 Es un veneno aplicable — usalo en combate con tu arma equipada: \`usar ${recipe.result}\``
     : '';
   // DIS-979: si el ítem crafteado es un arma y es mejor que la equipada, agregar nota de comparación
   if (resultDef.type === 'weapon' && player.equipped_weapon && player.equipped_weapon !== 'null') {

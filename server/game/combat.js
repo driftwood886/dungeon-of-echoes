@@ -1586,16 +1586,18 @@ function attackRound(player, monster) {
           ? (typeof monster.status_effects === 'string' ? JSON.parse(monster.status_effects) : monster.status_effects)
           : {};
         if (!monsterFxCP.poisoned) {
-          monsterFxCP.poisoned = { damage: 3, turns: 3 };
+          const poisonDmg = cpData.damage || 3;
+          const poisonTurns = cpData.turns || 3;
+          monsterFxCP.poisoned = { damage: poisonDmg, turns: poisonTurns };
           monster.status_effects = monsterFxCP;
           db.updateMonster(monster.id, { status_effects: JSON.stringify(monsterFxCP) });
-          lines.push(`🧪 ¡El veneno de contacto envenena al ${monster.name}! (3 dmg/turno por 3 turnos)`);
+          lines.push(`🧪 ¡El veneno envenena al ${monster.name}! (${poisonDmg} dmg/turno por ${poisonTurns} turnos)`);
         }
       }
       cpData.charges -= 1;
       if (cpData.charges <= 0) {
         delete sePlayer['contact_poison'];
-        lines.push(`🧪 Las cargas de veneno de contacto se agotaron.`);
+        lines.push(`🧪 Las cargas de veneno se agotaron.`);
       }
       db.updatePlayer(player.id, { status_effects: JSON.stringify(sePlayer) });
     }
