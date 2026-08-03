@@ -6273,6 +6273,23 @@ function cmdAttack(player, targetName) {
   const bossKill = monsterDead && !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]);
   const lichKill = monsterDead && monster.id === LICH_MONSTER_ID; // solo el Lich Anciano real
   const freshForAch = db.getPlayer(player.id);
+
+  // EPIC-NE-IMPL-2264: Hookear primer_kill en cmdAttack
+  // freshForAch.kills ya fue incrementado por combat.js — si es 1, era el primer kill
+  if (monsterDead && freshForAch && freshForAch.kills === 1) {
+    try {
+      const primerKillText = `Derrotaste a ${monster.name} por primera vez. ${freshForAch.level > 1 ? `Nivel ${freshForAch.level}.` : 'El inicio de algo.'}`;
+      db.recordMoment(player.id, db.MOMENT_TYPES.primer_kill, primerKillText, {
+        monster_name: monster.name,
+        room_id: player.current_room_id,
+        damage_dealt: combatResult && combatResult.lastDamage ? combatResult.lastDamage : null,
+        skill_used: null,
+        level: freshForAch.level || 1,
+        hp_remaining: freshForAch.hp,
+      });
+    } catch (_ne2264) { /* no romper combate si falla el hookeo */ }
+  }
+
   if (freshForAch) {
     const poisonSurvived = !!(combatResult && combatResult.poisonSurvived);
     const newAchs = ach.checkAchievements(freshForAch, { bossKill: lichKill, poisonSurvived });
@@ -20076,6 +20093,30 @@ function cmdCast(player, args) {
         lines.push(`✨ ¡Subiste al nivel ${newLevel}! +5 HP máx, +1 ataque, +${healCast} HP restaurado.`);
       }
       db.updatePlayer(player.id, castUpd);
+      // EPIC-NE-IMPL-2264: Hookear primer_skill_kill en cmdCast
+      // player.kills es el valor PRE-kill — si era 0, este es el primer kill y fue con hechizo
+      if ((player.kills || 0) === 0) {
+        try {
+          const primerSkillKillTextCast = `Derrotaste a ${target.name} con ${spellName}. Tu primer kill fue con magia.`;
+          db.recordMoment(player.id, db.MOMENT_TYPES.primer_skill_kill, primerSkillKillTextCast, {
+            monster_name: target.name,
+            room_id: player.current_room_id,
+            damage_dealt: null,
+            skill_used: spellName,
+            level: player.level || 1,
+            hp_remaining: player.hp,
+          });
+          // Si el primer kill del personaje fue con hechizo, también registrar primer_kill
+          db.recordMoment(player.id, db.MOMENT_TYPES.primer_kill, primerSkillKillTextCast, {
+            monster_name: target.name,
+            room_id: player.current_room_id,
+            damage_dealt: null,
+            skill_used: spellName,
+            level: player.level || 1,
+            hp_remaining: player.hp,
+          });
+        } catch (_ne2264cast) { /* no romper combate si falla el hookeo */ }
+      }
       // DIS-914: Evoker — resonancia mágica: 20% chance de recuperar 2 maná al matar con hechizo
       if (player.specialization === 'evoker' && Math.random() < 0.20) {
         const freshForReson = db.getPlayer(player.id);
@@ -22634,6 +22675,30 @@ function cmdUseSkill(player, args, context) {
         smashUpd.attack = (freshPlayer.attack || 5) + 1;
       }
       db.updatePlayer(freshPlayer.id, smashUpd);
+      // EPIC-NE-IMPL-2264: Hookear primer_skill_kill en smash
+      // freshPlayer.kills es PRE-kill — si era 0, este es el primer kill y fue con habilidad especial
+      if ((freshPlayer.kills || 0) === 0) {
+        try {
+          const primerSkillKillTextSmash = `Derrotaste a ${target.name} con Golpetazo. Tu primer kill fue con una habilidad especial.`;
+          db.recordMoment(freshPlayer.id, db.MOMENT_TYPES.primer_skill_kill, primerSkillKillTextSmash, {
+            monster_name: target.name,
+            room_id: freshPlayer.current_room_id,
+            damage_dealt: finalDmg,
+            skill_used: 'smash',
+            level: freshPlayer.level || 1,
+            hp_remaining: freshPlayer.hp,
+          });
+          // Si el primer kill del personaje fue con skill, también registrar primer_kill
+          db.recordMoment(freshPlayer.id, db.MOMENT_TYPES.primer_kill, primerSkillKillTextSmash, {
+            monster_name: target.name,
+            room_id: freshPlayer.current_room_id,
+            damage_dealt: finalDmg,
+            skill_used: 'smash',
+            level: freshPlayer.level || 1,
+            hp_remaining: freshPlayer.hp,
+          });
+        } catch (_ne2264smash) { /* no romper smash si falla el hookeo */ }
+      }
       text += `\n⭐ +${xpGain} XP (kills: ${smashUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}${xpProgressSuffix(newXp, newLevel)}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       memory.onMonsterKill(freshPlayer.current_room_id, target.name, freshPlayer.username); // EPIC-1820-DEF
@@ -23087,6 +23152,20 @@ function cmdUseSkill(player, args, context) {
         skillUpd.attack = (freshPlayer.attack || 5) + 1;
       }
       db.updatePlayer(freshPlayer.id, skillUpd);
+      // EPIC-NE-IMPL-2264: Hookear primer_skill_kill en shield_bash
+      if ((freshPlayer.kills || 0) === 0) {
+        try {
+          const primerSkillKillTextBash = `Derrotaste a ${target.name} con Golpe de Escudo. Tu primer kill fue con una habilidad especial.`;
+          db.recordMoment(freshPlayer.id, db.MOMENT_TYPES.primer_skill_kill, primerSkillKillTextBash, {
+            monster_name: target.name, room_id: freshPlayer.current_room_id,
+            damage_dealt: finalDmg, skill_used: 'shield_bash', level: freshPlayer.level || 1, hp_remaining: freshPlayer.hp,
+          });
+          db.recordMoment(freshPlayer.id, db.MOMENT_TYPES.primer_kill, primerSkillKillTextBash, {
+            monster_name: target.name, room_id: freshPlayer.current_room_id,
+            damage_dealt: finalDmg, skill_used: 'shield_bash', level: freshPlayer.level || 1, hp_remaining: freshPlayer.hp,
+          });
+        } catch (_ne2264bash) { /* no romper skill si falla el hookeo */ }
+      }
       text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}${xpProgressSuffix(newXp, newLevel)}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       memory.onMonsterKill(freshPlayer.current_room_id, target.name, freshPlayer.username); // EPIC-1820-DEF
