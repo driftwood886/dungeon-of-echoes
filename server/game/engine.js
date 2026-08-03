@@ -287,7 +287,9 @@ function calcLevelUp(freshPlayer, xpGain) {
   // recordarle que hable con Aldric (sala 4) — el hint del pick solo se muestra una vez al recoger.
   let aldricCartaReminder = '';
   const passedLevel5ForAldric = levelUp && (freshPlayer.level || 1) < 5 && newLevel >= 5;
-  if (passedLevel5ForAldric && (freshPlayer.aldric_quest || 'none') === 'none') {
+  // BUG-2277: no mostrar hint si la quest ya está activa o done (el jugador ya sabe de ella)
+  const aldricQuestPending = (freshPlayer.aldric_quest || 'none') === 'none';
+  if (passedLevel5ForAldric && aldricQuestPending) {
     try {
       const inv5 = Array.isArray(freshPlayer.inventory) ? freshPlayer.inventory : JSON.parse(freshPlayer.inventory || '[]');
       if (inv5.some(i => i.toLowerCase().includes('carta sellada'))) {
@@ -14221,6 +14223,15 @@ function cmdTalk(player, target) {
   }
 
   if (questState === 'done') {
+    // BUG-2275: si el jugador tiene la carta sellada en inventario y la quest ya está done
+    // (re-obtenida por algún motivo), consumirla silenciosamente — ya no tiene utilidad.
+    const invDone = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
+    const hasCartaDone = invDone.some(i => i.toLowerCase().includes('carta sellada'));
+    if (hasCartaDone) {
+      const freshPDone = db.getPlayer(player.id);
+      const invDoneFresh = Array.isArray(freshPDone.inventory) ? freshPDone.inventory : JSON.parse(freshPDone.inventory || '[]');
+      db.updatePlayer(player.id, { inventory: JSON.stringify(invDoneFresh.filter(i => !i.toLowerCase().includes('carta sellada'))) });
+    }
     // DIS-1217: si el jugador pregunta por Kaelthas con quest completada, respuesta lore especial
     if (tLow.includes('kaelthas')) {
       return { text: 'Aldric te mira un instante con ojos que ya no calculan.\n\n"Kaelthas Vorn." Repite el nombre como quien lee una inscripción conocida. "El guardián. El dungeon fue su archivo. Su alma sigue aquí."\n\nUna pausa. "Eso ya lo sabés, ¿no?" No espera respuesta. Vuelve a sus cuentas.\n\nEl símbolo de las dos llaves cruzadas en su delantal cobra otro sentido cada vez que lo mirás.' + expeditionTalkCmdMsg };
@@ -14341,6 +14352,9 @@ function cmdTalk(player, target) {
     // BUG-973: usar calcLevelUp para trigear level-up automáticamente
     const freshPTrigC = db.getPlayer(player.id);
     const lvlT1 = calcLevelUp(freshPTrigC, 50);
+    // BUG-2277: calcLevelUp puede incluir hint de carta si aldric_quest era 'none' y sube al nivel 5 —
+    // suprimirlo aquí porque la carta está siendo entregada en este mismo paso.
+    const lvlT1Msg = lvlT1.levelUpMsg.replace(/\n\n📜 ¡Tenés la carta sellada![\s\S]*?`hablar aldric`\./, '');
     const invAfter = invTrigger.filter(i => !i.toLowerCase().includes('carta sellada'));
     db.updatePlayer(player.id, {
       ...lvlT1.fields,
@@ -14350,7 +14364,7 @@ function cmdTalk(player, target) {
     });
     db.addJournalEntry(player.id, 'quest', '📜 Aldric me reveló el nombre completo: Kaelthas Vorn. Guardián del reino. El dungeon fue su archivo. Su alma quedó atada aquí cuando lo mataron. Sigue en las piedras. En los corredores. En la Sala del Trono.');
     db.logGlobalEvent('quest', `📜 ${player.username} descubrió el secreto de Aldric el Mercader.`);
-    return { text: 'Extendés la carta hacia Aldric cuando te acercás. Él la reconoce antes de que puedas decir una sola palabra.\n\nEl sello de las dos llaves cruzadas. Lo mira durante un momento demasiado largo.\n\n"Fue el guardián del sello del reino," dice al fin, en voz tan baja que casi no lo escuchás. "No el rey. El guardián. Los que guardaban las llaves eran los que realmente mantenían el reino unido."\n\nPausa. "Kaelthas Vorn. Ese era su nombre completo. El que todos olvidaron —o fingieron olvidar— cuando el reino cayó."\n\nDobla la carta sin abrirla y la guarda debajo del mostrador.\n\n"Tomá esto. Y si algún día pronunciás su nombre completo en el lugar correcto, vas a entender por qué todavía importa."\n\n🎉 Quest completada: El Sello de las Dos Llaves. (+50 XP · +25g)\n📜 El lore de Kaelthas Vorn está ahora completo.\n📖 Diario actualizado.' + lvlT1.levelUpMsg };
+    return { text: 'Extendés la carta hacia Aldric cuando te acercás. Él la reconoce antes de que puedas decir una sola palabra.\n\nEl sello de las dos llaves cruzadas. Lo mira durante un momento demasiado largo.\n\n"Fue el guardián del sello del reino," dice al fin, en voz tan baja que casi no lo escuchás. "No el rey. El guardián. Los que guardaban las llaves eran los que realmente mantenían el reino unido."\n\nPausa. "Kaelthas Vorn. Ese era su nombre completo. El que todos olvidaron —o fingieron olvidar— cuando el reino cayó."\n\nDobla la carta sin abrirla y la guarda debajo del mostrador.\n\n"Tomá esto. Y si algún día pronunciás su nombre completo en el lugar correcto, vas a entender por qué todavía importa."\n\n🎉 Quest completada: El Sello de las Dos Llaves. (+50 XP · +25g)\n📜 El lore de Kaelthas Vorn está ahora completo.\n📖 Diario actualizado.' + lvlT1Msg };
   }
 
   const seTrigger = parseSE(db.getPlayer(player.id).status_effects);
