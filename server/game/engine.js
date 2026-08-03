@@ -20215,7 +20215,8 @@ function cmdCast(player, args) {
 
     // EPIC-1293-F2: bola de fuego aplica burning (DoT 3 dmg/turno) si el monstruo sobrevive
     // DIS-1648: Elementalista aplica burning por 4 turnos (era 2)
-    if (spellName === 'bola de fuego' && newHp > 0) {
+    // BUG-2279: no aplicar burning si el monstruo es inmune al fuego (elementalMult === 0.0)
+    if (spellName === 'bola de fuego' && newHp > 0 && elementalMult !== 0.0) {
       const burnTurns = (player.specialization === 'elementalista') ? 4 : 2;
       try {
         const mStatusBurn = JSON.parse(target.status_effects || '{}');
@@ -20779,13 +20780,19 @@ function cmdCast(player, args) {
         const doubleDmgBase = spell.amount || 0;
         const doublePower = (classes.getPlayerClass(freshForDouble) || {}).spell_power || 1.0;
         const rawDouble = Math.round(doubleDmgBase * doublePower);
-        const finalDouble = Math.max(1, rawDouble);
-        const newHpDouble = Math.max(0, doubleTarget.hp - finalDouble);
-        db.updateMonster(doubleTarget.id, { hp: newHpDouble });
-        lines.push(`⚡ [PLAGA ARCANA] ¡El dungeon amplifica tu hechizo — lanzás ${spell.icon} **${spellName}** de nuevo! ${finalDouble} daño adicional. (HP: ${doubleTarget.hp} → ${newHpDouble})`);
-        if (newHpDouble <= 0) {
-          lines.push(`💀 ¡${doubleTarget.name} cae por la segunda descarga arcana!`);
-          // Simplificado: no repetir toda la lógica de muerte — el próximo ataque lo manejará
+        // BUG-2280: respetar inmunidades/resistencias elementales del objetivo
+        // elementalMult ya fue calculado para este mismo hechizo y objetivo en este cmdCast
+        const finalDouble = elementalMult === 0.0 ? 0 : Math.max(1, Math.round(rawDouble * elementalMult));
+        if (finalDouble <= 0) {
+          lines.push(`⚡ [PLAGA ARCANA] El dungeon intenta amplificar tu hechizo, ¡pero ${doubleTarget.name} es inmune al ${spellElement || 'elemento'}!`);
+        } else {
+          const newHpDouble = Math.max(0, doubleTarget.hp - finalDouble);
+          db.updateMonster(doubleTarget.id, { hp: newHpDouble });
+          lines.push(`⚡ [PLAGA ARCANA] ¡El dungeon amplifica tu hechizo — lanzás ${spell.icon} **${spellName}** de nuevo! ${finalDouble} daño adicional. (HP: ${doubleTarget.hp} → ${newHpDouble})`);
+          if (newHpDouble <= 0) {
+            lines.push(`💀 ¡${doubleTarget.name} cae por la segunda descarga arcana!`);
+            // Simplificado: no repetir toda la lógica de muerte — el próximo ataque lo manejará
+          }
         }
       }
     } catch (_) { /* no romper si falla el doble cast */ }

@@ -210,6 +210,13 @@ function buildMomentos(moments) {
     if (!byType[m.moment_type]) byType[m.moment_type] = m;
   }
 
+  // BUG-2281: si primer_skill_kill está presente, omitir primer_kill
+  // porque ambos se registran cuando el primer kill fue con hechizo, produciendo
+  // dos entradas con descripción casi idéntica. primer_skill_kill es más específico.
+  if (byType['primer_skill_kill'] && byType['primer_kill']) {
+    delete byType['primer_kill'];
+  }
+
   const selected = [];
   for (const type of MOMENT_PRIORITY) {
     if (byType[type] && selected.length < 3) {
