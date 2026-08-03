@@ -5631,8 +5631,16 @@ function cmdAttack(player, targetName) {
     try {
       // DIS-1406: en sala 4 (tienda de Aldric), si el jugador intenta atacar al esqueleto guerrero,
       // dar un mensaje especial en lugar del genérico "No hay ningún X aquí"
+      // BUG-2286: solo mostrar el mensaje especial si hay un Esqueleto Guerrero vivo en sala 4
       const normalTargetSk = targetName.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       if (player.current_room_id === 4 && (normalTargetSk.includes('esqueleto') || normalTargetSk.includes('guerrero'))) {
+        // BUG-2286: verificar si el Esqueleto Guerrero (id=2) está vivo en sala 4 antes de mostrar mensaje especial
+        let esqueletoVivo = false;
+        try {
+          const monstersInRoom4 = db.getMonstersInRoom(4);
+          esqueletoVivo = !!(monstersInRoom4 && monstersInRoom4.find(m => m.id === 2 && m.hp > 0));
+        } catch (_bugfix2286) { esqueletoVivo = true; /* en caso de error, comportamiento conservador */ }
+        if (esqueletoVivo) {
         try {
           const eventScheduler = require('./eventScheduler');
           const activeEv = eventScheduler.getActiveEventInfo ? eventScheduler.getActiveEventInfo() : null;
@@ -5646,6 +5654,7 @@ function cmdAttack(player, targetName) {
         } catch (_) {
           return { text: `🦴 El Esqueleto Guerrero es el guardia personal de Aldric. No te atacará si no lo provocás primero.` };
         }
+        } // fin if (esqueletoVivo)
       }
     } catch (_) {}
     try {
