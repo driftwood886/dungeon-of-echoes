@@ -304,7 +304,13 @@ function calcLevelUp(freshPlayer, xpGain) {
     for (let lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
       // DIS-2095: ya no agregar aviso de especialización aquí — se muestra en el próximo look/status
       // (el flag spec_notify_deferred ya fue marcado en status_effects arriba)
-      // DIS-2177: al llegar al nivel 3, notificar que ya se puede unir a una facción.
+      // DIS-2282: si el Mago sube a nivel ≥ 2 sin armadura, aviso de urgencia
+      if (lvl >= 2 && freshPlayer.player_class === 'mago') {
+        const shopArmor2 = freshPlayer.equipped_armor && freshPlayer.equipped_armor !== 'null';
+        if (!shopArmor2) {
+          unlockLines += `\n   🛡️ Sin armadura a nivel ${lvl} — los enemigos que siguen hacen 5-10 daño/turno y tu DEF base es 3. Aldric vende "ropa de viajero" (22g, +2 DEF) en la sala 4. Un golpe más y puede importar.`;
+        }
+      }
       // Solo mostrar si el jugador no fue notificado aún por EPIC-1377 (el mensaje del mensajero en combate).
       // Cubre paths fuera del combate (XP de quest, exploración) donde EPIC-1377 no se activa.
       if (lvl === 3 && !freshPlayer.faction && !freshPlayer.faction_notified) {
@@ -14466,9 +14472,17 @@ function cmdShop(player, args) {
     lines.push(`  «Eso explica las cicatrices. Mirá un "${armorRec}" — te va a cambiar la vida en los niveles siguientes.» (escribí 'tienda todo' para verlo en el catálogo)`);
     lines.push('');
   }
-  // DIS-2101: si el Mago es nivel 1-4 sin armadura, sugerir la ropa de viajero como opción económica
+  // DIS-2101 / DIS-2282: si el Mago es nivel 1-4 sin armadura, mensaje de urgencia escalada
   if (player.player_class === 'mago' && (player.level || 1) < 5 && !shopArmor) {
-    lines.push(`🛡️ Aldric señala una percha con capas de tela. «Para un mago en early game, la "ropa de viajero" (22g) te da +2 DEF sin romper el presupuesto. La "túnica encantada" (60g) es mejor, pero cuesta más del doble.»`);
+    const magoLevel = player.level || 1;
+    if (magoLevel >= 2) {
+      // DIS-2282: nivel ≥ 2 sin armadura = señal de urgencia, no solo mención de pasada
+      lines.push(`🛡️ Aldric deja de anotar y te mira directamente. «${player.username}. Nivel ${magoLevel}. Sin armadura.»`);
+      lines.push(`  «Los Goblins del Corredor hacen 5-8 daño. Vos tenés 3 DEF base — eso significa que cada golpe te saca el 15-25% de tu HP. ¿Cuánto aguantás?»`);
+      lines.push(`  «La "ropa de viajero" son 22g. La "túnica encantada" son 60g. Una de las dos. Ahora.» (escribí \`comprar ropa de viajero\`)`);
+    } else {
+      lines.push(`🛡️ Aldric señala una percha con capas de tela. «Para un mago en early game, la "ropa de viajero" (22g) te da +2 DEF sin romper el presupuesto. La "túnica encantada" (60g) es mejor, pero cuesta más del doble.»`);
+    }
     lines.push('');
   }
   // DIS-1721: en la primera visita (aldricRep=0) y sin bolsa de lona comprada, Aldric menciona la bolsa proactivamente
