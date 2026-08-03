@@ -6295,6 +6295,27 @@ function cmdAttack(player, targetName) {
     const newAchs = ach.checkAchievements(freshForAch, { bossKill: lichKill, poisonSurvived });
     achLines = ach.formatNewAchievements(newAchs);
 
+    // EPIC-NE-IMPL-2265: Hookear near_death en cmdAttack
+    // Si el jugador sobrevivió con HP <= 2, registrar (o actualizar si nuevo mínimo)
+    if (!playerDead && freshForAch.hp <= 2) {
+      try {
+        const nearDeathText = `Sobreviviste con ${freshForAch.hp} HP tras el ataque de ${monster.name}.`;
+        db.recordMoment(player.id, db.MOMENT_TYPES.near_death, nearDeathText, {
+          hp_remaining: freshForAch.hp,
+          max_hp: freshForAch.max_hp || 30,
+          monster_name: monster.name,
+          survived_via: 'damage_taken',
+        }, {
+          shouldUpdate: (existing) => {
+            try {
+              const existCtx = JSON.parse(existing.context_json || '{}');
+              return freshForAch.hp < (existCtx.hp_remaining || 999);
+            } catch (_) { return false; }
+          },
+        });
+      } catch (_ne2265) { /* no romper combate si falla el hookeo */ }
+    }
+
     // T125: reputación por kill (+1) y por logros nuevos (+3 c/u)
     if (monsterDead) {
       const repKill = db.addReputation(player.id, 1);
