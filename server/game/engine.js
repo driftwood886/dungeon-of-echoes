@@ -17763,6 +17763,20 @@ function cmdCraft(player, args) {
   // T115: Trackear crafteos para logro secreto Artesano
   db.addCraftsCount(player.id);
 
+  // EPIC-NE-IMPL-2267: Hookear primer_crafteo
+  // player.crafts_count es el valor pre-increment; si era 0, este es el primer crafteo
+  if ((player.crafts_count || 0) === 0) {
+    try {
+      const primerCrafteoText = `Crafteaste ${craftResult.result} por primera vez.`;
+      db.recordMoment(player.id, db.MOMENT_TYPES.primer_crafteo, primerCrafteoText, {
+        item_crafted: craftResult.result,
+        ingredients_used: [itemA, itemB].filter(Boolean),
+        room_id: player.current_room_id || null,
+        level: player.level || 1,
+      });
+    } catch (_ne2267) { /* no interrumpir craft */ }
+  }
+
   // BUG-1381: Guardar el nombre del ítem crafteado en status_effects (para desafío equip_crafted)
   // Si el resultado es un arma, registrarlo en crafted_weapons para que cmdEquip pueda detectarlo.
   try {
