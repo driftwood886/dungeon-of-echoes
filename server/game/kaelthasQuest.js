@@ -133,6 +133,12 @@ function checkKaelthasFragment(player, fragmentId) {
     // Reemplazamos el patrón "(\d/4 fragmentos" por el count real antes de devolver el texto.
     if (text && count > 1) {
       text = text.replace(/\(\d\/4 fragmentos/, `(${count}/4 fragmentos`);
+      // BUG-2276: el fragmento 'catedral' tiene "(4/4 fragmentos) — Derrotá al Lich para completar el arco."
+      // Si el jugador llega aquí antes de tener los 4 fragmentos, el mensaje "Derrotá al Lich" es un false positive.
+      // Eliminar ese sufijo si el count real es < 4.
+      if (count < 4) {
+        text = text.replace(/ — Derrotá al Lich para completar el arco\.?/, '');
+      }
     }
 
     return { text, questActivated, questCompleted };
