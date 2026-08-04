@@ -16917,24 +16917,41 @@ function cmdGuild(player, args) {
   }
 
   // ── gremio crear / create ───────────────────────────────────────────────────
+  // DIS-2312: confirmación previa antes de cobrar los 50g
   if (sub === 'create' || sub === 'crear' || sub === 'fundar') {
-    if (!guildArg) {
+    const rawCreateArgs = args.slice(1);
+    const hasConfirm = rawCreateArgs.length > 0 &&
+      rawCreateArgs[rawCreateArgs.length - 1].toLowerCase() === 'confirmar';
+    // Nombre del gremio: excluir 'confirmar' si está al final
+    const guildName = hasConfirm
+      ? rawCreateArgs.slice(0, -1).join(' ').trim()
+      : rawCreateArgs.join(' ').trim();
+
+    if (!guildName) {
       return { text: 'Usá: gremio crear <nombre_del_gremio>' };
     }
-    if (guildArg.length > 30) {
+    if (guildName.length > 30) {
       return { text: 'El nombre del gremio no puede superar los 30 caracteres.' };
     }
-    if (!/^[a-zA-Z0-9áéíóúÁÉÍÓÚüÜñÑ _-]+$/.test(guildArg)) {
+    if (!/^[a-zA-Z0-9áéíóúÁÉÍÓÚüÜñÑ _-]+$/.test(guildName)) {
       return { text: 'El nombre solo puede tener letras, números, espacios, guiones y guiones bajos.' };
     }
-    const result = db.createGuildEpic(player.id, guildArg);
+    // Sin confirmación → mostrar aviso y pedir confirmación
+    if (!hasConfirm) {
+      const goldActual = player.gold || 0;
+      return {
+        text: `⚠️ Fundar el gremio [${guildName}] cuesta 50 monedas de oro (tenés ${goldActual}g).\nEsta acción es irreversible — el gremio quedará registrado permanentemente.\n\n¿Confirmar? Escribí:\n  gremio crear ${guildName} confirmar`,
+      };
+    }
+    // Con confirmación → proceder
+    const result = db.createGuildEpic(player.id, guildName);
     if (!result.ok) return { text: result.error };
     // Sincronizar campo legacy guild
-    db.updatePlayer(player.id, { guild: guildArg });
+    db.updatePlayer(player.id, { guild: guildName });
     const gold = (player.gold || 0) - 50;
     return {
-      text: `⚔ ¡Gremio [${guildArg}] fundado! Te costó 50 de oro (te quedan ${gold}g). Sos el líder 👑.\nInvitá jugadores con «gremio unir ${guildArg}». Chateá con «gc <mensaje>».`,
-      event: `⚔ ¡${player.username} fundó el gremio [${guildArg}]!`,
+      text: `⚔ ¡Gremio [${guildName}] fundado! Te costó 50 de oro (te quedan ${gold}g). Sos el líder 👑.\nInvitá jugadores con «gremio unir ${guildName}». Chateá con «gc <mensaje>».`,
+      event: `⚔ ¡${player.username} fundó el gremio [${guildName}]!`,
       eventRoomId: player.current_room_id,
     };
   }
