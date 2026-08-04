@@ -27766,7 +27766,28 @@ function cmdPath(player, args) {
     }
   }
 
-  // DIS-706: Advertir si la ruta pasa por salas con boss de alto nivel para el jugador actual
+  // DIS-2290: Advertir sobre monstruos activos (no-boss) en salas de paso de la ruta
+  try {
+    const nonBossEnemyWarnings = [];
+    found.forEach((step) => {
+      if (step.toId === targetRoom.id) return; // la sala destino no es "de paso"
+      if (PATH_BOSS_ROOMS[step.toId]) return;  // bosses ya se advierten inline arriba
+      const monstersInStep = db.getMonstersInRoom(step.toId);
+      const aliveEnemies = monstersInStep.filter(m => m.hp > 0);
+      if (aliveEnemies.length > 0) {
+        const stepRoom = allRooms.find(r => r.id === step.toId);
+        const stepRoomName = stepRoom ? stepRoom.name : `Sala ${step.toId}`;
+        const enemyNames = aliveEnemies.map(m => m.name).join(', ');
+        nonBossEnemyWarnings.push(`   ⚠️ ${enemyNames} en ${stepRoomName}`);
+      }
+    });
+    if (nonBossEnemyWarnings.length > 0) {
+      lines.push(`⚔️  ENEMIGOS ACTIVOS EN EL CAMINO:`);
+      nonBossEnemyWarnings.forEach(w => lines.push(w));
+    }
+  } catch (_) {}
+
+  // DIS-706: Advertir sobre bosses de alto nivel para el jugador actual
   // (PATH_BOSS_ROOMS ya definido arriba para uso inline — BUG-895)
   const dangerSteps = found
     .filter(step => PATH_BOSS_ROOMS[step.toId] && step.toId !== targetRoom.id)
