@@ -21245,7 +21245,7 @@ function cmdModoBerserk(player, context) {
     }
   } catch (_) { /* silenciar errores de hint — no romper el flujo */ }
 
-  const activationMsg = `🪓 ¡MODO BERSERK ACTIVADO!${isFirstBerserk ? '\n   ℹ️ Primera vez: +5 ATK por 3 turnos. Sin postura defensiva ni huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento). Usá "calmar_furia" para cancelar.\n   (Las próximas veces se activa directamente sin advertencia.)' : '\n   +5 ATK por 3 turnos. Sin postura defensiva. Sin huida posible.\n   ⚠️ Al terminar: -2 ATK por 2 turnos (agotamiento).\n   Usá "calmar_furia" para cancelar (perdés 1 turno pero podés huir).'}${golemBerserkHint}\n   💡 Escribí "atacar" para lanzar el primer golpe con +5 ATK. (Cooldown: 90s)`;
+  const activationMsg = `🪓 ¡MODO BERSERK ACTIVADO!${isFirstBerserk ? '\n   ⚠️ EN BERSERK NO PODÉS HUIR. Usá "calmar_furia" para cancelar (perdés 1 turno pero podés escapar).\n   ℹ️ +5 ATK por 3 turnos. Sin postura defensiva. Al terminar: -2 ATK por 2 turnos (agotamiento).\n   (Las próximas activaciones mostrarán una advertencia breve de huida.)' : '\n   +5 ATK por 3 turnos. Sin postura defensiva.\n   ⚠️ NO PODÉS HUIR — usá "calmar_furia" si necesitás escapar (perdés 1 turno).\n   Al terminar: -2 ATK por 2 turnos (agotamiento).'}${golemBerserkHint}\n   💡 Escribí "atacar" para lanzar el primer golpe con +5 ATK. (Cooldown: 90s)`;
 
   // BUG-2027: activar berserk NO ataca automáticamente. El jugador debe escribir "atacar".
   // El comentario DIS-1911 que combinaba activación+ataque fue revertido porque quitaba control.
