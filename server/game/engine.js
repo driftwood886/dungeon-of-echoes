@@ -3050,7 +3050,7 @@ function cmdMove(player, direction) {
   // Solo aplica si el boss está vivo y el jugador nunca visitó esa sala antes.
   // BUG-2154: agregado monsterId a cada entrada para verificar si el boss está vivo antes de advertir.
   const BOSS_ROOM_DANGER_PREMOVE = {
-    8:  { name: 'el Guardia Espectral',  level: 4, icon: '👻', roomName: 'Prisión Subterránea', monsterId: 8  },
+    8:  { name: 'el Guardia Espectral',  level: 4, icon: '👻', roomName: 'Prisión Subterránea', monsterId: 8, skipFromRooms: [4]  }, // DIS-2315: consistente con BOSS_ROOM_DANGER (look) — desde sala 4 el tip de navegación ya advierte
     10: { name: 'el Gólem de Piedra',    level: 5, icon: '🪨', roomName: 'Santuario Profano',   monsterId: 5  },
     11: { name: 'el Elemental de Hielo', level: 7, icon: '❄️', roomName: 'Galería de Hielo',   monsterId: 9  }, // DIS-1858
     12: { name: 'el Golem de Forja',     level: 5, icon: '🔥', roomName: 'Taller de la Forja',  monsterId: 10 },
@@ -3059,6 +3059,11 @@ function cmdMove(player, direction) {
   };
   const boss1504 = BOSS_ROOM_DANGER_PREMOVE[targetId];
   if (boss1504) {
+    // DIS-2315: si la sala origen está en skipFromRooms, omitir el warning (consistente con look)
+    const fromRoom1504check = player.current_room_id || player.room_id || 0;
+    if (boss1504.skipFromRooms && boss1504.skipFromRooms.includes(fromRoom1504check)) {
+      // saltar bloque — no mostrar warning desde esta sala
+    } else {
     const playerLevel1504 = player.level || 1;
     // DIS-2076: umbral ajustado — avisa si el jugador está por debajo del nivel recomendado
     // (antes: boss.level - 1; ahora: < boss.level, para que el jugador de nivel exacto también reciba el aviso)
@@ -3100,6 +3105,7 @@ function cmdMove(player, direction) {
       delete clearedSe1504[warnKey1504];
       db.updatePlayer(player.id, { status_effects: JSON.stringify(clearedSe1504) });
     }
+    } // end else (no skipFromRooms)
   }
 
   // No hay trampa desactivable, pero el jugador merece saber que va a recibir daño antes de entrar.
