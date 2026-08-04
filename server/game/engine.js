@@ -12246,9 +12246,10 @@ function cmdMap(player, args = []) {
     // DIS-1614: corregida leyenda — zona profunda se accede por norte/este desde Galería(11), no "bajar"
     `↓  = comando "bajar/abajo" — desde Entrada(1)→Práctica(21)  ╎ = separación visual (sin conexión directa)`,
     // DIS-635: solo mencionar sala 8 como fuente de llave si ya fue visitada
+    // BUG-2318: agregada Araña Tejedora (sala 7, 15%) como fuente en la leyenda
     visitedRooms.has(8)
-      ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
-      : `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda del Mercader)`,
+      ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (tienda Aldric sala 4 · Araña Tejedora sala 7 · Prisión sala 8)`
+      : `⚔ = monstruo activo   🔑 = requiere llave oxidada (tienda del Mercader sala 4 · Araña Tejedora sala 7)`,
     `[ NN ·········] = sala desconocida (no adyacente a tu ruta, nunca detectada)`,
     `[ NN:Nom?????] = sala detectada (adyacente a una sala visitada, pero aún sin explorar — entrá para revelarla)  [16/21] = salas de tutorial`,
     // DIS-921: conteo de salas exploradas al pie del mapa
