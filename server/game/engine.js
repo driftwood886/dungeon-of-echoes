@@ -6039,6 +6039,34 @@ function cmdAttack(player, targetName) {
     eventText = `${player.username} combate contra el ${monster.name}.`;
   }
 
+  // ── DIS-2303: Limpiar modo berserk al matar ───────────────────────────────
+  // Si el monstruo murió mientras el berserk aún tenía turnos restantes (o justo
+  // se inició el agotamiento en el turno del kill), limpiar todo el estado berserk.
+  // Decisión de diseño: el agotamiento solo aplica si CONTINUÁS peleando —
+  // si matas al monstruo, la rabia se disipa sin penalización.
+  if (monsterDead) {
+    try {
+      const freshForBerserkClean = db.getPlayer(player.id);
+      const bsCleanSE = parseSE(freshForBerserkClean.status_effects);
+      let berserkStateChanged = false;
+      if (bsCleanSE.modo_berserk_activo && (bsCleanSE.modo_berserk_activo.turns_remaining || 0) > 0) {
+        // Berserk aún activo — kill ocurrió antes de agotar los turnos. Limpiar sin agotamiento.
+        delete bsCleanSE.modo_berserk_activo;
+        berserkStateChanged = true;
+        lines.push(`🪓 La rabia se disipa con la caída del ${monster.name}.`);
+      }
+      if (bsCleanSE.berserk_agotamiento) {
+        // El agotamiento solo aplica en combate continuo. Si el monstruo murió, limpiar.
+        delete bsCleanSE.berserk_agotamiento;
+        berserkStateChanged = true;
+      }
+      if (berserkStateChanged) {
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(bsCleanSE) });
+      }
+    } catch (_) {}
+  }
+
+
   // ── Actualizar bestiario personal (T108) ─────────────────────────────────
   if (monsterDead) {
     db.addBestiaryKill(player.id, monster.name);
