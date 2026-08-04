@@ -575,6 +575,7 @@ function execute(playerId, input, context) {
     case 'salon':        result = cmdSalon(player, action.args); break;              // EPIC-965
     case 'world':        result = cmdWorld(player); break;
     case 'evento':       result = cmdEvento(); break;    // T-1226: evento global activo
+    case 'run':          result = cmdEvento(); break;    // DIS-2304: alias de evento
     case 'weather':      result = cmdWeather(); break;
     case 'recent':       result = cmdRecent(action.args); break;
     case 'craft':        result = cmdCraft(player, action.args); break;
@@ -28154,7 +28155,7 @@ function cmdWeather() {
 // ─── T-1226: cmdEvento ────────────────────────────────────────────────────────
 /**
  * Muestra el evento global activo del dungeon con tiempo restante.
- * Alias: evento, event, events, ciclo
+ * Alias: evento, event, events, ciclo, run (DIS-2304)
  */
 function cmdEvento() {
   // Usar db directamente para obtener el evento activo

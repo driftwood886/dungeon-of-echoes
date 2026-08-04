@@ -159,6 +159,7 @@ const COMMAND_ALIASES = {
   world: 'world', mundo: 'world', dungeon_event: 'world',
   // evento / eventos cíclicos globales (T-1226: Gaceta del Corredor)
   evento: 'evento', event: 'evento', events: 'evento', 'evento-global': 'evento', ciclo: 'evento',
+  run: 'evento',  // DIS-2304: alias para ver el run/evento activo
   recent: 'recent', recientes: 'recent', 'chat-log': 'recent', ultimos: 'recent', últimos: 'recent', 'chat-reciente': 'recent',
   // T166: clima
   weather: 'weather', clima: 'weather', tiempo: 'weather', atmosfera: 'weather', atmósfera: 'weather',
@@ -704,7 +705,7 @@ const HELP_TEXT = `
   inspect <jugador>     — Examinar a otro aventurero en la misma sala
   study <monstruo>      — Analizar un monstruo: HP, habilidades, debilidades
   enemies [N]           — Ver los N monstruos más poderosos del dungeon
-  world / evento        — Ver el evento global activo del dungeon
+  world / evento / run — Ver el evento global activo del dungeon
   calendar / timers     — Panel de temporizadores: boss, clima, fuente, tus buffs
   news / crónica        — Historial de eventos globales del dungeon
   time / hora           — Hora del servidor y período del día
