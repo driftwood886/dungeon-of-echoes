@@ -157,7 +157,8 @@ const COMBO_MSGS = {
 // Cooldown global: 3 minutos por sala (no por jugador). DIS-1074: reducido de 10 min.
 const FOUNTAIN_ROOM_ID = 18;
 const FOUNTAIN_COOLDOWN_MS = 3 * 60 * 1000; // 3 minutos (DIS-1074)
-let fountainCooldownUntil = 0; // timestamp en ms (0 = disponible)
+let fountainCooldownUntil = 0; // timestamp en ms (0 = disponible) — LEGACY: usado para backcompat / world display global
+const fountainCooldowns = new Map(); // DIS-2300: cooldown personal por jugador (playerId → timestamp). Reemplaza el cooldown global.
 
 // ── Cuenco Sagrado de la Capilla (DIS-D48) ────────────────────────────────────
 // Sala 5 — Capilla Olvidada. Cooldown personal: 5 minutos por jugador.
@@ -571,7 +572,7 @@ function execute(playerId, input, context) {
     case 'hardcore':     result = cmdHardcore(player, action.args); break;          // T175
     case 'memorial':     result = cmdMemorial(); break;                              // T178
     case 'salon':        result = cmdSalon(player, action.args); break;              // EPIC-965
-    case 'world':        result = cmdWorld(); break;
+    case 'world':        result = cmdWorld(player); break;
     case 'evento':       result = cmdEvento(); break;    // T-1226: evento global activo
     case 'weather':      result = cmdWeather(); break;
     case 'recent':       result = cmdRecent(action.args); break;
@@ -9669,7 +9670,7 @@ function cmdExamine(player, query) {
     // DIS-575: Puerta norte del Pozo — hint sobre llave oxidada y Araña Tejedora
     'puerta':          { rooms: [7],  text: 'La puerta al norte del Pozo Sin Fondo es de hierro macizo, con una cerradura de manufactura antigua. La cerradura tiene marcas de uso —alguien la abría regularmente antes de que vos llegaras.\n\n🔑 Para abrirla necesitás una **llave oxidada**.\n\n💡 Podés conseguirla de tres formas:\n  • Comprarla en la tienda de Aldric (sala 4, Cámara del Tesoro) por 20 monedas de oro\n  • Buscarla en la Prisión Subterránea (sala 8, al norte del Tesoro)\n  • La **Araña Tejedora** de este mismo Pozo la lleva consigo a veces (15% de chance)\n\n🗺 Si no tenés la llave, hay una ruta alternativa sin cerradura:\n  Entrada → este → Capilla Olvidada → norte → Túnel de Hongos → norte → Sala del Trono → este → Santuario Profano.' },
     // DIS-D413: Cámara de la Fuente Eterna (sala 18) — elementos interactivos
-    'fuente':          { rooms: [18], text: 'La fuente de mármol blanco ocupa el centro exacto de la sala. El agua que mana de ella es plateada —no por el reflejo de la luz, sino en sí misma. Nunca se agota: el nivel permanece constante independientemente de cuánto bebas.\n\nLas runas del borde cambian de forma si las mirás de reojo. Mirás directo: no se mueven. Mirás de costado: diferentes. Tocás el agua: la mano no se moja. El agua la cruza y sigue cayendo.\n\n💧 Para beber de la fuente y restaurar tu salud: usá "beber", "fuente" o "drink" — todos funcionan. Cooldown global de 3 minutos.' },
+    'fuente':          { rooms: [18], text: 'La fuente de mármol blanco ocupa el centro exacto de la sala. El agua que mana de ella es plateada —no por el reflejo de la luz, sino en sí misma. Nunca se agota: el nivel permanece constante independientemente de cuánto bebas.\n\nLas runas del borde cambian de forma si las mirás de reojo. Mirás directo: no se mueven. Mirás de costado: diferentes. Tocás el agua: la mano no se moja. El agua la cruza y sigue cayendo.\n\n💧 Para beber de la fuente y restaurar tu salud: usá "beber", "fuente" o "drink" — todos funcionan. Cooldown personal de 3 minutos (cada jugador tiene el suyo).' },
     'fisura':          { rooms: [18], text: 'La fisura en el suelo es fina pero perfectamente recta —demasiado recta para ser natural. El agua de la fuente se filtra por ella hacia abajo, formando una cortina microscópica que no hace ruido.\n\nTe agachás a mirar: más abajo hay luz. No reflejo de la fuente, sino una luminosidad propia, azulada. Alguien, en algún momento, construyó esta sala encima de algo que ya estaba brillando.' },
     'runas eterna':    { rooms: [18], text: 'Las runas en las paredes de la Cámara de la Fuente son diferentes a las del Santuario —mientras aquellas forman patrones de invocación, estas son concéntricas, como capas de una cebolla, cada círculo más pequeño hacia el centro.\n\nEl círculo interior es tan pequeño que casi no se ve. Pero está grabado en el mármol encima de la fuente: una sola runa, diferente a todas las demás. No la reconocés, pero entendés su función intuitivamente: significa "permanecer".' },
     'runas fuente':    { rooms: [18], text: 'Las runas en las paredes de la Cámara de la Fuente son diferentes a las del Santuario —mientras aquellas forman patrones de invocación, estas son concéntricas, como capas de una cebolla, cada círculo más pequeño hacia el centro.\n\nEl círculo interior es tan pequeño que casi no se ve. Pero está grabado en el mármol encima de la fuente: una sola runa, diferente a todas las demás. No la reconocés, pero entendés su función intuitivamente: significa "permanecer".' },
@@ -17203,7 +17204,7 @@ function cmdRecent(args) {
 /**
  * world — Ver el evento global actual del dungeon
  */
-function cmdWorld() {
+function cmdWorld(player) {
   const ev = worldEvents.getCurrentEvent();
   const scheduledEvInfo = eventScheduler.getActiveEventInfo ? eventScheduler.getActiveEventInfo() : null;
 
@@ -18775,16 +18776,17 @@ function cmdDrink(player) {
     return { text: '💧 No hay ninguna fuente aquí.\n   La Fuente Eterna se encuentra en la Cámara de la Fuente Eterna (al norte del Santuario Profano).' };
   }
 
-  // Verificar cooldown global
+  // Verificar cooldown personal (DIS-2300: cambiado de global a personal)
   const now = Date.now();
-  if (fountainCooldownUntil > now) {
-    const remaining = Math.ceil((fountainCooldownUntil - now) / 1000);
+  const playerLastDrank = fountainCooldowns.get(player.id) || 0;
+  if (now - playerLastDrank < FOUNTAIN_COOLDOWN_MS) {
+    const remaining = Math.ceil((FOUNTAIN_COOLDOWN_MS - (now - playerLastDrank)) / 1000);
     const mins = Math.floor(remaining / 60);
     const secs = remaining % 60;
     const timeStr = mins > 0
       ? `${mins} minuto${mins !== 1 ? 's' : ''} y ${secs}s`
       : `${secs} segundo${secs !== 1 ? 's' : ''}`;
-    return { text: `💧 La fuente brilla tenuemente. Sus aguas se están recargando...\n   Disponible en: ${timeStr}.\n   Las runas en la pared pulsan lentamente.` };
+    return { text: `💧 La fuente brilla tenuemente. Necesitás descansar un poco antes de volver a beber...\n   Disponible para vos en: ${timeStr}.\n   Las runas en la pared pulsan lentamente.` };
   }
 
   // DIS-1114: si el HP está al máximo, verificar si hay maná para restaurar
@@ -18801,7 +18803,8 @@ function cmdDrink(player) {
       const manaRestored = isMago ? (maxMana1114 - currentMana1114) : Math.min(10, maxMana1114 - currentMana1114);
       const newMana = currentMana1114 + manaRestored;
       db.updatePlayer(player.id, { mana: newMana });
-      fountainCooldownUntil = now + FOUNTAIN_COOLDOWN_MS;
+      fountainCooldowns.set(player.id, now); // DIS-2300: cooldown personal
+      fountainCooldownUntil = now + FOUNTAIN_COOLDOWN_MS; // LEGACY: mantener variable global por backcompat
       const manaBar = buildBar(newMana, maxMana1114, 20);
       const flavorMago = isMago
         ? 'Las runas arcanas de la fuente resuenan con tu naturaleza mágica. El maná fluye hacia vos como si el agua supiera exactamente lo que necesitás.'
@@ -18829,8 +18832,9 @@ function cmdDrink(player) {
   }
   db.updatePlayer(player.id, updates1114);
 
-  // Activar cooldown global
-  fountainCooldownUntil = now + FOUNTAIN_COOLDOWN_MS;
+  // Activar cooldown personal (DIS-2300) y mantener global por backcompat
+  fountainCooldowns.set(player.id, now);
+  fountainCooldownUntil = now + FOUNTAIN_COOLDOWN_MS; // LEGACY
 
   const hpBar = buildBar(player.max_hp, player.max_hp, 20);
 
@@ -29794,11 +29798,13 @@ function cmdCalendar(player) {
   // ── Fuente de rejuvenecimiento ───────────────────────────────────────────
   lines.push(`╠${'═'.repeat(W)}╣`);
   lines.push(`║ ${'💧 FUENTE ETERNA (sala 18)'.padEnd(W - 2)} ║`);
-  if (fountainCooldownUntil > now) {
-    const remMs = fountainCooldownUntil - now;
-    lines.push(`║  ${'Estado: En recarga'.padEnd(28)} disponible en: ${fmt(remMs)}`.padEnd(W + 1) + '║');
+  // DIS-2300: cooldown personal — mostrar estado del jugador que llama al comando
+  const myFountainLast = fountainCooldowns.get(player.id) || 0;
+  const myFountainRemMs = FOUNTAIN_COOLDOWN_MS - (now - myFountainLast);
+  if (myFountainRemMs > 0) {
+    lines.push(`║  ${'Estado: En recarga (tuya)'.padEnd(28)} disponible en: ${fmt(myFountainRemMs)}`.padEnd(W + 1) + '║');
   } else {
-    lines.push(`║  ${'Estado: ✅ Disponible — HP completo para quien beba'}`.padEnd(W + 1) + '║');
+    lines.push(`║  ${'Estado: ✅ Disponible para vos — HP completo al beber'}`.padEnd(W + 1) + '║');
   }
 
   // ── Cuenco Sagrado de la Capilla (DIS-D48) ───────────────────────────────
