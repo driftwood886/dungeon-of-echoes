@@ -21241,7 +21241,9 @@ function cmdModoBerserk(player, context) {
     };
   }
 
-  // Solo en combate
+  // Solo en combate — o en sala con enemigos (DIS-2309: comportamiento pre-combat es intencional
+  // y documentado. Si el Berserker ve enemigos en la sala puede activar la rabia antes del
+  // primer golpe — es parte de su fantasía de clase: entrar ya enardecido).
   const mbMonstersRaw = db.getMonstersInRoom(freshMb.current_room_id).filter(m => m.hp > 0);
   if (mbMonstersRaw.length === 0) {
     return { text: `🪓 Modo Berserk solo puede activarse en combate. No hay enemigos aquí.` };
@@ -21346,7 +21348,7 @@ function cmdModoBerserk(player, context) {
     }
   } catch (_) { /* silenciar errores de hint — no romper el flujo */ }
 
-  const activationMsg = `🪓 ¡MODO BERSERK ACTIVADO!${isFirstBerserk ? '\n   ⚠️ EN BERSERK NO PODÉS HUIR. Usá "calmar_furia" para cancelar (perdés 1 turno pero podés escapar).\n   ℹ️ +5 ATK por 3 turnos. Sin postura defensiva. Al terminar: -2 ATK por 2 turnos (agotamiento).\n   (Las próximas activaciones mostrarán una advertencia breve de huida.)' : '\n   +5 ATK por 3 turnos. Sin postura defensiva.\n   ⚠️ NO PODÉS HUIR — usá "calmar_furia" si necesitás escapar (perdés 1 turno).\n   Al terminar: -2 ATK por 2 turnos (agotamiento).'}${golemBerserkHint}\n   💡 Escribí "atacar" para lanzar el primer golpe con +5 ATK. (Cooldown: 90s)`;
+  const activationMsg = `🪓 ¡MODO BERSERK ACTIVADO!${isFirstBerserk ? '\n   ⚠️ EN BERSERK NO PODÉS HUIR. Usá "calmar_furia" para cancelar (perdés 1 turno pero podés escapar).\n   ℹ️ +5 ATK por 3 turnos. Sin postura defensiva. Al terminar: -2 ATK por 2 turnos (agotamiento).\n   ℹ️ Podés activarlo antes o durante el combate — el +5 ATK aplica al próximo ataque de todos modos.\n   (Las próximas activaciones mostrarán una advertencia breve de huida.)' : '\n   +5 ATK por 3 turnos. Sin postura defensiva.\n   ⚠️ NO PODÉS HUIR — usá "calmar_furia" si necesitás escapar (perdés 1 turno).\n   Al terminar: -2 ATK por 2 turnos (agotamiento).'}${golemBerserkHint}\n   💡 Escribí "atacar" para lanzar el primer golpe con +5 ATK. (Cooldown: 90s)`;
 
   // BUG-2027: activar berserk NO ataca automáticamente. El jugador debe escribir "atacar".
   // El comentario DIS-1911 que combinaba activación+ataque fue revertido porque quitaba control.
