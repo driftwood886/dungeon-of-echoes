@@ -27339,6 +27339,7 @@ function cmdStance(player, args) {
   const statsLine = `📊 Tus stats ahora: ATK ${atkArrow}  |  DEF ${defArrow}`;
 
   // DIS-1742: Para Pícaro en postura agresiva, mostrar el bonus de crit de forma explícita
+  // DIS-2321: también mostrar el penalizador de +5% miss que estaba oculto
   let stanceDesc = s.desc;
   if (target === 'agresivo' && cls === 'picaro') {
     const equippedWpn = player.equipped_weapon ? items.getItemDef(player.equipped_weapon) : null;
@@ -27346,6 +27347,9 @@ function cmdStance(player, args) {
     const baseCrit = 25 + glovesCrit; // crit en equilibrado
     const agresivoCrit = baseCrit + 2; // DIS-1742: bonus de +2% crit para Pícaro en agresivo
     stanceDesc += `\n\n💡 Como Pícaro: en esta postura tus ataques buscan puntos vitales más activamente — crit ${agresivoCrit}% (+2% vs equilibrado). Combinado con +2 ATK fijo, es tu postura de mayor daño bruto.`;
+    stanceDesc += `\n⚠️ Contrapartida: +5% chance de fallar ataques (mayor riesgo al atacar sin cuidado).`;
+  } else if (target === 'agresivo' && s.extraMiss > 0) {
+    stanceDesc += `\n⚠️ +${Math.round(s.extraMiss * 100)}% chance de fallar ataques.`;
   }
   return {
     text: `${s.icon} Adoptás la postura **${s.label || target}**.\n${stanceDesc}\n${statsLine}`,
