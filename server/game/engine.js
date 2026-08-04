@@ -1171,6 +1171,14 @@ Comandos más usados:
 function handleTutorialCommand(player, action, step) {
   const cmd = action.command;
 
+  // DIS-2313 fix: 'clase' debe bypass el tutorial ANTES del auto-complete por goblin muerto.
+  // Sin esto, `clase picaro` con step>=3 y goblin muerto triggerea completeTutorial()
+  // en lugar de ejecutar cmdClase — la clase nunca se asigna aunque aparezca el mensaje
+  // de tutorial completado. Mover este check antes del bloque step>=3.
+  if (['help', 'status', 'inventory', 'clear', 'clase'].includes(cmd)) {
+    return null;
+  }
+
   // BUG-1196: Si el jugador está en paso 3+ (ya atacó al goblin) y el goblin está muerto
   // (tiene respawn_at o hp=0), auto-completar el tutorial. Esto evita el bloqueo al reconectar
   // cuando el goblin murió en una sesión anterior y aún no respawneó.
@@ -1246,11 +1254,8 @@ function handleTutorialCommand(player, action, step) {
     return { text: 'La única salida de la Antesala es hacia el sur (al dungeon real). Primero completá el entrenamiento o escribí «sur» para saltar el tutorial.' };
   }
 
-  // Si el jugador hace help, status, inventory — dejar fluir normalmente
-  // DIS-D278: también permitir 'clase' durante el tutorial para que no se repita el prompt al final
-  if (['help', 'status', 'inventory', 'clear', 'clase'].includes(cmd)) {
-    return null;
-  }
+  // Nota: el check de help/status/inventory/clear/clase fue movido al inicio de la función
+  // (fix DIS-2313) — no repetir aquí.
 
   // Comando 'skip' para saltarse el tutorial explícitamente (DIS-1484: más visible)
   if (cmd === 'skip' || cmd === 'saltar' ||
@@ -22410,7 +22415,7 @@ function cmdSkills(player) {
           nivel5Line = `Nivel 5 — 🌟 Especialización: Asesino (emboscar + emboscada_oscura) o Emboscador`;
         }
         return [
-          `Nivel 1 — Veneno, Robar`,
+          `Nivel 1 — Veneno, Robar, Sigilo`,
           `Nivel 3 — Golpe Sucio: ×1.3 + veneno 3 turnos`,
           nivel5Line,
           `Nivel 6 — Evasión: esquiva garantizada`,
@@ -22463,7 +22468,7 @@ function cmdSkills(player) {
     const cls = fresh.player_class;
     if (cls === 'picaro') {
       lines.push('  Aún no desbloqueaste ninguna habilidad.');
-      lines.push('  (Nivel 1: Robar · Nivel 3: Golpe Sucio)');
+      lines.push('  (Nivel 1: Robar · Sigilo · Veneno · Nivel 3: Golpe Sucio)');
     } else if (cls === 'mago') {
       lines.push('  Los Magos no usan habilidades físicas.');
       lines.push('  Tu poder está en los hechizos: usá "hechizos" para verlos.');

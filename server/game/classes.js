@@ -79,6 +79,13 @@ const CLASS_ALIASES = {
   mago: 'mago', mage: 'mago', wizard: 'mago', maga: 'mago', hechicero: 'mago', sorcerer: 'mago', brujo: 'mago', arcanista: 'mago', // DIS-1652
   picaro: 'picaro', pícaro: 'picaro', rogue: 'picaro', ladron: 'picaro', ladrón: 'picaro',
   clerigo: 'clerigo', clérigo: 'clerigo', cleric: 'clerigo', sanador: 'clerigo', healer: 'clerigo', sacerdote: 'clerigo',
+  // DIS-2313: alias de especializaciones → clase base (para login con class:"Asesino" etc.)
+  asesino: 'picaro', assassin: 'picaro',
+  'ladron de sombras': 'picaro', 'ladrón de sombras': 'picaro', shadow: 'picaro',
+  paladin: 'guerrero', paladín: 'guerrero',
+  berserker: 'guerrero', berserk: 'guerrero',
+  evoker: 'mago', evocador: 'mago',
+  juicio: 'clerigo', justiciero: 'clerigo',
 };
 
 /**

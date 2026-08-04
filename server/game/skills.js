@@ -104,6 +104,19 @@ const SKILLS = {
     description: 'Intenta robar monedas a un monstruo vivo. 50% de éxito (+15% por cada nivel de ventaja). Si falla, el monstruo ataca. Cooldown: 60s. Solo pícaro.',
     combat_only: false,  // funciona con o sin combate activo
   },
+  // DIS-2316: sigilo no estaba en skills.js — solo existía como comando suelto en engine.js.
+  // Sin esta entrada, `skills` no lo mostraba para el Pícaro aunque funcione desde nivel 1.
+  sigilo: {
+    id: 'sigilo',
+    name: 'Sigilo',
+    aliases: ['sigilo', 'hide', 'stealth', 'ocultarse', 'esconderse'],
+    required_level: 1,
+    required_class: 'picaro',
+    cooldown_seconds: 60,  // cooldown real se maneja en cmdSigilo vía status_effects
+    type: 'stealth',
+    description: 'Entrás en modo sigilo por 30s. Al atacar desde sigilo: golpe de sorpresa crítico garantizado y el monstruo no responde ese turno. Comando: sigilo / hide. Cooldown: 60s. Solo Pícaro Lv1.',
+    combat_only: false,
+  },
   // BUG-1144: habilidad veneno Lv1 del Pícaro — aplica veneno al arma actual por 3 ataques
   veneno: {
     id: 'veneno',
