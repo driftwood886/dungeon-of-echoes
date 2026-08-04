@@ -17687,6 +17687,31 @@ function getOrCreatePlayer(username) {
       current_room_id: tutorial.TUTORIAL_ROOM_ID,
     });
     player = db.getPlayer(player.id);
+  } else {
+    // DIS-2293: Jugador que completó el tutorial pero está en sala de boss de alto nivel
+    // y su nivel es demasiado bajo. Reubicar en sala 1 al hacer login para evitar muerte
+    // instantánea sin posibilidad de reacción.
+    try {
+      const DIS2293_BOSS_ROOMS = {
+        8:  { level: 4 }, // Prisión Subterránea — Guardia Espectral
+        9:  { level: 3 }, // Sala del Trono — Espectro del Corredor
+        10: { level: 5 }, // Santuario Profano — Gólem de Piedra
+        11: { level: 7 }, // Galería de Hielo — Elemental de Hielo
+        12: { level: 5 }, // Taller de la Forja — Golem de Forja
+        14: { level: 5 }, // Sala del Campeón — Campeón Espectral
+        15: { level: 7 }, // Catedral de la Oscuridad — Lich Anciano
+        19: { level: 6 }, // Cámara del Eco — Eco Viviente
+        20: { level: 8 }, // Abismo Eterno — Sombra del Vacío
+      };
+      const currentRoomForCheck = player.current_room_id;
+      const playerLevelForCheck = player.level || 1;
+      const dangerEntry = DIS2293_BOSS_ROOMS[currentRoomForCheck];
+      if (dangerEntry && playerLevelForCheck < dangerEntry.level) {
+        db.updatePlayer(player.id, { current_room_id: 1 });
+        player = db.getPlayer(player.id);
+        console.log(`[engine] DIS-2293: ${username} nivel ${playerLevelForCheck} estaba en sala ${currentRoomForCheck} (nivel recomendado ${dangerEntry.level}+) — reubicado a sala 1 al hacer login.`);
+      }
+    } catch (e) { /* no interrumpir login si falla la verificación */ }
   }
 
   // BUG-1790: Si el jugador existe pero tiene is_bot = 1, limpiar el flag.
