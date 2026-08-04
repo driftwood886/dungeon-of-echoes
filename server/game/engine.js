@@ -11528,11 +11528,14 @@ function cmdGive(player, args) {
           // Completar la quest directamente como si el jugador hubiera dicho "hablar aldric"
           // BUG-973: calcLevelUp para que el XP de quest trigee level-up automático
           const lvlC1 = calcLevelUp(freshP, 50);
+          // BUG-2288: usar findIndex para quitar solo UNA copia de carta sellada
+          const _c1Idx = inv.findIndex(i => i.toLowerCase().includes('carta sellada'));
+          const _invC1 = _c1Idx >= 0 ? [...inv.slice(0, _c1Idx), ...inv.slice(_c1Idx + 1)] : inv;
           db.updatePlayer(player.id, {
             ...lvlC1.fields,
             gold: (freshP.gold || 0) + 25,
             aldric_quest: 'done',
-            inventory: JSON.stringify(inv.filter(i => !i.toLowerCase().includes('carta sellada')))
+            inventory: JSON.stringify(_invC1)
           });
           db.addJournalEntry(player.id, 'quest', '📜 Aldric me reveló el nombre completo: Kaelthas Vorn. Guardián del reino. El dungeon fue su archivo. Su alma quedó atada aquí cuando lo mataron. Sigue en las piedras. En los corredores. En la Sala del Trono.');
           db.logGlobalEvent('quest', `📜 ${player.username} descubrió el secreto de Aldric el Mercader.`);
@@ -14271,11 +14274,14 @@ function cmdTalk(player, target) {
       // BUG-973: usar calcLevelUp para trigear level-up automáticamente
       const freshP = db.getPlayer(player.id);
       const lvlA1 = calcLevelUp(freshP, 50);
+      // BUG-2288: quitar solo UNA copia de carta sellada, no todas
+      const _a1Idx = inv.findIndex(i => i.toLowerCase().includes('carta sellada'));
+      const _invA1 = _a1Idx >= 0 ? [...inv.slice(0, _a1Idx), ...inv.slice(_a1Idx + 1)] : inv;
       db.updatePlayer(player.id, {
         ...lvlA1.fields,
         gold: (freshP.gold || 0) + 25,
         aldric_quest: 'done',
-        inventory: JSON.stringify(inv.filter(i => !i.toLowerCase().includes('carta sellada')))
+        inventory: JSON.stringify(_invA1)
       });
       db.addJournalEntry(player.id, 'quest', '📜 Aldric me reveló el nombre completo: Kaelthas Vorn. Guardián del reino. El dungeon fue su archivo. Su alma quedó atada aquí cuando lo mataron. Sigue en las piedras. En los corredores. En la Sala del Trono.');
       db.logGlobalEvent('quest', `📜 ${player.username} descubrió el secreto de Aldric el Mercader.`);
@@ -14376,7 +14382,9 @@ function cmdTalk(player, target) {
     // BUG-2277: calcLevelUp puede incluir hint de carta si aldric_quest era 'none' y sube al nivel 5 —
     // suprimirlo aquí porque la carta está siendo entregada en este mismo paso.
     const lvlT1Msg = lvlT1.levelUpMsg.replace(/\n\n📜 ¡Tenés la carta sellada![\s\S]*?`hablar aldric`\./, '');
-    const invAfter = invTrigger.filter(i => !i.toLowerCase().includes('carta sellada'));
+    // BUG-2288: quitar solo UNA copia de carta sellada, no todas
+    const _t1Idx = invTrigger.findIndex(i => i.toLowerCase().includes('carta sellada'));
+    const invAfter = _t1Idx >= 0 ? [...invTrigger.slice(0, _t1Idx), ...invTrigger.slice(_t1Idx + 1)] : invTrigger;
     db.updatePlayer(player.id, {
       ...lvlT1.fields,
       gold: (freshPTrigC.gold || 0) + 25,
