@@ -3227,39 +3227,12 @@ function cmdMove(player, direction) {
     // visitResult.visited.length ya incluye la sala actual; prevVisitedCount es el count ANTES de esta visita
     const prevVisitedCount = visitResult.visited.length - 1;
     const exploXp = prevVisitedCount < 5 ? 10 : 3;
-    const newXp = (freshExp.xp || 0) + exploXp;
-    const newLevel = xpSystem.levelFromXp(newXp);
-    const levelUp = newLevel > (freshExp.level || 1);
-    const upd = { xp: newXp, level: newLevel };
-    if (levelUp) {
-      upd.max_hp = (freshExp.max_hp || 30) + 5;
-      const healExp = Math.ceil(upd.max_hp * 0.20);
-      upd.hp = Math.min(upd.max_hp, (freshExp.hp || 1) + healExp);
-      upd.attack = (freshExp.attack || 5) + 1;
-      // DIS-647: Mago y Clérigo ganan +3 max_mana por nivel
-      if (freshExp.player_class === 'mago' || freshExp.player_class === 'clerigo') {
-        upd.max_mana = (freshExp.max_mana || 20) + 3;
-      }
-    }
-    db.updatePlayer(player.id, upd);
-    // DIS-1323: recordatorio de Aldric en level-up de exploración
-    let expAldricReminder = '';
-    if (levelUp && newLevel === 5 && (freshExp.aldric_quest || 'none') === 'none') {
-      try {
-        const invExp5 = Array.isArray(freshExp.inventory) ? freshExp.inventory : JSON.parse(freshExp.inventory || '[]');
-        if (invExp5.some(i => i.toLowerCase().includes('carta sellada'))) {
-          expAldricReminder = '\n\n📜 ¡Tenés la carta sellada! Ahora que llegaste al nivel 5, hablá con Aldric el Mercader (sala 4, al norte-este). Escribí `hablar aldric`.';
-        }
-      } catch (_) { /* no interrumpir */ }
-    }
-    // DIS-2095: diferir aviso de especialización al próximo look — no mezclarlo con el XP de exploración
-    if (levelUp && newLevel === 5 && !freshExp.specialization && freshExp.player_class && freshExp.player_class !== 'sin_clase') {
-      try {
-        const seExp5 = parseSE(db.getPlayer(player.id).status_effects);
-        db.updatePlayer(player.id, { status_effects: JSON.stringify({ ...seExp5, spec_notify_deferred: true }) });
-      } catch (_) { /* no interrumpir */ }
-    }
-    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${exploXp} XP de explorador${prevVisitedCount < 5 ? ' ✨ (bonus de descubrimiento)' : ''}. 🌟 (${visitResult.visited.length} salas descubiertas en total)${levelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newLevel}!${expAldricReminder}` : ''}`;
+    // BUG-2301: usar calcLevelUp para calcular stats Y obtener mensaje completo con detalles
+    // (igual que en combate: muestra +5 HP máx, +1 ATK, HP restaurado, unlocks de nivel, etc.)
+    // calcLevelUp ya maneja: multi-nivel, aldricCartaReminder, spec_notify_deferred, unlockLines, veteranoMsg
+    const lvlUpExplo = calcLevelUp(freshExp, exploXp);
+    db.updatePlayer(player.id, lvlUpExplo.fields);
+    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${exploXp} XP de explorador${prevVisitedCount < 5 ? ' ✨ (bonus de descubrimiento)' : ''}. 🌟 (${visitResult.visited.length} salas descubiertas en total)${lvlUpExplo.levelUpMsg}`;
     // EPIC-1373: Influencia de facción por exploración (nueva sala)
     // DIS-2162: retroalimentación inmediata de influencia
     const _fExploAdded = db.addFactionInfluence(player.id, 2);
