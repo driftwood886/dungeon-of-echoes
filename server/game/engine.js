@@ -23084,16 +23084,12 @@ function cmdUseSkill(player, args, context) {
       }
       // XP básico
       const xpGain = Math.max(5, Math.floor(target.max_hp * 2));
-      const newXp = (freshPlayer.xp || 0) + xpGain;
-      const newLevel = xpSystem.levelFromXp(newXp);
+      // BUG-2302: usar calcLevelUp para obtener mensaje detallado de level up (igual que BUG-2301)
+      const smashLvlResult = calcLevelUp(freshPlayer, xpGain);
+      const newXp = smashLvlResult.fields.xp;
+      const newLevel = smashLvlResult.fields.level;
       const levelUp = newLevel > (freshPlayer.level || 1);
-      const smashUpd = { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 };
-      if (levelUp) {
-        smashUpd.max_hp = (freshPlayer.max_hp || 30) + 5;
-        const healSmash = Math.ceil(smashUpd.max_hp * 0.20);
-        smashUpd.hp = Math.min(smashUpd.max_hp, (freshPlayer.hp || 1) + healSmash);
-        smashUpd.attack = (freshPlayer.attack || 5) + 1;
-      }
+      const smashUpd = { ...smashLvlResult.fields, kills: (freshPlayer.kills || 0) + 1 };
       db.updatePlayer(freshPlayer.id, smashUpd);
       // EPIC-NE-IMPL-2264: Hookear primer_skill_kill en smash
       // freshPlayer.kills es PRE-kill — si era 0, este es el primer kill y fue con habilidad especial
@@ -23119,7 +23115,7 @@ function cmdUseSkill(player, args, context) {
           });
         } catch (_ne2264smash) { /* no romper smash si falla el hookeo */ }
       }
-      text += `\n⭐ +${xpGain} XP (kills: ${smashUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}${xpProgressSuffix(newXp, newLevel)}`;
+      text += `\n⭐ +${xpGain} XP (kills: ${smashUpd.kills} | nivel: ${newLevel})${smashLvlResult.levelUpMsg}${xpProgressSuffix(newXp, newLevel)}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       memory.onMonsterKill(freshPlayer.current_room_id, target.name, freshPlayer.username); // EPIC-1820-DEF
       if (levelUp) {
@@ -23561,16 +23557,12 @@ function cmdUseSkill(player, args, context) {
         if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: bashGlobalEvent });
       }
       const xpGain = Math.max(5, Math.floor(target.max_hp * 2));
-      const newXp = (freshPlayer.xp || 0) + xpGain;
-      const newLevel = xpSystem.levelFromXp(newXp);
+      // BUG-2302: usar calcLevelUp para obtener mensaje detallado de level up (igual que BUG-2301)
+      const bashLvlResult = calcLevelUp(freshPlayer, xpGain);
+      const newXp = bashLvlResult.fields.xp;
+      const newLevel = bashLvlResult.fields.level;
       const levelUp = newLevel > (freshPlayer.level || 1);
-      const skillUpd = { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 };
-      if (levelUp) {
-        skillUpd.max_hp = (freshPlayer.max_hp || 30) + 5;
-        const healSkill = Math.ceil(skillUpd.max_hp * 0.20);
-        skillUpd.hp = Math.min(skillUpd.max_hp, (freshPlayer.hp || 1) + healSkill);
-        skillUpd.attack = (freshPlayer.attack || 5) + 1;
-      }
+      const skillUpd = { ...bashLvlResult.fields, kills: (freshPlayer.kills || 0) + 1 };
       db.updatePlayer(freshPlayer.id, skillUpd);
       // EPIC-NE-IMPL-2264: Hookear primer_skill_kill en shield_bash
       if ((freshPlayer.kills || 0) === 0) {
@@ -23586,7 +23578,7 @@ function cmdUseSkill(player, args, context) {
           });
         } catch (_ne2264bash) { /* no romper skill si falla el hookeo */ }
       }
-      text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}${xpProgressSuffix(newXp, newLevel)}`;
+      text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${bashLvlResult.levelUpMsg}${xpProgressSuffix(newXp, newLevel)}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       memory.onMonsterKill(freshPlayer.current_room_id, target.name, freshPlayer.username); // EPIC-1820-DEF
       // DIS-1281: Registrar subida de nivel en el diario (Golpe de Escudo)
@@ -23860,18 +23852,14 @@ function cmdUseSkill(player, args, context) {
         if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: gsGlobalEvent });
       }
       const xpGain = Math.max(5, Math.floor(target.max_hp * 2));
-      const newXp = (freshPlayer.xp || 0) + xpGain;
-      const newLevel = xpSystem.levelFromXp(newXp);
+      // BUG-2302: usar calcLevelUp para obtener mensaje detallado de level up (igual que BUG-2301)
+      const gsLvlResult = calcLevelUp(freshPlayer, xpGain);
+      const newXp = gsLvlResult.fields.xp;
+      const newLevel = gsLvlResult.fields.level;
       const levelUp = newLevel > (freshPlayer.level || 1);
-      const skillUpd = { xp: newXp, level: newLevel, kills: (freshPlayer.kills || 0) + 1 };
-      if (levelUp) {
-        skillUpd.max_hp = (freshPlayer.max_hp || 30) + 5;
-        const healSkill = Math.ceil(skillUpd.max_hp * 0.20);
-        skillUpd.hp = Math.min(skillUpd.max_hp, (freshPlayer.hp || 1) + healSkill);
-        skillUpd.attack = (freshPlayer.attack || 5) + 1;
-      }
+      const skillUpd = { ...gsLvlResult.fields, kills: (freshPlayer.kills || 0) + 1 };
       db.updatePlayer(freshPlayer.id, skillUpd);
-      text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${levelUp ? ` ✨ ¡SUBE AL NIVEL ${newLevel}!` : ''}${xpProgressSuffix(newXp, newLevel)}`;
+      text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${gsLvlResult.levelUpMsg}${xpProgressSuffix(newXp, newLevel)}`;
       db.addBestiaryKill(freshPlayer.id, target.name);
       memory.onMonsterKill(freshPlayer.current_room_id, target.name, freshPlayer.username); // EPIC-1820-DEF
       const gsBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
@@ -24303,18 +24291,14 @@ function cmdUseSkill(player, args, context) {
         if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: shGlobalEvent });
       }
       const xpGainSh = Math.max(5, Math.floor(target.max_hp * 2));
-      const newXpSh = (freshPicSh.xp || 0) + xpGainSh;
-      const newLevelSh = xpSystem.levelFromXp(newXpSh);
+      // BUG-2302: usar calcLevelUp para obtener mensaje detallado de level up (igual que BUG-2301)
+      const shLvlResult = calcLevelUp(freshPicSh, xpGainSh);
+      const newXpSh = shLvlResult.fields.xp;
+      const newLevelSh = shLvlResult.fields.level;
       const levelUpSh = newLevelSh > (freshPicSh.level || 1);
-      const skillUpdSh = { xp: newXpSh, level: newLevelSh, kills: (freshPicSh.kills || 0) + 1 };
-      if (levelUpSh) {
-        skillUpdSh.max_hp = (freshPicSh.max_hp || 30) + 5;
-        const healSh = Math.ceil(skillUpdSh.max_hp * 0.20);
-        skillUpdSh.hp = Math.min(skillUpdSh.max_hp, (freshPicSh.hp || 1) + healSh);
-        skillUpdSh.attack = (freshPicSh.attack || 5) + 1;
-      }
+      const skillUpdSh = { ...shLvlResult.fields, kills: (freshPicSh.kills || 0) + 1 };
       db.updatePlayer(freshPicSh.id, skillUpdSh);
-      textSh += `\n⭐ +${xpGainSh} XP (kills: ${skillUpdSh.kills} | nivel: ${newLevelSh})${levelUpSh ? ` ✨ ¡SUBE AL NIVEL ${newLevelSh}!` : ''}${xpProgressSuffix(newXpSh, newLevelSh)}`;
+      textSh += `\n⭐ +${xpGainSh} XP (kills: ${skillUpdSh.kills} | nivel: ${newLevelSh})${shLvlResult.levelUpMsg}${xpProgressSuffix(newXpSh, newLevelSh)}`;
       db.addBestiaryKill(freshPicSh.id, target.name);
       memory.onMonsterKill(freshPicSh.current_room_id, target.name, freshPicSh.username); // EPIC-1820-DEF
       const shBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
@@ -24459,17 +24443,14 @@ function cmdUseSkill(player, args, context) {
         if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: palGlobalEvent });
       }
       const xpGainPal = Math.max(5, Math.floor(target.max_hp * 2));
-      const newXpPal = (freshPal.xp || 0) + xpGainPal;
-      const newLevelPal = xpSystem.levelFromXp(newXpPal);
+      // BUG-2302: usar calcLevelUp para obtener mensaje detallado de level up (igual que BUG-2301)
+      const palLvlResult = calcLevelUp(freshPal, xpGainPal);
+      const newXpPal = palLvlResult.fields.xp;
+      const newLevelPal = palLvlResult.fields.level;
       const levelUpPal = newLevelPal > (freshPal.level || 1);
-      const updPal = { xp: newXpPal, level: newLevelPal, kills: (freshPal.kills || 0) + 1 };
-      if (levelUpPal) {
-        updPal.max_hp = (freshPal.max_hp || 30) + 5;
-        updPal.hp = Math.min(updPal.max_hp, (freshPal.hp || 1) + Math.ceil(updPal.max_hp * 0.20));
-        updPal.attack = (freshPal.attack || 5) + 1;
-      }
+      const updPal = { ...palLvlResult.fields, kills: (freshPal.kills || 0) + 1 };
       db.updatePlayer(freshPal.id, updPal);
-      textPal += `\n⭐ +${xpGainPal} XP (kills: ${updPal.kills} | nivel: ${newLevelPal})${levelUpPal ? ` ✨ ¡SUBE AL NIVEL ${newLevelPal}!` : ''}${xpProgressSuffix(newXpPal, newLevelPal)}`;
+      textPal += `\n⭐ +${xpGainPal} XP (kills: ${updPal.kills} | nivel: ${newLevelPal})${palLvlResult.levelUpMsg}${xpProgressSuffix(newXpPal, newLevelPal)}`;
       db.addBestiaryKill(freshPal.id, target.name);
       memory.onMonsterKill(freshPal.current_room_id, target.name, freshPal.username); // EPIC-1820-DEF
       const freshForPalAch = db.getPlayer(freshPal.id);
@@ -24613,17 +24594,14 @@ function cmdUseSkill(player, args, context) {
         if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: aseGlobalEvent });
       }
       const xpGainAse = Math.max(5, Math.floor(target.max_hp * 2));
-      const newXpAse = (freshAse.xp || 0) + xpGainAse;
-      const newLevelAse = xpSystem.levelFromXp(newXpAse);
+      // BUG-2302: usar calcLevelUp para obtener mensaje detallado de level up (igual que BUG-2301)
+      const aseLvlResult = calcLevelUp(freshAse, xpGainAse);
+      const newXpAse = aseLvlResult.fields.xp;
+      const newLevelAse = aseLvlResult.fields.level;
       const levelUpAse = newLevelAse > (freshAse.level || 1);
-      const updAse = { xp: newXpAse, level: newLevelAse, kills: (freshAse.kills || 0) + 1 };
-      if (levelUpAse) {
-        updAse.max_hp = (freshAse.max_hp || 30) + 5;
-        updAse.hp = Math.min(updAse.max_hp, (freshAse.hp || 1) + Math.ceil(updAse.max_hp * 0.20));
-        updAse.attack = (freshAse.attack || 5) + 1;
-      }
+      const updAse = { ...aseLvlResult.fields, kills: (freshAse.kills || 0) + 1 };
       db.updatePlayer(freshAse.id, updAse);
-      textAse += `\n⭐ +${xpGainAse} XP (kills: ${updAse.kills} | nivel: ${newLevelAse})${levelUpAse ? ` ✨ ¡SUBE AL NIVEL ${newLevelAse}!` : ''}${xpProgressSuffix(newXpAse, newLevelAse)}`;
+      textAse += `\n⭐ +${xpGainAse} XP (kills: ${updAse.kills} | nivel: ${newLevelAse})${aseLvlResult.levelUpMsg}${xpProgressSuffix(newXpAse, newLevelAse)}`;
       db.addBestiaryKill(freshAse.id, target.name);
       memory.onMonsterKill(freshAse.current_room_id, target.name, freshAse.username); // EPIC-1820-DEF
       const freshForAseAch = db.getPlayer(freshAse.id);
@@ -24832,17 +24810,14 @@ function cmdUseSkill(player, args, context) {
         if (typeof io !== 'undefined' && io) io.emit('shout', { username: 'El Dungeon', message: juGlobalEvent });
       }
       const xpGainJu = Math.max(5, Math.floor(target.max_hp * 2));
-      const newXpJu = (freshJu.xp || 0) + xpGainJu;
-      const newLevelJu = xpSystem.levelFromXp(newXpJu);
+      // BUG-2302: usar calcLevelUp para obtener mensaje detallado de level up (igual que BUG-2301)
+      const juLvlResult = calcLevelUp(freshJu, xpGainJu);
+      const newXpJu = juLvlResult.fields.xp;
+      const newLevelJu = juLvlResult.fields.level;
       const levelUpJu = newLevelJu > (freshJu.level || 1);
-      const updJu = { xp: newXpJu, level: newLevelJu, kills: (freshJu.kills || 0) + 1 };
-      if (levelUpJu) {
-        updJu.max_hp = (freshJu.max_hp || 30) + 5;
-        updJu.hp = Math.min(updJu.max_hp, (freshJu.hp || 1) + Math.ceil(updJu.max_hp * 0.20));
-        updJu.attack = (freshJu.attack || 5) + 1;
-      }
+      const updJu = { ...juLvlResult.fields, kills: (freshJu.kills || 0) + 1 };
       db.updatePlayer(freshJu.id, updJu);
-      textJu += `\n⭐ +${xpGainJu} XP (kills: ${updJu.kills} | nivel: ${newLevelJu})${levelUpJu ? ` ✨ ¡SUBE AL NIVEL ${newLevelJu}!` : ''}${xpProgressSuffix(newXpJu, newLevelJu)}`;
+      textJu += `\n⭐ +${xpGainJu} XP (kills: ${updJu.kills} | nivel: ${newLevelJu})${juLvlResult.levelUpMsg}${xpProgressSuffix(newXpJu, newLevelJu)}`;
       db.addBestiaryKill(freshJu.id, target.name);
       memory.onMonsterKill(freshJu.current_room_id, target.name, freshJu.username); // EPIC-1820-DEF
       const freshForJuAch = db.getPlayer(freshJu.id);
