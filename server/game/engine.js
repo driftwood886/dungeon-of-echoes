@@ -14829,6 +14829,29 @@ function cmdBuy(player, itemQuery) {
   }
 
   if (!item) {
+    // DIS-2291: fuzzy-match — sugerir el ítem más parecido
+    let suggestion = null;
+    try {
+      const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const queryWords = norm(itemQuery.trim()).split(/\s+/).filter(w => w.length > 2);
+      let bestScore = 0;
+      for (const candidate of allBuyable) {
+        const cNorm = norm(candidate.name);
+        const cWords = cNorm.split(/\s+/);
+        // Score: cuántas palabras de la query aparecen en el nombre (parcial)
+        const wordScore = queryWords.filter(qw => cWords.some(cw => cw.includes(qw) || qw.includes(cw))).length;
+        // También bonus si la query entera es substring parcial del nombre o viceversa
+        const subScore = cNorm.includes(norm(itemQuery.trim())) || norm(itemQuery.trim()).split(/\s+/).some(qw => qw.length > 3 && cNorm.includes(qw)) ? 1 : 0;
+        const totalScore = wordScore + subScore;
+        if (totalScore > bestScore) {
+          bestScore = totalScore;
+          suggestion = candidate;
+        }
+      }
+    } catch (_) {}
+    if (suggestion && suggestion.price !== undefined) {
+      return { text: `El mercader sacude la cabeza. "No vendo eso." ¿Quisiste decir ${suggestion.name} (${suggestion.price}g)?  Escribí "tienda" para ver el catálogo completo.` };
+    }
     return { text: `El mercader sacude la cabeza. "No vendo eso." Escribí "tienda" para ver el catálogo.` };
   }
 
