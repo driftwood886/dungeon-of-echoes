@@ -596,108 +596,130 @@ function parse(input) {
  * Texto de ayuda para el jugador.
  */
 const HELP_TEXT = `
-Comandos disponibles:
-  look / mirar          — Describir la habitación actual
-  move <dir> / ir <dir> — Moverse (norte, sur, este, oeste)
+══════════════════════════════════════════════════════════
+  📖  TODOS LOS COMANDOS — Dungeon of Echoes
+  Para ayuda detallada: help <cmd>   |   Básicos: help basico
+══════════════════════════════════════════════════════════
+
+⚔️  COMBATE
+  attack <monstruo>     — Atacar a un monstruo en la sala
+  flee / huir           — Intentar huir del combate (50% chance)
+  skills / habilidades  — Ver habilidades activas y cooldowns (Lv3/6/10)
+  smash / golpetazo     — Golpe potente ×1.8 daño (Nivel 3, cooldown 30s)
+  bash / escudo_bash    — Golpe+stun al monstruo 1 turno (Nivel 6, 60s)
+  rally / arenga        — +2 ATK al grupo por 60s (Nivel 10, 2min)
+  sigilo / hide         — [Pícaro] Entrar en sigilo: primer ataque crítico garantizado
+  cast <hechizo>        — Lanzar un hechizo (fuego, rayo, curación). Requiere maná
+  hechizos / spells     — Ver hechizos disponibles y el maná actual
+  duel <jugador>        — Retar a un duelo PvP a otro aventurero en la sala
+  accept / decline      — Aceptar o rechazar un reto de duelo pendiente
+  stance / postura      — Ver o cambiar postura de combate (agresivo/defensivo/equilibrado)
+
+🧭  EXPLORACIÓN Y MOVIMIENTO
+  look / mirar          — Describir la sala actual (salidas, monstruos, ítems)
+  n / s / e / o / w     — Moverse (norte/sur/este/oeste); también: move <dir>
+  map / mapa            — Mapa ASCII del dungeon con tu posición marcada con ★
+  ruta <sala>           — Ruta más corta a una sala (ej: ruta tesoro / ruta 15)
+  peek <dir> / espiar   — Espiar en una dirección sin moverse
+  back / atrás          — Volver a la sala anterior (sin costo ni cooldown)
+  recall / volver       — Teletransportarse a la entrada (sala 1). Costo: 5 HP, cooldown 10 min
+  forage / buscar       — Buscar ítems ocultos en la sala (cooldown 3 min, sin monstruos)
+  find <ítem/monstruo>  — Buscar dónde encontrar algo en el dungeon
+  unlock <dir>          — Abrir una puerta bloqueada con la llave del inventario (permanente)
+  talk <NPC>            — Hablar con un NPC (ej: hablar aldric). Algunos tienen quests
+
+🎒  INVENTARIO Y EQUIPO
   inventory / inv       — Ver tu inventario
-  status / estado       — Ver tus stats (HP, ataque, defensa)
-  stats / cooldowns     — Resumen compacto de stats + cooldowns activos de habilidades
-  attack <monstruo>     — Atacar a un monstruo
-  flee / huir           — Intentar huir del combate
-  pick <ítem>           — Recoger un ítem del suelo (también: "pick todo" para recoger todo)
+  pick <ítem>           — Recoger un ítem del suelo ("pick todo" = recoger todo)
+  loot / saquear        — Recoger TODOS los ítems del suelo de la sala
   drop <ítem>           — Tirar un ítem al suelo
   use <ítem>            — Usar un ítem (poción → consume, arma → equipar)
-  equip <arma>          — Equipar un arma del inventario explícitamente
+  equip <arma>          — Equipar un arma del inventario
   unequip / desequipar  — Guardar el arma y volver a puños (ataque 5)
   wear <armadura>       — Ponerse una armadura del inventario (+defensa)
   unwear / quitarse     — Quitarse la armadura (volver a defensa base)
-  map / mapa            — Ver el mapa ASCII del dungeon
-  ruta <sala>           — Calcular ruta más corta a una sala (ej: ruta tesoro / ruta 15)
-  who / jugadores       — Ver los aventureros activos en el dungeon
-  score / ranking       — Ver la tabla de líderes global
-  give <ítem> <jugador> — Dar un ítem a otro jugador en la misma sala
-  loot / saquear        — Recoger todos los ítems del suelo de la sala
-  heal / curar          — Usar la primera poción del inventario (atajo rápido)
+  preview <arma/arm>    — Previsualizar stats si equiparas un ítem del inventario
+  vault / bóveda        — Bóveda personal: vault store/take/lista (disponible en salas 1/4/17/19)
   examine <objetivo>    — Examinar un monstruo, ítem o la sala
-  say <mensaje>         — Hablar con jugadores en la misma habitación
-  shout <mensaje>       — Gritar a todo el dungeon
-  help / ayuda          — Esta ayuda
-  help basico           — Solo los comandos esenciales (para nuevos jugadores)
-  whisper <jug> <msg>   — Mensaje privado a otro jugador (en cualquier sala)
-  tell <jug> <msg>      — Mensaje privado con aviso offline (llega aunque no esté conectado)
-  reply <msg>           — Contestar el último whisper/tell recibido (sin escribir el nombre)
-  inbox                 — Ver los últimos 5 mensajes de whisper/tell recibidos (bandeja)
-  unlock <dir>          — Abrir una puerta bloqueada usando la llave del inventario (permanente)
-  emote <acción>        — Expresar una acción visible para todos en la sala (ej: emote sonríe)
-  rest / descansar      — Recuperar HP si no hay monstruos (cooldown 60s)
-  inspect <jugador>     — Examinar a otro aventurero en la misma sala
-  quest / misión        — Ver la quest activa y tu progreso
-  guild <acción>        — Gestionar tu hermandad (create/join/leave/info/list/quest)
-  gc <mensaje>          — Chat de hermandad (solo ven los miembros del mismo guild)
-  duel <jugador>        — Retar a un duelo PvP a otro aventurero en la misma sala
-  accept                — Aceptar el reto de duelo pendiente
-  decline               — Rechazar el reto de duelo pendiente
-  world / evento        — Ver el evento global activo del dungeon (si hay alguno)
-  craft <ítem1> con <ítem2> — Combinar dos ítems del inventario para crear algo nuevo
-  recipes / recetas     — Ver el libro de recetas de crafteo conocidas
-  news / crónica        — Ver el historial de eventos globales del dungeon
-  forage / buscar       — Explorar la sala en busca de ítems ocultos (cooldown 3 min, sin monstruos)
-  talk <NPC>            — Hablar con un NPC (ej: hablar aldric, hablar anciano). Algunos NPCs tienen quests o pistas de navegación.
-  pet [adopt <tipo>]    — Adoptar una mascota (rata, murciélago, araña, etc.) o ver tu compañero
-  dados <NdM>           — Tirar dados (ej: dados 2d6, dice 1d20). Resultado visible para toda la sala
-  party [<jugador>]     — Gestionar tu grupo: invitar/unirse, ver miembros, party leave para salir
-  beber / drink         — Beber de la Fuente Eterna (sala 18): restaura HP completo. Cooldown global 3 min
-  cuenco / bowl         — Beber del Cuenco Sagrado (sala 5 — Capilla): restaura 40% HP. Cooldown personal 5 min
-  cast <hechizo>        — Lanzar un hechizo (bola de fuego, escudo, curación). Requiere maná
-  hechizos / spells     — Ver tus hechizos disponibles y el maná actual
-  clase                 — Ver o elegir tu clase de personaje (guerrero/mago/pícaro)
-  especializar          — Al nivel 5: elegir tu especialización de clase (subclase permanente)
-  bestiario             — Ver tu registro de monstruos cazados con estadísticas
-  perfil / profile      — Tarjeta de aventurero completa con todos los stats en formato visual
-  diario / journal      — Ver tu diario personal: logros, subidas de nivel, muertes y boss derrotados
-  skills / habilidades  — Ver tus habilidades activas desbloqueadas y sus cooldowns (Lv3/6/10)
-  smash / golpetazo     — Habilidad: golpe potente ×1.8 daño (requiere Nivel 3, cooldown 30s de reloj real)
-  bash / escudo_bash    — Habilidad: golpe de escudo + stun al monstruo 1 turno (Nivel 6, 60s)
-  rally / arenga        — Habilidad: +2 ATK al grupo en la sala por 60s (Nivel 10, 2min)
-  sigilo / hide         — [Pícaro] Entrar en modo sigilo (60s): el primer ataque es crítico garantizado y el monstruo no responde ese turno.
-  note / apunte         — Notas personales: "note add <texto>" para agregar, "note list" para ver, "note del <n>" para borrar
-  changelog / novedades — Ver las últimas actualizaciones y mejoras del juego
-  server / estadísticas — Ver estadísticas globales del servidor (jugadores, kills, oro, uptime)
-  time / hora           — Ver la hora actual del servidor y el período del día (amanecer/mediodía/atardecer/noche)
-  enemies [N] / top [N] — Ver los N monstruos más poderosos del dungeon (vivos y en respawn con tiempo restante)
-  compare <jugador>     — Comparar tus stats con otro aventurero en la misma sala (clase, nivel, HP, ATK, kills, etc.)
-  reputation / fama     — Ver tu reputación detallada con barra de progreso (gana pts por kills, quests y logros)
-  recall / volver       — Teletransportarse a la entrada del dungeon (sala 1). Costo: 5 HP. Cooldown: 10 min.
-  back / atrás          — Volver a la sala anterior (sin costo ni cooldown, solo adyacente).
-  trade <jug> <ítem>   — Proponer intercambio seguro de ítems (el otro acepta/rechaza con trade accept/decline).
-  peek <dir> / espiar  — Espiar en una dirección sin moverse: ver nombre de sala, monstruos e ítems del suelo.
-  runas / runes        — Ver tu colección de runas (5 tipos: fuego/hielo/sombra/luz/caos; 40% drop de cualquier monstruo; 3 iguales = +1 ATK permanente).
-  enchant <tipo>       — Encantar el arma equipada con 1 runa (fuego/hielo/sombra/luz/caos). Efectos por 3 min: fuego +2 ATK, hielo ralentiza, sombra +crit, luz +HP al matar.
-  session / sesión     — Ver estadísticas de tu sesión actual (kills, XP, oro ganados y tiempo conectado).
-  sessions / historial — Ver el historial de tus últimas 5 sesiones y el tiempo de juego total acumulado.
-  score tiempo         — Ranking por tiempo de juego total (los aventureros más veteranos).
-  challenge / desafío  — Ver los 3 desafíos del día (2 personales + Gran Desafío) con progreso.
-  contract / contrato  — Ver tu contrato de caza semanal (objetivo, progreso, recompensa).
-  macro list           — Ver tus macros guardadas (hasta 5).
-  macro set <n> <cmd> — Guardar macro (puede incluir secuencia con ;).
-  macro del <nombre>  — Eliminar una macro. !<nombre> ejecuta la macro.
-  write <mensaje>     — Grabar un mensaje en la pared de la sala actual.
-  read / leer         — Leer las inscripciones que dejaron otros en esta sala.
-  greet <jugador>     — Saludar a otro jugador en la sala. Saludo mutuo en 30s = +1 rep para ambos.
-  search [monstruo]  — Registrar el cadáver de un monstruo recién muerto (últimos 2 min). 30% chance de loot extra.
-  find <ítem/monstruo> — Buscar dónde encontrar algo: salas donde aparece, qué monstruos lo dropean, si hay en el suelo.
-  guide [sección]     — Guía de inicio rápido: primeros/combate/economia/clases/crafteo/tips. Ej: guide 2
-  wanted [jugador]    — Carteles de SE BUSCA: bounties activas en el dungeon, agrupadas por objetivo.
-  rank <stat>         — Tu posición global en una estadística (kills, gold, xp, level, rep, deaths, time).
-  hardcore [on/off/new] — Modo Hardcore: si morís, tu personaje cae para siempre (ghost mode). Solo antes del primer kill. "hardcore new" crea un sucesor tras caer.
-  pray [ítem]          — Rezar ante un altar (sala 5 o 10): ofrecer un ítem para obtener una bendición temporal.
-  preview <arma/arm>   — Previsualizar cómo cambiarían tus stats si equiparas un arma o armadura del inventario.
-  gamble <monto>       — Mini-juego de apuestas con dados en la Casa de Subastas (sala 17). Apostás oro vs la casa. Cooldown 2 min.
-  heal [jugador]       — Atajo para usar la primera poción del inventario. (Clérigo: usa su habilidad sagrada, cuesta 8 maná. Puede curar a [jugador] en la misma sala.)
-  ascender             — Sistema de Ascensión roguelite: al derrotar al Lich podés reiniciar con un legado heredado (bonus permanente para tu próximo personaje). Escribí "ascender" para ver las 3 opciones de herencia.
+  search [monstruo]     — Registrar cadáver reciente (2 min). 30% chance de loot extra
 
+⚗️  CRAFTEO Y ENCANTAMIENTO
+  craft <ítem1> con <ítem2> — Combinar dos ítems para crear uno nuevo
+  recipes / recetas     — Ver el libro de recetas de crafteo
+  enchant <tipo>        — Encantar el arma equipada con 1 runa (3 min de efecto)
+  runas / runes         — Ver colección de runas (5 tipos; 3 iguales = +1 ATK permanente)
+  pray [ítem]           — Rezar en un altar (sala 5 o 10): ofrecer ítem para bendición temporal
+
+💊  RECUPERACIÓN
+  rest / descansar      — Recuperar HP si no hay monstruos (cooldown 60s)
+  heal [jugador]        — Atajo para usar la primera poción (Clérigo: habilidad sagrada)
+  beber / drink         — Fuente Eterna (sala 18): restaura HP completo. Cooldown personal 3 min
+  cuenco / bowl         — Cuenco Sagrado (sala 5): restaura 40% HP. Cooldown personal 5 min
+
+💬  SOCIAL Y COMUNICACIÓN
+  say <mensaje>         — Hablar con los jugadores de la misma sala
+  shout <mensaje>       — Gritar a todo el dungeon
+  whisper <jug> <msg>   — Mensaje privado (en cualquier sala)
+  tell <jug> <msg>      — Mensaje privado con persistencia offline
+  reply <msg>           — Contestar el último whisper/tell recibido
+  inbox                 — Ver los últimos 5 mensajes recibidos
+  emote <acción>        — Expresar una acción visible para todos en la sala
+  give <ítem> <jugador> — Dar un ítem a otro jugador en la misma sala
+  trade <jug> <ítem>    — Proponer intercambio seguro (el otro acepta/rechaza)
+  greet <jugador>       — Saludar a otro jugador. Saludo mutuo en 30s = +1 rep para ambos
+  guild <acción>        — Hermandad: create/join/leave/info/list/quest
+  gc <mensaje>          — Chat de hermandad (solo ven los miembros del mismo guild)
+  party [<jugador>]     — Gestionar grupo: invitar/ver miembros/salir
+  dados <NdM>           — Tirar dados (ej: dados 2d6). Resultado visible en la sala
+  write <mensaje>       — Grabar un mensaje en la pared de la sala (máx 80 chars)
+  read / leer           — Leer las inscripciones de la sala
+
+👤  PERSONAJE Y PROGRESO
+  status / estado       — Ver HP, ATK, DEF, nivel, XP y arma equipada
+  clase                 — Ver o elegir tu clase de personaje
+  especializar          — Al nivel 5: elegir tu especialización (subclase permanente)
+  perfil / profile      — Tarjeta completa del aventurero con todos los stats
+  bestiario             — Registro de monstruos cazados con estadísticas
+  diario / journal      — Diario personal: logros, niveles, muertes, boss derrotados
+  reputation / fama     — Tu reputación con barra de progreso
+  quest / misión        — Ver la quest activa y tu progreso
+  challenge / desafío   — Ver los 3 desafíos del día con progreso
+  contract / contrato   — Ver tu contrato de caza semanal
+  hardcore [on/off/new] — Modo Hardcore: si morís, tu personaje cae para siempre
+  ascender              — Sistema de Ascensión roguelite (al derrotar al Lich)
+  pet [adopt <tipo>]    — Adoptar una mascota o ver tu compañero actual
+  note / apunte         — Notas personales: "note add/list/del"
+  macro list/set/del    — Macros: guardar secuencias de comandos. !<nombre> para ejecutar
+
+📊  INFORMACIÓN Y UTILIDADES
+  who / jugadores       — Ver aventureros activos en el dungeon
+  score / ranking       — Tabla de líderes (kills, XP, nivel). score tiempo/oro/duelos/rep
+  rank <stat>           — Tu posición global en una estadística
+  compare <jugador>     — Comparar tus stats con otro aventurero en la misma sala
+  inspect <jugador>     — Examinar a otro aventurero en la misma sala
+  study <monstruo>      — Analizar un monstruo: HP, habilidades, debilidades
+  enemies [N]           — Ver los N monstruos más poderosos del dungeon
+  world / evento        — Ver el evento global activo del dungeon
+  calendar / timers     — Panel de temporizadores: boss, clima, fuente, tus buffs
+  news / crónica        — Historial de eventos globales del dungeon
+  time / hora           — Hora del servidor y período del día
+  server / estadísticas — Estadísticas globales (jugadores, kills, oro, uptime)
+  session / sesión      — Estadísticas de tu sesión actual
+  sessions / historial  — Historial de tus últimas 5 sesiones y tiempo total
+  guide [sección]       — Guía de inicio rápido (primeros/combate/clases/crafteo)
+  lore / lore <ítem>    — Diario de lore o enciclopedia de ítems
+  wanted [jugador]      — Carteles de SE BUSCA: bounties activas en el dungeon
+  auction / subasta     — Poner un ítem a subasta (Casa de Subastas, sala 17)
+  bid / pujar           — Pujar en una subasta activa
+  auctions / subastas   — Ver todas las subastas activas
+  gamble <monto>        — Apuestas con dados en la Casa de Subastas (cooldown 2 min)
+  changelog / novedades — Ver las últimas actualizaciones del juego
+  help <cmd>            — Ayuda detallada sobre cualquier comando
+  logout / salir        — Salir del dungeon
+
+══════════════════════════════════════════════════════════
 Atajos de dirección: n, s, e, o (oeste), w (west)
-Esta es la lista completa. Para empezar: help basico  |  Para ayuda de un comando: help <cmd>
+Para empezar: help basico  |  Para un comando específico: help <cmd>
 `.trim();
 
 /**
@@ -744,7 +766,7 @@ const COMMAND_HELP = {
     bid:       'pujar <id_subasta> <monto> / bid <auction_id> <amount>\\\\n  Realizar una puja en una subasta activa.\\\\n  La puja debe ser mayor a la puja actual. Si alguien supera tu puja, recibís tu oro de vuelta.\\\\n  El oro se descuenta al pujar y se devuelve si te superan.',
     auctions:  'subastas / pujas / auctions / remates\\\\\\\\n  Ver todas las subastas activas en la Casa de Subastas.\\\\\\\\n  Muestra: ID, ítem, precio mínimo, puja actual, tiempo restante y vendedor.',
     dice:      'dados <NdM> / dice <NdM> / roll <NdM>\\\\\\\\n  Tirar dados en la sala. Ej: \\\"dados 2d6\\\" tira dos dados de 6 caras.\\\\\\\\n  El resultado es visible para todos los jugadores presentes en la sala.\\\\\\\\n  Formatos soportados: 1d4, 1d6, 1d8, 1d10, 1d12, 1d20, 1d100, hasta 10d100.',
-    drink:     'drink / beber / tomar\\n  Beber de la Fuente Eterna en la Cámara de la Fuente Eterna (sala 18, al norte del Santuario Profano).\\n  Restaura tu HP completamente.\\n  Cooldown GLOBAL de 3 minutos: una vez que alguien bebe, la fuente tarda 3 min en recargarse.\\n  Nadie puede usarla durante ese tiempo. No funciona si ya estás al máximo de HP.',
+    drink:     'drink / beber / tomar\\\\n  Beber de la Fuente Eterna en la Cámara de la Fuente Eterna (sala 18, al norte del Santuario Profano).\\\\n  Restaura tu HP completamente.\\\\n  Cooldown PERSONAL de 3 minutos: cada jugador tiene su propio cooldown independiente.\\\\n  No funciona si ya estás al máximo de HP.',
     bowl:      'bowl / cuenco / ofrenda\\n  Beber del Cuenco Sagrado en la Capilla Olvidada (sala 5, al este de la Entrada).\\n  Restaura el 40% de tu HP máximo.\\n  Cooldown PERSONAL de 5 minutos: el cooldown es tuyo, no afecta a otros jugadores.\\n  Ideal para recuperar entre combates sin ir hasta la tienda. No funciona si ya estás al máximo.',
     journal:   'journal / diario\\n  Ver tu diario personal de aventurero.\\n  Se registra automáticamente cuando: derrotes un boss, completes una quest, desbloquees un logro, subas de nivel o mueras.\\n  Muestra las últimas 10 entradas con tipo, fecha y descripción.',
     enemies:   'enemies [N] / enemigos [N] / top [N]\\n  Ver los N monstruos más poderosos del dungeon (ordenados por HP máximo).\\n  Muestra: nombre, estado (vivo/respawn), sala donde habitan y estadísticas.\\n  N es opcional, por defecto 10. Máximo 20.',
