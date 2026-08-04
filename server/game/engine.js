@@ -57,7 +57,9 @@ function xpProgressSuffix(newXp, newLevel) {
 const ROOM_EFFECTS = {
   // Sala 9 — Sala del Trono: frío sobrenatural (ya tiene trampa, además debuffa ATK)
   // DIS-1236: msg reformulado para aclarar que es efecto permanente de sala, no parte de la trampa
-  9:  { type: 'debuff', stat: 'attack', amount: -1, label: '🥶 Frío sobrenatural · -1 ATK (permanente)', msg: 'El frío sobrenatural de la Sala del Trono te entumece los músculos. (-1 ATK mientras estés aquí)\n   ❄️ Este es un efecto ambiental permanente de la sala — no desaparece al desactivar la trampa.' },
+  // DIS-2295: label corregido de "(permanente)" a "(mientras estés aquí)" — "permanente" era ambiguo y sonaba a debuff del personaje
+  //           El efecto dura solo mientras el jugador esté en esta sala; al salir, desaparece automáticamente.
+  9:  { type: 'debuff', stat: 'attack', amount: -1, label: '🥶 Frío sobrenatural · -1 ATK (mientras estés en esta sala)', msg: 'El frío sobrenatural de la Sala del Trono te entumece los músculos. (-1 ATK mientras estés aquí)\n   ❄️ Este es un efecto ambiental de la sala — no desaparece al desactivar la trampa, pero desaparece al salir de aquí.' },
   // Sala 11 — Galería de Hielo: pista narrativa de vulnerabilidad al fuego del Elemental
   // DIS-1935: la descripción ya menciona el frío, pero el jugador necesita una señal más directa
   // del tipo de daño efectivo antes del encuentro (el tip del mapa era demasiado pasivo)
@@ -12535,7 +12537,7 @@ function cmdDisarm(player, args) {
     // DIS-1858: nota ambiental específica por sala desactivada
     const isThroneTrap = adjRoom.id === 9;
     const throneAmbientNote = isThroneTrap
-      ? '\n❄️  Nota: el frío sobrenatural de la sala es un efecto ambiental permanente — persiste aunque la trampa esté desactivada. Al entrar seguirás sintiendo el frío (-1 ATK mientras estés en la sala).'
+      ? '\n❄️  Nota: el frío sobrenatural de la sala es un efecto ambiental de la Sala del Trono — persiste aunque la trampa esté desactivada, pero desaparece al salir de la sala. Al entrar seguirás sintiendo el frío (-1 ATK mientras estés en la sala).'
       : '';
 
     // DIS-1859: mensajes narrativos de éxito al desactivar trampa, por sala/ítem
@@ -12637,7 +12639,7 @@ function cmdDisarm(player, args) {
   // — es un atributo ambiental de la sala, independiente de la trampa de la corona rota.
   let roomEffectNote744 = '';
   if (room.id === 9) {
-    roomEffectNote744 = '\n🥶 Nota: el "Frío sobrenatural" (-1 ATK) es un efecto permanente de la Sala del Trono — es el ambiente de la sala, no parte de la trampa. Seguirá presente aunque la trampa esté desactivada.';
+    roomEffectNote744 = '\n🥶 Nota: el "Frío sobrenatural" (-1 ATK) es un efecto ambiental de la Sala del Trono — es el ambiente de la sala, no parte de la trampa. Seguirá presente aunque la trampa esté desactivada, pero desaparece al salir de la sala.';
   }
 
   // DIS-2141 / BUG-2151: si el jugador ya conocía esta trampa, aclarar por qué valió la pena desactivarla.
@@ -26127,7 +26129,7 @@ function cmdContract(player) {
   // DIS-893: ubicación de la criatura objetivo
   const CONTRACT_LOCATIONS = {
     'Guardia Espectral':     '📍 Se encuentran en: Prisión Subterránea (sala 8)',
-    'Gólem de Piedra':       '📍 Se encuentran en: Santuario Profano (sala 10) · Ruta: Entrada → Corredor → Capilla (5) → Mausoleo (6) → Pozo (7, con llave oxidada) → Santuario (10)',  // DIS-2235: hint de ruta para jugadores nivel bajo
+    'Gólem de Piedra':       '📍 Se encuentran en: Santuario Profano (sala 10) · Rutas:\n     · Con llave oxidada: Entrada → norte → Corredor (2) → norte → Sala de los Ecos (3) → oeste → Pozo Sin Fondo (7, llave requerida) → norte → Santuario (10)\n     · Sin llave: Entrada → este → Capilla Olvidada (5) → norte → Túnel de los Hongos (6) → norte → Sala del Trono (9) → este → Santuario (10)',  // DIS-2297: ruta corregida (sala 6 es Túnel de los Hongos, no Mausoleo) + dos rutas listadas claramente
     'Araña Tejedora':        '📍 Se encuentran en: Pozo Sin Fondo (sala 7)',
     'Espectro del Corredor': '📍 Se encuentran en: Sala del Trono (sala 9)',
     'Murciélago Vampiro':    '📍 Se encuentran en: Capilla Olvidada (sala 5)',
