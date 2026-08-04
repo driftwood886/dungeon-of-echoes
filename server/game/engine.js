@@ -5994,7 +5994,7 @@ function cmdAttack(player, targetName) {
         lines.push(`🌑 Sombra: ${prevDots} → ${newDots}${gainNote}${newPoints === 3 ? '  ⚡ ¡Podés activar **`sombras`** para un golpe devastador!' : ''}`);
         // DIS-1660: al primer punto de sombra acumulado, explicar la mecánica de disipación
         if (prevPoints === 0 && newPoints >= 1) {
-          lines.push(`   💡 Las sombras se acumulan atacando (3 puntos = golpe sombra). Se disipan al moverse a salas sin monstruos. ¡Planificá la ruta!`);
+          lines.push(`   💡 Las sombras se acumulan atacando. Al llegar a 3 puntos, escribí \`sombras\` para desatar un golpe devastador. Se disipan si te movés a salas sin monstruos — ¡planificá la ruta!`);
         }
       }
     } catch (e) { /* silenciar errores de shadow */ }
@@ -22065,6 +22065,10 @@ function cmdClase(player, args) {
       `   • robar     (Lv1 — disponible ahora): Robá monedas a un monstruo vivo. Usá: robar <monstruo>`,
       `   • golpe_sucio (Lv3): Ataque traicionero ×1.3 + veneno (3 dmg × 3 turnos). Cooldown 50s.`,
       `   • evasion   (Lv6): Esquiva garantizada al próximo ataque recibido. Cooldown 90s.`,
+      ``,
+      `   🌑 MECÁNICA DE SOMBRA: Cada ataque acumula puntos de sombra (máx 3). Al llegar a 3,`,
+      `      escribí "sombras" para desatar un golpe devastador. ¡No esperes que se active solo!`,
+      `      Las sombras se disipan si te movés a una sala sin monstruos — planificá la ruta.`,
     );
   } else if (className === 'clerigo') {
     lines.push(
@@ -22419,6 +22423,7 @@ function cmdSkills(player) {
         }
         return [
           `Nivel 1 — Veneno, Robar, Sigilo`,
+          `Nivel 1 — 🌑 Mecánica Sombra: atacar acumula puntos (máx 3) → escribí "sombras" para golpe devastador`,
           `Nivel 3 — Golpe Sucio: ×1.3 + veneno 3 turnos`,
           nivel5Line,
           `Nivel 6 — Evasión: esquiva garantizada`,
