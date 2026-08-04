@@ -320,6 +320,20 @@ function calcLevelUp(freshPlayer, xpGain) {
         // DIS-2307: hint mejorado — cuándo elegir y qué se pierde sin facción
         unlockLines += '\n   ⚔️ ¡Ahora podés unirte a una facción! Escribí `facciones` para ver las 3 opciones.\n      Cuanto antes elijas, más influencia acumulás. Sin facción, cada kill y exploración pierde puntos.';
       }
+      // DIS-2320: mostrar habilidades desbloqueadas por clase al subir de nivel
+      const playerClass = (freshPlayer.player_class || '').toLowerCase();
+      const CLASS_UNLOCKS = {
+        picaro:   { 3: '🗡️ ¡Nueva habilidad desbloqueada! `golpe_sucio` — ataque ×1.3 + veneno (3 dmg × 3 turnos). Cooldown 50s.', 6: '🌑 ¡Nueva habilidad desbloqueada! `evasion` — el próximo ataque del monstruo falla. Cooldown 60s.', 10: '💥 ¡Nueva habilidad desbloqueada! `golpe_sombra` (activa con `sombras` al acumular 3 puntos — ×2.5 daño).' },
+        'pícaro': { 3: '🗡️ ¡Nueva habilidad desbloqueada! `golpe_sucio` — ataque ×1.3 + veneno (3 dmg × 3 turnos). Cooldown 50s.', 6: '🌑 ¡Nueva habilidad desbloqueada! `evasion` — el próximo ataque del monstruo falla. Cooldown 60s.', 10: '💥 ¡Nueva habilidad desbloqueada! `golpe_sombra` (activa con `sombras` al acumular 3 puntos — ×2.5 daño).' },
+        guerrero: { 3: '⚔️ ¡Nueva habilidad desbloqueada! `smash` / `golpetazo` — ataque ×1.8 daño. Cooldown 30s.', 6: '🛡️ ¡Nueva habilidad desbloqueada! `shield_bash` — daño normal + stun 1 turno. Cooldown 60s.', 8: '🪨 ¡Nueva habilidad desbloqueada! `resistencia` — reduce daño recibido en 2 por 3 turnos. Cooldown 60s.', 9: '💪 ¡Nueva habilidad desbloqueada! `golpe_cargado` — el próximo ataque hace ×2.0 daño. Cooldown 60s.', 10: '📣 ¡Nueva habilidad desbloqueada! `arenga` — buff grupal de combate.' },
+        clerigo:  { 3: '✨ ¡Nueva habilidad desbloqueada! `sanacion_mayor` — cura ~45 HP (costo 12 maná). Cooldown 60s.', 6: '🙏 ¡Nueva habilidad desbloqueada! `bendicion` — +2 DEF por 60s (costo 10 maná). Cooldown 90s.', 10: '💫 ¡Nueva habilidad desbloqueada! `resurreccion` — al morir volvés con 50% HP (costo 40 maná).' },
+        'clérigo':{ 3: '✨ ¡Nueva habilidad desbloqueada! `sanacion_mayor` — cura ~45 HP (costo 12 maná). Cooldown 60s.', 6: '🙏 ¡Nueva habilidad desbloqueada! `bendicion` — +2 DEF por 60s (costo 10 maná). Cooldown 90s.', 10: '💫 ¡Nueva habilidad desbloqueada! `resurreccion` — al morir volvés con 50% HP (costo 40 maná).' },
+        mago:     { 3: '🔮 ¡Nivel 3! Tu maná se recarga más rápido y el daño de hechizos aumenta. Seguí usando `cast fuego` o `cast rayo`.' },
+      };
+      const classUnlockMap = CLASS_UNLOCKS[playerClass];
+      if (classUnlockMap && classUnlockMap[lvl]) {
+        unlockLines += `\n   ${classUnlockMap[lvl]}`;
+      }
     }
   }
   // BUG-1718: Legado "Veterano Silencioso" — bonus de +1 stat elegible al primer level up (nivel 1→2)
@@ -994,6 +1008,12 @@ Para el diario de lore: lore  (usá «read» en ítems con texto para guardar fr
           duelo: 'duel', duel: 'duel',
           // DIS-2258: aliases de ascensión para que 'help ascension' funcione
           ascender: 'ascender', ascend: 'ascender', ascension: 'ascender', 'ascensión': 'ascender',
+          // DIS-2319: aliases para skills del Pícaro
+          golpe_sucio: 'golpe_sucio', golpesucio: 'golpe_sucio',
+          sigilo: 'sigilo', hide: 'sigilo',
+          sombras: 'sombras',
+          evasion: 'evasion', evasión: 'evasion',
+          robar: 'robar', steal: 'robar',
         };
         const canonical = COMMAND_ALIASES_MAP[cmdKey] || cmdKey;
         const detail = COMMAND_HELP[canonical];
