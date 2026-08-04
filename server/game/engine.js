@@ -12197,7 +12197,8 @@ function cmdMap(player, args = []) {
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda sala 4, o buscar en Prisión sala 8)`
       : `⚔ = monstruo activo   🔑 = requiere llave oxidada (comprar en tienda del Mercader)`,
-    `[ NN ·········] = sala no explorada (usá "ruta NN" para llegar)  [ NN:Nom?????] = sala detectada (adyacente, aún sin visitar)  [16/21] = salas de tutorial`,
+    `[ NN ·········] = sala desconocida (no adyacente a tu ruta, nunca detectada)`,
+    `[ NN:Nom?????] = sala detectada (adyacente a una sala visitada, pero aún sin explorar — entrá para revelarla)  [16/21] = salas de tutorial`,
     // DIS-921: conteo de salas exploradas al pie del mapa
     (() => {
       const MAP_DUNGEON_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18,19,20,22];
