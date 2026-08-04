@@ -16442,7 +16442,8 @@ function _cmdFaccionElegir(player, args) {
   const factionId = _normalizeFactionId(nameArgs.join(' '));
 
   if (!factionId) {
-    return { text: `No reconozco esa facción: "${nameArgs.join(' ')}"\n\nFacciones válidas:\n  orden_filo, conclave_arcano, hermandad_mercado` };
+    // DIS-2310: mensaje explícito con los tres nombres válidos (fuzzy-match fallido)
+    return { text: `No reconozco esa facción: "${nameArgs.join(' ')}"\n\nLos tres nombres válidos son:\n  🗡️  orden_filo         (La Orden del Filo)\n  🔮  conclave_arcano   (El Cónclave Arcano)\n  🪙  hermandad_mercado (La Hermandad del Mercado)\n\nEjemplo: faccion elegir orden_filo` };
   }
 
   const lore = FACTION_LORE[factionId];
