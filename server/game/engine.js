@@ -25611,7 +25611,7 @@ function cmdRunas(player) {
   }
   lines.push('╟' + '─'.repeat(44) + '╢');
   lines.push('║  📖 FUENTES DE RUNAS:                           ║');
-  lines.push('║  • Cualquier monstruo: 28% chance al morir.    ║');
+  lines.push('║  • Cualquier monstruo: 40% chance al morir.    ║');
   lines.push('║  • El tipo que ya acumulás tiene MÁS chance    ║');
   lines.push('║    de aparecer — el sistema te ayuda a cerrar  ║');
   lines.push('║    sets en lugar de dispersar el loot.         ║');
