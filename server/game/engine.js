@@ -4266,7 +4266,9 @@ function cmdInventory(player) {
 
   // Separar grupos por categoría
   const catEquipado    = equippedItems; // ya separados
-  const catArmamento   = itemGroups.filter(g => { const d = items.getItemDef(g.name); return d && EQUIPMENT_TYPES.has(d.type); });
+  // BUG-2287: separar armas (weapon) de armaduras (armor) — antes ambas iban a catArmamento
+  const catArmamento   = itemGroups.filter(g => { const d = items.getItemDef(g.name); return d && d.type === 'weapon'; });
+  const catArmadura    = itemGroups.filter(g => { const d = items.getItemDef(g.name); return d && d.type === 'armor'; });
   const catConsumibles = itemGroups.filter(g => { const d = items.getItemDef(g.name); return d && CONSUMABLE_TYPES.has(d.type); });
   const catMateriales  = itemGroups.filter(g => { const d = items.getItemDef(g.name); return !d || (!EQUIPMENT_TYPES.has(d.type) && !CONSUMABLE_TYPES.has(d.type)); });
 
@@ -4274,7 +4276,7 @@ function cmdInventory(player) {
   let idx = 1;
 
   // Solo mostrar headers de categoría si hay ítems en al menos 2 categorías (inventario no trivial)
-  const nonEmptyCats = [catEquipado.length > 0, catArmamento.length > 0, catConsumibles.length > 0, catMateriales.length > 0].filter(Boolean).length;
+  const nonEmptyCats = [catEquipado.length > 0, catArmamento.length > 0, catArmadura.length > 0, catConsumibles.length > 0, catMateriales.length > 0].filter(Boolean).length;
   const showHeaders = nonEmptyCats >= 2;
 
   if (catEquipado.length > 0) {
@@ -4290,6 +4292,13 @@ function cmdInventory(player) {
   if (catArmamento.length > 0) {
     if (showHeaders) lines.push('🗡️ Armamento:');
     for (const g of catArmamento) {
+      lines.push(`  ${idx}. ${renderItemLine(g.name, g.count, '')}`);
+      idx++;
+    }
+  }
+  if (catArmadura.length > 0) {
+    if (showHeaders) lines.push('🛡️ Armadura:');
+    for (const g of catArmadura) {
       lines.push(`  ${idx}. ${renderItemLine(g.name, g.count, '')}`);
       idx++;
     }
