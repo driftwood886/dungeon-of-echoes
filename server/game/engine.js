@@ -18005,6 +18005,45 @@ function cmdCraft(player, args) {
   }
 
   const [itemA, itemB] = parsed;
+
+  // DIS-2296: auto-desequip si un ingrediente está equipado (en vez de bloquear al jugador)
+  const nfnCraft2296 = s => (s || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  let autoUnequipMsg = '';
+  {
+    const freshFor2296 = db.getPlayer(player.id);
+    const eqW = (freshFor2296.equipped_weapon && freshFor2296.equipped_weapon !== 'null') ? freshFor2296.equipped_weapon : null;
+    const eqA = (freshFor2296.equipped_armor  && freshFor2296.equipped_armor  !== 'null') ? freshFor2296.equipped_armor  : null;
+    const ingNormA = nfnCraft2296(itemA);
+    const ingNormB = nfnCraft2296(itemB);
+    // Arma
+    if (eqW && (nfnCraft2296(eqW) === ingNormA || nfnCraft2296(eqW) === ingNormB)) {
+      // Calcular ATK base sin el arma (igual que cmdUnequip)
+      const weaponDef2296 = items.getItemDef(eqW);
+      const weaponBonus2296 = weaponDef2296?.amount || 0;
+      const baseAtk2296 = freshFor2296.attack - weaponBonus2296;
+      db.updatePlayer(player.id, { attack: baseAtk2296, equipped_weapon: null });
+      // Devolver el arma al inventario para que crafting.craft() pueda consumirla
+      const invFor2296 = [...(freshFor2296.inventory || [])];
+      invFor2296.push(eqW);
+      db.updatePlayer(player.id, { inventory: JSON.stringify(invFor2296) });
+      autoUnequipMsg = `🔓 Desequipé «${eqW}» automáticamente para usarla como ingrediente.\n`;
+      // Recargar player para que crafting vea el cambio
+      player = db.getPlayer(player.id);
+    }
+    // Armadura (raro, pero cubrimos el caso)
+    if (!autoUnequipMsg && eqA && (nfnCraft2296(eqA) === ingNormA || nfnCraft2296(eqA) === ingNormB)) {
+      const armorDef2296 = items.getItemDef(eqA);
+      const armorBonus2296 = armorDef2296?.amount || 0;
+      const baseDef2296 = freshFor2296.def - armorBonus2296;
+      db.updatePlayer(player.id, { def: baseDef2296, equipped_armor: null });
+      const invFor2296b = [...(freshFor2296.inventory || [])];
+      invFor2296b.push(eqA);
+      db.updatePlayer(player.id, { inventory: JSON.stringify(invFor2296b) });
+      autoUnequipMsg = `🔓 Desequipé «${eqA}» automáticamente para usarla como ingrediente.\n`;
+      player = db.getPlayer(player.id);
+    }
+  }
+
   const craftResult = crafting.craft(player, itemA, itemB);
 
   if (!craftResult.ok) {
@@ -18183,12 +18222,12 @@ function cmdCraft(player, args) {
     } catch (_) { /* no romper craft si falla questEngine */ }
 
     if (craftAchLines) {
-      return { text: craftResult.text + craftAchLines + craftChallengeMsg + guildCraftMsg + craftGoalMsg + expeditionCraftMsg + questCraftMsg };
+      return { text: autoUnequipMsg + craftResult.text + craftAchLines + craftChallengeMsg + guildCraftMsg + craftGoalMsg + expeditionCraftMsg + questCraftMsg };
     }
-    return { text: craftResult.text + craftChallengeMsg + guildCraftMsg + craftGoalMsg + expeditionCraftMsg + questCraftMsg };
+    return { text: autoUnequipMsg + craftResult.text + craftChallengeMsg + guildCraftMsg + craftGoalMsg + expeditionCraftMsg + questCraftMsg };
   }
 
-  return { text: craftResult.text + craftChallengeMsg + guildCraftMsg + craftGoalMsg };
+  return { text: autoUnequipMsg + craftResult.text + craftChallengeMsg + guildCraftMsg + craftGoalMsg };
 }
 
 // DIS-1735: cmdRecipes ahora recibe el jugador para filtrar por inventario
