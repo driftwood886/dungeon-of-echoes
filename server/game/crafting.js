@@ -411,12 +411,18 @@ function listRecipes() {
  */
 function listRecipesForPlayer(inventory) {
   const invNorm = (inventory || []).map(i => (typeof i === 'string' ? i.toLowerCase().trim() : ''));
+  // DIS-2306: contar cuántas copias tiene de cada ítem para avisar sobre duplicados
+  const invCounts = {};
+  for (const item of invNorm) {
+    invCounts[item] = (invCounts[item] || 0) + 1;
+  }
   const available = [];
   const missing1 = []; // recetas donde tiene 1 de 2 ingredientes
   const rest = [];
   // DIS-2106: evitar mostrar múltiples variantes del mismo resultado en "casi listo"
   const seenResultAvailable = new Set();
   const seenResultMissing1 = new Set();
+  let hasDuplicateIngredient = false;
 
   for (const r of RECIPES) {
     const has0 = invNorm.includes(r.ingredients[0].toLowerCase());
@@ -425,7 +431,16 @@ function listRecipesForPlayer(inventory) {
       ? `${r.ingredients[0]} (Campeón Espectral) + ${r.ingredients[1]} (Eco Viviente) → **${r.result}**`
       : `${r.ingredients[0]} + ${r.ingredients[1]} → **${r.result}**`;
     if (has0 && has1) {
-      available.push(`  ✅ ${label}`);
+      // DIS-2306: detectar si algún ingrediente tiene duplicados y avisarlo
+      const dupNotes = [];
+      const cnt0 = invCounts[r.ingredients[0].toLowerCase()] || 0;
+      const cnt1 = invCounts[r.ingredients[1].toLowerCase()] || 0;
+      if (cnt0 > 1) { dupNotes.push(`${cnt0}× ${r.ingredients[0]}`); hasDuplicateIngredient = true; }
+      if (cnt1 > 1 && r.ingredients[1].toLowerCase() !== r.ingredients[0].toLowerCase()) {
+        dupNotes.push(`${cnt1}× ${r.ingredients[1]}`); hasDuplicateIngredient = true;
+      }
+      const dupSuffix = dupNotes.length > 0 ? `  ⚠️ tenés ${dupNotes.join(' y ')}` : '';
+      available.push(`  ✅ ${label}${dupSuffix}`);
       seenResultAvailable.add(r.result);
     } else if (has0 || has1) {
       // DIS-2106: si ya hay una receta "casi lista" para este resultado, no duplicar
@@ -442,9 +457,13 @@ function listRecipesForPlayer(inventory) {
   const lines = ['📖 **Recetas de crafteo**\n'];
   if (available.length > 0) {
     lines.push(`🟢 Podés craftear ahora (${available.length}):`);
+
     lines.push(...available);
     lines.push('');
     lines.push('  Usá:  craftear <nombre del resultado>');
+    if (hasDuplicateIngredient) {
+      lines.push('  ℹ️  Cuando tenés varias copias del mismo ingrediente, se consume siempre la primera del inventario (FIFO).');
+    }
     lines.push('');
   }
   if (missing1.length > 0) {

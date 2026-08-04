@@ -19115,11 +19115,11 @@ function cmdEchoBowl(player) {
  * Cada mascota tiene un nombre descriptivo, emoji, tipo y costo en oro.
  */
 const PET_CATALOG = {
-  'rata':          { name: '🐀 Rata Mazmorrera', cost: 20,  desc: 'Una rata gris con ojos brillantes. Te sigue a todas partes olfateando el suelo.\n  🗡️ En combate: 15% chance de atacar por 1-2 dmg adicional cada turno. Sube de nivel con vos.' },
-  'murciélago':    { name: '🦇 Murciélago Nocturno', cost: 25, desc: 'Un murciélago que se posa en tu hombro y chilla suavemente al detectar peligros cercanos.\n  🗡️ En combate: 20% chance de atacar por 2-3 dmg. 10% de infligir veneno al enemigo.' },
-  'araña':         { name: '🕷️ Araña Doméstica', cost: 20,  desc: 'Una araña pequeña que teje su tela en tu mochila. Curiosamente, trae buena suerte.\n  🗡️ En combate: 25% chance de atacar por 2-3 dmg. 20% de infligir veneno al enemigo.' },
-  'serpiente':     { name: '🐍 Serpiente de Mazmorra', cost: 30, desc: 'Una serpiente verde no venenosa. Se enrolla en tu brazo y sisea suavemente.\n  🗡️ En combate: 20% chance de atacar por 3-4 dmg. 30% de infligir veneno al enemigo.' },
-  'escarabajo':    { name: '🪲 Escarabajo de Cristal', cost: 15, desc: 'Un escarabajo cuya caparazón refleja la luz como un prisma. Coleccionistas lo buscan.\n  🗡️ En combate: 15% chance de atacar por 1-2 dmg. Absorbe 1 HP del enemigo para vos.' },
+  'rata':          { name: '🐀 Rata Mazmorrera',    cost: 20, effect: '+1 ATK | 15% ataque extra 1-2 dmg/turno. Sube de nivel con vos.',        desc: 'Una rata gris con ojos brillantes. Te sigue a todas partes olfateando el suelo.\n  🗡️ En combate: 15% chance de atacar por 1-2 dmg adicional cada turno. Sube de nivel con vos.' },
+  'murciélago':    { name: '🦇 Murciélago Nocturno', cost: 25, effect: '+1 ATK | 20% ataque extra 2-3 dmg/turno. 10% chance veneno al enemigo.',   desc: 'Un murciélago que se posa en tu hombro y chilla suavemente al detectar peligros cercanos.\n  🗡️ En combate: 20% chance de atacar por 2-3 dmg. 10% de infligir veneno al enemigo.' },
+  'araña':         { name: '🕷️ Araña Doméstica',    cost: 20, effect: '+1 ATK | 25% ataque extra 2-3 dmg/turno. 20% chance veneno al enemigo.',   desc: 'Una araña pequeña que teje su tela en tu mochila. Curiosamente, trae buena suerte.\n  🗡️ En combate: 25% chance de atacar por 2-3 dmg. 20% de infligir veneno al enemigo.' },
+  'serpiente':     { name: '🐍 Serpiente de Mazmorra', cost: 30, effect: '+1 ATK | 20% ataque extra 3-4 dmg/turno. 30% chance veneno al enemigo.', desc: 'Una serpiente verde no venenosa. Se enrolla en tu brazo y sisea suavemente.\n  🗡️ En combate: 20% chance de atacar por 3-4 dmg. 30% de infligir veneno al enemigo.' },
+  'escarabajo':    { name: '🪲 Escarabajo de Cristal', cost: 15, effect: '+1 ATK | 15% ataque extra 1-2 dmg/turno. Absorbe 1 HP del enemigo.',    desc: 'Un escarabajo cuya caparazón refleja la luz como un prisma. Coleccionistas lo buscan.\n  🗡️ En combate: 15% chance de atacar por 1-2 dmg. Absorbe 1 HP del enemigo para vos.' },
 };
 
 /**
@@ -19230,7 +19230,7 @@ function cmdPet(player, args) {
         const p = PET_CATALOG[k];
         const cost = Math.max(0, Math.floor(p.cost * (1 - petDiscount)));
         const costStr = petDiscount > 0 ? `${cost}g ~~${p.cost}g~~` : `${p.cost}g`;
-        return `  • ${k.padEnd(12)} ${p.name} (${costStr})`;
+        return `  • ${k.padEnd(12)} ${p.name} (${costStr})\n              🗡️ ${p.effect}`;
       }).join('\n');
       const discountHint = petDiscount > 0 ? '\n🐾 Tu legado Vínculo Animal activo: ¡mascotas gratis!' : '';
       return { text: `No tenés ninguna mascota.${discountHint}\n\n🐾 Mascotas disponibles:\n${available}\n\nUsá: pet adopt <tipo>  (p.ej.: pet adopt rata)` };
@@ -19262,7 +19262,7 @@ function cmdPet(player, args) {
     if (!typeName) {
       const available = Object.keys(PET_CATALOG).map(k => {
         const p = PET_CATALOG[k];
-        return `  • ${k.padEnd(12)} ${p.name} (${p.cost}g)`;
+        return `  • ${k.padEnd(12)} ${p.name} (${p.cost}g)\n              🗡️ ${p.effect}`;
       }).join('\n');
       return { text: `¿Qué mascota querés adoptar?\n\n🐾 Disponibles:\n${available}\n\nEjemplo: pet adopt rata` };
     }
