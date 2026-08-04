@@ -236,6 +236,9 @@ const COMMAND_ALIASES = {
   smash: 'useSkill', golpetazo: 'useSkill', golpe_potente: 'useSkill', destrozo: 'useSkill',
   // eslint-disable-next-line camelcase
   shield_bash: 'useSkill', escudo_bash: 'useSkill', bash: 'useSkill', escudazo: 'useSkill', golpe_escudo: 'useSkill',
+  // DIS-2305: Resistencia (Guerrero Lv8) y Golpe Cargado (Guerrero Lv9)
+  resistencia: 'useSkill', resist: 'useSkill', aguantar: 'useSkill', aguante: 'useSkill', fortalecer: 'useSkill', endurecerse: 'useSkill',
+  golpe_cargado: 'useSkill', cargar_golpe: 'useSkill', charged_strike: 'useSkill', carga: 'useSkill',
   rally: 'useSkill', arenga: 'useSkill', motivar: 'useSkill', grito_batalla: 'useSkill',
   // Habilidades de Pícaro (BUG-271)
   robar: 'useSkill', steal: 'useSkill', hurtar: 'useSkill', pickpocket: 'useSkill', sustraer: 'useSkill',
@@ -604,9 +607,11 @@ const HELP_TEXT = `
 ⚔️  COMBATE
   attack <monstruo>     — Atacar a un monstruo en la sala
   flee / huir           — Intentar huir del combate (50% chance)
-  skills / habilidades  — Ver habilidades activas y cooldowns (Lv3/6/10)
+  skills / habilidades  — Ver habilidades activas y cooldowns (Lv3/6/8/9/10)
   smash / golpetazo     — Golpe potente ×1.8 daño (Nivel 3, cooldown 30s)
   bash / escudo_bash    — Golpe+stun al monstruo 1 turno (Nivel 6, 60s)
+  resistencia           — [Guerrero Lv8] -2 daño recibido por 3 turnos (60s)
+  golpe_cargado         — [Guerrero Lv9] ×2.0 en el próximo ataque (60s)
   rally / arenga        — +2 ATK al grupo por 60s (Nivel 10, 2min)
   sigilo / hide         — [Pícaro] Entrar en sigilo: primer ataque crítico garantizado
   cast <hechizo>        — Lanzar un hechizo (fuego, rayo, curación). Requiere maná
@@ -790,9 +795,12 @@ const COMMAND_HELP = {
   preview:   'preview <arma o armadura> / probar <ítem>\\\\n  Previsualizar cómo cambiarían tus stats si equiparas un ítem.\\\\n  Funciona con armas y armaduras del inventario.\\\\n  No modifica tu equipo — es solo informativo.\\\\n  Útil para decidir si vale la pena cambiar de equipo antes de una pelea.',
   calendar:  'calendar / eventos / timers / temporizadores\\\\n  Panel de temporizadores del dungeon.\\\\n  Muestra: estado del boss (vivo/respawn con cuenta regresiva), clima actual con tiempo restante,\\\\n  fuente eterna (disponible o en cooldown), tus buffs activos con tiempo restante,\\\\n  y estado de las trampas del dungeon (armadas/desactivadas).',
   // BUG-028: ayuda detallada para comandos de habilidades, magia y bóveda
-  skills:    'skills / habilidades / poderes\\\\\\\\n  Ver tus habilidades activas desbloqueadas y sus cooldowns.\\\\\\\\n  Las habilidades se desbloquean al subir de nivel (varían según clase):\\\\\\\\n  Guerrero: Nivel 3: smash/golpetazo (×1.8) | Nivel 6: shield_bash (stun) | Nivel 10: arenga\\\\\\\\n  Pícaro:   Nivel 3: golpe_sucio (×1.3+veneno) | Nivel 6: evasion (esquiva garantizada) | Nivel 10: golpe_sombra (×2.5)\\\\\\\\n  Clérigo:  Nivel 3: sanacion_mayor | Nivel 6: bendicion | Nivel 10: resurreccion\\\\\\\\n  Pícaro desde Nivel 1: robar (robo de monedas) | sigilo/hide (golpe de sorpresa garantizado)\\\\\\\\n\\\\\\\\n  Las habilidades se usan escribiendo el nombre directamente.\\\\\\\\n  Ej: sanacion_mayor, bendicion, smash, golpe_sucio',
+  skills:    'skills / habilidades / poderes\\\\\\\\n  Ver tus habilidades activas desbloqueadas y sus cooldowns.\\\\\\\\n  Las habilidades se desbloquean al subir de nivel (varían según clase):\\\\\\\\n  Guerrero: Nivel 3: smash/golpetazo (×1.8) | Nivel 6: shield_bash (stun) | Nivel 8: resistencia (-2 daño/3t) | Nivel 9: golpe_cargado (×2.0) | Nivel 10: arenga\\\\\\\\n  Pícaro:   Nivel 3: golpe_sucio (×1.3+veneno) | Nivel 6: evasion (esquiva garantizada) | Nivel 10: golpe_sombra (×2.5)\\\\\\\\n  Clérigo:  Nivel 3: sanacion_mayor | Nivel 6: bendicion | Nivel 10: resurreccion\\\\\\\\n  Pícaro desde Nivel 1: robar (robo de monedas) | sigilo/hide (golpe de sorpresa garantizado)\\\\\\\\n\\\\\\\\n  Las habilidades se usan escribiendo el nombre directamente.\\\\\\\\n  Ej: sanacion_mayor, bendicion, smash, golpe_sucio',
   smash:     'smash [monstruo] / golpetazo [monstruo]\\\\n  Habilidad activa desbloqueada en Nivel 3.\\\\n  Ataque potente: inflige ×1.8 del daño normal.\\\\n  Cooldown: 30 segundos de reloj real (no turnos de combate). Si hay múltiples monstruos, especificá el nombre.',
   shield_bash: 'shield_bash [monstruo] / escudo_bash [monstruo]\\\\\\\\n  Habilidad activa desbloqueada en Nivel 6.\\\\\\\\n  Golpe con escudo: daño normal + aturdimiento al monstruo por 1 turno (no ataca).\\\\\\\\n  Cooldown: 60 segundos.',
+  // DIS-2305: ayuda para Resistencia y Golpe Cargado (Guerrero Lv8/Lv9)
+  resistencia: 'resistencia / resist / aguantar\\\\\\\\n  Habilidad de Guerrero desbloqueada en Nivel 8.\\\\\\\\n  Postura de resistencia: reduce el daño recibido en 2 puntos por los próximos 3 turnos de combate.\\\\\\\\n  Cooldown: 60 segundos.\\\\\\\\n  Visible en status con turnos restantes.',
+  golpe_cargado: 'golpe_cargado / cargar_golpe / carga\\\\\\\\n  Habilidad de Guerrero desbloqueada en Nivel 9.\\\\\\\\n  Concentrás toda tu fuerza: el próximo ataque regular hace ×2.0 de daño.\\\\\\\\n  Tenés 30 segundos para liberar el golpe antes de que expire.\\\\\\\\n  Cooldown: 60 segundos.\\\\\\\\n  Visible en status con tiempo restante.',
   // DIS-903: ayuda específica para skills del Clérigo
   sanacion_mayor: 'sanacion_mayor / sanación_mayor / big_heal / gran_curacion\\\\\\\\n  Habilidad de Clérigo desbloqueada en Nivel 3.\\\\\\\\n  Curación sagrada masiva: restaura ~45 HP (basado en Nivel).\\\\\\\\n  Costo: 12 maná. Cooldown: 60 segundos.\\\\\\\\n  Usá el nombre directamente como comando: sanacion_mayor',
   bendicion: 'bendicion / bendición / bless / bendecir\\\\\\\\n  Habilidad de Clérigo desbloqueada en Nivel 6.\\\\\\\\n  Escudo divino: +2 DEF por 60 segundos.\\\\\\\\n  Costo: 10 maná. Cooldown: 90 segundos.\\\\\\\\n  Visible en status con tiempo restante.\\\\\\\\n  Usá el nombre directamente como comando: bendicion',

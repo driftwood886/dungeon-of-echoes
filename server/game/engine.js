@@ -4881,6 +4881,20 @@ function cmdStatus(player) {
     const agotPenalty = seBerserk.berserk_agotamiento.atk_penalty || 2;
     statusLines.push(`😤 AGOTAMIENTO BERSERK — -${agotPenalty} ATK (${agotTurns}t restantes)`);
   }
+  // DIS-2305: mostrar Resistencia activa y Golpe Cargado pendiente en status
+  if (seBerserk.resistencia_activa && (seBerserk.resistencia_activa.turns_remaining || 0) > 0) {
+    const resTurns = seBerserk.resistencia_activa.turns_remaining;
+    const resDef = seBerserk.resistencia_activa.def_reduction || 2;
+    statusLines.push(`🛡️ RESISTENCIA ACTIVA — -${resDef} daño recibido (${resTurns}t restantes)`);
+  }
+  if (seBerserk.golpe_cargado_activo) {
+    const gcExp = seBerserk.golpe_cargado_activo.expires_at ? new Date(seBerserk.golpe_cargado_activo.expires_at) : null;
+    if (!gcExp || gcExp > new Date()) {
+      const gcMult = seBerserk.golpe_cargado_activo.multiplicador || 2.0;
+      const gcSecsLeft = gcExp ? Math.ceil((gcExp - new Date()) / 1000) : '?';
+      statusLines.push(`⚔️ GOLPE CARGADO — ×${gcMult} en el próximo ataque (${gcSecsLeft}s)`);
+    }
+  }
 
   // DIS-2144: Impulso del Aventurero — mostrar countdown en status cuando está activo
   try {
@@ -5801,6 +5815,23 @@ function cmdAttack(player, targetName) {
     db.updatePlayer(player.id, { status_effects: JSON.stringify(qcSEForAttack) });
   }
 
+  // DIS-2305: Golpe Cargado — si el Guerrero tiene golpe_cargado_activo, aplicar ×2.0 daño
+  let golpeCargadoMsg = null;
+  const gcFreshForAttack = db.getPlayer(player.id);
+  const gcSEForAttack = parseSE(gcFreshForAttack.status_effects);
+  if (gcSEForAttack.golpe_cargado_activo) {
+    const gcEntry = gcSEForAttack.golpe_cargado_activo;
+    const gcExp = gcEntry.expires_at ? new Date(gcEntry.expires_at) : null;
+    if (!gcExp || gcExp > new Date()) {
+      const gcMult = gcEntry.multiplicador || 2.0;
+      player = { ...player, attack: Math.round((player.attack || 5) * gcMult) };
+      golpeCargadoMsg = `⚔️ ¡GOLPE CARGADO! ×${gcMult} de daño — ¡toda tu fuerza en un solo golpe!`;
+    }
+    // Consumir el estado
+    delete gcSEForAttack.golpe_cargado_activo;
+    db.updatePlayer(player.id, { status_effects: JSON.stringify(gcSEForAttack) });
+  }
+
   // EPIC-1307-F5: Modo Berserk — +5 ATK durante los 3 turnos activos
   let modoBerserkMsg = null;
   let berserkExhaustMsg = null; // DIS-2115: aviso de inicio de agotamiento (separado)
@@ -5917,6 +5948,10 @@ function cmdAttack(player, targetName) {
     // EPIC-1302-F4: Agregar mensaje de quemar combo si aplica
     if (quemarComboMsg) {
       lines.unshift(quemarComboMsg);  // Al principio para que se vea antes del daño
+    }
+    // DIS-2305: Agregar mensaje de golpe cargado si aplica
+    if (golpeCargadoMsg) {
+      lines.unshift(golpeCargadoMsg);
     }
     // EPIC-1307-F5: Agregar mensaje de modo berserk si aplica
     if (modoBerserkMsg) {
@@ -22423,7 +22458,7 @@ function cmdSkills(player) {
       lines.push('  (Nivel 3: sanacion_mayor · condenar · escudo_sagrado · Nivel 6: bendicion · Nivel 10: resurreccion)');
     } else {
       lines.push('  Aún no desbloqueaste ninguna habilidad.');
-      lines.push('  (Nivel 3: Golpetazo · postura_defensiva · quemar_combo · Nivel 6: Golpe de Escudo · Nivel 10: Arenga)');
+      lines.push('  (Nivel 3: Golpetazo · postura_defensiva · quemar_combo · Nivel 6: Golpe de Escudo · Nivel 8: Resistencia · Nivel 9: Golpe Cargado · Nivel 10: Arenga)');
     }
   } else {
     for (const sk of unlocked) {
@@ -23754,6 +23789,58 @@ function cmdUseSkill(player, args, context) {
       } catch (_) {}
     }
     return { text };
+  }
+
+  // ── Resistencia (nivel 8, Guerrero) — DIS-2305 ───────────────────────────
+  if (skillId === 'resistencia') {
+    const resClass = classes.getPlayerClass(freshPlayer);
+    const resClassName = resClass ? resClass.name : 'sin_clase';
+    if (resClassName !== 'Guerrero') {
+      return { text: `🛡️ La Resistencia es una técnica exclusiva del Guerrero.` };
+    }
+    const resSE = parseSE(db.getPlayer(freshPlayer.id).status_effects);
+    if (resSE.resistencia_activa && (resSE.resistencia_activa.turns_remaining || 0) > 0) {
+      return { text: `🛡️ Ya tenés Resistencia activa (${resSE.resistencia_activa.turns_remaining} turno(s) restante(s)).` };
+    }
+    // Activar estado
+    resSE.resistencia_activa = {
+      turns_remaining: skill.duration_turns || 3,
+      def_reduction: skill.def_reduction || 2,
+    };
+    db.updatePlayer(freshPlayer.id, { status_effects: JSON.stringify(resSE) });
+    const newCooldownsRes = skills.applyCooldown(freshPlayer, 'resistencia');
+    db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldownsRes });
+    return {
+      text: `🛡️ ¡RESISTENCIA! Te endureces contra los golpes del enemigo.\n  -${skill.def_reduction || 2} daño recibido por los próximos ${skill.duration_turns || 3} turnos de combate. (Cooldown: ${skill.cooldown_seconds}s)`,
+    };
+  }
+
+  // ── Golpe Cargado (nivel 9, Guerrero) — DIS-2305 ─────────────────────────
+  if (skillId === 'golpe_cargado') {
+    const gcClass = classes.getPlayerClass(freshPlayer);
+    const gcClassName = gcClass ? gcClass.name : 'sin_clase';
+    if (gcClassName !== 'Guerrero') {
+      return { text: `⚔️ El Golpe Cargado es una técnica exclusiva del Guerrero.` };
+    }
+    const gcSE = parseSE(db.getPlayer(freshPlayer.id).status_effects);
+    if (gcSE.golpe_cargado_activo) {
+      const gcExp = gcSE.golpe_cargado_activo.expires_at ? new Date(gcSE.golpe_cargado_activo.expires_at) : null;
+      if (!gcExp || gcExp > new Date()) {
+        return { text: `⚔️ Ya tenés un Golpe Cargado pendiente. ¡Atacá para liberarlo!` };
+      }
+    }
+    // Activar estado
+    const expiresAt = new Date(Date.now() + (skill.expires_seconds || 30) * 1000).toISOString();
+    gcSE.golpe_cargado_activo = {
+      multiplicador: skill.dmg_multiplier || 2.0,
+      expires_at: expiresAt,
+    };
+    db.updatePlayer(freshPlayer.id, { status_effects: JSON.stringify(gcSE) });
+    const newCooldownsGC = skills.applyCooldown(freshPlayer, 'golpe_cargado');
+    db.updatePlayer(freshPlayer.id, { skill_cooldowns: newCooldownsGC });
+    return {
+      text: `⚔️ ¡GOLPE CARGADO! Concentrás toda tu fuerza en el próximo ataque.\n  ×${skill.dmg_multiplier || 2.0} daño en el siguiente golpe regular. (${skill.expires_seconds || 30}s para liberarlo · Cooldown: ${skill.cooldown_seconds}s)`,
+    };
   }
 
   // ── Arenga (rally) ────────────────────────────────────────────────────────

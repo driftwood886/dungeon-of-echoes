@@ -2558,6 +2558,31 @@ function attackRound(player, monster) {
       }
     } catch (_) { /* silenciar */ }
 
+    // DIS-2305: Resistencia del Guerrero — reduce daño recibido en 2 por 3 turnos
+    try {
+      const freshForRes = db.getPlayer(player.id);
+      const seRes = freshForRes.status_effects ? (typeof freshForRes.status_effects === 'string' ? JSON.parse(freshForRes.status_effects) : freshForRes.status_effects) : {};
+      const resState = seRes.resistencia_activa;
+      if (resState && (resState.turns_remaining || 0) > 0) {
+        const resReduction = resState.def_reduction || 2;
+        const dmgBeforeRes = dmgToPlayer;
+        dmgToPlayer = Math.max(0, dmgToPlayer - resReduction);
+        const newResTurns = resState.turns_remaining - 1;
+        if (newResTurns <= 0) {
+          delete seRes.resistencia_activa;
+          lines.push(`🛡️ Resistencia absorbe ${Math.min(resReduction, dmgBeforeRes)} daño. (agotada)`);
+        } else {
+          seRes.resistencia_activa.turns_remaining = newResTurns;
+          lines.push(`🛡️ Resistencia absorbe ${Math.min(resReduction, dmgBeforeRes)} daño. (${newResTurns}t restantes)`);
+        }
+        db.updatePlayer(player.id, { status_effects: JSON.stringify(seRes) });
+        if (player.status_effects && typeof player.status_effects === 'object') {
+          if (newResTurns <= 0) delete player.status_effects.resistencia_activa;
+          else player.status_effects.resistencia_activa = seRes.resistencia_activa;
+        }
+      }
+    } catch (_) { /* silenciar */ }
+
     player.hp = Math.max(0, player.hp - dmgToPlayer);
 
     const bloodmoonSuffix = bloodmoonBonus > 0 ? ` 🌑(+${bloodmoonBonus} Luna de Sangre)` : '';

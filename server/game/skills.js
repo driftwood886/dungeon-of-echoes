@@ -7,6 +7,8 @@
  * Habilidades (Guerrero/sin clase):
  *   - smash / golpetazo   (nivel 3): Ataque potente ×1.8 daño, cooldown 30s
  *   - shield_bash / escudo_bash (nivel 6): Daño normal + stun al monstruo 1 turno, cooldown 60s
+ *   - resistencia         (nivel 8): -2 daño recibido por 3 turnos, cooldown 60s
+ *   - golpe_cargado       (nivel 9): Próximo ataque ×2.0 daño, cooldown 60s
  *   - rally / arenga      (nivel 10): En party, +2 ATK a todos en la sala por 60s
  *
  * Habilidades de Clérigo (DIS-612):
@@ -48,6 +50,34 @@ const SKILLS = {
     description: 'Golpea con el escudo: daño normal + aturde al monstruo 1 turno. Cooldown: 60s.',
     combat_only: true,
     excluded_classes: ['mago', 'clerigo', 'picaro'],  // DIS-D304, DIS-612, DIS-616
+  },
+  // DIS-2305: Resistencia (nivel 8) — reduce daño recibido por 3 turnos
+  resistencia: {
+    id: 'resistencia',
+    name: 'Resistencia',
+    aliases: ['resistencia', 'resist', 'aguantar', 'aguante', 'fortalecer', 'endurecerse'],
+    required_level: 8,
+    cooldown_seconds: 60,
+    type: 'guerrero_resistance',
+    def_reduction: 2,
+    duration_turns: 3,
+    description: 'Adoptás una postura de resistencia: reducís el daño recibido en 2 puntos por los próximos 3 turnos de combate. Cooldown: 60s. Solo Guerrero (nivel 8+).',
+    combat_only: true,
+    excluded_classes: ['mago', 'clerigo', 'picaro'],
+  },
+  // DIS-2305: Golpe Cargado (nivel 9) — marca el próximo ataque con ×2.0 daño
+  golpe_cargado: {
+    id: 'golpe_cargado',
+    name: 'Golpe Cargado',
+    aliases: ['golpe_cargado', 'golpe cargado', 'cargar_golpe', 'cargar golpe', 'charged_strike', 'carga'],
+    required_level: 9,
+    cooldown_seconds: 60,
+    type: 'guerrero_charge',
+    dmg_multiplier: 2.0,
+    expires_seconds: 30,
+    description: 'Concentrás toda tu fuerza en el próximo ataque: ×2.0 daño en el siguiente golpe regular (15s para usarlo). Cooldown: 60s. Solo Guerrero (nivel 9+).',
+    combat_only: true,
+    excluded_classes: ['mago', 'clerigo', 'picaro'],
   },
   rally: {
     id: 'rally',
