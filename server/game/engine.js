@@ -317,7 +317,8 @@ function calcLevelUp(freshPlayer, xpGain) {
       // Solo mostrar si el jugador no fue notificado aún por EPIC-1377 (el mensaje del mensajero en combate).
       // Cubre paths fuera del combate (XP de quest, exploración) donde EPIC-1377 no se activa.
       if (lvl === 3 && !freshPlayer.faction && !freshPlayer.faction_notified) {
-        unlockLines += '\n   ⚔️ ¡Ahora podés unirte a una facción! Escribí `facciones` para ver las opciones.';
+        // DIS-2307: hint mejorado — cuándo elegir y qué se pierde sin facción
+        unlockLines += '\n   ⚔️ ¡Ahora podés unirte a una facción! Escribí `facciones` para ver las 3 opciones.\n      Cuanto antes elijas, más influencia acumulás. Sin facción, cada kill y exploración pierde puntos.';
       }
     }
   }
@@ -4060,7 +4061,7 @@ function cmdMove(player, direction) {
         const monstersInDest = db.getMonstersInRoom(targetId);
         const hasLivingMonsters = monstersInDest && monstersInDest.some(m => m.hp > 0);
         if (!hasLivingMonsters) {
-          _factionDeferredMsg = `⚔️ Recordatorio: alcanzaste el nivel 5 sin unirte a ninguna facción. Podés hacerlo cuando quieras — escribí \`facciones\` para ver opciones. (Este es el último aviso del sistema.)`;
+          _factionDeferredMsg = `⚔️ Recordatorio: alcanzaste el nivel 5 sin unirte a ninguna facción. Cada kill y exploración que hiciste no acumuló influencia para nadie — todavía podés elegir cuando quieras. Escribí \`facciones\` para ver las 3 opciones y sus beneficios. (Este es el último aviso automático.)`;
           // Limpiar el flag
           const seFDClean = { ...seFD };
           delete seFDClean.faction_level5_reminder;
@@ -6581,7 +6582,7 @@ function cmdAttack(player, targetName) {
           const freshFor1377 = db.getPlayer(player.id);
           if (!freshFor1377.faction_notified && !freshFor1377.faction) {
             db.setFactionNotified(freshFor1377.id);
-            _factionInviteMsg = `\n\n📜 Un mensajero acaba de dejarte una nota en la entrada del dungeon.\n\n"Las facciones del dungeon han notado tu progreso, aventurero.\nLa Orden del Filo, el Cónclave Arcano y la Hermandad del Mercado\nte ofrecen membresía.\n\nPara unirte directamente:\n  faccion elegir orden_filo\n  faccion elegir conclave_arcano\n  faccion elegir hermandad_mercado\n\nPara ver la ficha antes de decidir: faccion info <nombre>"`;
+            _factionInviteMsg = `\n\n📜 Un mensajero acaba de dejarte una nota en la entrada del dungeon.\n\n"Las facciones del dungeon han notado tu progreso, aventurero.\nLa Orden del Filo, el Cónclave Arcano y la Hermandad del Mercado\nte ofrecen membresía.\n\nPara unirte directamente:\n  faccion elegir orden_filo\n  faccion elegir conclave_arcano\n  faccion elegir hermandad_mercado\n\nPara ver la ficha antes de decidir: faccion info <nombre>"\n\n💡 ¿Cuándo conviene elegir? Cuanto antes — cada kill y exploración acumula influencia para tu facción. Sin facción esa influencia se pierde. No hay penalización por elegir tarde, pero sí por no elegir.`;
           }
         }
       }
@@ -16036,9 +16037,22 @@ function cmdFacciones(player) {
       lines.push(`║  📋 Misión de orden: escribí mision-faccion           ║`);
     }
   } else {
-    lines.push(`║  No tenés facción aún.                                ║`);
-    lines.push(`║  Elegí una con: unirse <nombre>                       ║`);
-    lines.push(`║  (disponible en nivel 3)                              ║`);
+    // DIS-2307: mejorar onboarding — cuándo elegir, qué se pierde sin facción
+    const playerLevel = player.level || 1;
+    if (playerLevel < 3) {
+      lines.push(`║  No tenés facción aún (disponible en nivel 3).        ║`);
+      lines.push(`║  Seguí explorando — en nivel 3 desbloqueás las        ║`);
+      lines.push(`║  facciones y podés elegir tu bando.                   ║`);
+    } else {
+      lines.push(`║  No tenés facción aún.                                ║`);
+      lines.push(`║  Elegí una con: faccion elegir <nombre>               ║`);
+      lines.push(`║  ¿Cuándo conviene elegir? → Cuanto antes.             ║`);
+      lines.push(`║  Cada kill, exploración y compra acumula influencia   ║`);
+      lines.push(`║  para tu facción. Sin facción esa influencia se pierde║`);
+      lines.push(`║  y no accedés a misiones semanales ni al bonus activo.║`);
+      lines.push(`║  No hay penalización por elegir tarde — solo perdiste  ║`);
+      lines.push(`║  los puntos de esta semana. Elegí ahora y empezá.     ║`);
+    }
     lines.push(`╟──────────────────────────────────────────────────────╢`);
     lines.push(`║  🗡️  Orden del Filo      → combate                    ║`);
     lines.push(`║     Tuyo: misiones de caza · escarapela de élite      ║`);
