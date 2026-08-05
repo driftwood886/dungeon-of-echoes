@@ -3273,7 +3273,11 @@ function cmdMove(player, direction) {
     // calcLevelUp ya maneja: multi-nivel, aldricCartaReminder, spec_notify_deferred, unlockLines, veteranoMsg
     const lvlUpExplo = calcLevelUp(freshExp, exploXp);
     db.updatePlayer(player.id, lvlUpExplo.fields);
-    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${exploXp} XP de explorador${prevVisitedCount < 5 ? ' ✨ (bonus de descubrimiento)' : ''}. 🌟 (${visitResult.visited.length} salas descubiertas en total)${lvlUpExplo.levelUpMsg}`;
+    // DIS-2348: aclarar por qué el XP de exploración varía: bonus de descubrimiento (primeras 5 salas) vs sala estándar
+    const exploXpNote = prevVisitedCount < 5
+      ? ' ✨ (bonus de descubrimiento)'
+      : ' (sala estándar — las primeras 5 dan +10 XP)';
+    explorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${exploXp} XP de explorador${exploXpNote}. 🌟 (${visitResult.visited.length} salas descubiertas en total)${lvlUpExplo.levelUpMsg}`;
     // EPIC-1373: Influencia de facción por exploración (nueva sala)
     // DIS-2162: retroalimentación inmediata de influencia
     const _fExploAdded = db.addFactionInfluence(player.id, 2);
