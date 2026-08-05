@@ -9013,8 +9013,9 @@ function cmdUse(player, itemQuery) {
     // DIS-D362: manejo especial de ítems sellados/abribles
     const foundLow = found.toLowerCase();
     if (foundLow.includes('carta sellada') || foundLow === 'carta') {
-      // Abrir la carta sellada — narrativa de lore, consumir el ítem
+      // DIS-2349: Abrir la carta sellada — narrativa de lore, reemplazar ítem por 'carta leída'
       const newInvC = removeFirst(player.inventory, found);
+      newInvC.push('carta leída');
       // DIS-913: marcar por jugador que este personaje leyó la carta
       const seC = parseSE(player.status_effects);
       seC.carta_sellada_leida = true;
@@ -9047,7 +9048,7 @@ function cmdUse(player, itemQuery) {
         }
       }
 
-      resultText = `Con cuidado, rompés el sello de cera negra. El papel cruje levemente al desplegarse.\n\nLa letra es precisa, casi formal:\n\n  \"Si leés esto, llegaste más lejos de lo que esperaba cualquiera.\n  Kaelthas no puede morir — no de la manera que conocemos.\n  Encontró una forma de atar su esencia al dungeon mismo.\n  El único modo de terminar con esto es llegar al Trono del Vacío\n  y pronunciar su nombre completo en voz alta: no el que conocés.\n  El verdadero.\n\n  Lo grabé en la base del trono. Mirá abajo, no arriba.\n\n  Perdoname por no haberlo hecho yo mismo.\"\n\n  Sin firma. Solo el símbolo de dos llaves cruzadas.\n\n🔍 La carta sellada se deshace en polvo antiguo una vez que la leés.${cartaAhaMsg}`;
+      resultText = `Con cuidado, rompés el sello de cera negra. El papel cruje levemente al desplegarse.\n\nLa letra es precisa, casi formal:\n\n  \"Si leés esto, llegaste más lejos de lo que esperaba cualquiera.\n  Kaelthas no puede morir — no de la manera que conocemos.\n  Encontró una forma de atar su esencia al dungeon mismo.\n  El único modo de terminar con esto es llegar al Trono del Vacío\n  y pronunciar su nombre completo en voz alta: no el que conocés.\n  El verdadero.\n\n  Lo grabé en la base del trono. Mirá abajo, no arriba.\n\n  Perdoname por no haberlo hecho yo mismo.\"\n\n  Sin firma. Solo el símbolo de dos llaves cruzadas.\n\n📜 La carta sellada ahora está abierta en tu mochila — guardás el papel cuidadosamente. Podés releer su contenido con \.${cartaAhaMsg}`;
     } else if (foundLow.includes('tomo sellado') || foundLow.includes('tomo')) {
       // DIS-D363: el tomo sellado tiene una condición real: necesitás el amuleto oscuro
       const freshP = db.getPlayer(player.id);
@@ -9545,7 +9546,7 @@ function cmdExamine(player, query) {
         sellLine = `💰 Precio de venta (Aldric): ~${sellAmt}g`;
       } else {
         // Ítem no vendible en tienda
-        const NO_SELL_ITEMS = new Set(['páginas congeladas', 'paginas congeladas', 'carta sellada', 'carta abierta', 'diario helado', 'corona de hueso', 'piedra negra del lich', 'esencia de kaelthas', 'diagrama quemado']);
+        const NO_SELL_ITEMS = new Set(['páginas congeladas', 'paginas congeladas', 'carta sellada', 'carta leída', 'carta leida', 'carta abierta', 'diario helado', 'corona de hueso', 'piedra negra del lich', 'esencia de kaelthas', 'diagrama quemado']);
         if (NO_SELL_ITEMS.has(invItemName.toLowerCase())) {
           sellLine = `🚫 No vendible (objeto único o de misión)`;
         } else if (def && def.amount !== undefined && (def.effect === 'attack_bonus' || def.effect === 'defense_bonus')) {
@@ -9588,6 +9589,9 @@ function cmdExamine(player, query) {
 
         'carta sellada': `📜 El sobre está sellado con cera negra marcada con el símbolo de las dos llaves cruzadas. El papel es viejo —décadas al menos— pero el sellado está perfectamente intacto: alguien tomó cuidado de que esto durara.\n\nEn el reverso, en letra pequeña: "Para quien llegue después. Perdoname." Sin firma.\n\n🔍 La carta viene de la Prisión Subterránea (sala 8). El símbolo de las llaves... lo viste antes. En el delantal de Aldric. El mercader que eligió este dungeon por razones que nunca explicó.\n💡 Usá "use carta sellada" o "abrir carta" para leer su contenido. Una vez abierta, no hay vuelta atrás.`,
 
+        // DIS-2349: carta leída — releer el contenido de la carta abierta
+        'carta leída': `📜 El sobre está abierto. El papel, doblado en cuatro, tiene el sello de cera negra partido a la mitad — la marca de las dos llaves cruzadas, separadas para siempre.\n\nEl texto es el mismo que leíste antes:\n\n  "Si leés esto, llegaste más lejos de lo que esperaba cualquiera.\n  Kaelthas no puede morir — no de la manera que conocemos.\n  Encontró una forma de atar su esencia al dungeon mismo.\n  El único modo de terminar con esto es llegar al Trono del Vacío\n  y pronunciar su nombre completo en voz alta: no el que conocés.\n  El verdadero.\n\n  Lo grabé en la base del trono. Mirá abajo, no arriba.\n\n  Perdoname por no haberlo hecho yo mismo."\n\n  Sin firma. Solo el símbolo de dos llaves cruzadas, ahora partido por el sello roto.\n\n🔍 El papel sobrevivió. Quien escribió esto sabía que duraría.`,
+
         // DIS-1812: lore narrativo del Campeón Espectral
         'emblema del coliseo': `🏟️ Un medallón de bronce ennegrecido con la silueta de dos gladiadores enfrentados en relieve. En el reverso, grabado con una herramienta fina, un nombre: «VARETH». Y debajo, en letras más pequeñas: «campeón invicto — nunca perdió en vida».\n\nEl emblema está frío al tacto, incluso después de cargarlo varios minutos. No es el frío de la piedra ni del metal: es el frío de algo que no debería seguir existiendo.\n\n📖 Según la inscripción en la pared norte del Coliseo, el campeón no murió solo: «Un liche no muere en su cuerpo. Su esencia duerme en la piedra negra que lleva al pecho. Destruí la piedra. O volverá.» El emblema es esa piedra. El Campeón sigue aquí porque alguien no lo destruyó.\n\n💡 Aldric lo compra por 35g — dice que «tiene historia». También podés guardarlo como trofeo de una pelea difícil. Escribí «examine emblema del coliseo» de nuevo si alguna vez necesitás refrescar la memoria.`,
 
@@ -9616,6 +9620,7 @@ function cmdExamine(player, query) {
               'páginas congeladas':  '📖 Leí las páginas congeladas. Hablan de Kaelthas, de Valdrath, y de algo que "el Lich guarda". No sé qué significa aún, pero este dungeon tiene historia.',
               'diagrama quemado':    '📖 El diagrama quemado menciona a alguien que "sobrevivió a Valdrath" y dice que Aldric sabe el resto. Buscar a Aldric.',
               'carta sellada':       '📖 La carta sellada tiene el símbolo de las llaves cruzadas — el mismo que usa Aldric. Alguien escribió "Perdoname" en el reverso.',
+              'carta leída':         '📖 Releí la carta que encontré en la Prisión. El mensaje sigue siendo el mismo — una advertencia sobre Kaelthas y el Trono del Vacío.',
               'sello del carcelero': '📖 El sello del carcelero tiene el símbolo de las llaves — el mismo de Aldric. Una pieza de la Prisión Subterránea que alguien mantuvo aceitada mucho después del abandono.',
               'corona rota':         '📖 La corona rota fue cortada con precisión, no rota en combate. El metal no pertenece a ningún reino actual del norte.',
               'emblema del coliseo': '📖 El emblema del coliseo tiene grabado el nombre «VARETH». Según la inscripción del Coliseo, el campeón no murió porque su esencia duerme en la piedra. El emblema es esa piedra.',
@@ -9660,7 +9665,7 @@ function cmdExamine(player, query) {
     if (def) {
       const typeLabel = def.type === 'weapon' ? 'Arma' : def.type === 'potion' ? 'Poción' : def.type === 'armor' ? 'Armadura' : 'Objeto';
       // DIS-782: precio de venta estimado también para ítems en el suelo (mismo cálculo que inventario)
-      const NO_SELL_ITEMS_FLOOR = new Set(['páginas congeladas', 'paginas congeladas', 'carta sellada', 'carta abierta', 'diario helado', 'corona de hueso', 'piedra negra del lich', 'esencia de kaelthas', 'diagrama quemado']);
+      const NO_SELL_ITEMS_FLOOR = new Set(['páginas congeladas', 'paginas congeladas', 'carta sellada', 'carta leída', 'carta leida', 'carta abierta', 'diario helado', 'corona de hueso', 'piedra negra del lich', 'esencia de kaelthas', 'diagrama quemado']);
       let floorSellLine = '';
       const floorCatalogEntry = SHOP_CATALOG.find(i => i.name.toLowerCase() === itemName.toLowerCase());
       if (floorCatalogEntry) {
@@ -9955,7 +9960,7 @@ function cmdExamine(player, query) {
     const freshP = db.getPlayer(player.id);
     const questState = (freshP && freshP.aldric_quest) || 'none';
     const invP = Array.isArray(freshP && freshP.inventory) ? freshP.inventory : JSON.parse((freshP && freshP.inventory) || '[]');
-    const tieneCarta = invP.some(i => i.toLowerCase().includes('carta sellada'));
+    const tieneCarta = invP.some(i => i.toLowerCase().includes('carta sellada') || i.toLowerCase().includes('carta leída') || i.toLowerCase().includes('carta leida'));
     const seP = parseSE(freshP && freshP.status_effects);
     const cartaFueLeida = !!seP.carta_sellada_leida;
     let baseText = '';
@@ -11702,13 +11707,13 @@ function cmdGive(player, args) {
       if (targetLower.includes('aldric') || targetLower.includes('mercader')) {
         const freshP = db.getPlayer(player.id);
         const inv = Array.isArray(freshP.inventory) ? freshP.inventory : JSON.parse(freshP.inventory || '[]');
-        const hasCarta = inv.some(i => i.toLowerCase().includes('carta sellada'));
-        if (hasCarta && found.toLowerCase().includes('carta sellada') && freshP.aldric_quest === 'active') {
+        const hasCarta = inv.some(i => i.toLowerCase().includes('carta sellada') || i.toLowerCase().includes('carta leída') || i.toLowerCase().includes('carta leida'));
+        if (hasCarta && (found.toLowerCase().includes('carta sellada') || found.toLowerCase().includes('carta leída') || found.toLowerCase().includes('carta leida')) && freshP.aldric_quest === 'active') {
           // Completar la quest directamente como si el jugador hubiera dicho "hablar aldric"
           // BUG-973: calcLevelUp para que el XP de quest trigee level-up automático
           const lvlC1 = calcLevelUp(freshP, 50);
           // BUG-2288: usar findIndex para quitar solo UNA copia de carta sellada
-          const _c1Idx = inv.findIndex(i => i.toLowerCase().includes('carta sellada'));
+          const _c1Idx = inv.findIndex(i => i.toLowerCase().includes('carta sellada') || i.toLowerCase().includes('carta leída') || i.toLowerCase().includes('carta leida'));
           const _invC1 = _c1Idx >= 0 ? [...inv.slice(0, _c1Idx), ...inv.slice(_c1Idx + 1)] : inv;
           db.updatePlayer(player.id, {
             ...lvlC1.fields,
@@ -11721,7 +11726,7 @@ function cmdGive(player, args) {
           return { text: 'Extendés la carta hacia Aldric. Él la toma despacio, con manos que no tiemblan, pero que deberían.\n\nEl sello de las dos llaves cruzadas. Lo mira durante un momento demasiado largo.\n\n\"Fue el guardián del sello del reino,\" dice al fin, en voz tan baja que casi no lo escuchás. \"No el rey. El guardián. Los que guardaban las llaves eran los que realmente mantenían el reino unido.\"\n\nPausa. \"Kaelthas Vorn. Ese era su nombre completo. El que todos olvidaron —o fingieron olvidar— cuando el reino cayó.\"\n\nDobla la carta sin abrirla y la guarda debajo del mostrador.\n\n\"Tomá esto. Y si algún día pronunciás su nombre completo en el lugar correcto, vas a entender por qué todavía importa.\"\n\n🎉 Quest completada: El Sello de las Dos Llaves. (+50 XP · +25g)\n📜 El lore de Kaelthas Vorn está ahora completo.\n📖 Diario actualizado.' + lvlC1.levelUpMsg };
         }
         // DIS-513: mensajes de guía cuando el give no completa la quest
-        if (freshP.aldric_quest === 'active' && !found.toLowerCase().includes('carta sellada')) {
+        if (freshP.aldric_quest === 'active' && !found.toLowerCase().includes('carta sellada') && !found.toLowerCase().includes('carta leída') && !found.toLowerCase().includes('carta leida')) {
           return { text: `Aldric te mira el ítem y niega con la cabeza. "Eso no es lo que busco." 💡 Tip: la quest de Aldric requiere la carta sellada de la Prisión Subterránea (al norte del Tesoro). Escribí \`buscar\` ahí para encontrarla.` };
         }
         if (freshP.aldric_quest === 'done') {
@@ -14447,7 +14452,7 @@ function cmdTalk(player, target) {
   if (questState === 'active') {
     // Verificar si tiene la carta sellada
     const inv = Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]');
-    const hasCarta = inv.some(i => i.toLowerCase().includes('carta sellada'));
+    const hasCarta = inv.some(i => i.toLowerCase().includes('carta sellada') || i.toLowerCase().includes('carta leída') || i.toLowerCase().includes('carta leida'));
 
     if (hasCarta) {
       // Completar la quest
@@ -14456,7 +14461,7 @@ function cmdTalk(player, target) {
       const freshP = db.getPlayer(player.id);
       const lvlA1 = calcLevelUp(freshP, 50);
       // BUG-2288: quitar solo UNA copia de carta sellada, no todas
-      const _a1Idx = inv.findIndex(i => i.toLowerCase().includes('carta sellada'));
+      const _a1Idx = inv.findIndex(i => i.toLowerCase().includes('carta sellada') || i.toLowerCase().includes('carta leída') || i.toLowerCase().includes('carta leida'));
       const _invA1 = _a1Idx >= 0 ? [...inv.slice(0, _a1Idx), ...inv.slice(_a1Idx + 1)] : inv;
       db.updatePlayer(player.id, {
         ...lvlA1.fields,
@@ -15411,6 +15416,7 @@ function cmdSell(player, itemQuery) {
   // La corona rota (y otros ítems de un solo uso para desactivar trampas) son
   // irreemplazables o difíciles de recuperar. Venderlos es una pérdida permanente
   // no intencionada para el jugador.
+  // DIS-2349: ítems narrativos/coleccionables — no vendibles (carta leída, páginas, etc.)
   const TRAP_KEY_ITEMS = [
     'corona rota',
     'filacteria rota',
@@ -15418,6 +15424,13 @@ function cmdSell(player, itemQuery) {
     'cuerda',
     'sello arcano',
     'fragmento de sello',
+    // Ítems narrativos coleccionables
+    'carta leída',
+    'carta leida',
+    'páginas congeladas',
+    'paginas congeladas',
+    'diagrama quemado',
+    'nota rasgada',
   ];
   if (found) {
     const foundNorm = found.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -15426,6 +15439,15 @@ function cmdSell(player, itemQuery) {
       return foundNorm.includes(kNorm);
     });
     if (isTrapKey) {
+      // DIS-2349: mensaje diferente para ítems narrativos vs ítems de trampa
+      const NARRATIVE_ITEMS_SELL = new Set(['carta leida', 'paginas congeladas', 'diagrama quemado', 'nota rasgada']);
+      const foundNormSimple = found.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const isNarrative = NARRATIVE_ITEMS_SELL.has(foundNormSimple) || [...NARRATIVE_ITEMS_SELL].some(ni => foundNormSimple.includes(ni));
+      if (isNarrative) {
+        return {
+          text: `🏪 Aldric mira el objeto un momento y lo devuelve.\n"Esto no tiene precio. No te lo compro."\n\n📖 Los ítems narrativos son coleccionables — guardálos. Podés releer su contenido con \`examine <ítem>\`.`,
+        };
+      }
       return {
         text: `🏪 Aldric inspecciona el objeto y arruga el ceño.\n"Esto... esto no te lo compro. Tiene uso en el dungeon. Si te deshacés de esto, te podés arrepentir."\n\n⚠️ Los ítems de trampa y piezas clave del dungeon no se pueden vender. Son tu única forma de desactivar ciertas trampas o acceder a zonas bloqueadas.`,
       };
