@@ -18404,6 +18404,16 @@ function cmdCraft(player, args) {
     return { text: autoUnequipMsg + craftResult.text + craftChallengeMsg + guildCraftMsg + craftGoalMsg + expeditionCraftMsg + questCraftMsg };
   }
 
+  // EPIC-2335-IMPL: Eco craft_unusual (dura 3h) — registrar para jugadores que pasen después
+  try {
+    const craftEchoText = `🔨 El olor a reactivos persiste. Alguien estuvo mezclando ingredientes aquí`;
+    const craftEchoExpires = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString();
+    const freshForEco = db.getPlayer(player.id);
+    if (freshForEco) {
+      db.addRoomEcho(freshForEco.current_room_id, freshForEco.username, 'craft_unusual', craftEchoText, craftEchoExpires);
+    }
+  } catch (_echo2335) { /* no romper craft */ }
+
   return { text: autoUnequipMsg + craftResult.text + craftChallengeMsg + guildCraftMsg + craftGoalMsg };
 }
 
