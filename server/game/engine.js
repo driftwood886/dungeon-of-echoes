@@ -1992,7 +1992,7 @@ const CINEMATIC_EVENTS = {
  */
 function cmdMove(player, direction) {
   if (!direction) {
-    return { text: 'Indicá una dirección. Ej: "move norte" o simplemente "norte".' };
+    return { text: 'Indicá una dirección. Ej: "norte", "sur", "este", "oeste" (o las iniciales: n/s/e/o).' };
   }
   // EPIC-NE-IMPL-2269: resetear contador de maratón al moverse
   marathonKillsMap.delete(String(player.id));
@@ -28066,15 +28066,15 @@ function cmdPath(player, args) {
           : ` ${bossInfo.icon}${bossInfo.boss} (OK)`)
       : '';
     if (bossWarn) {
-      lines.push(`║  ${String(i + 1).padStart(2)}. move ${dirText}  →  ${roomName.padEnd(22)} ║`);
+      lines.push(`║  ${String(i + 1).padStart(2)}.  ${dirText.padEnd(11)} →  ${roomName.padEnd(22)} ║`);
       lines.push(`║     ${bossWarn.substring(0, 43).padEnd(43)} ║`);
     } else {
-      lines.push(`║  ${String(i + 1).padStart(2)}. move ${dirText}  →  ${roomName.padEnd(22)} ║`);
+      lines.push(`║  ${String(i + 1).padStart(2)}.  ${dirText.padEnd(11)} →  ${roomName.padEnd(22)} ║`);
     }
   });
 
   lines.push(`╠═══════════════════════════════════════════════╣`);
-  const cmdList = found.map(s => `move ${DIR_NAMES[s.dir] || s.dir}`).join('; ');
+  const cmdList = found.map(s => `${DIR_NAMES[s.dir] || s.dir}`).join('; ');
   // Wrap long command sequence
   if (cmdList.length <= 43) {
     lines.push(`║  Secuencia: ${cmdList.padEnd(34)} ║`);
@@ -28146,7 +28146,7 @@ function cmdPath(player, args) {
       }
       const altTraps = altPath.filter(step => trapRoomIds.has(step.toId)).length;
       if (altTraps < trappedRooms.length && altPath.length > 0) {
-        lines.push(`💡 Ruta alternativa con menos trampas (${altTraps} trampa${altTraps !== 1 ? 's' : ''}):   ${altPath.map(s => `move ${DIR_NAMES[s.dir] || s.dir}`).join('; ')}`);
+        lines.push(`💡 Ruta alternativa con menos trampas (${altTraps} trampa${altTraps !== 1 ? 's' : ''}):   ${altPath.map(s => `${DIR_NAMES[s.dir] || s.dir}`).join('; ')}`);
       }
     }
   }
@@ -28209,7 +28209,7 @@ function cmdPath(player, args) {
       }
     }
     if (altFound) {
-      const altCmdList = altFound.map(s => `move ${DIR_NAMES[s.dir] || s.dir}`).join('; ');
+      const altCmdList = altFound.map(s => `${DIR_NAMES[s.dir] || s.dir}`).join('; ');
       // DIS-849: si la ruta alternativa es absurdamente más larga, no mostrarla —
       // solo advertir del boss. Umbral: máximo found.length + 3 pasos de diferencia.
       if (altFound.length <= found.length + 3) {
@@ -28648,7 +28648,7 @@ function cmdGuide(args) {
       '',
       'COMANDOS BÁSICOS:',
       '  look / mirar      — Ver la habitación actual',
-      '  move norte        — Moverte (n/s/e/o también sirven)',
+      '  norte/sur/este/oeste — Moverte (n/s/e/o también sirven)',
       '  status / estado   — Ver HP, XP, nivel, oro',
       '  inventory / inv   — Ver lo que llevás encima',
       '  map / mapa        — Minimapa ASCII del dungeon',
