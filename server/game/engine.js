@@ -23856,6 +23856,36 @@ function cmdUseSkill(player, args, context) {
       const levelUp = newLevel > (freshPlayer.level || 1);
       const skillUpd = { ...bashLvlResult.fields, kills: (freshPlayer.kills || 0) + 1 };
       db.updatePlayer(freshPlayer.id, skillUpd);
+      // BUG-2357: killStreakMap update para bash (igual que en cmdAttack ~línea 7011)
+      const PRACTICE_GOBLIN_STREAK_ID_BASH = 20;
+      let bashStreakMsg = '';
+      if (target.id !== PRACTICE_GOBLIN_STREAK_ID_BASH) {
+        const prevBashStreak = killStreakMap.get(freshPlayer.id) || 0;
+        const newBashStreak = prevBashStreak + 1;
+        killStreakMap.set(freshPlayer.id, newBashStreak);
+        if (newBashStreak >= 5 && newBashStreak % 5 === 0) {
+          const bonusBashXp = STREAK_HITO_BONUS;
+          const freshStreakBash = db.getPlayer(freshPlayer.id);
+          const newBashStreakXp = (freshStreakBash.xp || 0) + bonusBashXp;
+          const newBashStreakLevel = xpSystem.levelFromXp(newBashStreakXp);
+          const bashStreakLevelUp = newBashStreakLevel > (freshStreakBash.level || 1);
+          const bashStreakUpd = { xp: newBashStreakXp, level: newBashStreakLevel };
+          if (bashStreakLevelUp) {
+            bashStreakUpd.max_hp = (freshStreakBash.max_hp || 30) + 5;
+            const healBashStreak = Math.ceil(bashStreakUpd.max_hp * 0.20);
+            bashStreakUpd.hp = Math.min(bashStreakUpd.max_hp, (freshStreakBash.hp || 1) + healBashStreak);
+            if (freshStreakBash.player_class === 'mago' || freshStreakBash.player_class === 'clerigo') {
+              bashStreakUpd.max_mana = (freshStreakBash.max_mana || 20) + 3;
+            }
+            bashStreakUpd.attack = (freshStreakBash.attack || 5) + 1;
+          }
+          db.updatePlayer(freshPlayer.id, bashStreakUpd);
+          const bashStreakLabel = newBashStreak >= 20 ? '💥 ¡IMPARABLE!' : newBashStreak >= 15 ? '🔥 ¡Dominando el Dungeon!' : newBashStreak >= 10 ? '⚡ ¡Racha Brutal!' : '🔥 ¡Racha de Kills!';
+          bashStreakMsg = `\n${bashStreakLabel} ${newBashStreak} kills seguidos. +${bonusBashXp} XP de bonificación.${bashStreakLevelUp ? ` ✨ ¡SUBÍS AL NIVEL ${newBashStreakLevel}!` : ''}`;
+        } else if (newBashStreak >= 3) {
+          bashStreakMsg = `\n🔥 Racha: ${newBashStreak} kills consecutivos sin morir.`;
+        }
+      }
       // EPIC-NE-IMPL-2264: Hookear primer_skill_kill en shield_bash
       if ((freshPlayer.kills || 0) === 0) {
         try {
@@ -23871,6 +23901,7 @@ function cmdUseSkill(player, args, context) {
         } catch (_ne2264bash) { /* no romper skill si falla el hookeo */ }
       }
       text += `\n⭐ +${xpGain} XP (kills: ${skillUpd.kills} | nivel: ${newLevel})${bashLvlResult.levelUpMsg}${xpProgressSuffix(newXp, newLevel)}`;
+      if (bashStreakMsg) text += bashStreakMsg;
       db.addBestiaryKill(freshPlayer.id, target.name);
       memory.onMonsterKill(freshPlayer.current_room_id, target.name, freshPlayer.username); // EPIC-1820-DEF
       // DIS-1281: Registrar subida de nivel en el diario (Golpe de Escudo)
