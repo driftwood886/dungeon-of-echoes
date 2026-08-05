@@ -265,6 +265,20 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
       lines.push(`   Reaparecés en la Entrada con ${respawnHp}/${freshP.max_hp} HP (25% de tu vida máxima).`);
       lines.push(`   📖 (Esta aclaración solo aparece la primera vez. En muertes siguientes: respawn silencioso.)`);
       db.addJournalEntry(playerId, 'death', `💀 Moriste. No fue heroico. Fue un pasillo oscuro y algo que no viste.`);
+
+      // EPIC-2338-IMPL: Epitafio auto-generado (primera muerte del personaje)
+      try {
+        const narrative = require('./narrative');
+        const deathRoom2338 = db.getRoom(deathRoomId);
+        const epitaphText = narrative.generateEpitaph(
+          { ...freshP, class: freshP.player_class }, // generateEpitaph usa player.class
+          deathRoom2338,
+          causeDescription
+        );
+        db.addWallMessage(deathRoomId, freshP.username, `💀 ${epitaphText}`, true);
+      } catch (_epi2338) {
+        console.warn('[combat] EPIC-2338: Error generando epitafio:', _epi2338.message);
+      }
     } else {
       db.addJournalEntry(playerId, 'death', `💀 Caíste de nuevo. ${deaths} veces y el dungeon sigue en pie.`);
     }
