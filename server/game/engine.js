@@ -26477,7 +26477,11 @@ function cmdChallenge(player) {
             }
           }
           // Reinicializar para hoy
-          db.setWorldState(dayStartKey, currentKills);
+          // BUG-2358: si storedDateInt === null (primer registro del jugador, nunca tuvo tracking),
+          // setear dayStartKey = 0 para que todos los kills del día cuenten.
+          // Si el día cambió normalmente, usar currentKills como baseline del nuevo día.
+          const newDayStart = (storedDateInt === null) ? 0 : currentKills;
+          db.setWorldState(dayStartKey, newDayStart);
           db.setWorldState(dayDateKey, todayInt);
         }
 
