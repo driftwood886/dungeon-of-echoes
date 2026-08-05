@@ -1102,6 +1102,22 @@ async function init() {
   db.run('CREATE INDEX IF NOT EXISTS idx_fallen_loot_player ON fallen_loot(fallen_player)');
   db.run('CREATE INDEX IF NOT EXISTS idx_fallen_loot_expires ON fallen_loot(expires_at)');
 
+  // EPIC-ECOS Fase 2: Ecos de movimiento (ghost echoes)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS room_echoes (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_id     INTEGER NOT NULL,
+      player_name TEXT    NOT NULL,
+      echo_type   TEXT    NOT NULL,
+      echo_text   TEXT    NOT NULL,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+      expires_at  TEXT    NOT NULL
+    )
+  `);
+  db.run('CREATE INDEX IF NOT EXISTS idx_room_echoes_room    ON room_echoes(room_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_room_echoes_expires ON room_echoes(expires_at)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_room_echoes_type    ON room_echoes(echo_type)');
+
   // T188: Tablón global de anuncios
   db.run(`
     CREATE TABLE IF NOT EXISTS bulletin_board (
@@ -3952,6 +3968,66 @@ function removeFallenLootItem(id) {
   run('DELETE FROM fallen_loot WHERE id = ?', [id]);
 }
 
+// ─── EPIC-ECOS Fase 2: room_echoes ────────────────────────────────────────────
+
+// Prioridad de tipos de eco al seleccionar el más relevante
+const ECHO_PRIORITY = { player_death: 0, boss_kill: 1, level_up: 2, craft_unusual: 3 };
+
+/**
+ * Agrega un eco de movimiento a una sala.
+ * @param {number} roomId
+ * @param {string} playerName
+ * @param {string} echoType — 'player_death' | 'boss_kill' | 'craft_unusual' | 'level_up'
+ * @param {string} echoText — texto pre-renderizado (sin edad relativa)
+ * @param {string} expiresAt — ISO string
+ */
+function addRoomEcho(roomId, playerName, echoType, echoText, expiresAt) {
+  run(
+    'INSERT INTO room_echoes (room_id, player_name, echo_type, echo_text, expires_at) VALUES (?, ?, ?, ?, ?)',
+    [roomId, playerName, echoType, echoText, expiresAt]
+  );
+}
+
+/**
+ * Obtiene el eco más prioritario y reciente de una sala.
+ * Hace cleanup lazy de expirados antes de leer.
+ * Prioridad: player_death > boss_kill > level_up > craft_unusual.
+ * Dentro del mismo tipo, retorna el más reciente.
+ *
+ * @param {number} roomId
+ * @returns {object|null} fila de room_echoes, o null si no hay ecos activos
+ */
+function getLatestRoomEcho(roomId) {
+  run('DELETE FROM room_echoes WHERE expires_at < datetime("now")');
+  const rows = all(
+    'SELECT * FROM room_echoes WHERE room_id = ? ORDER BY created_at DESC',
+    [roomId]
+  );
+  if (!rows || rows.length === 0) return null;
+
+  // Elegir el de mayor prioridad (menor índice en ECHO_PRIORITY)
+  let best = null;
+  for (const row of rows) {
+    const prio = ECHO_PRIORITY[row.echo_type] !== undefined ? ECHO_PRIORITY[row.echo_type] : 99;
+    if (best === null) {
+      best = { row, prio };
+    } else if (prio < best.prio) {
+      best = { row, prio };
+    }
+  }
+  return best ? best.row : null;
+}
+
+/**
+ * Obtiene todos los ecos activos de una sala (para comando `ecos` en Fase 3).
+ * @param {number} roomId
+ * @returns {object[]}
+ */
+function getAllRoomEchoes(roomId) {
+  run('DELETE FROM room_echoes WHERE expires_at < datetime("now")');
+  return all('SELECT * FROM room_echoes WHERE room_id = ? ORDER BY created_at DESC', [roomId]);
+}
+
 // ─── Monstruos muertos recientes (T149) ──────────────────────────────────────
 
 /**
@@ -6087,6 +6163,7 @@ module.exports = {
   // EPIC-ECOS
   addRoomScar, getActiveRoomScars,
   addFallenLoot, getFallenLootInRoom, removeFallenLootItem,
+  addRoomEcho, getLatestRoomEcho, getAllRoomEchoes,
   // T149: monstruos muertos recientes
   getRecentlyDeadMonsters,
   getDeadMonstersForRoom,
