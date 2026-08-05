@@ -12541,7 +12541,7 @@ function cmdUnlock(player, direction) {
 
 // DIS-740: Mapa de origen de ítems de desactivación — se muestra cuando el jugador no tiene el ítem
 const TRAP_ITEM_SOURCE = {
-  'hongo azul':  'Hay un hongo azul garantizado en la Capilla Olvidada (sala 5, al sur del Túnel de los Hongos) — buscá allí primero con "buscar". También crecen dentro del Túnel (sala 6) si ya lograste entrar.',
+  'hongo azul':  'Hay un hongo azul garantizado en la Capilla Olvidada (sala 5, al sur del Túnel de los Hongos) — buscá allí primero con "buscar". También crecen dentro del Túnel (sala 6) si ya lograste entrar.\n  💡 Si convertiste el hongo azul en veneno de colmillo, podés entrar al Túnel una vez asumiendo las esporas (5 HP) y recoger otro hongo del suelo para desactivar la trampa del norte.',
   'corona rota': 'La podés conseguir de tres formas: (1) derrota al Espectro del Corredor en sala 9 — la droppea como loot, (2) buscá en la Prisión Subterránea (sala 8) — hay una abandonada en las celdas, o (3) buscá con "buscar" en la Sala del Trono (sala 9).',
   'cuerda':      'Disponible en la tienda del Mercader Aldric (sala 4). También puede aparecer con "buscar".',
   'red de pesca':'Podés encontrarla con "buscar" en la Caverna Sumergida (sala 13).',
