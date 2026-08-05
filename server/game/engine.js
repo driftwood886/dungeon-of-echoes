@@ -1346,15 +1346,17 @@ function completeTutorial(player) {
   // DIS-D278: Leer estado fresco del jugador para saber si ya tiene clase asignada
   const freshPlayer = db.getPlayer(player.id);
   // IMPL-VV-1760: si hay run_event activo, el anciano le da una pista al jugador al salir del tutorial
+  // DIS-2354: mover el mensaje del anciano al INICIO del texto, no al final — así el jugador
+  // lo lee mientras aún está en contexto del tutorial, no después de haber llegado a sala 1.
   let guardianEventLine = '';
   if (freshPlayer.run_event) {
     const vvEvent = VV_EVENTS.find(e => e.id === freshPlayer.run_event);
     if (vvEvent) {
-      guardianEventLine = `\n\n🧓 El guardián anciano te susurra antes de que cruces el umbral:\n«${vvEvent.guardian_line}»\n\n🎯 Desafío del evento — ${vvEvent.challenge_desc}`;
+      guardianEventLine = `🧓 El guardián anciano te susurra antes de que cruces el umbral:\n«${vvEvent.guardian_line}»\n\n🎯 Desafío del evento — ${vvEvent.challenge_desc}\n\n`;
     }
   }
   return {
-    text: tutorial.getCompleteMsg(freshPlayer) + guardianEventLine,
+    text: guardianEventLine + tutorial.getCompleteMsg(freshPlayer),
     event: `${player.username} emerge de la Antesala. ¡Un aventurero nuevo llega al dungeon!`,
     eventRoomId: 1,
   };
