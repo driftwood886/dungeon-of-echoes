@@ -14693,8 +14693,11 @@ function cmdShop(player, args) {
     }
     lines.push('');
   }
-  // DIS-1721: en la primera visita (aldricRep=0) y sin bolsa de lona comprada, Aldric menciona la bolsa proactivamente
-  if (aldricRep === 0 && !(player.inventory_bonus > 0)) {
+  // DIS-1721: en la primera visita (aldricRep=0) y sin bolsa de lona comprada ni en inventario, Aldric menciona la bolsa proactivamente
+  // BUG-2351: también suprimir si el jugador ya tiene una bolsa de lona sin usar en el inventario (dada por el tutorial)
+  const _shopInvList = (() => { try { return Array.isArray(player.inventory) ? player.inventory : JSON.parse(player.inventory || '[]'); } catch (_) { return []; } })();
+  const _hasBolsaEnInv = _shopInvList.some(i => typeof i === 'string' && i.toLowerCase() === 'bolsa de lona');
+  if (aldricRep === 0 && !(player.inventory_bonus > 0) && !_hasBolsaEnInv) {
     lines.push(`🎒 Aldric señala un montón de bolsas de cuero en el rincón. «Primera vez por aquí, ¿verdad? Un consejo gratuito.»`);
     lines.push(`  «El dungeon devuelve mucho loot. Vas a llenar la mochila antes de llegar a la mitad. Una bolsa de lona (20g, +4 slots) te va a salvar la vida — o al menos los ítems.»`);
     lines.push(`  «Escribí: comprar bolsa de lona — cuando estés listo.»`);
