@@ -154,6 +154,60 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
       } catch (e) { /* no interrumpir el respawn si la sala falla */ }
     }
 
+    // EPIC-ECOS (EPIC-2329-IMPL): loot de caídos + cicatriz de muerte
+    // Solo para muertes normales (no hardcore). Dentro de try/catch para no
+    // interrumpir el respawn si algo falla en el módulo de ecos.
+    let fallenItems = [];
+    try {
+      const ecos = require('./ecos');
+      const deathRoomEcos = freshP.current_room_id;
+
+      // Calcular ítems comunes que caen al suelo (máx 3, no quest, no junk)
+      fallenItems = ecos.calcFallenLoot(freshP.inventory || []);
+
+      if (fallenItems.length > 0) {
+        // Quitar ítems del inventario del jugador
+        const currentInv = Array.isArray(freshP.inventory)
+          ? freshP.inventory
+          : JSON.parse(freshP.inventory || '[]');
+        const newInventory = (() => {
+          const remaining = [...currentInv];
+          for (const dropped of fallenItems) {
+            const idx = remaining.indexOf(dropped);
+            if (idx !== -1) remaining.splice(idx, 1);
+          }
+          return remaining;
+        })();
+        db.updatePlayer(playerId, { inventory: JSON.stringify(newInventory) });
+
+        // Insertar en fallen_loot (expiran en 2 horas)
+        const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+        for (const itemName of fallenItems) {
+          db.addFallenLoot(
+            deathRoomEcos,
+            freshP.username,
+            freshP.player_class,
+            freshP.level,
+            itemName,
+            expiresAt
+          );
+        }
+
+        lines.push(`📦 Tus pertenencias quedaron en esta sala — otro aventurero puede encontrarlas.`);
+        lines.push(`   (${fallenItems.join(', ')})`);
+      }
+
+      // Cicatriz de muerte de jugador (dura 6h)
+      ecos.addPlayerDeathScar(deathRoomEcos, {
+        player_name: freshP.username,
+        class: freshP.player_class,
+        level: freshP.level,
+        cause: causeDescription,
+      });
+    } catch (e) {
+      console.warn('[ecos] Error en hook de muerte:', e.message);
+    }
+
     // Muerte normal — DIS-D41: respawn con 25% del max_hp (mín 5)
     const respawnHp = Math.max(5, Math.floor((freshP.max_hp || 20) * 0.25));
     // DIS-D324: preservar trap_cd_* al morir — el jugador recuerda trampas entre muertes
@@ -186,7 +240,19 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
     // DIS-1955: mensaje explicativo de la primera muerte — aclarar penalidades para reducir ansiedad.
     if (deaths === 1) {
       lines.push(`\n💀 Caíste. Alguien te rescató antes de que te perdiera el dungeon.`);
-      lines.push(`   Tu inventario está intacto — nada se pierde al morir.`);
+      // EPIC-ECOS: el mensaje cambia según si cayeron ítems al suelo (DIS-1955 actualizado)
+      if (fallenItems.length > 0) {
+        lines.push(`   Los ítems raros y de quest están seguros — solo caen los comunes.`);
+        try {
+          const deathRoom = db.getRoom(freshP.current_room_id);
+          const roomName = deathRoom ? deathRoom.name : 'la sala donde caíste';
+          lines.push(`   Tus pertenencias quedaron en ${roomName} — podés recuperarlas en 2 horas.`);
+        } catch (_) {
+          lines.push(`   Tus pertenencias quedaron en la sala donde caíste — podés recuperarlas en 2 horas.`);
+        }
+      } else {
+        lines.push(`   Tu inventario está intacto — nada que perder esta vez.`);
+      }
       lines.push(`   Reaparecés en la Entrada con ${respawnHp}/${freshP.max_hp} HP (25% de tu vida máxima).`);
       lines.push(`   📖 (Esta aclaración solo aparece la primera vez. En muertes siguientes: respawn silencioso.)`);
       db.addJournalEntry(playerId, 'death', `💀 Moriste. No fue heroico. Fue un pasillo oscuro y algo que no viste.`);
