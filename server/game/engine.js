@@ -1956,8 +1956,15 @@ function cmdLook(player, options = {}) {
     }
   } catch (_dis2095) { /* no romper look */ }
 
+  // EPIC-ECOS (EPIC-2330-IMPL): mostrar fallen_loot y cicatrices de combate al hacer look
+  let ecosLine = '';
+  try {
+    const ecos = require('./ecos');
+    ecosLine = ecos.renderRoomEcos(player.current_room_id);
+  } catch (_ecos) { console.warn('[ecos] Error en cmdLook:', _ecos.message); }
+
   // DIS-2129: fix defensiva — suprimir tooltips vacíos (líneas que son solo "💡 " sin contenido)
-  const _rawLookText = text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine + lurkingLine + comboRiskLine + subastaFirstVisitLine + specDeferredLine;
+  const _rawLookText = text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine + lurkingLine + comboRiskLine + subastaFirstVisitLine + specDeferredLine + ecosLine;
   const _cleanLookText = _rawLookText.replace(/\n💡 \n/g, '\n').replace(/\n💡 $/g, '').replace(/\n\n💡 \n/g, '\n');
   return { text: _cleanLookText };
 }
@@ -6509,6 +6516,33 @@ function cmdAttack(player, targetName) {
           skill_used: null,
         }, { allowDuplicate: true });
       } catch (_ne2266a) { /* no romper combate */ }
+    }
+
+    // EPIC-ECOS (EPIC-2330-IMPL): cicatrices de combate intenso y boss kills
+    // Registrar en room_scars para que aparezcan en cmdLook (renderRoomEcos).
+    if (monsterDead && !TUTORIAL_MONSTER_IDS.has(monster.id)) {
+      try {
+        const ecos = require('./ecos');
+        const combatRoomId = player.current_room_id;
+        if (bossKill) {
+          // Boss kill — cicatriz especial (dura 8h)
+          ecos.addBossKillScar(combatRoomId, {
+            player_name: player.username,
+            boss_name: monster.name,
+            player_won: true,
+          });
+        }
+        // Combate intenso: si el monstruo era difícil (attack >= 8) y no era boss
+        // (proxy conservador porque no tenemos totalDmgDealt en combatResult)
+        const monsterAttack = monster.attack || 0;
+        if (!bossKill && monsterAttack >= 8) {
+          ecos.addCombatScar(combatRoomId, {
+            player_name: player.username,
+            damage_dealt: combatResult && combatResult.totalDmgDealt ? combatResult.totalDmgDealt : 0,
+            monster_name: monster.name,
+          });
+        }
+      } catch (_ecos2330) { console.warn('[ecos] Error en hook de combate:', _ecos2330.message); }
     }
 
     // EPIC-NE-IMPL-2269: Hookear kill_vs_nivel, maraton_kills, kill_bajo_evento
