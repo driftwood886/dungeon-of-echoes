@@ -55,7 +55,7 @@ const challengePool = [
     id: 'CHAL-C03',
     category: 'combate',
     title: 'Rompedor de Huesos',
-    description: 'Destruye 5 Esqueletos Guerreros. Se encuentran en la Sala de los Ecos (sala 3, al norte del Corredor).',
+    description: 'Destruye 5 Esqueletos Guerreros. Se encuentran en la Cámara del Tesoro (sala 4, al norte del Corredor).',
     condition: { type: 'kill', target: 'Esqueleto Guerrero', amount: 5, extra: {} },
     reward: { xp: 80, gold: 15, rep: 1 },
     min_level: 2, max_level: 5,

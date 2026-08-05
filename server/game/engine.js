@@ -26416,7 +26416,7 @@ function cmdContract(player) {
     'Araña Tejedora':        '📍 Se encuentran en: Pozo Sin Fondo (sala 7)',
     'Espectro del Corredor': '📍 Se encuentran en: Sala del Trono (sala 9)',
     'Murciélago Vampiro':    '📍 Se encuentran en: Capilla Olvidada (sala 5)',
-    'Esqueleto Guerrero':    '📍 Se encuentran en: Sala de los Ecos (al norte del Corredor de las Sombras)',
+    'Esqueleto Guerrero':    '📍 Se encuentran en: Cámara del Tesoro (sala 4, al norte del Corredor de las Sombras)',
     'Campeón Espectral':     '📍 Se encuentran en: Coliseo de Huesos (sala 14)',
     'Sombra del Vacío':      '📍 Se encuentran en: Abismo Eterno (sala 20)',
   };
