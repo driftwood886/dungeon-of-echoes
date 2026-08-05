@@ -204,6 +204,15 @@ function handlePlayerDeath(playerId, lines, causeDescription) {
         level: freshP.level,
         cause: causeDescription,
       });
+
+      // EPIC-2333-IMPL: Eco de movimiento — player_death (dura 12h)
+      try {
+        const classLabel = { guerrero: 'Guerrero', mago: 'Mago', clerigo: 'Clérigo', picaro: 'Pícaro', sin_clase: 'Aventurero' };
+        const cl = classLabel[freshP.player_class] || 'Aventurero';
+        const echoText = `💀 Las sombras guardan la memoria de ${freshP.username} (${cl} Niv.${freshP.level || 1}) — murió aquí`;
+        const echoExpires = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+        db.addRoomEcho(deathRoomEcos, freshP.username, 'player_death', echoText, echoExpires);
+      } catch (_echo2333) { /* no romper respawn */ }
     } catch (e) {
       console.warn('[ecos] Error en hook de muerte:', e.message);
     }
