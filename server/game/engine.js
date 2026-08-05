@@ -26411,26 +26411,77 @@ function cmdChallenge(player) {
 
   // Gran Desafío del Día
   if (grand) {
-    lines.push('╟' + '─'.repeat(W) + '╢');
-    lines.push('║' + '  🌟 GRAN DESAFÍO DEL DÍA (compartido)'.padEnd(W) + '║');
-    const gdescRows = wrapDesc(grand.description, '      ', W);
-    for (const row of gdescRows) lines.push('║' + row.padEnd(W) + '║');
-    const gBar = mkBar(grand.progress, grand.condition.amount);
-    const gStatus = grand.completed
-      ? '✅ ¡COMPLETADO!'
-      : `${grand.progress}/${grand.condition.amount}`;
-    lines.push('║' + `      [${gBar}] ${gStatus}`.padEnd(W) + '║');
-    lines.push('║' + `      Recompensa: ${rewardStr(grand.reward)}`.padEnd(W) + '║');
-    // DIS-1667: si no hay actividad reciente de otros jugadores, agregar nota contextual
+    // DIS-2356: detectar si el jugador está solo (sin otros activos en las últimas 2h)
+    let othersActive = 1; // asumir que hay otros por defecto
     try {
       const recentCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
       const recentPlayers = db.getActivePlayers(recentCutoff);
-      const othersActive = recentPlayers.filter(p => p.id !== player.id).length;
-      if (!grand.completed && othersActive === 0) {
-        const soloNote = '      👤 Jugás solo ahora — tu contribución cuenta igual.';
-        lines.push('║' + soloNote.padEnd(W) + '║');
-      }
+      othersActive = recentPlayers.filter(p => p.id !== fresh.id).length;
     } catch (_) { /* no romper si falla la consulta */ }
+
+    if (othersActive === 0) {
+      // DIS-2356: modo solo — reemplazar Gran Desafío por Récord Personal de kills
+      lines.push('╟' + '─'.repeat(W) + '╢');
+      lines.push('║' + '  🏆 RÉCORD PERSONAL DEL DÍA'.padEnd(W) + '║');
+      try {
+        // Usar YYYYMMDD como entero para world_state (que solo acepta INTEGER)
+        const todayStr = challengeAssigner.getTodayUtc(); // 'YYYY-MM-DD'
+        const todayInt = parseInt(todayStr.replace(/-/g, ''), 10); // 20260805
+        const dayStartKey = `solo_kills_day_start_${fresh.id}`;
+        const dayDateKey  = `solo_kills_day_date_${fresh.id}`;
+        const recordKey   = `solo_kills_record_${fresh.id}`;
+
+        const storedDateInt = db.getWorldStateValue(dayDateKey); // puede ser null o número
+        const currentKills = fresh.kills || 0;
+
+        // ¿El día cambió desde el último registro?
+        if (storedDateInt !== todayInt) {
+          // Nuevo día: calcular las kills de ayer y actualizar el récord si corresponde
+          const killsStart = db.getWorldStateValue(dayStartKey);
+          if (killsStart !== null) {
+            const killsYesterday = Math.max(0, currentKills - killsStart);
+            const prevRecord = db.getWorldStateValue(recordKey) || 0;
+            if (killsYesterday > prevRecord) {
+              db.setWorldState(recordKey, killsYesterday);
+            }
+          }
+          // Reinicializar para hoy
+          db.setWorldState(dayStartKey, currentKills);
+          db.setWorldState(dayDateKey, todayInt);
+        }
+
+        const killsStartToday = db.getWorldStateValue(dayStartKey) ?? currentKills;
+        const killsToday = Math.max(0, currentKills - killsStartToday);
+        const killsRecord = db.getWorldStateValue(recordKey) || 0;
+        const soloGoal = Math.max(5, killsRecord + 1); // superar el récord (o al menos 5)
+
+        const soloBar = mkBar(killsToday, soloGoal);
+        const soloStatus = killsToday >= soloGoal ? '✅ ¡RÉCORD SUPERADO!' : `${killsToday}/${soloGoal}`;
+        const soloDesc = killsRecord > 0
+          ? `Superá tu récord personal: ${killsRecord} kills de ayer. ¿Podés más hoy?`
+          : 'Hacé al menos 5 kills hoy para establecer tu primer récord.';
+        const soloDescRows = wrapDesc(soloDesc, '      ', W);
+        for (const row of soloDescRows) lines.push('║' + row.padEnd(W) + '║');
+        lines.push('║' + `      [${soloBar}] ${soloStatus}`.padEnd(W) + '║');
+        lines.push('║' + `      Recompensa: ${rewardStr(grand.reward)}`.padEnd(W) + '║');
+        lines.push('║' + `      👤 Solo — tu récord queda guardado para mañana.`.padEnd(W) + '║');
+      } catch (_) {
+        // fallback si falla la lógica de récord
+        lines.push('║' + '      Hacé kills hoy para establecer tu récord personal.'.padEnd(W) + '║');
+      }
+    } else {
+      // Modo multijugador normal: mostrar Gran Desafío compartido
+      lines.push('╟' + '─'.repeat(W) + '╢');
+      lines.push('║' + '  🌟 GRAN DESAFÍO DEL DÍA (compartido)'.padEnd(W) + '║');
+      const gdescRows = wrapDesc(grand.description, '      ', W);
+      for (const row of gdescRows) lines.push('║' + row.padEnd(W) + '║');
+      const gBar = mkBar(grand.progress, grand.condition.amount);
+      const gStatus = grand.completed
+        ? '✅ ¡COMPLETADO!'
+        : `${grand.progress}/${grand.condition.amount}`;
+      lines.push('║' + `      [${gBar}] ${gStatus}`.padEnd(W) + '║');
+      lines.push('║' + `      Recompensa: ${rewardStr(grand.reward)}`.padEnd(W) + '║');
+    }
   }
 
   // Pie
