@@ -3486,10 +3486,12 @@ function tryAddRune(playerId, isBoss = false, monsterId = null) {
     const bonus = RUNE_BONUSES[type];
     // DIS-587: hint de enchant en la primera runa obtenida
     // DIS-2170: guía de decisión enchant vs fusión — más clara sobre cuándo conviene cada opción
+    // DIS-2353: en el primer kill hay demasiadas notificaciones simultáneas — el tip largo de
+    // la primera runa se mueve a un recordatorio corto; el detalle completo está en `runas`.
     const isFirstRune = Object.values(runes).reduce((a, b) => a + b, 0) === 1;
     const enchantHint = isFirstRune
-      ? `\n   🪄 ¡Primera runa! Dos opciones:\n   • \"enchant ${type}\" — consume esta runa, encanta tu arma 3 min. Ideal antes de un boss o si estás en apuros.\n   • Guardar y acumular 3 del mismo tipo → FUSIÓN: ${bonus.label} (permanente, vale más a largo plazo).\n   Regla rápida: boss cerca → enchant. Podés farmear → esperá la fusión. Más info: \"runas\".`
-      : `\n   💡 Recordá: \"enchant ${type}\" la consume (buff 3 min), o juntá 3 → fusión permanente (${bonus.label}). Ver: \"runas\".`;
+      ? `\n   💡 Primera runa — escribí \`runas\` para ver tus opciones (enchant o acumular para fusión).`
+      : `\n   💡 Recordá: "enchant ${type}" la consume (buff 3 min), o juntá 3 → fusión permanente (${bonus.label}). Ver: "runas".`;
     // DIS-1942: primer drop de este tipo → explicar sistema; drops siguientes → solo conteo
     if (current === 0) {
       // Primera runa de este tipo — mostrar descripción del sistema
