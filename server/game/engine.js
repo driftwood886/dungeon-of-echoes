@@ -10343,14 +10343,12 @@ function cmdLore(player, query) {
     });
     lines.push(`(${loreEntries.length} fragmento(s) descubierto(s))`);
     if (undiscovered.length > 0) {
-      // Mostrar 1-2 pistas vagas sobre zonas sin descubrir
-      const hint1 = undiscovered[0];
-      const hint2 = undiscovered.length > 1 ? undiscovered[Math.floor(undiscovered.length / 2)] : null;
+      // DIS-2347: mostrar TODAS las zonas pendientes (no solo 1-2 pistas vagas)
       lines.push('');
-      lines.push('🔍 Hay secretos sin descubrir. Pistas:');
-      lines.push(`   • ${hint1.hint}`);
-      if (hint2) lines.push(`   • ${hint2.hint}`);
-      if (undiscovered.length > 2) lines.push(`   • ... y ${undiscovered.length - 2} zona(s) más por explorar.`);
+      lines.push(`🔍 Fragmentos sin descubrir (${undiscovered.length}):`);
+      for (const zone of undiscovered) {
+        lines.push(`   • ${zone.hint}`);
+      }
     } else {
       lines.push('✨ Descubriste todos los fragmentos conocidos. El dungeon ya no guarda secretos... ¿o sí?');
     }
