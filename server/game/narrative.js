@@ -385,4 +385,74 @@ function buildPlayerNarrative(player, moments, quests) {
   return allLines.join('\n');
 }
 
-module.exports = { buildPlayerNarrative };
+module.exports = { buildPlayerNarrative, generateEpitaph };
+
+// ── EPIC-2326-DEF: generateEpitaph ───────────────────────────────────────────
+
+/**
+ * Genera un epitafio auto-generado para un jugador que murió.
+ *
+ * Usa datos del personaje (clase, nivel, kills, oro, causa de muerte, sala)
+ * para elegir una de 5 plantillas con voz y tono distintos.
+ *
+ * @param {object} player  — objeto jugador completo desde db.getPlayer()
+ * @param {object} room    — objeto sala desde db.getRoom(player.current_room_id)
+ * @param {string} cause   — causa de muerte en texto (ej: "Zombie Caminante", "trampa en sala 5")
+ * @returns {string}       — texto del epitafio (sin emoji 💀, se agrega al insertar)
+ */
+function generateEpitaph(player, room, cause) {
+  const name     = player.username || 'Desconocido';
+  const level    = player.level    || 1;
+  const kills    = player.kills    || 0;
+  const gold     = player.gold     || 0;
+  const rawClass = player.class    || 'sin_clase';
+  const deaths   = player.deaths   || 1;
+  const roomName = (room && room.name) ? room.name : 'el dungeon';
+  const cause_   = cause || 'causas desconocidas';
+
+  // Etiqueta de clase legible
+  const CLASS_LABEL = {
+    guerrero:  'Guerrero',
+    mago:      'Mago',
+    clerigo:   'Clérigo',
+    picaro:    'Pícaro',
+    sin_clase: 'Aventurero',
+  };
+  const classLabel = CLASS_LABEL[rawClass] || 'Aventurero';
+
+  // Calcular fecha legible
+  const now  = new Date();
+  const fecha = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  // ── Elegir plantilla según criterios ──────────────────────────────────────
+
+  // 1. PRIMERA MUERTE SIN KILLS — murió de entrada, no mató nada
+  if (kills === 0) {
+    return `Aquí cayó ${name}, ${classLabel} nivel ${level}, antes de dejar su primera marca.\n` +
+           `${cause_} fue demasiado para un recién llegado. (${fecha})`;
+  }
+
+  // 2. VETERANO CON MUCHOS KILLS (20+) — epitafio épico
+  if (kills >= 20) {
+    return `${name}, ${classLabel} nivel ${level} — con ${kills} kills y ${deaths > 1 ? `${deaths} muertes previas` : 'pocas cicatrices'}, ` +
+           `fue finalmente vencido por ${cause_} en ${roomName}.\n` +
+           `No era un principiante. El dungeon tampoco. (${fecha})`;
+  }
+
+  // 3. MUERTO SIN ORO — el dungeon lo dejó sin nada
+  if (gold === 0) {
+    return `${name}, ${classLabel} nivel ${level}, cayó ante ${cause_} en ${roomName}.\n` +
+           `No tenía oro al morir. El dungeon se cobró todo, hasta el último centavo. (${fecha})`;
+  }
+
+  // 4. MAGO / CLÉRIGO — muerte intelectual (subió demasiado rápido o se quedó sin mana)
+  if (rawClass === 'mago' || rawClass === 'clerigo') {
+    const role = rawClass === 'mago' ? 'Maga/Mago' : 'Clérigo/a';
+    return `${name}, ${role} nivel ${level}, llegó demasiado lejos demasiado rápido.\n` +
+           `${cause_} fue su última batalla en ${roomName}. Tenía ${kills} kills y ${gold}g al morir. (${fecha})`;
+  }
+
+  // 5. PLANTILLA GENÉRICA — para el resto de los casos
+  return `${name}, ${classLabel} nivel ${level}, con ${kills} kills en su historia,\n` +
+         `cayó ante ${cause_} en ${roomName}. (${fecha})`;
+}
