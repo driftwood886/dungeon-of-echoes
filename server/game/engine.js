@@ -547,6 +547,7 @@ function execute(playerId, input, context) {
     case 'give':      result = cmdGive(player, action.args); break;
     case 'pay':       result = cmdPay(player, action.args); break;
     case 'loot':      result = cmdLoot(player); break;
+    case 'loot_ecos': result = cmdLootEcos(player); break;  // EPIC-ECOS (EPIC-2331-IMPL)
     case 'whisper':   result = cmdWhisper(player, action.args); break;
     case 'tell':      result = cmdTell(player, action.args); break;
     case 'reply':     result = cmdReply(player, action.args); break;
@@ -11025,6 +11026,41 @@ function cmdHealPotion(player) {
 
   // Delegar a cmdUse
   return cmdUse(player, potion);
+}
+
+// EPIC-ECOS (EPIC-2331-IMPL): recoger loot de jugadores caídos en la sala actual
+function cmdLootEcos(player) {
+  player = db.getPlayer(player.id);
+  if (!player) return { text: 'Error: jugador no encontrado.' };
+
+  const lootInRoom = db.getFallenLootInRoom(player.current_room_id);
+  if (lootInRoom.length === 0) {
+    return { text: '📦 No hay pertenencias de caídos en esta sala.' };
+  }
+
+  const lines = [];
+  const inv = Array.isArray(player.inventory)
+    ? [...player.inventory]
+    : JSON.parse(player.inventory || '[]');
+  const MAX_INV = 24 + (player.inventory_bonus || 0);
+  let picked = 0;
+
+  for (const lootRow of lootInRoom) {
+    if (inv.length >= MAX_INV) {
+      lines.push(`⚠️ Inventario lleno. No pudiste recoger: ${lootRow.item_name}`);
+      continue;
+    }
+    inv.push(lootRow.item_name);
+    db.removeFallenLootItem(lootRow.id);
+    lines.push(`✅ Recogiste: ${lootRow.item_name} (de ${lootRow.fallen_player})`);
+    picked++;
+  }
+
+  if (picked > 0) {
+    db.updatePlayer(player.id, { inventory: JSON.stringify(inv) });
+  }
+
+  return { text: lines.join('\n') };
 }
 
 /**

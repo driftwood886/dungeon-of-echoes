@@ -436,6 +436,10 @@ function parse(input) {
       'tomar todo':     { cmd: 'loot',     skillId: null },
       'agarrar todo':   { cmd: 'loot',     skillId: null },
       'get all':        { cmd: 'loot',     skillId: null },
+      // EPIC-ECOS (EPIC-2331-IMPL): recoger loot de jugadores caídos
+      'loot ecos':      { cmd: 'loot_ecos', skillId: null },
+      'recoger caidos': { cmd: 'loot_ecos', skillId: null },
+      'recoger caídos': { cmd: 'loot_ecos', skillId: null },
       'pick up':        { cmd: 'pick',     skillId: null },  // BUG-457: "pick up X" → "pick X"
       'take up':        { cmd: 'pick',     skillId: null },  // BUG-458: variante
       'golpe sucio':    { cmd: 'useSkill', skillId: 'golpe_sucio' },  // BUG-271: pícaro
