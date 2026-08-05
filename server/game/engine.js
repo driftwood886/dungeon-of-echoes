@@ -6633,6 +6633,13 @@ function cmdAttack(player, targetName) {
         });
         db.addJournalEntry(player.id, 'level', levelMsg);
 
+        // EPIC-2336-IMPL: Eco level_up en room_echoes (dura 2h)
+        try {
+          const levelUpEchoText = `✨ Una luz dorada resurgió aquí. Alguien alcanzó algo importante.`;
+          const levelUpEchoExpires = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+          db.addRoomEcho(player.current_room_id, player.username, 'level_up', levelUpEchoText, levelUpEchoExpires);
+        } catch (_echo2336) { /* no romper combate */ }
+
         // T969: notificación de ítem heredado al llegar a nivel 3
         if (newLevel === 3) {
           const freshFor969 = db.getPlayer(player.id);
@@ -23348,6 +23355,12 @@ function cmdUseSkill(player, args, context) {
           method: 'Golpetazo',
         });
         db.addJournalEntry(freshPlayer.id, 'level', smashLevelMsg);
+        // EPIC-2336-IMPL: Eco level_up (dura 2h)
+        try {
+          const lvlUpEchoSm = `✨ Una luz dorada resurgió aquí. Alguien alcanzó algo importante.`;
+          const lvlUpExpSm = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+          db.addRoomEcho(freshPlayer.current_room_id, freshPlayer.username, 'level_up', lvlUpEchoSm, lvlUpExpSm);
+        } catch (_echo2336sm) { /* no romper smash */ }
       }
       // Logros — incluyendo boss_killer
       const smashBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
@@ -23811,6 +23824,12 @@ function cmdUseSkill(player, args, context) {
           method: 'Golpe de Escudo',
         });
         db.addJournalEntry(freshPlayer.id, 'level', bashLevelMsg);
+        // EPIC-2336-IMPL: Eco level_up (dura 2h)
+        try {
+          const lvlUpEchoBash = `✨ Una luz dorada resurgió aquí. Alguien alcanzó algo importante.`;
+          const lvlUpExpBash = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+          db.addRoomEcho(freshPlayer.current_room_id, freshPlayer.username, 'level_up', lvlUpEchoBash, lvlUpExpBash);
+        } catch (_echo2336bash) { /* no romper bash */ }
       }
       // Logros — incluyendo boss_killer
       const bashBossKill = !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[target.id]);
