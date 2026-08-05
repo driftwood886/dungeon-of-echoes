@@ -1071,6 +1071,37 @@ async function init() {
     )
   `);
 
+  // EPIC-ECOS: Cicatrices de combate en salas
+  db.run(`
+    CREATE TABLE IF NOT EXISTS room_scars (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_id     INTEGER NOT NULL,
+      scar_type   TEXT NOT NULL,
+      context     TEXT NOT NULL DEFAULT '{}',
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at  TEXT NOT NULL
+    )
+  `);
+  db.run('CREATE INDEX IF NOT EXISTS idx_room_scars_room ON room_scars(room_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_room_scars_expires ON room_scars(expires_at)');
+
+  // EPIC-ECOS: Loot de caídos recuperable
+  db.run(`
+    CREATE TABLE IF NOT EXISTS fallen_loot (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_id       INTEGER NOT NULL,
+      fallen_player TEXT NOT NULL,
+      fallen_class  TEXT,
+      fallen_level  INTEGER,
+      item_name     TEXT NOT NULL,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at    TEXT NOT NULL
+    )
+  `);
+  db.run('CREATE INDEX IF NOT EXISTS idx_fallen_loot_room ON fallen_loot(room_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_fallen_loot_player ON fallen_loot(fallen_player)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_fallen_loot_expires ON fallen_loot(expires_at)');
+
   // T188: Tablón global de anuncios
   db.run(`
     CREATE TABLE IF NOT EXISTS bulletin_board (
@@ -3889,6 +3920,38 @@ function cleanBotWallMessages() {
 }
 
 
+// ─── EPIC-ECOS: room_scars ────────────────────────────────────────────────────
+
+function addRoomScar(roomId, scarType, context, expiresAt) {
+  run(
+    'INSERT INTO room_scars (room_id, scar_type, context, expires_at) VALUES (?, ?, ?, ?)',
+    [roomId, scarType, context, expiresAt]
+  );
+}
+
+function getActiveRoomScars(roomId) {
+  run('DELETE FROM room_scars WHERE expires_at < datetime("now")');
+  return all('SELECT * FROM room_scars WHERE room_id = ? ORDER BY created_at DESC', [roomId]);
+}
+
+// ─── EPIC-ECOS: fallen_loot ───────────────────────────────────────────────────
+
+function addFallenLoot(roomId, fallenPlayer, fallenClass, fallenLevel, itemName, expiresAt) {
+  run(
+    'INSERT INTO fallen_loot (room_id, fallen_player, fallen_class, fallen_level, item_name, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
+    [roomId, fallenPlayer, fallenClass, fallenLevel, itemName, expiresAt]
+  );
+}
+
+function getFallenLootInRoom(roomId) {
+  run('DELETE FROM fallen_loot WHERE expires_at < datetime("now")');
+  return all('SELECT * FROM fallen_loot WHERE room_id = ? ORDER BY created_at ASC', [roomId]);
+}
+
+function removeFallenLootItem(id) {
+  run('DELETE FROM fallen_loot WHERE id = ?', [id]);
+}
+
 // ─── Monstruos muertos recientes (T149) ──────────────────────────────────────
 
 /**
@@ -6021,6 +6084,9 @@ module.exports = {
   addBounty, getBountiesOnPlayer, getAllActiveBounties, claimBounty, expireOldBounties,
   // T147: mensajes en las paredes (graffiti)
   addWallMessage, getWallMessages, cleanBotWallMessages,
+  // EPIC-ECOS
+  addRoomScar, getActiveRoomScars,
+  addFallenLoot, getFallenLootInRoom, removeFallenLootItem,
   // T149: monstruos muertos recientes
   getRecentlyDeadMonsters,
   getDeadMonstersForRoom,

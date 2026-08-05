@@ -108,3 +108,34 @@ CREATE INDEX IF NOT EXISTS idx_guilds_name ON guilds(name);
 CREATE INDEX IF NOT EXISTS idx_players_guild_id ON players(guild_id);
 CREATE INDEX IF NOT EXISTS idx_guilds_rank ON guilds(rank);
 
+
+-- EPIC-ECOS (EPIC-2327-IMPL): Sistema Ecos de los Caídos
+
+CREATE TABLE IF NOT EXISTS room_scars (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id     INTEGER NOT NULL,
+  scar_type   TEXT NOT NULL,
+  -- 'combat_intense' | 'player_death' | 'boss_kill'
+  context     TEXT NOT NULL DEFAULT '{}',
+  -- JSON: { player_name, damage_dealt?, monster_name?, class?, level?, cause?, boss_name?, player_won? }
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at  TEXT NOT NULL   -- combat_intense: 3h; player_death: 6h; boss_kill: 8h
+);
+
+CREATE INDEX IF NOT EXISTS idx_room_scars_room    ON room_scars(room_id);
+CREATE INDEX IF NOT EXISTS idx_room_scars_expires ON room_scars(expires_at);
+
+CREATE TABLE IF NOT EXISTS fallen_loot (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id       INTEGER NOT NULL,
+  fallen_player TEXT NOT NULL,
+  fallen_class  TEXT,
+  fallen_level  INTEGER,
+  item_name     TEXT NOT NULL,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at    TEXT NOT NULL   -- 2 horas desde la muerte
+);
+
+CREATE INDEX IF NOT EXISTS idx_fallen_loot_room    ON fallen_loot(room_id);
+CREATE INDEX IF NOT EXISTS idx_fallen_loot_player  ON fallen_loot(fallen_player);
+CREATE INDEX IF NOT EXISTS idx_fallen_loot_expires ON fallen_loot(expires_at);
