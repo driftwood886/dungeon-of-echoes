@@ -25911,7 +25911,7 @@ function cmdRunas(player) {
   lines.push('║              Espectro del Corredor (sala 9)    ║');
   lines.push('║   ✨ Luz    → Campeón Espectral (sala 14) BOSS ║');
   lines.push('║              Guardia Espectral (sala 8) BOSS   ║');
-  lines.push('║   🌀 Caos   → Eco Viviente (sala 15) BOSS      ║');
+  lines.push('║   🌀 Caos   → Eco Viviente (sala 19) BOSS      ║');
   lines.push('║              Krakeling Abismal (sala 13)        ║');
   lines.push('║                                                 ║');
   lines.push('║  ⚠️  Los monstruos no-boss dropean tipo según  ║');
