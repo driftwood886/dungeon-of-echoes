@@ -10325,15 +10325,21 @@ function cmdLore(player, query) {
     }
     lines[lines.length - 1] = `╚${'═'.repeat(W)}╝`;
     // DIS-2017: contador de fragmentos y pista sobre zonas sin explorar
+    // DIS-2355: enmascarar zonas no visitadas — mostrar '???' en lugar del spoiler
+    const visitedRooms = new Set();
+    try {
+      const rv = JSON.parse(fresh.rooms_visited || '[]');
+      rv.forEach(r => visitedRooms.add(Number(r)));
+    } catch (_) {}
     const KNOWN_LORE_ZONES = [
-      { key: 'sala_trono',    hint: 'Sala del Trono (sala 9) — las inscripciones de las paredes' },
-      { key: 'prision',       hint: 'Prisión Subterránea (sala 8) — marcas de prisioneros' },
-      { key: 'catedral',      hint: 'Catedral de la Oscuridad (sala 15) — letra temblorosa' },
-      { key: 'corredor',      hint: 'Corredor de las Sombras (sala 2) — la inscripción con cera' },
-      { key: 'galeria',       hint: 'Galería de Hielo (sala 12) — las placas al pie de las columnas' },
-      { key: 'kaelthas_lich', hint: 'Derrotar al Lich en la Catedral' },
-      { key: 'santuario',     hint: 'Santuario Profano (zona profunda) — presencias sin nombre' },
-      { key: 'aldric_lore',   hint: 'Hablar con Aldric sobre el pasado del dungeon' },
+      { key: 'sala_trono',    roomId: 9,  hint: 'Sala del Trono (sala 9) — las inscripciones de las paredes' },
+      { key: 'prision',       roomId: 8,  hint: 'Prisión Subterránea (sala 8) — marcas de prisioneros' },
+      { key: 'catedral',      roomId: 15, hint: 'Catedral de la Oscuridad (sala 15) — letra temblorosa' },
+      { key: 'corredor',      roomId: 2,  hint: 'Corredor de las Sombras (sala 2) — la inscripción con cera' },
+      { key: 'galeria',       roomId: 12, hint: 'Galería de Hielo (sala 12) — las placas al pie de las columnas' },
+      { key: 'kaelthas_lich', roomId: 15, hint: 'Derrotar al Lich en la Catedral' },
+      { key: 'santuario',     roomId: 20, hint: 'Santuario Profano (zona profunda) — presencias sin nombre' },
+      { key: 'aldric_lore',   roomId: 4,  hint: 'Hablar con Aldric sobre el pasado del dungeon' },
     ];
     // Detectar cuáles ya se descubrieron (por keywords en las entradas de lore)
     const ZONE_KEYWORDS = {
@@ -10354,10 +10360,13 @@ function cmdLore(player, query) {
     lines.push(`(${loreEntries.length} fragmento(s) descubierto(s))`);
     if (undiscovered.length > 0) {
       // DIS-2347: mostrar TODAS las zonas pendientes (no solo 1-2 pistas vagas)
+      // DIS-2355: zonas cuya sala nunca fue visitada → mostrar '???' para no spoilear
       lines.push('');
       lines.push(`🔍 Fragmentos sin descubrir (${undiscovered.length}):`);
       for (const zone of undiscovered) {
-        lines.push(`   • ${zone.hint}`);
+        const wasVisited = visitedRooms.has(zone.roomId);
+        const displayHint = wasVisited ? zone.hint : `??? (zona sin explorar)`;
+        lines.push(`   • ${displayHint}`);
       }
     } else {
       lines.push('✨ Descubriste todos los fragmentos conocidos. El dungeon ya no guarda secretos... ¿o sí?');
