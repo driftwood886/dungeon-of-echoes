@@ -256,6 +256,24 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
   }
 
 
+  // DIS-2345: En sala 8 (Prisión Subterránea), advertir sobre el golpe espectral inevitable
+  // del Guardia Espectral antes de que el jugador lo ataque. Mostrar solo si el Guardia
+  // está vivo y el jugador aún no recibió el golpe de apertura (guardian_opening_done).
+  if (room.id === 8 && player) {
+    try {
+      const guardMonster = db.getMonster(8);
+      const guardAlive = guardMonster && guardMonster.hp > 0 && guardMonster.room_id !== null;
+      if (guardAlive) {
+        const guardFx = guardMonster.status_effects
+          ? (typeof guardMonster.status_effects === 'string' ? JSON.parse(guardMonster.status_effects) : guardMonster.status_effects)
+          : {};
+        if (!guardFx.guardian_opening_done) {
+          lines.push('\n👻 Aura espectral — el Guardia Espectral lanzará un golpe de apertura inevitable cuando el combate empiece (traspasa la armadura física). Asegurate de tener HP alto antes de atacar.');
+        }
+      }
+    } catch (_) { /* no romper describeRoom */ }
+  }
+
   const ambientLine = ambient.getAmbientText(room);
   if (ambientLine) {
     lines.push(`\n🌫️ ${ambientLine}`);
