@@ -4278,7 +4278,17 @@ function cmdInventory(player) {
     const countTag = count > 1 ? ` (x${count})` : '';
     // DIS-1776: mostrar use_hint si el ítem lo tiene definido (ej: brebaje del hongo)
     const useHintTag = (def && def.use_hint) ? ` · *${def.use_hint}*` : '';
-    return `${emoji} ${itemName}${rarityLabel}${craftTag}${viableTag}${countTag}${useHintTag}${extraSuffix || ''}`;
+    // DIS-2346: para pociones curativas, mostrar cuánto curarías con tu HP actual si hay pérdida parcial
+    let healHintTag = '';
+    if (def && def.type === 'potion' && def.effect === 'heal' && def.amount) {
+      const currentHp = player.hp || 0;
+      const maxHp = player.max_hp || 30;
+      const missing = maxHp - currentHp;
+      if (missing > 0 && missing < def.amount) {
+        healHintTag = ` *(curarías ${missing} ahora — HP: ${currentHp}/${maxHp})*`;
+      }
+    }
+    return `${emoji} ${itemName}${rarityLabel}${craftTag}${viableTag}${countTag}${useHintTag}${healHintTag}${extraSuffix || ''}`;
   }
 
   // Separar grupos por categoría
@@ -14891,13 +14901,24 @@ function cmdShop(player, args) {
     }
     const descRaw = (statBadge ? statBadge : '') + (item.description || '') + magoWeaponPenaltyNote;
     const descTrunc = descRaw.length > (maxDescLen + statBadge.length) ? descRaw.slice(0, maxDescLen + statBadge.length - 1) + '…' : descRaw;
+    // DIS-2346: para pociones curativas en la tienda, mostrar cuánto curarías con tu HP actual si hay pérdida parcial
+    let shopHealHint = '';
+    const shopItemDef2346 = items.getItemDef(item.name);
+    if (shopItemDef2346 && shopItemDef2346.type === 'potion' && shopItemDef2346.effect === 'heal' && shopItemDef2346.amount) {
+      const shopCurrentHp = player.hp || 0;
+      const shopMaxHp = player.max_hp || 30;
+      const shopMissing = shopMaxHp - shopCurrentHp;
+      if (shopMissing > 0 && shopMissing < shopItemDef2346.amount) {
+        shopHealHint = ` *(curarías ${shopMissing} ahora)*`;
+      }
+    }
     if (discount > 0) {
       const pricePad = `${finalPrice}g`.padEnd(9, ' ');
       const origPad  = `(${item.price}g)`.padEnd(11, ' ');
-      lines.push(`${num}. ${namePad}${pricePad}${origPad}${descTrunc}`);
+      lines.push(`${num}. ${namePad}${pricePad}${origPad}${descTrunc}${shopHealHint}`);
     } else {
       const pricePad = `${finalPrice}g`.padEnd(9, ' ');
-      lines.push(`${num}. ${namePad}${pricePad}${descTrunc}`);
+      lines.push(`${num}. ${namePad}${pricePad}${descTrunc}${shopHealHint}`);
     }
   });
 
