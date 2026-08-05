@@ -148,6 +148,36 @@ function formatScar(scar) {
 function renderRoomEcos(roomId) {
   const lines = [];
 
+  // ── Room echoes (Fase 2 — EPIC-2337-IMPL) ────────────────────────────────
+  try {
+    const echo = db.getLatestRoomEcho(roomId);
+    if (echo) {
+      const echoType = echo.echo_type;
+      const alwaysShow = echoType === 'player_death' || echoType === 'boss_kill';
+      const probShow = echoType === 'craft_unusual' || echoType === 'level_up';
+      const show = alwaysShow || (probShow && Math.random() < 0.15);
+      if (show) {
+        // Calcular edad relativa
+        const createdMs = new Date(echo.created_at).getTime();
+        const ageMs = Date.now() - createdMs;
+        let ageLabel;
+        if (ageMs < 60 * 1000) {
+          ageLabel = 'hace un momento';
+        } else if (ageMs < 60 * 60 * 1000) {
+          const mins = Math.floor(ageMs / 60000);
+          ageLabel = `hace ${mins} min`;
+        } else {
+          const hrs = Math.floor(ageMs / 3600000);
+          ageLabel = `hace ${hrs}h`;
+        }
+        lines.push('');
+        lines.push(`${echo.echo_text} (${ageLabel})`);
+      }
+    }
+  } catch (_echo2337) {
+    // No romper renderRoomEcos si falla
+  }
+
   // ── Fallen loot ──────────────────────────────────────────────────────────
   let loot = [];
   try {
