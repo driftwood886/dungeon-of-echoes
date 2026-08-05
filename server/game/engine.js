@@ -6532,6 +6532,12 @@ function cmdAttack(player, targetName) {
             boss_name: monster.name,
             player_won: true,
           });
+          // EPIC-2334-IMPL: Eco boss_kill (dura 6h)
+          try {
+            const bossEchoText = `⚔️ La sombra de ${player.username} todavía resuena aquí — derrotó a ${monster.name}`;
+            const bossEchoExpires = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString();
+            db.addRoomEcho(combatRoomId, player.username, 'boss_kill', bossEchoText, bossEchoExpires);
+          } catch (_echo2334) { /* no romper combate */ }
         }
         // Combate intenso: si el monstruo era difícil (attack >= 8) y no era boss
         // (proxy conservador porque no tenemos totalDmgDealt en combatResult)
