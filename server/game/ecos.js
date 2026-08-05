@@ -149,6 +149,9 @@ function renderRoomEcos(roomId) {
   const lines = [];
 
   // ── Room echoes (Fase 2 — EPIC-2337-IMPL) ────────────────────────────────
+  // Rastrear qué tipos de eco se mostraron para evitar cicatrices redundantes.
+  const echoTypesShown = new Set();
+
   try {
     const echo = db.getLatestRoomEcho(roomId);
     if (echo) {
@@ -172,6 +175,7 @@ function renderRoomEcos(roomId) {
         }
         lines.push('');
         lines.push(`${echo.echo_text} (${ageLabel})`);
+        echoTypesShown.add(echoType);
       }
     }
   } catch (_echo2337) {
@@ -229,9 +233,18 @@ function renderRoomEcos(roomId) {
       }
     }
 
+    // DIS-2340: suprimir cicatrices cuyo tipo ya tiene un eco mostrado —
+    // evita mensajes duplicados para boss_kill (el eco es más informativo
+    // porque incluye el nombre del jugador).
     lines.push('');
     for (const scar of Object.values(byType)) {
-      lines.push(formatScar(scar));
+      if (!echoTypesShown.has(scar.scar_type)) {
+        lines.push(formatScar(scar));
+      }
+    }
+    // Remover la línea en blanco si no se agregó ninguna cicatriz
+    if (lines[lines.length - 1] === '') {
+      lines.pop();
     }
   }
 
