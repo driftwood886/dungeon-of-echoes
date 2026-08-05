@@ -19542,12 +19542,50 @@ function formatTimeLeft(endsAt) {
 function cmdAuction(player, args) {
   player = db.getPlayer(player.id);
 
-  // BUG-311 / DIS-1089: si no hay args o el primer arg es un alias de "listar" (incluyendo "lista"), mostrar las subastas activas
+  // BUG-311 / DIS-1089: si no hay args o el primer arg es un alias de «listar», mostrar las subastas activas
   // (funciona desde cualquier sala, igual que el comando 'remates')
   if (!args || args.length === 0 ||
       ['listar', 'list', 'lista', 'ver', 'subastas', 'remates', 'ver subastas', 'listado', 'all', 'todas', 'mostrar', 'activas'].includes(args[0].toLowerCase())) {
     return cmdAuctions();
   }
+
+  // BUG-2359: cancelar subasta propia
+  if (['cancelar', 'cancel', 'retirar', 'cancelarsubasta', 'quitar'].includes(args[0].toLowerCase())) {
+    const rawId = args[1];
+    const auctionId = parseInt(rawId, 10);
+    if (!rawId || isNaN(auctionId)) {
+      // Si no hay ID, buscar subastas activas del jugador y mostrar lista
+      const myAuctions = db.getActiveAuctions().filter(a => a.seller_id === player.id);
+      if (myAuctions.length === 0) {
+        return { text: '🔨 No tenés subastas activas para cancelar.' };
+      }
+      const lista = myAuctions.map(a => `  #${a.id} — "${a.item_name}" (mín: ${a.min_price}g${a.current_bid > 0 ? `, puja actual: ${a.current_bid}g` : ', sin pujas'})`).join('\n');
+      return { text: `🔨 Tus subastas activas:\n${lista}\n\nPara cancelar una sin pujas: subasta cancelar <id>` };
+    }
+    const auction = db.getAuction(auctionId);
+    if (!auction) {
+      return { text: `🔨 No encontré la subasta #${auctionId}.` };
+    }
+    if (auction.seller_id !== player.id) {
+      return { text: `🔨 La subasta #${auctionId} no es tuya.` };
+    }
+    const cancelResult = db.cancelAuction(auctionId);
+    if (!cancelResult.ok) {
+      if (cancelResult.error === 'no_bids') {
+        // Tiene pujas — no se puede cancelar
+        const a = cancelResult.auction;
+        return { text: `🔨 No podés retirar la subasta #${auctionId} de "${a.item_name}".\n  Ya hay una puja de ${a.current_bid}g por ${a.bidder_name}.\n\n  Si la subasta cierra sin nueva puja, el ítem queda en el mercado pasivo.` };
+      }
+      return { text: `🔨 No se pudo cancelar: ${cancelResult.error}` };
+    }
+    // Devolver ítem al inventario
+    player = db.getPlayer(player.id);
+    const inv = player.inventory || [];
+    inv.push(cancelResult.auction.item_name);
+    db.updatePlayer(player.id, { inventory: JSON.stringify(inv) });
+    return { text: `✅ Subasta #${auctionId} cancelada. "${cancelResult.auction.item_name}" volvió a tu inventario.` };
+  }
+
 
   if (player.current_room_id !== AUCTION_ROOM_ID) {
     return { text: '🔨 Solo podés subastar desde la Casa de Subastas (sala 17).\n  Movete al este desde la Cámara del Tesoro (sala 4).\n\n💰 También podés vender directamente a Aldric con `vender <ítem>` desde la Cámara del Tesoro (sala 4).\n🔍 Para ver subastas activas usá: remates' };

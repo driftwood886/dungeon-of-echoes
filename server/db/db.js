@@ -3269,6 +3269,24 @@ function createPassiveAuction(sellerId, sellerName, itemName, minPrice) {
 }
 
 /**
+ * BUG-2359: Cancelar una subasta propia si no tiene pujas.
+ * @returns {{ ok: boolean, error?: string, auction?: object }}
+ */
+function cancelAuction(auctionId) {
+  const auction = getAuction(auctionId);
+  if (!auction) return { ok: false, error: 'Subasta no encontrada.' };
+  if (auction.closed) return { ok: false, error: 'Esa subasta ya está cerrada.' };
+  const now = new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
+  const endsAtNorm = (auction.ends_at || '').replace('T', ' ').replace(/\.\d{3}Z$/, '');
+  if (endsAtNorm <= now) return { ok: false, error: 'Esa subasta ya expiró.' };
+  if (auction.current_bid > 0 || auction.bidder_id) {
+    return { ok: false, error: 'no_bids', auction };
+  }
+  run(`UPDATE auctions SET closed = 1 WHERE id = ?`, [auctionId]);
+  return { ok: true, auction };
+}
+
+/**
  * DIS-535: Obtener subastas pasivas activas (pendientes de venta al Mercader).
  */
 function getActivePassiveAuctions() {
@@ -6149,7 +6167,7 @@ module.exports = {
   logGlobalEvent, getGlobalEvents, getGlobalEventsSince, getBossEventsSince, countKillsSince,
   // subastas (T098)
   createAuction, getActiveAuctions, getAuction, placeBid, closeExpiredAuctions, getRecentClosedAuctions,
-  createPassiveAuction, getActivePassiveAuctions, // DIS-535
+  createPassiveAuction, getActivePassiveAuctions, cancelAuction, // DIS-535, BUG-2359
   // acceso raw (por si acaso)
   raw: () => db,
   // T115: logros secretos
