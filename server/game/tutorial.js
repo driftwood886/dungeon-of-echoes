@@ -81,7 +81,7 @@ function getCompleteMsg(player) {
   let msg = hasClass ? COMPLETE_MSG_WITH_CLASS : COMPLETE_MSG;
   // DIS-2092: tip de arma para Guerreros — el cuchillo oxidado no acompaña la fantasía de clase
   if (player && player.player_class === 'guerrero') {
-    msg += '\n\n⚔️  TIP DE GUERRERO: Tu primer upgrade prioritario es una espada.\n   Aldric el Mercader (Sala de los Ecos → sur) vende espadas desde 10g — tenés oro de sobra.\n   Escribí:  sur  →  comprar espada de hierro';
+    msg += '\n\n⚔️  TIP DE GUERRERO: Tu primer upgrade prioritario es una espada.\n   Aldric el Mercader (Sala de los Ecos → este) vende espadas desde 10g — tenés oro de sobra.\n   Escribí:  este  →  comprar espada de hierro';
   }
   return msg;
 }
