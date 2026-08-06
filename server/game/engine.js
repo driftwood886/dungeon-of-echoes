@@ -2556,8 +2556,61 @@ function cmdMove(player, direction) {
         const nbCinematicEvent = (nbVisitResult.isNew && CINEMATIC_EVENTS[destId])
           ? `\n\n✨ ${CINEMATIC_EVENTS[destId]}`
           : '';
+
+        // DIS-2394: XP de exploración y desafío diario de salas en el path no-boss.
+        // El early return anterior omitía estos bloques — el jugador no recibía XP de exploración
+        // al entrar a salas con monstruos vivos (Corredor con goblins, Sala de los Ecos con murciélago).
+        let nbExplorationMsg = '';
+        let nbRoomsChallengeMsg = '';
+        if (!player.is_bot) {
+          try {
+            // Guardar nivel antes del desafío (igual que en path normal, DIS-2388)
+            const nbLevelBeforeChallenge = (db.getPlayer(player.id) || {}).level || player.level || 1;
+            // Desafío diario de salas
+            const nbRoomsCr = db.updateDailyChallengeProgress(player.id, 'rooms', destId);
+            if (nbRoomsCr) {
+              if (nbRoomsCr.reward && nbRoomsCr.challenge && nbRoomsCr.challenge.done) {
+                nbRoomsChallengeMsg = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+                if (nbLevelBeforeChallenge < ((db.getPlayer(player.id) || {}).level || 1)) {
+                  const nbFreshAfterChallenge = db.getPlayer(player.id);
+                  if (nbFreshAfterChallenge) {
+                    nbRoomsChallengeMsg += `\n✨ ¡SUBÍS AL NIVEL ${nbFreshAfterChallenge.level}! +5 HP, +1 ATK.` +
+                      ` (${nbFreshAfterChallenge.hp}/${nbFreshAfterChallenge.max_hp} HP)` +
+                      `\n   → Escribí \`status\` para ver tus stats actualizados.`;
+                  }
+                }
+              } else if (nbRoomsCr.challenge && !nbRoomsCr.challenge.done) {
+                nbRoomsChallengeMsg = `\n📅 Desafío diario: ${nbRoomsCr.challenge.desc} (${nbRoomsCr.challenge.progress}/${nbRoomsCr.challenge.goal})`;
+              }
+            }
+            // XP de exploración (solo en primera visita)
+            if (nbVisitResult.isNew) {
+              const nbFreshExp = db.getPlayer(player.id);
+              if (nbFreshExp) {
+                const nbPrevVisitedCount = (nbVisitResult.visited ? nbVisitResult.visited.length : 1) - 1;
+                const nbExploXp = nbPrevVisitedCount < 5 ? 10 : 3;
+                const nbExploXpNote = nbPrevVisitedCount < 5
+                  ? ' ✨ (bonus de descubrimiento)'
+                  : ' (sala estándar — las primeras 5 dan +10 XP)';
+                // Si el desafío ya subió el nivel, usar snapshot pre-desafío para calcLevelUp
+                let nbLvlUpExplo;
+                if (nbLevelBeforeChallenge < (nbFreshExp.level || 1)) {
+                  const nbPreChallengeSnapshot = { ...nbFreshExp, level: nbLevelBeforeChallenge };
+                  nbLvlUpExplo = calcLevelUp(nbPreChallengeSnapshot, nbExploXp);
+                  db.updatePlayer(player.id, { xp: (nbFreshExp.xp || 0) + nbExploXp });
+                } else {
+                  nbLvlUpExplo = calcLevelUp(nbFreshExp, nbExploXp);
+                  db.updatePlayer(player.id, nbLvlUpExplo.fields);
+                }
+                const nbVisitedTotal = nbVisitResult.visited ? nbVisitResult.visited.length : 1;
+                nbExplorationMsg = `\n🗺️ ¡Primera vez que explorás esta sala! +${nbExploXp} XP de explorador${nbExploXpNote}. 🌟 (${nbVisitedTotal} salas descubiertas en total)${nbLvlUpExplo.levelUpMsg}`;
+              }
+            }
+          } catch (_) { /* no romper movimiento si falla el bloque de XP */ }
+        }
+
         return {
-          text: `🚶 Te movés a «${destName}».${moveHintText}${noBossEffectText}${noBossTrapText}${player._usedKeyName ? `\n\n🔑 Usás la "${player._usedKeyName}" para abrir la puerta. La llave se rompe al girar — ya no te sirve, pero la puerta cedió. Una sola vez.` : ''}${(() => { try { const ev = worldEvents.getCurrentEvent(); if (ev && ev.id === 'curse') { const fr = db.getPlayer(player.id); if (fr && fr.hp > 1) { db.updatePlayer(fr.id, { hp: fr.hp - 1 }); return `\n💀 La Maldición del Lich drena tu vitalidad. (-1 HP · ${fr.hp - 1}/${fr.max_hp} HP)`; } else if (fr) { return `\n💀 La Maldición del Lich intenta drenar tu vitalidad, pero tu llama se resiste. (1/${fr.max_hp} HP)`; } } } catch (_) {} return ''; })()}${nbCinematicEvent}\n\n${nbLookResult.text}${nbQuestExploreMsg}${kaelthasGuardianHintMsg}`,
+          text: `🚶 Te movés a «${destName}».${moveHintText}${noBossEffectText}${noBossTrapText}${player._usedKeyName ? `\n\n🔑 Usás la "${player._usedKeyName}" para abrir la puerta. La llave se rompe al girar — ya no te sirve, pero la puerta cedió. Una sola vez.` : ''}${(() => { try { const ev = worldEvents.getCurrentEvent(); if (ev && ev.id === 'curse') { const fr = db.getPlayer(player.id); if (fr && fr.hp > 1) { db.updatePlayer(fr.id, { hp: fr.hp - 1 }); return `\n💀 La Maldición del Lich drena tu vitalidad. (-1 HP · ${fr.hp - 1}/${fr.max_hp} HP)`; } else if (fr) { return `\n💀 La Maldición del Lich intenta drenar tu vitalidad, pero tu llama se resiste. (1/${fr.max_hp} HP)`; } } } catch (_) {} return ''; })()}${nbCinematicEvent}${nbExplorationMsg}${nbRoomsChallengeMsg}\n\n${nbLookResult.text}${nbQuestExploreMsg}${kaelthasGuardianHintMsg}`,
           event: `${player.username} sale de la sala.`,
           eventRoomId: player.current_room_id,
         };
