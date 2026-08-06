@@ -4257,6 +4257,9 @@ function cmdInventory(player) {
     if (hasIng1 && !hasIng2) {
       const key = `${ing1}|${recipe.result}`;
       if (!shownLoneHints.has(key)) {
+        // DIS-2374: si el output ya está en inventario, omitir variantes bloqueadas del mismo producto
+        const resultAlreadyOwned = (allItemFreq.get(recipe.result.toLowerCase()) || 0) > 0;
+        if (resultAlreadyOwned) continue;
         shownLoneHints.add(key);
         // DIS-1392: indicar si el resultado es ingrediente intermedio
         const resultLower = recipe.result.toLowerCase();
@@ -4270,6 +4273,9 @@ function cmdInventory(player) {
     } else if (!hasIng1 && hasIng2) {
       const key = `${ing2}|${recipe.result}`;
       if (!shownLoneHints.has(key)) {
+        // DIS-2374: si el output ya está en inventario, omitir variantes bloqueadas del mismo producto
+        const resultAlreadyOwned = (allItemFreq.get(recipe.result.toLowerCase()) || 0) > 0;
+        if (resultAlreadyOwned) continue;
         shownLoneHints.add(key);
         // DIS-1392: indicar si el resultado es ingrediente intermedio
         const resultLower = recipe.result.toLowerCase();
