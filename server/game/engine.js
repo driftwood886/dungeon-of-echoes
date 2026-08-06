@@ -14698,6 +14698,37 @@ function cmdShop(player, args) {
   const shopHp  = `${player.hp || 0}/${player.max_hp || 30}`;
   lines.push(`📊 Tu equipo actual:  ⚔️ ${shopWeapon || '(sin arma)'}  🛡️ ${shopArmor || '(sin armadura)'}  ATK: ${shopAtk}  DEF: ${shopDef}  HP: ${shopHp}`);
   lines.push('');
+  // DIS-2369: advertir si el jugador tiene desafíos activos que dependen del arma equipada actual.
+  // Esto le permite decidir ANTES de comprar si quiere completar el desafío primero.
+  if (shopWeapon) {
+    try {
+      const { getDailyChallengesForPlayer, getTodayUtc } = require('./challengeAssigner');
+      const todayUTC2369 = getTodayUtc();
+      const daily2369 = getDailyChallengesForPlayer(player);
+      const progress2369 = db.getDailyChallengeProgress(player.id, todayUTC2369);
+      const weaponChallenges = daily2369.filter(ch => {
+        if (!ch || !ch.condition || !ch.condition.extra || !ch.condition.extra.weapon_equipped) return false;
+        const normW = s => (s || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (normW(ch.condition.extra.weapon_equipped) !== normW(shopWeapon)) return false;
+        // Solo mostrar si no está completado
+        const row = progress2369.find(r => r.challenge_id === ch.id);
+        const isDone = row && row.count >= ch.condition.amount;
+        return !isDone;
+      });
+      if (weaponChallenges.length > 0) {
+        lines.push('⚠️  ── DESAFÍOS ACTIVOS CON TU ARMA ACTUAL ──────────────────────────');
+        for (const ch of weaponChallenges) {
+          const row = progress2369.find(r => r.challenge_id === ch.id);
+          const done = row ? row.count : 0;
+          const total = ch.condition.amount;
+          lines.push(`  📋 «${ch.title}» — progreso: ${done}/${total} (requiere: ${shopWeapon})`);
+        }
+        lines.push('  Si comprás un arma nueva, estos desafíos se pausarán. ¿Querés completarlos antes de cambiar?');
+        lines.push('─────────────────────────────────────────────────────────────────────');
+        lines.push('');
+      }
+    } catch (_) { /* no interrumpir si falla */ }
+  }
   // DIS-1410: si el jugador es nivel 5+ sin armadura, Aldric lo nota y recomienda una
   if ((player.level || 1) >= 5 && !shopArmor) {
     const armorRec = player.player_class === 'mago' ? 'túnica encantada' : 'cuero endurecido';
