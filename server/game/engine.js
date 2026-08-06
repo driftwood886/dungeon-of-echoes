@@ -1127,8 +1127,8 @@ Comandos más usados:
   const STAGNATION_RESET_CMDS = new Set(['move', 'attack', 'pick', 'buy', 'sell', 'rest', 'forage', 'craft', 'use', 'drop', 'disarm', 'unlock', 'give', 'pay', 'loot', 'enchant', 'meditate', 'contract', 'ascender', 'recall', 'shop']);
   // Hints contextuales por sala_id
   const STAGNATION_HINTS = {
-    1:  '💭 Llevás un rato en la Entrada. El dungeon se extiende al norte (Corredor de las Sombras). Si necesitás equiparte, la tienda de Aldric está al norte y luego al este.',
-    2:  '💭 Estás dando vueltas en el Corredor. La tienda de Aldric está al este. Si el camino oeste tiene trampa, podés buscar un hongo azul en el Túnel o una cuerda en el Pozo (sur). Al sur también está la Sala de los Ecos.',
+    1:  '💭 Llevás un rato en la Entrada. El dungeon se extiende al norte (Corredor de las Sombras). Si necesitás equiparte, la tienda de Aldric está al norte, norte de nuevo (Sala de los Ecos) y luego al este.',
+    2:  '💭 Estás dando vueltas en el Corredor. La tienda de Aldric está al norte (Sala de los Ecos) y luego al este. Si el camino oeste tiene trampa, podés buscar un hongo azul en el Túnel o una cuerda en el Pozo (sur). Al sur también está la Entrada.',
     3:  '💭 La Sala de los Ecos puede ser un callejón sin salida si no tenés la cuerda para la trampa. La cuerda cuelga en algún lugar del Pozo (al oeste). Si estás bajo de HP, la Capilla Olvidada tiene un altar curativo — llegás desde la Entrada de la Cripta hacia el este.',
     4:  '💭 La Cámara del Tesoro (tienda de Aldric) tiene ítems útiles — preguntale con «comprar» para ver el catálogo. Si necesitás explorar más, el norte lleva al Corredor, el sur a la Capilla.',
     5:  '💭 La Capilla tiene un cuenco sagrado que restaura HP (usá «rezar» o «usar cuenco»). Si ya lo usaste, el norte lleva de vuelta al Corredor. Al norte del Corredor están más zonas por explorar.',

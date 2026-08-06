@@ -482,7 +482,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
       } catch (_) {}
     }
     if (!yaVioCorredor) {
-      lines.push(`\n💡 Consejo: Hay un mercader dentro del dungeon. Su tienda está al norte (Corredor) y luego al este. Seguí el olor a cuero.`);
+      lines.push(`\n💡 Consejo: Hay un mercader dentro del dungeon. Su tienda está al norte (Corredor), seguí norte de nuevo (Sala de los Ecos) y luego al este. Seguí el olor a cuero.`);
     }
   }
 
@@ -624,7 +624,7 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
           const equipped = inv.find(i => i && i.equipped && (i.attack_bonus !== undefined || i.attack !== undefined));
           const currentAtk = player.attack || 8;
           if (currentAtk < 10) {
-            lines.push(`⚔️ Equipo recomendado: arma con ATK 8+ (tu ATK actual: ${currentAtk}). El Gólem tiene regeneración activa — con daño bajo la pelea se extiende peligrosamente. Aldric vende armas en la Cámara del Tesoro (oeste desde la Entrada).`);
+            lines.push(`⚔️ Equipo recomendado: arma con ATK 8+ (tu ATK actual: ${currentAtk}). El Gólem tiene regeneración activa — con daño bajo la pelea se extiende peligrosamente. Aldric vende armas en la Cámara del Tesoro (norte, norte y este desde la Entrada).`);
           }
         } catch (_) { /* no romper la sala si falla */ }
       }
