@@ -10736,12 +10736,26 @@ function cmdEquip(player, itemQuery) {
     if (foundLower.includes('grimorio')) {
       magoHeavyFlavor = `\n💬 (Abrís el grimorio. Las páginas están cubiertas de símbolos que no reconocés. Lo empuñás de todas formas — pesa bien, eso sí.)`;
     } else if (foundLower.includes('espectral') || foundLower.includes('del eco')) {
-      // DIS-708/DIS-809: aclarar ATK comparado con espada de hierro (+8)
+      // DIS-708/DIS-809: aclarar ATK comparado con arma previa (o espada de hierro como baseline)
       // DIS-936: el bono espectral ahora es real (+2 o +3 ATK contra espectrales/mágicos)
+      // DIS-2380: usar el arma previamente equipada como referencia, no hardcodear "espada de hierro"
       const spectralBonusInfo = def.spectral_bonus ? ` +${def.spectral_bonus} ATK adicional contra espectrales y criaturas mágicas (bono real).` : '';
-      const atkNote = (def.amount >= 10)
-        ? ` (+${def.amount} ATK — supera a la espada de hierro en +${def.amount - 8} ATK.${spectralBonusInfo})`
-        : (def.amount >= 8) ? ` (+${def.amount} ATK — igual a la espada de hierro.${spectralBonusInfo})` : '';
+      let atkNote = '';
+      if (player.equipped_weapon && prevWeaponDef) {
+        const prevAtk = prevWeaponDef.amount || 0;
+        const diff = def.amount - prevAtk;
+        if (diff > 0) {
+          atkNote = ` (+${def.amount} ATK — supera a ${player.equipped_weapon} en +${diff} ATK.${spectralBonusInfo})`;
+        } else if (diff === 0) {
+          atkNote = ` (+${def.amount} ATK — mismo ATK que ${player.equipped_weapon}.${spectralBonusInfo})`;
+        } else {
+          atkNote = ` (+${def.amount} ATK — ${Math.abs(diff)} ATK menos que ${player.equipped_weapon}.${spectralBonusInfo})`;
+        }
+      } else if (def.amount >= 10) {
+        atkNote = ` (+${def.amount} ATK — supera a la espada de hierro en +${def.amount - 8} ATK.${spectralBonusInfo})`;
+      } else if (def.amount >= 8) {
+        atkNote = ` (+${def.amount} ATK — igual a la espada de hierro.${spectralBonusInfo})`;
+      }
       magoHeavyFlavor = `\n💬 (El arma se siente extraña en tu mano — demasiado liviana, demasiado fría. Los guerreros prefieren metal que suene al golpear.${atkNote})`;
     } else if (foundLower.includes('catalizador') || foundLower.includes('vara')) {
       magoHeavyFlavor = `\n💬 (Esto claramente fue hecho para alguien que lee libros. Pero si pega, pega.)`;
