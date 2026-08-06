@@ -8534,6 +8534,27 @@ function cmdPick(player, itemQuery) {
     }
   }
 
+  // DIS-2385: advertencia especial para hongo azul — si la trampa de sala 6 está activa
+  // y el jugador tiene solo 1 hongo azul (el que acaba de recoger), avisar antes de craftear.
+  if (foundNormPick === 'hongo azul') {
+    try {
+      const room6DIS2385 = db.getRoom(6);
+      const trapActiveDIS2385 = room6DIS2385 && room6DIS2385.trap && room6DIS2385.trap.active;
+      const hongoCount = newInventory.filter(i => i.toLowerCase().trim() === 'hongo azul').length;
+      if (trapActiveDIS2385 && hongoCount <= 1) {
+        const trapWarnDIS2385 = '\n⚠️ Este hongo azul también desactiva la trampa de esporas del Túnel de los Hongos (sala 6). ' +
+          'Si lo crafteás, perderás el ítem necesario para desactivarla y tomarás daño al entrar.';
+        if (pickCraftHint) {
+          // Insertar la advertencia ANTES del hint de crafteo
+          pickCraftHint = trapWarnDIS2385 + pickCraftHint;
+        } else {
+          // No hay hint de crafteo aún — agregar la advertencia de trampa sola
+          pickCraftHint = trapWarnDIS2385;
+        }
+      }
+    } catch (_) { /* no romper pickup si falla el chequeo de trampa */ }
+  }
+
   // BUG-1170: si hay hint de crafteo para un ítem que TAMBIÉN acepta el altar (pray),
   // advertir que craftear lo consume y que hay alternativa — evita confusión post-crafteo.
   // Nota: esta lista debe mantenerse sincronizada con ALTAR_OFFERINGS (definida más abajo).
