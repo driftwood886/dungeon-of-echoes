@@ -3281,13 +3281,43 @@ function cmdMove(player, direction) {
   // T165: Mensaje de primera visita permanente
   const firstVisitEver = visitResult.isNew;
 
+  // DIS-2388: Guardar nivel del jugador ANTES del desafío diario,
+  // para detectar level-up causado por updateDailyChallengeProgress (que no muestra mensaje).
+  const levelBeforeChallenge = (db.getPlayer(player.id) || {}).level || player.level || 1;
+
   // T141: Desafío diario de salas visitadas
   // Fix BUG-999: pasar targetId para que updateDailyChallengeProgress use rooms_today (salas visitadas hoy),
   // en vez de visitResult.isNew (sala nunca visitada en toda la vida del personaje).
   // Jugadores avanzados que ya exploraron todo el dungeon ahora pueden completar el desafío normalmente.
   const roomsCr = db.updateDailyChallengeProgress(player.id, 'rooms', targetId);
 
-  // ── T160/DIS-D372: XP por exploración permanente ──────────────────────────
+  // DIS-2388: Generar mensaje del desafío diario de salas (roomsCr), incluyendo level-up si corresponde.
+  // Antes, roomsCr se ignoraba en cmdMove — el jugador nunca veía el feedback del desafío ni el level-up.
+  let roomsChallengeMsg = '';
+  if (roomsCr) {
+    if (roomsCr.reward && roomsCr.challenge && roomsCr.challenge.done) {
+      // Desafío completado: mostrar recompensa
+      roomsChallengeMsg = `\n🏆 ¡DESAFÍO DIARIO COMPLETADO! +30 XP · +20 🪙 · +5 Reputación`;
+      // Si hubo level-up durante el desafío y aún no será cubierto por explorationMsg,
+      // generar el mensaje de level-up aquí para que el jugador lo vea.
+      // (El caso de firstVisitEver ya maneja el mensaje en explorationMsg con el snapshot pre-desafío.)
+      if (!firstVisitEver && levelBeforeChallenge < ((db.getPlayer(player.id) || {}).level || 1)) {
+        const freshAfterChallenge = db.getPlayer(player.id);
+        if (freshAfterChallenge) {
+          // Generar mensaje de level-up para el level-up que ya ocurrió
+          const challengeLvlMsg = `\n✨ ¡SUBÍS AL NIVEL ${freshAfterChallenge.level}! +5 HP, +1 ATK.` +
+            ` (${freshAfterChallenge.hp}/${freshAfterChallenge.max_hp} HP)` +
+            `\n   → Escribí \`status\` para ver tus stats actualizados.`;
+          roomsChallengeMsg += challengeLvlMsg;
+        }
+      }
+    } else if (roomsCr.challenge && !roomsCr.challenge.done) {
+      // Progreso parcial del desafío
+      roomsChallengeMsg = `\n📅 Desafío diario: ${roomsCr.challenge.desc} (${roomsCr.challenge.progress}/${roomsCr.challenge.goal})`;
+    }
+  }
+
+
   // DIS-1583: XP de exploración escalonada — primeras 5 salas dan 10 XP (bonus de
   // descubrimiento temprano para reducir grind inicial hacia nivel 3/facciones),
   // salas 6+ dan 3 XP (antes eran 2 XP fijas).
@@ -3301,8 +3331,25 @@ function cmdMove(player, direction) {
     // BUG-2301: usar calcLevelUp para calcular stats Y obtener mensaje completo con detalles
     // (igual que en combate: muestra +5 HP máx, +1 ATK, HP restaurado, unlocks de nivel, etc.)
     // calcLevelUp ya maneja: multi-nivel, aldricCartaReminder, spec_notify_deferred, unlockLines, veteranoMsg
-    const lvlUpExplo = calcLevelUp(freshExp, exploXp);
-    db.updatePlayer(player.id, lvlUpExplo.fields);
+    // DIS-2388: Si updateDailyChallengeProgress ya subió el nivel silenciosamente,
+    // calcLevelUp(freshExp, exploXp) no detectaría el level-up porque freshExp.level ya es el nivel nuevo.
+    // Solución: si el desafío causó un level-up (levelBeforeChallenge < freshExp.level), pasamos un snapshot
+    // del jugador con el nivel pre-desafío para que calcLevelUp detecte correctamente la transición.
+    // El XP y stats ya están actualizados en DB; calcLevelUp en este caso solo se usa para generar el MENSAJE.
+    let lvlUpExplo;
+    if (levelBeforeChallenge < (freshExp.level || 1)) {
+      // El desafío diario ya actualizó el nivel y los stats — solo necesitamos el mensaje.
+      // Creamos un snapshot pre-desafío para que calcLevelUp compute la transición de nivel correctamente.
+      // Los fields retornados se descartarán (ya están aplicados) — solo usamos .levelUpMsg.
+      const preChallengSnapshot = { ...freshExp, level: levelBeforeChallenge };
+      lvlUpExplo = calcLevelUp(preChallengSnapshot, exploXp);
+      // No llamar db.updatePlayer con los fields de lvlUpExplo — el desafío ya actualizó stats correctamente.
+      // Solo aplicar el XP de exploración adicional (el desafío ya sumó su propio XP).
+      db.updatePlayer(player.id, { xp: (freshExp.xp || 0) + exploXp });
+    } else {
+      lvlUpExplo = calcLevelUp(freshExp, exploXp);
+      db.updatePlayer(player.id, lvlUpExplo.fields);
+    }
     // DIS-2348: aclarar por qué el XP de exploración varía: bonus de descubrimiento (primeras 5 salas) vs sala estándar
     const exploXpNote = prevVisitedCount < 5
       ? ' ✨ (bonus de descubrimiento)'
@@ -4156,7 +4203,7 @@ function cmdMove(player, direction) {
   return {
     // DIS-2190: cinematicEvent va ANTES de la descripción de sala para que el momento narrativo
     // sea lo primero que lee el jugador — no quede sepultado después de bloques informativos largos.
-    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${cinematicEvent}${roomEffectBanner}${roomDescWithEffect}${trapText}${effectText}${explorationMsg}${firstVisitMsg}${_tronoConsolidated}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${leftEpicMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${questExploreMsg}${_sistemaBlock}`,
+    text: `${moveText}\n${passiveManaMsg}${trapDamagePrefix}${cinematicEvent}${roomEffectBanner}${roomDescWithEffect}${trapText}${effectText}${explorationMsg}${roomsChallengeMsg}${firstVisitMsg}${_tronoConsolidated}${golemWarningMsg}${shopHintMsg}${levelWarnMsg}${extremeWeatherMsg}${adjacentTrapMoveMsg}${leftEpicMsg}${expeditionEnterMsg}${keyConsumedMsg}${shadowResetMsg}${consagracionRemovedMsg}${unequippedGearMsg}${curseDrainMsg}${questExploreMsg}${_sistemaBlock}`,
     event: `${player.username} entra a la sala.`,
     eventRoomId: targetId,
     fromRoomId: player.current_room_id,
