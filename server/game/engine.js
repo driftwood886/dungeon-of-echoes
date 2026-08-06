@@ -22514,10 +22514,18 @@ function cmdClase(player, args) {
   }
 
   // Elegir/cambiar clase
-  const rawInput = args.join(' ').toLowerCase().trim();
+  // DIS-2389: si el primer token es "elegir", descartarlo (alias natural: "clase elegir guerrero")
+  let classArgs = args;
+  if (classArgs.length > 0 && classArgs[0].toLowerCase().trim() === 'elegir') {
+    classArgs = classArgs.slice(1);
+  }
+  const rawInput = classArgs.join(' ').toLowerCase().trim();
   const className = classes.resolveClass(rawInput);
 
   if (!className) {
+    if (!rawInput) {
+      return { text: `❓ ¿Qué clase querés elegir? Ejemplo: clase guerrero\nClases disponibles: guerrero, mago, picaro, clerigo` };
+    }
     return { text: `❌ Clase desconocida: "${rawInput}".\nClases disponibles: guerrero, mago, picaro\nEjemplo: clase guerrero` };
   }
 
