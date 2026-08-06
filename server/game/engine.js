@@ -6268,7 +6268,13 @@ function cmdAttack(player, targetName) {
   if (monsterDead) {
     const rm = db.tryAddRune(player.id, !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]), monster.id);
     if (rm) {
-      runeMsg = '\n' + rm;
+      // DIS-2363: Si el jugador acaba de subir de nivel en este mismo turno, suprimir el mensaje de runa.
+      // El level-up ya trae bastante texto (habilidades, tips de clase, HP, ATK). Mostrar ambos juntos es
+      // overload para nuevos jugadores. La runa sí se acredita — solo no se anuncia en este turno.
+      const didLevelUp = freshForAch && (freshForAch.level || 1) > (player.level || 1);
+      if (!didLevelUp) {
+        runeMsg = '\n' + rm;
+      }
       // EPIC-1163: hook de expedición — trigger 'pickup' para runas
       try {
         const freshForExpRune = db.getPlayer(player.id);
