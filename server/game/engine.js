@@ -14890,6 +14890,9 @@ function cmdShop(player, args) {
     // DIS-1768: calcular ATK actual del arma equipada para filtrar recomendaciones inferiores
     const equippedWeaponDef = equippedWeaponName ? items.getItemDef(equippedWeaponName) : null;
     const equippedWeaponATK = (equippedWeaponDef && equippedWeaponDef.type === 'weapon') ? (equippedWeaponDef.amount || 0) : 0;
+    // BUG-2383: calcular DEF actual de la armadura equipada para filtrar recomendaciones inferiores (análogo al DIS-1768 de armas)
+    const equippedArmorDef2383 = equippedArmorName ? items.getItemDef(equippedArmorName) : null;
+    const equippedArmorDEF = (equippedArmorDef2383 && equippedArmorDef2383.type === 'armor') ? (equippedArmorDef2383.amount || 0) : 0;
 
     // Armas básicas de tienda (ATK <= 10) — no recomendarlas si el jugador ya tiene arma épica/legendaria
     const BASIC_SHOP_WEAPONS = new Set(['espada de hierro', 'espada de acero', 'daga envenenada', 'daga básica', 'espada oxidada', 'guantes de cuero fino', 'vara de energía', 'símbolo sagrado']);
@@ -14933,7 +14936,8 @@ function cmdShop(player, args) {
         // DIS-1517: si el jugador ya tiene este ítem equipado/en inventario, mostrar el siguiente tier
         if (playerEquippedSet.has(name.toLowerCase())) {
           const nextTier = NEXT_TIER[name.toLowerCase()];
-          return nextTier ? [nextTier] : []; // reemplazar con el siguiente tier, o silenciar
+          // BUG-2383: también verificar que el jugador no tenga ya el nextTier antes de sugerirlo
+          return (nextTier && !playerEquippedSet.has(nextTier.toLowerCase())) ? [nextTier] : [];
         }
         // DIS-1768: si el arma recomendada tiene ATK ≤ al arma equipada actual, no recomendarla
         if (BASIC_SHOP_WEAPONS.has(name) && equippedWeaponATK > 0) {
@@ -14944,6 +14948,19 @@ function cmdShop(player, args) {
             const nextTier = NEXT_TIER[name.toLowerCase()];
             if (nextTier) {
               // Solo sugerir el tier siguiente si el jugador no lo tiene ya
+              return (!playerEquippedSet.has(nextTier.toLowerCase())) ? [nextTier] : [];
+            }
+            return [];
+          }
+        }
+        // BUG-2383: si la armadura recomendada tiene DEF ≤ a la armadura equipada actual, no recomendarla
+        if (BASIC_SHOP_ARMORS.has(name) && equippedArmorDEF > 0) {
+          const recArmorDef = items.getItemDef(name);
+          const recArmorDEF = (recArmorDef && recArmorDef.type === 'armor') ? (recArmorDef.amount || 0) : 0;
+          if (recArmorDEF > 0 && equippedArmorDEF >= recArmorDEF) {
+            // El jugador ya tiene armadura igual o mejor — sugerir el siguiente tier si existe
+            const nextTier = NEXT_TIER[name.toLowerCase()];
+            if (nextTier) {
               return (!playerEquippedSet.has(nextTier.toLowerCase())) ? [nextTier] : [];
             }
             return [];
@@ -23577,8 +23594,9 @@ function cmdUseSkill(player, args, context) {
     const smashResistNote = smashPhysResist < 1.0 ? ` ${smashResistLabel}` : '';
     const smashOverkillNote = smashIsOverkill ? ` *(excesivo, pero eficaz)*` : '';
     // DIS-2127: si overkill Y imposition disponible (cooldown = 0), sugerir su uso
+    // BUG-2384: solo mostrar el hint para Paladín — imposition no aplica al Berserker
     let smashImpositionHint = '';
-    if (smashIsOverkill) {
+    if (smashIsOverkill && freshPlayer.specialization === 'paladin') {
       try {
         const cd2127 = skills.getCooldowns(freshPlayer);
         const impositionExpires = cd2127['imposition'];
