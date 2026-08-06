@@ -2716,7 +2716,7 @@ function attackRound(player, monster) {
       if (!currentFx.poisoned) {
         currentFx.poisoned = { damage: poisonerDef.damage, turns: poisonerDef.turns };
         player.status_effects = currentFx;
-        lines.push(`🕷 ¡${articuloMonstruo(monster.name)} ${monster.name} te envenenó! Perderás ${poisonerDef.damage} HP por turno durante ${poisonerDef.turns} turnos. (Usá \"use antídoto\" para curarte)`);
+        lines.push(`🕷 ¡${articuloMonstruo(monster.name)} ${monster.name} te envenenó! Perderás ${poisonerDef.damage} HP por turno durante ${poisonerDef.turns} turnos. (Usá \"use antídoto\" o \"use hierba curativa\" para curarte)`);
       }
     }
 
@@ -2816,17 +2816,25 @@ function attackRound(player, monster) {
       } else if (specialDef.type === 'life_drain') {
         // DIS-1739: Espectro del Corredor — drenaje de vida espectral
         // Drena HP al jugador Y cura al monstruo (inversión de vitalidad)
-        const drainAmt = specialDef.amount || 5;
-        player.hp = Math.max(0, player.hp - drainAmt);
-        db.updatePlayer(player.id, { hp: player.hp });
-        // Curar al monstruo por la misma cantidad (no puede superar max_hp)
-        const freshMonster = db.getMonster(monster.id);
-        if (freshMonster) {
-          const newMonsterHp = Math.min(freshMonster.max_hp, (freshMonster.hp || 0) + drainAmt);
-          db.updateMonster(monster.id, { hp: newMonsterHp });
-          monster.hp = newMonsterHp; // actualizar en memoria también
+        // DIS-2362: Suprimir vampirismo del Murciélago Vampiro para jugadores nivel 1-2
+        //   El Murciélago está en sala 3 (ruta obligada al mercader); acumular veneno + vampirismo
+        //   simultáneamente es un catch-22 para nuevos jugadores que aún no tienen antídoto.
+        const playerLevel = player.level || 1;
+        if (monster.name === 'Murciélago Vampiro' && playerLevel <= 2) {
+          // Silenciar — el murciélago aún muerde, pero no drena vida en novatos
+        } else {
+          const drainAmt = specialDef.amount || 5;
+          player.hp = Math.max(0, player.hp - drainAmt);
+          db.updatePlayer(player.id, { hp: player.hp });
+          // Curar al monstruo por la misma cantidad (no puede superar max_hp)
+          const freshMonster = db.getMonster(monster.id);
+          if (freshMonster) {
+            const newMonsterHp = Math.min(freshMonster.max_hp, (freshMonster.hp || 0) + drainAmt);
+            db.updateMonster(monster.id, { hp: newMonsterHp });
+            monster.hp = newMonsterHp; // actualizar en memoria también
+          }
+          lines.push(`${rawMsg} (vos: ${player.hp}/${player.max_hp} HP | ${monster.name}: ${monster.hp}/${monster.max_hp} HP)`);
         }
-        lines.push(`${rawMsg} (vos: ${player.hp}/${player.max_hp} HP | ${monster.name}: ${monster.hp}/${monster.max_hp} HP)`);
 
       } else if (specialDef.type === 'armor_pierce') {
         // DIS-988: Esqueleto ÉLITE ignora N DEF del jugador — daño extra por encima del ya aplicado

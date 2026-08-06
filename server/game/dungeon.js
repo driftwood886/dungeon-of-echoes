@@ -533,6 +533,11 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
       if (zombieAlive && (player.level || 1) < 3) {
         lines.push(`\n⚠️ Un muerto viviente merodea esta sala. Nivel recomendado: 3+ (tu nivel actual: ${player.level || 1}). Considerá equiparte mejor antes de atacarlo — o busca otro camino.`);
       }
+      // DIS-2362: Murciélago Vampiro en sala 3 puede envenenar — avisar que las hierbas del tutorial son el antídoto
+      const murcielagoAlive = monstersRoom3.some(m => m.hp > 0 && (m.name || '').toLowerCase().includes('murciélago vampiro'));
+      if (murcielagoAlive && (player.level || 1) <= 2) {
+        lines.push(`\n🦇 Hay un Murciélago Vampiro en esta sala. Puede envenenarte (1 dmg/turno, 3 turnos). Si te envenena, usá «use hierba curativa» — las 2 hierbas del tutorial también curan el veneno.`);
+      }
     } catch (_) { /* no romper la sala si falla */ }
   }
 
