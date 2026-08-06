@@ -67,12 +67,12 @@ o escribí:  sur   para salir al dungeon real.
 //   facciones → al llegar a nivel 3 (ya implementado en levelUp)
 //   lore → al usar 'read' por primera vez (engine.js cmdRead)
 //   sala de práctica → al entrar a la sala de práctica (dungeon.js sala abajo)
-const COMPLETE_MSG = `🎉 ¡TUTORIAL COMPLETADO!\nGanás +10 XP y +40 de oro de bonus por completar el entrenamiento.\n🌿 El guardia te da 2 hierbas curativas (+12 HP c/u, también cura veneno). Guardalas para emergencias: «use hierba curativa»\n🎒 El guardia también te entrega una bolsa de lona — usala ahora para ampliar tu capacidad de carga: «usar bolsa de lona»\nAhora estás en la Entrada de la Cripta. ¡Buena suerte, aventurero/a!\n\n⚔️  PRÓXIMO PASO: Elegí tu vocación con el comando:\n  clase\n  (Guerrero, Pícaro o Mago — cada uno cambia tu forma de combatir)\n\nEscribí «look» para ver dónde estás, «help» para ver todos los comandos.`;
+const COMPLETE_MSG = `🎉 ¡TUTORIAL COMPLETADO!\nGanás +10 XP y +40 de oro de bonus por completar el entrenamiento.\n🌿 El guardia te da 2 hierbas curativas (+12 HP c/u, también cura veneno). Guardalas para emergencias: «use hierba curativa»\n🎒 El guardia también conecta una bolsa de lona a tu mochila — tu capacidad de carga sube +4 slots automáticamente.\nAhora estás en la Entrada de la Cripta. ¡Buena suerte, aventurero/a!\n\n⚔️  PRÓXIMO PASO: Elegí tu vocación con el comando:\n  clase\n  (Guerrero, Pícaro o Mago — cada uno cambia tu forma de combatir)\n\nEscribí «look» para ver dónde estás, «help» para ver todos los comandos.`;
 
 // DIS-D278: Variante para jugadores que YA eligieron clase (al registrarse o durante el tutorial)
 // DIS-1956: igual reducción — sin bloquear con múltiples tips simultáneos.
 // DIS-2343: TIP DE CRAFTEO movido a primer pick de ingrediente crafteable (contextual).
-const COMPLETE_MSG_WITH_CLASS = `🎉 ¡TUTORIAL COMPLETADO!\nGanás +10 XP y +40 de oro de bonus por completar el entrenamiento.\n🌿 El guardia te da 2 hierbas curativas (+12 HP c/u, también cura veneno). Guardalas para emergencias: «use hierba curativa»\n🎒 El guardia también te entrega una bolsa de lona — usala ahora para ampliar tu capacidad de carga: «usar bolsa de lona»\nAhora estás en la Entrada de la Cripta. ¡Buena suerte, aventurero/a!\n\nEscribí «look» para ver dónde estás, «help» para ver todos los comandos.`;
+const COMPLETE_MSG_WITH_CLASS = `🎉 ¡TUTORIAL COMPLETADO!\nGanás +10 XP y +40 de oro de bonus por completar el entrenamiento.\n🌿 El guardia te da 2 hierbas curativas (+12 HP c/u, también cura veneno). Guardalas para emergencias: «use hierba curativa»\n🎒 El guardia también conecta una bolsa de lona a tu mochila — tu capacidad de carga sube +4 slots automáticamente.\nAhora estás en la Entrada de la Cripta. ¡Buena suerte, aventurero/a!\n\nEscribí «look» para ver dónde estás, «help» para ver todos los comandos.`;
 
 /**
  * DIS-D278: Devuelve el mensaje de completar tutorial apropiado.

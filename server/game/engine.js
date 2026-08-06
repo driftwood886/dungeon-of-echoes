@@ -1333,10 +1333,14 @@ function completeTutorial(player) {
   // DIS-2108: dar también 1 bolsa de lona gratis — el equipo básico (arma+armadura) deja al jugador
   // con ~9g, insuficiente para comprar la bolsa (20g) que Aldric recomienda explícitamente.
   // Solución: incluirla en el kit de inicio para eliminar la fricción económica del early game.
+  // DIS-2365: aplicar la bolsa de lona automáticamente (inventory_bonus +4) en vez de ponerla
+  // en el inventario. Así el jugador no puede olvidar usarla. El mensaje refleja el cambio.
   try {
     const freshForItems = db.getPlayer(player.id);
     const currentInv = freshForItems.inventory || [];
-    db.updatePlayer(player.id, { inventory: [...currentInv, 'hierba curativa', 'hierba curativa', 'bolsa de lona'] });
+    const currentBonus = freshForItems.inventory_bonus || 0;
+    const newBonus = Math.min(8, currentBonus + 4); // máx 8 (2 bolsas)
+    db.updatePlayer(player.id, { inventory: [...currentInv, 'hierba curativa', 'hierba curativa'], inventory_bonus: newBonus });
   } catch (_) { /* silencioso — no bloquear tutorial por esto */ }
   // DIS-799: registrar sala 1 como visitada — completeTutorial setea current_room_id=1 pero
   // nunca llamaba trackRoomVisit, así que sala 1 aparecía como ?? en el mapa siempre.
