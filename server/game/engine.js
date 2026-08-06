@@ -4322,7 +4322,17 @@ function cmdInventory(player) {
         healHintTag = ` *(recuperarías +${missing} HP ahora — HP: ${currentHp}/${maxHp})*`;
       }
     }
-    return `${emoji} ${itemName}${rarityLabel}${craftTag}${viableTag}${countTag}${useHintTag}${healHintTag}${extraSuffix || ''}`;
+    // DIS-2378: tooltip de ítem de facción — si el jugador tiene facción y el ítem es el regalo de bienvenida
+    const FACTION_WELCOME_ITEMS = {
+      orden_filo:        'pergamino de furia',
+      conclave_arcano:   'bitácora del arcano',
+      hermandad_mercado: 'pergamino de velocidad',
+    };
+    const playerFaction = player.faction;
+    const factionTag = (playerFaction && FACTION_WELCOME_ITEMS[playerFaction] === itemName.toLowerCase())
+      ? ` *(ítem de facción — usá \`use ${itemName}\` para activar)*`
+      : '';
+    return `${emoji} ${itemName}${rarityLabel}${craftTag}${viableTag}${countTag}${useHintTag}${healHintTag}${factionTag}${extraSuffix || ''}`;
   }
 
   // Separar grupos por categoría
