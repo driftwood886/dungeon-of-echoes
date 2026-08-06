@@ -1970,8 +1970,32 @@ function cmdLook(player, options = {}) {
     ecosLine = ecos.renderRoomEcos(player.current_room_id);
   } catch (_ecos) { console.warn('[ecos] Error en cmdLook:', _ecos.message); }
 
+  // DIS-2370: reminder del cuenco sagrado de la Capilla (sala 5) cuando HP < 50%
+  // y el jugador está en la Entrada (sala 1) o el Corredor (sala 2).
+  // El hint normal está en las inscripciones del Corredor, pero llega en el momento equivocado.
+  // Aquí aparece solo cuando el jugador LO NECESITA: HP bajo, en zona temprana.
+  let chapelHealReminder = '';
+  try {
+    const _CHAPEL_HINT_ROOMS = [1, 2]; // Entrada de la Cripta / Corredor de las Sombras
+    if (_CHAPEL_HINT_ROOMS.includes(player.current_room_id)) {
+      const _pHp    = player.hp    || 0;
+      const _pMaxHp = player.max_hp || 30;
+      const _hpPct  = _pMaxHp > 0 ? _pHp / _pMaxHp : 1;
+      if (_hpPct < 0.5) {
+        // Verificar que el cuenco no esté en cooldown personal para este jugador
+        const _chapelCooldownTs = fountainCooldowns.get(player.id + '_chapel') || 0;
+        const _chapelReady = Date.now() >= _chapelCooldownTs;
+        const _chapelRoute = player.current_room_id === 1 ? 'este desde aquí' : 'volvé a la Entrada (norte) y luego este';
+        const _chapelHint = _chapelReady
+          ? `\n🙏 HP bajo (${_pHp}/${_pMaxHp}): hay un cuenco sagrado en la Capilla (${_chapelRoute}) que restaura 40% de HP. Usá "use cuenco".`
+          : `\n🙏 HP bajo (${_pHp}/${_pMaxHp}): el cuenco sagrado de la Capilla está en cooldown — recargará pronto.`;
+        chapelHealReminder = _chapelHint;
+      }
+    }
+  } catch (_) { /* no interrumpir si falla */ }
+
   // DIS-2129: fix defensiva — suprimir tooltips vacíos (líneas que son solo "💡 " sin contenido)
-  const _rawLookText = text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine + lurkingLine + comboRiskLine + subastaFirstVisitLine + specDeferredLine + ecosLine;
+  const _rawLookText = text + effectLine + questHintLine + classReminderLine + adjacentDangerLine + lichStatusLine + inRoomBossLine + notesBlock + practicaPosturaHint + practicaFirstVisitLine + activeEventLine + partyMembersLine + bossRoomInvWarning + examineStatsHint + santuarioFirstVisitLine + campaignRoomEffectLine + lurkingLine + comboRiskLine + subastaFirstVisitLine + specDeferredLine + ecosLine + chapelHealReminder;
   const _cleanLookText = _rawLookText.replace(/\n💡 \n/g, '\n').replace(/\n💡 $/g, '').replace(/\n\n💡 \n/g, '\n');
   return { text: _cleanLookText };
 }
