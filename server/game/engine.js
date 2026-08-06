@@ -17150,7 +17150,19 @@ function _cmdFaccionElegir(player, args) {
       const _aq = questEngine.getActiveQuests(player.id);
       if (_aq && _aq.length > 0) {
         const _mainQ = _aq[0];
-        const _qProgress = _mainQ.progress || 0;
+        const _qProgress = (() => {
+          // DIS-2390: _mainQ.progress puede ser un objeto {} si el campo no está inicializado
+          // correctamente — convertir a número siempre para evitar "{}/1" en el template.
+          const raw = _mainQ.progress;
+          if (typeof raw === 'number') return raw;
+          if (typeof raw === 'string') { const n = parseInt(raw, 10); return isNaN(n) ? 0 : n; }
+          if (raw && typeof raw === 'object') {
+            // Si es un objeto con campo count/progress, extraer; si es {} vacío, devolver 0
+            const v = raw.count || raw.progress || raw.value || 0;
+            return typeof v === 'number' ? v : 0;
+          }
+          return 0;
+        })();
         const _qTarget = (() => { try { const c = JSON.parse(_mainQ.condition || '{}'); return c.count || c.target || '?'; } catch (_) { return '?'; } })();
         _summaryLines.push(`   📜 Quest: ${_mainQ.name} (${_qProgress}/${_qTarget}) · Escribí \`quests\` para detalles.`);
         if (_aq.length > 1) {
