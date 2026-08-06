@@ -14921,6 +14921,23 @@ function cmdShop(player, args) {
 
   // DIS-1063: modo básico — filtrar catálogo por clase del jugador
   const clsForFilter = classes.getPlayerClass(player);
+
+  // DIS-2368: "producto relacionado" proactivo — si el jugador tiene arma pero no armadura,
+  // Aldric lo menciona ANTES del catálogo, no después de la compra.
+  // Esto evita que el upsell llegue cuando el jugador ya gastó y no puede cambiar la decisión.
+  if (shopWeapon && !shopArmor && (player.level || 1) < 5) {
+    // Solo mostrar si no hay ya una advertencia más urgente (el bloque DIS-1410 o DIS-2101)
+    // y si el jugador aún puede comprar armadura (nivel < 5 — nivel 5+ ya lo cubre DIS-1410)
+    const armorSuggest = player.player_class === 'mago' || player.player_class === 'clerigo'
+      ? 'ropa de viajero (22g)'
+      : 'cuero endurecido (40g)';
+    const armorCmd = player.player_class === 'mago' || player.player_class === 'clerigo'
+      ? 'comprar ropa de viajero'
+      : 'comprar cuero endurecido';
+    lines.push(`🔗 Aldric mira tu equipo. «${shopWeapon} es buena elección. Pero arma sin armadura es invitación al funeral.»`);
+    lines.push(`  «Te recomiendo el ${armorSuggest} — escribí \`${armorCmd}\`.»`);
+    lines.push('');
+  }
   const CLASS_BASIC_ITEMS = {
     'Guerrero': ['poción de salud', 'poción mayor de salud', 'antídoto', 'espada de hierro', 'espada de acero', 'escudo de madera', 'cuero endurecido', 'cota de cuero', 'cota de malla', 'peto de huesos', 'cuerda', 'bolsa de lona', 'antorcha'],
     'Mago':     ['poción de salud', 'poción mayor de salud', 'antídoto', 'poción de maná', 'poción de maná mayor', 'vara de energía', 'pergamino de hechizo', 'ropa de viajero', 'túnica encantada', 'cuerda', 'bolsa de lona', 'cristal helado'],
