@@ -12186,10 +12186,61 @@ function cmdMapFull(player) {
  * DIS-580: Las salas no visitadas aparecen como [??? ------] para añadir exploración.
  * DIS-1442: con argumento "full" muestra lista completa de salas exploradas con nombres completos.
  */
+// DIS-2379: Leyenda detallada del mapa — "mapa ayuda" / "mapa leyenda"
+function cmdMapLeyenda(player) {
+  const here = player.current_room_id;
+  let visitedRooms;
+  try {
+    const rawVisited = db.getPlayer(player.id).rooms_visited;
+    const rawArr = Array.isArray(rawVisited) ? rawVisited : JSON.parse(rawVisited || '[]');
+    visitedRooms = new Set(rawArr.map(Number));
+  } catch (_) {
+    visitedRooms = new Set();
+  }
+  visitedRooms.add(here);
+
+  const lines = [
+    `📖 LEYENDA DEL MAPA`,
+    `───────────────────`,
+    `★  = tu posición actual`,
+    `⚔  = sala con monstruo vivo`,
+    `🔑 = sala con puerta bloqueada (requiere llave oxidada)`,
+    visitedRooms.has(8)
+      ? `   Fuentes de llave: tienda Aldric (sala 4) · Araña Tejedora (sala 7) · Prisión (sala 8)`
+      : `   Fuentes de llave: tienda Aldric (sala 4) · Araña Tejedora (sala 7)`,
+    `↓  = comando "bajar/abajo" — desde Entrada(1)→Práctica(21)`,
+    `╎  = separación visual (sin conexión directa)`,
+    ``,
+    `[ NN ·········] = sala desconocida (no adyacente, nunca detectada)`,
+    `[ NN:Nom?????] = sala detectada (adyacente a visitada pero sin explorar — entrá para revelarla)`,
+    `[16/21] = salas de tutorial (Antesala y Práctica)`,
+    ``,
+    `[18] = Fuente Eterna — escribí "beber" para restaurar HP completo`,
+    ...(visitedRooms.has(8) || visitedRooms.has(17)
+      ? [`🔗 Prisión (sala 8) ↔ Casa de Subastas (sala 17): conectadas por pasillo este/norte — forman loop con Tesoro (4).`]
+      : []),
+    ...(visitedRooms.has(7) && !visitedRooms.has(10)
+      ? [`🔑 Sala 7 (Pozo) — puerta norte bloqueada. Ruta sin llave: Túnel → Trono → east → Santuario`]
+      : []),
+    ...((visitedRooms.has(9) || visitedRooms.has(7)) && !visitedRooms.has(10)
+      ? [`🗺  Ruta al Santuario sin llave: Entrada → este → Capilla → norte → Túnel → norte → Trono → este → Santuario`]
+      : []),
+    ``,
+    `🗺  Alias de ruta: mercader/tienda=4 · fuente=18 · trono=9 · entrada=1 · pozo=7 · coliseo=14 · catedral=15 · forja=12 · jefe=boss más cercano`,
+    ``,
+    `💡 Comandos: «mapa» (mapa visual) · «mapa full» (lista de salas) · «ruta <destino>» (navegación)`,
+  ];
+  return { text: lines.join('\n') };
+}
+
 function cmdMap(player, args = []) {
   // DIS-1442: "mapa full" — lista de salas exploradas con nombres completos
   if (args && (args[0] === 'full' || args[0] === 'completo' || args[0] === 'lista')) {
     return cmdMapFull(player);
+  }
+  // DIS-2379: "mapa ayuda" / "mapa leyenda" — leyenda detallada separada
+  if (args && (args[0] === 'ayuda' || args[0] === 'help' || args[0] === 'leyenda' || args[0] === 'legend')) {
+    return cmdMapLeyenda(player);
   }
   const here = player.current_room_id;
 
@@ -12430,18 +12481,12 @@ function cmdMap(player, args = []) {
     `                     ${c(20)}`,
     ``,
     `★ = tu posición (sala ${here}: ${hereFullName})`,
-    `[18] = Fuente Eterna (sala de mid-dungeon — escribí "beber" para restaurar HP completo)`,
-    // DIS-1417: leyenda mejorada con estructura de dos zonas explícita
-    // DIS-1432: aclarar ambos usos de ↓/abajo para evitar confusión
-    // DIS-1614: corregida leyenda — zona profunda se accede por norte/este desde Galería(11), no "bajar"
-    `↓  = comando "bajar/abajo" — desde Entrada(1)→Práctica(21)  ╎ = separación visual (sin conexión directa)`,
-    // DIS-635: solo mencionar sala 8 como fuente de llave si ya fue visitada
-    // BUG-2318: agregada Araña Tejedora (sala 7, 15%) como fuente en la leyenda
+    `[18] = Fuente Eterna (escribí "beber" para restaurar HP completo)`,
+    // DIS-2379: leyenda compacta — detalles en "mapa leyenda"
     visitedRooms.has(8)
       ? `⚔ = monstruo activo   🔑 = requiere llave oxidada (tienda Aldric sala 4 · Araña Tejedora sala 7 · Prisión sala 8)`
       : `⚔ = monstruo activo   🔑 = requiere llave oxidada (tienda del Mercader sala 4 · Araña Tejedora sala 7)`,
-    `[ NN ·········] = sala desconocida (no adyacente a tu ruta, nunca detectada)`,
-    `[ NN:Nom?????] = sala detectada (adyacente a una sala visitada, pero aún sin explorar — entrá para revelarla)  [16/21] = salas de tutorial`,
+    `[ NN:Nom?????] = sala detectada sin explorar   [ NN ·········] = sala desconocida`,
     // DIS-921: conteo de salas exploradas al pie del mapa
     (() => {
       const MAP_DUNGEON_ROOMS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18,19,20,22];
@@ -12455,7 +12500,8 @@ function cmdMap(player, args = []) {
     // DIS-1868: ampliado para incluir trono, entrada, pozo, coliseo y otros destinos comunes
     `🗺  Alias de ruta: mercader/tienda=4 · fuente=18 · trono=9 · entrada=1 · pozo=7 · coliseo=14 · catedral=15 · forja=12 · jefe=boss más cercano`,
     // DIS-1442: hint de modo detallado con nombres completos
-    `📋 ¿Querés ver los nombres completos? Escribí "mapa full"`,
+    // DIS-2379: agregar hint a "mapa leyenda" para leyenda completa
+    `📋 ¿Querés ver los nombres completos? «mapa full»   ¿Necesitás la leyenda? «mapa leyenda»`,
     // BUG-894: nota explicativa de la puerta 🔑 del Pozo (sala 7) — va al pie, no inline en la grilla
     ...(() => {
       const room7 = db.getRoom(7);
