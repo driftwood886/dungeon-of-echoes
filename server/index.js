@@ -305,6 +305,7 @@ async function main() {
         shield_active: player.shield_active || 0,
         player_class: player.player_class || 'sin_clase',
         class_name: player.player_class || 'sin_clase',  // DIS-D305: alias para compatibilidad
+        class: player.player_class || 'sin_clase',       // BUG-2371: alias adicional (algunos clientes usan .class)
         specialization: player.specialization || null,
         playtime_minutes: player.playtime_minutes || 0,
         reputation: player.reputation || 0,  // DIS-1319: exponer reputación en /api/state
@@ -792,6 +793,7 @@ async function main() {
           shield_active: player.shield_active || 0,
           player_class: player.player_class || 'sin_clase',
           class_name: player.player_class || 'sin_clase',  // DIS-D305: alias para compatibilidad
+          class: player.player_class || 'sin_clase',       // BUG-2371: alias adicional (algunos clientes usan .class)
           specialization: player.specialization || null,
           playtime_minutes: player.playtime_minutes || 0,
           reputation: player.reputation || 0,  // DIS-1319: exponer reputación en /api/action state
