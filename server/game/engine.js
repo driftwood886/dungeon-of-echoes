@@ -5341,15 +5341,27 @@ function cmdStatus(player) {
     // DIS-1840: mostrar evento global activo con timer en status
     // Antes, la Fiebre del Oro solo se veía al moverse a una sala nueva.
     // Ahora aparece en `status` con el tiempo restante para que el jugador pueda planificar.
+    // DIS-2376: incluir también eventos del sistema worldEvents (en memoria), no solo eventScheduler (BD)
     (() => {
       try {
+        // Primero intentar eventScheduler (BD)
         const evInfo1840 = eventScheduler.getActiveEventInfo();
-        if (!evInfo1840 || !evInfo1840.event) return null;
-        const ev1840 = evInfo1840.event;
-        const minLeft1840 = evInfo1840.minutesRemaining;
-        const secLeft1840 = evInfo1840.secondsRemaining;
-        const timerStr1840 = minLeft1840 > 0 ? `${minLeft1840}m ${secLeft1840}s` : `${secLeft1840}s`;
-        return `Evento:   ${ev1840.name} — activo (~${timerStr1840} restantes)`;
+        if (evInfo1840 && evInfo1840.event) {
+          const ev1840 = evInfo1840.event;
+          const minLeft1840 = evInfo1840.minutesRemaining;
+          const secLeft1840 = evInfo1840.secondsRemaining;
+          const timerStr1840 = minLeft1840 > 0 ? `${minLeft1840}m ${secLeft1840}s` : `${secLeft1840}s`;
+          return `Evento:   ${ev1840.name} — activo (~${timerStr1840} restantes)`;
+        }
+        // Fallback: worldEvents (en memoria) — cubre Luna de Sangre y otros eventos legacy
+        const weEv1840 = worldEvents.getCurrentEvent();
+        if (weEv1840) {
+          const weMinLeft = Math.floor(weEv1840.remainingMs / 60000);
+          const weSecLeft = Math.floor((weEv1840.remainingMs % 60000) / 1000);
+          const weTimerStr = weMinLeft > 0 ? `${weMinLeft}m ${weSecLeft}s` : `${weSecLeft}s`;
+          return `Evento:   ${weEv1840.name} — activo (~${weTimerStr} restantes)`;
+        }
+        return null;
       } catch (_) { return null; }
     })(),
     // EPIC-1903: mostrar XP bonus de victoria de campaña si está activo
