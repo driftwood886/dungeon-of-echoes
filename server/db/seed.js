@@ -672,7 +672,7 @@ function migrateDIS2182FixCorredorDuplicates() {
 }
 
 
-module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745, migrateGnollMerodeadorIMPL1761, migrateZombieCaminanteIMPL1761, migrateElementalFuegoIMPL1761, migrateBatVampireDescDIS1775, migrateFuenteEternaDescDIS1778, migrateSubastaNorthHintDIS1789, migrateConclaveExamineDIS1796, migrateGaleriaHieloExamineDIS1797, migrateGnollDagaBasicaDIS1811, migrateCampeonEmblemaDIS1812, migrateQuestEdictoDIS1916, migrateFactionMisionContratoSangrientoDIS1918, migrateDIS2182FixCorredorDuplicates, migrateSubastaRetornoHubDIS2093, migrateMonsterRebalanceDIS2183, migrateEsqueletoRespawnRoomBUG2248, migrateMagoManaDIS2257 };
+module.exports = { seedIfEmpty, ROOMS, MONSTERS, migrateAuctionRoom, migrateFountainRoom, migrateEchoRooms, migrateTrainingRoom, migrateArmorLoot, migrateScrollLoot, migrateCryptRoom, migrateTrainingRoomAccess, migrateCraftingLoot, migrateMerchantRoom, migrateNarrativeLore, migrateBossStats, migrateIceFragmentLoot, migratePistaSantuario, migrateD46MonsterBalance, migrateManaLoot, migrateSanctuaryEastHint, migrateFountainConnections, migrateBossRebalance, migrateForjaHeatWarning, migratePrisonContent, migrateRestoreGoblinTutorial, migrateExtraBats, migrateEarlyEconomy, migratePassiveAuctions, migratePrisonConnection, migrateGuardiaEspectralHP, migrateGolemPiedraHP, migrateCampeonEspectralLoot, migrateColiseoEcoConnection, migrateFixEcoConnectionDuplicates, migrateGuardiaEspectralHP2, migrateEcoColiseoReturn, migrateGolemForjaHP, migratePetoHuesosFixID, migrateBatStatsReset, migrateLichHPRebalance, migrateSombraVacioHP, migrateAbismoLootFix, migrateHongoAzulSala6, migrateBossHPFullReset, migrateLichHPDIS794, migrateCatedralBagDIS793, migrateFuenteEternaDIS801, migrateSombraVacioHPDIS807, migrateSombraLootDIS813, migratePozo820, migrateFixStuckPassiveAuctions, migrateCoronaRotaPrison985, migrateFixCorruptStatusEffects992, migrateCleanPrisonEpicLoot1007, migrateMerchantHintDIS1005, migrateGaleriaHieloCuracionDIS1035, migratePistaSantuarioTrapasDIS1038, migrateEconomyRebalanceDIS1043, migratePracticaHintDIS1041, migrateCleanPistaSantuarioBUG1047, migrateGolemPiedraDIS1105, migrateCorredorHintDIS1107, migrateSanctuarioQuoteDIS1108, migrateRemoveCoronaSala9DIS1190, migrateSecondGoblinDIS1202, migrateEspectroHPDIS1203, migrateEntradaCriptaDIS1213, migrateGoblinATKDIS1316, migrateEarlyGameATKDIS1324, migrateCapillaHongoHintDIS1430, migrateFixCryptExitBUG1447, migratePozoPistaDIS1453, migrateHachaRusticaBUG1471, migrateCleanCatedralEpicLootBUG1474, migrateTrollForjaDIS1481, migratePozoDescDIS1562, migrateEcosHubDescDIS1584, migrateQuestGoblinDIS1590, migrateQuestPurgaOrdenDIS1605, migrateQuestRitualOscuridadBUG1654, migrateOrphanedGuildsBUG1646, migrateCapillaInscripcionBUG1682, migrateHongoAzulCapillaDIS1745, migrateGnollMerodeadorIMPL1761, migrateZombieCaminanteIMPL1761, migrateElementalFuegoIMPL1761, migrateBatVampireDescDIS1775, migrateFuenteEternaDescDIS1778, migrateSubastaNorthHintDIS1789, migrateConclaveExamineDIS1796, migrateGaleriaHieloExamineDIS1797, migrateGnollDagaBasicaDIS1811, migrateCampeonEmblemaDIS1812, migrateQuestEdictoDIS1916, migrateFactionMisionContratoSangrientoDIS1918, migrateDIS2182FixCorredorDuplicates, migrateSubastaRetornoHubDIS2093, migrateMonsterRebalanceDIS2183, migrateEsqueletoRespawnRoomBUG2248, migrateMagoManaDIS2257, migrateDIS2381CampeonBalance };
 
 /**
  * DIS-1108: El texto atmosférico del primer descubrimiento del Santuario Profano
@@ -1347,7 +1347,7 @@ function migrateSanctuaryEastHint() {
 function migrateBossRebalance() {
   const bosses = [
     { id: 13, name: 'Lich Anciano',       new_max_hp: 100, new_attack: 16 },
-    { id: 12, name: 'Campeón Espectral',  new_max_hp: 70,  new_attack: 14 },
+    { id: 12, name: 'Campeón Espectral',  new_max_hp: 70,  new_attack: 11 }, // DIS-2381: ATK 14→11
     { id: 22, name: 'Sombra del Vacío',   new_max_hp: 90,  new_attack: 14 },
     { id: 21, name: 'Eco Viviente',       new_max_hp: 55,  new_attack: 10 },
   ];
@@ -3305,6 +3305,37 @@ function migrateEsqueletoRespawnRoomBUG2248() {
     console.warn('[seed] migrateEsqueletoRespawnRoomBUG2248:', e.message);
   }
 }
+
+/**
+ * DIS-2381: Campeón Espectral (Coliseo de Huesos, sala 14) dificultad spiky injusta.
+ * ATK reducido de 14 → 11 (en combat.js y BOSS_BASE_ATTACK).
+ * Esta migración agrega una poción menor a la sala 13 (Caverna Sumergida)
+ * como recurso garantizado justo antes del boss, para jugadores que llegan sin cura.
+ * Idempotente: solo agrega si no hay ya una poción menor en la sala 13.
+ */
+function migrateDIS2381CampeonBalance() {
+  try {
+    const room = db.getRoom(13);
+    if (!room) {
+      console.warn('[seed] migrateDIS2381CampeonBalance: sala 13 no encontrada.');
+      return;
+    }
+    const items = room.items
+      ? (typeof room.items === 'string' ? JSON.parse(room.items) : room.items)
+      : [];
+    if (items.includes('poción menor')) {
+      console.log('[seed] migrateDIS2381CampeonBalance: poción menor ya está en sala 13. ✓');
+      return;
+    }
+    const newItems = [...items, 'poción menor'];
+    db.upsertRoom({ ...room, items: newItems });
+    db.persist ? db.persist() : null;
+    console.log('[seed] migrateDIS2381CampeonBalance: poción menor agregada a Caverna Sumergida (sala 13). DIS-2381 ✓');
+  } catch (e) {
+    console.warn('[seed] migrateDIS2381CampeonBalance:', e.message);
+  }
+}
+
 
 /**
  * DIS-2257: Economía de maná del Mago en niveles 1-2 muy ajustada.

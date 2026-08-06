@@ -410,7 +410,7 @@ const MONSTER_BASE_STATS = {
   9:  { name: 'Elemental de Hielo',    max_hp: 40, attack: 9  },
   10: { name: 'Golem de Forja',        max_hp: 55, attack: 10 }, // DIS-688: HP 42→55 + resistencia fuego ×0.80
   11: { name: 'Krakeling Abismal',     max_hp: 25, attack: 7  },
-  12: { name: 'Campeón Espectral',     max_hp: 70, attack: 14 }, // DIS-D423: rebalanceado
+  12: { name: 'Campeón Espectral',     max_hp: 70, attack: 11 }, // DIS-D423: rebalanceado. DIS-2381: ATK 14→11 para reducir spike letal en jugadores lv5-6 sin cura
   21: { name: 'Eco Viviente',          max_hp: 55, attack: 10 }, // DIS-D423: rebalanceado
   22: { name: 'Sombra del Vacío',      max_hp: 120, attack: 14 }, // DIS-729: HP 90→120, boss secreto más desafiante
   // BUG-697: Murciélagos extra de DIS-510 — sin entrada = élite acumula HP en cada ciclo
@@ -3468,7 +3468,7 @@ const NO_ELITE_IDS = new Set([13, 20, 21, 22]); // Lich, goblin práctica, maniq
 const BOSS_BASE_ATTACK = {
   13: 16, // Lich Anciano (nuevo ATK base post-rebalance DIS-D423)
   22: 14, // Sombra del Vacío (nuevo ATK base post-rebalance DIS-D423)
-  12: 14, // Campeón Espectral (nuevo ATK base post-rebalance DIS-D423)
+  12: 11, // Campeón Espectral (ATK base post-rebalance DIS-D423, reducido DIS-2381)
   21: 10, // Eco Viviente (nuevo ATK base post-rebalance DIS-D423)
 };
 

@@ -4319,13 +4319,20 @@ function cmdInventory(player) {
     // DIS-1776: mostrar use_hint si el ítem lo tiene definido (ej: brebaje del hongo)
     const useHintTag = (def && def.use_hint) ? ` · *${def.use_hint}*` : '';
     // DIS-2346: para pociones curativas, mostrar cuánto curarías con tu HP actual si hay pérdida parcial
+    // DIS-2382: para pociones grandes (amount >= 20), mostrar siempre el preview de HP recuperado
     let healHintTag = '';
     if (def && def.type === 'potion' && def.effect === 'heal' && def.amount) {
       const currentHp = player.hp || 0;
       const maxHp = player.max_hp || 30;
       const missing = maxHp - currentHp;
-      if (missing > 0 && missing < def.amount) {
+      if (missing <= 0) {
+        // HP lleno — ninguna poción curativa da hint
+      } else if (missing < def.amount) {
+        // Pérdida parcial — mostrar HP real a recuperar
         healHintTag = ` *(recuperarías +${missing} HP ahora — HP: ${currentHp}/${maxHp})*`;
+      } else if (def.amount >= 20) {
+        // DIS-2382: pociones grandes — mostrar preview siempre (poción de vida, mayor de salud, etc.)
+        healHintTag = ` *(recuperarías +${def.amount} HP ahora — HP: ${Math.min(currentHp + def.amount, maxHp)}/${maxHp})*`;
       }
     }
     // DIS-2378: tooltip de ítem de facción — si el jugador tiene facción y el ítem es el regalo de bienvenida
