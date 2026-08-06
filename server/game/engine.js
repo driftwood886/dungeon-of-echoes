@@ -7626,7 +7626,7 @@ function cmdAttack(player, targetName) {
 
   if (tutorialCompletionResult) {
     return {
-      text: baseText + fleeDeepZoneHint + '\n\n' + tutorialCompletionResult.text,
+      text: tutorialCompletionResult.text + '\n\n' + baseText + fleeDeepZoneHint,
       event: tutorialCompletionResult.event,
       eventRoomId: tutorialCompletionResult.eventRoomId,
       globalEvent: null,
