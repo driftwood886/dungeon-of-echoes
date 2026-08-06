@@ -19549,6 +19549,17 @@ function cmdAuction(player, args) {
     return cmdAuctions();
   }
 
+  // BUG-2361: «subasta puja <id> <monto>» — redirigir a cmdBid
+  // El usuario puede escribir "subasta puja 1 30" pensando que "subasta" es un prefijo universal.
+  // En lugar de tratar "puja 1" como nombre de ítem (error confuso), detectamos el caso y redirigimos.
+  if (['puja', 'pujar', 'bid', 'apostar', 'ofrecer'].includes(args[0].toLowerCase())) {
+    const bidArgs = args.slice(1); // [id, monto]
+    if (bidArgs.length < 2) {
+      return { text: '🔨 Uso: subasta puja <id_subasta> <monto>\nEjemplo: subasta puja 3 50\n\nTambién podés usar directamente: pujar 3 50\nUsá "subastas" para ver los remates activos y sus IDs.' };
+    }
+    return cmdBid(player, bidArgs);
+  }
+
   // BUG-2359: cancelar subasta propia
   if (['cancelar', 'cancel', 'retirar', 'cancelarsubasta', 'quitar'].includes(args[0].toLowerCase())) {
     const rawId = args[1];
