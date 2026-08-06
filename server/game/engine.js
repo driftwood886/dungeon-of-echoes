@@ -32586,6 +32586,21 @@ function cmdAscend(player, args, context) {
   // El jugador eligió un legado — pedir confirmación antes de ejecutar
   const choiceIdx = parseInt(match[1]) - 1;
   let epitaph = match[2] ? match[2].trim() : null;
+  // DIS-2367: filtrar palabras de confirmación del epitafio — si el jugador hizo `ascender 1 confirmar`,
+  // match[2] sería "confirmar" y quedaría como epitafio. Hay que ignorarlo.
+  if (epitaph) {
+    const _CONFIRM_EPITAPH_TOKENS = new Set(['confirmar', 'confirm', 'sí', 'si', 'yes']);
+    if (_CONFIRM_EPITAPH_TOKENS.has(epitaph.toLowerCase())) {
+      // Epitafio es exactamente una palabra de confirmación — descartarlo
+      epitaph = null;
+    } else {
+      // Epitafio podría terminar con "confirmar" (ej: "mi frase confirmar") — remover esa última palabra
+      const _epParts = epitaph.split(/\s+/);
+      if (_epParts.length > 0 && _CONFIRM_EPITAPH_TOKENS.has(_epParts[_epParts.length - 1].toLowerCase())) {
+        epitaph = _epParts.slice(0, -1).join(' ').trim() || null;
+      }
+    }
+  }
   // DIS-2174: si hay epitafio guardado en el SE (del paso de confirmación), usarlo si no hay uno nuevo
   if (!epitaph && se.ascension_pending_epitaph) {
     epitaph = se.ascension_pending_epitaph;
