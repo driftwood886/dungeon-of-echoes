@@ -4319,7 +4319,7 @@ function cmdInventory(player) {
       const maxHp = player.max_hp || 30;
       const missing = maxHp - currentHp;
       if (missing > 0 && missing < def.amount) {
-        healHintTag = ` *(curarías ${missing} ahora — HP: ${currentHp}/${maxHp})*`;
+        healHintTag = ` *(recuperarías +${missing} HP ahora — HP: ${currentHp}/${maxHp})*`;
       }
     }
     return `${emoji} ${itemName}${rarityLabel}${craftTag}${viableTag}${countTag}${useHintTag}${healHintTag}${extraSuffix || ''}`;
@@ -15027,7 +15027,7 @@ function cmdShop(player, args) {
       const shopMaxHp = player.max_hp || 30;
       const shopMissing = shopMaxHp - shopCurrentHp;
       if (shopMissing > 0 && shopMissing < shopItemDef2346.amount) {
-        shopHealHint = ` *(curarías ${shopMissing} ahora)*`;
+        shopHealHint = ` *(recuperarías +${shopMissing} HP ahora)*`;
       }
     }
     if (discount > 0) {
