@@ -27770,7 +27770,18 @@ function cmdGoto(player, args, context) {
       const cur2 = bfsQ2.shift();
       if (BOSS_ROOM_IDS.includes(cur2) && cur2 !== player.current_room_id) {
         const bossRoomFound = allRooms.find(r => r.id === cur2);
-        if (bossRoomFound) { targetRoom = bossRoomFound; break outer2; }
+        if (bossRoomFound) {
+          // DIS-2364: advertir nivel recomendado si el boss está muy por encima del nivel del jugador
+          targetRoom = bossRoomFound;
+          const _BOSS_LEVEL_REQ = { 8: 4, 9: 3, 10: 5, 12: 5, 14: 5, 15: 7, 19: 6, 20: 8 };
+          const _bossReq = _BOSS_LEVEL_REQ[cur2] || 3;
+          const _pLvl = player.level || 1;
+          if (_bossReq > _pLvl + 1) {
+            // Será adjuntado al resultado final — guardamos para después del BFS
+            targetRoom._bossLevelWarning = `⚠️ Nivel recomendado para este boss: ${_bossReq}+ (tu nivel: ${_pLvl}). Considerá equiparte antes de ir.`;
+          }
+          break outer2;
+        }
       }
       for (const next2 of (graphTemp[cur2] || [])) {
         if (!bfsVis2.has(next2)) { bfsVis2.add(next2); bfsQ2.push(next2); }
@@ -27900,6 +27911,10 @@ function cmdGoto(player, args, context) {
 
   // Ejecutar cada paso, acumulando la salida
   const sections = [];
+  // DIS-2364: si el destino es un boss con nivel recomendado muy por encima del jugador, advertir al principio
+  if (targetRoom._bossLevelWarning) {
+    sections.push(targetRoom._bossLevelWarning);
+  }
   sections.push(`🧭 Viajando a: ${targetRoom.name} (${foundPath.length} paso${foundPath.length !== 1 ? 's' : ''})`);
   if (bossAvoidanceUsed) {
     sections.push(`🔀 Ruta alternativa — se evitaron salas con jefes vivos.`);
@@ -28058,7 +28073,16 @@ function cmdPath(player, args) {
       }
     }
     if (foundBossRoom) {
-      return cmdPath(player, [String(foundBossRoom.id)]);
+      // DIS-2364: Advertir nivel recomendado al usar alias "jefe"
+      // El boss más cercano geográficamente puede no ser el más apropiado para el nivel del jugador.
+      const BOSS_LEVEL_RECOMENDADO = { 8: 4, 9: 3, 10: 5, 12: 5, 14: 5, 15: 7, 19: 6, 20: 8 };
+      const bossReqLevel = BOSS_LEVEL_RECOMENDADO[foundBossRoom.id] || 3;
+      const playerLevel = player.level || 1;
+      const navResult = cmdPath(player, [String(foundBossRoom.id)]);
+      if (bossReqLevel > playerLevel + 1 && navResult && navResult.text) {
+        navResult.text = `⚠️ Nivel recomendado para este boss: ${bossReqLevel}+ (tu nivel: ${playerLevel}). Considerá equiparte antes de ir.\n` + navResult.text;
+      }
+      return navResult;
     }
     return { text: '🗺 No encontré ningún boss accesible desde tu posición actual.' };
   }
