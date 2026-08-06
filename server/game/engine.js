@@ -6260,6 +6260,15 @@ function cmdAttack(player, targetName) {
     }
   }
 
+  // ── Evaluar logros tras el combate ──────────────────────────────────────
+  // BUG-2366: freshForAch debe declararse ANTES del bloque de runas (línea ~6278 lo usa)
+  // para evitar ReferenceError (temporal dead zone de const). Anteriormente estaba en línea ~6416.
+  let achLines = '';
+  const LICH_MONSTER_ID = 13; // Lich Anciano — boss principal (Catedral)
+  const bossKill = monsterDead && !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]);
+  const lichKill = monsterDead && monster.id === LICH_MONSTER_ID; // solo el Lich Anciano real
+  const freshForAch = db.getPlayer(player.id);
+
   // ── Récords del servidor (T195) ───────────────────────────────────────────
   let recordMsgs = [];
   if (monsterDead) {
@@ -6408,12 +6417,7 @@ function cmdAttack(player, targetName) {
     }
   }
 
-  // ── Evaluar logros tras el combate ──────────────────────────────────────
-  let achLines = '';
-  const LICH_MONSTER_ID = 13; // Lich Anciano — boss principal (Catedral)
-  const bossKill = monsterDead && !!(combat.BOSS_MONSTERS && combat.BOSS_MONSTERS[monster.id]);
-  const lichKill = monsterDead && monster.id === LICH_MONSTER_ID; // solo el Lich Anciano real
-  const freshForAch = db.getPlayer(player.id);
+  // (achLines, LICH_MONSTER_ID, bossKill, lichKill, freshForAch — movidos arriba por BUG-2366)
 
   // EPIC-NE-IMPL-2264: Hookear primer_kill en cmdAttack
   // freshForAch.kills ya fue incrementado por combat.js — si es 1, era el primer kill
