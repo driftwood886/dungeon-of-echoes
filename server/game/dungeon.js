@@ -253,6 +253,13 @@ function describeRoom(roomId, excludePlayerId = null, player = null, opts = {}) 
         lines.push(`\n💧 La fuente restaura HP al máximo al beber. Tu HP ya está lleno.`);
       }
     } catch (_) { /* no romper describeRoom */ }
+
+    // DIS-2387: aclarar que la salida "sur" de la Fuente lleva al mismo Santuario que el "este" del Trono.
+    // Sin esta nota, el jugador que exploró Trono→Santuario vuelve a la Fuente y si va al sur
+    // llega a la misma sala que creía ya explorada, sin entender la conexión.
+    try {
+      lines.push(`\n🗺️ Al sur: Santuario Profano (sala del Gólem de Piedra, nivel recomendado 5+). Nota: es la misma sala que la salida "este" de la Sala del Trono — el dungeon tiene dos rutas que convergen ahí.`);
+    } catch (_) { /* no romper describeRoom */ }
   }
 
 

@@ -3764,6 +3764,9 @@ function cmdMove(player, direction) {
     if (golem) {
       golemWarningMsg = '\n\n⚠️ Al este — el Gólem de Piedra aguarda en el Santuario Profano (jefe, nivel 5+). El combate no admite escape fácil.';
     }
+    // DIS-2387: aclarar que el Santuario al este también es accesible al sur desde la Fuente Eterna (sala 18).
+    // El mapa parece tener dos rutas distintas, pero convergen en la misma sala 10.
+    golemWarningMsg += '\n   🗺️ Nota: el Santuario al este también se puede alcanzar desde la Cámara de la Fuente Eterna (sala 18) yendo al sur — ambas rutas llevan a la misma sala.';
   }
   // DIS-1769: Si el jugador visita sala 10 (Santuario Profano) por primera vez, mostrar hint de mecánicas del Gólem.
   // La info de regen/escudo solo era visible via `modo_berserk` — confuso para el jugador promedio.
