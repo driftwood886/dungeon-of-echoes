@@ -446,6 +446,9 @@ function listRecipesForPlayer(inventory) {
       // DIS-2106: si ya hay una receta "casi lista" para este resultado, no duplicar
       // (el jugador solo ve una variante, la primera que matchea)
       if (seenResultMissing1.has(r.result) || seenResultAvailable.has(r.result)) continue;
+      // DIS-2374: si el output ya está en el inventario, omitir variantes bloqueadas del mismo producto
+      // (mostrar "te falta poción menor para craftear poción de vida" cuando el jugador ya tiene poción de vida es confuso)
+      if (invNorm.includes(r.result.toLowerCase())) continue;
       const missing = has0 ? r.ingredients[1] : r.ingredients[0];
       missing1.push(`  🟡 ${label}  (falta: «${missing}»)`);
       seenResultMissing1.add(r.result);
