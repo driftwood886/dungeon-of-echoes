@@ -12597,7 +12597,8 @@ function cmdMap(player, args = []) {
     `${c(18)}---${c(9)}---${c(10)}---${c(11)}`,
     // DIS-1561: la segunda barra | (sala 10 Santuario → sala 7 Pozo) se reemplaza
     // por lockMarkMap para indicar que la puerta bloqueada es la salida NORTE del Pozo.
-    `              |         ${lockMarkMap}        → norte/este`,
+    // DIS-2391: corregido alineamiento — | bajo sala 9 (col 25), 🔑 bajo sala 10 (col 43)
+    `                         |                 ${lockMarkMap}  → norte/este`,
     // Túnel (6) sur de Trono, Corredor (2) este de Túnel; Pozo (7) sur de Santuario
     (() => {
       // BUG-1099: corregido layout — sala 8 (Prisión) está al NORTE de sala 4 (Tesoro),
@@ -12608,19 +12609,26 @@ function cmdMap(player, args = []) {
       // que la puerta bloqueada es la salida NORTE del Pozo, no la salida ESTE.
       // BUG-1685: row3 extendida para mostrar que sala 8 conecta TAMBIÉN con sala 17
       // vía este (y 17→8 vía norte), formando un loop 4↔8↔17↔4.
-      const row1 = `            ${c(6)}---${c(2)}  ╎  ${c(7)}---${c(3)}---${c(4)}---${c(17)}`;
-      const row2 = `                                                               |         |`;
-      const row3 = `                                                         ${c(8)}---------+`;
+      // DIS-2391: sala 6 con 18 spaces (start col 18, center 25) alineado bajo sala 9;
+      // sala 2 al col 36 (center 43) alineado bajo sala 10.
+      // sala 4 start col 92 (center 99), sala 17 start col 110 (center 117) → inline |/+ alineados.
+      // row2: | a col 99 (bajo sala 4 center) y | a col 117 (bajo sala 17 center)
+      // row3: [8] empieza a col 92 (center 99, alineado bajo sala 4), --------+ llega a col 117
+      const row1 = `                  ${c(6)}---${c(2)}  ╎  ${c(7)}---${c(3)}---${c(4)}---${c(17)}`;
+      const row2 = `                                                                                                   |                 |`;
+      const row3 = `                                                                                            ${c(8)}----------+`;
       return [row1, row2, row3].join('\n');
     })(),
     // DIS-1561: restaurar conector vertical simple entre sala 6/Túnel y sala 5/Capilla
     // (la puerta bloqueada ya está indicada arriba con lockMarkMap)
-    `              |         |`,
-    `            ${c(5)}---${c(1)}`,
+    // DIS-2391: | bajo sala 6 (col 25), | bajo sala 2 (col 43) — alineados con row superior
+    `                         |                 |`,
+    `                  ${c(5)}---${c(1)}`,
     // DIS-1432: mostrar salas de tutorial (21/16) conectadas desde sala 1 via 'abajo',
     // no como parte de ZONA PROFUNDA (donde causaban confusión al aparecer junto a sala 11)
-    `                      ↓ abajo`,
-    `              ${cellTutorial(21)}---${cellTutorial(16)}  ← Práctica/Antesala (acceso: \"abajo\" desde Entrada)`,
+    // DIS-2391: ↓ abajo bajo sala 1 (center col 43 en nuevo layout)
+    `                                           ↓ abajo`,
+    `                                    ${cellTutorial(21)}---${cellTutorial(16)}  ← Práctica/Antesala (acceso: \"abajo\" desde Entrada)`,
     ``,
     // BUG-900: no repetir sala 11 — ya aparece en la fila superior. Solo mostrar flecha de descenso.
     // DIS-1417: mejorar diagrama de acceso a zona profunda con indicación de comando
