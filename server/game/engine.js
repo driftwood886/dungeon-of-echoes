@@ -5466,6 +5466,24 @@ function cmdStatus(player) {
         temporada_de_sangre: '🩸 Temporada de Sangre — con HP ≤ 33%, ganás +3 ATK de furia desesperada.',
       };
       const label = RUN_EVENT_LABELS[player.run_event] || `🌐 ${player.run_event}`;
+      // DIS-2392: mini-tracker de bosses para Cacería del Filo
+      if (player.run_event === 'caceria_del_filo') {
+        try {
+          const se2392 = typeof player.status_effects === 'string' ? JSON.parse(player.status_effects || '{}') : (player.status_effects || {});
+          const killed2392 = se2392.vv_bosses_killed || {};
+          if (se2392.vv_challenge_done) {
+            return `Run:      ${label}\n          ✅ Cacería completada — Espectro y Lich caídos. ¡Doble loot activo!`;
+          }
+          const pendingBosses = [];
+          if (!killed2392.espectro) pendingBosses.push('Espectro del Corredor (sala 3)');
+          if (!killed2392.lich)    pendingBosses.push('Lich Anciano (sala 15)');
+          const killedCount = (killed2392.espectro ? 1 : 0) + (killed2392.lich ? 1 : 0);
+          const trackerLine = killedCount === 0
+            ? `          🎯 Objetivos: ${pendingBosses.join(' · ')}`
+            : `          🎯 Restantes: ${pendingBosses.join(' · ')}  (${killedCount}/2 caídos)`;
+          return `Run:      ${label}\n${trackerLine}`;
+        } catch (_) {}
+      }
       return `Run:      ${label}`;
     })(),
     // DIS-1840: mostrar evento global activo con timer en status
