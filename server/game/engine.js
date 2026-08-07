@@ -4212,12 +4212,16 @@ function cmdMove(player, direction) {
   // DIS-1932: Sala del Trono (sala 9) — consolidar effectText + golemWarningMsg en un bloque
   // Para evitar el spam de 6 mensajes separados en primera visita, unir efecto ambiental y
   // aviso del Gólem en una sola sección "Efectos de entrada".
+  // DIS-2386: también absorber trapText en este bloque en primera visita,
+  // para que quede separado del cinematicEvent narrativo por un salto visual claro.
   let _tronoConsolidated = '';
   if (targetId === 9 && firstVisitEver && effectText && golemWarningMsg) {
-    _tronoConsolidated = `\n\n⚠️ Efectos al entrar en la Sala del Trono:\n  ${effectText.trim()}\n  ${golemWarningMsg.trim()}`;
+    const _trapPart = trapText ? `\n  ${trapText.trim()}` : '';
+    _tronoConsolidated = `\n\n⚠️ Efectos al entrar en la Sala del Trono:\n  ${effectText.trim()}\n  ${golemWarningMsg.trim()}${_trapPart}`;
     // Los efectos individuales ya están consolidados
     effectText = '';
     golemWarningMsg = '';
+    trapText = ''; // DIS-2386: mover trapText al bloque consolidado para separarlo del intro narrativo
   }
 
   // DIS-1952: Agrupar mensajes pasivos (logros, hints, evento activo) en bloque "— Sistema —"
